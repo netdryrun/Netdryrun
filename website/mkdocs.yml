@@ -92,6 +92,7 @@ nav:
       - netdryrun.yml: reference/config.md
       - CLI and reports: reference/cli.md
   - GitHub Action: github-action.md
+  - GitLab CI: gitlab-ci.md
   - AI agents (MCP): ai-agents.md
   - Troubleshooting: troubleshooting.md
   - FAQ: faq.md

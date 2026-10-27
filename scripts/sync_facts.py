@@ -8,7 +8,8 @@ The facts are derived, never typed by hand:
   corpus       corpus/results/results.json (pre-registered scores)
 
 They are written into marked blocks (<!-- facts:NAME -->...<!-- /facts:NAME -->), the version
-fields of server.json, the GitHub Action refs in the docs, and website/docs/llms-full.txt.
+fields of server.json, the GitHub Action refs in the docs, the netdryrun==VERSION pins of the GitLab
+CI/CD component and its docs, and website/docs/llms-full.txt.
 
   python scripts/sync_facts.py           rewrite everything
   python scripts/sync_facts.py --check   exit 1 on any drift or stale phrase (CI)
@@ -35,7 +36,7 @@ PLATFORMS = {
 }
 
 # Public files the stale-phrase lint reads.
-PUBLIC = ["README.md", "AGENTS.md", "website/docs/llms.txt", "website/docs/llms-full.txt",
+PUBLIC = ["README.md", "AGENTS.md", "templates/netdryrun.yml", "website/docs/llms.txt", "website/docs/llms-full.txt",
           *sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in (ROOT / "website" / "docs").rglob("*.md"))]
 
 
@@ -154,6 +155,7 @@ def stale_patterns(f: dict) -> list[tuple[str, str]]:
     v = re.escape(f["version"])
     return [
         (rf"netdryrun/netdryrun@v(?!{v}\b)\d+\.\d+\.\d+", "GitHub Action pinned to an old release"),
+        (rf"netdryrun==(?!{v}\b)\d+\.\d+\.\d+", "GitLab component pinned to an old release"),
         (rf"(?i)\bversion (?!{v}\b)0\.\d+\.\d+", "old Netdryrun version"),
         (r"(?i)results? (?:are )?(?:pending|forthcoming)|coming soon", "corpus results are published"),
         (r"(?i)only (?:for )?FRR and (?:Nokia )?SR ?Linux|FRR and (?:Nokia )?SR Linux on Linux", "platform list is out of date"),
@@ -176,11 +178,13 @@ def main() -> int:
     for rel in ("README.md", "AGENTS.md", "website/docs/index.md", "website/docs/when-to-use-what.md",
                 "website/docs/llms.txt", "website/docs/github-action.md", "website/docs/trust.md",
                 "website/docs/how-its-built.md", "website/docs/ai-agents.md", "website/docs/faq.md",
-                "website/docs/tutorial.md", "website/docs/examples.md", "website/docs/troubleshooting.md"):
+                "website/docs/tutorial.md", "website/docs/examples.md", "website/docs/troubleshooting.md",
+                "website/docs/gitlab-ci.md", "templates/netdryrun.yml"):
         path = ROOT / rel
         old = path.read_text(encoding="utf-8")
         new = sync_blocks(old, values, rel, problems)
         new = re.sub(r"netdryrun/netdryrun@v\d+\.\d+\.\d+", f"netdryrun/netdryrun@v{f['version']}", new)
+        new = re.sub(r"netdryrun==\d+\.\d+\.\d+", f"netdryrun=={f['version']}", new)
         if new != old:
             changed[rel] = new
 

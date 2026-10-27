@@ -15,6 +15,7 @@ Facts (generated from the source): version 0.3.0; check types `bgp_session`, `bg
 - [netdryrun.yml reference](https://netdryrun.com/reference/config/): every check type and key, convergence semantics
 - [CLI and reports](https://netdryrun.com/reference/cli/): commands, flags, exit codes, JSON/Markdown/JUnit reports
 - [GitHub Action](https://netdryrun.com/github-action/): inputs, outputs, security notes
+- [GitLab CI](https://netdryrun.com/gitlab-ci/): the GitLab CI/CD component, inputs, runner requirements
 - [AI agents (MCP)](https://netdryrun.com/ai-agents/): MCP server tools and safety model
 
 ## Optional

@@ -154,6 +154,17 @@ jobs:
 
 The action installs containerlab, runs the checks, uploads the JSON and JUnit reports as an artifact, and fails the job if any check fails. Outputs: `status`, `passed`, `failed`, `inconclusive-reason`.
 
+## GitLab CI
+
+```yaml
+include:
+  - remote: https://raw.githubusercontent.com/netdryrun/netdryrun/main/templates/netdryrun.yml
+    inputs:
+      path: network/        # folder containing netdryrun.yml
+```
+
+The CI/CD component in [`templates/netdryrun.yml`](templates/netdryrun.yml) does the same as the action and publishes the JUnit report as the pipeline's test report. It needs a runner that allows privileged jobs, or a shell runner. Inputs and runner requirements: [GitLab CI](https://netdryrun.com/gitlab-ci/).
+
 ## For AI agents (MCP)
 
 **AI can propose network changes. Netdryrun verifies the outcome.** Agents: read [AGENTS.md](AGENTS.md).
