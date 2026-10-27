@@ -5,7 +5,7 @@ description: Every Netdryrun example lab. What each one shows, its topology and 
 
 # Examples
 
-The repository's [`examples/`](https://github.com/netdryrun/netdryrun/tree/main/examples) folder has one lab per supported network OS, a deliberately broken change, and the AI agent demo. Each folder holds a containerlab topology, the router configs and a `netdryrun.yml`.
+The repository's [`examples/`](https://github.com/netdryrun/netdryrun/tree/main/examples) folder has one lab per supported network OS, a deliberately broken change, a replica exported from NetBox, and the AI agent demo. Each folder holds a containerlab topology, the router configs and a `netdryrun.yml`.
 
 ```bash
 git clone https://github.com/netdryrun/netdryrun && cd netdryrun
@@ -23,6 +23,7 @@ Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images a
 | [srl-frr](#srl-frr) | Nokia SR Linux + FRR | Mixed vendors | `PASSED: 7 passed, 0 failed` | `0` | 60 s |
 | [sonic-frr](#sonic-frr) | SONiC VS + FRR | Configuring a NOS after boot, a port-down scenario | `PASSED: 8 passed, 0 failed` | `0` | 90 s |
 | [arista-frr](#arista-frr) | Arista cEOS + FRR (your image) | A bring-your-own vendor image | `PASSED: 10 passed, 0 failed` | `0` | 92 s |
+| [netbox-nrx](#netbox-nrx) | FRR, exported from NetBox by nrx | A replica built from NetBox, a ring, a link-failure scenario | `PASSED: 33 passed, 0 failed` | `0` | 73 s |
 | [agent-demo](#agent-demo) `demo.sh` | FRR | An agent's leaky change rejected, the fix accepted | `Demo OK` | `0` | 65 s |
 
 ## frr-bgp
@@ -72,6 +73,14 @@ CI runs this example on every push and expects it to fail.
 **Shows:** a vendor image you bring yourself. cEOS-lab is free from arista.com with an account but can't be redistributed, so import it as `ceos:4.36.3M` first (the comment in `topology.clab.yml` shows how). Checks: both sessions, a prefix count, a route on each side, a ping, best-path attributes on `ceos1`, no default route at the Arista, and a scenario that takes the link down from the FRR side.
 
 **Expected:** `PASSED: 10 passed, 0 failed (10 checks)`, exit code `0`. Without the image, the run stops with exit code `2`; see [the cEOS image is missing](troubleshooting.md#the-ceos-image-is-missing).
+
+## netbox-nrx
+
+[`examples/netbox-nrx`](https://github.com/netdryrun/netdryrun/tree/main/examples/netbox-nrx): four FRR routers (r1 to r4) in a ring, each in its own AS, described in NetBox and exported to containerlab by [nrx](https://github.com/netreplica/nrx). The configs come from a NetBox config template, so `lab/` is exactly what nrx wrote. Run `netdryrun run examples/netbox-nrx/lab`; the README has the steps from an empty NetBox.
+
+**Shows:** a replica built from a source of truth. The baseline started from `netdryrun record` and was reviewed: all 8 sessions, 12 LAN routes, prefix counts as ranges, a ping, a best path, no default route, and a scenario that takes the r1-r2 link down and checks that r2's LAN is reached the long way round. A typo in NetBox (r3's address on the r2-r3 link) fails 6 checks while every route and the ping still pass. See [Replica from NetBox](netbox.md).
+
+**Expected:** `PASSED: 33 passed, 0 failed (33 checks)`, exit code `0`.
 
 ## agent-demo
 

@@ -1,0 +1,15 @@
+# nrx platform map: NetBox platform slug "frr" -> a containerlab node built from nodes/frr.j2.
+type: platform_map
+version: v1
+platforms:
+  frr:
+    kinds:
+      clab: frr
+kinds:
+  clab:
+    frr:
+      nodes:
+        template: clab/nodes/frr.j2
+        image: quay.io/frrouting/frr:10.4.1
+      interface_names:
+        template: clab/interface_names/default.j2

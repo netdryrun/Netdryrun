@@ -1,0 +1,10 @@
+        {{ name }}:
+            kind: linux
+            image: {{ image }}
+            binds:
+                - daemons:/etc/frr/daemons
+                - vtysh.conf:/etc/frr/vtysh.conf
+                {% if startup_config is defined and startup_config|length > 0 %}
+                - {{ startup_config }}:/etc/frr/frr.conf
+                {% endif %}
+            {% include 'clab/labels.j2' %}

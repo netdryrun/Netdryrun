@@ -88,6 +88,7 @@ nav:
   - Getting started: getting-started.md
   - "Tutorial: test a change on your own lab": tutorial.md
   - Examples: examples.md
+  - "Replica from NetBox (nrx)": netbox.md
   - Reference:
       - netdryrun.yml: reference/config.md
       - CLI and reports: reference/cli.md

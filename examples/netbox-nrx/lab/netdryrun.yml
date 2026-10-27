@@ -1,0 +1,67 @@
+# Baseline for the replica of NetBox site demo-dc1, exported by nrx. Run: netdryrun run examples/netbox-nrx/lab
+#
+# Started from `netdryrun record lab/ndr-netbox-demo.clab.yaml --deploy` (netdryrun 0.3.0), then reviewed:
+# - every BGP session and every remote LAN route is kept as recorded;
+# - exact prefix counts became 1..10. In a ring, two neighbors offer equal-length paths to the far LAN,
+#   so which one a router picks (and so how many prefixes each neighbor sends) changes from boot to boot;
+# - added what record cannot know: a ping, the best path to r2's LAN, no default route, a link failure.
+lab: ndr-netbox-demo.clab.yaml
+timeout: 60
+
+checks:
+- {type: bgp_session, node: r1, neighbor: 10.0.12.2}
+- {type: bgp_session, node: r1, neighbor: 10.0.14.2}
+- {type: bgp_session, node: r2, neighbor: 10.0.12.1}
+- {type: bgp_session, node: r2, neighbor: 10.0.23.2}
+- {type: bgp_session, node: r3, neighbor: 10.0.23.1}
+- {type: bgp_session, node: r3, neighbor: 10.0.34.2}
+- {type: bgp_session, node: r4, neighbor: 10.0.14.1}
+- {type: bgp_session, node: r4, neighbor: 10.0.34.1}
+- {type: bgp_prefixes, node: r1, neighbor: 10.0.12.2, min: 1, max: 10}
+- {type: bgp_prefixes, node: r1, neighbor: 10.0.14.2, min: 1, max: 10}
+- {type: bgp_prefixes, node: r2, neighbor: 10.0.12.1, min: 1, max: 10}
+- {type: bgp_prefixes, node: r2, neighbor: 10.0.23.2, min: 1, max: 10}
+- {type: bgp_prefixes, node: r3, neighbor: 10.0.23.1, min: 1, max: 10}
+- {type: bgp_prefixes, node: r3, neighbor: 10.0.34.2, min: 1, max: 10}
+- {type: bgp_prefixes, node: r4, neighbor: 10.0.14.1, min: 1, max: 10}
+- {type: bgp_prefixes, node: r4, neighbor: 10.0.34.1, min: 1, max: 10}
+- {type: route, node: r1, prefix: 192.168.2.0/24, protocol: bgp}
+- {type: route, node: r1, prefix: 192.168.3.0/24, protocol: bgp}
+- {type: route, node: r1, prefix: 192.168.4.0/24, protocol: bgp}
+- {type: route, node: r2, prefix: 192.168.1.0/24, protocol: bgp}
+- {type: route, node: r2, prefix: 192.168.3.0/24, protocol: bgp}
+- {type: route, node: r2, prefix: 192.168.4.0/24, protocol: bgp}
+- {type: route, node: r3, prefix: 192.168.1.0/24, protocol: bgp}
+- {type: route, node: r3, prefix: 192.168.2.0/24, protocol: bgp}
+- {type: route, node: r3, prefix: 192.168.4.0/24, protocol: bgp}
+- {type: route, node: r4, prefix: 192.168.1.0/24, protocol: bgp}
+- {type: route, node: r4, prefix: 192.168.2.0/24, protocol: bgp}
+- {type: route, node: r4, prefix: 192.168.3.0/24, protocol: bgp}
+- type: ping         # r1's LAN reaches r3's LAN, two hops away
+  node: r1
+  source: 192.168.1.1
+  target: 192.168.3.1
+- type: bgp_route    # r1 reaches r2's LAN over the direct link
+  node: r1
+  prefix: 192.168.2.0/24
+  as_path: "65002"
+  next_hop: 10.0.12.2
+- type: route        # nothing should send r1 a default route
+  node: r1
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+
+scenarios:
+  - name: r1-r2 link fails
+    link_down: {node: r1, interface: eth1}
+    checks:
+      - type: bgp_route    # r2's LAN is still reachable, the long way round the ring
+        node: r1
+        prefix: 192.168.2.0/24
+        as_path: "65004 65003 65002"
+        next_hop: 10.0.14.2
+      - type: ping
+        node: r1
+        source: 192.168.1.1
+        target: 192.168.2.1
