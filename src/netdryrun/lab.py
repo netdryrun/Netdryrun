@@ -16,6 +16,10 @@ class LabError(RuntimeError):
     pass
 
 
+# containerlab kinds for the Cisco Nexus 9000v (a VM inside the container, vrnetlab)
+NXOS_KINDS = ("cisco_n9kv", "vr-n9kv", "vr-cisco_n9kv")
+
+
 @dataclass
 class Node:
     name: str        # short name from the topology, e.g. r1
@@ -247,6 +251,10 @@ class Lab:
     def _require_linux_links(self, node: str) -> None:
         if self.nodes[node].kind in ("nokia_srlinux", "srl"):
             raise LabError(f"failure scenarios on SR Linux nodes ({node}) are not supported yet; "
+                           "take the link down on the FRR/Linux side of the link instead")
+        if self.nodes[node].kind in NXOS_KINDS:
+            # the container's eth1.. only carry frames to the VM: taking one down is not an NX-OS link event
+            raise LabError(f"failure scenarios on NX-OS nodes ({node}) are not supported yet; "
                            "take the link down on the FRR/Linux side of the link instead")
 
     def set_link(self, node: str, interface: str, up: bool) -> ExecResult:
