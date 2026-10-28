@@ -799,7 +799,7 @@ def layer_live(args) -> Layer:
                            run(cmd, env={**os.environ, "NDR": str(live.ndr)}, timeout=7200))
         else:
             layer.add("pack", "check pack verification", MAJOR, None, "no --pack script given")
-        layer.add("scale", "20-node scale test", MAJOR, None, "not scripted in the repository yet: run it by hand")
+        live_scale(live, args)
         live_chaos(live, args)
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -927,6 +927,42 @@ def live_corpora(live: Live, args) -> None:
                   f"exit {p.code}" if p.code else (f"{len(diffs)} verdict(s) differ" if diffs else "all verdicts match"),
                   "\n".join(diffs) or tail(p.out), p.seconds, cmdline(["python", "corpus/run.py", "--corpus", version]))
         live.assert_clean(f"corpus-{version}", f"Verdict Corpus {version}")
+
+
+def live_scale(live: Live, args) -> None:
+    """scripts/scale_test.sh on the installed wheel: a generated FRR leaf-spine fabric of each size in
+    --scale-leaves, once clean (must PASS) and once with one leaked default route (must FAIL). The gate already
+    has the lab to itself (no other lab may be running), so the script runs with --no-lock."""
+    layer = live.layer
+    if args.skip_scale:
+        layer.add("scale", "scale test (50 nodes by default)", BLOCKER, None, "skipped with --skip-scale")
+        return
+    sizes = [int(x) for x in args.scale_leaves.split(",") if x.strip()]
+    lines, bad, seconds = [], [], 0.0
+    for leaves in sizes:
+        out = live.work / "scale" / str(leaves)
+        cmd = ["bash", ROOT / "scripts" / "scale_test.sh", leaves, "--ndr", live.ndr, "--out", out, "--no-lock"]
+        p = run(cmd, cwd=live.work, timeout=4 * 3600)
+        seconds += p.seconds
+        result = out / f"scale-{leaves}.json"
+        if result.exists():
+            write_out(args, f"scale-{leaves}.json", result.read_text(encoding="utf-8"))
+        runs = json.loads(result.read_text(encoding="utf-8"))["runs"] if result.exists() else []
+        names = {r["variant"] for r in runs}
+        if p.code != 0 or names != {"pass", "leak"}:
+            bad.append(f"{leaves + 2} nodes: exit {p.code}" + ("" if names == {"pass", "leak"} else ", a variant did not finish"))
+        for r in runs:
+            m = r.get("memory_mib") or {}
+            lines.append(f"{leaves + 2} nodes, {r['variant']}: exit {r['exit']} (want {r['expected_exit']}), "
+                         f"{r['seconds']['total']} s total, deploy+wait {r['seconds']['deploy_and_wait']} s, "
+                         f"checks {r['seconds']['checks']} s, destroy {r['seconds']['destroy']} s, "
+                         f"{m.get('per_node_peak')} MiB/node, {r['result_line']}")
+        layer_out = tail(p.out, 40)
+        lines.append(layer_out)
+        live.assert_clean(f"scale-{leaves + 2}", f"scale test {leaves + 2} nodes")
+    layer.add("scale", f"scale test ({', '.join(str(n + 2) for n in sizes)} nodes): clean passes, one leak fails",
+              BLOCKER, not bad, "; ".join(bad) or "ok", "\n".join(lines), seconds,
+              cmdline(["bash", "scripts/scale_test.sh", "<leaves>"]))
 
 
 def live_chaos(live: Live, args) -> None:
@@ -1362,6 +1398,10 @@ def main() -> int:
                     help="mutation: add diff fingerprints to accepted mutants that have none, after auditing each one")
     ap.add_argument("--allow-running-labs", action="store_true",
                     help="live: start although clab- containers exist (only new ones count as left over)")
+    ap.add_argument("--scale-leaves", default="48",
+                    help="live: leaves per scale test, comma-separated; the lab has leaves + 2 nodes "
+                         "(default 48 = 50 nodes; 48,98 adds the 100-node lab)")
+    ap.add_argument("--skip-scale", action="store_true", help="live: skip the scale test (recorded as SKIP)")
     ap.add_argument("--chaos-docker-restart", action="store_true", help="live: also restart Docker mid-run (sudo)")
     args = ap.parse_args()
 
