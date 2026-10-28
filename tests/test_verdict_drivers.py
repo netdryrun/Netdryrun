@@ -17,6 +17,7 @@ from netdryrun.drivers import base, eos, frr, srlinux
 from netdryrun.drivers.base import BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Route
 from netdryrun.drivers.eos import EosDriver
 from netdryrun.drivers.frr import FrrDriver
+from netdryrun.drivers.nxos import NxosDriver
 from netdryrun.drivers.sonic import SonicDriver
 from netdryrun.drivers.srlinux import SrlDriver
 from netdryrun.lab import ExecResult, Node
@@ -180,6 +181,8 @@ def N(name, kind="linux", image="x"):
     ("arista_ceos", "ceos", "eos"), ("ceos", "x", "eos"),
     ("sonic-vs", "x", "sonic"), ("sonic_vs", "x", "sonic"), ("linux", "docker-SONiC-vs:latest", "sonic"),
     ("linux", "quay.io/frrouting/FRR:10.4", "frr"),
+    ("cisco_n9kv", "vrnetlab/cisco_n9kv:9300-10.4.8.M", "nxos"), ("vr-n9kv", "x", "nxos"), ("vr-cisco_n9kv", "x", "nxos"),
+    ("cisco_n9kv", "frr-lookalike", "nxos"),   # the kind decides before any image-name guess
 ])
 def test_detect(kind, image, expected):
     assert drv.detect(N("r1", kind, image)) == expected
@@ -203,7 +206,9 @@ def test_for_node():
         drv.for_node(lab, "r2", "junos")
     with pytest.raises(DriverError):
         drv.for_node(lab, "r3")
-    assert drv.DRIVERS == {"frr": FrrDriver, "srlinux": SrlDriver, "eos": EosDriver, "sonic": SonicDriver}
+    assert type(drv.for_node(lab, "r3", "nxos")) is NxosDriver
+    assert drv.DRIVERS == {"frr": FrrDriver, "srlinux": SrlDriver, "eos": EosDriver, "sonic": SonicDriver,
+                           "nxos": NxosDriver}
 
 
 def test_check_supported(monkeypatch):

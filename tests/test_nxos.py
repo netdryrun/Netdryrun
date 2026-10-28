@@ -75,7 +75,9 @@ def test_link_faults_on_an_nxos_node_are_refused(tmp_path):
 
 def test_helper_failure_is_an_error_never_empty():
     """NX-OS still booting: the helper can't reach NX-API and exits 3. Every state call raises."""
-    booting = (3, "", "NX-API not reachable (is NX-OS still booting?): ConnectionRefusedError: [Errno 111]\n")
+    # the helper's message while the n9kv VM was booting (examples/nxos-frr, live run)
+    booting = (3, "", "NX-API not reachable (is NX-OS still booting?): URLError: <urlopen error _ssl.c:1012: "
+                      "The handshake operation timed out>\n")
     d = NxosDriver(Lab([("", booting)]), "n1")
     for call in (lambda: d.bgp_neighbors(), lambda: d.routes("10.0.0.0/24"), lambda: d.bgp_paths("10.0.0.0/24"),
                  lambda: d.all_routes()):
