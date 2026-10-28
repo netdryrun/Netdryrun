@@ -13,6 +13,7 @@ edit_uri: edit/main/website/docs/
 
 theme:
   name: material
+  variant: classic
   custom_dir: overrides
   language: en
   features:

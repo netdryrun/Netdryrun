@@ -39,13 +39,10 @@ def _faq(content: str) -> list[dict]:
     return out
 
 
-def on_page_content(content, page, config, files):
-    src = page.file.src_uri
-    url = page.canonical_url or (SITE + page.url)
-    title = _text(page.title or "")
-    description = page.meta.get("description") or config["site_description"]
+def build_jsonld(src, url, title, description, content, markdown, is_home):
+    """The per-page JSON-LD string (or None). Shared by the MkDocs hook and postbuild_jsonld.py (Zensical)."""
     graph = []
-    if not page.is_homepage:
+    if not is_home:
         graph.append({"@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "Netdryrun", "item": SITE},
             {"@type": "ListItem", "position": 2, "name": title, "item": url},
@@ -59,14 +56,24 @@ def on_page_content(content, page, config, files):
                           "about": SOFTWARE, "mainEntity": questions})
     elif src.startswith("posts/"):
         post = {"@type": "BlogPosting", **base}
-        date = re.search(r"\b(20\d\d-\d\d-\d\d)\b", page.markdown[:400])
+        date = re.search(r"\b(20\d\d-\d\d-\d\d)\b", markdown[:400])
         if date:
             post["datePublished"] = date.group(1)
         graph.append(post)
     elif src in ARTICLES or src.startswith(ARTICLE_DIRS):
         graph.append({"@type": "TechArticle", **base})
-    if graph:
-        data = {"@context": "https://schema.org", "@graph": graph}
-        # "</" inside a <script> element would end it early.
-        page.meta["jsonld"] = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    if not graph:
+        return None
+    data = {"@context": "https://schema.org", "@graph": graph}
+    # "</" inside a <script> element would end it early.
+    return json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+
+
+def on_page_content(content, page, config, files):
+    url = page.canonical_url or (SITE + page.url)
+    jsonld = build_jsonld(page.file.src_uri, url, _text(page.title or ""),
+                          page.meta.get("description") or config["site_description"],
+                          content, page.markdown, page.is_homepage)
+    if jsonld:
+        page.meta["jsonld"] = jsonld
     return content

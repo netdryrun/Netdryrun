@@ -5,11 +5,11 @@
   <meta property="og:site_name" content="Netdryrun">
   {% if page %}
   <meta property="og:title" content="{{ page.title | striptags }} - Netdryrun">
-  <meta property="og:description" content="{{ page.meta.description or config.site_description }}">
+  <meta property="og:description" content="{{ (page.meta.description if page.meta and page.meta.description else config.site_description) }}">
   <meta property="og:url" content="{{ page.canonical_url }}">
-  <meta property="og:type" content="{{ 'website' if page.is_homepage else 'article' }}">
+  <meta property="og:type" content="{{ 'website' if (page.url == '') else 'article' }}">
   <meta name="twitter:title" content="{{ page.title | striptags }} - Netdryrun">
-  <meta name="twitter:description" content="{{ page.meta.description or config.site_description }}">
+  <meta name="twitter:description" content="{{ (page.meta.description if page.meta and page.meta.description else config.site_description) }}">
   {% endif %}
   <meta property="og:locale" content="en_US">
   <meta property="og:image" content="https://netdryrun.com/assets/netdryrun-social-1280x640.png">
@@ -22,7 +22,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="{{ 'assets/favicon-32.png' | url }}">
   <link rel="apple-touch-icon" href="{{ 'assets/netdryrun-mark-180.png' | url }}">
   <meta name="theme-color" content="#041334">
-  {% if page and page.is_homepage %}
+  {% if page and (page.url == '') %}
   <!-- The landing page is not a docs page: no heading permalinks, no "edit this page" button -->
   <style>.md-content__button, .md-typeset .headerlink { display: none; }</style>
   {% endif %}
@@ -89,7 +89,7 @@
     ]
   }
   </script>
-  {% if page and page.meta.jsonld %}
+  {% if page and page.meta and page.meta.jsonld %}
   <script type="application/ld+json">{{ page.meta.jsonld }}</script>
   {% endif %}
 {% endblock %}
