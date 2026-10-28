@@ -32,7 +32,12 @@ PLATFORMS = {
     "srlinux": ("Nokia SR Linux", "Nokia SR Linux", "SR Linux"),
     "sonic": ("SONiC (docker-sonic-vs)", "SONiC", "SONiC"),
     "eos": ("Arista EOS (cEOS, bring your own image)", "Arista EOS (bring your own cEOS image)", "Arista EOS"),
+    "nxos": ("Cisco NX-OS (Nexus 9000v, beta, bring your own image)", "Cisco NX-OS (beta, bring your own Nexus 9000v image)",
+             "Cisco NX-OS (beta)"),
 }
+# Drivers in the code that no release has shipped yet: public facts follow releases, so these stay out of
+# every status line until the release that ships them removes them from this set.
+UNRELEASED = {"nxos"}
 
 
 def _rel(paths) -> list[str]:
@@ -87,7 +92,8 @@ def facts() -> dict:
     mcp_tools = [n.name for n in _module(SRC / "mcp_server.py").body if isinstance(n, ast.FunctionDef)
                  and any(isinstance(d, ast.Call) and getattr(d.func, "attr", "") == "tool" for d in n.decorator_list)]
 
-    return {"version": version, "platforms": [PLATFORMS[d] for d in PLATFORMS], "drivers": list(PLATFORMS),
+    released = [d for d in PLATFORMS if d not in UNRELEASED]
+    return {"version": version, "platforms": [PLATFORMS[d] for d in released], "drivers": released,
             "check_types": check_types, "mcp_tools": mcp_tools,
             "route_injection": '"inject_routes"' in (SRC / "config.py").read_text(encoding="utf-8"),
             "corpus": _corpus(ROOT / "corpus" / "results" / "results.json"),

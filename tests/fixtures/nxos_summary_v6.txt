@@ -1,0 +1,56 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf-name-out":	"default",
+					"vrf-router-id":	"192.168.10.1",
+					"vrf-local-as":	"65001",
+					"TABLE_af":	{
+						"ROW_af":	{
+							"af-id":	"2",
+							"TABLE_saf":	{
+								"ROW_saf":	{
+									"safi":	1,
+									"af-name":	"IPv6 Unicast",
+									"tableversion":	"4",
+									"configuredpeers":	"1",
+									"capablepeers":	"1",
+									"totalnetworks":	"1",
+									"totalpaths":	"1",
+									"memoryused":	"304",
+									"numberattrs":	"1",
+									"bytesattrs":	"368",
+									"numberpaths":	"1",
+									"bytespaths":	"6",
+									"numbercommunities":	"1",
+									"bytescommunities":	"48",
+									"numberclusterlist":	"0",
+									"bytesclusterlist":	"0",
+									"dampening":	"false",
+									"TABLE_neighbor":	{
+										"ROW_neighbor":	{
+											"neighborid":	"2001:db8:1::2",
+											"neighborversion":	"4",
+											"msgrecvd":	9,
+											"msgsent":	9,
+											"neighbortableversion":	"4",
+											"inq":	"0",
+											"outq":	"0",
+											"neighboras":	"65002",
+											"time":	"PT5M46S",
+											"state":	"Established",
+											"prefixreceived":	"1"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}

@@ -1,0 +1,48 @@
+nxos_version.txt	cli	show version	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_v4.txt	cli	show bgp ipv4 unicast summary vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_v6.txt	cli	show bgp ipv6 unicast summary vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_red.txt	cli	show bgp ipv4 unicast summary vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_red_v6.txt	cli	show bgp ipv6 unicast summary vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_nbr_detail.txt	cli	show bgp ipv4 unicast neighbors 10.0.1.2 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_20.txt	cli	show ip route 192.168.20.0/24 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_default.txt	cli	show ip route 0.0.0.0/0 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_default.txt	cli	show bgp ipv4 unicast 0.0.0.0/0 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_20.txt	cli	show bgp ipv4 unicast 192.168.20.0/24 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_local.txt	cli	show bgp ipv4 unicast 192.168.10.1/32 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_local.txt	cli	show ip route 192.168.10.1/32 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_66.txt	cli	show bgp ipv4 unicast 192.168.66.0/24 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_66.txt	cli	show ip route 192.168.66.0/24 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_red.txt	cli	show ip route 172.16.2.0/24 vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_red.txt	cli	show bgp ipv4 unicast 172.16.2.0/24 vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_absent_red.txt	cli	show ip route 10.99.0.0/16 vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_absent_red.txt	cli	show bgp ipv4 unicast 10.99.0.0/16 vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_novrf.txt	cli	show ip route 10.0.0.0/8 vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_novrf.txt	cli	show bgp ipv4 unicast 10.0.0.0/8 vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_emptyvrf.txt	cli	show ip route 10.0.0.0/8 vrf EMPTY	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_emptyvrf.txt	cli	show bgp ipv4 unicast 10.0.0.0/8 vrf EMPTY	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_all_routes.txt	cli	show ip route vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_all_routes_v6.txt	cli	show ipv6 route vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_all_routes_emptyvrf.txt	cli	show ip route vrf EMPTY	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_all_routes_novrf.txt	cli	show ip route vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_route_v6.txt	cli	show ipv6 route 2001:db8:20::/48 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_v6.txt	cli	show bgp ipv6 unicast 2001:db8:20::/48 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_vrf_red.txt	cli	show vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_vrf_empty.txt	cli	show vrf EMPTY	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_vrf_nope.txt	cli	show vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_vrf_default.txt	cli	show vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_ping_ok.txt	cli_ascii	ping 10.0.1.2 count 3 source 10.0.1.1 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_ping_lo.txt	cli_ascii	ping 192.168.20.1 count 3 source 192.168.10.1 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_ping_red.txt	cli_ascii	ping 10.0.2.2 count 3 vrf RED	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_ping_fail.txt	cli_ascii	ping 192.0.2.1 count 2 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_ping_novrf.txt	cli_ascii	ping 10.0.2.2 count 2 vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_ping6_ok.txt	cli_ascii	ping6 2001:db8:1::2 count 3 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_ping_badsrc.txt	cli_ascii	ping 10.0.1.2 count 2 source 10.9.9.9 vrf default	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_emptyvrf.txt	cli	show bgp ipv4 unicast summary vrf EMPTY	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_novrf.txt	cli	show bgp ipv4 unicast summary vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_invalid.txt	cli	show bgp bogus	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_v6_novrf.txt	cli	show bgp ipv6 unicast summary vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_emptyvrf_ascii.txt	cli_ascii	show bgp ipv4 unicast summary vrf EMPTY	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_summary_novrf_ascii.txt	cli_ascii	show bgp ipv4 unicast summary vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_vrf_list.txt	cli	show bgp vrf all ipv4 unicast summary	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_process_emptyvrf.txt	cli	show bgp process vrf EMPTY	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28
+nxos_bgp_process_novrf.txt	cli	show bgp process vrf NOPE	0	vrnetlab/cisco_n9kv:9300-10.4.8.M	2026-10-28

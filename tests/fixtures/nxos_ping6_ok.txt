@@ -1,0 +1,7 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"msg":	"PING6 2001:db8:1::2 (2001:db8:1::2): 56 data bytes\n64 bytes from 2001:db8:1::2: icmp_seq=0 time=41.014 ms\n64 bytes from 2001:db8:1::2: icmp_seq=1 time=50.73 ms\n64 bytes from 2001:db8:1::2: icmp_seq=2 time=54.608 ms\n\n--- 2001:db8:1::2 ping6 statistics ---\n3 packets transmitted, 3 packets received, 0.00% packet loss\nround-trip min/avg/max = 41.014/48.784/54.608 ms\n"
+	},
+	"id":	1
+}

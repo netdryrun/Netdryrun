@@ -1,0 +1,39 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf-name-out":	"RED",
+					"TABLE_addrf":	{
+						"ROW_addrf":	{
+							"addrf":	"ipv4",
+							"TABLE_prefix":	{
+								"ROW_prefix":	{
+									"ipprefix":	"172.16.2.0/24",
+									"ucast-nhops":	1,
+									"mcast-nhops":	0,
+									"attached":	"false",
+									"TABLE_path":	{
+										"ROW_path":	{
+											"entry":	0,
+											"ipnexthop":	"10.0.2.2",
+											"uptime":	"PT6M28S",
+											"pref":	20,
+											"metric":	0,
+											"clientname":	"bgp-65001",
+											"type":	"external",
+											"tag":	65003,
+											"ubest":	"true"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}
