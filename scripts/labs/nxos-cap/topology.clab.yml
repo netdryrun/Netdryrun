@@ -1,0 +1,36 @@
+# The lab the NX-OS fixtures (tests/fixtures/nxos_*.txt) were captured from: n1 (Nexus 9000v) with VRFs RED (an
+# FRR peer) and EMPTY (no BGP), an IPv6 session, a configured-but-idle neighbor, communities, MED and local-pref
+# on 192.168.20.0/24, a prefix denied by policy (192.168.66.0/24) and a leaked default under a static. Used by
+# scripts/capture_fixtures.sh nxos.
+name: ndr-nxos-cap
+topology:
+  nodes:
+    n1:
+      kind: cisco_n9kv
+      image: vrnetlab/cisco_n9kv:9300-10.4.8.M
+      startup-config: configs/n1.cfg
+      env:
+        QEMU_MEMORY: 8192
+    f1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/f1.conf:/etc/frr/frr.conf
+      exec:
+        - ip addr add 10.0.1.2/30 dev eth1
+        - ip -6 addr add 2001:db8:1::2/64 dev eth1
+        - ip addr add 192.168.20.1/32 dev lo
+    f2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/f2.conf:/etc/frr/frr.conf
+      exec:
+        - ip addr add 10.0.2.2/30 dev eth1
+  links:
+    - endpoints: ["n1:eth1", "f1:eth1"]
+    - endpoints: ["n1:eth2", "f2:eth1"]

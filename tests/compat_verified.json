@@ -1,11 +1,24 @@
 {
-  "frr": {"date": "2026-10-28"},
+  "frr": {
+    "date": "2026-10-28"
+  },
   "srlinux": {
     "date": "2026-10-27",
     "limits": [
       "`bgp_prefixes` counts the neighbor's `received-routes`, which on SR Linux 26.7.2 includes routes that fail BGP loop detection and are not usable. On a live capture of `examples/srl-frr` on 2026-10-28 the counter read 3 where one prefix was usable and `rejected-routes` read 0. A `min` or `exact` prefix check on SR Linux can pass on a count that includes unusable routes. The test data above predates that capture; it has not yet been re-captured."
     ]
   },
-  "sonic": {"date": "2026-10-28"},
-  "eos": {"date": "2026-10-28"}
+  "sonic": {
+    "date": "2026-10-28"
+  },
+  "eos": {
+    "date": "2026-10-28"
+  },
+  "nxos": {
+    "date": "2026-10-28",
+    "limits": [
+      "Each NX-OS node is a VM inside its container: NX-API answered 5 to 7 minutes after deploy in our runs, and the node needs KVM, 4 vCPUs and about 9 GiB of memory (8 GB for the VM). Give checks a `timeout` of at least 900 s.",
+      "Failure scenarios (`link_down`, `node_isolated`) on an NX-OS node are refused: the container's interfaces only carry frames to the VM. Take the link down on the other side of the link."
+    ]
+  }
 }

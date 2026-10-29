@@ -444,3 +444,8 @@ def test_exact_commands_per_vrf_and_family():
     lab.calls.clear()
     d.bgp_neighbors("RED")
     assert lab.commands() == ["show bgp ipv4 unicast summary vrf RED", "show bgp ipv6 unicast summary vrf RED"]
+
+
+def test_helper_can_be_quoted_by_the_capture_script():
+    """scripts/capture_fixtures.sh passes HELPER inside single quotes to `bash -c`."""
+    assert not set("'$`") & set(nxos.HELPER)
