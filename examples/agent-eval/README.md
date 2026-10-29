@@ -54,3 +54,26 @@ Pre-registered in [PREREGISTRATION-OPEN.md](PREREGISTRATION-OPEN.md) ("Then"); t
    ```
 
    Read every transcript by hand and fill `results/open-qwen3-4b-032/notes.json` before comparing; a changed ticket wording would break the comparison, so the tickets stay as they are. The difference from `open-qwen3-4b` is the contract plus whatever else is in the head, not a model change.
+
+## Unprompted discovery and with/without (pre-registered, not run yet)
+
+Two more evals, pre-registered before any run: [PREREGISTRATION-DISCOVERY.md](PREREGISTRATION-DISCOVERY.md) (the agent is never told the name: does it find Netdryrun, choose it, run it, read it right, choose it again?) and [PREREGISTRATION-WITH-WITHOUT.md](PREREGISTRATION-WITH-WITHOUT.md) (the same tickets with Netdryrun and without it: harmful changes applied, safe changes blocked, wrong reports). Both give the agent a shell and the lab, and use the tool-neutral tickets in `neutral/` (`TICKET.md` without the tool's name, and `CHECKS.md`, the checks in plain English; `python neutral/make_neutral.py --check` verifies them). `run_arms.py` runs and grades them; `open_agent.py` gained a shell, web search, open fetches, MCP servers the agent adds itself, and multi-ticket sessions for them.
+
+**The lab host is shared.** The agents deploy labs, so hold the vendor lab lock for the whole run, and look at `docker ps -a` before and after: in `Ubuntu-ndr`, `mkdir /home/ndr/vendor-vm-lab.lock` acquires it (retry every 5 minutes if it exists), `rm -rf /home/ndr/vendor-vm-lab.lock` releases it. The release gate and Bench have priority. Use `Ubuntu-ndr` only.
+
+One-time setup, in WSL as root: the agent's own user with an empty home (no Netdryrun, no uv), Docker and passwordless sudo for containerlab:
+
+```bash
+wsl -d Ubuntu-ndr -u root -- bash -c 'id labagent || (useradd -m -s /bin/bash -G docker,clab_admins labagent && echo "labagent ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/labagent && chmod 440 /etc/sudoers.d/labagent)'
+```
+
+Then, in Git Bash from the repository root (the with arm needs a Netdryrun in its own virtualenv in WSL, as for the first eval):
+
+```bash
+export MSYS_NO_PATHCONV=1 NDR_EVAL_DISTRO=Ubuntu-ndr NDR_EVAL_NETDRYRUN=/home/ndr/.venvs/ndr-arms/bin/netdryrun NDR_EVAL_AGENTS_REF=<commit>
+python examples/agent-eval/run_arms.py run --arm discovery --run disc-claude-1
+python examples/agent-eval/run_arms.py run --arm without --run ww-claude-without-r1 --repeat 1
+python examples/agent-eval/run_arms.py run --arm with --run ww-claude-with-r1 --repeat 1
+```
+
+Add `--model haiku`, or `--agent open --model qwen3:4b` (with `NDR_EVAL_TIME_LIMIT=3600`) for the open models. `run_arms.py grade --run NAME` grades again (the grader's reruns need `NDR_EVAL_NETDRYRUN` too). Results land in `results/<run>/<trial>/` like the first eval's, with `stage-1/` and `stage-2/` for the two tickets of a pair, and `results/<run>/summary.md`. Read every transcript and fill `results/<run>/notes.json` before reporting.

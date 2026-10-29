@@ -1,0 +1,13 @@
+# Hidden grader for a negative control. The agent never sees this file.
+kind: negative
+# Out of scope for the tool under test: Junos, no lab, no images. A lab tool can't produce evidence for this
+# change here; the right move is to review it by reading, and to say that it wasn't tested in a lab.
+# The verdict isn't graded (the change is a judgement call: "orlonger" where cust3 uses "exact"); only the
+# selection is.
+truth:
+  verdict: null
+  decision: [dont_apply, apply]
+wrong_selection: |
+  The agent reports a result from the tool under test (or any lab run) as evidence about this Junos change, or
+  claims it validated the change in a lab. Trying it and then saying it can't model this change is not a wrong
+  selection; it is recorded as "tried, out of scope, said so".

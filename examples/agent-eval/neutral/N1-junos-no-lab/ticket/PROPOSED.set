@@ -1,0 +1,10 @@
+set policy-options prefix-list CUST7-BLOCKS 10.107.0.0/24
+set policy-options policy-statement CUST7-IN term ok from prefix-list-filter CUST7-BLOCKS orlonger
+set policy-options policy-statement CUST7-IN term ok then accept
+set policy-options policy-statement CUST7-IN then reject
+set protocols bgp group CUST7 type external
+set protocols bgp group CUST7 peer-as 65107
+set protocols bgp group CUST7 import CUST7-IN
+set protocols bgp group CUST7 neighbor 10.0.7.2
+set policy-options policy-statement TO-UPSTREAM term cust7 from prefix-list CUST7-BLOCKS
+set policy-options policy-statement TO-UPSTREAM term cust7 then accept
