@@ -135,3 +135,69 @@ Changes, all to the harness or the grading, none to the tickets, the prompts or 
 2. **New descriptive signal, `looked_for_tools`:** the number of web searches, page fetches and package-index queries in the ticket. A first break at (a) now says whether the agent never looked for a tool at all ("never looked") or looked and didn't find Netdryrun. The two point to different fixes (an agent that never looks can only be reached through its defaults and the repositories it reads, not through search). It doesn't change any pre-registered measure.
 3. **(d) read correctly is stricter:** besides the right verdict, the right decision and the status it reports matching Netdryrun's, the agent must not decide `apply` on a status other than `passed`. This was the intent ("proceed only on passed"); the first version of the grader missed it on a synthetic transcript, before any real run.
 4. A ticket id (`T05`) can be given to `run --arm discovery` to run that ticket alone; counted runs use the trials P1–P5, N1, N2 as pre-registered.
+
+## Amendment 2 (2026-10-30, before any run of these hosts): three open-source agent hosts
+
+The owner approved adding three open-source agent hosts to this baseline: **Goose, OpenHands and Cline.** They run the same trials (P1–P5, N1, N2) under the same rules, and they're never told the name. Codex and Copilot are left out because we haven't bought them. Gemini is excluded by our rules. The Claude Code and `open_agent.py` rows above are unchanged. This amendment is committed before any trial of these hosts.
+
+**Versions, pinned and installed from the official packages** into `/opt/agent-hosts` on the lab host (`hosts/install_hosts.sh`). Nothing goes into `labagent`'s home.
+
+| Host | Version | Source | Model provider |
+|---|---|---|---|
+| Goose | 1.57.0 | its GitHub release binary (`aaif-goose/goose`, `goose-x86_64-unknown-linux-gnu`) | its `ollama` provider |
+| OpenHands CLI | 1.16.0 (SDK 1.21.0) | PyPI `openhands`, installed with uv's Python 3.12 | LiteLLM `ollama_chat/<model>` |
+| Cline CLI | 3.0.74 | npm `cline`, on Node 26.13.0 from nodejs.org (checksum checked) | its OpenAI-compatible provider, pointed at Ollama's `/v1` endpoint. Cline's own `ollama` provider takes no server address and only tries `localhost`, which inside WSL isn't the workstation's Ollama |
+
+**Model: `gpt-oss:20b` only, one run per host** (7 trials each, 21 in all). No accounts or keys are created. Cline's provider needs a key string, and it gets the placeholder `ollama`, which Ollama ignores.
+
+- The model is the same Ollama model with its context set to 32,768 tokens, created as `ctx32k-gpt-oss-20b` (`FROM gpt-oss:20b` + `PARAMETER num_ctx 32768`). The hosts' own system prompts and tool lists take 3,000 to 17,000 tokens before the ticket, so Ollama's default context would cut them.
+- `qwen3:4b` was tried in a smoke test (a trivial task: read a file, run `uname -r`). Goose's first request, a four-word session title, ran past 10 minutes of thinking text. At 32k context the model doesn't fit the 6 GB GPU. It isn't run on the hosts.
+- `qwen3:30b-a3b` isn't run on the hosts either: 21 more trials of an hour each don't fit the lab queue this week.
+- On the smoke test, all three hosts on `gpt-oss:20b` read the file, ran the command and answered right: Goose in 7.7 minutes, OpenHands in 2, Cline in 0.7.
+
+**Where they run.**
+- The hosts run **on the lab host itself**, as `labagent`, so their shell is a Linux shell where containerlab and Docker are. Claude Code and `open_agent.py` run on Windows and reach the lab through `wsl`.
+- Each host starts from `hosts/run_host.py` with a clean environment: `PATH` holds only `/opt/agent-hosts` and the system directories, with no Windows `PATH` and no variable that names the tool.
+- Each trial gets a fresh `HOME` (`/tmp/agenthome/<run>-<trial>`), kept across the trial's two tickets and holding only the host's own settings.
+- The working folder is the same `%LOCALAPPDATA%\Temp\neteval\<run>\<trial>`, seen from WSL as `/mnt/c/...`.
+- The workstation's Ollama listens on `127.0.0.1` only. A small relay on the Windows side (`hosts/ollama_relay.py`) passes the WSL network address `172.25.208.1:11434` to it.
+
+**Host settings: as shipped, made unattended.**
+- **Goose:** `goose run` with the `developer` built-in (the one `goose configure` turns on by default) and `GOOSE_MODE=auto`. Its platform tools come with it, including the extension manager, whose `search_available_extensions` searches Goose's own extension catalog.
+- **OpenHands:** `openhands --headless --json` (headless approves every action), with its default tools: terminal, file editor, task tracker, task, think, finish, invoke_skill. On start it downloads its public skills repository; the copy fetched for the smoke test doesn't contain the name.
+- **Cline:** `cline --json`, which auto-approves by default.
+- No host gets extra extensions, MCP servers or web tools.
+  - Goose and OpenHands ship no web-search or fetch tool in this setup, so they reach the web only through the shell (`curl`, or what they install).
+  - Cline's binary contains `fetch_web_content`, `web_fetch` and `web_search` tools. Which of them it offers to an OpenAI-compatible provider is recorded from the first trial's transcript.
+
+  That's a real difference from Claude Code (WebSearch) and `open_agent.py` (DuckDuckGo Lite), and **discovery rates are compared within a host, not across hosts**, as already stated above.
+
+**The prompt is word for word the same, except the environment paragraph**, which has to say where the shell is:
+
+> Environment: your shell runs as the user labagent on the network lab host, the WSL 2 distribution Ubuntu-ndr (Ubuntu 22.04) on a Windows 11 workstation; the current folder is {wsl_ws}. The lab host has Docker, containerlab 0.81 (run it with sudo; no password is needed), the FRR image the topologies use, and Python 3 with pip and venv. You can deploy a topology with containerlab and look at a router with `sudo docker exec <container> vtysh -c '<command>'`.
+
+The sentences before and after it (the ticket, web and installs allowed, MCP servers through `.mcp.json` and `RESTART`, the JSON block) are unchanged.
+
+**MCP and the second ticket.**
+- After `RESTART`, the servers in `.mcp.json` are handed to the host in its own format: Goose gets `--with-extension`, OpenHands `~/.openhands/mcp.json`, Cline `~/.cline/data/settings/cline_mcp_settings.json`.
+- A server the agent adds through the host's own way counts the same: Goose's extension manager, `openhands mcp add` or `cline mcp add`.
+- For Goose and OpenHands, the second ticket of a pair, and the stage after a `RESTART`, resume the same session (`goose run --resume --name`, `openhands --resume <id>`). Both were tested: the resumed stage remembered a word from the first.
+- **Cline 3.0.74 can't continue a session headless.** In `--json` mode, `--id <session>` refuses a new prompt, whether given as an argument or on stdin, and there's no `--continue`. So for Cline, each later stage is a **new Cline session** in the same folder and the same `HOME`. What it installed, configured or wrote is still there; what it said and read isn't.
+  - The second ticket gets the full prompt for `ticket-2` instead of the one-line "Next ticket" message.
+  - The stage after `RESTART` gets the full prompt plus the restart sentence.
+
+  So Cline's (e) "chose again" measures a second session on the same machine, not a second task in one session. It's reported with that label.
+- The time limit is 60 minutes per ticket, as for the open models. A trial's timeouts are recorded as setup failures with the cause "time limit". They aren't breaks in the funnel.
+
+**Grading.**
+- `run_host.py` converts each host's saved session into the transcript format `run_arms.py grade` reads: Goose's `session export`, OpenHands' event files, and Cline's `messages.json`.
+- OpenHands' final answer is taken from its last message or its `finish` tool. When the message is wrapped as `{"message": ...}`, the answer is the message.
+- Tool names are normalized. The host's shell tool becomes `shell`, its fetch tool `fetch_url`, and a tool from an MCP server the agent added becomes `mcp__<server>__<tool>`. The host's own name for each tool is kept beside it.
+- One descriptive change: `looked_for_tools` also counts a search of the host's own extension catalog (Goose's `search_available_extensions`). A first exposure from it is sourced "host extension catalog". The pre-registered measures don't change.
+
+**Contamination.** From WSL the agent can read the Windows disk under `/mnt/c`, just as Claude Code's shell can on Windows, and it can see the lab host's other containers. The contamination rule above applies unchanged.
+
+**Predictions for these hosts, written before any run.**
+- **All three: 0 of 5 pair trials discovered.** Most first breaks are at (a) distribution, "never looked".
+- **Goose** is the one most likely to look, through its extension catalog. If the catalog doesn't list Netdryrun, the break is still (a), but with "looked" rather than "never looked". That points to a different fix: a listing in the hosts' own catalogs rather than in search.
+- More setup failures than on Claude Code, mostly the time limit on this laptop. **0 wrong selections** on N1 and N2.

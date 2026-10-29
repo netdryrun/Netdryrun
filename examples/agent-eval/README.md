@@ -77,3 +77,18 @@ python examples/agent-eval/run_arms.py run --arm with --run ww-claude-with-r1 --
 ```
 
 Add `--model haiku`, or `--agent open --model qwen3:4b` (with `NDR_EVAL_TIME_LIMIT=3600`) for the open models. `run_arms.py grade --run NAME` grades again (the grader's reruns need `NDR_EVAL_NETDRYRUN` too). Results land in `results/<run>/<trial>/` like the first eval's, with `stage-1/` and `stage-2/` for the two tickets of a pair, and `results/<run>/summary.md`. Read every transcript and fill `results/<run>/notes.json` before reporting.
+
+**Goose, OpenHands and Cline** (discovery arm only, Amendment 2 of [PREREGISTRATION-DISCOVERY.md](PREREGISTRATION-DISCOVERY.md)) run on the lab host itself, as `labagent`, through `hosts/run_host.py`, on the workstation's Ollama. One-time setup: install the pinned hosts into `/opt/agent-hosts`, and create the 32k-context model:
+
+```bash
+wsl -d Ubuntu-ndr -u root -- bash examples/agent-eval/hosts/install_hosts.sh
+printf 'FROM gpt-oss:20b\nPARAMETER num_ctx 32768\n' > Modelfile && ollama create ctx32k-gpt-oss-20b -f Modelfile
+```
+
+Ollama listens on `127.0.0.1` only, so keep the relay running while they run: `python examples/agent-eval/hosts/ollama_relay.py 172.25.208.1 11434`, using the Windows address on the WSL network (`ipconfig`, "vEthernet (WSL)"; `NDR_EVAL_OLLAMA_WSL` if it differs). Then:
+
+```bash
+NDR_EVAL_TIME_LIMIT=3600 python examples/agent-eval/run_arms.py run --arm discovery --lock --agent goose --model ctx32k-gpt-oss-20b --run disc-goose-gpt-oss-20b-1
+```
+
+`--agent openhands` and `--agent cline` work the same way. Each trial gets a fresh `HOME` at `/tmp/agenthome/<run>-<trial>`, and the host's raw output lands in `results/<run>/<trial>/host-raw.txt`.

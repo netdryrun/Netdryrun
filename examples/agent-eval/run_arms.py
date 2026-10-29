@@ -93,6 +93,15 @@ CLAUDE_TOOLS = {
 }
 OPEN_TOOLS = {"discovery": ("files,shell,web_search,fetch", "*"), "with": ("files,shell,fetch", "netdryrun.com"),
               "without": ("files,shell", "netdryrun.com")}
+# Goose, OpenHands and Cline run on the lab host itself (hosts/run_host.py), so their shell is already there
+ENV_LAB = ("Environment: your shell runs as the user labagent on the network lab host, the WSL 2 distribution "
+           "Ubuntu-ndr (Ubuntu 22.04) on a Windows 11 workstation; the current folder is {wsl_ws}. The lab host has "
+           "Docker, containerlab 0.81 (run it with sudo; no password is needed), the FRR image the topologies use, "
+           "and Python 3 with pip and venv. You can deploy a topology with containerlab and look at a router with "
+           "`sudo docker exec <container> vtysh -c '<command>'`.")
+HOSTS = {"goose": "1.57.0", "openhands": "1.16.0", "cline": "3.0.74"}  # pinned installs under /opt/agent-hosts
+FRESH_SESSIONS = {"cline"}  # Cline 3.0.74 can't continue a session headless (--id takes no prompt in --json mode)
+OLLAMA_WSL = os.environ.get("NDR_EVAL_OLLAMA_WSL", "http://172.25.208.1:11434")  # Windows' Ollama, seen from WSL
 
 
 def agent_env() -> dict:
@@ -210,7 +219,35 @@ def claude_stage(prompt: str, ws: Path, arm: str, model: str | None, session: st
     return sid, final, timed_out
 
 
-def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str | None, agent: dict | None) -> dict:
+def host_stage(host: str, prompt: str, ws: Path, model: str, session: str | None, home: str, raw: Path,
+               so) -> tuple[str | None, str, bool]:
+    """One stage of Goose, OpenHands or Cline, run on the lab host as labagent; its events go to the transcript."""
+    spec, events = ws.parent / f"{ws.name}.spec.json", ws.parent / f"{ws.name}.stage.jsonl"
+    spec.write_text(json.dumps({"host": host, "model": model, "ollama": OLLAMA_WSL, "home": home,
+                                "cwd": base.wsl_path(ws), "prompt": prompt, "session": session, "name": ws.name,
+                                "time_limit": TIME_LIMIT, "raw": base.wsl_path(raw), "out": base.wsl_path(events)}))
+    events.unlink(missing_ok=True)
+    try:
+        subprocess.run(["wsl.exe", "-d", DISTRO, "-u", "labagent", "--exec", "python3",
+                        base.wsl_path(HERE / "hosts" / "run_host.py"), base.wsl_path(spec)],
+                       stdin=subprocess.DEVNULL, capture_output=True, timeout=TIME_LIMIT + 300)
+    except subprocess.TimeoutExpired:
+        pass
+    final, timed_out = "", True
+    if events.exists():
+        data = events.read_bytes()
+        so.write(data)
+        for line in data.decode("utf-8", "replace").splitlines():
+            ev = json.loads(line)
+            if ev.get("type") == "system" and ev.get("subtype") == "init":
+                session = ev.get("session_id") or session
+            if ev.get("type") == "result":
+                final, timed_out = ev.get("result") or "", bool(ev.get("timed_out"))
+    return session, final, timed_out
+
+
+def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str | None, agent: dict | None,
+              host: str | None = None) -> dict:
     out = RESULTS / run / trial
     if out.exists():
         shutil.rmtree(out)
@@ -224,7 +261,11 @@ def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str 
     before = containers()
     wsl_ws = base.wsl_path(ws)
     fmt = lambda k: dict(t=f"ticket-{k}", wsl_ws=wsl_ws, wsl_t=f"{wsl_ws}/ticket-{k}")  # noqa: E731
-    prompt = PROMPTS[arm].format(**fmt(1))
+    template = PROMPTS[arm].replace(ENV, ENV_LAB) if host else PROMPTS[arm]
+    prompt = template.format(**fmt(1))
+    home = f"/tmp/agenthome/{run}-{trial}"  # the host's HOME for this trial: fresh, kept across its stages
+    if host:
+        wsl(f"rm -rf '{home}'", user="labagent")
     started = time.time()
     timed_out = []
     with open(out / "transcript.jsonl", "wb") as so, open(out / "stderr.txt", "wb") as se:
@@ -263,8 +304,14 @@ def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str 
                     build_ticket(tid, arm, ws / f"ticket-{k}", labels[k - 1])
                     so.write((json.dumps({"type": "system", "subtype": "stage", "stage": k}) + "\n").encode())
                 text = prompt if k == 1 else NEXT.format(**fmt(k))
-                for restart in range(3):  # RESTART: Claude Code reloads with the agent's .mcp.json, at most twice
-                    session, final, to = claude_stage(text, ws, arm, model, session, out, so, se)
+                for restart in range(3):  # RESTART: the host reloads with the agent's .mcp.json, at most twice
+                    if host in FRESH_SESSIONS and (k > 1 or restart):  # can't resume headless: a new session, same HOME
+                        session = None
+                        text = template.format(**fmt(k)) + (" " + RESTARTED if restart else "")
+                    if host:
+                        session, final, to = host_stage(host, text, ws, model, session, home, out / "host-raw.txt", so)
+                    else:
+                        session, final, to = claude_stage(text, ws, arm, model, session, out, so, se)
                     if to:
                         timed_out.append(k)
                     lines = final.strip().splitlines()
@@ -276,7 +323,9 @@ def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str 
     meta = {"trial": trial, "tickets": list(tids), "arm": arm, "run": run, "timed_out": timed_out,
             "wall_s": round(time.time() - started, 1), "workspace": str(ws), "model_requested": model,
             "netdryrun": NDR if arm == "with" else None, "agents_ref": base.AGENTS_REF if arm == "with" else None,
-            "agent": "open_agent" if agent else "claude_code", "agent_options": agent}
+            "agent": host or ("open_agent" if agent else "claude_code"), "agent_options": agent}
+    if host:
+        meta.update(host_version=HOSTS[host], host_home=home, ollama=OLLAMA_WSL)
     cleanup = clean_lab(ws, before, labels)
     meta["cleanup"] = cleanup
     (out / "run.json").write_text(json.dumps(meta, indent=2))
@@ -356,6 +405,8 @@ def source(name: str | None, text: str) -> str:
     """Where a first sight of the tool's name came from."""
     if name in ("WebSearch", "web_search"):
         return "web search"
+    if (name or "").endswith("search_available_extensions"):
+        return "host extension catalog"
     if name in ("WebFetch", "fetch_url"):
         return "registry" if "registry.modelcontextprotocol.io" in text else "web page"
     if name in ("Bash", "shell") and re.search(r"\b(pip|pipx|uv|uvx|npm|curl|wget)\b", text):
@@ -369,7 +420,8 @@ def discovery_signals(evs: list[dict], seen_before: bool, report: Path | None = 
     pending_use = ""
     looked = 0  # web searches, page fetches and registry or package-index queries: did it look for a tool at all?
     for kind, name, text in tool_events(evs):
-        if kind == "use" and (name in ("WebSearch", "web_search", "WebFetch", "fetch_url") or (
+        if kind == "use" and (name in ("WebSearch", "web_search", "WebFetch", "fetch_url")
+                              or (name or "").endswith("search_available_extensions") or (
                 name in ("Bash", "shell") and re.search(r"\b(curl|wget|pip3? (search|index|download))\b", text))):
             looked += 1
         if kind in ("use", "say") and not exposed and TOOL_RE.search(text):
@@ -582,7 +634,7 @@ def main() -> None:
     ap.add_argument("--model")
     ap.add_argument("--no-rerun", action="store_true")
     ap.add_argument("--lock", action="store_true", help=f"take {LOCK} before each trial and release it after")
-    ap.add_argument("--agent", choices=["claude", "open"], default="claude")
+    ap.add_argument("--agent", choices=["claude", "open", *HOSTS], default="claude")
     ap.add_argument("--backend", choices=["ollama", "openai"], default="ollama")
     ap.add_argument("--base-url")
     ap.add_argument("--think", choices=["true", "false"])
@@ -592,6 +644,12 @@ def main() -> None:
         if not a.model:
             ap.error("--agent open needs --model")
         agent = {"backend": a.backend, "base_url": a.base_url, "think": a.think}
+    host = a.agent if a.agent in HOSTS else None
+    if host and a.action == "run":
+        if not a.model or a.arm != "discovery":
+            ap.error(f"--agent {host} runs the discovery arm, with --model (an Ollama model)")
+        if '"version"' not in wsl(f"curl -s -m 5 {OLLAMA_WSL}/api/version", user="labagent").stdout:
+            raise SystemExit(f"Ollama isn't reachable from {DISTRO} at {OLLAMA_WSL}: start the relay (README.md)")
     if a.action == "run":
         if not a.arm:
             ap.error("run needs --arm")
@@ -608,7 +666,7 @@ def main() -> None:
             if a.lock:
                 lock_acquire(f"agent-evals {a.run} {trial}")
             try:
-                print(json.dumps(run_trial(trial, tids, a.arm, a.run, a.model, agent)), flush=True)
+                print(json.dumps(run_trial(trial, tids, a.arm, a.run, a.model, agent, host)), flush=True)
                 if a.lock:  # the grader's reruns use the lab too: grade while the lock is held
                     g = grade_trial(trial, a.run, not a.no_rerun)
                     print(trial, g.get("first_break") or [st.get("solved") for st in g["stages"]], flush=True)
