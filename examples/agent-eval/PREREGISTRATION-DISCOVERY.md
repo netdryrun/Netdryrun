@@ -194,6 +194,7 @@ The sentences before and after it (the ticket, web and installs allowed, MCP ser
 - OpenHands' final answer is taken from its last message or its `finish` tool. When the message is wrapped as `{"message": ...}`, the answer is the message.
 - Tool names are normalized. The host's shell tool becomes `shell`, its fetch tool `fetch_url`, and a tool from an MCP server the agent added becomes `mcp__<server>__<tool>`. The host's own name for each tool is kept beside it.
 - One descriptive change: `looked_for_tools` also counts a search of the host's own extension catalog (Goose's `search_available_extensions`). A first exposure from it is sourced "host extension catalog". The pre-registered measures don't change.
+- The answer reader also accepts a final message that is only the JSON object, without the ```json fence (OpenHands' finish tool returns it that way; found on the N2 dry run, 2026-10-30, before any counted host trial). It applies to every agent. The answer isn't one of the funnel measures (a)–(e).
 
 **Contamination.** From WSL the agent can read the Windows disk under `/mnt/c`, just as Claude Code's shell can on Windows, and it can see the lab host's other containers. The contamination rule above applies unchanged.
 

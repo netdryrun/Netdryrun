@@ -463,6 +463,8 @@ def answer_of(evs: list[dict]) -> tuple[dict | None, str, bool]:
         if ev.get("type") == "result":
             text, is_error = ev.get("result") or "", bool(ev.get("is_error"))
     blocks = re.findall(r"```json\s*(\{.*?\})\s*```", text, re.S)
+    if not blocks and text.strip().startswith("{") and text.strip().endswith("}"):
+        blocks = [text.strip()]  # a final message that is only the JSON object, unfenced (OpenHands' finish tool)
     try:
         return (json.loads(blocks[-1]) if blocks else None), text, is_error
     except json.JSONDecodeError:
