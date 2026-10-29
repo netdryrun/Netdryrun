@@ -112,6 +112,23 @@ def wsl(cmd: str, user: str = "root", timeout: int = 600) -> subprocess.Complete
                           capture_output=True, text=True, timeout=timeout)
 
 
+LOCK = "/home/ndr/vendor-vm-lab.lock"
+
+
+def lock_acquire(owner: str) -> None:
+    """The shared lab host's lock: mkdir takes it; if another session holds it, retry every 5 minutes."""
+    while wsl(f"mkdir {LOCK} 2>/dev/null && echo '{owner} '$(date -Iseconds) > {LOCK}/owner", user="ndr").returncode:
+        print(f"lab lock held ({wsl(f'cat {LOCK}/owner', user='ndr').stdout.strip()}); retrying in 5 minutes", flush=True)
+        time.sleep(300)
+    print("lab containers before:", sorted(containers()), flush=True)
+
+
+def lock_release(owner: str) -> None:
+    """Release the lock only if it is still ours."""
+    print("lab containers after:", sorted(containers()), flush=True)
+    wsl(f"grep -qF '{owner} ' {LOCK}/owner && rm -rf {LOCK}", user="ndr")
+
+
 def containers() -> set[str]:
     return set(wsl("docker ps -a --format '{{.Names}}'").stdout.split())
 
@@ -564,6 +581,7 @@ def main() -> None:
     ap.add_argument("--repeat", type=int, default=1, help="with/without: the ticket order is shuffled with this seed")
     ap.add_argument("--model")
     ap.add_argument("--no-rerun", action="store_true")
+    ap.add_argument("--lock", action="store_true", help=f"take {LOCK} before each trial and release it after")
     ap.add_argument("--agent", choices=["claude", "open"], default="claude")
     ap.add_argument("--backend", choices=["ollama", "openai"], default="ollama")
     ap.add_argument("--base-url")
@@ -587,8 +605,18 @@ def main() -> None:
             random.Random(a.repeat).shuffle(ids)
             plan = [(t[:3], (t,)) for t in ids]
         for trial, tids in plan:  # one at a time: the agents share one lab host
-            print(json.dumps(run_trial(trial, tids, a.arm, a.run, a.model, agent)), flush=True)
-    if a.action in ("run", "grade"):
+            if a.lock:
+                lock_acquire(f"agent-evals {a.run} {trial}")
+            try:
+                print(json.dumps(run_trial(trial, tids, a.arm, a.run, a.model, agent)), flush=True)
+                if a.lock:  # the grader's reruns use the lab too: grade while the lock is held
+                    g = grade_trial(trial, a.run, not a.no_rerun)
+                    print(trial, g.get("first_break") or [st.get("solved") for st in g["stages"]], flush=True)
+            finally:
+                if a.lock:
+                    lock_release(f"agent-evals {a.run} {trial}")
+                    time.sleep(120)  # let a waiting session (the release gate has priority) take the lock first
+    if a.action == "grade" or (a.action == "run" and not a.lock):
         names = sorted(p.name for p in (RESULTS / a.run).iterdir() if (p / "run.json").exists())
         for trial in [n for n in names if not a.trials or n in a.trials or any(n.startswith(x) for x in a.trials)]:
             g = grade_trial(trial, a.run, not a.no_rerun)
