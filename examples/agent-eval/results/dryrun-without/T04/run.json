@@ -1,0 +1,17 @@
+{
+  "trial": "T04",
+  "tickets": [
+    "T04-review-community"
+  ],
+  "arm": "without",
+  "run": "dryrun-without",
+  "timed_out": [],
+  "wall_s": 78.1,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\dryrun-without\\T04",
+  "model_requested": null,
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "claude_code",
+  "agent_options": null,
+  "containers_left_behind": []
+}

@@ -1,0 +1,1 @@
+{"mcpServers": {"netdryrun": {"command": "wsl.exe", "args": ["-d", "Ubuntu-ndr", "--", "env", "NETDRYRUN_MCP_ROOT=/mnt/c/Users/manag/AppData/Local/Temp/neteval/dryrun-with/T04", "/home/ndr/.venvs/ndr-arms/bin/netdryrun", "mcp"]}}}

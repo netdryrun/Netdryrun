@@ -1,0 +1,17 @@
+{
+  "trial": "T04",
+  "tickets": [
+    "T04-review-community"
+  ],
+  "arm": "with",
+  "run": "dryrun-with",
+  "timed_out": [],
+  "wall_s": 72.0,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\dryrun-with\\T04",
+  "model_requested": null,
+  "netdryrun": "/home/ndr/.venvs/ndr-arms/bin/netdryrun",
+  "agents_ref": "e969299",
+  "agent": "claude_code",
+  "agent_options": null,
+  "containers_left_behind": []
+}

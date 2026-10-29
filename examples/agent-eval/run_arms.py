@@ -260,8 +260,8 @@ def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str 
             "wall_s": round(time.time() - started, 1), "workspace": str(ws), "model_requested": model,
             "netdryrun": NDR if arm == "with" else None, "agents_ref": base.AGENTS_REF if arm == "with" else None,
             "agent": "open_agent" if agent else "claude_code", "agent_options": agent}
-    cleanup = clean_lab(ws, before)
-    meta["containers_left_behind"] = cleanup
+    cleanup = clean_lab(ws, before, labels)
+    meta["cleanup"] = cleanup
     (out / "run.json").write_text(json.dumps(meta, indent=2))
     for k in range(1, len(tids) + 1):
         tdir = ws / f"ticket-{k}"
@@ -278,15 +278,17 @@ def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str 
     return meta
 
 
-def clean_lab(ws: Path, before: set[str]) -> list[str]:
-    """Destroy the trial's labs, then remove any container the trial created that is still there. Only containers
-    that didn't exist when the trial started are touched (the lab lock keeps everyone else off the host)."""
+def clean_lab(ws: Path, before: set[str], labels: list[str]) -> dict:
+    """Destroy the trial's labs, then remove what is left of them: only containers named after this trial's own
+    labs (clab-lab-<label>-*) that didn't exist when it started. Any other new container is reported, never
+    touched: another session may have started a lab on the shared host during the trial."""
     for topo in ws.rglob("*.clab.yml"):
         wsl(f"cd '{base.wsl_path(topo.parent)}' && containerlab destroy -t '{topo.name}' --cleanup >/dev/null 2>&1; true")
-    left = sorted(containers() - before)
-    for name in left:
+    new = sorted(containers() - before)
+    ours = [n for n in new if any(n.startswith(f"clab-lab-{lab}-") for lab in labels)]
+    for name in ours:
         wsl(f"docker rm -f '{name}' >/dev/null 2>&1; true")
-    return left
+    return {"removed": ours, "not_ours_left_alone": [n for n in new if n not in ours]}
 
 
 # -------------------------------------------------------------------------------------------- grade
@@ -348,7 +350,11 @@ def discovery_signals(evs: list[dict], seen_before: bool, report: Path | None = 
     exposed, discovered, chose, last_status, other = seen_before, seen_before, False, None, set()
     first = None
     pending_use = ""
+    looked = 0  # web searches, page fetches and registry or package-index queries: did it look for a tool at all?
     for kind, name, text in tool_events(evs):
+        if kind == "use" and (name in ("WebSearch", "web_search", "WebFetch", "fetch_url") or (
+                name in ("Bash", "shell") and re.search(r"\b(curl|wget|pip3? (search|index|download))\b", text))):
+            looked += 1
         if kind in ("use", "say") and not exposed and TOOL_RE.search(text):
             # named before any tool output showed it: the model knew it already
             exposed, first = True, {"tool": None, "source": "the model's own knowledge", "call": text[:300]}
@@ -377,7 +383,7 @@ def discovery_signals(evs: list[dict], seen_before: bool, report: Path | None = 
             last_status = json.loads(report.read_text(encoding="utf-8")).get("status") or last_status
         except json.JSONDecodeError:
             pass
-    return {"exposed": exposed, "first_exposure": first, "discovered": discovered, "chose": chose,
+    return {"looked_for_tools": looked, "exposed": exposed, "first_exposure": first, "discovered": discovered, "chose": chose,
             "completed": last_status in ("passed", "failed", "inconclusive"), "last_status": last_status,
             "other_tools": sorted(other)}
 
@@ -461,7 +467,7 @@ def grade_trial(trial: str, run: str, rerun: bool = True) -> dict:
     arm, tids = meta["arm"], meta["tickets"]
     parts = stages(out / "transcript.jsonl")
     res = {"trial": trial, "arm": arm, "agent": meta["agent"], "model_requested": meta["model_requested"],
-           "wall_s": meta["wall_s"], "containers_left_behind": meta.get("containers_left_behind"), "stages": []}
+           "wall_s": meta["wall_s"], "cleanup": meta.get("cleanup", meta.get("containers_left_behind")), "stages": []}
     init = next((e for e in parts[0] if e.get("type") == "system" and e.get("subtype") == "init"), {})
     res["model"] = init.get("model")
     res["valid"] = arm != "with" or [s.get("status") for s in init.get("mcp_servers", [])] == ["connected"]
@@ -498,7 +504,7 @@ def first_break(sts: list[dict]) -> str | None:
         return None
     d = sts[0]["discovery"]
     if not d["discovered"]:
-        return "a: distribution (not discovered)"
+        return "a: distribution (not discovered" + ("; never looked" if not d["looked_for_tools"] else "") + ")"
     if not d["chose"]:
         return "b: positioning (discovered, not chosen)"
     if not d["completed"]:

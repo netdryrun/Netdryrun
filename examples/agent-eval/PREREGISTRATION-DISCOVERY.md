@@ -115,3 +115,23 @@ These are guesses, written down so the result can prove them wrong.
 ## What this can't show
 
 Seven trials per run, a handful of agents, one workstation, one wording, tickets written by the tool's author. Search results change daily, so a rerun on another day measures a slightly different web. The setup tells the agent there is a lab and that MCP servers can be added; an agent in the wild may have neither. A low rate on these hosts says little about hosts we can't run (Codex, Cursor, Copilot), which are where many agents live.
+
+## Amendment 1 (2026-10-29, after the dry run, before any counted run)
+
+**Dry run** (not counted; `results/dryrun-*`), one ticket per arm to prove the harness, Claude Code 2.1.116 with its default model (`claude-opus-4-7`), Netdryrun 0.3.2 in the with arm:
+
+| Run | Ticket | What happened | Graded |
+|---|---|---|---|
+| `dryrun-discovery` | T05 (alone, not paired) | Read the ticket, deployed the lab with containerlab, checked every line of `CHECKS.md` with vtysh, destroyed the lab. **No web search, no fetch, no registry.** Right verdict and decision. 102 s, USD 0.54 | first break (a) distribution, "never looked" |
+| `dryrun-without` | T04 | Deployed the lab, found the extended community with vtysh JSON on up1. Right. 78 s, USD 0.38 | solved |
+| `dryrun-with` | T04 | One `dry_run` call, read the two failed community checks right. Right. 72 s, USD 0.27 | solved, used Netdryrun |
+| `dryrun-open-discovery` | N2 (`qwen3:4b`, `open_agent.py`) | Listed the files, read the ticket and the log, answered without any tool search or lab (4 turns, 198 s). Substance right (the upstream sends Cease/Administrative Shutdown), but it filled the JSON with `safe`/`apply`/`passed`, which don't fit an incident question | no wrong selection; "never looked" |
+
+The N2 answer shows the JSON block's keys don't fit the incident question. That's acceptable for a negative control, where only the selection is graded; the `apply` it wrote changes nothing (rules kept), and it isn't counted as an error.
+
+Changes, all to the harness or the grading, none to the tickets, the prompts or the predictions:
+
+1. **Lab cleanup.** After the discovery trial, the cleanup removed three containers another session had started on the shared host during the trial (`clab-ndr-apply-v1-*`), because it removed every container that didn't exist when the trial started. Now it removes only containers named after the trial's own labs (`clab-lab-<trial>-<n>-*`) and reports any other new container without touching it (`run.json`, `cleanup`). The coordinator was told the same minute.
+2. **New descriptive signal, `looked_for_tools`:** the number of web searches, page fetches and package-index queries in the ticket. A first break at (a) now says whether the agent never looked for a tool at all ("never looked") or looked and didn't find Netdryrun. The two point to different fixes (an agent that never looks can only be reached through its defaults and the repositories it reads, not through search). It doesn't change any pre-registered measure.
+3. **(d) read correctly is stricter:** besides the right verdict, the right decision and the status it reports matching Netdryrun's, the agent must not decide `apply` on a status other than `passed`. This was the intent ("proceed only on passed"); the first version of the grader missed it on a synthetic transcript, before any real run.
+4. A ticket id (`T05`) can be given to `run --arm discovery` to run that ticket alone; counted runs use the trials P1–P5, N1, N2 as pre-registered.

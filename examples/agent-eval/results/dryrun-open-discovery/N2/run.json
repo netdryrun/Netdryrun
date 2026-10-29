@@ -1,0 +1,24 @@
+{
+  "trial": "N2",
+  "tickets": [
+    "N2-production-state"
+  ],
+  "arm": "discovery",
+  "run": "dryrun-open-discovery",
+  "timed_out": [],
+  "wall_s": 198.3,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\dryrun-open-discovery\\N2",
+  "model_requested": "qwen3:4b",
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "open_agent",
+  "agent_options": {
+    "backend": "ollama",
+    "base_url": null,
+    "think": null
+  },
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": []
+  }
+}

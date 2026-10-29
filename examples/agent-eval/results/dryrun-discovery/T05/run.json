@@ -1,0 +1,21 @@
+{
+  "trial": "T05",
+  "tickets": [
+    "T05-review-safe"
+  ],
+  "arm": "discovery",
+  "run": "dryrun-discovery",
+  "timed_out": [],
+  "wall_s": 102.3,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\dryrun-discovery\\T05",
+  "model_requested": null,
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "claude_code",
+  "agent_options": null,
+  "containers_left_behind": [
+    "clab-ndr-apply-v1-r1",
+    "clab-ndr-apply-v1-r2",
+    "clab-ndr-apply-v1-r3"
+  ]
+}

@@ -84,3 +84,7 @@ Per ticket and arm, by `run_arms.py grade`, then read by hand (`results/<run>/no
 ## What this can't show
 
 Ten tickets on two small FRR labs, written by the tool's author, who knows where its edges are. The without arm is "an agent with a lab and a shell", not "an agent with nothing": an agent with no lab at all would do worse, and we don't measure that. The with arm is told it has Netdryrun; that's the prompted case, and the discovery eval measures the unprompted one. Three repeats can't show small effects. One workstation, one wording.
+
+## Amendment 1 (2026-10-29, after the dry run, before any counted run)
+
+The dry run (one ticket per arm, not counted) and the harness changes it led to are listed in [PREREGISTRATION-DISCOVERY.md, Amendment 1](PREREGISTRATION-DISCOVERY.md#amendment-1-2026-10-29-after-the-dry-run-before-any-counted-run). For this eval: `dryrun-without` and `dryrun-with` on T04 both solved it (78 s and USD 0.38 without, 72 s and USD 0.27 with one `dry_run` call), which shows the two arms run and grade; one ticket says nothing about the comparison. The lab cleanup now removes only containers of the trial's own labs. No change to the tickets, prompts, measures, decision rule or predictions.
