@@ -303,6 +303,10 @@ def _ping_ok(r) -> bool:
 
 
 FAIL_SAFE = [
+    # eos.parse_out_delays: a neighbor left out -> its advertisement delay is "not known" (None), never 0
+    ("eos.parse_out_delays", lambda t: eos.parse_out_delays(t),
+     ["eos_bgp_config.txt", "eos_bgp_config_outdelay.txt", "eos_bgp_config_peergroup.txt"],
+     lambda r: isinstance(r, dict) and all(isinstance(k, str) and isinstance(v, float) and v >= 0 for k, v in r.items())),
     ("frr.parse_vrfs", lambda t: frr.parse_vrfs(t), ["frr_route.txt"],
      lambda r: isinstance(r, dict) and all(isinstance(k, str) and isinstance(v, bool) for k, v in r.items())),
     ("frr.parse_ping", frr.parse_ping, ["frr_ping.txt", "srl_ping.txt", "eos_ping.txt"], _ping_ok),

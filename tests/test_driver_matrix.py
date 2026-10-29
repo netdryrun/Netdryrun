@@ -83,7 +83,8 @@ def frr_like():
 
 def eos_rules():
     def neighbors(text):
-        return [("show ipv6 bgp summary", EOS_NO_V6_PEERS), ("show ip bgp summary", text)]
+        return [("show ipv6 bgp summary", EOS_NO_V6_PEERS), ("show ip bgp summary", text),
+                ("running-config", fx("eos_bgp_config.txt"))]
 
     def routes(route_text, bgp_text):
         return [("show ip route", route_text), ("show ip bgp", bgp_text)]

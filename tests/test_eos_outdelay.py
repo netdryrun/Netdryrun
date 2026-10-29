@@ -102,3 +102,34 @@ def test_runner_stretches_settle_for_eos_out_delay():
                ("show ip bgp summary", read("eos_bgp_summary.txt"))])
     longest = max(n.adv_interval for n in EosDriver(lab, "ceos1").bgp_neighbors().value.values())
     assert longest + ADV_MARGIN == 13.0
+
+
+VRFS = """router bgp 65030
+   neighbor 10.0.0.1 remote-as 1
+   neighbor 10.0.0.1 out-delay 3
+   vrf RED
+      neighbor 10.1.0.1 remote-as 2
+      neighbor 10.1.0.1 out-delay 9
+      address-family ipv4
+         neighbor 10.1.0.1 activate
+   vrf BLUE
+      neighbor 10.2.0.1 out-delay 4
+"""
+
+
+def test_each_vrf_reads_its_own_block():
+    from netdryrun.drivers import eos
+    assert eos.parse_out_delays(VRFS) == {"10.0.0.1": 3.0}
+    assert eos.parse_out_delays(VRFS, "RED") == {"10.1.0.1": 9.0}
+    assert eos.parse_out_delays(VRFS, "BLUE") == {"10.2.0.1": 4.0}
+    assert eos.parse_out_delays(VRFS, "GREEN") == {}
+
+
+@pytest.mark.parametrize("text", [
+    "", "garbage", "router bgp 1\n   address-family ipv4\n      neighbor 10.0.0.1 out-delay 3\n",
+    "router bgp 1\n   neighbor 10.0.0.1 out-delay x\n", "router bgp 1\n   out-delay 5\n",
+    "router bgp 1\n   vrf RED\n      address-family ipv4\n         neighbor 10.1.0.1 out-delay 3\n"])
+def test_out_delay_the_parser_cannot_place_raises(text):
+    from netdryrun.drivers import DriverError, eos
+    with pytest.raises(DriverError):
+        eos.parse_out_delays(text, "RED" if "vrf RED" in text else "default")

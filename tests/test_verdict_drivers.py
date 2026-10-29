@@ -904,19 +904,23 @@ def test_eos_bgp_neighbors_commands_and_counts():
                         "10.0.0.3": {"peerState": "Idle (Admin)"}})
     v6 = eos_summary(**{"10.0.0.2": {"peerState": "Established", "prefixAccepted": "5"},
                         "2001:db8:0::1": {"peerState": "Active", "prefixAccepted": 0}})
-    lab = Lab([("ipv6 bgp summary", v6), ("ip bgp summary", v4)])
+    lab = Lab([("ipv6 bgp summary", v6), ("ip bgp summary", v4), ("running-config", "router bgp 65000\n   neighbor 10.0.0.2 out-delay 4\n   vrf red\n      neighbor 10.9.0.2 remote-as 1\n")])
     obs = EosDriver(lab, "r1").bgp_neighbors()
     assert lab.lines() == ["Cli -p 15 -c show ip bgp summary vrf default | json",
-                           "Cli -p 15 -c show ipv6 bgp summary vrf default | json"]
+                           "Cli -p 15 -c show ipv6 bgp summary vrf default | json",
+                           "Cli -p 15 -c show running-config section router bgp"]
     n = obs.value
     assert n["10.0.0.2"] == BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 3, "ipv6-unicast": 5})
     assert n["10.0.0.3"] == BgpNeighbor("10.0.0.3", "idle", {})
     assert n["2001:db8::1"] == BgpNeighbor("2001:db8:0::1", "active", {"ipv6-unicast": 0})
-    assert len(obs.evidence) == 2
-    lab = Lab([("ipv6 bgp summary", eos_summary("red")), ("ip bgp summary", eos_summary("red"))])
+    # the advertisement delay from the configuration: 10.0.0.2's own, the others not named there (unknown)
+    assert (n["10.0.0.2"].adv_interval, n["10.0.0.3"].adv_interval, n["2001:db8::1"].adv_interval) == (4.0, None, None)
+    assert len(obs.evidence) == 3
+    lab = Lab([("ipv6 bgp summary", eos_summary("red")), ("ip bgp summary", eos_summary("red")), ("running-config", "router bgp 65000\n   neighbor 10.0.0.2 out-delay 4\n   vrf red\n      neighbor 10.9.0.2 remote-as 1\n")])
     assert EosDriver(lab, "r1").bgp_neighbors("red").value == {}
     assert lab.lines() == ["Cli -p 15 -c show ip bgp summary vrf red | json",
-                           "Cli -p 15 -c show ipv6 bgp summary vrf red | json"]
+                           "Cli -p 15 -c show ipv6 bgp summary vrf red | json",
+                           "Cli -p 15 -c show running-config section router bgp"]
     with pytest.raises(DriverError):   # the VRF is not in the answer
         EosDriver(Lab([("bgp summary", eos_summary("red"))]), "r1").bgp_neighbors("blue")
 
@@ -1149,9 +1153,11 @@ def test_default_vrf_everywhere():
     EosDriver(lab, "r1").bgp_paths("10.1.0.0/16")
     EosDriver(lab, "r1").all_routes()
     assert all("vrf default " in ln for ln in lab.lines())
-    lab = Lab([("bgp summary", eos_summary())])
+    lab = Lab([("bgp summary", eos_summary()), ("running-config", "router bgp 65000\n")])
     EosDriver(lab, "r1").bgp_neighbors()
-    assert all("vrf default " in ln for ln in lab.lines())
+    # the configuration is read whole and scoped to the VRF by the parser
+    assert all("vrf default " in ln for ln in lab.lines() if "running-config" not in ln)
+    assert lab.lines()[-1] == "Cli -p 15 -c show running-config section router bgp"
     lab = Lab([("show bgp", "{}"), ("route", "{}")])
     FrrDriver(lab, "r1").routes("10.1.0.0/16")
     FrrDriver(lab, "r1").bgp_paths("10.1.0.0/16")

@@ -253,6 +253,7 @@ def test_srlinux_reads_its_minimum_advertisement_interval():
         text.replace('"minimum-advertisement-interval": 5', '"minimum-advertisement-interval": 60')).values()} == {60.0}
 
 
-def test_eos_uses_its_platform_default_out_delay():
-    """EOS's summary carries no interval; EOS sends without delay unless `out-delay` is configured (not read)."""
-    assert {n.adv_interval for n in eos.parse_bgp_summary(read("eos_bgp_summary.txt")).values()} == {0.0}
+def test_eos_summary_alone_does_not_know_the_out_delay():
+    """EOS's summary carries no advertisement delay: the driver reads it from the configuration
+    (tests/test_eos_outdelay.py); the summary alone leaves it unknown, never 0."""
+    assert {n.adv_interval for n in eos.parse_bgp_summary(read("eos_bgp_summary.txt")).values()} == {None}

@@ -169,7 +169,8 @@ def test_eos_failed_ipv6_summary_raises(v6):
 def test_eos_ipv6_summary_is_still_read():
     v6 = json.loads(read("eos_bgp_summary.txt"))
     v6["vrfs"]["default"]["peers"] = {"2001:db8::2": {"peerState": "Established", "prefixAccepted": 7}}
-    lab = Lab([("show ipv6 bgp summary", _obj(v6)), ("show ip bgp summary", read("eos_bgp_summary.txt"))])
+    lab = Lab([("show ipv6 bgp summary", _obj(v6)), ("show ip bgp summary", read("eos_bgp_summary.txt")),
+               ("running-config", read("eos_bgp_config.txt"))])
     n = EosDriver(lab, "ceos1").bgp_neighbors().value
     assert n["10.0.200.2"].prefixes == {"ipv4-unicast": 1} and n["2001:db8::2"].prefixes == {"ipv6-unicast": 7}
 

@@ -1,0 +1,7 @@
+router bgp 65030
+   router-id 30.30.30.30
+   neighbor PG peer group
+   neighbor PG out-delay 11
+   neighbor 10.0.200.2 peer group PG
+   neighbor 10.0.200.2 remote-as 65020
+   network 192.168.30.1/32

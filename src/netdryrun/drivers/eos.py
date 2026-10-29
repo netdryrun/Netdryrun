@@ -10,6 +10,7 @@ EOS keys every answer by VRF (`{"vrfs": {name: ...}}`). A VRF missing from that 
 from __future__ import annotations
 
 import ipaddress
+import re
 
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
                    check_vrf_name, load_json, network, parser, unexpected)
@@ -24,6 +25,7 @@ SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "sh
 ROUTE_CMD = "show ip route <prefix> | json"
 ALL_ROUTES_CMD = "show ip route | json"
 BGP_CMD = "show ip bgp <prefix> | json"
+CONFIG_CMD = "show running-config section router bgp"
 
 
 def _json(command: str, text: str) -> dict:
@@ -68,9 +70,8 @@ def _summary(text: str, vrf: str, afi: str, into: dict[str, BgpNeighbor] | None)
         if not isinstance(p, dict) or not isinstance(p.get("peerState"), str) or not p["peerState"].strip():
             raise unexpected(command, f"{addr}: {str(p)[:150]}")
         key = _canon_addr(str(addr))
-        # EOS sends updates without delay unless `neighbor ... out-delay` is set, which the summary doesn't show:
-        # its platform default (0) is used
-        n = out.get(key) or BgpNeighbor(str(addr), p["peerState"].split()[0].lower(), adv_interval=0.0)
+        # the advertisement delay isn't in the summary: the driver reads it from the configuration
+        n = out.get(key) or BgpNeighbor(str(addr), p["peerState"].split()[0].lower())
         if "prefixAccepted" in p:
             n.prefixes[afi] = as_int(command, p["prefixAccepted"])
         elif n.state == "established":  # a missing count would read as 0 prefixes, passing `max`
@@ -167,6 +168,74 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
     return out
 
 
+_NEIGHBOR = re.compile(r"neighbor (\S+) (.*)$")
+_OUT_DELAY = re.compile(r"out-delay (\d+)(?: .*)?$")
+
+
+def _is_addr(token: str) -> bool:
+    try:
+        ipaddress.ip_address(token)
+        return True
+    except ValueError:
+        return False
+
+
+@parser(CONFIG_CMD)
+def parse_out_delays(text: str, vrf: str = "default") -> dict[str, float]:
+    """Each neighbor's advertisement delay in seconds, from `show running-config section router bgp`: its own
+    `out-delay`, else its peer group's, else EOS's default 0. `show ip bgp neighbors` doesn't show the delay
+    (cEOS 4.36.3M, live capture), so this is the one place to read it.
+
+    Only the VRF's own block counts (the top of `router bgp` for default, `vrf <name>` otherwise). An
+    `out-delay` the parser can't place (another form, inside an address family) raises: it is never read as 0,
+    which would claim the settle window is long enough. A neighbor the configuration doesn't name is left out
+    (the caller reads it as not known)."""
+    lines = [ln.rstrip() for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("!")]
+    if not lines or not lines[0].startswith("router bgp "):
+        raise unexpected(CONFIG_CMD, text)
+    own: dict[str, int] = {}
+    group_delay: dict[str, int] = {}
+    member: dict[str, str] = {}
+    peers: set[str] = set()
+    block_vrf, in_af = "default", False   # the VRF of the current block, and whether it is an address family
+    for ln in lines[1:]:
+        indent, body = len(ln) - len(ln.lstrip(" ")), ln.strip()
+        if indent == 3:
+            if body.startswith("vrf "):
+                block_vrf, in_af = body.split()[1], False
+                continue
+            block_vrf, in_af = "default", body.startswith("address-family ")
+            if in_af:
+                continue
+        elif indent == 6 and block_vrf != "default" and body.startswith("address-family "):
+            in_af = True
+            continue
+        elif indent == 6 and block_vrf != "default":
+            in_af = False
+        ours = block_vrf == vrf
+        # a VRF's own lines: the top of `router bgp` (indent 3) for default, its `vrf` block (indent 6) otherwise
+        own_line = ours and not in_af and indent == (3 if vrf == "default" else 6)
+        m = _NEIGHBOR.match(body)
+        if "out-delay" in body:
+            if not ours:
+                continue
+            if not (own_line and m and _OUT_DELAY.match(m.group(2))):
+                raise unexpected(CONFIG_CMD, f"out-delay where it isn't understood: {body[:120]!r}")
+        if not own_line or not m:
+            continue
+        name, rest = m.groups()
+        d = _OUT_DELAY.match(rest)
+        if _is_addr(name):
+            peers.add(_canon_addr(name))
+            if d:
+                own[_canon_addr(name)] = int(d.group(1))
+            elif rest.startswith("peer group "):
+                member[_canon_addr(name)] = rest.split()[2]
+        elif d:
+            group_delay[name] = int(d.group(1))
+    return {p: float(own.get(p, group_delay.get(member.get(p, ""), 0))) for p in sorted(peers)}
+
+
 class EosDriver(Driver):
     name = "eos"
     # bgp_neighbors reads the IPv4 and IPv6 unicast summaries only: an EVPN count would always read 0
@@ -183,6 +252,14 @@ class EosDriver(Driver):
         # A failing IPv6 summary (error, timeout, unreadable output) raises: swallowing it made every
         # IPv6 prefix count read 0, which passes `max` and `exact: 0`.
         parse_bgp_summary(self._cli(f"show ipv6 bgp summary vrf {vrf} | json", ev), vrf, "ipv6-unicast", out)
+        # The advertisement delay, for the settle window. Not readable means not known (None), never 0; the
+        # sessions and counts above don't depend on it.
+        try:
+            delays = parse_out_delays(self._cli(CONFIG_CMD, ev), vrf)
+        except DriverError:
+            delays = {}
+        for key, n in out.items():
+            n.adv_interval = delays.get(key)
         return Observation(out, ev)
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
