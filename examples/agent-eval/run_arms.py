@@ -477,7 +477,7 @@ def grade_trial(trial: str, run: str, rerun: bool = True) -> dict:
             a = st.get("answer") or {}
             st["discovery"]["read_correctly"] = bool(
                 sig["completed"] and a.get("evidence_status") == sig["last_status"] and st.get("verdict_ok")
-                and st.get("decision_ok"))
+                and st.get("decision_ok") and not (a.get("decision") == "apply" and sig["last_status"] != "passed"))
         else:
             used = [t for _, n, t in tool_events(evs) if n in ("Bash", "shell")]
             st["installed_or_web"] = [u[:200] for u in used if re.search(r"\b(pip|pipx|uv|uvx|apt|apt-get|npm|curl|wget)\b", u)]
@@ -573,8 +573,9 @@ def main() -> None:
             ap.error("run needs --arm")
         if a.arm == "with" and (not NDR.startswith("/") or ":" in NDR):
             raise SystemExit("the with arm needs NDR_EVAL_NETDRYRUN: netdryrun inside WSL (and MSYS_NO_PATHCONV=1)")
-        if a.arm == "discovery":
-            plan = [(t, PAIRS[t]) for t in (a.trials or list(PAIRS))]
+        if a.arm == "discovery":  # a ticket id instead of a trial runs that ticket alone (the harness's dry run)
+            plan = [(t, PAIRS[t]) if t in PAIRS else (t, tuple(x for x in TICKET_IDS if x.startswith(t)))
+                    for t in (a.trials or list(PAIRS))]
         else:
             ids = [t for t in TICKET_IDS if not a.trials or any(t.startswith(x) for x in a.trials)]
             random.Random(a.repeat).shuffle(ids)
