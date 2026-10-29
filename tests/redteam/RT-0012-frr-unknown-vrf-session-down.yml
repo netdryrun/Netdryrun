@@ -1,0 +1,10 @@
+id: RT-0012
+title: "A session that must be down, in a VRF that doesn't exist: 'no neighbors' must not read as 'down'"
+found: "2026-10-28, quality-gaps-20261028.md (written as a probe of the B6 class against state: down)"
+fixed_in: "not affected (kept as a guard)"
+kind: driver
+driver: frr
+check: {type: bgp_session, node: r1, neighbor: 10.0.0.2, vrf: CUSTOMR, state: down}
+outputs:
+  - {needle: "show bgp vrf CUSTOMR neighbors", output: '{"warning": "View/Vrf is unknown"}'}
+  - {needle: "show vrf", output: "vrf CUSTOMER id 5 table 1001 (configured)\n"}

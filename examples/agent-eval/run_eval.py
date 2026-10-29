@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -30,7 +31,7 @@ DISTRO = os.environ.get("NDR_EVAL_DISTRO", "Ubuntu-22.04")
 NDR = os.environ.get("NDR_EVAL_NETDRYRUN", "")  # required for run and grade: the netdryrun binary inside WSL
 CLAUDE = os.environ.get("NDR_EVAL_CLAUDE") or shutil.which("claude.exe") or str(
     Path(os.environ.get("APPDATA", "")) / "npm/node_modules/@anthropic-ai/claude-code/bin/claude.exe")
-TIME_LIMIT = 1800
+TIME_LIMIT = int(os.environ.get("NDR_EVAL_TIME_LIMIT", "1800"))  # local models on a laptop need longer
 AGENTS_REF = os.environ.get("NDR_EVAL_AGENTS_REF", "HEAD")
 
 PROMPT = (
@@ -72,7 +73,7 @@ def snapshot(folder: Path) -> dict[str, bytes]:
 
 # ---------------------------------------------------------------------------------------------- run
 
-def run_one(tdir: Path, run: str, model: str | None, path_style: str = "wsl") -> dict:
+def run_one(tdir: Path, run: str, model: str | None, path_style: str = "wsl", agent: dict | None = None) -> dict:
     name = tdir.name
     if not NDR.startswith("/") or ":" in NDR:  # also catches an unset NDR_EVAL_NETDRYRUN
         # Git Bash rewrites /home/... in an exported variable to C:/Program Files/Git/home/...: the server would not start
@@ -94,7 +95,8 @@ def run_one(tdir: Path, run: str, model: str | None, path_style: str = "wsl") ->
     mcp_file.write_text(json.dumps(mcp))
     # "wsl": the path as the server sees it (the pre-registered prompt). "windows": the agent's own path, which
     # the MCP server accepts after the Windows-path fix on this branch (unreleased).
-    cmd = [CLAUDE, "-p", PROMPT.format(folder=wsl_path(folder) if path_style == "wsl" else str(folder)),
+    prompt = PROMPT.format(folder=wsl_path(folder) if path_style == "wsl" else str(folder))
+    cmd = [CLAUDE, "-p", prompt,
            "--output-format", "stream-json", "--verbose",
            "--mcp-config", str(mcp_file), "--strict-mcp-config",
            "--setting-sources", "",
@@ -105,11 +107,20 @@ def run_one(tdir: Path, run: str, model: str | None, path_style: str = "wsl") ->
            "--disable-slash-commands", "--no-session-persistence"]
     if model:
         cmd += ["--model", model]
+    if agent:  # a model that isn't Claude Code, through open_agent.py: same prompt, tools, server and limits
+        mcp_cmd = [mcp["mcpServers"]["netdryrun"]["command"]] + mcp["mcpServers"]["netdryrun"]["args"]
+        cmd = [sys.executable, str(HERE / "open_agent.py"), "--folder", str(folder), "--prompt", prompt,
+               "--transcript", str(out / "transcript.jsonl"), "--mcp-cmd", json.dumps(mcp_cmd),
+               "--model", model, "--time-limit", str(TIME_LIMIT - 30)]
+        for k, v in agent.items():
+            if v is not None:
+                cmd += [f"--{k.replace('_', '-')}", str(v)]
     env = dict(os.environ, MCP_TOOL_TIMEOUT="600000", MCP_TIMEOUT="60000")
     started = time.time()
     timed_out = False
     with open(out / "transcript.jsonl", "wb") as so, open(out / "stderr.txt", "wb") as se:
-        p = subprocess.Popen(cmd, cwd=folder, stdin=subprocess.DEVNULL, stdout=so, stderr=se, env=env)
+        p = subprocess.Popen(cmd, cwd=folder, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL if agent else so,
+                             stderr=se, env=env)
         try:
             rc = p.wait(timeout=TIME_LIMIT)
         except subprocess.TimeoutExpired:
@@ -118,7 +129,8 @@ def run_one(tdir: Path, run: str, model: str | None, path_style: str = "wsl") ->
             rc = None
     meta = {"ticket": name, "run": run, "exit_code": rc, "timed_out": timed_out,
             "wall_s": round(time.time() - started, 1), "folder": str(folder), "model_requested": model,
-            "path_style": path_style, "netdryrun": NDR, "agents_ref": AGENTS_REF}
+            "path_style": path_style, "netdryrun": NDR, "agents_ref": AGENTS_REF,
+            "agent": "open_agent" if agent else "claude_code", "agent_options": agent}
     (out / "run.json").write_text(json.dumps(meta, indent=2))
     destroy_labs(folder)  # a lab left behind by keep_lab or a killed run
     final = out / "final"
@@ -284,11 +296,22 @@ def main() -> None:
     ap.add_argument("--model")
     ap.add_argument("--no-rerun", action="store_true")
     ap.add_argument("--path-style", choices=["wsl", "windows"], default="wsl")
+    ap.add_argument("--agent", choices=["claude", "open"], default="claude",
+                    help="open: open_agent.py with --backend (Ollama or an OpenAI-compatible API); needs --model")
+    ap.add_argument("--backend", choices=["ollama", "openai"], default="ollama")
+    ap.add_argument("--base-url")
+    ap.add_argument("--api-key-env")
+    ap.add_argument("--think", choices=["true", "false"])
     a = ap.parse_args()
+    agent = None
+    if a.agent == "open":
+        if not a.model:
+            ap.error("--agent open needs --model")
+        agent = {"backend": a.backend, "base_url": a.base_url, "api_key_env": a.api_key_env, "think": a.think}
     tds = ticket_dirs(a.tickets)
     if a.action == "run":
         with cf.ThreadPoolExecutor(a.parallel) as ex:
-            for meta in ex.map(lambda d: run_one(d, a.run, a.model, a.path_style), tds):
+            for meta in ex.map(lambda d: run_one(d, a.run, a.model, a.path_style, agent), tds):
                 print(json.dumps(meta), flush=True)
     if a.action in ("run", "grade"):
         with cf.ThreadPoolExecutor(a.parallel) as ex:

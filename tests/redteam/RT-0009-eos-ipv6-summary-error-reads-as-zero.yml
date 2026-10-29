@@ -1,0 +1,10 @@
+id: RT-0009
+title: "EOS: a failing `show ipv6 bgp summary` was swallowed, so every IPv6 count read 0 and exact: 0 passed"
+found: "2026-10-27, pre-launch audit C-code.md M4 (0.3.0)"
+fixed_in: 0.3.1
+kind: driver
+driver: eos
+check: {type: bgp_prefixes, node: r1, neighbor: 10.0.200.2, afi: ipv6-unicast, exact: 0}
+outputs:
+  - {needle: "show ipv6 bgp summary", rc: 1, output: "", stderr: "% Timeout"}
+  - {needle: "show ip bgp summary", fixture: eos_bgp_summary.txt}

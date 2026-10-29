@@ -1,0 +1,23 @@
+# Agent demo: one edge router (edge1, AS 65000) with a customer, an upstream and a peer.
+name: ndr-eval-t05
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+    binds:
+      - configs/daemons:/etc/frr/daemons
+      - configs/vtysh.conf:/etc/frr/vtysh.conf
+  nodes:
+    edge1:
+      binds: [configs/edge1.conf:/etc/frr/frr.conf]
+    cust1:
+      binds: [configs/cust1.conf:/etc/frr/frr.conf]
+    up1:
+      binds: [configs/up1.conf:/etc/frr/frr.conf]
+    peer1:
+      binds: [configs/peer1.conf:/etc/frr/frr.conf]
+  links:
+    - endpoints: ["edge1:eth1", "cust1:eth1"]
+    - endpoints: ["edge1:eth2", "up1:eth1"]
+    - endpoints: ["edge1:eth3", "peer1:eth1"]

@@ -1,0 +1,21 @@
+--- a/configs/edge1.conf
++++ b/configs/edge1.conf
+@@ -26,7 +26,6 @@
+ ip prefix-list OUR-ROUTES seq 20 permit 10.100.0.0/24
+ !
+ route-map CUSTOMER-IN permit 10
+- match ip address prefix-list CUSTOMER-IN
+  set local-preference 200
+ !
+ route-map UPSTREAM-IN permit 10
+@@ -38,10 +37,8 @@
+ route-map TO-CUSTOMER permit 10
+ !
+ route-map TO-UPSTREAM permit 10
+- match ip address prefix-list OUR-ROUTES
+ !
+ route-map TO-PEER permit 10
+- match ip address prefix-list OUR-ROUTES
+ !
+ router bgp 65000
+  bgp router-id 192.0.2.1

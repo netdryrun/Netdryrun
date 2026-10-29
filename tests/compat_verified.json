@@ -1,0 +1,11 @@
+{
+  "frr": {"date": "2026-10-28"},
+  "srlinux": {
+    "date": "2026-10-27",
+    "limits": [
+      "`bgp_prefixes` counts the neighbor's `received-routes`, which on SR Linux 26.7.2 includes routes that fail BGP loop detection and are not usable. On a live capture of `examples/srl-frr` on 2026-10-28 the counter read 3 where one prefix was usable and `rejected-routes` read 0. A `min` or `exact` prefix check on SR Linux can pass on a count that includes unusable routes. The test data above predates that capture; it has not yet been re-captured."
+    ]
+  },
+  "sonic": {"date": "2026-10-28"},
+  "eos": {"date": "2026-10-28"}
+}

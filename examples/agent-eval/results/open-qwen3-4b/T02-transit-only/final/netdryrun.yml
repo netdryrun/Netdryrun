@@ -1,0 +1,25 @@
+# Checks for this ticket, written by the network team. Don't edit this file.
+lab: topology.clab.yml
+timeout: 90
+
+checks:
+  # --- The ticket: 10.101.0.0/24 goes to the upstream only. The customer bought transit, not peering.
+  - {type: route, node: up1, prefix: 10.101.0.0/24, protocol: bgp, name: "TICKET up1 receives the customer's new 10.101.0.0/24"}
+  - {type: ping, node: cust1, source: 10.101.0.1, target: 203.0.113.1, name: "TICKET the new block reaches the internet via up1"}
+  - {type: route, node: peer1, prefix: 10.101.0.0/24, protocol: bgp, present: false, name: "TICKET peer1 must not receive 10.101.0.0/24 (transit only)"}
+
+  # --- Standing guards: what must stay true for every change on edge1.
+  - {type: bgp_session, node: edge1, neighbor: 10.0.1.2, name: "GUARD session to cust1 up"}
+  - {type: bgp_session, node: edge1, neighbor: 10.0.2.2, name: "GUARD session to up1 up"}
+  - {type: bgp_session, node: edge1, neighbor: 10.0.3.2, name: "GUARD session to peer1 up"}
+  - {type: route, node: up1, prefix: 192.0.2.0/24, protocol: bgp, name: "GUARD up1 receives our block"}
+  - {type: route, node: peer1, prefix: 10.100.0.0/24, protocol: bgp, name: "GUARD peer1 receives the customer's 10.100.0.0/24"}
+  - {type: ping, node: cust1, source: 10.100.0.1, target: 203.0.113.1, name: "GUARD customer reaches the internet via up1"}
+  # Route-leak guards: never pass upstream routes to the peer or peer routes to the upstream,
+  # and never accept customer routes outside the customer's registered blocks.
+  - {type: route, node: peer1, prefix: 203.0.113.0/24, protocol: bgp, present: false, name: "LEAK GUARD peer1 must not get upstream routes"}
+  - {type: route, node: peer1, prefix: 0.0.0.0/0, protocol: bgp, present: false, name: "LEAK GUARD peer1 must not get the upstream's default route"}
+  - {type: route, node: up1, prefix: 198.51.100.0/24, protocol: bgp, present: false, name: "LEAK GUARD up1 must not get peer routes"}
+  - {type: bgp_prefixes, node: peer1, neighbor: 10.0.3.1, max: 2, name: "LEAK GUARD peer1 gets at most our 2 prefixes"}
+  # cust1 also announces 8.8.8.0/24, which it doesn't own. The customer filter must keep dropping it.
+  - {type: route, node: edge1, prefix: 8.8.8.0/24, protocol: bgp, present: false, name: "LEAK GUARD edge1 rejects prefixes the customer doesn't own"}

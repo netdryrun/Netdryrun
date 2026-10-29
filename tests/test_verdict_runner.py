@@ -1654,3 +1654,136 @@ def test_run_scenario_gate_warning_is_added_to_each_check(monkeypatch):
     assert r.passed and ref.passed
     assert r.detail != ref.detail and r.detail.startswith(ref.detail)
     assert e.results[0].detail == r.detail
+
+
+# ----------------------------------------------------------------------------------------------- never testable
+
+def _bgpd_off_everywhere(monkeypatch):
+    nodes = ("r1", "r2", "r3")
+    return make(monkeypatch, **{n: {"neighbors_error": DriverError("bgpd is not running"),
+                                    "routes": {"default": never}} for n in nodes})
+
+
+def test_a_lab_that_never_reached_a_testable_state_is_inconclusive_with_scenarios_too(monkeypatch):
+    """bgpd off on every node: the main checks already show the lab never gave usable state, so the run is
+    inconclusive (exit 3) whether or not the file has scenarios; no fault is applied to a lab that never
+    converged, and the scenario's snapshot never gets to stop it with exit 2."""
+    checks = [chk("bgp_session", "s", neighbor="10.0.12.2", timeout=9), route("r", timeout=9)]
+    plain = _bgpd_off_everywhere(monkeypatch).run(checks, settle=0, hold=0)
+    assert plain.status == "inconclusive" and plain.exit_code == 3
+    e = _bgpd_off_everywhere(monkeypatch)
+    # as in examples/frr-bgp: the scenario faults and checks r1, a node the main checks show never gave state
+    sc = Scenario("s", [Fault("link_down", "r1", "eth1")], [route("[s] x")])
+    rep = e.run(checks, [sc], settle=0, hold=0)
+    assert rep.status == "inconclusive" and rep.exit_code == 3 and not rep.error
+    assert rep.inconclusive_reason == plain.inconclusive_reason
+    assert e.lab.link_events() == [] and e.injections == []
+    assert [r.check.name for r in rep.results] == ["s", "r"]
+    assert any("scenario" in line and "skipped" in line for line in e.logs)
+
+
+def test_unreadable_snapshot_after_a_readable_failure_is_still_an_error(monkeypatch):
+    """Only a lab that never gave usable state skips its scenarios. A main phase that failed on readable
+    state is a finding, and the scenario's unreadable snapshot still stops the run with exit 2 naming the node."""
+    e = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": never}},
+             r2={"neighbors_error": DriverError("bgpd is not running"), "routes": {"default": never}})
+    sc = Scenario("s", [Fault("link_down", "r1", "eth1")], [route("[s] x", node="r3")])
+    rep = e.run([route("r", timeout=9)], [sc], settle=0, hold=0)
+    assert rep.status == "error" and rep.exit_code == 2 and "r2" in rep.error
+    assert e.lab.link_events() == []
+
+
+def test_scenarios_on_nodes_that_gave_state_still_run_after_an_unready_main_phase(monkeypatch):
+    """0.3.2 cold review, finding 2: the main checks are all on r1, which never gives state, but the scenario
+    faults r2 and checks r3, both readable. Its readable failure is a finding (exit 1), not inconclusive."""
+    e = make(monkeypatch, r1={"neighbors_error": DriverError("bgpd is not running"), "routes": {"default": never}},
+             r2={"neighbors": up("10.0.12.1"), "routes": {"default": always}},
+             r3={"neighbors": up(), "routes": {"default": never}})
+    sc = Scenario("s", [Fault("link_down", "r2", "eth2")], [route("[s] x", node="r3", timeout=9)])
+    main = [chk("bgp_session", "s", neighbor="10.0.12.2", timeout=9)]
+    assert e.run(main, settle=0, hold=0).status == "inconclusive"   # alone, the main phase never got state
+    e = make(monkeypatch, r1={"neighbors_error": DriverError("bgpd is not running"), "routes": {"default": never}},
+             r2={"neighbors": up("10.0.12.1"), "routes": {"default": always}},
+             r3={"neighbors": up(), "routes": {"default": never}})
+    rep = e.run(main, [sc], settle=0, hold=0)
+    assert rep.status == "failed" and rep.exit_code == 1
+    assert ("r2", "eth2", False) in e.lab.link_events()
+
+
+def test_agent_eval_t10_bgpd_off_everywhere_is_inconclusive_not_an_error(monkeypatch):
+    """Agent eval T10 (examples/agent-eval): FRR with bgpd=no on every router. The main checks never read any
+    routing state (pings read cleanly: 0 replies), and the scenario faults and checks r1. 0.3.1 stopped at the
+    scenario snapshot with status error, which an agent read as a verdict on the change."""
+    def dead(t):
+        return Observation((3, 0), [{"stderr": ""}])
+    e = make(monkeypatch, **{n: {"neighbors_error": DriverError("bgpd is not running"), "routes": {},
+                                 "ping": dead} for n in ("r1", "r2", "r3")})
+    checks = [route("TICKET r2", node="r2", prefix="192.168.11.0/24", timeout=9, protocol="bgp"),
+              route("TICKET r3", node="r3", prefix="192.168.11.0/24", timeout=9, protocol="bgp"),
+              chk("ping", "TICKET ping", node="r2", target="192.168.11.1", timeout=9),
+              chk("bgp_session", "s1", neighbor="10.0.12.2", timeout=9),
+              chk("bgp_prefixes", "p1", neighbor="10.0.12.2", min=1, max=10, timeout=9),
+              route("r1 route", prefix="192.168.3.0/24", timeout=9, protocol="bgp"),
+              chk("ping", "r1 ping", target="192.168.3.1", timeout=9),
+              leak("no default", prefix="0.0.0.0/0", timeout=9)]
+    sc = Scenario("r1-r2 link fails", [Fault("link_down", "r1", "eth1")],
+                  [route("[s] r1 route", prefix="192.168.2.0/24", timeout=9),
+                   chk("bgp_session", "[s] down", neighbor="10.0.12.2", state="down", timeout=9)])
+    rep = e.run(checks, [sc], settle=0, hold=0)
+    assert rep.status == "inconclusive" and rep.exit_code == 3 and not rep.error
+    assert e.lab.link_events() == []
+    from netdryrun.mcp_server import INCONCLUSIVE, _summary
+    assert _summary(rep, None)["verdict"] == INCONCLUSIVE
+
+
+def test_a_bgp_node_with_no_neighbors_at_the_cap_fails_its_post_convergence_checks(monkeypatch):
+    """0.3.2 multi-vendor audit (Grok; the 0.3.1 'remaining limit'): r1's BGP config never loads, so it answers
+    with no neighbors at all. Its leak guards would pass on the empty table. The file says r1 runs BGP (a
+    `protocol: bgp` route check and a prefix-count check), so at the cap its post-convergence checks are not
+    evaluated: failed, every sample unready, never passed."""
+    e = make(monkeypatch, r1={"neighbors": up(), "routes": {"default": never}})
+    checks = [leak("leak", protocol="bgp", timeout=24),
+              chk("bgp_prefixes", "max", neighbor="10.0.12.2", max=3, timeout=12)]
+    rep = e.run(checks, settle=10, hold=10)
+    assert rep.status != "passed" and rep.exit_code != 0
+    r = by_name(rep)["leak"]
+    assert not r.passed and r.detail.startswith("not evaluated: r1 reported no BGP neighbors")
+    assert r.attempts and r.samples_unready == r.attempts
+    assert rep.status == "inconclusive"   # nothing anywhere gave usable state
+
+
+def test_a_bgp_node_with_no_neighbors_beside_a_working_node_is_a_failure(monkeypatch):
+    e = make(monkeypatch, r1={"neighbors": up(), "routes": {"default": never}},
+             r2={"neighbors": up("10.0.12.1"), "routes": {"default": always}})
+    rep = e.run([leak("leak", protocol="bgp", timeout=24), route("r2 ok", node="r2", timeout=24)], settle=10, hold=10)
+    assert rep.status == "failed" and rep.exit_code == 1   # r2 shows a working network: a finding, not inconclusive
+
+
+def test_a_node_without_bgp_checks_is_still_released_at_the_cap(monkeypatch):
+    # a static-routing node (no BGP check on it anywhere) may answer with no neighbors for good
+    e = make(monkeypatch, r1={"neighbors": up(), "routes": {"default": never}})
+    assert e.run([leak("neg", timeout=24)], settle=10, hold=10).status == "passed"
+
+
+@pytest.mark.parametrize("bgp_check", [
+    lambda: chk("bgp_session", "s down", neighbor="10.0.12.9", state="down", timeout=24),
+    lambda: chk("bgp_prefixes", "max", neighbor="10.0.12.2", max=3, timeout=24),
+    lambda: chk("bgp_route", "attr", prefix="192.168.2.0/24", as_path="65002", timeout=24),
+    lambda: route("bgp route", prefix="192.168.9.0/24", protocol="BGP", present=False, timeout=24),
+], ids=["bgp_session", "bgp_prefixes", "bgp_route", "route-protocol-bgp"])
+def test_each_kind_of_bgp_check_marks_its_node_as_running_bgp(monkeypatch, bgp_check):
+    # one BGP check of any kind on the node is enough: the plain leak guard beside it is then not evaluated
+    e = make(monkeypatch, r1={"neighbors": up(), "routes": {"default": never}, "paths": {"default": lambda t, p: []}})
+    rep = e.run([leak("plain leak guard", timeout=24), bgp_check()], settle=0, hold=0)
+    assert by_name(rep)["plain leak guard"].detail.startswith("not evaluated: r1 reported no BGP neighbors")
+
+
+def test_the_no_neighbors_result_is_a_complete_failed_result(monkeypatch):
+    e = make(monkeypatch, r1={"neighbors": up(), "routes": {"default": never}})
+    rep = e.run([leak("leak", protocol="bgp", timeout=240)], settle=0, hold=0)
+    r = by_name(rep)["leak"]
+    assert r.passed is False and r.samples_passed == 0 and r.evidence == []
+    assert isinstance(r.duration, float) and r.duration >= 240
+    assert iso(r.started)
+    assert len(r.history) == 50 and r.attempts > 50 and r.samples_unready == r.attempts   # last 50 kept, all counted
+    assert all(h.get("unready") for h in r.history)

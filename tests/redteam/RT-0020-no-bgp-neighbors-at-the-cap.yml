@@ -1,0 +1,9 @@
+id: RT-0020
+title: "A BGP node that never loaded its config (no neighbors at all) passed its leak guards at the gate cap"
+found: "2026-10-28, 0.3.2 multi-vendor AI audit (Grok; the 0.3.1 advisory's remaining limit)"
+fixed_in: 0.3.2
+kind: pinned
+# Needs a whole run on a fake clock (the convergence gate's cap), so the reproduction lives in the test suite.
+tests:
+  - tests/test_verdict_runner.py::test_a_bgp_node_with_no_neighbors_beside_a_working_node_is_a_failure
+  - tests/test_verdict_runner.py::test_a_bgp_node_with_no_neighbors_at_the_cap_fails_its_post_convergence_checks

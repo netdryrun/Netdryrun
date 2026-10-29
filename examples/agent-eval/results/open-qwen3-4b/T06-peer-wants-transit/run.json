@@ -1,0 +1,19 @@
+{
+  "ticket": "T06-peer-wants-transit",
+  "run": "open-qwen3-4b",
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 1426.4,
+  "folder": "C:\\ndr-eval\\work\\open-qwen3-4b\\T06-peer-wants-transit",
+  "model_requested": "qwen3:4b",
+  "path_style": "windows",
+  "netdryrun": "/home/ndr/.venvs/ndr-eval-031/bin/netdryrun",
+  "agents_ref": "9b728e8",
+  "agent": "open_agent",
+  "agent_options": {
+    "backend": "ollama",
+    "base_url": null,
+    "api_key_env": null,
+    "think": null
+  }
+}

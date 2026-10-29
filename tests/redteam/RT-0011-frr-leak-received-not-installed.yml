@@ -1,0 +1,10 @@
+id: RT-0011
+title: "FRR: a leaked route received over BGP but not installed by zebra (lost selection, unresolvable next hop) read as absent"
+found: "2026-10-27, pre-launch audit (0.3.0 runtime path: received paths not counted on some drivers)"
+fixed_in: 0.3.1
+kind: driver
+driver: frr
+check: {type: route, node: r1, prefix: 192.168.20.0/24, present: false}
+outputs:
+  - {needle: "show ip route", output: "{}"}
+  - {needle: "show bgp", fixture: frr_bgp_paths.txt}

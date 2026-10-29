@@ -1,0 +1,10 @@
+id: RT-0016
+title: "EOS: a leaked default that loses to a local drop route is only in the BGP table; it is still a BGP leak"
+found: "2026-10-28, guard written with RT-0011 for the same class on EOS (0.3.0 already counted it here)"
+fixed_in: "not affected (kept as a guard)"
+kind: driver
+driver: eos
+check: {type: route, node: r1, prefix: 0.0.0.0/0, protocol: bgp, present: false}
+outputs:
+  - {needle: "show ip route", fixture: eos_leak_route.txt}
+  - {needle: "show ip bgp", fixture: eos_leak_bgp.txt}

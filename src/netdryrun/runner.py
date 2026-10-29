@@ -20,7 +20,7 @@ import yaml
 
 from . import __version__
 from .checks import (Result, Unready, _sample, hold_together, inconclusive_reason, is_post_convergence,
-                     run_round_robin)
+                     never_ready_nodes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
 from .drivers import DriverError, check_supported, detect, for_node
 from .drivers.base import NoSuchInstance
@@ -342,7 +342,20 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         order = {id(c): i for i, c in enumerate(config.checks)}
         report.results.sort(key=lambda r: order[id(r.check)])
 
-        for sc in config.scenarios:
+        # The main checks already show the lab never reached a testable state (no node gave usable state, no
+        # check passed on any sample): a scenario on a lab that never converged has no baseline to fault or
+        # recover to, so skip them and report inconclusive (exit 3), as the same lab without scenarios does.
+        # The results hold failed checks, so this is never a pass. Only when every node the scenarios fault or
+        # check is one of those that never gave state: a scenario on a node that did could still find a real
+        # failure (exit 1), and a scenario snapshot that can't be read after a readable main phase still stops
+        # the run (exit 2).
+        scenarios = config.scenarios
+        dead = never_ready_nodes(report.results)
+        touched = {c.node for sc in scenarios for c in sc.checks} | {f.node for sc in scenarios for f in sc.faults}
+        if scenarios and inconclusive_reason(report.results) and touched <= dead.keys():
+            log(f"The lab never reached a testable state; {len(scenarios)} scenario(s) skipped")
+            scenarios = []
+        for sc in scenarios:
             for check in sc.checks:
                 driver_for(check.node)
             report.results += run_scenario(lab, sc, drivers, settle=settle, hold=hold, on_result=on_result, log=log,
@@ -418,9 +431,12 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
 # first answer is an error. Prefix counts that keep changing until the deadline don't block.
 #
 # A node that answers with no BGP neighbors at all is NOT converged: that is exactly what a node answers
-# before its BGP config is applied, and a leak can arrive once it is. The gate keeps waiting up to the cap;
-# if the node still reports no neighbors then (it may not run BGP), its checks go ahead, each with a
-# warning in its result that it was evaluated without BGP convergence. The verdict is unchanged.
+# before its BGP config is applied, and a leak can arrive once it is. The gate keeps waiting up to the cap.
+# If the node still reports no neighbors then and the file says it runs BGP (a bgp_session, bgp_prefixes or
+# bgp_route check on it, or a route check with protocol bgp), its post-convergence checks fail as "not
+# evaluated", every sample unready (from 0.3.2; a leak guard would otherwise pass on the empty table). A node
+# with no BGP check anywhere in the file may not run BGP at all (static routing): its checks go ahead, each
+# with a warning in its result that it was evaluated without BGP convergence.
 # ---------------------------------------------------------------------------------------------------------
 
 def _with_warnings(warnings: dict[int, str], on_result=None):
@@ -452,6 +468,10 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     excluded = {(c.node, c.params.get("vrf", "default"), c.params.get("neighbor")) for c in all_checks
                 if c.type == "bgp_session" and c.params.get("state", "established") != "established"}
     excluded |= set(expected_down)   # in a scenario: the sessions over the links it took down
+    # nodes the file says run BGP: any BGP check on them, or a route check that names protocol bgp
+    bgp_nodes = {c.node for c in all_checks
+                 if c.type in ("bgp_session", "bgp_prefixes", "bgp_route")
+                 or (c.type == "route" and str(c.params.get("protocol", "")).lower() == "bgp")}
     deadline = {g: max(c.timeout for c in cs) for g, cs in groups.items()}
     st = {g: {"streak": 0, "counts": None, "answered": False, "empty": False, "detail": "", "history": []}
           for g in groups}
@@ -507,8 +527,20 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
             s = st[g]
             if not s["answered"]:
                 log(f"warning: {g[0]} never returned BGP state; its post-convergence checks start without the BGP gate")
+            elif s["empty"] and g[0] in bgp_nodes:
+                # Still no neighbors at the cap on a node the file says runs BGP: its config never loaded, and a
+                # leak guard would pass on the empty table. Not evaluated, every sample unready.
+                where = "" if g[1] == "default" else f" (vrf {g[1]})"
+                for c in groups[g]:
+                    detail = Unready(f"not evaluated: {g[0]} reported no BGP neighbors{where} by the cap "
+                                     f"({deadline[g]:g}s), although checks in the file expect BGP on it. A "
+                                     "post-convergence check means nothing before the node's BGP sessions exist")
+                    blocked[id(c)] = Result(c, False, detail, len(s["history"]), round(t, 1), started, [],
+                                            s["history"][-50:], samples_passed=0,
+                                            samples_unready=len(s["history"]))
             elif s["empty"]:
-                # Still no neighbors at the cap: the node may not run BGP at all. Go ahead, but say so on each check
+                # Still no neighbors at the cap, and no BGP check on the node anywhere in the file: it may not run
+                # BGP at all (static routing). Go ahead, but say so on each check
                 where = "" if g[1] == "default" else f" (vrf {g[1]})"
                 text = (f"{g[0]}{where} reported no BGP neighbors for {deadline[g]:g}s; the check was evaluated "
                         "without BGP convergence")

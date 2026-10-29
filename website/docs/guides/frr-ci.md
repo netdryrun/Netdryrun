@@ -191,7 +191,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.1
+      - uses: netdryrun/netdryrun@v0.3.2
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true

@@ -1068,10 +1068,19 @@ def test_inconclusive_post_convergence_failure_with_state_decides():
     assert inconclusive_reason(rs)
 
 
-def test_inconclusive_node_without_state_checks_uses_every_check():
+def test_inconclusive_node_without_session_checks_uses_its_routing_table_then_every_check():
     rs = [res(chk("route", prefix="p"), unready=10), res(chk("ping", target="t"), unready=10)]
     assert inconclusive_reason(rs)
+    # 0.3.2 (agent eval T10): a ping that read cleanly doesn't show the node gave control-plane state
     rs = [res(chk("route", prefix="p"), unready=10), res(chk("ping", target="t"), unready=9)]
+    assert inconclusive_reason(rs)
+    rs = [res(chk("route", prefix="p"), unready=9), res(chk("ping", target="t"), unready=10)]
+    assert inconclusive_reason(rs) is None
+    rs = [res(chk("bgp_route", prefix="p"), unready=10), res(chk("route", prefix="q"), unready=9)]
+    assert inconclusive_reason(rs) is None
+    rs = [res(chk("bgp_route", prefix="p"), unready=10), res(chk("ping", target="t"), unready=9)]   # bgp_route alone
+    assert inconclusive_reason(rs)
+    rs = [res(chk("ping", target="t"), unready=10), res(chk("ping", target="u"), unready=9)]   # ping-only node
     assert inconclusive_reason(rs) is None
 
 

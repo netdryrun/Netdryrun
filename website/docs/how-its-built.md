@@ -21,7 +21,7 @@ A tool that approves network changes has to earn trust with evidence, not claims
 
 ## Engineering process
 
-Netdryrun is developed by its maintainer, Victor Khen, with AI-assisted tooling. The maintainer sets the direction, reviews the results, decides what ships and publishes every release. Every change, whoever or whatever wrote it, goes through the same CI tests and lab runs, and every release through the release gate described below. The [commit history](https://github.com/netdryrun/netdryrun/commits/main) records every change.
+Every change goes through the same CI tests and lab runs, and every release through the release gate described below. The [commit history](https://github.com/netdryrun/netdryrun/commits/main) records every change.
 
 ## Pre-registered accuracy testing
 

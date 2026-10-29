@@ -19,6 +19,8 @@ docker load -i docker-sonic-vs.gz      # creates docker-sonic-vs:latest
 
 The file is about 230 MB (232,075,139 bytes for the build used on this page, downloaded on 2026-10-27). Loaded, the image is 1.92 GB.
 
+The image carries its build id in a label (`docker image inspect docker-sonic-vs:latest --format '{{index .Config.Labels "Tag"}}'`, for example `master.1258173-c10162df4`). `examples/sonic-frr` pins the build the SONiC driver is verified on, so after loading, tag your image with its build id (`docker tag docker-sonic-vs:latest docker-sonic-vs:<build id>`) and put that tag on the example's image line. `scripts/get_sonic_vs.sh` in the repository does the download and the tag in one step.
+
 `branchName=master` is the latest build, so it changes over time. For repeatable CI, keep the file you tested with (as a release asset or in a cache) instead of downloading `master` on every run.
 
 ## 2. The lab
@@ -168,7 +170,7 @@ jobs:
           curl -fsSL -o docker-sonic-vs.gz \
             "https://sonic-build.azurewebsites.net/api/sonic/artifacts?branchName=master&platform=vs&target=target/docker-sonic-vs.gz"
           docker load -i docker-sonic-vs.gz
-      - uses: netdryrun/netdryrun@v0.3.1
+      - uses: netdryrun/netdryrun@v0.3.2
         with:
           path: network/sonic/
 ```

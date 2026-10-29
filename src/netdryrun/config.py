@@ -266,6 +266,10 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
         if key in params and not isinstance(params[key], str):
             raise ConfigError(f"{where}: {key} must be an IP {'prefix' if key == 'prefix' else 'address'} "
                               f"written as a string, got {params[key]!r}")
+    for key in ("neighbor", "target", "source", "next_hop"):
+        # ipaddress accepts any text after % (spaces, newlines), and the address reaches device CLI commands
+        if key in params and "%" in params[key] and not INTERFACE_NAME.fullmatch(params[key].split("%", 1)[1]):
+            raise ConfigError(f"{where}: {key} {params[key]!r}: an IPv6 scope (after %) must be an interface name")
     try:
         # canonical spellings so 2001:db8:0::1 in YAML matches 2001:db8::1 on the device
         if ctype in ("route", "bgp_route"):

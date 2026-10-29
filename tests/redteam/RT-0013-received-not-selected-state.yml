@@ -1,0 +1,13 @@
+id: RT-0013
+title: "A leaked route that is received but not selected must fail present: false, with or without protocol"
+found: "2026-10-28, guard for the 0.3.0 class \"received paths not counted\" at the evaluator level (0.3.0 already failed it)"
+fixed_in: "not affected (kept as a guard)"
+kind: check
+checks:
+  - {type: route, node: r1, prefix: 0.0.0.0/0, present: false}
+  - {type: route, node: r1, prefix: 0.0.0.0/0, protocol: bgp, present: false}
+  - {type: route, node: r1, prefix: 0.0.0.0/0, protocol: BGP, present: false}
+state:
+  r1:
+    routes:
+      0.0.0.0/0: [{protocol: static, active: true}, {protocol: bgp, active: false}]

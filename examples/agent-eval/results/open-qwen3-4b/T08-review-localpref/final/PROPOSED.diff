@@ -1,0 +1,16 @@
+--- a/configs/r1.conf
++++ b/configs/r1.conf
+@@ -18,9 +18,12 @@
+   network 192.168.1.0/24
+   neighbor 10.0.12.2 route-map ALLOW-ALL in
+   neighbor 10.0.12.2 route-map ALLOW-ALL out
+-  neighbor 10.0.13.2 route-map ALLOW-ALL in
++  neighbor 10.0.13.2 route-map FROM-R3 in
+   neighbor 10.0.13.2 route-map ALLOW-ALL out
+  exit-address-family
+ !
+ route-map ALLOW-ALL permit 10
+ !
++route-map FROM-R3 permit 10
++ set local-preference 200
++!

@@ -1,0 +1,193 @@
+"""Generate website/docs/reference/compatibility.md from the driver tests and the pinned examples.
+
+  python scripts/compat_matrix.py                   write the page
+  python scripts/compat_matrix.py --check           exit 1 when the committed page differs (sync_facts.py --check runs this)
+  python scripts/compat_matrix.py --verified DRIVER [--date YYYY-MM-DD]
+                                                    record that DRIVER was re-captured live and its tests passed
+
+What the page says comes from three places, so it cannot claim more than the tests show:
+  - the must-fail matrix, tests/test_driver_matrix.py (CELLS): a check type is "verified" on a driver when it has
+    at least one must-fail cell and a control on that driver's captured output; an address family or
+    attribute without a must-fail cell is listed as such, never as verified;
+  - what the drivers refuse (DRIVERS[...].unsupported_afis, unsupported_bgp_attributes);
+  - the image each driver's example pins (examples/*/topology.clab.yml), and tests/compat_verified.json for the
+    date of the last live capture (scripts/capture_fixtures.sh) and known limits.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import sys
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parent.parent
+PAGE = ROOT / "website" / "docs" / "reference" / "compatibility.md"
+VERIFIED = ROOT / "tests" / "compat_verified.json"
+
+# driver -> (example folder, node that runs the driver). A new driver without a row fails the script.
+EXAMPLES = {
+    "frr": ("examples/frr-bgp", "r1"),
+    "srlinux": ("examples/srl-frr", "srl1"),
+    "sonic": ("examples/sonic-frr", "sonic1"),
+    "eos": ("examples/arista-frr", "ceos1"),
+}
+# What the image tag does not say. Where the image comes from, and the software inside it.
+NOS = {
+    "frr": ("FRR", "Public image (quay.io)."),
+    "srlinux": ("Nokia SR Linux", "Public image (ghcr.io)."),
+    "sonic": ("SONiC (docker-sonic-vs)", "From the SONiC project's CI build server; contains FRR 10.7.1. Pinned by build id."),
+    "eos": ("Arista EOS (cEOS-lab)", "Bring your own image (free from arista.com, cannot be redistributed)."),
+}
+# Drivers still in beta (the word is shown next to the platform). None of the four on this page is.
+BETA: frozenset[str] = frozenset()
+
+REFUSED_AFI = {"evpn": "no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0`"}
+ATTRIBUTES = ("present", "as_path", "as_path_regex", "local_pref", "med", "next_hop", "communities", "without_communities")
+
+
+def _load():
+    sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(ROOT / "scripts")]
+    import test_driver_matrix as m
+    from sync_facts import PLATFORMS
+
+    from netdryrun.config import AFIS, CHECK_TYPES
+    from netdryrun.drivers import DRIVERS
+    return m.CELLS, DRIVERS, CHECK_TYPES, AFIS, PLATFORMS
+
+
+def _image(driver: str) -> str:
+    folder, node = EXAMPLES[driver]
+    topo = yaml.safe_load((ROOT / folder / "topology.clab.yml").read_text(encoding="utf-8"))["topology"]
+    n = (topo.get("nodes") or {}).get(node) or {}
+    image = n.get("image") or (topo.get("kinds") or {}).get(n.get("kind"), {}).get("image") or (topo.get("defaults") or {}).get("image")
+    if not image:
+        raise SystemExit(f"compat_matrix: no image for node {node} in {folder}/topology.clab.yml")
+    return image
+
+
+def _cell(cells, driver: str, ctype: str, pred=lambda c: True, controls: bool = True) -> str:
+    fails = sum(1 for c in cells if c.driver == driver and c.ctype == ctype and c.must == "fail" and pred(c))
+    passes = sum(1 for c in cells if c.driver == driver and c.ctype == ctype and c.must == "pass" and pred(c))
+    if fails and passes and controls:
+        return f"verified ({fails} must-fail, {passes} control{'' if passes == 1 else 's'})"
+    if fails and not controls:
+        return f"verified ({fails} must-fail)"
+    if fails:
+        return f"{fails} must-fail, no control"
+    return "no must-fail test"
+
+
+def render() -> str:
+    cells, drivers, check_types, afis, platforms = _load()
+    verified = json.loads(VERIFIED.read_text(encoding="utf-8"))
+    names = list(platforms)
+    if set(names) != set(EXAMPLES) or set(names) != set(drivers) or set(names) != set(verified):
+        raise SystemExit(f"compat_matrix: drivers {sorted(drivers)}, EXAMPLES {sorted(EXAMPLES)}, platforms {sorted(platforms)} "
+                         f"and {VERIFIED.name} {sorted(verified)} must name the same drivers")
+    short = {d: platforms[d][2] + (" (beta)" if d in BETA else "") for d in names}
+    out: list[str] = []
+    w = out.append
+
+    w("---\ntitle: Compatibility matrix\ndescription: Which network operating systems Netdryrun is verified on, the exact image and version for each, the date it was last checked against the live device, and what each check type does on each one.\n---\n")
+    w("# Compatibility matrix\n")
+    w("<!-- This page is generated by scripts/compat_matrix.py from the driver tests and the pinned examples. Do not edit it. -->\n")
+    w("Netdryrun reads each network OS through a driver. A driver is only as good as the device output it was built and tested on, so this page lists, for every driver, the exact image it is verified on, the date its test data was last captured from a live lab, and what each check does on it. "
+      "It is generated from the tests (`tests/test_driver_matrix.py`) and from the images the shipped examples pin; if a cell is not on this page, it is not tested.\n")
+
+    w("## Verified images\n")
+    w("| Platform | Image verified on | Source of the image | Test data last captured live | Status |")
+    w("|---|---|---|---|---|")
+    for d in names:
+        _, source = NOS[d]
+        w(f"| {platforms[d][1]} | `{_image(d)}` | {source} | {verified[d]['date']} | {'beta' if d in BETA else 'released'} |")
+    w("")
+    w("Every shipped example pins its image, so a new NOS release shows up as a deliberate change with re-captured test data, never as a silent change under the tests. "
+      "`scripts/capture_fixtures.sh` captures the test data again from the pinned images, and `scripts/fixture_shape.py` reports any change in shape. "
+      "A different image or version may work; it is not verified until it appears here.\n")
+
+    w("## Check types\n")
+    w("Each cell counts the tests on that driver's own captured output: a *must-fail* test is a violation that has to end the check as failed, a *control* is the same output without the violation, which has to pass (so a must-fail test cannot pass only because a capture no longer parses).\n")
+    w("| Check type | " + " | ".join(short[d] for d in names) + " |")
+    w("|---|" + "---|" * len(names))
+    for ctype in check_types:
+        w(f"| `{ctype}` | " + " | ".join(_cell(cells, d, ctype) for d in names) + " |")
+    w("")
+
+    w("## BGP prefix counts by address family\n")
+    w("| Address family | " + " | ".join(short[d] for d in names) + " |")
+    w("|---|" + "---|" * len(names))
+    for afi in afis:
+        row = []
+        for d in names:
+            if afi in drivers[d].unsupported_afis:
+                row.append(f"refused: {REFUSED_AFI.get(afi, 'not supported')}")
+            else:
+                row.append(_cell(cells, d, "bgp_prefixes", lambda c, afi=afi: c.check.get("afi", "ipv4-unicast") == afi,
+                              controls=False))
+        w(f"| `{afi}` | " + " | ".join(row) + " |")
+    w("")
+    w("A check on a refused address family stops the run before the lab is deployed, with a message that names the driver. It is never run and never read as zero.\n")
+
+    w("## `bgp_route` keys\n")
+    w("| Key | " + " | ".join(short[d] for d in names) + " |")
+    w("|---|" + "---|" * len(names))
+    for key in ATTRIBUTES:
+        row = []
+        for d in names:
+            if key in drivers[d].unsupported_bgp_attributes:
+                row.append("refused: not supported on this driver")
+                continue
+            if key == "present":
+                pred = lambda c: c.check.get("present") is False   # noqa: E731
+            else:
+                pred = lambda c, key=key: key in c.check   # noqa: E731
+            n = sum(1 for c in cells if c.driver == d and c.ctype == "bgp_route" and c.must == "fail" and pred(c))
+            row.append(f"verified ({n} must-fail)" if n else "no must-fail test")
+        w(f"| `{key}` | " + " | ".join(row) + " |")
+    w("")
+
+    limits = [(d, text) for d in names for text in verified[d].get("limits", [])]
+    w("## Known limits\n")
+    if limits:
+        for d, text in limits:
+            w(f"- **{short[d]}:** {text}")
+    else:
+        w("None recorded.")
+    w("")
+
+    w("## How a platform gets on this page\n")
+    w("A driver is added when it is built from captured live output, has a must-fail test and a control for every check type, has a capture script (`scripts/capture_fixtures.sh`) and passes the same release gate as the others. "
+      "A driver that is not yet proven in use is marked beta here until outside users confirm it.\n")
+    return "\n".join(out)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--check", action="store_true", help="exit 1 if the page is out of date")
+    ap.add_argument("--verified", metavar="DRIVER", help="record a live re-capture of DRIVER whose tests passed")
+    ap.add_argument("--date", default=None, help="date for --verified (default today, UTC)")
+    args = ap.parse_args()
+    if args.verified:
+        data = json.loads(VERIFIED.read_text(encoding="utf-8"))
+        if args.verified not in data:
+            raise SystemExit(f"unknown driver {args.verified!r}; expected one of {sorted(data)}")
+        data[args.verified]["date"] = args.date or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+        VERIFIED.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
+    page = render()
+    if args.check:
+        current = PAGE.read_text(encoding="utf-8") if PAGE.exists() else ""
+        if current != page:
+            print(f"{PAGE.relative_to(ROOT)}: out of date (run python scripts/compat_matrix.py)", file=sys.stderr)
+            return 1
+        print("compatibility matrix: in sync")
+        return 0
+    PAGE.write_text(page, encoding="utf-8", newline="\n")
+    print(f"wrote {PAGE.relative_to(ROOT)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.1
+      - uses: netdryrun/netdryrun@v0.3.2
         with:
           path: network/        # folder containing netdryrun.yml
 ```
@@ -97,5 +97,5 @@ Requirements: Linux or WSL2, Docker, containerlab, Python 3.10+. Walkthrough: [G
 ## Status
 
 <!-- facts:site_status -->
-Version 0.3.1. Works with FRR, Nokia SR Linux, SONiC and Arista EOS (bring your own cEOS image) on Linux and WSL2. Check types: `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping` (IPv4/IPv6 unicast BGP sessions, prefix counts, routes, BGP best-path attributes and ping), plus link-down, node-isolation and route-injection (FRR only) failure scenarios. On the [verdict corpus](corpus.md) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 17/18, ping-only 9/18, all-sessions-up 7/18. Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.3.1. Issues and feedback: [github.com/netdryrun/netdryrun](https://github.com/netdryrun/netdryrun/issues).
+Version 0.3.2. Works with FRR, Nokia SR Linux, SONiC and Arista EOS (bring your own cEOS image) on Linux and WSL2. Check types: `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping` (IPv4/IPv6 unicast BGP sessions, prefix counts, routes, BGP best-path attributes and ping), plus link-down, node-isolation and route-injection (FRR only) failure scenarios. On the [verdict corpus](corpus.md) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 17/18, ping-only 9/18, all-sessions-up 7/18. Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.3.1. Issues and feedback: [github.com/netdryrun/netdryrun](https://github.com/netdryrun/netdryrun/issues).
 <!-- /facts:site_status -->

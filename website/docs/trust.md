@@ -14,7 +14,7 @@ Netdryrun™ is open source under the [Apache License 2.0](https://github.com/ne
 - Releases are built and published by a GitHub Actions workflow when a version tag (`v*`) is pushed. The workflow checks that the tag matches the package version before building.
 - Packages are uploaded to [PyPI](https://pypi.org/project/netdryrun/) with **Trusted Publishing** (OpenID Connect). No PyPI token or password is stored in the repository or its secrets; PyPI accepts the upload because it comes from that workflow in that repository.
 - The same workflow creates a GitHub release with the built files attached.
-- The GitHub Action (`netdryrun/netdryrun@v0.3.1`) installs Netdryrun from the action's own source at the tag you reference. Pin a tag or a commit SHA.
+- The GitHub Action (`netdryrun/netdryrun@v0.3.2`) installs Netdryrun from the action's own source at the tag you reference. Pin a tag or a commit SHA.
 
 ## Reporting a security issue
 
@@ -32,7 +32,7 @@ A Netdryrun pass means the change behaved correctly in a lab. The lab runs real 
 - **Timing at scale.** Convergence time in a small lab says little about convergence time in a large production network.
 
 <!-- facts:trust_scope -->
-Version 0.3.1 also covers only BGP (IPv4/IPv6 unicast), routes, BGP best-path attributes and ping, plus link-down, node-isolation and route-injection (FRR only) failure scenarios. OSPF/IS-IS adjacencies and path checks are not covered yet.
+Version 0.3.2 also covers only BGP (IPv4/IPv6 unicast), routes, BGP best-path attributes and ping, plus link-down, node-isolation and route-injection (FRR only) failure scenarios. OSPF/IS-IS adjacencies and path checks are not covered yet.
 <!-- /facts:trust_scope -->
 
 ## Running untrusted labs

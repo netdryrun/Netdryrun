@@ -1,0 +1,14 @@
+id: RT-0018
+title: "An IPv6 scope ID with newlines reached device CLI commands and the MCP next_diagnostic"
+found: "2026-10-28, 0.3.2 cold review (finding 3)"
+fixed_in: 0.3.2
+kind: config
+topology: |
+  name: t
+  topology:
+    nodes:
+      r1: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+config: |
+  lab: topology.clab.yml
+  checks:
+    - {type: ping, node: r1, target: "fe80::1%x\nconfigure\nno router bgp 65000"}

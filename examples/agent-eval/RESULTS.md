@@ -75,3 +75,82 @@ Not changed: the inconclusive rule. Treating "bgpd is not running" as a broken l
 
 - `results/<run>/summary.md`: the table for one run. `results/<run>/<ticket>/grade.json`: every measure for one ticket; `transcript.jsonl`: the full agent transcript; `final-answer.md`; `final/`: the folder as the agent left it; `last-netdryrun-report.json`: the agent's last Netdryrun report.
 - `validation/`: ticket ground truth (17 lab runs) and the T07 repeat.
+
+## Open models, qwen3:4b, 0.3.1
+
+Run on 2026-10-28 with `qwen3:4b` (Ollama, thinking on) through `open_agent.py`, on the 0.3.1 release candidate (`ndr/release-0.3.1`, `9b728e8`). Design and predictions: [PREREGISTRATION-OPEN.md](PREREGISTRATION-OPEN.md) with its two amendments. The other two pre-registered models (`qwen3:30b-a3b`, `gpt-oss:20b`) have not run yet. Every number comes from `results/open-qwen3-4b/`; the stuck points are in [`stuck.md`](results/open-qwen3-4b/stuck.md), with the first wrong move of each ticket read by hand from the transcript into `notes.json`.
+
+| Run | Agent | Netdryrun | Solved | Unattended | Right verdict | Right decision | Rules kept | Tool calls, median (range) | Wall time per ticket, median (range) | Cost |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `open-qwen3-4b` | `open_agent.py`, `qwen3:4b`, 16k context | 0.3.1 candidate | **5 / 10** | 10 | 5 | 6 | 10 | 4 (3–6) | 854 s (268–2482) | $0 (local) |
+
+| Ticket | Right answer | qwen3:4b | Answer given (verdict / decision) | First wrong move |
+|---|---|---|---|---|
+| T01 new-block | safe, apply | N | dont_apply / dont_apply | Added the prefix to `CUSTOMER-IN` only, not `OUR-ROUTES`; saw the same three failures, named the missing line, and stopped |
+| T02 transit-only | safe, apply | N | inconclusive / rerun | Took the first dry run, on the unedited folder, as the final answer; never opened `edge1.conf` |
+| T03 review-open-filters | harmful, don't apply | Y | harmful / dont_apply | none |
+| T04 review-community | harmful, don't apply | Y | harmful / dont_apply | none |
+| T05 review-safe | safe, apply | Y | safe / apply | none |
+| T06 peer-wants-transit | harmful, don't apply | N | safe / apply | Ran `dry_run` before editing, then edited and never ran the edit |
+| T07 aggregate | safe, apply | Y | safe / apply | none (the only fix-and-rerun) |
+| T08 review-localpref | harmful, don't apply | Y | harmful / dont_apply | none |
+| T09 review-redistribute | harmful, don't apply | N | safe / apply | Trusted `SAFE TO PROCEED`; never opened `PROPOSED.diff` |
+| T10 broken-lab | inconclusive, don't apply | N | harmful / dont_apply | Read `status: error` (bgpd not running) as a verdict on the change |
+
+"Right decision" is 6 because T10's `dont_apply` is accepted there. All 10 runs ended with the JSON block, made no tool error, broke no rule and edited no file the ticket forbids. The model **never read `AGENTS.md` and never fetched a page**, in any ticket.
+
+### Prediction against result
+
+Predicted 1 to 3 of 10, with most failures from capacity (losing the thread, no JSON block, deciding without a lab run). Actual: **5 of 10**, so the prediction was too low, and its reason was wrong: no run lost the thread or skipped the lab, and every run ended with a parseable answer. The "likely interface stuck point around picking which tool to call first" did not happen (the first lab call was always `dry_run`). The prediction of at least two bin 1 stuck points held (five, below).
+
+How the 5 were solved matters more than the count. T03, T04, T05 and T08 were solved by one `dry_run` on the folder as given and copying the status (`failed` → harmful, `passed` → safe). The same rule is what failed T09, where a pass is wrong. T07 is the only ticket where the model made a change, saw it pass, and the loop worked (a baseline run on the unedited folder, the edit, a rerun). So 5/10 is not evidence that the model understands Netdryrun's verdicts; it is mostly evidence that mirroring `status` scores 5/10 on these tickets.
+
+### Every miss
+
+**T01.** The model added `10.101.0.0/24` to `CUSTOMER-IN` but not to `OUR-ROUTES`, the list that `TO-UPSTREAM` and `TO-PEER` match, so nothing was announced. The rerun failed the same three checks. Its own reason says "added to CUSTOMER-IN but not to OUR-ROUTES"; it did not make the second edit and answered `dont_apply`, also writing that value in the `verdict` field (which takes safe/harmful/inconclusive). Bin: **capacity** (an incomplete edit, then stopping with the diagnosis in hand; the verdict/decision mix-up is the eval prompt's vocabulary).
+
+**T02.** The first run, on the unedited folder, failed the two TICKET checks. The model read that as the end result and answered `inconclusive` / `rerun` without opening `edge1.conf` or changing anything. The failure was the work still to do, not a lab problem. Bin: **interface**: nothing in the result or the tool description says that a first run on an unedited implement ticket is expected to fail the new-behaviour checks; that text sits in `AGENTS.md`, which it did not read.
+
+**T06.** The question was why it applied after the leak guard failed. *The guard never failed in the agent's run.* The sequence was: list, read the ticket, read `edge1.conf`, `dry_run` on the **unedited** folder (`passed`, 11 of 11, `SAFE TO PROCEED`), `write_file` adding `203.0.113.0/24` to `OUR-ROUTES`, answer. The changed folder was never run (5 tool calls, 1 lab run). The result it relied on was a true pass of today's config, and no field was misparsed: `status: passed` and the verdict text were read correctly, but they belonged to the wrong config. The answer ("Dry run confirmed the change is safe") claims a test that did not happen. The grader's rerun of the final folder fails `LEAK GUARD peer1 must not get upstream routes` and `LEAK GUARD peer1 gets at most our 2 prefixes`, as designed. Two causes. The ticket says "Before proposing the change, run Netdryrun on this folder", which a literal reader can satisfy by running first (Opus and Haiku ran after editing); that wording is ours and fixed for this pre-registered set. And the result does not say which version of the configs it tested. Bin: **interface** (nothing in the result ties it to the configs it ran, and the `dry_run` description does not say "run after you write the change"), plus a **judgement** component: asserting a confirmation it did not have.
+
+**T09.** One `dry_run` on the change as given: 5 of 5 given checks passed and the verdict said `SAFE TO PROCEED`. The model stopped, never opened `PROPOSED.diff` or `r1.conf`, and never called `record_baseline`. Two stuck points: the verdict text overclaims (**interface**: "safe" for "the five checks passed"), and not looking at the diff of a refactor whose ticket says "must not change" (**judgement**). This is the limit pre-registered for the ticket.
+
+**T10.** One `dry_run` on the unedited folder: `status: error`, "bgpd is not running", every router check `unready: true`. The model answered `harmful` / `dont_apply`. The decision is right and counts; the verdict is wrong, because `error` plus `unready` says nothing about the change. Its reasoning first wondered whether its own config stopped bgpd from starting, then settled on "DO NOT APPLY" meaning harmful. Bin: **interface** (a dead daemon on every node returns the same `DO NOT APPLY THIS CHANGE` a bad change gets, and the `unready` flag was ignored) plus judgement.
+
+### Stuck points by bin
+
+Ten stuck points, each in one bin:
+
+| Bin | Count | Stuck points |
+|---|---|---|
+| Interface (ours) | 5 | T02 failing first run read as final; T06 result not tied to the config it ran; T09 `SAFE TO PROCEED`; T10 `error` read as a verdict; docs never read (all tickets) |
+| Judgement | 2 | T06 claims a confirmation it never had; T09 does not open the diff of a "no change" refactor |
+| Capacity | 3 | T01 incomplete edit; T01 stops with the diagnosis in hand; T01 verdict/decision mix-up (our eval prompt, not the product) |
+
+The split is one reader's call; "interface" means a clearer result or description would plausibly have prevented the move, not that it would have. One run of a 4B model can't separate those.
+
+### Interface fixes, and what 0.3.2 already covers
+
+Compared with `origin/ndr/agent-contract` (`fb07ccc`; `mcp_server.py`, `SKILL.md`, `verdict-v1.md`):
+
+| # | Stuck point | Fix | In 0.3.2? |
+|---|---|---|---|
+| 1 | Docs never read: rules in `AGENTS.md` and `SKILL.md` don't reach this agent | The rules ride in every tool description | **Yes**: `CONTRACT` is appended to every description |
+| 2 | T09: `SAFE TO PROCEED` | Rename the pass verdict | **Yes**: `CHECKS PASSED (only what the checks cover)`, frozen in v1 |
+| 3 | T06: a run on the unedited folder looks like a run of the change | `dry_run` description: "write the change into the configs first; a run on the unedited folder tests today's config". A result field naming what was tested (a hash per config file) so a pasted verdict can be tied to a version | **No.** Rule 1 of `SKILL.md` says it; the `dry_run` description does not; no such result field |
+| 4 | T02, T01: a failed first run is the work to do, and a failure is not the end | `dry_run` description: "on a new-behaviour ticket the first run on the unedited folder is expected to fail the new checks: edit and rerun. A failed run means fix the config and run again, not stop" | **Partly.** `failures` with a reason and one `next_diagnostic` per failed check help a model that keeps going; the fix-and-rerun instruction is only in `SKILL.md` |
+| 5 | T09: a pass can't show "no behavior change" | `dry_run` description, for a change claimed to alter nothing: read the diff and compare with a `record_baseline` of the unchanged configs | **Partly.** "say that the pass covers only what the checks look at" is in; the baseline step is not |
+| 6 | T10: dead daemons on every node return the verdict a bad change gets | Return `INCONCLUSIVE` when no node gave usable state; say in the description that `status: error` is a setup problem and says nothing about the change | **Unclear.** `unready` is described, and `f8bb3fd` skips scenarios after an inconclusive main phase when no node gave state; a T10 lab run on the candidate would show which status comes back. The "error says nothing about your change" text is in `SKILL.md` only |
+
+Items 3 to 6 are the candidates for 0.3.2 or 0.3.3; 3, 4 and 5 are description text plus one result field. None is implemented by this task.
+
+### Amendments and deviations
+
+- **Amendment 1** (before any graded run): context 16,384 and tool results cut at 8,000 characters; the stopped attempts (`aborted-open-qwen3-4b-too-slow`, `aborted-open-qwen3-4b-stopped-for-docs`) are kept and not counted.
+- **Amendment 2** (from T04 on): `keep_alive` of 30 minutes. T01 to T03 ran without it; this changes load time, not the model's outputs. T03 (2482 s) and T01 (1213 s) are the slowest tickets, which fits a reload, but wall time is not compared.
+- The prompt gave the Windows path (`--path-style windows`); the model passed `.`, `netdryrun.yml` or the Windows path to the tools and none was refused (0 tool errors in 10 runs).
+- No other deviation from the pre-registration.
+
+### What this can't show
+
+One run of one 4B model on one laptop, one run per ticket; another sample could change two or three tickets (temperature 0.2, no fixed seed). Four of the five solved tickets are solved by reading `status`, so they say little about verdict understanding. The first wrong move is one reader's call on thinking text that is long and partly invented by the model. The T06 cause is read from the transcript, not reproduced; whether a "run after editing" description changes this model's order is untested. The two larger open models have not run. The ticket wording ("before proposing") is the author's, and the corpus is two small FRR labs. The fixes in the table are untested until the rerun on 0.3.2 described in the README.

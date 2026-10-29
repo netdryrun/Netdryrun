@@ -32,7 +32,7 @@ FAILED: 5 passed, 1 failed (6 checks)
 That run caught a leaked default route that was *received but not selected*. Ping and session checks alone would miss this example: every session is up and every address answers. (A static analyzer such as Batfish also catches this particular leak; the [Batfish page](https://netdryrun.com/batfish/) shows one that it misses and a lab catches.)
 
 <!-- facts:readme_status -->
-> Status: **v0.3.1.** Runs on Linux and WSL2, with drivers for FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image). On the [verdict corpus](https://netdryrun.com/corpus/) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 17/18, ping-only 9/18, all-sessions-up 7/18. Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.3.1.
+> Status: **v0.3.2.** Runs on Linux and WSL2, with drivers for FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image). On the [verdict corpus](https://netdryrun.com/corpus/) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 17/18, ping-only 9/18, all-sessions-up 7/18. Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.3.1.
 <!-- /facts:readme_status -->
 
 ## Why
@@ -154,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.1
+      - uses: netdryrun/netdryrun@v0.3.2
         with:
           path: network/        # folder containing netdryrun.yml
 ```
@@ -162,6 +162,8 @@ jobs:
 The action installs containerlab, runs the checks, uploads the JSON and JUnit reports as an artifact, and fails the job if any check fails. Outputs: `status`, `passed`, `failed`, `inconclusive-reason`.
 
 ## For AI agents (MCP)
+
+Listed in the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.netdryrun) (`io.github.netdryrun/netdryrun`); the agent skill is also on [Smithery](https://smithery.ai/skills/netdryrun/netdryrun).
 
 **AI can propose network changes. Netdryrun verifies the outcome.** Agents: read [AGENTS.md](https://github.com/netdryrun/netdryrun/blob/main/AGENTS.md).
 
@@ -177,15 +179,26 @@ Add it to your MCP client (for example Claude Code):
 claude mcp add netdryrun -- netdryrun mcp
 ```
 
-Tools: `dry_run` (deploy, check, destroy, verdict), `run_checks` (against a running lab), `record_baseline` (snapshot a known-good lab into checks), `validate`, `check_types`. Each result carries a separate `verdict` field: `SAFE TO PROCEED`, `DO NOT APPLY THIS CHANGE`, or `INCONCLUSIVE: the lab did not reach a testable state; ...` when the lab never came up. `SAFE TO PROCEED` means only that every check in the file passed in the lab. A change can break something no check looks at and still get it: in our [agent evaluation](https://netdryrun.com/ai-agents/), an agent's "pure refactor" added `redistribute connected` and passed, because no check covered the extra routes. For a change that must not change behavior, record a baseline first.
+Tools: `dry_run` (deploy, check, destroy, verdict), `run_checks` (against a running lab), `record_baseline` (snapshot a known-good lab into checks), `validate`, `check_types`. Each result carries a separate `verdict` field: `CHECKS PASSED (only what the checks cover)`, `DO NOT APPLY THIS CHANGE`, or `INCONCLUSIVE: the lab did not reach a testable state; ...` when the lab never came up. `CHECKS PASSED (only what the checks cover)` means only that every check in the file passed in the lab, so a pass never says "safe". A change can break something no check looks at and still get it: in our [agent evaluation](https://netdryrun.com/ai-agents/), an agent's "pure refactor" added `redistribute connected` and passed, because no check covered the extra routes. For a change that must not change behavior, record a baseline first. From 0.3.2 the verdict strings are frozen (0.3.1 said `SAFE TO PROCEED` for a pass; decide on `status`, not the text), a failed result lists each failed check with its reason, an evidence excerpt and one read-only next diagnostic command, and the result format is a published JSON Schema: [mcp-result-v1.json](https://netdryrun.com/schemas/mcp-result-v1.json).
 
 **Demo** ([examples/agent-demo](https://github.com/netdryrun/netdryrun/tree/main/examples/agent-demo)): the ticket says the customer's new block must reach the upstream and the peer. The tempting change passes every ticket check, session and ping, but leaks routes; Netdryrun rejects it. The two-line fix passes the same checks. (A scripted replay of the two attempts; CI runs it.)
 
 <p align="center"><img alt="Attempt 1 passes the ticket checks but fails five leak guards; attempt 2 passes all 14 checks" src="https://raw.githubusercontent.com/netdryrun/netdryrun/main/.github/assets/netdryrun-agent-demo.gif" width="820"></p>
 
+### The agent skill
+
+[`skills/netdryrun/SKILL.md`](https://github.com/netdryrun/netdryrun/blob/main/skills/netdryrun/SKILL.md) teaches a coding agent the rules: dry-run a routing change before applying it, paste the verdict, stop on inconclusive, never write or weaken checks to make a change pass, and use `record_baseline` when there are no checks. Install it from this repository's git URL (from 0.3.2):
+
+```bash
+git clone --depth 1 https://github.com/netdryrun/netdryrun /tmp/netdryrun
+mkdir -p ~/.claude/skills && cp -r /tmp/netdryrun/skills/netdryrun ~/.claude/skills/   # Claude Code, every project
+```
+
+To give it to everyone working in one repository, copy the folder to `.claude/skills/netdryrun/` there and commit it. Other clients that read Agent Skills (a folder with a `SKILL.md`) take the same folder. The skill expects the MCP server above; without it, the agent falls back to the CLI.
+
 Safety model:
 - The server **never touches production**. It has no tool that pushes config anywhere; it only builds and tests labs.
-- Tool results contain normalized check results, not raw device output. A check's `detail` can still quote a fragment of lab text (a banner, a route description); from 0.3.1 it is kept to one line and capped in length, and it never changes `status` or `verdict`. Raw evidence goes to the JSON report file.
+- Tool results contain normalized check results, not full device output. A check's `detail` can still quote a fragment of lab text (a banner, a route description), and from 0.3.2 each failed check carries a short evidence excerpt; each is kept to one line and capped in length, and none of them changes `status` or `verdict`. Raw evidence goes to the JSON report file.
 - A lab is code: containerlab runs privileged containers. Only point the server at topologies you trust, on a machine you'd let run Docker.
 
 ## How it compares
@@ -204,7 +217,7 @@ What Netdryrun adds: positive checks wait for convergence, negative checks run o
 
 - Lab routers are not your production routers. A pass on FRR, SR Linux, SONiC VS or Arista cEOS is strong evidence for protocol logic and policy intent, but not proof of hardware, scale or version-specific behavior. For Arista, bring your own licensed cEOS image to test real vendor code.
 - Checks cover IPv4/IPv6 unicast BGP (sessions, prefix counts, best-path attributes), routes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios. Route checks work for routes from any protocol today (`protocol: ospf`, `isis`, `static`, `connected`, ...); OSPF/IS-IS *adjacency* checks and path/traceroute are coming.
-- No Cisco or Juniper driver yet: their lab images are licensed. See [Why not Cisco or Juniper?](https://netdryrun.com/faq/#why-not-cisco-or-juniper)
+- No Cisco or Juniper driver in a release yet. Their lab images need a vendor account and can't be redistributed, so their drivers will be bring-your-own-image, like cEOS; Juniper and Cisco NX-OS are next on the [roadmap](https://netdryrun.com/faq/#why-not-cisco-or-juniper).
 
 How results are checked and released, with evidence for each claim: [How it's built](https://netdryrun.com/how-its-built/).
 

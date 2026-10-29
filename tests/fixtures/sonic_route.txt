@@ -8,10 +8,10 @@
       "metric":0,
       "installed":true,
       "offloaded":true,
-      "nexthopGroupId":26,
+      "nexthopGroupId":22,
       "vrfId":0,
       "vrfName":"default",
-      "uptime":"00:00:18",
+      "uptime":"00:01:36",
       "prefix":"192.168.20.0/24",
       "prefixLen":24,
       "table":254,
@@ -20,8 +20,8 @@
       "internalNextHopNum":1,
       "internalNextHopActiveNum":1,
       "internalNextHopFibInstalledNum":1,
-      "installedNexthopGroupId":26,
-      "receivedNexthopGroupId":26,
+      "installedNexthopGroupId":22,
+      "receivedNexthopGroupId":22,
       "nexthops":[
         {
           "flags":3,

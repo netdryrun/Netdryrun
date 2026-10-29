@@ -1,11 +1,14 @@
 # SONiC virtual switch (docker-sonic-vs, from the SONiC project's CI) peering eBGP with FRR.
+# Pinned to the build the driver is verified on (master.1258173-c10162df4, built 2026-10-26, FRR 10.7 inside).
+# The CI keeps only recent builds: load yours with scripts/get_sonic_vs.sh, which tags it with its own build id,
+# then put that tag on the image line below.
 name: ndr-sonic-frr
 
 topology:
   nodes:
     sonic1:
       kind: sonic-vs
-      image: docker-sonic-vs:latest
+      image: docker-sonic-vs:master.1258173-c10162df4
     frr1:
       kind: linux
       image: quay.io/frrouting/frr:10.4.1

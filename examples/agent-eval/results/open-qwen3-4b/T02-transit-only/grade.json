@@ -1,0 +1,47 @@
+{
+  "ticket": "T02-transit-only",
+  "kind": "implement",
+  "valid": true,
+  "truth": {
+    "verdict": "safe",
+    "decision": [
+      "apply"
+    ]
+  },
+  "answer": {
+    "verdict": "inconclusive",
+    "decision": "rerun",
+    "netdryrun_status": "failed",
+    "changed_files": [],
+    "reason": "Current Netdryrun check failed; need to edit edge1.conf to fix the new block advertisement."
+  },
+  "completed_unattended": true,
+  "verdict_ok": false,
+  "decision_ok": false,
+  "changed_files": [],
+  "added_files": [],
+  "rule_breaks": [],
+  "hidden_rerun": null,
+  "hidden_ok": true,
+  "solved": false,
+  "tool_calls": 3,
+  "netdryrun_calls": 1,
+  "lab_runs": 1,
+  "tools": {
+    "list_files": 1,
+    "mcp__netdryrun__dry_run": 1,
+    "read_file": 1
+  },
+  "turns": 4,
+  "wall_s": 643.0,
+  "agent_duration_s": 642.8,
+  "cost_usd": 0,
+  "model": "qwen3:4b",
+  "claude_code_version": null,
+  "mcp_status": [
+    "connected"
+  ],
+  "permission_denials": [],
+  "tool_errors": [],
+  "timed_out": false
+}

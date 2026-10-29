@@ -1,0 +1,15 @@
+id: RT-0014
+title: "Runner-level false passes: each is pinned to the test that reproduces it"
+found: "0.3.0 pre-launch audit (R1, R2) and the 0.3.1 cold review (findings 1, 2, 4, 7)"
+fixed_in: 0.3.1
+kind: pinned
+# These need a whole run on a fake clock and a fake lab, so the reproduction lives in the test suite.
+# The corpus pins them: renaming or deleting one of these tests fails tests/test_redteam.py.
+tests:
+  - tests/test_runner_robustness.py::test_scenario_positive_cannot_pass_on_pre_fault_state       # 0.3.0 R1
+  - tests/test_runner_robustness.py::test_scenario_waits_for_the_fault_to_show_in_bgp           # 0.3.0 R1
+  - tests/test_runner_robustness.py::test_negative_check_waits_for_every_bgp_session_on_its_node  # 0.3.0 R2
+  - tests/test_verdict_runner.py::test_bgp_route_attribute_is_not_judged_on_a_temporary_best_path  # review 1
+  - tests/test_verdict_runner.py::test_node_without_bgp_neighbors_yet_is_not_converged          # review 2
+  - tests/test_verdict_runner.py::test_unreadable_snapshot_stops_the_scenario_before_any_fault   # review 4
+  - tests/test_verdict_runner.py::test_scenario_negative_checks_wait_for_the_bgp_gate           # review 7

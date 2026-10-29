@@ -149,7 +149,7 @@ def test_other_statuses_unchanged():
     err = _report([result(SESSION, unready=10)], error="containerlab deploy failed")
     assert err.status == "error" and err.exit_code == 2 and err.inconclusive_reason is None
     ok = _report([result(SESSION, passed=True, samples_passed=2)])
-    assert ok.status == "passed" and ok.exit_code == 0 and _summary(ok, None)["verdict"] == "SAFE TO PROCEED"
+    assert ok.status == "passed" and ok.exit_code == 0 and _summary(ok, None)["verdict"] == "CHECKS PASSED (only what the checks cover)"
 
 
 def test_summary_flags_failed_checks_that_never_got_state():
@@ -162,3 +162,28 @@ def test_summary_flags_failed_checks_that_never_got_state():
     assert s["checks"][0]["unready"] is True and "unready" not in s["checks"][1]
     ok = _summary(_report([result(SESSION, passed=True, samples_passed=2)]), None)
     assert "unready" not in ok["checks"][0]
+
+
+def test_a_ping_with_no_replies_does_not_hide_a_node_whose_routing_state_never_came_up():
+    """Agent eval T10: bgpd off on every node. r2 has a route check whose every sample errored and a ping that
+    read cleanly (0 replies). A ping can't show that a node gave control-plane state, so r2 never did."""
+    r2_route = check("route", node="r2", prefix="192.168.11.0/24", protocol="bgp")
+    r2_ping = check("ping", node="r2", target="192.168.11.1")
+    rs = [result(SESSION, unready=10, detail="error: bgpd is not running"),
+          result(r2_route, unready=10, detail="error: bgpd is not running"),
+          result(r2_ping, detail="0/3 replies (need 2)"), result(PING, detail="0/3 replies (need 2)")]
+    why = inconclusive_reason(rs)
+    assert why and "r1" in why and "r2" in why
+
+
+def test_a_readable_routing_table_still_makes_a_ping_failure_a_finding():
+    r2_route = check("route", node="r2", prefix="192.168.11.0/24")
+    r2_ping = check("ping", node="r2", target="192.168.11.1")
+    rs = [result(SESSION, unready=10), result(r2_route, detail="seen: nothing"), result(r2_ping, detail="0/3 replies")]
+    assert inconclusive_reason(rs) is None
+    # partly unready is not "never": one readable sample of the routing table is state
+    rs = [result(SESSION, unready=10), result(r2_route, attempts=10, unready=9), result(r2_ping, detail="0/3 replies")]
+    assert inconclusive_reason(rs) is None
+    # a ping-only node still needs every ping sample unready
+    rs = [result(SESSION, unready=10), result(r2_ping, detail="0/3 replies")]
+    assert inconclusive_reason(rs) is None

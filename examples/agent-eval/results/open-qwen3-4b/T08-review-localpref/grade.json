@@ -1,0 +1,49 @@
+{
+  "ticket": "T08-review-localpref",
+  "kind": "review",
+  "valid": true,
+  "truth": {
+    "verdict": "harmful",
+    "decision": [
+      "dont_apply"
+    ]
+  },
+  "answer": {
+    "verdict": "harmful",
+    "decision": "dont_apply",
+    "netdryrun_status": "failed",
+    "changed_files": [
+      "configs/r1.conf"
+    ],
+    "reason": "The change causes r1 to prefer r3's path for 192.168.2.0/24 (as-path '65003 65002') instead of r2's path (expected as-path '65002'), indicating unintended route selection for a different subnet than intended."
+  },
+  "completed_unattended": true,
+  "verdict_ok": true,
+  "decision_ok": true,
+  "changed_files": [],
+  "added_files": [],
+  "rule_breaks": [],
+  "hidden_rerun": null,
+  "hidden_ok": true,
+  "solved": true,
+  "tool_calls": 3,
+  "netdryrun_calls": 1,
+  "lab_runs": 1,
+  "tools": {
+    "list_files": 1,
+    "mcp__netdryrun__dry_run": 1,
+    "read_file": 1
+  },
+  "turns": 4,
+  "wall_s": 300.1,
+  "agent_duration_s": 299.9,
+  "cost_usd": 0,
+  "model": "qwen3:4b",
+  "claude_code_version": null,
+  "mcp_status": [
+    "connected"
+  ],
+  "permission_denials": [],
+  "tool_errors": [],
+  "timed_out": false
+}

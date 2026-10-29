@@ -1,0 +1,1 @@
+Stopped during T01 after 3 turns in ~25 min (about 8 min per turn: qwen3:4b with a 32k context ran 47% on CPU on this laptop). Not graded, not counted. Restarted with the amended settings in PREREGISTRATION-OPEN.md.

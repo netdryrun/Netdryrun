@@ -1,0 +1,6 @@
+id: RT-0001
+title: "0.3.0 advisory, file 1-misspelled-top-key"
+found: "2026-10-27, pre-launch audit (advisories/0.3.0-false-pass)"
+fixed_in: 0.3.1
+kind: config
+file: advisories/0.3.0-false-pass/1-misspelled-top-key.yml

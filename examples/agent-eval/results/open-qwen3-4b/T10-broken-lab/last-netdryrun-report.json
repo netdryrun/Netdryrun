@@ -1,0 +1,906 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "error",
+  "lab": "ndr-eval-t10",
+  "config": "netdryrun.yml",
+  "started": "2026-10-28T06:10:52+00:00",
+  "finished": "2026-10-28T06:14:50+00:00",
+  "error": "could not read BGP state on r1 to find the BGP sessions over the links the scenario takes down: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running. Netdryrun won't judge the scenario without knowing when the fault took effect",
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.3.1",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "r1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1"
+      },
+      "r2": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1"
+      },
+      "r3": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1"
+      }
+    }
+  },
+  "summary": {
+    "passed": 0,
+    "failed": 10,
+    "total": 10
+  },
+  "checks": [
+    {
+      "name": "TICKET r2 gets r1's new 192.168.11.0/24",
+      "type": "route",
+      "params": {
+        "node": "r2",
+        "prefix": "192.168.11.0/24",
+        "protocol": "bgp"
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+      "attempts": 15,
+      "duration_s": 90.1,
+      "started": "2026-10-28T06:10:54+00:00",
+      "history": [
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 9.4,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 15.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 21.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 28.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 34.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 40.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 46.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 52.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 59.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 65.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 71.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 77.7,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 83.9,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 90.1,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r2 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "name": "TICKET r3 gets r1's new 192.168.11.0/24",
+      "type": "route",
+      "params": {
+        "node": "r3",
+        "prefix": "192.168.11.0/24",
+        "protocol": "bgp"
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+      "attempts": 15,
+      "duration_s": 90.1,
+      "started": "2026-10-28T06:10:54+00:00",
+      "history": [
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 9.4,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 15.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 21.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 28.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 34.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 40.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 46.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 52.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 59.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 65.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 71.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 77.7,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 83.9,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 90.1,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.11.0/24 json` failed on r3 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "name": "TICKET r2's LAN reaches the new LAN",
+      "type": "ping",
+      "params": {
+        "node": "r2",
+        "source": "192.168.2.1",
+        "target": "192.168.11.1",
+        "expect": "success"
+      },
+      "passed": false,
+      "detail": "0/3 replies (need 2)",
+      "attempts": 15,
+      "duration_s": 90.1,
+      "started": "2026-10-28T06:10:54+00:00",
+      "history": [
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 9.4,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 15.6,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 21.8,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 28.0,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 34.2,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 40.3,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 46.6,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 52.8,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 59.0,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 65.3,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 71.5,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 77.7,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 83.9,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 90.1,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r2",
+          "cmd": "ping -c 3 -W 1 -I 192.168.2.1 192.168.11.1",
+          "rc": 1,
+          "output": "PING 192.168.11.1 (192.168.11.1) from 192.168.2.1: 56 data bytes\n\n--- 192.168.11.1 ping statistics ---\n3 packets transmitted, 0 packets received, 100% packet loss\n",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "name": "r1: BGP session to 10.0.12.2 is established",
+      "type": "bgp_session",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.12.2",
+        "state": "established"
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+      "attempts": 15,
+      "duration_s": 90.1,
+      "started": "2026-10-28T06:10:54+00:00",
+      "history": [
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 9.4,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 15.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 21.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 28.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 34.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 40.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 46.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 52.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 59.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 65.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 71.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 77.7,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 83.9,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 90.1,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "name": "r1: BGP session to 10.0.13.2 is established",
+      "type": "bgp_session",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.13.2",
+        "state": "established"
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+      "attempts": 15,
+      "duration_s": 90.1,
+      "started": "2026-10-28T06:10:54+00:00",
+      "history": [
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 9.4,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 15.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 21.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 28.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 34.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 40.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 46.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 52.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 59.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 65.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 71.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 77.7,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 83.9,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 90.1,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "name": "r1: prefixes from 10.0.12.2 >= 1 and <= 10",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.12.2",
+        "min": 1,
+        "max": 10
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+      "attempts": 11,
+      "duration_s": 30.3,
+      "started": "2026-10-28T06:14:16+00:00",
+      "history": [
+        {
+          "t": 0.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 3.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 6.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 10.1,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 13.4,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 16.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 19.9,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 23.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 26.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 29.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 30.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp neighbors json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "name": "r1: route 192.168.3.0/24 via bgp is present",
+      "type": "route",
+      "params": {
+        "node": "r1",
+        "prefix": "192.168.3.0/24",
+        "protocol": "bgp"
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+      "attempts": 15,
+      "duration_s": 90.1,
+      "started": "2026-10-28T06:10:54+00:00",
+      "history": [
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 9.4,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 15.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 21.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 28.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 34.2,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 40.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 46.6,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 52.8,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 59.0,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 65.3,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 71.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 77.7,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 83.9,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        },
+        {
+          "t": 90.1,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.3.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "name": "r1: ping 192.168.3.1 from 192.168.1.1 expects success",
+      "type": "ping",
+      "params": {
+        "node": "r1",
+        "source": "192.168.1.1",
+        "target": "192.168.3.1",
+        "expect": "success"
+      },
+      "passed": false,
+      "detail": "0/3 replies (need 2)",
+      "attempts": 15,
+      "duration_s": 90.1,
+      "started": "2026-10-28T06:10:54+00:00",
+      "history": [
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 9.4,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 15.6,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 21.8,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 28.0,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 34.2,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 40.3,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 46.6,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 52.8,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 59.0,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 65.3,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 71.5,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 77.7,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 83.9,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        },
+        {
+          "t": 90.1,
+          "passed": false,
+          "detail": "0/3 replies (need 2)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "ping -c 3 -W 1 -I 192.168.1.1 192.168.3.1",
+          "rc": 1,
+          "output": "PING 192.168.3.1 (192.168.3.1) from 192.168.1.1: 56 data bytes\n\n--- 192.168.3.1 ping statistics ---\n3 packets transmitted, 0 packets received, 100% packet loss\n",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "name": "r1: BGP best path for 192.168.2.0/24 has as-path '65002', next hop 10.0.12.2",
+      "type": "bgp_route",
+      "params": {
+        "node": "r1",
+        "prefix": "192.168.2.0/24",
+        "as_path": "65002",
+        "next_hop": "10.0.12.2"
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.2.0/24 json` failed on r1 (rc=1): bgpd is not running",
+      "attempts": 1,
+      "duration_s": 0.5,
+      "started": "2026-10-28T06:14:46+00:00",
+      "history": [
+        {
+          "t": 0.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 192.168.2.0/24 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "name": "r1: route 0.0.0.0/0 via bgp is absent",
+      "type": "route",
+      "params": {
+        "node": "r1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "bgp",
+        "present": false
+      },
+      "passed": false,
+      "detail": "error: `vtysh -c show bgp ipv4 unicast 0.0.0.0/0 json` failed on r1 (rc=1): bgpd is not running",
+      "attempts": 1,
+      "duration_s": 0.5,
+      "started": "2026-10-28T06:14:46+00:00",
+      "history": [
+        {
+          "t": 0.5,
+          "passed": false,
+          "detail": "error: `vtysh -c show bgp ipv4 unicast 0.0.0.0/0 json` failed on r1 (rc=1): bgpd is not running",
+          "unready": true
+        }
+      ],
+      "evidence": []
+    }
+  ]
+}

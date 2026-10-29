@@ -62,6 +62,14 @@ Snapshots a known-good lab into a `netdryrun.yml` baseline: every established BG
 | `--attributes` | Also record a `bgp_route` check per BGP route, pinning its best path's AS path, local preference and communities (not MED or next hop, which follow the topology) |
 | `--force` | Overwrite an existing file |
 
+### feedback
+
+Opens a short feedback form on GitHub in your browser, prefilled with your Netdryrun version and platform. Nothing is sent until you submit the form.
+
+| Option | Meaning |
+|---|---|
+| `--print-only` | Print the form's URL instead of opening a browser |
+
 ## Options
 
 `run` and `check`:
@@ -119,7 +127,7 @@ A run is `inconclusive` instead of `failed` only when **all** of these hold. The
 1. At least one check failed, and there was no lab or config error (that is `error`).
 2. No positive check passed on **any** sample, anywhere in the run, scenarios included. One passing sample anywhere shows a working network, so the failures are findings.
 3. No post-convergence check failed with readable state. A leaked route, or a session that is up but must be down, proves a working control plane.
-4. Every failed check is on a node that never gave usable state. That means every sample of every `bgp_session` and `bgp_prefixes` check on the node was *unready*: the state command failed or its output could not be read (a CLI that isn't up yet), or BGP had no neighbors at all on the node. A node with no session or prefix checks qualifies only if every sample of every check on it was unready.
+4. Every failed check is on a node that never gave usable state. That means every sample of every `bgp_session` and `bgp_prefixes` check on the node was *unready*: the state command failed or its output could not be read (a CLI that isn't up yet), or BGP had no neighbors at all on the node. A node with no session or prefix checks qualifies if every sample of every `route` and `bgp_route` check on it was unready (its routing table never answered; from 0.3.2, a ping on it that got no replies doesn't stop this, since a ping can't show that the node gave routing state). A node with only `ping` checks qualifies only if every sample of every check on it was unready.
 
 A configured BGP session that is down (`idle`, `active`, `connect`, ...) is never unready. An ASN typo, a wrong neighbor address or a shutdown look exactly like a slow lab from the outside, so they stay `failed`. A routing table without the route, and a ping with no replies, are findings for the same reason. So a `timeout` that is merely too short for configured sessions to establish gives `failed`, not `inconclusive`; `inconclusive` is for a node whose CLI or BGP never came up at all.
 

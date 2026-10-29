@@ -1,5 +1,5 @@
 name: Netdryrun
-description: Test network changes in a real virtual lab (containerlab) before they reach production.
+description: Find the route leaks that ping and 'BGP up' miss. Test network changes in a real containerlab lab before production.
 author: Netdryrun
 branding:
   icon: shield
@@ -195,7 +195,9 @@ runs:
         echo "Evidence: $URL"
 
     - name: Fail on failed checks
-      if: steps.run.outputs.exit_code != '0'
+      # The job is green only when the run exited 0 AND its report says passed: a report that contradicts
+      # the exit code, or no report, is status error and must never read as a pass
+      if: steps.run.outputs.exit_code != '0' || steps.result.outputs.status != 'passed'
       shell: bash
       env:
         NDR_STATUS: ${{ steps.result.outputs.status }}

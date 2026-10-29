@@ -1,0 +1,62 @@
+# Checks for this ticket, written by the network team. Don't edit this file.
+lab: topology.clab.yml
+timeout: 90
+
+checks:
+  # --- The ticket: r2 and r3 receive the aggregate 192.168.0.0/16 from r1
+  - {type: bgp_route, node: r2, prefix: 192.168.0.0/16, as_path: "65001", name: "TICKET r2 gets 192.168.0.0/16 from r1"}
+  - {type: bgp_route, node: r3, prefix: 192.168.0.0/16, as_path: "65001", name: "TICKET r3 gets 192.168.0.0/16 from r1"}
+  - {type: route, node: r2, prefix: 192.168.1.0/24, protocol: bgp, name: "TICKET r2 still gets r1's 192.168.1.0/24"}
+  # --- Standing checks for every change on r1
+  - type: bgp_session
+    node: r1
+    neighbor: 10.0.12.2
+  - type: bgp_session
+    node: r1
+    neighbor: 10.0.13.2
+  - type: bgp_prefixes
+    node: r1
+    neighbor: 10.0.12.2
+    min: 1
+    max: 10          # guards against a route leak flooding r1
+  - type: route
+    node: r1
+    prefix: 192.168.3.0/24
+    protocol: bgp
+  - type: ping
+    node: r1
+    source: 192.168.1.1
+    target: 192.168.3.1
+  - type: bgp_route    # r1 prefers r2's direct path to r2's LAN over the longer path via r3
+    node: r1
+    prefix: 192.168.2.0/24
+    as_path: "65002"
+    next_hop: 10.0.12.2
+  - type: route        # nothing should send r1 a default route
+    node: r1
+    prefix: 0.0.0.0/0
+    protocol: bgp
+    present: false
+
+# Failure scenarios: take links down, check the network still behaves, then restore them.
+scenarios:
+  - name: r1-r2 link fails
+    link_down: {node: r1, interface: eth1}
+    checks:
+      - type: route        # r2's LAN is still reachable, now via r3
+        node: r1
+        prefix: 192.168.2.0/24
+        protocol: bgp
+      - type: bgp_route    # the best path now goes the long way, through r3
+        node: r1
+        prefix: 192.168.2.0/24
+        as_path: "65003 65002"
+        next_hop: 10.0.13.2
+      - type: ping
+        node: r1
+        source: 192.168.1.1
+        target: 192.168.2.1
+      - type: bgp_session  # and the session over the failed link is really down
+        node: r1
+        neighbor: 10.0.12.2
+        state: down        # any state except established

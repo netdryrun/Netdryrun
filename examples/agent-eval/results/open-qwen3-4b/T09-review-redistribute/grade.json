@@ -1,0 +1,50 @@
+{
+  "ticket": "T09-review-redistribute",
+  "kind": "review",
+  "valid": true,
+  "truth": {
+    "verdict": "harmful",
+    "decision": [
+      "dont_apply"
+    ]
+  },
+  "answer": {
+    "verdict": "safe",
+    "decision": "apply",
+    "netdryrun_status": "passed",
+    "changed_files": [
+      "configs/r1.conf"
+    ],
+    "reason": "Netdryrun dry run confirms all checks passed: r1 sessions to r2/r3 are up, r2/r3 receive r1's LAN routes, and LAN reachability works without changes."
+  },
+  "completed_unattended": true,
+  "verdict_ok": false,
+  "decision_ok": false,
+  "changed_files": [],
+  "added_files": [],
+  "rule_breaks": [],
+  "hidden_rerun": null,
+  "hidden_ok": true,
+  "solved": false,
+  "tool_calls": 4,
+  "netdryrun_calls": 2,
+  "lab_runs": 1,
+  "tools": {
+    "list_files": 1,
+    "mcp__netdryrun__dry_run": 1,
+    "mcp__netdryrun__validate": 1,
+    "read_file": 1
+  },
+  "turns": 5,
+  "wall_s": 268.5,
+  "agent_duration_s": 268.2,
+  "cost_usd": 0,
+  "model": "qwen3:4b",
+  "claude_code_version": null,
+  "mcp_status": [
+    "connected"
+  ],
+  "permission_denials": [],
+  "tool_errors": [],
+  "timed_out": false
+}

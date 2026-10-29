@@ -1,0 +1,11 @@
+id: RT-0019
+title: "0.3.2 agent contract: a relative MCP path that could test an unedited copy, and a skip that hid a failure"
+found: "2026-10-28, 0.3.2 cold review (findings 1, 2)"
+fixed_in: 0.3.2
+kind: pinned
+# Finding 1 needs the MCP server with a root and a working directory; finding 2 a whole run on a fake clock.
+tests:
+  - tests/test_mcp.py::test_relative_path_that_names_two_files_is_refused                                     # review 1
+  - tests/test_mcp.py::test_relative_paths_cannot_escape_a_single_mcp_root                                    # review 1
+  - tests/test_verdict_runner.py::test_scenarios_on_nodes_that_gave_state_still_run_after_an_unready_main_phase  # review 2
+  - tests/test_verdict_runner.py::test_unreadable_snapshot_after_a_readable_failure_is_still_an_error           # review 2

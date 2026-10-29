@@ -1,0 +1,64 @@
+{
+  "ticket": "T01-new-block",
+  "kind": "implement",
+  "valid": true,
+  "truth": {
+    "verdict": "safe",
+    "decision": [
+      "apply"
+    ]
+  },
+  "answer": {
+    "verdict": "dont_apply",
+    "decision": "dont_apply",
+    "netdryrun_status": "failed",
+    "changed_files": [
+      "configs/edge1.conf"
+    ],
+    "reason": "The new prefix 10.101.0.0/24 was added to CUSTOMER-IN but not to OUR-ROUTES, so it's not advertised to up1 and peer1."
+  },
+  "completed_unattended": true,
+  "verdict_ok": false,
+  "decision_ok": false,
+  "changed_files": [
+    "configs/edge1.conf"
+  ],
+  "added_files": [],
+  "rule_breaks": [],
+  "hidden_rerun": {
+    "exit_code": 1,
+    "status": "failed",
+    "failed_checks": [
+      "TICKET up1 receives the customer's new 10.101.0.0/24",
+      "TICKET peer1 receives the customer's new 10.101.0.0/24",
+      "TICKET the new block reaches the peer"
+    ],
+    "checks": 16,
+    "attempts": 1,
+    "error": null,
+    "log_tail": null
+  },
+  "hidden_ok": true,
+  "solved": false,
+  "tool_calls": 6,
+  "netdryrun_calls": 2,
+  "lab_runs": 2,
+  "tools": {
+    "list_files": 1,
+    "mcp__netdryrun__dry_run": 2,
+    "read_file": 2,
+    "write_file": 1
+  },
+  "turns": 7,
+  "wall_s": 1212.7,
+  "agent_duration_s": 1212.6,
+  "cost_usd": 0,
+  "model": "qwen3:4b",
+  "claude_code_version": null,
+  "mcp_status": [
+    "connected"
+  ],
+  "permission_denials": [],
+  "tool_errors": [],
+  "timed_out": false
+}

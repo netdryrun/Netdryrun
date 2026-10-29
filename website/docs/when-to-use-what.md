@@ -11,7 +11,7 @@ Several good open-source tools help you test network changes. They answer differ
 
 | Tool | Best at | Runs routers? |
 |---|---|---|
-| [Batfish](https://batfish.org) | Analyzing configs of many vendors without booting anything: reachability, ACLs and firewall rules, routing, differences between two snapshots | No, it models them |
+| [Batfish](https://batfish.org) | Modelling a network from the configs of many vendors, without booting anything: reachability and traceroute, ACLs and firewall rules, routes and routing policy, failure impact, differences between two snapshots | No, it models them |
 | [pyATS / Genie](https://developer.cisco.com/pyats/) | A full Python test framework with a large library of device parsers, for testing labs and real (including production) devices, with state snapshots and diffs | Works against any reachable device |
 | [containerlab](https://containerlab.dev) | Running container-based network labs from a YAML topology, for many network operating systems | Yes, it is the lab |
 | Your own scripts | Exactly the checks your team needs, around a lab you already run, with no new dependency | Yes, through containerlab |
@@ -19,11 +19,11 @@ Several good open-source tools help you test network changes. They answer differ
 
 ## Batfish
 
-Batfish parses device configs and builds a model of the network's control and data plane. Because nothing has to boot, it is fast, covers large networks, and supports configs from many vendors. It can answer broad questions ("can any host in this subnet reach that server?", "what changed between these two snapshots?") that are hard to test by sending packets.
+Batfish parses device configs and uses a model of the control plane (routing protocols such as BGP) to compute the data plane that the configs would produce, then answers questions about it ([Batfish team, SIGCOMM 2023](https://doi.org/10.1145/3603269.3604866)). It needs only the configs, not access to devices ([README](https://github.com/batfish/batfish)). Its authors report analysing networks with thousands of nodes within minutes, and it reads configs from many router, firewall and cloud vendors. Its [questions](https://batfish.readthedocs.io/en/latest/questions.html) cover traceroute and reachability over every matching flow, routing tables and BGP sessions, route-map and ACL behavior, and differences between two snapshots, including a copy of the network with chosen links or nodes failed ([failure analysis](https://batfish.readthedocs.io/en/latest/notebooks/linked/analyzing-the-impact-of-failures-and-letting-loose-a-chaos-monkey.html)). A question such as "can any host in this subnet reach that server?" covers every packet, which a ping cannot.
 
-Use it when you want broad, fast analysis on every commit, especially for ACLs, firewall policy and multi-vendor configs that you cannot run in containers.
+Use it on every commit, before a lab boots, especially for ACLs, firewall policy, failure impact and configs from vendors that cannot run in containers.
 
-A model is not the running software, so behavior that depends on the real implementation (timers, convergence order, bugs) is outside what it sees. That is where a lab helps.
+A model is not the running software. Batfish computes the converged result, not the path the routers take to it, and where the model and the implementation differ (an unmodelled default, a vendor bug), its answer follows the model. A [HotNets 2025 paper from Google and UC Berkeley](https://doi.org/10.1145/3772356.3772380) makes the same point and prototypes "model-free verification": boot real router images in an emulator, extract the converged data plane, and run Batfish's queries on it. That is where a lab helps; our [Batfish page](batfish.md) shows one FRR default the model missed.
 
 ## pyATS / Genie
 
@@ -62,7 +62,7 @@ Netdryrun adds a test layer on top of a containerlab lab:
 - every run produces one pass/fail result, a CI-friendly exit code, and a JSON evidence file
 
 <!-- facts:when_status -->
-Version 0.3.1 has drivers for FRR, Nokia SR Linux, SONiC and Arista EOS (bring your own cEOS image), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
+Version 0.3.2 has drivers for FRR, Nokia SR Linux, SONiC and Arista EOS (bring your own cEOS image), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
 <!-- /facts:when_status -->
 It does not do static analysis, build labs for you, or test production devices.
 
@@ -70,7 +70,7 @@ It does not do static analysis, build labs for you, or test production devices.
 
 A reasonable pipeline uses more than one:
 
-1. **Batfish** on every commit for fast, broad config analysis.
+1. **Batfish** on every commit, to analyse the configs before anything boots.
 2. A **containerlab** topology that mirrors the change.
 3. **Netdryrun** in CI to boot that lab, wait for convergence, and gate the merge on runtime behavior.
 4. **pyATS / Genie** (or similar) for pre- and post-change checks on the production devices during the change window.

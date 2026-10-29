@@ -1,0 +1,50 @@
+{
+  "ticket": "T03-review-open-filters",
+  "kind": "review",
+  "valid": true,
+  "truth": {
+    "verdict": "harmful",
+    "decision": [
+      "dont_apply"
+    ]
+  },
+  "answer": {
+    "verdict": "harmful",
+    "decision": "dont_apply",
+    "netdryrun_status": "failed",
+    "changed_files": [
+      "configs/edge1.conf"
+    ],
+    "reason": "Peer1 receives unintended upstream routes and peer routes, violating leak guards and causing potential routing leaks."
+  },
+  "completed_unattended": true,
+  "verdict_ok": true,
+  "decision_ok": true,
+  "changed_files": [],
+  "added_files": [],
+  "rule_breaks": [],
+  "hidden_rerun": null,
+  "hidden_ok": true,
+  "solved": true,
+  "tool_calls": 4,
+  "netdryrun_calls": 2,
+  "lab_runs": 1,
+  "tools": {
+    "list_files": 1,
+    "mcp__netdryrun__dry_run": 1,
+    "mcp__netdryrun__validate": 1,
+    "read_file": 1
+  },
+  "turns": 5,
+  "wall_s": 2481.6,
+  "agent_duration_s": 2481.2,
+  "cost_usd": 0,
+  "model": "qwen3:4b",
+  "claude_code_version": null,
+  "mcp_status": [
+    "connected"
+  ],
+  "permission_denials": [],
+  "tool_errors": [],
+  "timed_out": false
+}

@@ -1,0 +1,48 @@
+{
+  "ticket": "T10-broken-lab",
+  "kind": "implement",
+  "valid": true,
+  "truth": {
+    "verdict": "inconclusive",
+    "decision": [
+      "dont_apply",
+      "rerun"
+    ]
+  },
+  "answer": {
+    "verdict": "harmful",
+    "decision": "dont_apply",
+    "netdryrun_status": "error",
+    "changed_files": [],
+    "reason": "bgpd is not running on r1; lab is not operational and cannot be validated before making changes"
+  },
+  "completed_unattended": true,
+  "verdict_ok": false,
+  "decision_ok": true,
+  "changed_files": [],
+  "added_files": [],
+  "rule_breaks": [],
+  "hidden_rerun": null,
+  "hidden_ok": true,
+  "solved": false,
+  "tool_calls": 4,
+  "netdryrun_calls": 1,
+  "lab_runs": 1,
+  "tools": {
+    "list_files": 1,
+    "mcp__netdryrun__dry_run": 1,
+    "read_file": 2
+  },
+  "turns": 5,
+  "wall_s": 701.1,
+  "agent_duration_s": 700.9,
+  "cost_usd": 0,
+  "model": "qwen3:4b",
+  "claude_code_version": null,
+  "mcp_status": [
+    "connected"
+  ],
+  "permission_denials": [],
+  "tool_errors": [],
+  "timed_out": false
+}

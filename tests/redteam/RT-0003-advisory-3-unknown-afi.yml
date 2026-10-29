@@ -1,0 +1,6 @@
+id: RT-0003
+title: "0.3.0 advisory, file 3-unknown-afi"
+found: "2026-10-27, pre-launch audit (advisories/0.3.0-false-pass)"
+fixed_in: 0.3.1
+kind: config
+file: advisories/0.3.0-false-pass/3-unknown-afi.yml

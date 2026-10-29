@@ -1,0 +1,8 @@
+id: RT-0015
+title: "Action: exit 0 with a report that isn't passed (or no report) gave status=error but a green job"
+found: "2026-10-28, tests/test_surfaces_agree.py (quality-gaps-20261028.md G3)"
+fixed_in: "Unreleased (ndr/quality)"
+kind: pinned
+tests:
+  - tests/test_surfaces_agree.py::test_the_action_never_goes_green_on_a_report_and_exit_code_that_disagree
+  - tests/test_surfaces_agree.py::test_every_surface_gives_the_same_verdict

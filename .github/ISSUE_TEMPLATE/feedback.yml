@@ -61,6 +61,21 @@ body:
         - Yes, I'll run it by hand before changes
         - Maybe, if something changes (say what below)
         - No
+  - type: input
+    id: keep_price
+    attributes:
+      label: At what annual price would your team keep this control in its pull requests?
+      description: Optional. A number per year for your team, in any currency, or a range. A rough answer is fine. This issue is public; if you'd rather say it privately, email hello@netdryrun.com instead and leave this blank.
+  - type: input
+    id: too_expensive
+    attributes:
+      label: At what annual price would it be too expensive to consider?
+      description: Optional.
+  - type: input
+    id: too_cheap
+    attributes:
+      label: At what annual price would it be so cheap you'd doubt it?
+      description: Optional.
   - type: textarea
     id: friction
     attributes:

@@ -1,0 +1,153 @@
+{
+ "layer": "static",
+ "title": "Layer 1: static",
+ "version": "0.3.2",
+ "started": "2026-10-28 10:36:27 UTC",
+ "seconds": 1.2,
+ "git": {
+  "sha": "e3f5163ea97e3f90172df6937a1b35bfbb7d341c",
+  "dirty": false,
+  "branch": "ndr/agent-contract"
+ },
+ "host": "Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64)",
+ "python": "3.10.12",
+ "strict": true,
+ "tools": {
+  "ruff": "0.17.3",
+  "actionlint": "1.7.7",
+  "shellcheck": "0.8.0"
+ },
+ "checks": [
+  {
+   "id": "ruff",
+   "title": "ruff (config in pyproject.toml)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "All checks passed!",
+   "output": "All checks passed!",
+   "command": "/home/ndr/.venvs/rel032/bin/python -m ruff check --output-format concise ."
+  },
+  {
+   "id": "actionlint",
+   "title": "actionlint on every workflow (with shellcheck)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.1,
+   "summary": "clean",
+   "output": "",
+   "command": "actionlint -color=false -shellcheck=/usr/bin/shellcheck"
+  },
+  {
+   "id": "shellcheck-error",
+   "title": "shellcheck, error level, 18 scripts",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.1,
+   "summary": "clean",
+   "output": "",
+   "command": "shellcheck -S error <scripts>"
+  },
+  {
+   "id": "shellcheck-warning",
+   "title": "shellcheck, warning level, 18 scripts",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.1,
+   "summary": "clean",
+   "output": "",
+   "command": "shellcheck -S warning <scripts>"
+  },
+  {
+   "id": "empty-expressions",
+   "title": "no empty ${{ }} in action.yml or workflows",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "sync-facts",
+   "title": "public facts match the source (sync_facts.py --check)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.1,
+   "summary": "facts: in sync (version 0.3.2, 0 problem(s))",
+   "output": "facts: in sync (version 0.3.2, 0 problem(s))",
+   "command": "/home/ndr/.venvs/rel032/bin/python scripts/sync_facts.py --check"
+  },
+  {
+   "id": "versions",
+   "title": "every version reference says 0.3.2",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "36 references agree",
+   "output": "ok  0.3.2      pyproject.toml [project] version\nok  0.3.2      src/netdryrun/__init__.py __version__\nok  0.3.2      server.json version\nok  0.3.2      server.json packages[netdryrun] version\nok  0.3.2      CHANGELOG.md newest release heading\nok  0.3.2      README.md:157 netdryrun/netdryrun@v0.3.2\nok  0.3.2      examples/batfish-pipeline/github-workflow.yml:36 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/ai-agents.md:173 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/batfish.md:57 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/faq.md:18 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/github-action.md:3 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/github-action.md:18 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/github-action.md:67 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/github-action.md:75 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/github-action.md:99 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/github-action.md:120 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/guides/frr-ci.md:194 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/guides/sonic-ci.md:171 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/guides/your-lab.md:137 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/index.md:68 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:77 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:696 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:1248 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:1458 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:1670 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:2437 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:2486 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:2494 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:2518 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:2539 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:2609 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:2838 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:3369 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/llms-full.txt:4013 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/trust.md:17 netdryrun/netdryrun@v0.3.2\nok  0.3.2      website/docs/tutorial.md:455 netdryrun/netdryrun@v0.3.2",
+   "command": ""
+  },
+  {
+   "id": "python-range",
+   "title": "pyproject.toml declares Python 3.10 to 3.14, the versions tested",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "requires-python and classifiers agree",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "examples-documented",
+   "title": "every example has a documented expected result and exit code",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "8 examples",
+   "output": "{\n \"frr-bgp\": {\n  \"outcomes\": [\n   \"PASSED: 11 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   99\n  ]\n },\n \"frr-bgp-broken\": {\n  \"outcomes\": [\n   \"FAILED: 5 passed, 1 failed\"\n  ],\n  \"codes\": [\n   1\n  ],\n  \"seconds\": [\n   39\n  ]\n },\n \"srl-frr\": {\n  \"outcomes\": [\n   \"PASSED: 7 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   59\n  ]\n },\n \"srl-hidden-leak\": {\n  \"outcomes\": [\n   \"PASSED: 9 passed, 0 failed\",\n   \"FAILED: 8 passed, 1 failed\"\n  ],\n  \"codes\": [\n   0,\n   1\n  ],\n  \"seconds\": [\n   59,\n   60\n  ]\n },\n \"sonic-frr\": {\n  \"outcomes\": [\n   \"PASSED: 8 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   92\n  ]\n },\n \"arista-frr\": {\n  \"outcomes\": [\n   \"PASSED: 10 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   97\n  ]\n },\n \"agent-demo\": {\n  \"outcomes\": [\n   \"Demo OK\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   70\n  ]\n },\n \"batfish-pipeline\": {\n  \"outcomes\": [\n   \"PASSED: 10 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   100\n  ]\n }\n}",
+   "command": ""
+  },
+  {
+   "id": "lab-names",
+   "title": "every topology we ship is named ndr-*",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "80 topologies",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "changelog-cut",
+   "title": "CHANGELOG has no Unreleased entries left (all under 0.3.2)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "cut",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "tag-unused",
+   "title": "tag v0.3.2 does not exist yet",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "unused",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "pypi-unused",
+   "title": "PyPI has no netdryrun 0.3.2 yet",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "HTTP 404",
+   "output": "",
+   "command": ""
+  }
+ ],
+ "sections": []
+}

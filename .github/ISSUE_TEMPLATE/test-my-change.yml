@@ -1,0 +1,48 @@
+name: Test my change (free)
+description: Send a sanitized routing change; we run it in a lab and reply with the verdict and evidence. Then tell us if the verdict was right.
+title: "Test my change: "
+labels: ["test-my-change"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We run your change in a containerlab lab and reply here with **passed / failed / inconclusive and the evidence**, usually within two working days. In return, tell us whether the verdict was right. That's the feedback that improves Netdryrun most.
+
+        **This issue is public.** Sanitize first: documentation addresses (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24, 2001:db8::/32), private AS numbers (64512–65534), no secrets, no hostnames that identify you. For something you can't share publicly, email hello@netdryrun.com instead.
+
+        Supported today: FRR, Nokia SR Linux, SONiC VS and Arista cEOS. A pass covers only the checks in the lab: see [what a lab cannot prove](https://netdryrun.com/trust/#what-a-lab-cannot-prove).
+  - type: textarea
+    id: change
+    attributes:
+      label: The change
+      description: The config diff (before and after), or the after config for the routers involved.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: topology
+    attributes:
+      label: The routers involved
+      description: Which routers, their NOS, and how they connect (a containerlab topology file is ideal; a short list is fine).
+    validations:
+      required: true
+  - type: textarea
+    id: intent
+    attributes:
+      label: What the change must do, and what must never happen
+      description: For example "AS 64512 learns 198.51.100.0/24 from r2" and "r1 never receives a default route from r2".
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you test changes like this today? (optional)
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Before you submit
+      options:
+        - label: The configs above are sanitized and contain no secrets.
+          required: true
+        - label: I'll reply whether the verdict was right.
+          required: false

@@ -1,0 +1,49 @@
+{
+  "ticket": "T05-review-safe",
+  "kind": "review",
+  "valid": true,
+  "truth": {
+    "verdict": "safe",
+    "decision": [
+      "apply"
+    ]
+  },
+  "answer": {
+    "verdict": "safe",
+    "decision": "apply",
+    "netdryrun_status": "passed",
+    "changed_files": [
+      "configs/edge1.conf"
+    ],
+    "reason": "Netdryrun dry run confirms all 11 critical checks passed, including session states, route leaks, and prefix limits as required by the ticket's audit findings."
+  },
+  "completed_unattended": true,
+  "verdict_ok": true,
+  "decision_ok": true,
+  "changed_files": [],
+  "added_files": [],
+  "rule_breaks": [],
+  "hidden_rerun": null,
+  "hidden_ok": true,
+  "solved": true,
+  "tool_calls": 4,
+  "netdryrun_calls": 1,
+  "lab_runs": 1,
+  "tools": {
+    "list_files": 1,
+    "mcp__netdryrun__dry_run": 1,
+    "read_file": 2
+  },
+  "turns": 5,
+  "wall_s": 740.1,
+  "agent_duration_s": 739.9,
+  "cost_usd": 0,
+  "model": "qwen3:4b",
+  "claude_code_version": null,
+  "mcp_status": [
+    "connected"
+  ],
+  "permission_denials": [],
+  "tool_errors": [],
+  "timed_out": false
+}

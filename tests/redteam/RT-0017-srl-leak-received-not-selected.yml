@@ -1,0 +1,10 @@
+id: RT-0017
+title: "SR Linux: a leaked default that loses to a static route is only in the BGP RIB; it is still a BGP leak"
+found: "2026-10-28, guard written with RT-0011 for the same class on SR Linux (0.3.0 already counted it here)"
+fixed_in: "not affected (kept as a guard)"
+kind: driver
+driver: srlinux
+check: {type: route, node: r1, prefix: 0.0.0.0/0, protocol: bgp, present: false}
+outputs:
+  - {needle: "route-table", fixture: srl_leak_route.txt}
+  - {needle: "bgp-rib", fixture: srl_leak_rib.txt}

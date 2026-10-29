@@ -1,0 +1,10 @@
+# Checks for this ticket, written by the network team. Don't edit this file.
+lab: topology.clab.yml
+timeout: 90
+
+checks:
+  - {type: bgp_session, node: r1, neighbor: 10.0.12.2, name: "r1 session to r2 up"}
+  - {type: bgp_session, node: r1, neighbor: 10.0.13.2, name: "r1 session to r3 up"}
+  - {type: route, node: r2, prefix: 192.168.1.0/24, protocol: bgp, name: "r2 gets r1's LAN"}
+  - {type: route, node: r3, prefix: 192.168.1.0/24, protocol: bgp, name: "r3 gets r1's LAN"}
+  - {type: ping, node: r2, source: 192.168.2.1, target: 192.168.1.1, name: "r2's LAN reaches r1's LAN"}

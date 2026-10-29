@@ -56,7 +56,7 @@ netdryrun run examples/frr-bgp-broken   # a bad change, should fail
 examples/agent-demo/demo.sh             # replay: a leaky change rejected, the fix accepted
 ```
 
-`examples/sonic-frr` needs the `docker-sonic-vs` image, which is on no container registry: download it from the SONiC build server and `docker load` it first ([how](guides/sonic-ci.md#1-get-the-image)). Then:
+`examples/sonic-frr` needs the `docker-sonic-vs` image, which is on no container registry: download it from the SONiC build server and `docker load` it first ([how](guides/sonic-ci.md#1-get-the-image)). The example pins the build it is verified on, `docker-sonic-vs:master.1258173-c10162df4`; the build server keeps only recent builds, so tag yours with its own build id and put that tag on the image line of `examples/sonic-frr/topology.clab.yml` (`scripts/get_sonic_vs.sh` does both). Then:
 
 ```bash
 netdryrun run examples/sonic-frr        # SONiC + FRR, should pass

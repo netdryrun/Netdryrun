@@ -1,0 +1,12 @@
+{
+  "T01-new-block": "Added 10.101.0.0/24 to CUSTOMER-IN only, not to OUR-ROUTES (the list TO-UPSTREAM and TO-PEER match), so nothing was announced; the rerun showed the same three failures, its own reason names the missing OUR-ROUTES line, and it stopped there instead of fixing and rerunning (and wrote dont_apply in the verdict field).",
+  "T02-transit-only": "Took the first dry run, on the unedited folder, as the final result: the TICKET checks failed because the change did not exist yet, and it never read edge1.conf or made a change; it answered inconclusive/rerun with no changed files.",
+  "T03-review-open-filters": "None. list, read the ticket, validate, one dry_run on the folder as given; failed status read as harmful, correct.",
+  "T04-review-community": "None. One dry_run on the folder as given; failed status read as harmful, correct.",
+  "T05-review-safe": "None. Read netdryrun.yml, one dry_run; passed read as safe, correct. A pass is the right call here but the run did not check that the pass covers the audit findings; the result says only 11 checks passed.",
+  "T06-peer-wants-transit": "Ran dry_run before editing anything (passed, 'SAFE TO PROCEED' on today's unchanged config), then added 203.0.113.0/24 to OUR-ROUTES and answered 'dry run confirmed the change is safe' without ever running the changed folder. The leak guard never failed in this run, because the change was never tested.",
+  "T07-aggregate": "None. Baseline dry_run on the unedited folder (failed), added aggregate-address 192.168.0.0/16, reran to passed: the only run in which the fix-and-rerun loop worked.",
+  "T08-review-localpref": "None. One dry_run on the folder as given; failed status read as harmful, with the wrong AS path quoted.",
+  "T09-review-redistribute": "Ran dry_run on the change as given, got 'SAFE TO PROCEED' (5 of 5 given checks passed) and stopped: it never opened PROPOSED.diff or configs/r1.conf, and never called record_baseline, so it could not see the two extra link subnets.",
+  "T10-broken-lab": "Ran dry_run on the unedited folder, got status error with bgpd not running and every check unready, and called the change 'harmful' (status error read as a verdict on the change) instead of inconclusive; the decision, dont_apply, was right."
+}

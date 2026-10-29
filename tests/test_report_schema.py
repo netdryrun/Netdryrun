@@ -83,6 +83,15 @@ def test_every_check_type_and_status_is_documented_in_the_schema():
     assert all(s in statuses for s in ("passed", "failed", "error", "inconclusive"))
 
 
+def test_spec_page_example_validates_and_names_every_status():
+    # the open spec (website/docs/spec/verdict-v1.md) shows a document that must match the schema it describes
+    import re
+    page = (ROOT / "website/docs/spec/verdict-v1.md").read_text(encoding="utf-8")
+    example = re.search(r"```json\n(.*?)```", page, re.S).group(1)
+    _validate(json.loads(example))
+    assert all(f"`{s}`" in page for s in ("passed", "failed", "error", "inconclusive", SCHEMA["properties"]["schema"]["const"]))
+
+
 @pytest.mark.skipif(not REAL, reason="no captured reports")
 @pytest.mark.parametrize("path", REAL, ids=[p.stem for p in REAL])
 def test_real_reports_validate(path):

@@ -37,8 +37,8 @@ These need a running lab to show, so the proof is in the test suite, which runs 
 | Received paths not counted on some drivers | Miss a leaked route that arrived but wasn't selected | `tests/test_verdict_drivers.py`, `examples/srl-hidden-leak` |
 
 ## Limits that remain in 0.3.1
-- **A node that never reports BGP neighbors.** Its negative and attribute checks wait up to their timeout, then still run, and can pass. The check result says BGP convergence was not seen. Treat such a pass as unconfirmed.
-- **A slow peer.** A neighbor with a long advertisement interval can deliver a route after the gate released a negative check. Raise `--settle` and `--hold` above your slowest advertisement interval.
+- **A node that never reports BGP neighbors.** In 0.3.1 its negative and attribute checks waited up to their timeout, then still ran, and could pass. **Fixed in 0.3.2:** when the file has a BGP check on that node (`bgp_session`, `bgp_prefixes`, `bgp_route`, or a `route` with `protocol: bgp`), those checks fail as "not evaluated" at the cap. A node with no BGP check anywhere in the file still goes ahead with a warning in each result, since it may not run BGP at all.
+- **A slow peer** (still a limit in 0.3.2). A neighbor with a long advertisement interval can deliver a route after the gate released a negative check. Raise `--settle` and `--hold` above your slowest advertisement interval. Planned for 0.4: read each peer's configured advertisement interval and extend the settle window automatically.
 - **`afi: evpn`** is refused on Arista EOS and Nokia SR Linux (their drivers can't read an EVPN count). On FRR and SONiC the count is read from the router's BGP summary; a family the neighbor doesn't carry counts as 0 received prefixes.
 
 ## What we changed in how we release

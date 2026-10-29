@@ -1,0 +1,1223 @@
+{
+  "schema": "netdryrun.corpus/v1",
+  "environment": {
+    "generated": "2026-10-28T11:17:58+00:00",
+    "netdryrun": "0.3.2",
+    "containerlab": "0.81.1",
+    "frr_image": "quay.io/frrouting/frr:10.4.1",
+    "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "commit": "unknown"
+  },
+  "cases": [
+    {
+      "id": "01-no-change",
+      "title": "No change (control)",
+      "category": "control",
+      "expected": "safe",
+      "rationale": "The base network with no edits. Every strategy must pass it, or the corpus itself is broken.",
+      "source": null,
+      "note": null,
+      "edits": [],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "02-med-to-upstream",
+      "title": "Set MED on routes sent to the upstream",
+      "category": "traffic-engineering",
+      "expected": "safe",
+      "rationale": "Adds a metric to the upstream export clause. Changes path attributes only; nothing leaks or disappears.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "route-map TO-UPSTREAM permit 10\n set metric 50"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "03-prepend-to-peer",
+      "title": "Prepend our AS twice toward the peer",
+      "category": "traffic-engineering",
+      "expected": "safe",
+      "rationale": "Routine inbound traffic engineering. The same prefixes are still announced.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "route-map TO-PEER permit 10\n set as-path prepend 65000 65000"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "04-tag-community-upstream",
+      "title": "Tag our aggregate with an informational community toward the upstream",
+      "category": "hygiene",
+      "expected": "safe",
+      "rationale": "Adds a community on the OWN clause. Attribute change only.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "route-map TO-UPSTREAM permit 20\n set community 65000:999 additive"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "05-description-only",
+      "title": "Change an interface description",
+      "category": "hygiene",
+      "expected": "safe",
+      "rationale": "Cosmetic change. Must never be blocked.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": " description to-upstream-up1",
+          "with": " description to-upstream-up1 (transit, CHG-1042)"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "06-customer-adds-prefix",
+      "title": "Customer announces a second allowed /24",
+      "category": "customer-growth",
+      "expected": "safe",
+      "rationale": "The customer adds 10.100.1.0/24, inside its registered 10.100.0.0/22. Announcing it upstream is the desired outcome.",
+      "source": null,
+      "note": "Normal customer growth inside the registered range.",
+      "edits": [
+        {
+          "node": "ce1",
+          "append": "ip route 10.100.1.0/24 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 10.100.1.0/24\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": false,
+          "failed_checks": [
+            "I5 upstream receives exactly our 2 prefixes",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "07-tighten-max-prefix",
+      "title": "Lower the customer maximum-prefix from 100 to 50",
+      "category": "hygiene",
+      "expected": "safe",
+      "rationale": "Tightening a safety limit that is still far above the customer's real count.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "maximum-prefix 100",
+          "with": "maximum-prefix 50"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "08-upstream-timers",
+      "title": "Shorten BGP timers toward the upstream",
+      "category": "hygiene",
+      "expected": "safe",
+      "rationale": "Faster failure detection; the session stays up.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "router bgp 65000\n neighbor 10.0.2.2 timers 10 30"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "09-customer-localpref",
+      "title": "Lower customer local-preference from 300 to 250",
+      "category": "traffic-engineering",
+      "expected": "safe",
+      "rationale": "Customer routes stay the most preferred (peer 200, upstream 100).",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": " set local-preference 300",
+          "with": " set local-preference 250"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "10-transit-export-filter-removed",
+      "title": "Upstream export filter replaced with permit-all",
+      "category": "route-leak",
+      "expected": "unsafe",
+      "rationale": "pe1 now announces everything to the upstream, including the peer's route: free transit for the peer, a classic route leak.",
+      "source": null,
+      "note": "Route leak as defined in RFC 7908.",
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.2.2 route-map TO-UPSTREAM out",
+          "with": "  neighbor 10.0.2.2 route-map TO-CUSTOMER out"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I4 no peer route leaked to upstream",
+            "I5 upstream receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "11-peer-export-filter-removed",
+      "title": "Peer export filter replaced with permit-all",
+      "category": "route-leak",
+      "expected": "unsafe",
+      "rationale": "pe2 announces upstream routes and the default to the peer: a route leak toward the peer.",
+      "source": null,
+      "note": "Route leak as defined in RFC 7908.",
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "route-map ALLOW-ALL permit 10"
+        },
+        {
+          "node": "pe2",
+          "replace": "  neighbor 10.0.4.2 route-map TO-PEER out",
+          "with": "  neighbor 10.0.4.2 route-map ALLOW-ALL out"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I4 no upstream route leaked to peer",
+            "I4 no default leaked to peer",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 50
+    },
+    {
+      "id": "12-ibgp-send-community-dropped",
+      "title": "send-community removed on the pe1 to pe2 iBGP session",
+      "category": "policy-bug",
+      "expected": "unsafe",
+      "rationale": "pe2 no longer sees the customer community, so it stops announcing the customer route to the peer.",
+      "source": null,
+      "note": "A common mistake when rebuilding iBGP sessions.",
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.3.2 send-community\n",
+          "with": ""
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "13-upstream-asn-typo",
+      "title": "Typo in the upstream's ASN (65020 instead of 65200)",
+      "category": "fat-finger",
+      "expected": "unsafe",
+      "rationale": "The upstream session never comes up; the customer loses internet access.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": " neighbor 10.0.2.2 remote-as 65200",
+          "with": " neighbor 10.0.2.2 remote-as 65020"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches upstream"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "pe1-up1 up"
+          ],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I1 pe1-up1 session up",
+            "I2 upstream has customer route",
+            "I2 upstream has our aggregate",
+            "I3 customer has upstream route",
+            "I3 customer has default",
+            "I3 customer reaches upstream",
+            "I4 no peer route leaked to upstream",
+            "I5 upstream receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 389
+    },
+    {
+      "id": "14-peer-session-shutdown",
+      "title": "Peer session administratively shut down",
+      "category": "fat-finger",
+      "expected": "unsafe",
+      "rationale": "The peer route disappears and the peer loses our routes.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "router bgp 65000\n neighbor 10.0.4.2 shutdown"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "pe2-peer1 up"
+          ],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I1 pe2-peer1 session up",
+            "I2 peer has customer route",
+            "I2 peer has our aggregate",
+            "I3 customer has peer route",
+            "I3 customer reaches peer",
+            "I4 no upstream route leaked to peer",
+            "I4 no default leaked to peer",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 390
+    },
+    {
+      "id": "15-customer-filter-too-strict",
+      "title": "Customer prefix-list typo rejects the customer's /24",
+      "category": "policy-bug",
+      "expected": "unsafe",
+      "rationale": "le 23 instead of le 24 drops the customer's only prefix, so the customer becomes unreachable from the internet.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "permit 10.100.0.0/22 le 24",
+          "with": "permit 10.100.0.0/22 le 23"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches upstream",
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I2 upstream has customer route",
+            "I2 peer has customer route",
+            "I3 customer reaches upstream",
+            "I3 customer reaches peer",
+            "I5 upstream receives exactly our 2 prefixes",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 243
+    },
+    {
+      "id": "16-mass-withdrawal",
+      "title": "Upstream export policy denies everything",
+      "category": "withdrawal",
+      "expected": "unsafe",
+      "rationale": "Every route we announce to the upstream is withdrawn: our aggregate and the customer vanish from the upstream.",
+      "source": null,
+      "note": "Mass-withdrawal outage class (the 2021 Facebook outage began with withdrawn routes).",
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "route-map TO-UPSTREAM permit 10\n match community CUSTOMER\n!\nroute-map TO-UPSTREAM permit 20\n match ip address prefix-list OWN\n",
+          "with": "route-map TO-UPSTREAM deny 10\n"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches upstream"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I2 upstream has customer route",
+            "I2 upstream has our aggregate",
+            "I3 customer reaches upstream",
+            "I5 upstream receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 246
+    },
+    {
+      "id": "17-default-leaked-to-peer",
+      "title": "default-originate configured toward the peer",
+      "category": "route-leak",
+      "expected": "unsafe",
+      "rationale": "We offer the peer a default route, so the peer can send all its traffic through us for free.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "router bgp 65000\n address-family ipv4 unicast\n  neighbor 10.0.4.2 default-originate\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I4 no default leaked to peer",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "18-redistribute-connected",
+      "title": "redistribute connected added on pe1",
+      "category": "hygiene",
+      "expected": "unsafe",
+      "rationale": "Infrastructure /30s and loopbacks go to the customer and into iBGP. Export filters keep them from the upstream and the peer, but leaking infrastructure to customers is rejected in review.",
+      "source": null,
+      "note": "Not covered by the intent spec, which has no check for infrastructure routes at the customer.",
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "router bgp 65000\n address-family ipv4 unicast\n  redistribute connected\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "19-nexthop-self-removed",
+      "title": "next-hop-self removed on pe2 toward pe1",
+      "category": "policy-bug",
+      "expected": "unsafe",
+      "rationale": "pe1 learns the peer route with an unreachable next hop, so the customer loses the peer route.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "replace": "  neighbor 10.0.3.1 next-hop-self\n",
+          "with": ""
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I3 customer reaches peer"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 217
+    },
+    {
+      "id": "20-ibgp-shutdown",
+      "title": "iBGP session between pe1 and pe2 shut down",
+      "category": "fat-finger",
+      "expected": "unsafe",
+      "rationale": "The two halves of the network stop exchanging routes.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "router bgp 65000\n neighbor 10.0.3.2 shutdown"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "pe1-pe2 up"
+          ],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I1 pe1-pe2 iBGP up",
+            "I2 peer has customer route",
+            "I2 peer has our aggregate",
+            "I3 customer has peer route",
+            "I3 customer reaches peer",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 333
+    },
+    {
+      "id": "21-customer-max-prefix-removed",
+      "title": "Customer maximum-prefix safety limit removed",
+      "category": "latent-risk",
+      "expected": "unsafe",
+      "rationale": "Nothing changes today, but a customer leaking a full table would now be accepted. Reviewers reject removing safety limits.",
+      "source": null,
+      "note": "Latent risk: no steady-state check can see it until the customer actually leaks. Catching it needs a failure-injection scenario (the customer sends many prefixes), planned for a later release.",
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.1.2 maximum-prefix 100\n",
+          "with": ""
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "22-customer-leaks-third-party",
+      "title": "Customer announces someone else's prefix; our filter blocks it",
+      "category": "filter-works",
+      "expected": "safe",
+      "rationale": "ce1 starts announcing 8.8.8.0/24. pe1's customer filter rejects it, so nothing leaks. The customer-side change is bad, but our network behaves correctly, so a test of our network must pass.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "ce1",
+          "append": "ip route 8.8.8.0/24 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 8.8.8.0/24\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "23-fat-finger-third-party-origin",
+      "title": "pe1 accidentally originates 8.8.8.0/24",
+      "category": "hijack",
+      "expected": "unsafe",
+      "rationale": "A fat-fingered network statement hijacks 8.8.8.0/24 for our own customer. Export filters keep it from the upstream and the peer.",
+      "source": null,
+      "note": "Not covered by the intent spec, which has no check for unexpected routes at the customer.",
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "ip route 8.8.8.0/24 blackhole\nrouter bgp 65000\n address-family ipv4 unicast\n  network 8.8.8.0/24\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "24-customer-blackholed",
+      "title": "Static discard route for the customer prefix on pe1",
+      "category": "fat-finger",
+      "expected": "unsafe",
+      "rationale": "The static route beats BGP, so traffic to the customer is dropped while the route is still announced.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "ip route 192.0.2.0/24 blackhole\n",
+          "with": "ip route 192.0.2.0/24 blackhole\nip route 10.100.0.0/24 blackhole\n"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches upstream",
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I3 customer reaches upstream",
+            "I3 customer reaches peer"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 214
+    },
+    {
+      "id": "25-aggregate-typo",
+      "title": "Aggregate network statement typo (192.0.3.0/24)",
+      "category": "fat-finger",
+      "expected": "unsafe",
+      "rationale": "Our own aggregate is no longer announced anywhere.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  network 192.0.2.0/24",
+          "with": "  network 192.0.3.0/24"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I2 upstream has our aggregate",
+            "I2 peer has our aggregate",
+            "I5 upstream receives exactly our 2 prefixes",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 164
+    },
+    {
+      "id": "26-route-map-order-bug",
+      "title": "A permit-everything clause inserted before the peer export filter",
+      "category": "route-leak",
+      "expected": "unsafe",
+      "rationale": "Sequence 5 matches everything, so upstream routes and the default leak to the peer.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "route-map TO-PEER permit 5"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I4 no upstream route leaked to peer",
+            "I4 no default leaked to peer",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "27-local-asn-typo",
+      "title": "pe2 configured with the wrong local ASN",
+      "category": "fat-finger",
+      "expected": "unsafe",
+      "rationale": "All of pe2's sessions fail and the peer is cut off.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "replace": "router bgp 65000\n bgp router-id 10.255.0.2",
+          "with": "router bgp 65001\n bgp router-id 10.255.0.2"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "pe1-pe2 up",
+            "pe2-peer1 up"
+          ],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I1 pe1-pe2 iBGP up",
+            "I1 pe2-peer1 session up",
+            "I2 peer has customer route",
+            "I2 peer has our aggregate",
+            "I3 customer has peer route",
+            "I3 customer reaches peer",
+            "I4 no upstream route leaked to peer",
+            "I4 no default leaked to peer",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 390
+    },
+    {
+      "id": "28-customer-import-policy-removed",
+      "title": "Customer inbound route-map removed",
+      "category": "policy-bug",
+      "expected": "unsafe",
+      "rationale": "Without the import policy the customer's routes lose their community (or are rejected outright), so they are no longer exported upstream.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.1.2 route-map FROM-CUSTOMER in\n",
+          "with": ""
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches upstream",
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I2 upstream has customer route",
+            "I2 peer has customer route",
+            "I3 customer reaches upstream",
+            "I3 customer reaches peer",
+            "I5 upstream receives exactly our 2 prefixes",
+            "I5 peer receives exactly our 2 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 243
+    },
+    {
+      "id": "29-graceful-restart",
+      "title": "Enable BGP graceful restart on pe1",
+      "category": "hygiene",
+      "expected": "safe",
+      "rationale": "A resilience feature; the routing outcome is unchanged.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "router bgp 65000\n bgp graceful-restart"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    },
+    {
+      "id": "30-peer-import-filter-removed",
+      "title": "Peer inbound filter replaced with permit-all",
+      "category": "latent-risk",
+      "expected": "unsafe",
+      "rationale": "Nothing changes today because the peer only sends its /24, but the peer could now send a default or bogons. Reviewers reject removing an import filter.",
+      "source": null,
+      "note": "Latent risk: invisible in steady state until the peer misbehaves. Needs a failure-injection scenario.",
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "route-map ALLOW-ALL permit 10"
+        },
+        {
+          "node": "pe2",
+          "replace": "  neighbor 10.0.4.2 route-map FROM-PEER in",
+          "with": "  neighbor 10.0.4.2 route-map ALLOW-ALL in"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 51
+    }
+  ]
+}

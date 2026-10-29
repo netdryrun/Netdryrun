@@ -1,0 +1,14 @@
+id: RT-0010
+title: "SR Linux: no received-routes counter for EVPN, so every EVPN count read 0 and max passed"
+found: "2026-10-28, 0.3.1 cold review finding 3"
+fixed_in: 0.3.1
+kind: config
+config: |
+  lab: topology.clab.yml
+  checks:
+    - {type: bgp_prefixes, node: leaf1, neighbor: 10.0.0.2, afi: evpn, max: 100}
+topology: |
+  name: t
+  topology:
+    nodes:
+      leaf1: {kind: nokia_srlinux, image: ghcr.io/nokia/srlinux:26.7.2}
