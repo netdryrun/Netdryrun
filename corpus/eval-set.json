@@ -1,0 +1,722 @@
+{
+ "name": "netdryrun-network-change-verdict-corpus",
+ "cases": 48,
+ "license": "Apache-2.0",
+ "source": "https://github.com/netdryrun/netdryrun/tree/main/corpus",
+ "how_to_use": "For each case, copy the base lab, apply the case's edits (replace the text in the named node's config, or append a line), then decide whether the change is safe. 'expected' is the label.",
+ "how_labels_were_decided": "Written before any run, by one maintainer's judgment: would an experienced operator reject this change in review because it causes harm? Not derived from the checks. Labels are the maintainer's, not independent ground truth.",
+ "edit_format": {
+  "node": "router whose configs/<node>.conf is edited",
+  "replace/with": "exact text to find and its replacement",
+  "append": "a line added at the end of the config"
+ },
+ "amendments": "corpus/AMENDMENTS.md and corpus/v2/AMENDMENTS.md list every label or case change made after a run.",
+ "labels": {
+  "safe": "the change should be applied",
+  "unsafe": "the change should be rejected"
+ },
+ "corpora": {
+  "v1": {
+   "intent": "corpus/INTENT.md",
+   "base": {
+    "topology.clab.yml": "# Verdict Corpus base network: a small provider (AS65000, routers pe1 + pe2) with one\n# customer (ce1), one upstream transit (up1) and one settlement-free peer (peer1).\n#\n#   ce1 (AS65100) --- pe1 ===iBGP=== pe2 --- peer1 (AS65300)\n#                      |\n#                     up1 (AS65200, transit, sends a default)\n#\n# Policy intent (see ../INTENT.md): customers' routes go everywhere; routes learned from\n# the upstream or the peer go to customers only (no free transit, i.e. no route leaks).\nname: ndr-corpus\n\ntopology:\n  defaults:\n    kind: linux\n    image: quay.io/frrouting/frr:10.4.1\n  nodes:\n    ce1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/ce1.conf:/etc/frr/frr.conf]\n    pe1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/pe1.conf:/etc/frr/frr.conf]\n    pe2:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/pe2.conf:/etc/frr/frr.conf]\n    up1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/up1.conf:/etc/frr/frr.conf]\n    peer1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/peer1.conf:/etc/frr/frr.conf]\n  links:\n    - endpoints: [\"ce1:eth1\", \"pe1:eth1\"]     # 10.0.1.0/30\n    - endpoints: [\"pe1:eth2\", \"up1:eth1\"]     # 10.0.2.0/30\n    - endpoints: [\"pe1:eth3\", \"pe2:eth1\"]     # 10.0.3.0/30\n    - endpoints: [\"pe2:eth2\", \"peer1:eth1\"]   # 10.0.4.0/30\n",
+    "configs/ce1.conf": "frr defaults traditional\nhostname ce1\n!\ninterface lo\n ip address 10.100.0.1/24\n!\ninterface eth1\n ip address 10.0.1.2/30\n!\nroute-map ALLOW-ALL permit 10\n!\nrouter bgp 65100\n bgp router-id 10.100.0.1\n neighbor 10.0.1.1 remote-as 65000\n address-family ipv4 unicast\n  network 10.100.0.0/24\n  neighbor 10.0.1.1 route-map ALLOW-ALL in\n  neighbor 10.0.1.1 route-map ALLOW-ALL out\n exit-address-family\n!\n",
+    "configs/daemons": "zebra=yes\nbgpd=yes\nospfd=no\nospf6d=no\nripd=no\nripngd=no\nisisd=no\npimd=no\nldpd=no\nnhrpd=no\neigrpd=no\nbabeld=no\nsharpd=no\nstaticd=yes\npbrd=no\nbfdd=no\nfabricd=no\nvrrpd=no\n\nvtysh_enable=yes\nzebra_options=\"  -A 127.0.0.1 -s 90000000\"\nbgpd_options=\"   -A 127.0.0.1\"\nstaticd_options=\"-A 127.0.0.1\"\n",
+    "configs/pe1.conf": "frr defaults traditional\nhostname pe1\n!\ninterface lo\n ip address 10.255.0.1/32\n!\ninterface eth1\n description to-customer-ce1\n ip address 10.0.1.1/30\n!\ninterface eth2\n description to-upstream-up1\n ip address 10.0.2.1/30\n!\ninterface eth3\n description to-pe2\n ip address 10.0.3.1/30\n!\n! Our own aggregate, originated from a discard route\nip route 192.0.2.0/24 blackhole\n!\nip prefix-list OWN seq 10 permit 192.0.2.0/24\nip prefix-list CUSTOMER-IN seq 10 permit 10.100.0.0/22 le 24\n!\nbgp community-list standard CUSTOMER permit 65000:100\n!\nroute-map FROM-CUSTOMER permit 10\n match ip address prefix-list CUSTOMER-IN\n set community 65000:100\n set local-preference 300\n!\nroute-map FROM-UPSTREAM permit 10\n set community 65000:200\n set local-preference 100\n!\nroute-map TO-UPSTREAM permit 10\n match community CUSTOMER\n!\nroute-map TO-UPSTREAM permit 20\n match ip address prefix-list OWN\n!\nroute-map TO-CUSTOMER permit 10\n!\nrouter bgp 65000\n bgp router-id 10.255.0.1\n neighbor 10.0.1.2 remote-as 65100\n neighbor 10.0.1.2 description ce1\n neighbor 10.0.2.2 remote-as 65200\n neighbor 10.0.2.2 description up1\n neighbor 10.0.3.2 remote-as 65000\n neighbor 10.0.3.2 description pe2\n address-family ipv4 unicast\n  network 192.0.2.0/24\n  neighbor 10.0.1.2 route-map FROM-CUSTOMER in\n  neighbor 10.0.1.2 route-map TO-CUSTOMER out\n  neighbor 10.0.1.2 maximum-prefix 100\n  neighbor 10.0.2.2 route-map FROM-UPSTREAM in\n  neighbor 10.0.2.2 route-map TO-UPSTREAM out\n  neighbor 10.0.3.2 next-hop-self\n  neighbor 10.0.3.2 send-community\n exit-address-family\n!\n",
+    "configs/pe2.conf": "frr defaults traditional\nhostname pe2\n!\ninterface lo\n ip address 10.255.0.2/32\n!\ninterface eth1\n description to-pe1\n ip address 10.0.3.2/30\n!\ninterface eth2\n description to-peer-peer1\n ip address 10.0.4.1/30\n!\nip prefix-list OWN seq 10 permit 192.0.2.0/24\nip prefix-list PEER-IN seq 10 permit 198.51.100.0/24\n!\nbgp community-list standard CUSTOMER permit 65000:100\n!\nroute-map FROM-PEER permit 10\n match ip address prefix-list PEER-IN\n set community 65000:300\n set local-preference 200\n!\nroute-map TO-PEER permit 10\n match community CUSTOMER\n!\nroute-map TO-PEER permit 20\n match ip address prefix-list OWN\n!\nrouter bgp 65000\n bgp router-id 10.255.0.2\n neighbor 10.0.3.1 remote-as 65000\n neighbor 10.0.3.1 description pe1\n neighbor 10.0.4.2 remote-as 65300\n neighbor 10.0.4.2 description peer1\n address-family ipv4 unicast\n  neighbor 10.0.3.1 next-hop-self\n  neighbor 10.0.3.1 send-community\n  neighbor 10.0.4.2 route-map FROM-PEER in\n  neighbor 10.0.4.2 route-map TO-PEER out\n exit-address-family\n!\n",
+    "configs/peer1.conf": "frr defaults traditional\nhostname peer1\n!\ninterface lo\n ip address 198.51.100.1/24\n!\ninterface eth1\n ip address 10.0.4.2/30\n!\nroute-map ALLOW-ALL permit 10\n!\nrouter bgp 65300\n bgp router-id 198.51.100.1\n neighbor 10.0.4.1 remote-as 65000\n address-family ipv4 unicast\n  network 198.51.100.0/24\n  neighbor 10.0.4.1 route-map ALLOW-ALL in\n  neighbor 10.0.4.1 route-map ALLOW-ALL out\n exit-address-family\n!\n",
+    "configs/up1.conf": "frr defaults traditional\nhostname up1\n!\ninterface lo\n ip address 203.0.113.1/24\n!\ninterface eth1\n ip address 10.0.2.2/30\n!\nroute-map ALLOW-ALL permit 10\n!\nrouter bgp 65200\n bgp router-id 203.0.113.1\n neighbor 10.0.2.1 remote-as 65000\n address-family ipv4 unicast\n  network 203.0.113.0/24\n  neighbor 10.0.2.1 default-originate\n  neighbor 10.0.2.1 route-map ALLOW-ALL in\n  neighbor 10.0.2.1 route-map ALLOW-ALL out\n exit-address-family\n!\n",
+    "configs/vtysh.conf": "service integrated-vtysh-config\n"
+   },
+   "cases": [
+    {
+     "id": "01-no-change",
+     "title": "No change (control)",
+     "category": "control",
+     "expected": "safe",
+     "rationale": "The base network with no edits. Every strategy must pass it, or the corpus itself is broken.",
+     "edits": []
+    },
+    {
+     "id": "02-med-to-upstream",
+     "title": "Set MED on routes sent to the upstream",
+     "category": "traffic-engineering",
+     "expected": "safe",
+     "rationale": "Adds a metric to the upstream export clause. Changes path attributes only; nothing leaks or disappears.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "route-map TO-UPSTREAM permit 10\n set metric 50"
+      }
+     ]
+    },
+    {
+     "id": "03-prepend-to-peer",
+     "title": "Prepend our AS twice toward the peer",
+     "category": "traffic-engineering",
+     "expected": "safe",
+     "rationale": "Routine inbound traffic engineering. The same prefixes are still announced.",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "route-map TO-PEER permit 10\n set as-path prepend 65000 65000"
+      }
+     ]
+    },
+    {
+     "id": "04-tag-community-upstream",
+     "title": "Tag our aggregate with an informational community toward the upstream",
+     "category": "hygiene",
+     "expected": "safe",
+     "rationale": "Adds a community on the OWN clause. Attribute change only.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "route-map TO-UPSTREAM permit 20\n set community 65000:999 additive"
+      }
+     ]
+    },
+    {
+     "id": "05-description-only",
+     "title": "Change an interface description",
+     "category": "hygiene",
+     "expected": "safe",
+     "rationale": "Cosmetic change. Must never be blocked.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": " description to-upstream-up1",
+       "with": " description to-upstream-up1 (transit, CHG-1042)"
+      }
+     ]
+    },
+    {
+     "id": "06-customer-adds-prefix",
+     "title": "Customer announces a second allowed /24",
+     "category": "customer-growth",
+     "expected": "safe",
+     "rationale": "The customer adds 10.100.1.0/24, inside its registered 10.100.0.0/22. Announcing it upstream is the desired outcome.",
+     "note": "Normal customer growth inside the registered range.",
+     "edits": [
+      {
+       "node": "ce1",
+       "append": "ip route 10.100.1.0/24 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 10.100.1.0/24\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "07-tighten-max-prefix",
+     "title": "Lower the customer maximum-prefix from 100 to 50",
+     "category": "hygiene",
+     "expected": "safe",
+     "rationale": "Tightening a safety limit that is still far above the customer's real count.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "maximum-prefix 100",
+       "with": "maximum-prefix 50"
+      }
+     ]
+    },
+    {
+     "id": "08-upstream-timers",
+     "title": "Shorten BGP timers toward the upstream",
+     "category": "hygiene",
+     "expected": "safe",
+     "rationale": "Faster failure detection; the session stays up.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "router bgp 65000\n neighbor 10.0.2.2 timers 10 30"
+      }
+     ]
+    },
+    {
+     "id": "09-customer-localpref",
+     "title": "Lower customer local-preference from 300 to 250",
+     "category": "traffic-engineering",
+     "expected": "safe",
+     "rationale": "Customer routes stay the most preferred (peer 200, upstream 100).",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": " set local-preference 300",
+       "with": " set local-preference 250"
+      }
+     ]
+    },
+    {
+     "id": "10-transit-export-filter-removed",
+     "title": "Upstream export filter replaced with permit-all",
+     "category": "route-leak",
+     "expected": "unsafe",
+     "rationale": "pe1 now announces everything to the upstream, including the peer's route: free transit for the peer, a classic route leak.",
+     "note": "Route leak as defined in RFC 7908.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.2.2 route-map TO-UPSTREAM out",
+       "with": "  neighbor 10.0.2.2 route-map TO-CUSTOMER out"
+      }
+     ]
+    },
+    {
+     "id": "11-peer-export-filter-removed",
+     "title": "Peer export filter replaced with permit-all",
+     "category": "route-leak",
+     "expected": "unsafe",
+     "rationale": "pe2 announces upstream routes and the default to the peer: a route leak toward the peer.",
+     "note": "Route leak as defined in RFC 7908.",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "route-map ALLOW-ALL permit 10"
+      },
+      {
+       "node": "pe2",
+       "replace": "  neighbor 10.0.4.2 route-map TO-PEER out",
+       "with": "  neighbor 10.0.4.2 route-map ALLOW-ALL out"
+      }
+     ]
+    },
+    {
+     "id": "12-ibgp-send-community-dropped",
+     "title": "send-community removed on the pe1 to pe2 iBGP session",
+     "category": "policy-bug",
+     "expected": "unsafe",
+     "rationale": "pe2 no longer sees the customer community, so it stops announcing the customer route to the peer.",
+     "note": "A common mistake when rebuilding iBGP sessions.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.3.2 send-community\n",
+       "with": ""
+      }
+     ]
+    },
+    {
+     "id": "13-upstream-asn-typo",
+     "title": "Typo in the upstream's ASN (65020 instead of 65200)",
+     "category": "fat-finger",
+     "expected": "unsafe",
+     "rationale": "The upstream session never comes up; the customer loses internet access.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": " neighbor 10.0.2.2 remote-as 65200",
+       "with": " neighbor 10.0.2.2 remote-as 65020"
+      }
+     ]
+    },
+    {
+     "id": "14-peer-session-shutdown",
+     "title": "Peer session administratively shut down",
+     "category": "fat-finger",
+     "expected": "unsafe",
+     "rationale": "The peer route disappears and the peer loses our routes.",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "router bgp 65000\n neighbor 10.0.4.2 shutdown"
+      }
+     ]
+    },
+    {
+     "id": "15-customer-filter-too-strict",
+     "title": "Customer prefix-list typo rejects the customer's /24",
+     "category": "policy-bug",
+     "expected": "unsafe",
+     "rationale": "le 23 instead of le 24 drops the customer's only prefix, so the customer becomes unreachable from the internet.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "permit 10.100.0.0/22 le 24",
+       "with": "permit 10.100.0.0/22 le 23"
+      }
+     ]
+    },
+    {
+     "id": "16-mass-withdrawal",
+     "title": "Upstream export policy denies everything",
+     "category": "withdrawal",
+     "expected": "unsafe",
+     "rationale": "Every route we announce to the upstream is withdrawn: our aggregate and the customer vanish from the upstream.",
+     "note": "Mass-withdrawal outage class (the 2021 Facebook outage began with withdrawn routes).",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "route-map TO-UPSTREAM permit 10\n match community CUSTOMER\n!\nroute-map TO-UPSTREAM permit 20\n match ip address prefix-list OWN\n",
+       "with": "route-map TO-UPSTREAM deny 10\n"
+      }
+     ]
+    },
+    {
+     "id": "17-default-leaked-to-peer",
+     "title": "default-originate configured toward the peer",
+     "category": "route-leak",
+     "expected": "unsafe",
+     "rationale": "We offer the peer a default route, so the peer can send all its traffic through us for free.",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "router bgp 65000\n address-family ipv4 unicast\n  neighbor 10.0.4.2 default-originate\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "18-redistribute-connected",
+     "title": "redistribute connected added on pe1",
+     "category": "hygiene",
+     "expected": "unsafe",
+     "rationale": "Infrastructure /30s and loopbacks go to the customer and into iBGP. Export filters keep them from the upstream and the peer, but leaking infrastructure to customers is rejected in review.",
+     "note": "Not covered by the intent spec, which has no check for infrastructure routes at the customer.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "router bgp 65000\n address-family ipv4 unicast\n  redistribute connected\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "19-nexthop-self-removed",
+     "title": "next-hop-self removed on pe2 toward pe1",
+     "category": "policy-bug",
+     "expected": "unsafe",
+     "rationale": "pe1 learns the peer route with an unreachable next hop, so the customer loses the peer route.",
+     "edits": [
+      {
+       "node": "pe2",
+       "replace": "  neighbor 10.0.3.1 next-hop-self\n",
+       "with": ""
+      }
+     ]
+    },
+    {
+     "id": "20-ibgp-shutdown",
+     "title": "iBGP session between pe1 and pe2 shut down",
+     "category": "fat-finger",
+     "expected": "unsafe",
+     "rationale": "The two halves of the network stop exchanging routes.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "router bgp 65000\n neighbor 10.0.3.2 shutdown"
+      }
+     ]
+    },
+    {
+     "id": "21-customer-max-prefix-removed",
+     "title": "Customer maximum-prefix safety limit removed",
+     "category": "latent-risk",
+     "expected": "unsafe",
+     "rationale": "Nothing changes today, but a customer leaking a full table would now be accepted. Reviewers reject removing safety limits.",
+     "note": "Latent risk: no steady-state check can see it until the customer actually leaks. Catching it needs a failure-injection scenario (the customer sends many prefixes), planned for a later release.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.1.2 maximum-prefix 100\n",
+       "with": ""
+      }
+     ]
+    },
+    {
+     "id": "22-customer-leaks-third-party",
+     "title": "Customer announces someone else's prefix; our filter blocks it",
+     "category": "filter-works",
+     "expected": "safe",
+     "rationale": "ce1 starts announcing 8.8.8.0/24. pe1's customer filter rejects it, so nothing leaks. The customer-side change is bad, but our network behaves correctly, so a test of our network must pass.",
+     "edits": [
+      {
+       "node": "ce1",
+       "append": "ip route 8.8.8.0/24 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 8.8.8.0/24\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "23-fat-finger-third-party-origin",
+     "title": "pe1 accidentally originates 8.8.8.0/24",
+     "category": "hijack",
+     "expected": "unsafe",
+     "rationale": "A fat-fingered network statement hijacks 8.8.8.0/24 for our own customer. Export filters keep it from the upstream and the peer.",
+     "note": "Not covered by the intent spec, which has no check for unexpected routes at the customer.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "ip route 8.8.8.0/24 blackhole\nrouter bgp 65000\n address-family ipv4 unicast\n  network 8.8.8.0/24\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "24-customer-blackholed",
+     "title": "Static discard route for the customer prefix on pe1",
+     "category": "fat-finger",
+     "expected": "unsafe",
+     "rationale": "The static route beats BGP, so traffic to the customer is dropped while the route is still announced.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "ip route 192.0.2.0/24 blackhole\n",
+       "with": "ip route 192.0.2.0/24 blackhole\nip route 10.100.0.0/24 blackhole\n"
+      }
+     ]
+    },
+    {
+     "id": "25-aggregate-typo",
+     "title": "Aggregate network statement typo (192.0.3.0/24)",
+     "category": "fat-finger",
+     "expected": "unsafe",
+     "rationale": "Our own aggregate is no longer announced anywhere.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  network 192.0.2.0/24",
+       "with": "  network 192.0.3.0/24"
+      }
+     ]
+    },
+    {
+     "id": "26-route-map-order-bug",
+     "title": "A permit-everything clause inserted before the peer export filter",
+     "category": "route-leak",
+     "expected": "unsafe",
+     "rationale": "Sequence 5 matches everything, so upstream routes and the default leak to the peer.",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "route-map TO-PEER permit 5"
+      }
+     ]
+    },
+    {
+     "id": "27-local-asn-typo",
+     "title": "pe2 configured with the wrong local ASN",
+     "category": "fat-finger",
+     "expected": "unsafe",
+     "rationale": "All of pe2's sessions fail and the peer is cut off.",
+     "edits": [
+      {
+       "node": "pe2",
+       "replace": "router bgp 65000\n bgp router-id 10.255.0.2",
+       "with": "router bgp 65001\n bgp router-id 10.255.0.2"
+      }
+     ]
+    },
+    {
+     "id": "28-customer-import-policy-removed",
+     "title": "Customer inbound route-map removed",
+     "category": "policy-bug",
+     "expected": "unsafe",
+     "rationale": "Without the import policy the customer's routes lose their community (or are rejected outright), so they are no longer exported upstream.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.1.2 route-map FROM-CUSTOMER in\n",
+       "with": ""
+      }
+     ]
+    },
+    {
+     "id": "29-graceful-restart",
+     "title": "Enable BGP graceful restart on pe1",
+     "category": "hygiene",
+     "expected": "safe",
+     "rationale": "A resilience feature; the routing outcome is unchanged.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "router bgp 65000\n bgp graceful-restart"
+      }
+     ]
+    },
+    {
+     "id": "30-peer-import-filter-removed",
+     "title": "Peer inbound filter replaced with permit-all",
+     "category": "latent-risk",
+     "expected": "unsafe",
+     "rationale": "Nothing changes today because the peer only sends its /24, but the peer could now send a default or bogons. Reviewers reject removing an import filter.",
+     "note": "Latent risk: invisible in steady state until the peer misbehaves. Needs a failure-injection scenario.",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "route-map ALLOW-ALL permit 10"
+      },
+      {
+       "node": "pe2",
+       "replace": "  neighbor 10.0.4.2 route-map FROM-PEER in",
+       "with": "  neighbor 10.0.4.2 route-map ALLOW-ALL in"
+      }
+     ]
+    }
+   ]
+  },
+  "v2": {
+   "intent": "corpus/v2/INTENT.md",
+   "base": {
+    "topology.clab.yml": "# Verdict Corpus v2 base network: a small provider (AS65000, routers pe1 + pe2) with one\n# customer (ce1), one upstream transit (up1) and one settlement-free peer (peer1).\n#\n#   ce1 (AS65100) --- pe1 ===iBGP=== pe2 --- peer1 (AS65300)\n#                      |\n#                     up1 (AS65200, transit, sends a default)\n#\n# Policy intent (see ../INTENT.md): customers' routes go everywhere; routes learned from\n# the upstream or the peer go to customers only (no free transit, i.e. no route leaks).\nname: ndr-corpus-v2\n\ntopology:\n  defaults:\n    kind: linux\n    image: quay.io/frrouting/frr:10.4.1\n  nodes:\n    ce1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/ce1.conf:/etc/frr/frr.conf]\n    pe1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/pe1.conf:/etc/frr/frr.conf]\n    pe2:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/pe2.conf:/etc/frr/frr.conf]\n    up1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/up1.conf:/etc/frr/frr.conf]\n    peer1:\n      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/peer1.conf:/etc/frr/frr.conf]\n  links:\n    - endpoints: [\"ce1:eth1\", \"pe1:eth1\"]     # 10.0.1.0/30\n    - endpoints: [\"pe1:eth2\", \"up1:eth1\"]     # 10.0.2.0/30\n    - endpoints: [\"pe1:eth3\", \"pe2:eth1\"]     # 10.0.3.0/30\n    - endpoints: [\"pe2:eth2\", \"peer1:eth1\"]   # 10.0.4.0/30\n",
+    "configs/ce1.conf": "frr defaults traditional\nhostname ce1\n!\ninterface lo\n ip address 10.100.0.1/24\n!\ninterface eth1\n ip address 10.0.1.2/30\n!\nroute-map ALLOW-ALL permit 10\n!\nrouter bgp 65100\n bgp router-id 10.100.0.1\n neighbor 10.0.1.1 remote-as 65000\n address-family ipv4 unicast\n  network 10.100.0.0/24\n  neighbor 10.0.1.1 route-map ALLOW-ALL in\n  neighbor 10.0.1.1 route-map ALLOW-ALL out\n exit-address-family\n!\n",
+    "configs/daemons": "zebra=yes\nbgpd=yes\nospfd=no\nospf6d=no\nripd=no\nripngd=no\nisisd=no\npimd=no\nldpd=no\nnhrpd=no\neigrpd=no\nbabeld=no\nsharpd=no\nstaticd=yes\npbrd=no\nbfdd=no\nfabricd=no\nvrrpd=no\n\nvtysh_enable=yes\nzebra_options=\"  -A 127.0.0.1 -s 90000000\"\nbgpd_options=\"   -A 127.0.0.1\"\nstaticd_options=\"-A 127.0.0.1\"\n",
+    "configs/pe1.conf": "frr defaults traditional\nhostname pe1\n!\ninterface lo\n ip address 10.255.0.1/32\n!\ninterface eth1\n description to-customer-ce1\n ip address 10.0.1.1/30\n!\ninterface eth2\n description to-upstream-up1\n ip address 10.0.2.1/30\n!\ninterface eth3\n description to-pe2\n ip address 10.0.3.1/30\n!\n! Our own aggregate, originated from a discard route\nip route 192.0.2.0/24 blackhole\n!\nip prefix-list OWN seq 10 permit 192.0.2.0/24\nip prefix-list CUSTOMER-IN seq 10 permit 10.100.0.0/16 le 24\n!\nbgp community-list standard CUSTOMER permit 65000:100\n!\nroute-map FROM-CUSTOMER permit 10\n match ip address prefix-list CUSTOMER-IN\n set community 65000:100\n set local-preference 300\n!\nroute-map FROM-UPSTREAM permit 10\n set community 65000:200\n set local-preference 100\n!\nroute-map TO-UPSTREAM permit 10\n match community CUSTOMER\n!\nroute-map TO-UPSTREAM permit 20\n match ip address prefix-list OWN\n!\nroute-map TO-CUSTOMER permit 10\n!\nrouter bgp 65000\n bgp router-id 10.255.0.1\n neighbor 10.0.1.2 remote-as 65100\n neighbor 10.0.1.2 description ce1\n neighbor 10.0.2.2 remote-as 65200\n neighbor 10.0.2.2 description up1\n neighbor 10.0.3.2 remote-as 65000\n neighbor 10.0.3.2 description pe2\n address-family ipv4 unicast\n  network 192.0.2.0/24\n  neighbor 10.0.1.2 route-map FROM-CUSTOMER in\n  neighbor 10.0.1.2 route-map TO-CUSTOMER out\n  neighbor 10.0.1.2 maximum-prefix 50 restart 1\n  neighbor 10.0.2.2 route-map FROM-UPSTREAM in\n  neighbor 10.0.2.2 route-map TO-UPSTREAM out\n  neighbor 10.0.3.2 next-hop-self\n  neighbor 10.0.3.2 send-community\n exit-address-family\n!\n",
+    "configs/pe2.conf": "frr defaults traditional\nhostname pe2\n!\ninterface lo\n ip address 10.255.0.2/32\n!\ninterface eth1\n description to-pe1\n ip address 10.0.3.2/30\n!\ninterface eth2\n description to-peer-peer1\n ip address 10.0.4.1/30\n!\nip prefix-list OWN seq 10 permit 192.0.2.0/24\nip prefix-list PEER-IN seq 10 permit 198.51.100.0/24\n!\nbgp community-list standard CUSTOMER permit 65000:100\n!\nroute-map FROM-PEER permit 10\n match ip address prefix-list PEER-IN\n set community 65000:300\n set local-preference 200\n!\nroute-map TO-PEER permit 10\n match community CUSTOMER\n!\nroute-map TO-PEER permit 20\n match ip address prefix-list OWN\n!\nrouter bgp 65000\n bgp router-id 10.255.0.2\n neighbor 10.0.3.1 remote-as 65000\n neighbor 10.0.3.1 description pe1\n neighbor 10.0.4.2 remote-as 65300\n neighbor 10.0.4.2 description peer1\n address-family ipv4 unicast\n  neighbor 10.0.3.1 next-hop-self\n  neighbor 10.0.3.1 send-community\n  neighbor 10.0.4.2 route-map FROM-PEER in\n  neighbor 10.0.4.2 route-map TO-PEER out\n exit-address-family\n!\n",
+    "configs/peer1.conf": "frr defaults traditional\nhostname peer1\n!\ninterface lo\n ip address 198.51.100.1/24\n!\ninterface eth1\n ip address 10.0.4.2/30\n!\nroute-map ALLOW-ALL permit 10\n!\nrouter bgp 65300\n bgp router-id 198.51.100.1\n neighbor 10.0.4.1 remote-as 65000\n address-family ipv4 unicast\n  network 198.51.100.0/24\n  neighbor 10.0.4.1 route-map ALLOW-ALL in\n  neighbor 10.0.4.1 route-map ALLOW-ALL out\n exit-address-family\n!\n",
+    "configs/up1.conf": "frr defaults traditional\nhostname up1\n!\ninterface lo\n ip address 203.0.113.1/24\n!\ninterface eth1\n ip address 10.0.2.2/30\n!\nroute-map ALLOW-ALL permit 10\n!\nrouter bgp 65200\n bgp router-id 203.0.113.1\n neighbor 10.0.2.1 remote-as 65000\n address-family ipv4 unicast\n  network 203.0.113.0/24\n  neighbor 10.0.2.1 default-originate\n  neighbor 10.0.2.1 route-map ALLOW-ALL in\n  neighbor 10.0.2.1 route-map ALLOW-ALL out\n exit-address-family\n!\n",
+    "configs/vtysh.conf": "service integrated-vtysh-config\n"
+   },
+   "cases": [
+    {
+     "id": "01-no-change",
+     "title": "No change (control)",
+     "category": "control",
+     "expected": "safe",
+     "rationale": "The base lab runs unchanged. Every strategy must call it safe, including while the two misbehaving-neighbor scenarios run.",
+     "edits": []
+    },
+    {
+     "id": "02-redistribute-connected-pe2",
+     "title": "redistribute connected added on pe2",
+     "category": "hygiene",
+     "expected": "unsafe",
+     "rationale": "pe2's link /30s, its loopback and the management subnet become BGP routes. The peer export filter keeps them from the peer, but they reach pe1 over iBGP and go on to the customer. Reviewers reject leaking infrastructure to customers. (Re-expresses v1 case 18 on the other router.)",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "router bgp 65000\n address-family ipv4 unicast\n  redistribute connected\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "03-test-prefix-left-in-config",
+     "title": "pe1 originates 1.1.1.0/24 left over from a lab test",
+     "category": "hijack",
+     "expected": "unsafe",
+     "rationale": "A network statement for 1.1.1.0/24 (often used as junk space in tests) is left in the production config. Our customer's traffic to the public resolver at 1.1.1.1 is now blackholed by us. Export filters keep it from the upstream and the peer. (Re-expresses v1 case 23 with a prefix on the I7 sentinel list.)",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "ip route 1.1.1.0/24 blackhole\nrouter bgp 65000\n address-family ipv4 unicast\n  network 1.1.1.0/24\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "04-redundant-aggregate-typo",
+     "title": "Aggregate added on pe2 for redundancy, mistyped as 192.0.12.0/24",
+     "category": "hijack",
+     "expected": "unsafe",
+     "rationale": "The operator meant to originate our 192.0.2.0/24 from pe2 too, but typed 192.0.12.0/24, someone else's space. The peer export filter only allows our real aggregate, so the peer does not see it, but pe1 sends it to the customer, whose traffic to that network is now blackholed. (v1 case 23 class with a prefix that is not on any sentinel list.)",
+     "note": "Expected to be missed. I7 only spot-checks a few well-known prefixes, and nothing bounds what the customer receives.",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "ip route 192.0.12.0/24 blackhole\nrouter bgp 65000\n address-family ipv4 unicast\n  network 192.0.12.0/24\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "05-customer-max-prefix-removed",
+     "title": "Customer maximum-prefix safety limit removed",
+     "category": "latent-risk",
+     "expected": "unsafe",
+     "rationale": "Nothing changes in steady state, but a customer that floods us with more-specifics from its /16 would now have all of them accepted and passed to the upstream and the peer. Reviewers reject removing safety limits. (Re-expresses v1 case 21, now with a limit that can trip.)",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.1.2 maximum-prefix 50 restart 1\n",
+       "with": ""
+      }
+     ]
+    },
+    {
+     "id": "06-peer-import-filter-permit-all",
+     "title": "Peer inbound filter replaced with permit-all",
+     "category": "latent-risk",
+     "expected": "unsafe",
+     "rationale": "Nothing changes today because the peer only sends its /24, but anything the peer sends is now accepted, including a more-specific of our customer's space that would hijack the customer's traffic. Reviewers reject removing an import filter. (Re-expresses v1 case 30.)",
+     "edits": [
+      {
+       "node": "pe2",
+       "append": "route-map ALLOW-ALL permit 10"
+      },
+      {
+       "node": "pe2",
+       "replace": "  neighbor 10.0.4.2 route-map FROM-PEER in",
+       "with": "  neighbor 10.0.4.2 route-map ALLOW-ALL in"
+      }
+     ]
+    },
+    {
+     "id": "07-customer-adds-prefixes",
+     "title": "Customer announces two more /24s from its /16",
+     "category": "customer-growth",
+     "expected": "safe",
+     "rationale": "The customer adds 10.100.1.0/24 and 10.100.2.0/24, inside its registered 10.100.0.0/16. Announcing them upstream and to the peer is the desired outcome. (Re-expresses v1 case 06, which v1's exact prefix count wrongly blocked.)",
+     "edits": [
+      {
+       "node": "ce1",
+       "append": "ip route 10.100.1.0/24 blackhole\nip route 10.100.2.0/24 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 10.100.1.0/24\n  network 10.100.2.0/24\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "08-customer-announces-aggregate",
+     "title": "Customer also announces its covering /16",
+     "category": "customer-growth",
+     "expected": "safe",
+     "rationale": "The customer starts announcing 10.100.0.0/16, its registered block, alongside the /24. The import filter allows it (le 24 includes the /16 itself), and a customer announcing its own allocation is normal.",
+     "edits": [
+      {
+       "node": "ce1",
+       "append": "ip route 10.100.0.0/16 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 10.100.0.0/16\n exit-address-family"
+      }
+     ]
+    },
+    {
+     "id": "09-ibgp-send-community-line-removed",
+     "title": "Explicit send-community line removed on the pe1 to pe2 iBGP session",
+     "category": "vendor-default",
+     "expected": "safe",
+     "rationale": "FRR sends communities to every neighbor by default, so deleting the explicit line is a no-op and pe2 still sees the customer community. Labeled from v1's measured post-run finding on case 12, not from fresh judgment (see INTENT.md). On platforms that do not send communities by default, the same edit would be harmful.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.3.2 send-community\n",
+       "with": ""
+      }
+     ]
+    },
+    {
+     "id": "10-ibgp-standard-communities-disabled",
+     "title": "Standard communities explicitly disabled on the pe1 to pe2 iBGP session",
+     "category": "policy-bug",
+     "expected": "unsafe",
+     "rationale": "pe1 stops sending standard communities to pe2, so the customer route arrives at pe2 without 65000:100. pe2's peer export policy matches on that community, so the customer route stops reaching the peer: the customer loses the peering path it pays for.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.3.2 send-community\n",
+       "with": "  no neighbor 10.0.3.2 send-community standard\n"
+      }
+     ]
+    },
+    {
+     "id": "11-customer-max-prefix-warning-only",
+     "title": "Customer maximum-prefix changed to warning-only",
+     "category": "latent-risk",
+     "expected": "unsafe",
+     "rationale": "The limit now only logs a warning instead of shutting the session, so a customer flood is accepted and passed on. A common \"temporary\" change after a limit tripped once. Nothing changes in steady state.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.1.2 maximum-prefix 50 restart 1",
+       "with": "  neighbor 10.0.1.2 maximum-prefix 50 warning-only"
+      }
+     ]
+    },
+    {
+     "id": "12-customer-max-prefix-raised",
+     "title": "Customer maximum-prefix raised from 50 to 100",
+     "category": "hygiene",
+     "expected": "safe",
+     "rationale": "The customer is growing and asked for a higher limit. The limit still exists and still shuts the session on a flood well beyond the customer's needs.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.1.2 maximum-prefix 50 restart 1",
+       "with": "  neighbor 10.0.1.2 maximum-prefix 100 restart 1"
+      }
+     ]
+    },
+    {
+     "id": "13-upstream-routes-tagged-as-customer",
+     "title": "Upstream import policy tags routes with the customer community (copy-paste error)",
+     "category": "route-leak",
+     "expected": "unsafe",
+     "rationale": "FROM-UPSTREAM now sets 65000:100 instead of 65000:200. Every export policy treats upstream routes as customer routes, so the upstream's routes and its default are announced to the peer, giving the peer free transit through our upstream.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": " set community 65000:200\n",
+       "with": " set community 65000:100\n"
+      }
+     ]
+    },
+    {
+     "id": "14-customer-gets-default-only",
+     "title": "Customer export policy restricted to the default route",
+     "category": "policy-bug",
+     "expected": "unsafe",
+     "rationale": "A default-only template is applied to a customer that pays for full routes. The customer still has connectivity through the default but loses the specific routes it needs for its own traffic engineering, which breaks its contract.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "ip prefix-list DEFAULT-ONLY seq 10 permit 0.0.0.0/0"
+      },
+      {
+       "node": "pe1",
+       "replace": "route-map TO-CUSTOMER permit 10\n",
+       "with": "route-map TO-CUSTOMER permit 10\n match ip address prefix-list DEFAULT-ONLY\n"
+      }
+     ]
+    },
+    {
+     "id": "15-upstream-default-filtered",
+     "title": "Default route from the upstream filtered on import",
+     "category": "policy-bug",
+     "expected": "unsafe",
+     "rationale": "A deny clause for 0.0.0.0/0 is added to FROM-UPSTREAM (\"we don't need a default from transit\"). In this network the upstream's default is how the customer reaches everything beyond the two lab prefixes, so the customer loses most of the internet.",
+     "edits": [
+      {
+       "node": "pe1",
+       "append": "ip prefix-list DEFAULT-ONLY seq 10 permit 0.0.0.0/0\nroute-map FROM-UPSTREAM deny 5\n match ip address prefix-list DEFAULT-ONLY"
+      }
+     ]
+    },
+    {
+     "id": "16-customer-session-peer-group",
+     "title": "Customer session moved into a CUSTOMERS peer-group",
+     "category": "refactor",
+     "expected": "safe",
+     "rationale": "A refactor that moves the customer's route-maps and limit onto a peer-group so future customers share them. The customer's effective policy is unchanged.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": " neighbor 10.0.1.2 remote-as 65100\n",
+       "with": " neighbor CUSTOMERS peer-group\n neighbor 10.0.1.2 remote-as 65100\n neighbor 10.0.1.2 peer-group CUSTOMERS\n"
+      },
+      {
+       "node": "pe1",
+       "replace": "  neighbor 10.0.1.2 route-map FROM-CUSTOMER in\n  neighbor 10.0.1.2 route-map TO-CUSTOMER out\n  neighbor 10.0.1.2 maximum-prefix 50 restart 1\n",
+       "with": "  neighbor CUSTOMERS route-map FROM-CUSTOMER in\n  neighbor CUSTOMERS route-map TO-CUSTOMER out\n  neighbor CUSTOMERS maximum-prefix 50 restart 1\n"
+      }
+     ]
+    },
+    {
+     "id": "17-customer-region-community",
+     "title": "Add an informational region community to customer routes",
+     "category": "hygiene",
+     "expected": "safe",
+     "rationale": "Customer routes get 65000:110 (region tag) next to 65000:100. The export policies match on 65000:100, which is still present, so nothing else changes.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": " set community 65000:100\n",
+       "with": " set community 65000:100 65000:110\n"
+      }
+     ]
+    },
+    {
+     "id": "18-aggregate-discard-route-removed",
+     "title": "Discard route for our aggregate deleted as unused",
+     "category": "hygiene",
+     "expected": "unsafe",
+     "rationale": "The blackhole static for 192.0.2.0/24 looks unused and is cleaned up. Either the aggregate stops being announced (if BGP requires a matching route), or it is still announced with nothing to absorb traffic for unused addresses in it: that traffic follows the upstream's default straight back to the upstream, a routing loop. Both are harmful.",
+     "edits": [
+      {
+       "node": "pe1",
+       "replace": "ip route 192.0.2.0/24 blackhole\n",
+       "with": ""
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
