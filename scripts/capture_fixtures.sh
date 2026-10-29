@@ -215,14 +215,19 @@ capture_eos() {                     # eos.py: bgp_neighbors, routes, bgp_paths, 
   sleep 8
   cap eos_leak_route cli "show ip route vrf default 0.0.0.0/0 | json"
   cap eos_leak_bgp   cli "show ip bgp 0.0.0.0/0 vrf default | json"
-  # the advertisement delay (0.4.1): `show ip bgp neighbors` without out-delay (EOS's default, 0), then with 7 s
+  # The advertisement delay (0.4.1). cEOS 4.36.3M's `show ip bgp neighbors` (JSON and text) does not show
+  # out-delay even when configured (captured 2026-10-29: the two answers differ only in counters), so the
+  # delay is read from the BGP configuration: none, on the neighbor (7 s), then inherited from a peer group (11 s).
   cap eos_bgp_neighbors          cli "show ip bgp neighbors 10.0.200.2 vrf default | json"
-  shape eos_bgp_neighbors_text   cli "show ip bgp neighbors 10.0.200.2 vrf default"
+  cap eos_bgp_config             cli "show running-config section router bgp"
   cli $'enable\nconfigure\nrouter bgp 65030\nneighbor 10.0.200.2 out-delay 7\nend' >/dev/null
   sleep 3
   cap eos_bgp_neighbors_outdelay cli "show ip bgp neighbors 10.0.200.2 vrf default | json"
-  shape eos_bgp_neighbors_outdelay_text cli "show ip bgp neighbors 10.0.200.2 vrf default"
-  cap eos_bgp_neighbors_all      cli "show ip bgp neighbors vrf default | json"
+  cap eos_bgp_config_outdelay    cli "show running-config section router bgp"
+  shape eos_bgp_config_outdelay_all cli "show running-config all section router bgp"
+  cli $'enable\nconfigure\nrouter bgp 65030\nno neighbor 10.0.200.2 out-delay\nneighbor PG peer group\nneighbor PG out-delay 11\nneighbor 10.0.200.2 peer group PG\nend' >/dev/null
+  sleep 3
+  cap eos_bgp_config_peergroup   cli "show running-config section router bgp"
 }
 
 # ---- Run ---------------------------------------------------------------------------------------------------------
