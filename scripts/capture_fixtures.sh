@@ -215,6 +215,14 @@ capture_eos() {                     # eos.py: bgp_neighbors, routes, bgp_paths, 
   sleep 8
   cap eos_leak_route cli "show ip route vrf default 0.0.0.0/0 | json"
   cap eos_leak_bgp   cli "show ip bgp 0.0.0.0/0 vrf default | json"
+  # the advertisement delay (0.4.1): `show ip bgp neighbors` without out-delay (EOS's default, 0), then with 7 s
+  cap eos_bgp_neighbors          cli "show ip bgp neighbors 10.0.200.2 vrf default | json"
+  shape eos_bgp_neighbors_text   cli "show ip bgp neighbors 10.0.200.2 vrf default"
+  cli $'enable\nconfigure\nrouter bgp 65030\nneighbor 10.0.200.2 out-delay 7\nend' >/dev/null
+  sleep 3
+  cap eos_bgp_neighbors_outdelay cli "show ip bgp neighbors 10.0.200.2 vrf default | json"
+  shape eos_bgp_neighbors_outdelay_text cli "show ip bgp neighbors 10.0.200.2 vrf default"
+  cap eos_bgp_neighbors_all      cli "show ip bgp neighbors vrf default | json"
 }
 
 # ---- Run ---------------------------------------------------------------------------------------------------------
