@@ -1,0 +1,220 @@
+# L1 oracle source (hand-written before any lab boot). tools/build_oracle.py expands it into oracle.yml.
+# Semantics are the netdryrun.yml reference's (website/docs/reference/config.md on ndr/release-0.4.0), not what any
+# driver happens to do. Where an expectation rests on NOS behaviour rather than on Netdryrun's contract, the reason
+# says so ("NOS assumption"); a mismatch there is checked against the raw evidence before it is called a finding.
+#
+# Route counts used below. f1 receives: from j1 192.168.1.1/32 + 172.17.1.0/24; from s1 192.168.2.1/32; from a1
+# 192.168.3.1/32 (on both sessions); from n1 192.168.4.1/32 + 172.16.4.0/24; from f2 192.168.6.0/24 + 200 x
+# 100.64.N.0/24 + 172.16.6.0/24 + 0.0.0.0/0 (203). f1 originates 192.168.5.1/32 and the as-set aggregate
+# 172.16.0.0/16 (summary-only suppresses 172.16.4.0/24 and 172.16.6.0/24). TO-SPOKE denies the default.
+# sender-as-path-loop-detection keeps every route that carries a spoke's AS (the as-set included) away from that
+# spoke. So f1 offers each spoke 208 routes minus its own: j1 206, s1 207, a1 207 per session, n1 206 (own lo and the
+# aggregate, which carries 65004). IPv6: each v6 spoke gets the other's loopback and f1's: 2.
+lab: L1
+baseline:
+  status: failed   # by design: the T* traps and R* probes fail
+  default: {expect: pass, why: "baseline configuration provides it (see the check's comment block in netdryrun.yml and the counts above)"}
+  checks:
+    C17: {expect: pass, why: "j1 exports exactly 192.168.1.1/32 and 172.17.1.0/24 (static, exact match): 2"}
+    C22: {expect: pass, why: "n1 originates 192.168.4.1/32 and 172.16.4.0/24 (network, import-check off): 2"}
+    C23: {expect: pass, why: "f2: 192.168.6.0/24, 200 statics, 172.16.6.0/24, default-originate: 203"}
+    C24: {expect: pass, why: "208 offered minus j1's own two: 206"}
+    C26: {expect: pass, why: "208 minus s1's loopback: 207"}
+    C28: {expect: pass, why: "208 minus a1's loopback: 207 on each session"}
+    C29: {expect: pass, why: "208 minus a1's loopback: 207 on each session"}
+    C30: {expect: pass, why: "208 minus n1's loopback and the aggregate (as-set contains 65004): 206"}
+    C47: {expect: pass, why: "j1 export sets 65001:100, large 65001:1:1, MED 10; eBGP path, f1 default local-pref 100"}
+    C58: {expect: pass, why: "two equal paths from a1; compare-routerid skips the older-path rule, router-ids tie, lowest peer address 10.1.3.1 wins (NOS assumption: FRR tie-break order)"}
+    C65: {expect: pass, why: "as-set aggregate of 65004 and 65006 contributors; an AS_SET is unordered (RFC 4271), so {65004,65006} must match whatever order the NOS prints"}
+    C66: {expect: pass, why: "as C65"}
+    C67: {expect: pass, why: "as C65"}
+    C77: {expect: pass, why: "ECMP: identical attributes on both sessions, EOS tie-break on lowest peer address picks 10.1.3.2 as best (NOS assumption: EOS has no older-path rule by default)"}
+    C78: {expect: pass, why: "f1's own network route carries MED 0 (FRR sets the MED of a network statement) and f1 keeps its own MED toward eBGP (NOS assumption)"}
+    C79: {expect: pass, why: "as C78"}
+    C80: {expect: pass, why: "as C78"}
+    C81: {expect: pass, why: "as C78"}
+    T01: {expect: fail, why: "a1 sets MED 30; f1 strips a MED learned from another AS before eBGP (FRR), so j1 sees no MED or 30, never 0; the reference says a missing MED fails even med: 0"}
+    T02: {expect: fail, why: "j1 sets MED 10; at a1 it is absent (stripped by f1) or 10, never 0"}
+    T03: {expect: fail, why: "j1 sets MED 10; at s1 it is absent or 10, never 0"}
+    T04: {expect: fail, why: "j1 sets MED 10; at n1 it is absent or 10, never 0"}
+    T05: {expect: fail, why: "a1's sessions carry IPv4 unicast only: 0 IPv6 prefixes, min 1 fails"}
+    T06: {expect: fail, why: "10.1.7.2 is the non-best ECMP path (C77): bgp_route asserts the best path only"}
+    T07: {expect: fail, why: "j1's path to a1-lo is '65005 65003 65003': ^65003 does not match"}
+    T08: {expect: fail, why: "s1 tags 65002:1:1, not 65002:1:2"}
+    T09: {expect: fail, why: "eBGP path without LOCAL_PREF: effective value is s1's default 100, not 200"}
+    R01: {expect: fail, why: "j1 accepts 192.168.6.0/24 in the baseline: a received path, so present: false fails"}
+    R02: {expect: fail, why: "s1 accepts 192.168.6.0/24 in the baseline"}
+    R03: {expect: fail, why: "a1 installs 192.168.6.0/24 in the baseline"}
+
+overlays:
+  M01:
+    status: failed
+    flips:
+      C68: {expect: fail, why: "j1 receives the default (inactive behind its static, preference 5 < 170): a received path"}
+      C69: {expect: fail, why: "s1 receives the default (not best: static wins): a received path"}
+      C70: {expect: fail, why: "a1 receives the default (not installed: static AD 1 < 200): a received path"}
+      C71: {expect: fail, why: "n1 receives the default: a received path"}
+      C24: {expect: fail, why: "207 = 206 + the default"}
+      C26: {expect: fail, why: "208"}
+      C28: {expect: fail, why: "208"}
+      C29: {expect: fail, why: "208"}
+      C30: {expect: fail, why: "207"}
+  M02:
+    status: failed
+    flips:
+      C17: {expect: fail, why: "j1 now sends 172.17.1.128/25 too: 3"}
+      C72: {expect: fail, why: "f1 receives the /25"}
+      C73: {expect: fail, why: "f1 passes the /25 to s1"}
+      C74: {expect: fail, why: "f1 passes the /25 to a1"}
+      C75: {expect: fail, why: "f1 passes the /25 to n1"}
+      C76: {expect: fail, why: "a1 installs the /25 (no covering static more specific)"}
+      C26: {expect: fail, why: "208"}
+      C28: {expect: fail, why: "208"}
+      C29: {expect: fail, why: "208"}
+      C30: {expect: fail, why: "207"}
+  M03:
+    status: failed
+    flips:
+      C54: {expect: fail, why: "a1-lo no longer carries 65003:1:1 (j1 reading)"}
+      C56: {expect: fail, why: "s1 reading"}
+      C57: {expect: fail, why: "n1 reading (the check also needs 65003:1:1)"}
+      C58: {expect: fail, why: "f1 reading (the check also needs 65003:1:1)"}
+  M04:
+    status: failed
+    flips:
+      C91: {expect: fail, why: "f2-lan now carries no-export at j1"}
+      C92: {expect: fail, why: "at s1"}
+      C93: {expect: fail, why: "at a1"}
+      C94: {expect: fail, why: "at n1"}
+  M05:
+    status: failed
+    flips:
+      C53: {expect: fail, why: "path is now '65005 65003'"}
+      C55: {expect: fail, why: "path is now '65005 65003'"}
+      C58: {expect: fail, why: "path at f1 is now '65003'"}
+  M06:
+    status: failed
+    flips:
+      C32: {expect: fail, why: "rejected by j1's import policy: no usable route"}
+      C88: {expect: fail, why: "rejected: no best path"}
+      C91: {expect: fail, why: "rejected: no best path to read communities from"}
+      C24: {expect: fail, why: "205: accepted = received minus rejected by import policy"}
+      R01: {expect: pass, why: "a route rejected by import policy is not a received path (reference: Junos hidden 'rejected by import policy' does not count)"}
+  M07:
+    status: failed
+    flips:
+      C89: {expect: fail, why: "rejected by s1's import policy: no best path"}
+      C92: {expect: fail, why: "rejected: no best path"}
+      C26: {expect: fail, why: "206: received minus rejected"}
+      C86: {expect: fail, why: "s1 has no route back to 192.168.6.1 and its static default discards the reply"}
+      R02: {expect: pass, why: "rejected by import policy: not in the local RIB"}
+  M08:
+    status: failed
+    flips:
+      C38: {expect: fail, why: "rejected by a1's import policy"}
+      C77: {expect: fail, why: "rejected: no BGP path"}
+      C93: {expect: fail, why: "rejected: no BGP path"}
+      C28: {expect: fail, why: "206"}
+      C29: {expect: fail, why: "206"}
+      R03: {expect: pass, why: "rejected by import policy: absent from the routing table and the BGP table"}
+  M09:
+    status: failed
+    flips:
+      C32: {expect: fail, why: "next hop 10.99.99.99 is unreachable from j1: the route can't be active"}
+      C38: {expect: fail, why: "unreachable next hop on a1: not installed"}
+      C77: {expect: fail, why: "no best path on a1 (both ECMP paths have the unreachable next hop)"}
+      C88: {expect: fail, why: "no best path on j1 (hidden: unusable next hop)"}
+      C89: {expect: fail, why: "no best path on s1 (unresolved next hop)"}
+      C90: {expect: fail, why: "no best path on n1 (next hop inaccessible)"}
+      C91: {expect: fail, why: "no best path to read"}
+      C92: {expect: fail, why: "no best path to read"}
+      C93: {expect: fail, why: "no best path to read"}
+      C94: {expect: fail, why: "no best path to read"}
+      C86: {expect: fail, why: "s1 can't resolve 192.168.6.0/24, so its reply to 192.168.6.1 hits the static default discard"}
+    # unchanged by design: counts C24-C30 (the route passed import policy: accepted), R01-R03 (it was received),
+    # T06. NOS assumptions (model review, Grok): each spoke keeps the update rather than discarding it at receipt;
+    # Junos does not replace the third-party next hop with the peer address; no spoke resolves 10.99.99.99 through
+    # its static discard default. The probe output decides which side a mismatch on j1, s1 or a1 is on.
+  M10:
+    status: failed
+    not_evaluated: {nodes: [j1, f1], why: "the j1-f1 IPv4 session is down (prefix limit) and no check expects it down"}
+    flips:
+      C01: {expect: fail, why: "session torn down by the prefix limit, idle forever"}
+      C02: {expect: fail, why: "session down"}
+      C31: {expect: fail, why: "j1 has no IPv4 BGP routes"}
+      C32: {expect: fail, why: "j1 has no IPv4 BGP routes"}
+      C88: {expect: fail, why: "j1 has no IPv4 BGP routes"}
+      C34: {expect: fail, why: "j1-lo withdrawn everywhere"}
+      C40: {expect: fail, why: "j1-lo withdrawn"}
+      C42: {expect: fail, why: "j1-cust withdrawn"}
+      C43: {expect: fail, why: "j1-lo withdrawn"}
+      C82: {expect: fail, why: "j1 has no route to 192.168.2.1 (static default discards)"}
+      C85: {expect: fail, why: "n1 has no route to 192.168.1.1"}
+      C48: {expect: fail, why: "no path for j1-lo on s1"}
+      C49: {expect: fail, why: "no path for j1-lo on s1"}
+      C50: {expect: fail, why: "no path for j1-lo on a1"}
+      C51: {expect: fail, why: "no path for j1-lo on a1"}
+      C52: {expect: fail, why: "no path for j1-lo on n1"}
+      C26: {expect: fail, why: "205 (j1-lo and j1-cust gone)"}
+      C28: {expect: fail, why: "205"}
+      C29: {expect: fail, why: "205"}
+      C30: {expect: fail, why: "204"}
+    # unchanged: the IPv6 session stays up (C03, C04, C33, C36, C87), j1's static default (C44)
+  M11:
+    status: failed
+    not_evaluated: {nodes: [s1, f1], why: "the s1-f1 IPv4 session is down (peer AS mismatch) and no check expects it down"}
+    flips:
+      C05: {expect: fail, why: "peer AS mismatch: never established"}
+      C06: {expect: fail, why: "never established"}
+      C34: {expect: fail, why: "s1 has no IPv4 BGP routes"}
+      C35: {expect: fail, why: "s1 has no IPv4 BGP routes"}
+      C89: {expect: fail, why: "s1 has no IPv4 BGP routes"}
+      C83: {expect: fail, why: "s1 has no route to 192.168.3.1"}
+      C31: {expect: fail, why: "s1-lo withdrawn"}
+      C39: {expect: fail, why: "s1-lo withdrawn"}
+      C82: {expect: fail, why: "nobody has a route to 192.168.2.1"}
+      C86: {expect: fail, why: "nobody has a route to 192.168.2.1"}
+      C60: {expect: fail, why: "no path for s1-lo on j1"}
+      C61: {expect: fail, why: "no path for s1-lo on a1"}
+      C24: {expect: fail, why: "205"}
+      C28: {expect: fail, why: "206"}
+      C29: {expect: fail, why: "206"}
+      C30: {expect: fail, why: "205"}
+    # unchanged: the IPv6 session (C07, C08, C33, C36, C87), s1's static default (C45)
+  M12:
+    status: failed
+    not_evaluated: {nodes: [a1, f1], why: "the a1-f1 link3 session is shut and no check expects it down"}
+    flips:
+      C09: {expect: fail, why: "administratively down (Idle(Admin))"}
+      C10: {expect: fail, why: "peer shut: not established"}
+    # unchanged: a1 keeps every route over link7 (C37, C38, C41, C84 and the other spokes' views)
+  M13:
+    status: failed
+    not_evaluated: {nodes: [n1, f1], why: "the n1-f1 session is down (MD5 mismatch) and no check expects it down"}
+    flips:
+      C13: {expect: fail, why: "MD5 mismatch: no TCP session"}
+      C14: {expect: fail, why: "MD5 mismatch"}
+      C39: {expect: fail, why: "n1 has no BGP routes"}
+      C40: {expect: fail, why: "n1 has no BGP routes"}
+      C90: {expect: fail, why: "n1 has no BGP routes"}
+      C85: {expect: fail, why: "n1 has no route to 192.168.1.1"}
+      C37: {expect: fail, why: "n1-lo withdrawn"}
+      C84: {expect: fail, why: "nobody has a route to 192.168.4.1"}
+      C63: {expect: fail, why: "no path for n1-lo on j1"}
+      C64: {expect: fail, why: "no path for n1-lo on s1"}
+      C65: {expect: fail, why: "the aggregate now has one contributor (65006): its AS path can't be '65005 {65004,65006}'"}
+      C66: {expect: fail, why: "as C65"}
+      C67: {expect: fail, why: "as C65"}
+      C24: {expect: fail, why: "205 (n1-lo gone)"}
+      C26: {expect: fail, why: "206"}
+      C28: {expect: fail, why: "206"}
+      C29: {expect: fail, why: "206"}
+  M14:
+    status: failed
+    flips:
+      C23: {expect: fail, why: "2003"}
+      C24: {expect: fail, why: "2006"}
+      C26: {expect: fail, why: "2007"}
+      C28: {expect: fail, why: "2007"}
+      C29: {expect: fail, why: "2007"}
+      C30: {expect: fail, why: "2006"}

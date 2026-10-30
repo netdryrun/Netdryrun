@@ -1,0 +1,144 @@
+# L2 oracle source (hand-written before any lab boot). tools/build_oracle.py expands it into oracle.yml.
+# Semantics are the netdryrun.yml reference's on ndr/release-0.4.0; "NOS assumption" marks expectations that rest on
+# NOS behaviour, checked against raw evidence before a mismatch is called a finding.
+#
+# Baseline paths. e1 sends P1 (203.0.113.0/24) to c1 only, P2 (198.51.100.0/24) to c1 (MED 50) and c3 (MED 70,
+# prepended). c1 imports with local-pref 200 + 65100:200, c3 with 150 + 65100:150; both next-hop-self to r1.
+# r1's best P2 is c1's (200 > 150) and is reflected to c2 and c3; c3 then prefers the reflected path (200) over its
+# own eBGP one, so c3 advertises nothing but its loopback to r1. Counts: r1<-c1 3 (lo, P1, P2), r1<-c2 1, r1<-c3 1,
+# c1<-r1 3 (r1/c2/c3 loopbacks), c2<-r1 5 (r1/c1/c3 loopbacks, P1, P2), c3<-r1 5 (r1/c1/c2 loopbacks, P1, P2),
+# c1<-e1 2, c3<-e1 1. r1 exports its loopback with no MED (SR Linux sets none).
+lab: L2
+baseline:
+  status: failed   # by design: the U* traps fail
+  default: {expect: pass, why: "baseline configuration provides it (see the counts and paths above)"}
+  checks:
+    D36: {expect: pass, why: "c2's loopback, reflected by r1 with next hop unchanged (Junos sets itself, 10.2.2.2), empty AS path, local-pref 100 (Junos default for iBGP export), 65100:3"}
+    D39: {expect: pass, why: "r1's own loopback to c2: empty AS path, next hop r1's address 10.2.2.1, local-pref 100 (SR Linux default) (NOS assumption)"}
+    U01: {expect: fail, why: "r1 exports its loopback with no MED attribute; the reference says a missing MED fails even med: 0"}
+    U02: {expect: fail, why: "as U01, read on c1"}
+    U03: {expect: fail, why: "as U01, read on c3 (FRR control)"}
+    U04: {expect: fail, why: "c2's best P2 is c1's path with local-pref 200"}
+    U05: {expect: fail, why: "c3's best P2 is the reflected path (next hop 10.2.1.2), not its own eBGP path 10.3.3.1"}
+
+overlays:
+  N01:
+    status: failed
+    flips:
+      D41: {expect: fail, why: "r1 receives the default from c3"}
+      D42: {expect: fail, why: "c1 receives the default reflected by r1"}
+      D43: {expect: fail, why: "c2 receives the default reflected by r1"}
+      D44: {expect: fail, why: "c3 receives the default from e1"}
+      D45: {expect: fail, why: "c2 has the default (installed: no static default on c2)"}
+      D13: {expect: fail, why: "2 (c3 now advertises the default)"}
+      D18: {expect: fail, why: "2"}
+      D14: {expect: fail, why: "4"}
+      D15: {expect: fail, why: "6"}
+    # unchanged: D16 (r1's best default comes from c3 and is not reflected back to it)
+  N02:
+    status: failed
+    flips:
+      D27: {expect: fail, why: "r1's best P2 is now c3's: local-pref 150, next hop 10.2.3.2, path '65200 65200', MED 70, 65100:150"}
+      D28: {expect: fail, why: "c2 gets c3's path"}
+      D30: {expect: fail, why: "c3's best is now its own eBGP path"}
+      D31: {expect: fail, why: "c1's best is now the reflected c3 path (150 > 100): next hop 10.2.3.2, MED 70"}
+      D35: {expect: fail, why: "P1 now has local-pref 100"}
+      D11: {expect: fail, why: "2: c1 withdraws P2 (its best is iBGP-learned)"}
+      D13: {expect: fail, why: "2: c3 advertises P2"}
+      D14: {expect: fail, why: "4: r1 reflects c3's P2 to c1"}
+      D16: {expect: fail, why: "4: P2's best at r1 comes from c3, not reflected back"}
+      U04: {expect: pass, why: "c2's best P2 now has local-pref 150"}
+      U05: {expect: pass, why: "c3's best P2 is now its own eBGP path, next hop 10.3.3.1"}
+    # unchanged: large-community checks (e1 tags both), D15 (5), pings
+  N03:
+    status: failed
+    flips:
+      D19: {expect: fail, why: "r1's only P1 path has next hop 10.3.1.1, unresolvable on r1: not active"}
+      D40: {expect: fail, why: "no best path for P1 on r1 (unresolved next hop)"}
+      D27: {expect: fail, why: "r1's best P2 is c3's"}
+      D21: {expect: fail, why: "P1 is not reflected (no best path)"}
+      D23: {expect: fail, why: "P1 is not reflected"}
+      D35: {expect: fail, why: "no P1 path on c2"}
+      D28: {expect: fail, why: "c2 gets c3's P2"}
+      D30: {expect: fail, why: "c3's best P2 is its own eBGP path"}
+      D13: {expect: fail, why: "2"}
+      D14: {expect: fail, why: "4"}
+      D15: {expect: fail, why: "4"}
+      D16: {expect: fail, why: "3"}
+      U04: {expect: pass, why: "c2's best P2 has local-pref 150"}
+      U05: {expect: pass, why: "c3's best P2 is its own, next hop 10.3.3.1"}
+    # unchanged by design: D11 (r1 still accepts 3 from c1: received and not rejected by policy), D20/D22 (P2 via c3),
+    # D31 (c1's own path), D46 (ping now goes via c3)
+  N04:
+    status: failed
+    not_evaluated: {nodes: [r1, c2], why: "the r1-c2 session is down (AS mismatch) and no check expects it down"}
+    flips:
+      D03: {expect: fail, why: "AS mismatch"}
+      D04: {expect: fail, why: "AS mismatch"}
+      D21: {expect: fail, why: "c2 has no BGP routes"}
+      D22: {expect: fail, why: "c2 has no BGP routes"}
+      D25: {expect: fail, why: "c2 has no BGP routes"}
+      D24: {expect: fail, why: "c2-lo withdrawn"}
+      D26: {expect: fail, why: "c2-lo withdrawn"}
+      D46: {expect: fail, why: "c2 has no route to P2"}
+      D48: {expect: fail, why: "nobody has a route to 10.100.0.3"}
+      D14: {expect: fail, why: "2"}
+      D16: {expect: fail, why: "4"}
+      D36: {expect: fail, why: "no path for c2-lo"}
+      D37: {expect: fail, why: "no path for c2-lo"}
+  N05:
+    status: failed
+    not_evaluated: {nodes: [c1], why: "the c1-e1 session is shut and no check expects it down"}
+    flips:
+      D07: {expect: fail, why: "administratively down"}
+      D08: {expect: fail, why: "peer shut"}
+      D19: {expect: fail, why: "P1 withdrawn"}
+      D21: {expect: fail, why: "P1 withdrawn"}
+      D23: {expect: fail, why: "P1 withdrawn"}
+      D40: {expect: fail, why: "P1 withdrawn"}
+      D35: {expect: fail, why: "P1 withdrawn"}
+      D27: {expect: fail, why: "r1's best P2 is c3's"}
+      D28: {expect: fail, why: "c2 gets c3's P2"}
+      D30: {expect: fail, why: "c3's own path"}
+      D11: {expect: fail, why: "1 (loopback only)"}
+      D13: {expect: fail, why: "2"}
+      D15: {expect: fail, why: "4"}
+      D16: {expect: fail, why: "3"}
+      U04: {expect: pass, why: "c2's best P2 has local-pref 150"}
+      U05: {expect: pass, why: "c3's best P2 is its own"}
+  N06:
+    status: failed
+    not_evaluated: {nodes: [r1, c2], why: "the r1-c2 session is torn down (prefix limit, idle forever) and no check expects it down"}
+    flips:
+      D03: {expect: fail, why: "torn down"}
+      D04: {expect: fail, why: "torn down"}
+      D21: {expect: fail, why: "c2 has no BGP routes"}
+      D22: {expect: fail, why: "c2 has no BGP routes"}
+      D25: {expect: fail, why: "c2 has no BGP routes"}
+      D24: {expect: fail, why: "c2-lo withdrawn"}
+      D26: {expect: fail, why: "c2-lo withdrawn"}
+      D46: {expect: fail, why: "c2 has no route to P2"}
+      D48: {expect: fail, why: "nobody has a route to 10.100.0.3"}
+      D14: {expect: fail, why: "2"}
+      D16: {expect: fail, why: "4"}
+      D36: {expect: fail, why: "no path for c2-lo"}
+      D37: {expect: fail, why: "no path for c2-lo"}
+  N07:
+    status: failed
+    not_evaluated: {nodes: [r1, c3], why: "the r1-c3 session is down (MD5 mismatch) and no check expects it down"}
+    flips:
+      D05: {expect: fail, why: "MD5 mismatch"}
+      D06: {expect: fail, why: "MD5 mismatch"}
+      D23: {expect: fail, why: "c3 gets nothing from r1"}
+      D25: {expect: fail, why: "c3-lo withdrawn"}
+      D47: {expect: fail, why: "nobody has a route to 10.100.0.4"}
+      D48: {expect: fail, why: "c3 has no route to 10.100.0.3"}
+      D14: {expect: fail, why: "2"}
+      D15: {expect: fail, why: "4"}
+  N08:
+    status: failed
+    flips:
+      D29: {expect: fail, why: "c2's best P2 (c1's path) carries no large community"}
+      D32: {expect: fail, why: "c1's path carries none"}
+      D33: {expect: fail, why: "r1's best is c1's path"}
+      D34: {expect: fail, why: "c3's best is the reflected c1 path"}

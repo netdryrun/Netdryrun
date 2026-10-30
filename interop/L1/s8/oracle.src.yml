@@ -1,0 +1,19 @@
+# L1 S8 sub-lab oracle source (hand-written before any lab boot). Reference: "Config that fails to load".
+lab: L1s8
+baseline:
+  status: passed
+  default: {expect: pass, why: "baseline configuration (same as L1 without j1); positive checks only"}
+  checks: {}
+overlays:
+  S8a:
+    status: error
+    why: "SR Linux CLI startup config is one commit at deploy; a line that doesn't parse fails the deploy: error (exit 2), never a verdict"
+  S8b:
+    status: error
+    why: "cEOS skips the rejected line; Netdryrun reads `show startup-config errors` after the checks: error naming the line"
+  S8c:
+    status: error
+    why: "FRR skips the rejected line at boot; Netdryrun reads the boot log: error naming f2, the line and the reason"
+  S8d:
+    status: error
+    why: "a setup command that exits non-zero (vtysh -c on a rejected line) stops the run: error"
