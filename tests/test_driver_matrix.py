@@ -293,11 +293,10 @@ def _cells() -> list[Cell]:
     add("routeros", "pass", "session established", s, ros_neighbors())
     add("routeros", "fail", "session not established", s, ros_neighbors(sessions=ros_down(ros_sessions)))
     add("routeros", "fail", "session must be down but is up", {**s, "state": "down"}, ros_neighbors())
+    # Refusals (an IPv6 session, an unknown VRF, ping in a VRF, an HTTP error) end as errors, not as a violation read from usable
+    # state, so they are asserted in tests/test_routeros_driver.py, not as must-fail cells here.
     # a connection that cannot start has no session row: idle, never established and never "unknown peer"
     add("routeros", "fail", "inactive connection has no session", {**s, "neighbor": "192.0.2.99"}, ros_neighbors())
-    add("routeros", "fail", "ipv6 session is refused, not skipped", s,
-        ros_neighbors(sessions=[*ros_sessions, {**ros_sessions[2], "name": "v6-1", "remote.address": "2001:db8::2", "remote.afi": "ipv6"}]))
-    add("routeros", "fail", "unknown VRF", {**s, "vrf": "NOPE"}, ros_neighbors())
     # prefix-count is the RECEIVED count (4: one prefix is rejected by the input filter); accepted is 3
     add("routeros", "pass", "prefixes within max", {**px, "max": 3}, ros_neighbors())
     add("routeros", "pass", "accepted count is exact", {**px, "exact": 3}, ros_neighbors())
@@ -320,8 +319,6 @@ def _cells() -> list[Cell]:
         ros_routes("10.66.0.0/24", ros_main))
     add("routeros", "pass", "route in a VRF", {"type": "route", "prefix": "198.18.2.0/24", "vrf": "RED"},
         ros_routes("198.18.2.0/24", ros_red, "RED"))
-    add("routeros", "fail", "route in an unknown VRF", {"type": "route", "prefix": "198.18.2.0/24", "vrf": "NOPE"},
-        ros_routes("198.18.2.0/24", ros_red, "NOPE"))
 
     br = {"type": "bgp_route", "prefix": "10.20.0.0/24"}
     add("routeros", "pass", "bgp path present", br, ros_paths("10.20.0.0/24", ros_main))
@@ -345,8 +342,6 @@ def _cells() -> list[Cell]:
     add("routeros", "pass", "ping replies", p, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
     add("routeros", "fail", "no replies", p, [("/ping", body(json.loads(fx("routeros_ping_fail.txt"))))])
     add("routeros", "fail", "must fail but replies", {**p, "expect": "failure"}, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
-    add("routeros", "fail", "ping in a VRF is refused", {**p, "vrf": "RED"}, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
-    add("routeros", "fail", "http error is a failed ping", p, [("/ping", body({"error": 400, "message": "Bad Request"}, 400))])
     return cells
 
 
