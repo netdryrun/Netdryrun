@@ -165,16 +165,6 @@
       "diff": "18b2fbc724211e48",
       "class": "message-text"
     },
-    "netdryrun.verify.engine.x__pins_ok__mutmut_78": {
-      "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
-      "diff": "0d909e911d9230a5",
-      "class": "message-text"
-    },
-    "netdryrun.verify.engine.x__pins_ok__mutmut_79": {
-      "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
-      "diff": "1e35f113d5c631a6",
-      "class": "message-text"
-    },
     "netdryrun.verify.engine.x__propagated__mutmut_17": {
       "reason": "equivalent: an equal-length pair is the same path, so the after pair returned early (got == want) and an empty before head can only equal an empty after head, impossible here",
       "diff": "3305f7856e6fd2ca",
@@ -5025,16 +5015,6 @@
       "diff": "8ef5833dd03ef609",
       "class": "message-text"
     },
-    "netdryrun.drivers.base.xǁRepeatedKeyǁ__init____mutmut_2": {
-      "reason": "message text only: the key named in DriverError's message; the error is still raised",
-      "diff": "216908016e2f8472",
-      "class": "message-text"
-    },
-    "netdryrun.drivers.junos.x__join_repeats__mutmut_7": {
-      "reason": "message text only: RepeatedKey is still raised and load_json still raises DriverError; only the key it names changes",
-      "diff": "3e2dcda8392e11f5",
-      "class": "message-text"
-    },
     "netdryrun.drivers.junos.x__next_hop__mutmut_34": {
       "reason": "message text only: the same exception is still raised, only its message changes",
       "diff": "d7ff478ea9b8d2e8",
@@ -5054,6 +5034,6 @@
   "checks": {
     "live/pack": "No check pack is sold yet: pack verification is paused by the roadmap until the 45-day demand test; it runs with --pack before any pack ships.",
     "live/scale": "Not scripted yet. A 20-node lab was run by hand in pre-launch testing (it found the PR-comment size limit, fixed in 0.3.1); scripting it is a 0.4.1 item.",
-    "after-publish/published-action": "Checked by hand on the public Actions page (the gate reads it with the gh CLI, which the release machine doesn't use): Run 54 of Published release (commit 298bcf6 on main, RELEASE 0.3.3) completed successfully; runs 55 and 56 on later main commits (8a046cc, 43acd5b) also succeeded."
+    "live/chaos-docker-restart": "Optional by RELEASING.md (Layer 5, Chaos): it restarts Docker, which stops every container on the machine, and the lab machine is shared with other sessions' labs. The other chaos cases (SIGINT and SIGTERM in the deploy and the checks, a missing image, a node that can't be created, two runs of one lab) ran and passed on 81a49b3. Coordinator, 2026-10-31: kept for 0.4.0 (the interop stress test holds the lab, and a Docker restart would kill its labs); the restart case runs in the next quiet lab window or, at the latest, in the 0.4.1 gate."
   }
 }

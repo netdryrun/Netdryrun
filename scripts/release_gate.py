@@ -726,6 +726,9 @@ def layer_mutation(args) -> Layer:
                                                                    else f"  [NOT accepted: {acceptance_problem(accepted[n], n, diffs)}]" if n in accepted else "")
                                           for n in survived), 40), p.seconds if module == modules[0] else 0.0,
                   cmdline(["mutmut", *cmd[3:]]))
+    if args.carry_mutation:
+        carry_mutation(layer, args.carry_mutation, modules)
+    require_every_module(layer, [*modules, *(c.id.removeprefix("mutants-") for c in layer.checks)])
     gone = sorted(n for n in accepted if n not in survived_names
                   and any(n.startswith(f"netdryrun.{m}.") for m in modules))
     if gone:
@@ -733,6 +736,36 @@ def layer_mutation(args) -> Layer:
                               "accepted.json): " + ", ".join(f"`{n}`" for n in gone[:40]) + (" ..." if len(gone) > 40 else ""))
     layer.sections.append(mutant_section(survivors_all, status, accepted, diffs, args))
     return layer
+
+
+def carry_mutation(layer: Layer, path: str, modules: list[str]) -> None:
+    """--carry-mutation: keep an earlier mutation record for each verdict module not mutated in this run, only
+    when its source is byte-identical at this commit (0.4.0: the interop fixes changed drivers only). A module
+    whose source changed since, or that git can't compare, fails: it must be mutated at this commit."""
+    prev = json.loads(Path(path).read_text(encoding="utf-8"))
+    sha = prev["git"]["sha"]
+    for c in prev["checks"]:
+        module = c["id"].removeprefix("mutants-")
+        if module not in VERDICT_MODULES or module in modules:
+            continue
+        src = VERDICT_MODULES[module]
+        changed = git("diff", "--name-only", sha, "HEAD", "--", src)
+        if changed == "":
+            layer.add(c["id"], c["title"], c["severity"], {PASS: True, FAIL: False}.get(c["status"]),
+                      f"carried over from {sha[:7]}: {src} is byte-identical at this commit. {c['summary']}",
+                      c["output"], 0.0, c["command"])
+            layer.sections += [s for s in prev.get("sections", []) if s.startswith(f"**{src}:")]
+        else:
+            why = f"{changed.replace(chr(10), ', ')} changed since {sha[:7]}" if changed else                 f"git can't compare {src} with {sha[:7]}"
+            layer.add(c["id"], c["title"], c["severity"], False, f"not carried over: {why}: mutate it at this commit")
+
+
+def require_every_module(layer: Layer, covered: list[str]) -> None:
+    """Every verdict module is mutated in this run or carried over: a partial run never reads as a full layer."""
+    for module, src in VERDICT_MODULES.items():
+        if module not in covered:
+            layer.add(f"mutants-{module}", f"no surviving mutants in {src}", BLOCKER, False,
+                      "not mutated at this commit (run it, or --carry-mutation a record whose file is unchanged)")
 
 
 def mutant_fingerprint(diff: str) -> str:
@@ -1720,6 +1753,9 @@ def main() -> int:
                     help="static: this is the release candidate (CHANGELOG cut, tag and PyPI version unused)")
     ap.add_argument("--pythons", default=",".join(PYTHONS), help=f"unit/after-publish: versions (default {','.join(PYTHONS)})")
     ap.add_argument("--modules", default=",".join(VERDICT_MODULES), help="mutation: modules to mutate (default all)")
+    ap.add_argument("--carry-mutation", metavar="MUTATION_JSON",
+                    help="mutation: keep this earlier record for every module not in --modules whose source is "
+                         "byte-identical at this commit")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2, help="mutation: parallel workers")
     ap.add_argument("--mutation-timeout", type=float, default=4 * 3600, help="mutation: seconds (default 4 h)")
     ap.add_argument("--examples", help="live: only these examples (comma-separated)")

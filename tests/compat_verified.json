@@ -18,7 +18,8 @@
   "eos": {
     "date": "2026-10-28",
     "limits": [
-      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1."
+      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1.",
+      "`med: 0` is refused before the lab boots (exit 2): cEOS 4.36.3M prints MED 0 for a path received with no MED (live capture, 0.4 interop test), and no field of `show ip bgp <prefix> | json` tells the two apart. A non-zero MED is checked as usual; a path whose MED reads 0 reports it as \"not set\"."
     ]
   },
   "junos": {

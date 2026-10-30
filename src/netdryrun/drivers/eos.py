@@ -152,6 +152,20 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
     return out
 
 
+_SEGMENT = re.compile(r"([{\[])([^}\]]*)([}\]])")
+
+
+def _as_path(printed: str) -> str:
+    """EOS's AS path in the netdryrun.yml form: sets {a,b} and confederation sets [a,b] comma-separated (EOS
+    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated."""
+    text = _SEGMENT.sub(lambda m: m.group(1) + ",".join(re.split(r"[\s,]+", m.group(2).strip())) + m.group(3), printed)
+    return " ".join(text.split())
+
+
+def _med(value: int) -> int | None:
+    return value or None
+
+
 @parser(BGP_CMD)
 def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPath]:
     """`show ip bgp <prefix> vrf <vrf> | json`: the best path is the one EOS marks active.
@@ -167,10 +181,12 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
             nh = p.get("nextHop") or ""
             out.append(BgpPath(
                 best=bool((p.get("routeType") or {}).get("active")),
-                as_path=" ".join(str((p.get("asPathEntry") or {}).get("asPath", "")).split()),
+                as_path=_as_path(str((p.get("asPathEntry") or {}).get("asPath", ""))),
                 next_hop=_canon_addr(str(nh)) if nh else None,
                 local_pref=as_int(BGP_CMD, p["localPreference"]) if "localPreference" in p else None,
-                med=as_int(BGP_CMD, p["med"]) if "med" in p else None,   # no MED attribute: unknown, not 0
+                # no MED attribute: unknown, not 0. cEOS 4.36.3M also prints "med": 0 for a path received with
+                # no MED (interop IOP-2), so 0 is unknown too, and a `med: 0` check is refused (ambiguous_bgp_values)
+                med=_med(as_int(BGP_CMD, p["med"])) if "med" in p else None,
                 communities=canon_communities(detail.get("communityList")),
                 large_communities=canon_communities(detail.get("largeCommunityList")),
                 neighbor=(p.get("peerEntry") or {}).get("peerAddr") or None,
@@ -212,6 +228,9 @@ class EosDriver(Driver):
     name = "eos"
     # bgp_neighbors reads the IPv4 and IPv6 unicast summaries only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
+    # cEOS 4.36.3M prints "med": 0 for a path received with no MED (interop IOP-2): no output field tells them apart
+    ambiguous_bgp_values = {"med": {0: "EOS output cannot tell MED 0 from no MED (check a non-zero MED, or check "
+                                       "this route on another platform)"}}
 
     def _cli(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["Cli", "-p", "15", "-c", command], evidence)

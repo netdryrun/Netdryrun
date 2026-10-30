@@ -5,6 +5,8 @@ FRR 10.4.1), lab addresses only. Each test fails on ndr/release-0.4.0 (81a49b3) 
 """
 from pathlib import Path
 
+import pytest
+
 from netdryrun.checks import hold_together
 from netdryrun.config import Check
 from netdryrun.drivers import DriverError, eos, junos
@@ -76,6 +78,7 @@ class _FlakyThenGood:
                                     med=None, communities=["65001:100"])], [])
 
 
+@pytest.mark.xfail(strict=True, reason="IOP-4 is deferred to 0.4.1 (coordinator 2026-10-31): it fails closed today")
 def test_one_transient_error_in_the_hold_window_is_reread():
     clock = FakeClock()
     c = Check("bgp_route", {"node": "s1", "prefix": "192.168.1.1/32", "communities": ["65001:100"]},

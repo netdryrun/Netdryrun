@@ -41,6 +41,12 @@ the time, the host and the tool versions. `GATE.md` is then rebuilt from every r
 because the layers run on different machines and at different times. The script exits non-zero
 when a BLOCKER fails.
 
+A fix late in a release that touches some verdict modules reruns mutation on those modules only:
+`mutation --modules drivers --carry-mutation <earlier gate/mutation.json>`. Every other module keeps
+its earlier record only if its source file is byte-identical at the new commit; GATE.md says
+"carried over from <commit>" on each one. A module whose source changed, or one neither mutated nor
+carried, fails the layer. The other layers run in full on the new commit.
+
 ### 1. Static
 
 - **ruff**, set up in `pyproject.toml` to look for bugs rather than style (pyflakes, pycodestyle

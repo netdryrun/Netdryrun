@@ -430,7 +430,7 @@ def parse_bgp_paths(text: str, prefix: str, table: str = "inet.0") -> list[BgpPa
             as_path=_as_path(cmd, _leaf(cmd, e, "as-path")),
             next_hop=_next_hop(cmd, e),
             local_pref=as_int(cmd, lp) if lp is not None else None,
-            med=as_int(cmd, med) if med is not None else 0,
+            med=as_int(cmd, med) if med is not None else None,   # no `metric` element: no MED received (interop IOP-1)
             communities=std,
             large_communities=large,
             neighbor=_canon_addr(_leaf(cmd, e, "gateway", required=False) or "") or None,

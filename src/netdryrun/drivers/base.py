@@ -214,6 +214,9 @@ class Driver:
 
     # bgp_route keys this driver cannot read; a check that uses one is a setup error, never a guess
     unsupported_bgp_attributes: frozenset[str] = frozenset()
+    # bgp_route values this driver's output can't tell apart from another state: {key: {value: why}}; a check
+    # that asserts one is refused before deploying (fail closed)
+    ambiguous_bgp_values: dict[str, dict] = {}
     # bgp_prefixes address families this driver has no prefix counts for (refused before deploying)
     unsupported_afis: frozenset[str] = frozenset()
 

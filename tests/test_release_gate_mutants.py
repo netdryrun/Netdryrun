@@ -3,6 +3,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("release_gate", ROOT / "scripts" / "release_gate.py")
@@ -243,3 +244,62 @@ def test_every_scoped_function_exists():
             elif isinstance(node, ast.FunctionDef):
                 found.add(node.name)
         assert fns <= found, (module, sorted(fns - found))
+
+
+def _prev_record(tmp_path, sha="a" * 40):
+    checks = [{"id": f"mutants-{m}", "title": f"no surviving mutants in {p}", "severity": "BLOCKER", "status": "PASS",
+               "seconds": 1.0, "summary": f"{m} summary", "output": f"{m} output", "command": "mutmut run"}
+              for m, p in gate.VERDICT_MODULES.items()]
+    sections = [f"**{gate.VERDICT_MODULES['verify.frr']}: 3 survivors outside the gated functions** (...)",
+                f"**{gate.VERDICT_MODULES['drivers']}: old drivers section**", "**Surviving mutants by function**"]
+    path = tmp_path / "mutation.json"
+    path.write_text(json.dumps({"git": {"sha": sha}, "checks": checks, "sections": sections}), encoding="utf-8")
+    return path
+
+
+def test_a_mutation_record_carries_over_only_for_byte_identical_modules(tmp_path, monkeypatch):
+    """A module not rerun keeps its earlier record only when its source is byte-identical at this commit (0.4.0
+    interop fixes: only drivers changed); a module whose source changed since is a BLOCKER failure, never a pass."""
+    changed = {gate.VERDICT_MODULES["checks"]: "src/netdryrun/checks.py"}
+    calls = []
+
+    def git(*args):
+        calls.append(args)
+        assert args[:3] == ("diff", "--name-only", "a" * 40) and args[3] == "HEAD" and args[4] == "--"
+        return changed.get(args[5], "")
+    monkeypatch.setattr(gate, "git", git)
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.carry_mutation(layer, str(_prev_record(tmp_path)), ["drivers"])
+    by_id = {c.id: c for c in layer.checks}
+    assert set(by_id) == {f"mutants-{m}" for m in gate.VERDICT_MODULES if m != "drivers"}
+    assert by_id["mutants-verify.frr"].status == gate.PASS
+    assert by_id["mutants-verify.frr"].summary == (f"carried over from aaaaaaa: {gate.VERDICT_MODULES['verify.frr']} is "
+                                                   "byte-identical at this commit. verify.frr summary")
+    assert by_id["mutants-verify.frr"].output == "verify.frr output"
+    assert by_id["mutants-checks"].status == gate.FAIL
+    assert "src/netdryrun/checks.py changed since aaaaaaa: mutate it at this commit" in by_id["mutants-checks"].summary
+    assert layer.sections == [f"**{gate.VERDICT_MODULES['verify.frr']}: 3 survivors outside the gated functions** (...)"]
+
+
+def test_a_carried_failure_stays_a_failure_and_an_unreadable_diff_is_not_identical(tmp_path, monkeypatch):
+    path = _prev_record(tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["checks"][0]["status"] = "FAIL"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(gate, "git", lambda *a: None if a[5].endswith("config.py") else "")
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.carry_mutation(layer, str(path), [])
+    by_id = {c.id: c for c in layer.checks}
+    assert by_id[data["checks"][0]["id"]].status == gate.FAIL
+    assert by_id["mutants-config"].status == gate.FAIL and "git can't compare" in by_id["mutants-config"].summary
+
+
+def test_a_verdict_module_neither_mutated_nor_carried_fails_the_layer():
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.require_every_module(layer, ["drivers", "checks"])
+    missing = {c.id for c in layer.checks}
+    assert missing == {f"mutants-{m}" for m in gate.VERDICT_MODULES if m not in ("drivers", "checks")}
+    assert all(c.status == gate.FAIL and c.severity == gate.BLOCKER for c in layer.checks)
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.require_every_module(layer, list(gate.VERDICT_MODULES))
+    assert layer.checks == []

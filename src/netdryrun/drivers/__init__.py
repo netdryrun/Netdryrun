@@ -59,6 +59,11 @@ def check_supported(lab: Lab, check, override: str | None = None) -> None:
     keys = sorted(set(check.params) & set(cls.unsupported_bgp_attributes)) if cls else []
     if keys:
         raise DriverError(f"{check.name}: {', '.join(keys)} is not supported on {name}")
+    # a value the driver's output can't tell from another state (config.py has checked it is an integer)
+    for key, values in (cls.ambiguous_bgp_values if cls else {}).items():
+        if key in check.params and check.params[key] in values:
+            raise DriverError(f"{check.name}: {key}: {check.params[key]} can't be checked on {name}: "
+                              f"{values[check.params[key]]}")
 
 
 __all__ = ["Driver", "DriverError", "DRIVERS", "check_supported", "detect", "for_node"]

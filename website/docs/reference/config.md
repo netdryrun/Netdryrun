@@ -150,7 +150,7 @@ Attributes of the BGP **best path** for a prefix: communities, AS path, local pr
 | `as_path` | no | | Exact AS path, ASNs separated by spaces: `"65002 65003"`. `""` is the empty path of a locally originated route. AS sets are written `{65004,65005}` |
 | `as_path_regex` | no | | Python regular expression searched in the AS path string, for example `"^65002 "` (learned from 65002) or `"(^| )65666( |$)"` (passes through 65666). It runs with no time limit, so avoid nested repeats such as `(\d+ ?)+$` that can backtrack for minutes |
 | `local_pref` | no | | Exact local preference |
-| `med` | no | | Exact MED. A path with no MED attribute fails the check, even `med: 0`: with `bgp bestpath med missing-as-worst` a missing MED is the worst, not 0 |
+| `med` | no | | Exact MED. A path with no MED attribute fails the check, even `med: 0`: with `bgp bestpath med missing-as-worst` a missing MED is the worst, not 0. On Arista EOS, `med: 0` is refused before the lab boots (exit `2`): cEOS prints MED 0 for a path received with no MED, so the two can't be told apart; a non-zero MED is checked as usual |
 | `next_hop` | no | | Exact next hop address. A link-local address is refused: devices report it without its interface, and two sessions can share one, so the check couldn't say which path it tests |
 | `present` | no | `true` | `false` means no path at all for the prefix in the BGP table, best or not, valid or not. Unquoted `true` or `false` only |
 | `vrf` | no | `default` | VRF or network-instance |
@@ -361,7 +361,7 @@ A driver turns device state into a common shape. Netdryrun detects it from the t
 | SONiC | the FRR commands, through `vtysh` inside the container |
 | Juniper cJunosEvolved (beta) | `cli -c "show ... \| display json"` over the container's SSH hop to the Junos VM; accepted prefixes from `accepted-prefix-count`; `route` and `bgp_route` from `show route <prefix> exact table <table> all extensive` (hidden routes included) |
 
-If a driver can't read what a check asks for, the run stops before deploying (exit code `2`) instead of guessing: "`<key>` is not supported on `<driver>`" for a `bgp_route` attribute (today every driver reads every attribute), and "afi evpn is not supported on eos" (or `srlinux`, `junos`) for an EVPN prefix count on Arista EOS, SR Linux or Juniper.
+If a driver can't read what a check asks for, the run stops before deploying (exit code `2`) instead of guessing: "`<key>` is not supported on `<driver>`" for a `bgp_route` attribute (today every driver reads every attribute), and "afi evpn is not supported on eos" (or `srlinux`, `junos`) for an EVPN prefix count on Arista EOS, SR Linux or Juniper, and "med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED" for `med: 0` on Arista EOS.
 
 Every command and its raw output is kept in the [JSON report](cli.md#json).
 
