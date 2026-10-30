@@ -287,3 +287,11 @@ def test_no_instance_and_missing_vrf_messages():
     with pytest.raises(NoSuchInstance) as e:
         NxosDriver(lab, "n1").routes("10.0.0.0/8", "EMPTY")
     assert str(e.value) == "VRF 'EMPTY' is Down on n1"
+
+
+def test_a_failed_request_says_why_or_no_output():
+    """rc != 0: the last line of stderr (else stdout); nothing at all reads `no output`, never an IndexError."""
+    for out, errout, why in (("", "", "no output"), ("o1\no2\n", "", "o2"), ("o\n", "e1\ne2\n", "e2")):
+        with pytest.raises(DriverError) as e:
+            NxosDriver(RcLab(3, out, errout), "n1")._nxapi("show x", [])
+        assert str(e.value) == f"`show x` failed on n1 (rc=3): {why}"

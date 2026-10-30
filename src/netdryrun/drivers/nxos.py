@@ -421,7 +421,7 @@ class NxosDriver(Driver):
                 raise
             self._confirm_vrf(vrf, ev)
             raise NoSuchInstance(f"no BGP instance in VRF {vrf!r} on {self.node} (BGP runs in: "
-                                 f"{', '.join(sorted(vrfs)) or 'none'})") from None
+                                 f"{', '.join(sorted(vrfs))})") from None   # never empty: parse_bgp_vrfs raises
         if not out:
             self._confirm_vrf(vrf, ev)
         return Observation(out, ev)
