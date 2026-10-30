@@ -1,0 +1,10 @@
+--- a/configs/edge1.conf
++++ b/configs/edge1.conf
+@@ -39,6 +39,7 @@
+ !
+ route-map TO-UPSTREAM permit 10
+  match ip address prefix-list OUR-ROUTES
++ set extcommunity rt 65200:100
+ !
+ route-map TO-PEER permit 10
+  match ip address prefix-list OUR-ROUTES

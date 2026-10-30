@@ -1,0 +1,25 @@
+{
+  "trial": "N2",
+  "tickets": [
+    "N2-production-state"
+  ],
+  "arm": "discovery",
+  "run": "dryrun-goose",
+  "timed_out": [],
+  "wall_s": 164.6,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\dryrun-goose\\N2",
+  "model_requested": "ctx32k-gpt-oss-20b",
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "goose",
+  "agent_options": null,
+  "host_version": "1.57.0",
+  "host_home": "/tmp/agenthome/dryrun-goose-N2",
+  "ollama": "http://172.25.208.1:11434",
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": [
+      "frosty_lamarr"
+    ]
+  }
+}

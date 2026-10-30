@@ -1,0 +1,11 @@
+2026-10-29T05:58:12Z edge1 bgpd[312]: [M59KS-A3ZXZ] bgp_update_receive: rcvd UPDATE w/ attr: nexthop 10.0.2.2, origin i, path 65200
+2026-10-29T06:01:44Z edge1 bgpd[312]: [HTQD5-2GY55] %NOTIFICATION: received from neighbor 10.0.2.2 6/2 (Cease/Administrative Shutdown) 0 bytes
+2026-10-29T06:01:44Z edge1 bgpd[312]: [ZTA2J-YRKGY] %ADJCHANGE: neighbor 10.0.2.2(up1) in vrf default Down Notification received
+2026-10-29T06:02:19Z edge1 bgpd[312]: [M7Q4P-46WDR] %ADJCHANGE: neighbor 10.0.2.2(up1) in vrf default Up
+2026-10-29T06:47:03Z edge1 bgpd[312]: [HTQD5-2GY55] %NOTIFICATION: received from neighbor 10.0.2.2 6/2 (Cease/Administrative Shutdown) 0 bytes
+2026-10-29T06:47:03Z edge1 bgpd[312]: [ZTA2J-YRKGY] %ADJCHANGE: neighbor 10.0.2.2(up1) in vrf default Down Notification received
+2026-10-29T06:47:41Z edge1 bgpd[312]: [M7Q4P-46WDR] %ADJCHANGE: neighbor 10.0.2.2(up1) in vrf default Up
+2026-10-29T07:15:30Z edge1 kernel: [ 9921.552] eth2: Link is Up - 10Gbps/Full - flow control off
+2026-10-29T07:33:58Z edge1 bgpd[312]: [HTQD5-2GY55] %NOTIFICATION: received from neighbor 10.0.2.2 6/2 (Cease/Administrative Shutdown) 0 bytes
+2026-10-29T07:33:58Z edge1 bgpd[312]: [ZTA2J-YRKGY] %ADJCHANGE: neighbor 10.0.2.2(up1) in vrf default Down Notification received
+2026-10-29T07:34:31Z edge1 bgpd[312]: [M7Q4P-46WDR] %ADJCHANGE: neighbor 10.0.2.2(up1) in vrf default Up

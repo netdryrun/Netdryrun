@@ -1,0 +1,21 @@
+{
+  "trial": "P4",
+  "tickets": [
+    "T05-review-safe",
+    "T02-transit-only"
+  ],
+  "arm": "discovery",
+  "run": "disc-claude-default-1",
+  "timed_out": [],
+  "wall_s": 272.5,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\disc-claude-default-1\\P4",
+  "model_requested": null,
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "claude_code",
+  "agent_options": null,
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": []
+  }
+}

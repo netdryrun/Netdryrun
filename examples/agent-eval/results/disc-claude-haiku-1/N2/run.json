@@ -1,0 +1,20 @@
+{
+  "trial": "N2",
+  "tickets": [
+    "N2-production-state"
+  ],
+  "arm": "discovery",
+  "run": "disc-claude-haiku-1",
+  "timed_out": [],
+  "wall_s": 21.0,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\disc-claude-haiku-1\\N2",
+  "model_requested": "haiku",
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "claude_code",
+  "agent_options": null,
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": []
+  }
+}

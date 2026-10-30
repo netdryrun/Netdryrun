@@ -303,6 +303,7 @@ def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str 
                 if k > 1:
                     build_ticket(tid, arm, ws / f"ticket-{k}", labels[k - 1])
                     so.write((json.dumps({"type": "system", "subtype": "stage", "stage": k}) + "\n").encode())
+                    so.flush()  # before the agent writes to the same file through its own handle
                 text = prompt if k == 1 else NEXT.format(**fmt(k))
                 for restart in range(3):  # RESTART: the host reloads with the agent's .mcp.json, at most twice
                     if host in FRESH_SESSIONS and (k > 1 or restart):  # can't resume headless: a new session, same HOME
@@ -319,6 +320,7 @@ def run_trial(trial: str, tids: tuple[str, ...], arm: str, run: str, model: str 
                         break
                     so.write((json.dumps({"type": "system", "subtype": "restart", "mcp_servers": [
                         {"name": n} for n in mcp_servers(ws)]}) + "\n").encode())
+                    so.flush()
                     text = RESTARTED
     meta = {"trial": trial, "tickets": list(tids), "arm": arm, "run": run, "timed_out": timed_out,
             "wall_s": round(time.time() - started, 1), "workspace": str(ws), "model_requested": model,
@@ -459,9 +461,11 @@ def discovery_signals(evs: list[dict], seen_before: bool, report: Path | None = 
 
 def answer_of(evs: list[dict]) -> tuple[dict | None, str, bool]:
     text, is_error = "", True
-    for ev in evs:
+    for ev in evs:  # the last result with a JSON block: a background task can wake the agent after its answer
         if ev.get("type") == "result":
-            text, is_error = ev.get("result") or "", bool(ev.get("is_error"))
+            t = ev.get("result") or ""
+            if "```json" in t or "```json" not in text:
+                text, is_error = t, bool(ev.get("is_error"))
     blocks = re.findall(r"```json\s*(\{.*?\})\s*```", text, re.S)
     if not blocks and text.strip().startswith("{") and text.strip().endswith("}"):
         blocks = [text.strip()]  # a final message that is only the JSON object, unfenced (OpenHands' finish tool)

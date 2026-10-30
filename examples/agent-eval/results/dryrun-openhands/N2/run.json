@@ -1,0 +1,23 @@
+{
+  "trial": "N2",
+  "tickets": [
+    "N2-production-state"
+  ],
+  "arm": "discovery",
+  "run": "dryrun-openhands",
+  "timed_out": [],
+  "wall_s": 118.0,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\dryrun-openhands\\N2",
+  "model_requested": "ctx32k-gpt-oss-20b",
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "openhands",
+  "agent_options": null,
+  "host_version": "1.16.0",
+  "host_home": "/tmp/agenthome/dryrun-openhands-N2",
+  "ollama": "http://172.25.208.1:11434",
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": []
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "trial": "P5",
+  "tickets": [
+    "T09-review-redistribute",
+    "T06-peer-wants-transit"
+  ],
+  "arm": "discovery",
+  "run": "disc-claude-haiku-2",
+  "timed_out": [],
+  "wall_s": 322.6,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\disc-claude-haiku-2\\P5",
+  "model_requested": "haiku",
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "claude_code",
+  "agent_options": null,
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": []
+  }
+}

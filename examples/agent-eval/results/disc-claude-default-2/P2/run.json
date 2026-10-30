@@ -1,0 +1,21 @@
+{
+  "trial": "P2",
+  "tickets": [
+    "T03-review-open-filters",
+    "T07-aggregate"
+  ],
+  "arm": "discovery",
+  "run": "disc-claude-default-2",
+  "timed_out": [],
+  "wall_s": 243.8,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\disc-claude-default-2\\P2",
+  "model_requested": null,
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "claude_code",
+  "agent_options": null,
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": []
+  }
+}

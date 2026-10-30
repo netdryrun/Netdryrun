@@ -1,0 +1,21 @@
+{
+  "trial": "P2",
+  "tickets": [
+    "T03-review-open-filters",
+    "T07-aggregate"
+  ],
+  "arm": "discovery",
+  "run": "disc-claude-haiku-2",
+  "timed_out": [],
+  "wall_s": 220.2,
+  "workspace": "C:\\Users\\manag\\AppData\\Local\\Temp\\neteval\\disc-claude-haiku-2\\P2",
+  "model_requested": "haiku",
+  "netdryrun": null,
+  "agents_ref": null,
+  "agent": "claude_code",
+  "agent_options": null,
+  "cleanup": {
+    "removed": [],
+    "not_ours_left_alone": []
+  }
+}
