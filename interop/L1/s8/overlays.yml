@@ -1,0 +1,39 @@
+# S8: one line each NOS rejects at load. Built on L1/base with L1/s8's topology and checks (no Junos node).
+# Fresh deploys only: a config load is a boot-time event.
+lab: L1s8
+overlays:
+  S8a:
+    scenario: S8
+    title: SR Linux startup line with a misspelt leaf (peer-ass)
+    fresh: 1
+    reapply: false
+    edits:
+      - file: configs/s1.cli
+        append: "set / network-instance default protocols bgp neighbor 10.1.2.2 peer-ass 65005\n"
+  S8b:
+    scenario: S8
+    title: cEOS startup line EOS rejects (unknown neighbor keyword)
+    fresh: 1
+    reapply: false
+    edits:
+      - file: configs/a1.cfg
+        replace: "   router-id 3.3.3.3\n"
+        with: "   router-id 3.3.3.3\n   neighbor 10.1.3.2 bogus-keyword 5\n"
+  S8c:
+    scenario: S8
+    title: FRR (f2) frr.conf line FRR rejects (misspelt direction)
+    fresh: 1
+    reapply: false
+    edits:
+      - file: configs/f2.conf
+        replace: " neighbor 10.1.5.2 default-originate\n"
+        with: " neighbor 10.1.5.2 default-originate\n neighbor 10.1.5.2 route-map TO-F1 outt\n"
+  S8d:
+    scenario: S8
+    title: SONiC setup command vtysh rejects (misspelt remote-as)
+    fresh: 1
+    reapply: false
+    edits:
+      - file: netdryrun.yml
+        replace: '-c "neighbor 10.1.4.2 route-map ACCEPT-ALL in" -c "neighbor 10.1.4.2 route-map EXPORT out"'
+        with: '-c "neighbor 10.1.4.2 route-map ACCEPT-ALL in" -c "neighbor 10.1.4.2 route-map EXPORT out" -c "neighbor 10.1.4.2 remote-ass 65005"'

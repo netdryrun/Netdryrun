@@ -1,0 +1,43 @@
+# Interop L1 S8 sub-lab (no Junos): config rejected at load.
+# Same configs as L1 "mixed-5": an FRR transit (f1) peering eBGP with Junos (j1), SR Linux (s1), cEOS (a1, two parallel
+# sessions) and SONiC (n1), plus an FRR upstream (f2) that sends about 200 prefixes and a default.
+# Config idioms are copied from examples/junos-frr, srl-hidden-leak, arista-frr and sonic-frr.
+name: ndr-interop-l1s8
+
+topology:
+  nodes:
+    s1:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:26.7.2
+      startup-config: configs/s1.cli
+    a1:
+      kind: arista_ceos
+      image: ceos:4.36.3M
+      startup-config: configs/a1.cfg
+    n1:
+      kind: sonic-vs
+      image: docker-sonic-vs:master.1258173-c10162df4
+    f1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/f1.conf:/etc/frr/frr.conf
+      exec:
+        - ip route del default
+    f2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/f2.conf:/etc/frr/frr.conf
+      exec:
+        - ip route del default
+  links:
+    - endpoints: ["s1:e1-1", "f1:eth2"]
+    - endpoints: ["a1:eth1", "f1:eth3"]
+    - endpoints: ["n1:eth1", "f1:eth4"]
+    - endpoints: ["f2:eth1", "f1:eth5"]
+    - endpoints: ["a1:eth2", "f1:eth6"]

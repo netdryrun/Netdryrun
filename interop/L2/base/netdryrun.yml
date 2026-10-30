@@ -1,0 +1,73 @@
+# Interop L2 iBGP / route reflector. Every check has an ID in its name; interop/L2/oracle.yml gives the expected
+# verdict of each one in the baseline and in every overlay. U* checks are traps: expected to FAIL in the baseline.
+# P1 = 203.0.113.0/24 (e1 sends it to c1 only), P2 = 198.51.100.0/24 (e1 sends it to c1 and c3).
+lab: topology.clab.yml
+timeout: 1200   # cJunosEvolved boots a VM (4 to 20 minutes); check.yml (reapply runs) uses 120
+
+checks:
+  # ---- S0 sessions, both ends
+  - {name: "D01 r1 session c1", type: bgp_session, node: r1, neighbor: 10.2.1.2}
+  - {name: "D02 c1 session r1", type: bgp_session, node: c1, neighbor: 10.2.1.1}
+  - {name: "D03 r1 session c2", type: bgp_session, node: r1, neighbor: 10.2.2.2}
+  - {name: "D04 c2 session r1", type: bgp_session, node: c2, neighbor: 10.2.2.1}
+  - {name: "D05 r1 session c3", type: bgp_session, node: r1, neighbor: 10.2.3.2}
+  - {name: "D06 c3 session r1", type: bgp_session, node: c3, neighbor: 10.2.3.1}
+  - {name: "D07 c1 session e1", type: bgp_session, node: c1, neighbor: 10.3.1.1}
+  - {name: "D08 e1 session c1", type: bgp_session, node: e1, neighbor: 10.3.1.2}
+  - {name: "D09 c3 session e1", type: bgp_session, node: c3, neighbor: 10.3.3.1}
+  - {name: "D10 e1 session c3", type: bgp_session, node: e1, neighbor: 10.3.3.2}
+
+  # ---- S0 accepted-prefix counts, both ends of the reflector sessions
+  - {name: "D11 r1 count from c1", type: bgp_prefixes, node: r1, neighbor: 10.2.1.2, exact: 3}
+  - {name: "D12 r1 count from c2", type: bgp_prefixes, node: r1, neighbor: 10.2.2.2, exact: 1}
+  - {name: "D13 r1 count from c3", type: bgp_prefixes, node: r1, neighbor: 10.2.3.2, exact: 1}
+  - {name: "D14 c1 count from r1", type: bgp_prefixes, node: c1, neighbor: 10.2.1.1, exact: 3}
+  - {name: "D15 c2 count from r1", type: bgp_prefixes, node: c2, neighbor: 10.2.2.1, exact: 5}
+  - {name: "D16 c3 count from r1", type: bgp_prefixes, node: c3, neighbor: 10.2.3.1, exact: 5}
+  - {name: "D17 c1 count from e1", type: bgp_prefixes, node: c1, neighbor: 10.3.1.1, exact: 2}
+  - {name: "D18 c3 count from e1", type: bgp_prefixes, node: c3, neighbor: 10.3.3.1, exact: 1}
+
+  # ---- S0 routes
+  - {name: "D19 r1 route P1", type: route, node: r1, prefix: 203.0.113.0/24, protocol: bgp}
+  - {name: "D20 r1 route P2", type: route, node: r1, prefix: 198.51.100.0/24, protocol: bgp}
+  - {name: "D21 c2 route P1", type: route, node: c2, prefix: 203.0.113.0/24, protocol: bgp}
+  - {name: "D22 c2 route P2", type: route, node: c2, prefix: 198.51.100.0/24, protocol: bgp}
+  - {name: "D23 c3 route P1", type: route, node: c3, prefix: 203.0.113.0/24, protocol: bgp}
+  - {name: "D24 c1 route c2-lo", type: route, node: c1, prefix: 10.100.0.3/32, protocol: bgp}
+  - {name: "D25 c2 route c3-lo", type: route, node: c2, prefix: 10.100.0.4/32, protocol: bgp}
+  - {name: "D26 e1 route c2-lo", type: route, node: e1, prefix: 10.100.0.3/32, protocol: bgp}
+
+  # ---- S2 attributes across the reflector
+  - {name: "D27 r1 attrs P2", type: bgp_route, node: r1, prefix: 198.51.100.0/24, local_pref: 200, next_hop: 10.2.1.2, as_path: "65200", med: 50, communities: ["65200:1", "65100:200"]}
+  - {name: "D28 c2 attrs P2", type: bgp_route, node: c2, prefix: 198.51.100.0/24, local_pref: 200, next_hop: 10.2.1.2, as_path: "65200", med: 50, communities: ["65200:1", "65100:200"]}
+  - {name: "D29 c2 large P2", type: bgp_route, node: c2, prefix: 198.51.100.0/24, communities: ["65200:0:1"]}
+  - {name: "D30 c3 attrs P2", type: bgp_route, node: c3, prefix: 198.51.100.0/24, local_pref: 200, next_hop: 10.2.1.2, as_path: "65200", communities: ["65100:200"]}
+  - {name: "D31 c1 attrs P2", type: bgp_route, node: c1, prefix: 198.51.100.0/24, local_pref: 200, next_hop: 10.3.1.1, med: 50, communities: ["65200:1", "65100:200"]}
+  - {name: "D32 c1 large P2", type: bgp_route, node: c1, prefix: 198.51.100.0/24, communities: ["65200:0:1"]}
+  - {name: "D33 r1 large P2", type: bgp_route, node: r1, prefix: 198.51.100.0/24, communities: ["65200:0:1"]}
+  - {name: "D34 c3 large P2", type: bgp_route, node: c3, prefix: 198.51.100.0/24, communities: ["65200:0:1"]}
+  - {name: "D35 c2 attrs P1", type: bgp_route, node: c2, prefix: 203.0.113.0/24, local_pref: 200, next_hop: 10.2.1.2}
+  - {name: "D36 c1 attrs c2-lo", type: bgp_route, node: c1, prefix: 10.100.0.3/32, as_path: "", local_pref: 100, next_hop: 10.2.2.2, communities: ["65100:3"]}
+  - {name: "D37 c3 attrs c2-lo", type: bgp_route, node: c3, prefix: 10.100.0.3/32, as_path: "", next_hop: 10.2.2.2, communities: ["65100:3"]}
+  - {name: "D38 r1 attrs c2-lo", type: bgp_route, node: r1, prefix: 10.100.0.3/32, as_path: "", local_pref: 100, communities: ["65100:3"]}
+  - {name: "D39 c2 attrs r1-lo", type: bgp_route, node: c2, prefix: 10.100.0.1/32, as_path: "", next_hop: 10.2.2.1, local_pref: 100}
+  - {name: "D40 r1 best path P1", type: bgp_route, node: r1, prefix: 203.0.113.0/24}
+
+  # ---- S1 leak guards
+  - {name: "D41 r1 no bgp default", type: bgp_route, node: r1, prefix: 0.0.0.0/0, present: false}
+  - {name: "D42 c1 no bgp default", type: bgp_route, node: c1, prefix: 0.0.0.0/0, present: false}
+  - {name: "D43 c2 no bgp default", type: bgp_route, node: c2, prefix: 0.0.0.0/0, present: false}
+  - {name: "D44 c3 no bgp default", type: bgp_route, node: c3, prefix: 0.0.0.0/0, present: false}
+  - {name: "D45 c2 no default route", type: route, node: c2, prefix: 0.0.0.0/0, present: false}
+
+  # ---- S0 pings
+  - {name: "D46 c2 ping P2", type: ping, node: c2, source: 10.100.0.3, target: 198.51.100.1}
+  - {name: "D47 c1 ping c3-lo", type: ping, node: c1, source: 10.100.0.2, target: 10.100.0.4}
+  - {name: "D48 c3 ping c2-lo", type: ping, node: c3, source: 10.100.0.4, target: 10.100.0.3}
+
+  # ---- traps: the oracle expects every U* check to FAIL in the baseline
+  - {name: "U01 c2 med0 on r1-lo (no MED)", type: bgp_route, node: c2, prefix: 10.100.0.1/32, med: 0}
+  - {name: "U02 c1 med0 on r1-lo (no MED)", type: bgp_route, node: c1, prefix: 10.100.0.1/32, med: 0}
+  - {name: "U03 c3 med0 on r1-lo (no MED)", type: bgp_route, node: c3, prefix: 10.100.0.1/32, med: 0}
+  - {name: "U04 c2 P2 local-pref 150", type: bgp_route, node: c2, prefix: 198.51.100.0/24, local_pref: 150}
+  - {name: "U05 c3 P2 own eBGP next hop", type: bgp_route, node: c3, prefix: 198.51.100.0/24, next_hop: 10.3.3.1}

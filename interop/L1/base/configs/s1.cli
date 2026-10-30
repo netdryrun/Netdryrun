@@ -1,0 +1,39 @@
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.1.2.1/30
+set / interface ethernet-1/1 subinterface 0 ipv6 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv6 address 2001:db8:12::1/64
+set / interface lo0 subinterface 0 ipv4 admin-state enable
+set / interface lo0 subinterface 0 ipv4 address 192.168.2.1/32
+set / interface lo0 subinterface 0 ipv6 admin-state enable
+set / interface lo0 subinterface 0 ipv6 address 2001:db8:2::1/128
+set / network-instance default interface ethernet-1/1.0
+set / network-instance default interface lo0.0
+set / network-instance default static-routes admin-state enable
+set / network-instance default next-hop-groups group discard blackhole generate-icmp false
+set / network-instance default static-routes route 0.0.0.0/0 next-hop-group discard
+set / routing-policy prefix-set own-lan prefix 192.168.2.1/32 mask-length-range exact
+set / routing-policy prefix-set own-lan6 prefix 2001:db8:2::1/128 mask-length-range exact
+set / routing-policy community-set s1-tags member [ 65002:100 65002:1:1 ]
+set / routing-policy policy export-own default-action policy-result reject
+set / routing-policy policy export-own statement lan match prefix prefix-set own-lan
+set / routing-policy policy export-own statement lan action policy-result accept
+set / routing-policy policy export-own statement lan action bgp communities add s1-tags
+set / routing-policy policy export-own statement lan6 match prefix prefix-set own-lan6
+set / routing-policy policy export-own statement lan6 action policy-result accept
+set / routing-policy policy accept-all default-action policy-result accept
+set / network-instance default protocols bgp admin-state enable
+set / network-instance default protocols bgp autonomous-system 65002
+set / network-instance default protocols bgp router-id 2.2.2.2
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp afi-safi ipv6-unicast admin-state enable
+set / network-instance default protocols bgp group ebgp export-policy [ export-own ]
+set / network-instance default protocols bgp group ebgp import-policy [ accept-all ]
+set / network-instance default protocols bgp group ebgp afi-safi ipv6-unicast admin-state disable
+set / network-instance default protocols bgp group ebgp6 export-policy [ export-own ]
+set / network-instance default protocols bgp group ebgp6 import-policy [ accept-all ]
+set / network-instance default protocols bgp group ebgp6 afi-safi ipv4-unicast admin-state disable
+set / network-instance default protocols bgp neighbor 10.1.2.2 peer-group ebgp
+set / network-instance default protocols bgp neighbor 10.1.2.2 peer-as 65005
+set / network-instance default protocols bgp neighbor 2001:db8:12::2 peer-group ebgp6
+set / network-instance default protocols bgp neighbor 2001:db8:12::2 peer-as 65005

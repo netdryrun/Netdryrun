@@ -1,0 +1,36 @@
+# Interop L1 S8 sub-lab (no Junos). Positive checks only: f1 keeps its j1 sessions configured (down).
+# Interop L1 mixed-5. Every check has an ID in its name; interop/L1/oracle.yml gives the expected verdict of each
+# one in the baseline and in every overlay. T* checks are traps: the oracle expects them to FAIL in the baseline.
+# R* checks are "received but rejected" probes: they fail in the baseline and pass only in the S4 overlays.
+lab: topology.clab.yml
+timeout: 300
+
+nodes:
+  n1:
+    setup:
+      - supervisorctl status orchagent | grep -q RUNNING && supervisorctl status bgpd | grep -q RUNNING
+      - config interface ip add Ethernet0 10.1.4.1/30 && config interface startup Ethernet0
+      - config loopback add Loopback0; config interface ip add Loopback0 192.168.4.1/32
+      - >-
+        vtysh -c "conf t" -c "ip prefix-list OWN seq 10 permit 192.168.4.1/32"
+        -c "ip prefix-list OWN seq 20 permit 172.16.4.0/24"
+        -c "route-map EXPORT permit 10" -c "match ip address prefix-list OWN" -c "set community 65004:100"
+        -c "set metric 40" -c "exit" -c "route-map ACCEPT-ALL permit 10" -c "exit"
+        -c "router bgp 65004" -c "bgp router-id 4.4.4.4" -c "no bgp ebgp-requires-policy"
+        -c "no bgp network import-check" -c "neighbor 10.1.4.2 remote-as 65005"
+        -c "address-family ipv4 unicast" -c "network 192.168.4.1/32" -c "network 172.16.4.0/24"
+        -c "neighbor 10.1.4.2 route-map ACCEPT-ALL in" -c "neighbor 10.1.4.2 route-map EXPORT out"
+
+checks:
+  - {name: "C05 s1 session f1 v4", type: bgp_session, node: s1, neighbor: 10.1.2.2}
+  - {name: "C06 f1 session s1 v4", type: bgp_session, node: f1, neighbor: 10.1.2.1}
+  - {name: "C09 a1 session f1 link3", type: bgp_session, node: a1, neighbor: 10.1.3.2}
+  - {name: "C10 f1 session a1 link3", type: bgp_session, node: f1, neighbor: 10.1.3.1}
+  - {name: "C13 n1 session f1", type: bgp_session, node: n1, neighbor: 10.1.4.2}
+  - {name: "C14 f1 session n1", type: bgp_session, node: f1, neighbor: 10.1.4.1}
+  - {name: "C15 f2 session f1", type: bgp_session, node: f2, neighbor: 10.1.5.2}
+  - {name: "C16 f1 session f2", type: bgp_session, node: f1, neighbor: 10.1.5.1}
+  - {name: "C35 s1 route a1-lo", type: route, node: s1, prefix: 192.168.3.1/32, protocol: bgp}
+  - {name: "C37 a1 route n1-lo", type: route, node: a1, prefix: 192.168.4.1/32, protocol: bgp}
+  - {name: "C39 n1 route s1-lo", type: route, node: n1, prefix: 192.168.2.1/32, protocol: bgp}
+  - {name: "C83 s1 ping a1-lo", type: ping, node: s1, source: 192.168.2.1, target: 192.168.3.1}

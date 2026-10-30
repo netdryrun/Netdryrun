@@ -1,0 +1,146 @@
+# Interop L1 mixed-5. Every check has an ID in its name; interop/L1/oracle.yml gives the expected verdict of each
+# one in the baseline and in every overlay. T* checks are traps: the oracle expects them to FAIL in the baseline.
+# R* checks are "received but rejected" probes: they fail in the baseline and pass only in the S4 overlays.
+lab: topology.clab.yml
+timeout: 1200   # cJunosEvolved boots a VM (4 to 20 minutes); check.yml (reapply runs) uses 120
+
+nodes:
+  n1:
+    setup:
+      - supervisorctl status orchagent | grep -q RUNNING && supervisorctl status bgpd | grep -q RUNNING
+      - config interface ip add Ethernet0 10.1.4.1/30 && config interface startup Ethernet0
+      - config loopback add Loopback0; config interface ip add Loopback0 192.168.4.1/32
+      - >-
+        vtysh -c "conf t" -c "ip prefix-list OWN seq 10 permit 192.168.4.1/32"
+        -c "ip prefix-list OWN seq 20 permit 172.16.4.0/24"
+        -c "route-map EXPORT permit 10" -c "match ip address prefix-list OWN" -c "set community 65004:100"
+        -c "set metric 40" -c "exit" -c "route-map ACCEPT-ALL permit 10" -c "exit"
+        -c "router bgp 65004" -c "bgp router-id 4.4.4.4" -c "no bgp ebgp-requires-policy"
+        -c "no bgp network import-check" -c "neighbor 10.1.4.2 remote-as 65005"
+        -c "address-family ipv4 unicast" -c "network 192.168.4.1/32" -c "network 172.16.4.0/24"
+        -c "neighbor 10.1.4.2 route-map ACCEPT-ALL in" -c "neighbor 10.1.4.2 route-map EXPORT out"
+
+checks:
+  # ---- S0 sessions, both ends
+  - {name: "C01 j1 session f1 v4", type: bgp_session, node: j1, neighbor: 10.1.1.2}
+  - {name: "C02 f1 session j1 v4", type: bgp_session, node: f1, neighbor: 10.1.1.1}
+  - {name: "C03 j1 session f1 v6", type: bgp_session, node: j1, neighbor: "2001:db8:11::2"}
+  - {name: "C04 f1 session j1 v6", type: bgp_session, node: f1, neighbor: "2001:db8:11::1"}
+  - {name: "C05 s1 session f1 v4", type: bgp_session, node: s1, neighbor: 10.1.2.2}
+  - {name: "C06 f1 session s1 v4", type: bgp_session, node: f1, neighbor: 10.1.2.1}
+  - {name: "C07 s1 session f1 v6", type: bgp_session, node: s1, neighbor: "2001:db8:12::2"}
+  - {name: "C08 f1 session s1 v6", type: bgp_session, node: f1, neighbor: "2001:db8:12::1"}
+  - {name: "C09 a1 session f1 link3", type: bgp_session, node: a1, neighbor: 10.1.3.2}
+  - {name: "C10 f1 session a1 link3", type: bgp_session, node: f1, neighbor: 10.1.3.1}
+  - {name: "C11 a1 session f1 link7", type: bgp_session, node: a1, neighbor: 10.1.7.2}
+  - {name: "C12 f1 session a1 link7", type: bgp_session, node: f1, neighbor: 10.1.7.1}
+  - {name: "C13 n1 session f1", type: bgp_session, node: n1, neighbor: 10.1.4.2}
+  - {name: "C14 f1 session n1", type: bgp_session, node: f1, neighbor: 10.1.4.1}
+  - {name: "C15 f2 session f1", type: bgp_session, node: f2, neighbor: 10.1.5.2}
+  - {name: "C16 f1 session f2", type: bgp_session, node: f1, neighbor: 10.1.5.1}
+
+  # ---- S0 / S12 accepted-prefix counts, both ends
+  - {name: "C17 f1 count from j1 v4", type: bgp_prefixes, node: f1, neighbor: 10.1.1.1, exact: 2}
+  - {name: "C18 f1 count from j1 v6", type: bgp_prefixes, node: f1, neighbor: "2001:db8:11::1", afi: ipv6-unicast, exact: 1}
+  - {name: "C19 f1 count from s1 v4", type: bgp_prefixes, node: f1, neighbor: 10.1.2.1, exact: 1}
+  - {name: "C20 f1 count from s1 v6", type: bgp_prefixes, node: f1, neighbor: "2001:db8:12::1", afi: ipv6-unicast, exact: 1}
+  - {name: "C21 f1 count from a1 link3", type: bgp_prefixes, node: f1, neighbor: 10.1.3.1, exact: 1}
+  - {name: "C22 f1 count from n1", type: bgp_prefixes, node: f1, neighbor: 10.1.4.1, exact: 2}
+  - {name: "C23 f1 count from f2", type: bgp_prefixes, node: f1, neighbor: 10.1.5.1, exact: 203}
+  - {name: "C24 j1 count from f1 v4", type: bgp_prefixes, node: j1, neighbor: 10.1.1.2, exact: 206}
+  - {name: "C25 j1 count from f1 v6", type: bgp_prefixes, node: j1, neighbor: "2001:db8:11::2", afi: ipv6-unicast, exact: 2}
+  - {name: "C26 s1 count from f1 v4", type: bgp_prefixes, node: s1, neighbor: 10.1.2.2, exact: 207}
+  - {name: "C27 s1 count from f1 v6", type: bgp_prefixes, node: s1, neighbor: "2001:db8:12::2", afi: ipv6-unicast, exact: 2}
+  - {name: "C28 a1 count from f1 link3", type: bgp_prefixes, node: a1, neighbor: 10.1.3.2, exact: 207}
+  - {name: "C29 a1 count from f1 link7", type: bgp_prefixes, node: a1, neighbor: 10.1.7.2, exact: 207}
+  - {name: "C30 n1 count from f1", type: bgp_prefixes, node: n1, neighbor: 10.1.4.2, exact: 206}
+
+  # ---- S0 routes
+  - {name: "C31 j1 route s1-lo", type: route, node: j1, prefix: 192.168.2.1/32, protocol: bgp}
+  - {name: "C32 j1 route f2-lan", type: route, node: j1, prefix: 192.168.6.0/24, protocol: bgp}
+  - {name: "C33 j1 route s1-lo6", type: route, node: j1, prefix: "2001:db8:2::1/128", protocol: bgp}
+  - {name: "C34 s1 route j1-lo", type: route, node: s1, prefix: 192.168.1.1/32, protocol: bgp}
+  - {name: "C35 s1 route a1-lo", type: route, node: s1, prefix: 192.168.3.1/32, protocol: bgp}
+  - {name: "C36 s1 route j1-lo6", type: route, node: s1, prefix: "2001:db8:1::1/128", protocol: bgp}
+  - {name: "C37 a1 route n1-lo", type: route, node: a1, prefix: 192.168.4.1/32, protocol: bgp}
+  - {name: "C38 a1 route f2-lan", type: route, node: a1, prefix: 192.168.6.0/24, protocol: bgp}
+  - {name: "C39 n1 route s1-lo", type: route, node: n1, prefix: 192.168.2.1/32, protocol: bgp}
+  - {name: "C40 n1 route j1-lo", type: route, node: n1, prefix: 192.168.1.1/32, protocol: bgp}
+  - {name: "C41 f1 route a1-lo", type: route, node: f1, prefix: 192.168.3.1/32, protocol: bgp}
+  - {name: "C42 f1 route j1-cust", type: route, node: f1, prefix: 172.17.1.0/24, protocol: bgp}
+  - {name: "C43 f2 route j1-lo", type: route, node: f2, prefix: 192.168.1.1/32, protocol: bgp}
+  - {name: "C44 j1 static default", type: route, node: j1, prefix: 0.0.0.0/0, protocol: static}
+  - {name: "C45 s1 static default", type: route, node: s1, prefix: 0.0.0.0/0, protocol: static}
+  - {name: "C46 a1 static default", type: route, node: a1, prefix: 0.0.0.0/0, protocol: static}
+
+  # ---- S2 attributes set by one vendor, read on the others
+  - {name: "C47 f1 attrs j1-lo", type: bgp_route, node: f1, prefix: 192.168.1.1/32, as_path: "65001", med: 10, local_pref: 100, next_hop: 10.1.1.1, communities: ["65001:100", "65001:1:1"]}
+  - {name: "C48 s1 attrs j1-lo std", type: bgp_route, node: s1, prefix: 192.168.1.1/32, as_path: "65005 65001", next_hop: 10.1.2.2, communities: ["65001:100"]}
+  - {name: "C49 s1 attrs j1-lo large", type: bgp_route, node: s1, prefix: 192.168.1.1/32, communities: ["65001:1:1"]}
+  - {name: "C50 a1 attrs j1-lo std", type: bgp_route, node: a1, prefix: 192.168.1.1/32, as_path: "65005 65001", communities: ["65001:100"]}
+  - {name: "C51 a1 attrs j1-lo large", type: bgp_route, node: a1, prefix: 192.168.1.1/32, communities: ["65001:1:1"]}
+  - {name: "C52 n1 attrs j1-lo", type: bgp_route, node: n1, prefix: 192.168.1.1/32, as_path: "65005 65001", next_hop: 10.1.4.2, communities: ["65001:100", "65001:1:1"]}
+  - {name: "C53 j1 attrs a1-lo std", type: bgp_route, node: j1, prefix: 192.168.3.1/32, as_path: "65005 65003 65003", next_hop: 10.1.1.2, local_pref: 100, communities: ["65003:100"]}
+  - {name: "C54 j1 attrs a1-lo large", type: bgp_route, node: j1, prefix: 192.168.3.1/32, communities: ["65003:1:1"]}
+  - {name: "C55 s1 attrs a1-lo std", type: bgp_route, node: s1, prefix: 192.168.3.1/32, as_path: "65005 65003 65003", communities: ["65003:100"]}
+  - {name: "C56 s1 attrs a1-lo large", type: bgp_route, node: s1, prefix: 192.168.3.1/32, communities: ["65003:1:1"]}
+  - {name: "C57 n1 attrs a1-lo regex", type: bgp_route, node: n1, prefix: 192.168.3.1/32, as_path_regex: "^65005 65003( 65003)*$", communities: ["65003:100", "65003:1:1"]}
+  - {name: "C58 f1 attrs a1-lo", type: bgp_route, node: f1, prefix: 192.168.3.1/32, as_path: "65003 65003", med: 30, next_hop: 10.1.3.1, communities: ["65003:100", "65003:1:1"]}
+  - {name: "C59 f1 attrs s1-lo", type: bgp_route, node: f1, prefix: 192.168.2.1/32, as_path: "65002", next_hop: 10.1.2.1, communities: ["65002:100", "65002:1:1"]}
+  - {name: "C60 j1 attrs s1-lo", type: bgp_route, node: j1, prefix: 192.168.2.1/32, as_path: "65005 65002", communities: ["65002:100", "65002:1:1"]}
+  - {name: "C61 a1 attrs s1-lo", type: bgp_route, node: a1, prefix: 192.168.2.1/32, as_path: "65005 65002", communities: ["65002:100", "65002:1:1"]}
+  - {name: "C62 f1 attrs n1-lo", type: bgp_route, node: f1, prefix: 192.168.4.1/32, as_path: "65004", med: 40, next_hop: 10.1.4.1, communities: ["65004:100"]}
+  - {name: "C63 j1 attrs n1-lo", type: bgp_route, node: j1, prefix: 192.168.4.1/32, as_path: "65005 65004", communities: ["65004:100"]}
+  - {name: "C64 s1 attrs n1-lo", type: bgp_route, node: s1, prefix: 192.168.4.1/32, as_path: "65005 65004", communities: ["65004:100"]}
+  - {name: "C65 j1 as-set aggregate", type: bgp_route, node: j1, prefix: 172.16.0.0/16, as_path: "65005 {65004,65006}"}
+  - {name: "C66 s1 as-set aggregate", type: bgp_route, node: s1, prefix: 172.16.0.0/16, as_path: "65005 {65004,65006}"}
+  - {name: "C67 a1 as-set aggregate", type: bgp_route, node: a1, prefix: 172.16.0.0/16, as_path: "65005 {65004,65006}"}
+
+  # ---- S1 leak guards
+  - {name: "C68 j1 no bgp default", type: bgp_route, node: j1, prefix: 0.0.0.0/0, present: false}
+  - {name: "C69 s1 no bgp default", type: bgp_route, node: s1, prefix: 0.0.0.0/0, present: false}
+  - {name: "C70 a1 no bgp default", type: bgp_route, node: a1, prefix: 0.0.0.0/0, present: false}
+  - {name: "C71 n1 no bgp default", type: bgp_route, node: n1, prefix: 0.0.0.0/0, present: false}
+  - {name: "C72 f1 no j1 more-specific", type: bgp_route, node: f1, prefix: 172.17.1.128/25, present: false}
+  - {name: "C73 s1 no j1 more-specific", type: bgp_route, node: s1, prefix: 172.17.1.128/25, present: false}
+  - {name: "C74 a1 no j1 more-specific", type: bgp_route, node: a1, prefix: 172.17.1.128/25, present: false}
+  - {name: "C75 n1 no j1 more-specific", type: bgp_route, node: n1, prefix: 172.17.1.128/25, present: false}
+  - {name: "C76 a1 no j1 more-specific route", type: route, node: a1, prefix: 172.17.1.128/25, present: false}
+
+  # ---- S10 ECMP, S5 best path exists, S2 MED present (f1's own network routes carry MED 0)
+  - {name: "C77 a1 ecmp best next hop", type: bgp_route, node: a1, prefix: 192.168.6.0/24, next_hop: 10.1.3.2}
+  - {name: "C78 j1 med0 on f1-lo", type: bgp_route, node: j1, prefix: 192.168.5.1/32, med: 0}
+  - {name: "C79 s1 med0 on f1-lo", type: bgp_route, node: s1, prefix: 192.168.5.1/32, med: 0}
+  - {name: "C80 a1 med0 on f1-lo", type: bgp_route, node: a1, prefix: 192.168.5.1/32, med: 0}
+  - {name: "C81 n1 med0 on f1-lo", type: bgp_route, node: n1, prefix: 192.168.5.1/32, med: 0}
+  - {name: "C88 j1 best path f2-lan", type: bgp_route, node: j1, prefix: 192.168.6.0/24}
+  - {name: "C89 s1 best path f2-lan", type: bgp_route, node: s1, prefix: 192.168.6.0/24}
+  - {name: "C90 n1 best path f2-lan", type: bgp_route, node: n1, prefix: 192.168.6.0/24}
+  - {name: "C91 j1 f2-lan no no-export", type: bgp_route, node: j1, prefix: 192.168.6.0/24, without_communities: [no-export]}
+  - {name: "C92 s1 f2-lan no no-export", type: bgp_route, node: s1, prefix: 192.168.6.0/24, without_communities: [no-export]}
+  - {name: "C93 a1 f2-lan no no-export", type: bgp_route, node: a1, prefix: 192.168.6.0/24, without_communities: [no-export]}
+  - {name: "C94 n1 f2-lan no no-export", type: bgp_route, node: n1, prefix: 192.168.6.0/24, without_communities: [no-export]}
+
+  # ---- S0 pings between loopbacks
+  - {name: "C82 j1 ping s1-lo", type: ping, node: j1, source: 192.168.1.1, target: 192.168.2.1}
+  - {name: "C83 s1 ping a1-lo", type: ping, node: s1, source: 192.168.2.1, target: 192.168.3.1}
+  - {name: "C84 a1 ping n1-lo", type: ping, node: a1, source: 192.168.3.1, target: 192.168.4.1}
+  - {name: "C85 n1 ping j1-lo", type: ping, node: n1, source: 192.168.4.1, target: 192.168.1.1}
+  - {name: "C86 f2 ping s1-lo", type: ping, node: f2, source: 192.168.6.1, target: 192.168.2.1}
+  - {name: "C87 j1 ping s1-lo6", type: ping, node: j1, source: "2001:db8:1::1", target: "2001:db8:2::1"}
+
+  # ---- traps: the oracle expects every T* check to FAIL in the baseline
+  - {name: "T01 j1 med0 on a1-lo (MED 30 at origin)", type: bgp_route, node: j1, prefix: 192.168.3.1/32, med: 0}
+  - {name: "T02 a1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: a1, prefix: 192.168.1.1/32, med: 0}
+  - {name: "T03 s1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: s1, prefix: 192.168.1.1/32, med: 0}
+  - {name: "T04 n1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: n1, prefix: 192.168.1.1/32, med: 0}
+  - {name: "T05 a1 v6 count on v4-only session", type: bgp_prefixes, node: a1, neighbor: 10.1.3.2, afi: ipv6-unicast, min: 1}
+  - {name: "T06 a1 ecmp non-best next hop", type: bgp_route, node: a1, prefix: 192.168.6.0/24, next_hop: 10.1.7.2}
+  - {name: "T07 j1 regex anchored on wrong AS", type: bgp_route, node: j1, prefix: 192.168.3.1/32, as_path_regex: "^65003"}
+  - {name: "T08 j1 wrong large community", type: bgp_route, node: j1, prefix: 192.168.2.1/32, communities: ["65002:1:2"]}
+  - {name: "T09 s1 local-pref 200 on j1-lo (eBGP: 100)", type: bgp_route, node: s1, prefix: 192.168.1.1/32, local_pref: 200}
+
+  # ---- S4 probes: received-but-rejected must read as absent. FAIL in the baseline (the route is accepted)
+  - {name: "R01 j1 f2-lan absent", type: bgp_route, node: j1, prefix: 192.168.6.0/24, present: false}
+  - {name: "R02 s1 f2-lan absent", type: bgp_route, node: s1, prefix: 192.168.6.0/24, present: false}
+  - {name: "R03 a1 f2-lan absent", type: route, node: a1, prefix: 192.168.6.0/24, present: false}

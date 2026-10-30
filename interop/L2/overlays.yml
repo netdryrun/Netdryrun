@@ -1,0 +1,142 @@
+# L2 overlays: each is one change to the baseline (see interop/L1/overlays.yml for the format).
+lab: L2
+overlays:
+  N01:
+    scenario: S1
+    title: e1 originates a default toward c3 (reflected to every client)
+    fresh: 3
+    reapply: true
+    edits:
+      - file: configs/e1.conf
+        replace: "  neighbor 10.3.3.2 route-map TO-C3 out\n"
+        with: "  neighbor 10.3.3.2 route-map TO-C3 out\n  neighbor 10.3.3.2 default-originate\n"
+    apply:
+      - {node: e1, vtysh: ["router bgp 65200", "address-family ipv4 unicast", "neighbor 10.3.3.2 default-originate"]}
+    revert:
+      - {node: e1, vtysh: ["router bgp 65200", "address-family ipv4 unicast", "no neighbor 10.3.3.2 default-originate"]}
+    probe:
+      - {node: r1, srl: "show network-instance default protocols bgp routes ipv4 prefix 0.0.0.0/0"}
+      - {node: c1, eos: "show ip bgp 0.0.0.0/0"}
+      - {node: c2, junos: "show route 0.0.0.0/0 exact"}
+
+  N02:
+    scenario: S2
+    title: c1 import local-pref lowered from 200 to 100 (below c3's 150)
+    fresh: 0
+    reapply: true
+    edits:
+      - file: configs/c1.cfg
+        replace: "   set local-preference 200\n"
+        with: "   set local-preference 100\n"
+    apply:
+      - {node: c1, eos: ["route-map FROM-E1 permit 10", "set local-preference 100"]}
+    revert:
+      - {node: c1, eos: ["route-map FROM-E1 permit 10", "set local-preference 200"]}
+    probe:
+      - {node: r1, srl: "show network-instance default protocols bgp routes ipv4 prefix 198.51.100.0/24 detail"}
+      - {node: c1, eos: "show ip bgp 198.51.100.0/24"}
+
+  N03:
+    scenario: S5
+    title: c1 drops next-hop-self toward the reflector (P1 and P2 arrive with unresolvable next hop 10.3.1.1)
+    fresh: 1          # the one fresh deploy that confirms the reapply path for L2
+    reapply: 3        # reapply x3 instead of fresh x3: its failing positive checks wait the full fresh timeout
+    edits:
+      - file: configs/c1.cfg
+        replace: "   neighbor 10.2.1.1 next-hop-self\n"
+        with: ""
+    apply:
+      - {node: c1, eos: ["router bgp 65100", "no neighbor 10.2.1.1 next-hop-self"]}
+    revert:
+      - {node: c1, eos: ["router bgp 65100", "neighbor 10.2.1.1 next-hop-self"]}
+    probe:
+      - {node: r1, srl: "show network-instance default protocols bgp routes ipv4 prefix 203.0.113.0/24 detail"}
+      - {node: r1, srl: "show network-instance default protocols bgp neighbor 10.2.1.2"}
+
+  N04:
+    scenario: S6
+    spread: 150       # outlast a graceful-restart stale timer (120 s) before checking (model review, Grok)
+    title: c2 local AS typo (65101)
+    fresh: 0
+    reapply: true
+    edits:
+      - file: configs/c2.cfg
+        replace: "    autonomous-system 65100;\n"
+        with: "    autonomous-system 65101;\n"
+    apply:
+      - {node: c2, junos: ["set routing-options autonomous-system 65101"]}
+    revert:
+      - {node: c2, junos: ["set routing-options autonomous-system 65100"]}
+    probe:
+      - {node: c2, junos: "show bgp summary"}
+      - {node: r1, srl: "show network-instance default protocols bgp neighbor"}
+
+  N05:
+    scenario: S6
+    spread: 150       # outlast a graceful-restart stale timer (120 s) before checking (model review, Grok)
+    title: c1 administratively shuts its eBGP session to e1
+    fresh: 0
+    reapply: true
+    edits:
+      - file: configs/c1.cfg
+        replace: "   neighbor 10.3.1.1 remote-as 65200\n"
+        with: "   neighbor 10.3.1.1 remote-as 65200\n   neighbor 10.3.1.1 shutdown\n"
+    apply:
+      - {node: c1, eos: ["router bgp 65100", "neighbor 10.3.1.1 shutdown"]}
+    revert:
+      - {node: c1, eos: ["router bgp 65100", "no neighbor 10.3.1.1 shutdown"]}
+    probe:
+      - {node: c1, eos: "show ip bgp summary"}
+
+  N06:
+    scenario: S6
+    spread: 150       # outlast a graceful-restart stale timer (120 s) before checking (model review, Grok)
+    title: c2 prefix limit 3 with teardown, idle forever (receives 5)
+    fresh: 0
+    reapply: true
+    edits:
+      - file: configs/c2.cfg
+        replace: "            local-address 10.2.2.2;\n"
+        with: "            local-address 10.2.2.2;\n            family inet {\n                unicast {\n                    prefix-limit {\n                        maximum 3;\n                        teardown idle-timeout forever;\n                    }\n                }\n            }\n"
+    apply:
+      - {node: c2, junos: ["set protocols bgp group rr family inet unicast prefix-limit maximum 3",
+                           "set protocols bgp group rr family inet unicast prefix-limit teardown idle-timeout forever"]}
+    revert:
+      - {node: c2, junos: ["delete protocols bgp group rr family inet"]}
+      - {node: c2, junos_op: "clear bgp neighbor 10.2.2.1"}
+    probe:
+      - {node: c2, junos: "show bgp summary"}
+
+  N07:
+    scenario: S6
+    spread: 150       # outlast a graceful-restart stale timer (120 s) before checking (model review, Grok)
+    title: MD5 password on c3 toward the reflector only (mismatch)
+    fresh: 0
+    reapply: true
+    edits:
+      - file: configs/c3.conf
+        replace: " neighbor 10.2.3.1 remote-as 65100\n"
+        with: " neighbor 10.2.3.1 remote-as 65100\n neighbor 10.2.3.1 password ndrmd5test\n"
+    apply:
+      - {node: c3, vtysh: ["router bgp 65100", "neighbor 10.2.3.1 password ndrmd5test"]}
+    revert:
+      - {node: c3, vtysh: ["router bgp 65100", "no neighbor 10.2.3.1 password"]}
+    probe:
+      - {node: c3, vtysh1: "show bgp summary"}
+
+  N08:
+    scenario: S2
+    title: e1 stops sending its large community to c1
+    fresh: 3
+    reapply: true
+    edits:
+      - file: configs/e1.conf
+        replace: "route-map TO-C1 permit 10\n set metric 50\n set community 65200:1\n set large-community 65200:0:1\n"
+        with: "route-map TO-C1 permit 10\n set metric 50\n set community 65200:1\n"
+    apply:
+      - {node: e1, vtysh: ["route-map TO-C1 permit 10", "no set large-community"]}
+    revert:
+      - {node: e1, vtysh: ["route-map TO-C1 permit 10", "set large-community 65200:0:1"]}
+    probe:
+      - {node: c2, junos: "show route 198.51.100.0/24 exact detail"}
+      - {node: r1, srl: "show network-instance default protocols bgp routes ipv4 prefix 198.51.100.0/24 detail"}
