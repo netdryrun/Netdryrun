@@ -21,6 +21,7 @@ import re
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int,
                    canon_communities, check_vrf_name, load_json, network, parser, render_as_path, unexpected)
 from .frr import _canon_addr, parse_ping
+from .stale import refuse_if_stale
 
 # Runs inside the vrnetlab container (python3 is there for launch.py). argv: method, command, timeout.
 # The credentials are the ones containerlab passed to launch.py (default admin/admin).
@@ -227,6 +228,9 @@ def _bgp_paths_raw(text: str, prefix: str, vrf: str) -> list[dict]:
     for net, row in _bgp_prefix_rows(BGP_CMD, _body(BGP_CMD, text), vrf):
         if net == want:
             paths += _rows(BGP_CMD, row, "path")
+    for p in paths:
+        if "pathstaled" in p:   # graceful restart: a stale path is neither present nor gone yet
+            refuse_if_stale(prefix, p.get("ipv6neighbor", p.get("neighbor")), _flag(BGP_CMD, p["pathstaled"]))
     return paths
 
 
@@ -260,7 +264,8 @@ def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "defaul
     bgp = _body(BGP_CMD, bgp_text)
     out = [r for net, row in _prefix_rows(ROUTE_CMD, rib, vrf) if net == want
            for r in _rib_routes(ROUTE_CMD, prefix, row)]
-    if not any(r.protocol == "bgp" for r in out) and any(_learned(p) for p in _bgp_paths_raw(bgp_text, prefix, vrf)):
+    paths = _bgp_paths_raw(bgp_text, prefix, vrf)   # read even when installed: a stale path is an error
+    if not any(r.protocol == "bgp" for r in out) and any(_learned(p) for p in paths):
         out.append(Route(prefix, "bgp", False))
     if not out and rib is None and bgp is None:
         return None

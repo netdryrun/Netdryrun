@@ -16,6 +16,7 @@ import ipaddress
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
                    check_vrf_name, load_json, network, parser, unexpected)
 from .frr import _canon_addr, parse_ping
+from .stale import refuse_if_stale, strict_bool
 
 PROTOCOLS = {"ebgp": "bgp", "ibgp": "bgp", "bgp": "bgp", "connected": "connected", "static": "static",
              "ospf": "ospf", "ospfintraarea": "ospf", "ospfinterarea": "ospf", "ospfexternaltype1": "ospf",
@@ -112,6 +113,9 @@ def _bgp_entries(command: str, text: str, vrf: str) -> dict:
         for p in e["bgpRoutePaths"]:
             if not isinstance(p, dict):
                 raise unexpected(command, f"{key} path: {str(p)[:150]}")
+            kind = p.get("routeType")
+            if isinstance(kind, dict) and "stale" in kind:   # graceful restart: neither present nor gone yet
+                refuse_if_stale(key, (p.get("peerEntry") or {}).get("peerAddr"), strict_bool(command, kind["stale"]))
     return entries
 
 

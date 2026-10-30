@@ -12,6 +12,7 @@ import ipaddress
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
                    check_vrf_name, load_json, network, parser, render_as_path, unexpected)
 from .frr import _canon_addr, _keep_down, parse_ping
+from .stale import refuse_if_stale, strict_bool
 
 # SR Linux route-type names -> the shared vocabulary used in netdryrun.yml (FRR's names)
 PROTOCOLS = {"local": "connected", "host": "local", "ospfv2": "ospf", "ospfv3": "ospf6"}
@@ -82,7 +83,11 @@ def _rib_rows(text: str, prefix: str) -> list[dict]:
     for r in rows:
         if "prefix" not in r:
             raise unexpected(RIB_CMD, str(r)[:150])
-    return [r for r in rows if network(RIB_CMD, r["prefix"]) == want]
+    mine = [r for r in rows if network(RIB_CMD, r["prefix"]) == want]
+    for r in mine:
+        if "stale-route" in r:   # graceful restart: a stale path is neither present nor gone yet
+            refuse_if_stale(prefix, r.get("neighbor"), strict_bool(RIB_CMD, r["stale-route"]))
+    return mine
 
 
 @parser(ROUTE_CMD)
@@ -104,8 +109,9 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
             continue
         rtype = str(r.get("route-type", "")).lower()
         out.append(Route(prefix, _protocol(rtype), bool(r.get("active"))))
+    rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error
     if bgp_rib_text is not None and not any(r.protocol == "bgp" and r.active for r in out):
-        if any(_bgp_learned(r) for r in _rib_rows(bgp_rib_text, prefix)):
+        if any(_bgp_learned(r) for r in rib):
             out.append(Route(prefix, "bgp", False))
     return out
 
