@@ -1,0 +1,113 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	[{
+						"vrf-name-out":	"RED",
+						"vrf-router-id":	"10.0.2.1",
+						"vrf-local-as":	"65001",
+						"TABLE_af":	{
+							"ROW_af":	{
+								"af-id":	"1",
+								"TABLE_saf":	{
+									"ROW_saf":	{
+										"safi":	1,
+										"af-name":	"IPv4 Unicast",
+										"tableversion":	"4",
+										"configuredpeers":	"1",
+										"capablepeers":	"1",
+										"totalnetworks":	"1",
+										"totalpaths":	"1",
+										"memoryused":	"292",
+										"numberattrs":	"1",
+										"bytesattrs":	"368",
+										"numberpaths":	"1",
+										"bytespaths":	"14",
+										"numbercommunities":	"1",
+										"bytescommunities":	"48",
+										"numberclusterlist":	"0",
+										"bytesclusterlist":	"0",
+										"dampening":	"false",
+										"TABLE_neighbor":	{
+											"ROW_neighbor":	{
+												"neighborid":	"10.0.2.2",
+												"neighborversion":	"4",
+												"msgrecvd":	12,
+												"msgsent":	13,
+												"neighbortableversion":	"4",
+												"inq":	"0",
+												"outq":	"0",
+												"neighboras":	"65003",
+												"time":	"PT9M5S",
+												"state":	"Established",
+												"prefixreceived":	"1"
+											}
+										}
+									}
+								}
+							}
+						}
+					}, {
+						"vrf-name-out":	"default",
+						"vrf-router-id":	"192.168.10.1",
+						"vrf-local-as":	"65001",
+						"TABLE_af":	{
+							"ROW_af":	{
+								"af-id":	"1",
+								"TABLE_saf":	{
+									"ROW_saf":	{
+										"safi":	1,
+										"af-name":	"IPv4 Unicast",
+										"tableversion":	"6",
+										"configuredpeers":	"2",
+										"capablepeers":	"1",
+										"totalnetworks":	"4",
+										"totalpaths":	"4",
+										"memoryused":	"1168",
+										"numberattrs":	"3",
+										"bytesattrs":	"1104",
+										"numberpaths":	"1",
+										"bytespaths":	"6",
+										"numbercommunities":	"1",
+										"bytescommunities":	"48",
+										"numberclusterlist":	"0",
+										"bytesclusterlist":	"0",
+										"dampening":	"false",
+										"TABLE_neighbor":	{
+											"ROW_neighbor":	[{
+													"neighborid":	"10.0.1.2",
+													"neighborversion":	"4",
+													"msgrecvd":	15,
+													"msgsent":	13,
+													"neighbortableversion":	"6",
+													"inq":	"0",
+													"outq":	"0",
+													"neighboras":	"65002",
+													"time":	"PT9M5S",
+													"state":	"Established",
+													"prefixreceived":	"3"
+												}, {
+													"neighborid":	"10.0.9.9",
+													"neighborversion":	"4",
+													"msgrecvd":	0,
+													"msgsent":	0,
+													"neighbortableversion":	"0",
+													"inq":	"0",
+													"outq":	"0",
+													"neighboras":	"65009",
+													"time":	"PT9M12S",
+													"state":	"Idle",
+													"prefixreceived":	"0"
+												}]
+										}
+									}
+								}
+							}
+						}
+					}]
+			}
+		}
+	},
+	"id":	1
+}

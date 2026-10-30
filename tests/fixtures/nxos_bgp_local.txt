@@ -1,0 +1,73 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf-name-out":	"default",
+					"TABLE_afi":	{
+						"ROW_afi":	{
+							"afi":	1,
+							"TABLE_safi":	{
+								"ROW_safi":	{
+									"safi":	1,
+									"af-name":	"IPv4 Unicast",
+									"TABLE_rd":	{
+										"ROW_rd":	{
+											"TABLE_prefix":	{
+												"ROW_prefix":	{
+													"ipprefix":	"192.168.10.1/32",
+													"prefixversion":	"2",
+													"totalpaths":	"1",
+													"bestpathnr":	"1",
+													"on-newlist":	"false",
+													"on-xmitlist":	"true",
+													"suppressed":	"false",
+													"needsresync":	"false",
+													"locked":	"false",
+													"table-map-filtered":	"false",
+													"TABLE_advertisedto":	{
+														"ROW_advertisedto":	{
+															"advertisedto":	"10.0.1.2"
+														}
+													},
+													"TABLE_path":	{
+														"ROW_path":	{
+															"pathnr":	"0",
+															"policyincomplete":	"false",
+															"pathtype":	"local",
+															"pathvalid":	"true",
+															"pathbest":	"true",
+															"pathreoriginated":	"false",
+															"pathdeleted":	"false",
+															"pathstaled":	"false",
+															"pathhistory":	"false",
+															"pathovermaxaslimit":	"false",
+															"pathmultipath":	"false",
+															"pathnolabeledrnh":	"true",
+															"pathlocator":	"false",
+															"path-vpc-orphan-mac":	"false",
+															"path-vpc-peer-orphan-mac":	"false",
+															"ipnexthop":	"0.0.0.0",
+															"nexthopmetric":	"0",
+															"neighbor":	"0.0.0.0",
+															"neighborid":	"192.168.10.1",
+															"origin":	"IGP",
+															"localpref":	"100",
+															"weight":	32768
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}

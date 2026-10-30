@@ -2,7 +2,7 @@
 # Re-capture a driver's fixtures from a live lab: deploy the pinned example, run exactly the commands the
 # driver runs, write the outputs in the format of tests/fixtures/, destroy the lab.
 #
-#   scripts/capture_fixtures.sh <frr|srlinux|eos|sonic> [--out DIR] [--keep]
+#   scripts/capture_fixtures.sh <frr|srlinux|eos|sonic|nxos> [--out DIR] [--keep]
 #
 # The weekly drift check (research/quality-schedule.md, S3) runs this for every driver, then
 # `python3 scripts/fixture_shape.py` (what changed in shape) and the driver tests on the fresh captures.
@@ -15,7 +15,7 @@
 #                     compare shapes. Fixtures with no capture here are listed in NOT_CAPTURED below.
 #
 # Labs are named ndr-cap-<driver> (containers clab-ndr-cap-<driver>-*) and only that name is ever destroyed.
-# cEOS and SONiC are heavy: they take the vendor-VM lab lock (lesson 54) and retry every 5 minutes.
+# cEOS, SONiC and NX-OS are heavy: they take the vendor-VM lab lock (lesson 54) and retry every 5 minutes.
 #   NDR_LOCK_DIR        lock directory (default /home/ndr/vendor-vm-lab.lock)
 #   NDR_LOCK_WAIT_MAX   seconds to keep retrying for the lock (default 7200)
 #   NDR_LOCK_HELD=1     the caller already holds the lock
@@ -25,8 +25,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DRIVERS_HERE="frr srlinux eos sonic"
-DRIVERS_ON_BRANCHES="junos (ndr/junos) nxos (ndr/nxos)"
+DRIVERS_HERE="frr srlinux eos sonic nxos"
+DRIVERS_ON_BRANCHES="junos (ndr/junos)"
 
 usage() {
   echo "usage: $0 <${DRIVERS_HERE// /|}> [--out DIR] [--keep]" >&2
@@ -56,7 +56,8 @@ case $DRIVER in
   eos)     EXAMPLE=examples/arista-frr; HEAVY=1;
            NOT_CAPTURED="eos_bgp_paths_empty eos_bgp_paths_local eos_bgp_paths_noexport (need a missing, a local and a no-export prefix)" ;;
   sonic)   EXAMPLE=examples/sonic-frr; HEAVY=1; NOT_CAPTURED="" ;;
-  junos|nxos) echo "$DRIVER: its driver and captures are on branch ndr/$DRIVER; add it to the driver table when it merges" >&2; exit 2 ;;
+  nxos)    EXAMPLE=scripts/labs/nxos-cap; HEAVY=1; NOT_CAPTURED="" ;;
+  junos) echo "$DRIVER: its driver and captures are on branch ndr/$DRIVER; add it to the driver table when it merges" >&2; exit 2 ;;
   *) usage ;;
 esac
 P=clab-$LAB            # container name prefix
@@ -215,6 +216,78 @@ capture_eos() {                     # eos.py: bgp_neighbors, routes, bgp_paths, 
   sleep 8
   cap eos_leak_route cli "show ip route vrf default 0.0.0.0/0 | json"
   cap eos_leak_bgp   cli "show ip bgp 0.0.0.0/0 vrf default | json"
+}
+
+# NX-OS runs in a VM inside the container: every command goes through the driver's own NX-API helper
+# (drivers/nxos.py HELPER), exactly as the driver sends it. Lab: scripts/labs/nxos-cap (VRFs RED and EMPTY,
+# IPv6, an idle neighbor, attributes, a prefix denied by policy, a leaked default under a static).
+capture_nxos() {                    # nxos.py: bgp_neighbors, routes, bgp_paths, all_routes, ping, every error shape
+  local n=$P-n1 helper
+  helper=$(PYTHONPATH=src python3 -c 'from netdryrun.drivers.nxos import HELPER; print(HELPER)')
+  nx()  { docker exec "$n" python3 -c "$helper" cli "$1" 60; }
+  nxa() { docker exec "$n" python3 -c "$helper" cli_ascii "$1" 60; }
+  wait_for "NX-API on n1 (the VM boots for 5-7 minutes)" 1200 bash -c "docker exec $n python3 -c '$helper' cli 'show version' 60 | grep -q nxos_ver_str"
+  wait_for "n1 BGP established with f1" 600 bash -c "docker exec $n python3 -c '$helper' cli 'show bgp ipv4 unicast summary vrf default' 60 | grep -q Established"
+  wait_for "n1 to learn 192.168.20.0/24" 180 bash -c "docker exec $n python3 -c '$helper' cli 'show ip route 192.168.20.0/24 vrf default' 60 | grep -q bgp-"
+  sleep 10
+  local name cmd
+  while IFS='|' read -r name cmd; do
+    cap "$name" nx "$cmd"
+  done <<'TABLE'
+nxos_summary_v4|show bgp ipv4 unicast summary vrf default
+nxos_summary_v6|show bgp ipv6 unicast summary vrf default
+nxos_summary_red|show bgp ipv4 unicast summary vrf RED
+nxos_summary_red_v6|show bgp ipv6 unicast summary vrf RED
+nxos_summary_emptyvrf|show bgp ipv4 unicast summary vrf EMPTY
+nxos_summary_novrf|show bgp ipv4 unicast summary vrf NOPE
+nxos_summary_v6_novrf|show bgp ipv6 unicast summary vrf NOPE
+nxos_bgp_vrf_list|show bgp vrf all ipv4 unicast summary
+nxos_route_20|show ip route 192.168.20.0/24 vrf default
+nxos_bgp_20|show bgp ipv4 unicast 192.168.20.0/24 vrf default
+nxos_route_default|show ip route 0.0.0.0/0 vrf default
+nxos_bgp_default|show bgp ipv4 unicast 0.0.0.0/0 vrf default
+nxos_route_local|show ip route 192.168.10.1/32 vrf default
+nxos_bgp_local|show bgp ipv4 unicast 192.168.10.1/32 vrf default
+nxos_route_66|show ip route 192.168.66.0/24 vrf default
+nxos_bgp_66|show bgp ipv4 unicast 192.168.66.0/24 vrf default
+nxos_route_red|show ip route 172.16.2.0/24 vrf RED
+nxos_bgp_red|show bgp ipv4 unicast 172.16.2.0/24 vrf RED
+nxos_route_absent_red|show ip route 10.99.0.0/16 vrf RED
+nxos_bgp_absent_red|show bgp ipv4 unicast 10.99.0.0/16 vrf RED
+nxos_route_emptyvrf|show ip route 10.0.0.0/8 vrf EMPTY
+nxos_bgp_emptyvrf|show bgp ipv4 unicast 10.0.0.0/8 vrf EMPTY
+nxos_route_novrf|show ip route 10.0.0.0/8 vrf NOPE
+nxos_bgp_novrf|show bgp ipv4 unicast 10.0.0.0/8 vrf NOPE
+nxos_route_v6|show ipv6 route 2001:db8:20::/48 vrf default
+nxos_bgp_v6|show bgp ipv6 unicast 2001:db8:20::/48 vrf default
+nxos_all_routes|show ip route vrf default
+nxos_all_routes_v6|show ipv6 route vrf default
+nxos_all_routes_emptyvrf|show ip route vrf EMPTY
+nxos_all_routes_novrf|show ip route vrf NOPE
+nxos_vrf_default|show vrf default
+nxos_vrf_red|show vrf RED
+nxos_vrf_empty|show vrf EMPTY
+nxos_vrf_nope|show vrf NOPE
+nxos_invalid|show bgp bogus
+TABLE
+  while IFS='|' read -r name cmd; do
+    cap "$name" nxa "$cmd"
+  done <<'TABLE'
+nxos_ping_ok|ping 10.0.1.2 count 3 source 10.0.1.1 vrf default
+nxos_ping_lo|ping 192.168.20.1 count 3 source 192.168.10.1 vrf default
+nxos_ping_red|ping 10.0.2.2 count 3 vrf RED
+nxos_ping_fail|ping 192.0.2.1 count 2 vrf default
+nxos_ping_novrf|ping 10.0.2.2 count 2 vrf NOPE
+nxos_ping6_ok|ping6 2001:db8:1::2 count 3 vrf default
+nxos_ping_badsrc|ping 10.0.1.2 count 2 source 10.9.9.9 vrf default
+nxos_summary_emptyvrf_ascii|show bgp ipv4 unicast summary vrf EMPTY
+nxos_summary_novrf_ascii|show bgp ipv4 unicast summary vrf NOPE
+TABLE
+  # volatile (uptimes, counters, serials) or not read by the driver: shapes only
+  shape nxos_version          nx "show version"
+  shape nxos_nbr_detail       nx "show bgp ipv4 unicast neighbors 10.0.1.2 vrf default"
+  shape nxos_bgp_process_emptyvrf nx "show bgp process vrf EMPTY"
+  shape nxos_bgp_process_novrf nx "show bgp process vrf NOPE"
 }
 
 # ---- Run ---------------------------------------------------------------------------------------------------------

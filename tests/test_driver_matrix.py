@@ -18,6 +18,7 @@ Meta-test: every registered driver × every check type needs at least one cell o
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +27,7 @@ import pytest
 from test_checks import FakeClock
 from test_verdict_drivers import Lab
 
-from netdryrun.checks import converge_then_hold, is_post_convergence, run_check
+from netdryrun.checks import Unready, converge_then_hold, is_post_convergence, run_check
 from netdryrun.config import AFIS, CHECK_TYPES, _validate_check
 from netdryrun.drivers import DRIVERS, DriverError, check_supported
 from netdryrun.lab import Node
@@ -108,6 +109,31 @@ def srl_rules():
 
     def ping(text):
         return [("ip netns list", "srbase-default\n"), ("ping", text)]
+    return neighbors, routes, paths, ping
+
+
+def nxos_session_down(text: str) -> str:
+    """The same NX-API summary with every Established session reported Active (NX-OS's `state` field)."""
+    out, n = re.subn(r'("state"\s*:\s*")Established"', r'\1Active"', text)
+    assert n, "no NX-OS session state to edit: has the capture's format changed?"
+    json.loads(out)   # still a valid reply: the cell must fail on the state, not on unreadable output
+    return out
+
+
+def nxos_rules():
+    """Command needles for NX-OS (the NX-API command is the last-but-one argument of the docker exec)."""
+    def neighbors(v4_text, v6_text):
+        return [("show bgp ipv4 unicast summary vrf default", v4_text),
+                ("show bgp ipv6 unicast summary vrf default", v6_text)]
+
+    def routes(route_text, bgp_text):
+        return [("show ip route", route_text), ("show bgp ipv4 unicast", bgp_text)]
+
+    def paths(text):
+        return [("show bgp ipv4 unicast", text)]
+
+    def ping(text):
+        return [("cli_ascii ping", text)]
     return neighbors, routes, paths, ping
 
 
@@ -194,7 +220,8 @@ def _cells() -> list[Cell]:
     add("eos", "fail", "leaked route is installed", {**r, "present": False},
         routes(fx("eos_route.txt"), fx("eos_bgp_route.txt")))
     # the leaked default loses to a local drop route, yet it was received: present (0.3.0 runtime path R4)
-    add("eos", "fail", "leak received but not selected", {"type": "route", "prefix": "0.0.0.0/0", "present": False},
+    add("eos", "fail", "leak received but not selected",
+        {"type": "route", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": False},
         routes(fx("eos_leak_route.txt"), fx("eos_leak_bgp.txt")))
     add("eos", "fail", "route via the wrong protocol", {**r, "protocol": "static"},
         routes(fx("eos_route.txt"), fx("eos_bgp_route.txt")))
@@ -233,7 +260,8 @@ def _cells() -> list[Cell]:
     add("srlinux", "fail", "leaked route is installed", {**r, "present": False},
         routes(fx("srl_route.txt"), fx("srl_bgp_rib_paths.txt")))
     # the leaked default loses to a static route, yet BGP received it (examples/srl-hidden-leak)
-    add("srlinux", "fail", "leak received but not selected", {"type": "route", "prefix": "0.0.0.0/0", "present": False},
+    add("srlinux", "fail", "leak received but not selected",
+        {"type": "route", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": False},
         routes(fx("srl_leak_route.txt"), fx("srl_leak_rib.txt")))
     add("srlinux", "fail", "route via the wrong protocol", {**r, "protocol": "static"},
         routes(fx("srl_route.txt"), fx("srl_bgp_rib_paths.txt")))
@@ -250,6 +278,66 @@ def _cells() -> list[Cell]:
     add("srlinux", "pass", "ping replies", p, ping(fx("srl_ping.txt")))
     add("srlinux", "fail", "no replies", p, ping(no_replies(fx("srl_ping.txt"))))
     add("srlinux", "fail", "must fail but replies", {**p, "expect": "failure"}, ping(fx("srl_ping.txt")))
+    # ---- Cisco NX-OS (Nexus 9000v, beta): NX-API JSON from scripts/labs/nxos-cap ------------------------------
+    neighbors, routes, paths, ping = nxos_rules()
+    nbr, count = "10.0.1.2", 3   # f1 sends four prefixes, n1's inbound policy denies one: 3 accepted
+    v4, v6 = fx("nxos_summary_v4.txt"), fx("nxos_summary_v6.txt")
+    s = {"type": "bgp_session", "neighbor": nbr}
+    px = {"type": "bgp_prefixes", "neighbor": nbr}
+    add("nxos", "pass", "session established", s, neighbors(v4, v6))
+    add("nxos", "fail", "session not established", s, neighbors(nxos_session_down(v4), v6))
+    add("nxos", "fail", "session must be down but is up", {**s, "state": "down"}, neighbors(v4, v6))
+    add("nxos", "fail", "configured neighbor idle", {**s, "neighbor": "10.0.9.9"}, neighbors(v4, v6))
+    add("nxos", "pass", "prefixes within max", {**px, "max": count}, neighbors(v4, v6))
+    add("nxos", "fail", "prefixes over max", {**px, "max": count - 1}, neighbors(v4, v6))
+    add("nxos", "fail", "prefixes not exact", {**px, "exact": count + 1}, neighbors(v4, v6))
+    add("nxos", "fail", "prefixes under min", {**px, "min": count + 1}, neighbors(v4, v6))
+    add("nxos", "fail", "prefixes on a session that is down", {**px, "min": 1}, neighbors(nxos_session_down(v4), v6))
+    v6px = {**px, "neighbor": "2001:db8:1::2", "afi": "ipv6-unicast"}
+    add("nxos", "pass", "ipv6-unicast prefixes within max", {**v6px, "max": 1}, neighbors(v4, v6))
+    add("nxos", "fail", "ipv6-unicast prefixes over max", {**v6px, "max": 0}, neighbors(v4, v6))
+    add("nxos", "fail", "ipv6-unicast counted from the ipv4 family", {**px, "afi": "ipv6-unicast", "min": 1},
+        neighbors(v4, v6))
+    r = {"type": "route", "prefix": "192.168.20.0/24"}
+    add("nxos", "pass", "route present", r, routes(fx("nxos_route_20.txt"), fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "leaked route is installed", {**r, "present": False},
+        routes(fx("nxos_route_20.txt"), fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "route via the wrong protocol", {**r, "protocol": "static"},
+        routes(fx("nxos_route_20.txt"), fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "route missing (denied by policy)", {**r, "prefix": "192.168.66.0/24"},
+        routes(fx("nxos_route_66.txt"), fx("nxos_bgp_66.txt")))
+    # the leaked default is BGP's best path but loses the RIB to a static: received, so present (R4)
+    add("nxos", "fail", "leak received but not selected",
+        {"type": "route", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": False},
+        routes(fx("nxos_route_default.txt"), fx("nxos_bgp_default.txt")))
+    add("nxos", "fail", "leak in the BGP table only", {"type": "route", "prefix": "0.0.0.0/0", "present": False},
+        routes(fx("nxos_route_66.txt"), fx("nxos_bgp_default.txt")))
+    add("nxos", "pass", "default selected via static", {"type": "route", "prefix": "0.0.0.0/0", "protocol": "static"},
+        routes(fx("nxos_route_default.txt"), fx("nxos_bgp_default.txt")))
+    br = {"type": "bgp_route", "prefix": "192.168.20.0/24"}
+    add("nxos", "pass", "bgp path present with its attributes",
+        {**br, "as_path": "65002", "local_pref": 200, "med": 50, "next_hop": "10.0.1.2",
+         "communities": ["65002:100", "65002:1:1"]}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "leaked bgp path", {**br, "present": False}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "leaked default in the BGP table", {"type": "bgp_route", "prefix": "0.0.0.0/0", "present": False},
+        paths(fx("nxos_bgp_default.txt")))
+    add("nxos", "fail", "wrong as_path", {**br, "as_path": "65999"}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "as_path_regex mismatch", {**br, "as_path_regex": "^65003"}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "wrong local_pref", {**br, "local_pref": 100}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "wrong med", {**br, "med": 0}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "wrong next_hop", {**br, "next_hop": "10.0.1.1"}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "community missing", {**br, "communities": ["65002:999"]}, paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "forbidden community present", {**br, "without_communities": ["65002:100"]},
+        paths(fx("nxos_bgp_20.txt")))
+    add("nxos", "fail", "forbidden large community present", {**br, "without_communities": ["65002:1:1"]},
+        paths(fx("nxos_bgp_20.txt")))
+    p = {"type": "ping", "target": "192.168.20.1", "source": "192.168.10.1"}
+    add("nxos", "pass", "ping replies", p, ping(fx("nxos_ping_lo.txt")))
+    add("nxos", "fail", "no replies", p, ping(no_replies(fx("nxos_ping_lo.txt"))))
+    add("nxos", "fail", "no replies (real timeout)", {"type": "ping", "target": "192.0.2.1", "count": 2},
+        ping(fx("nxos_ping_fail.txt")))
+    add("nxos", "fail", "must fail but replies", {**p, "expect": "failure"}, ping(fx("nxos_ping_lo.txt")))
+    add("nxos", "fail", "ping did not run (bad source)", p, ping(fx("nxos_ping_badsrc.txt")))
     return cells
 
 
@@ -275,6 +363,8 @@ def _params(must: str):
 def test_must_fail_on_the_drivers_own_output(cell):
     passed, detail = verdict(cell)
     assert passed is False, f"{cell.driver}: {cell.label} PASSED: {detail}"
+    # failing because the driver couldn't read the (edited) output proves nothing about the violation
+    assert not isinstance(detail, Unready), f"{cell.driver}: {cell.label} failed on unreadable output: {detail}"
 
 
 @pytest.mark.parametrize("cell", _params("pass"))

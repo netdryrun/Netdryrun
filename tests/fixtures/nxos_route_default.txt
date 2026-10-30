@@ -1,0 +1,46 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf-name-out":	"default",
+					"TABLE_addrf":	{
+						"ROW_addrf":	{
+							"addrf":	"ipv4",
+							"TABLE_prefix":	{
+								"ROW_prefix":	{
+									"ipprefix":	"0.0.0.0/0",
+									"ucast-nhops":	1,
+									"mcast-nhops":	0,
+									"attached":	"false",
+									"TABLE_path":	{
+										"ROW_path":	[{
+												"entry":	0,
+												"ifname":	"Null0",
+												"uptime":	"PT6M27S",
+												"pref":	1,
+												"metric":	0,
+												"clientname":	"static",
+												"ubest":	"true"
+											}, {
+												"entry":	0,
+												"ipnexthop":	"10.0.1.2",
+												"uptime":	"PT6M12S",
+												"pref":	20,
+												"metric":	0,
+												"clientname":	"bgp-65001",
+												"type":	"external",
+												"tag":	65002
+											}]
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}

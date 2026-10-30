@@ -1,0 +1,190 @@
+{
+  "mutants": {
+    "netdryrun.drivers.nxos.x__reply__mutmut_27": {
+      "class": "equivalent",
+      "reason": "the default is never used: the expression runs only when err.get('data') is a dict",
+      "diff": "13269afff0d8b840"
+    },
+    "netdryrun.drivers.nxos.x__reply__mutmut_29": {
+      "class": "equivalent",
+      "reason": "the default is never used: the expression runs only when err.get('data') is a dict",
+      "diff": "085c5c7a9fe83929"
+    },
+    "netdryrun.drivers.nxos.x__body__mutmut_13": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "a43c64ced0d971fb"
+    },
+    "netdryrun.drivers.nxos.x__rows__mutmut_15": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "baf5f514c95be61e"
+    },
+    "netdryrun.drivers.nxos.x__rows__mutmut_31": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "b8d38dbc68749e53"
+    },
+    "netdryrun.drivers.nxos.x__flag__mutmut_22": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "ea314bf9a1d0bf13"
+    },
+    "netdryrun.drivers.nxos.x__vrf_rows__mutmut_16": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "c42c0a5fa780e107"
+    },
+    "netdryrun.drivers.nxos.x__prefix_rows__mutmut_9": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (the command named when a nested table is malformed)",
+      "diff": "c279525efd66bc51"
+    },
+    "netdryrun.drivers.nxos.x__prefix_rows__mutmut_12": {
+      "class": "equivalent",
+      "reason": "None is falsy: _rows treats it exactly as required=False",
+      "diff": "2505a6730141c05c"
+    },
+    "netdryrun.drivers.nxos.x__prefix_rows__mutmut_20": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (the command named when a nested table is malformed)",
+      "diff": "400a08bd4bdeb732"
+    },
+    "netdryrun.drivers.nxos.x__prefix_rows__mutmut_23": {
+      "class": "equivalent",
+      "reason": "None is falsy: _rows treats it exactly as required=False",
+      "diff": "34b9574e64b33473"
+    },
+    "netdryrun.drivers.nxos.x__prefix_rows__mutmut_39": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "81f5a0126770a401"
+    },
+    "netdryrun.drivers.nxos.x__rib_routes__mutmut_2": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (the command named when a nested table is malformed)",
+      "diff": "b8051a5ebf62727c"
+    },
+    "netdryrun.drivers.nxos.x__rib_routes__mutmut_22": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "1e7f0df1bd22623e"
+    },
+    "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_9": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (the command named when a nested table is malformed)",
+      "diff": "685ffb25cb75047f"
+    },
+    "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_12": {
+      "class": "equivalent",
+      "reason": "None is falsy: _rows treats it exactly as required=False",
+      "diff": "0c37ee2db683ca28"
+    },
+    "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_28": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (the command named when a nested table is malformed)",
+      "diff": "1faa169b16362fc6"
+    },
+    "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_31": {
+      "class": "equivalent",
+      "reason": "None is falsy: _rows treats it exactly as required=False",
+      "diff": "8cadc3ab2e255b2f"
+    },
+    "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_39": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (the command named when a nested table is malformed)",
+      "diff": "0162bd7410e84b6f"
+    },
+    "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_42": {
+      "class": "equivalent",
+      "reason": "None is falsy: _rows treats it exactly as required=False",
+      "diff": "223cea616a6c75e4"
+    },
+    "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_66": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "c4e8c1af2f1dac38"
+    },
+    "netdryrun.drivers.nxos.x__bgp_paths_raw__mutmut_10": {
+      "class": "equivalent",
+      "reason": "unreachable as an error: every caller has already parsed the same text with _body(BGP_CMD, ...), so this call never raises",
+      "diff": "ba150d6ab581a643"
+    },
+    "netdryrun.drivers.nxos.x__peer__mutmut_19": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "50aafa6ca13ccd50"
+    },
+    "netdryrun.drivers.nxos.x__learned__mutmut_13": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "fe4d22a4a8bd9fff"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_7": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "c8cc2ab206e66c39"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_28": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "0ec155fbb07a5ea2"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_33": {
+      "class": "equivalent",
+      "reason": "render_as_path lowercases the segment kind and tests for the substrings 'set' and 'confed': the same rendering for every segment",
+      "diff": "667ca5b96b62accf"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_37": {
+      "class": "equivalent",
+      "reason": "render_as_path lowercases the segment kind and tests for the substrings 'set' and 'confed': the same rendering for every segment",
+      "diff": "0da46a2cda36f6b3"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_38": {
+      "class": "equivalent",
+      "reason": "render_as_path lowercases the segment kind and tests for the substrings 'set' and 'confed': the same rendering for every segment",
+      "diff": "5a4bce8b11c5751a"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_42": {
+      "class": "equivalent",
+      "reason": "render_as_path lowercases the segment kind and tests for the substrings 'set' and 'confed': the same rendering for every segment",
+      "diff": "38e8ea7223407348"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_43": {
+      "class": "equivalent",
+      "reason": "render_as_path lowercases the segment kind and tests for the substrings 'set' and 'confed': the same rendering for every segment",
+      "diff": "e60aa964248160c0"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_45": {
+      "class": "equivalent",
+      "reason": "render_as_path lowercases the segment kind and tests for the substrings 'set' and 'confed': the same rendering for every segment",
+      "diff": "2a5bc6191da52161"
+    },
+    "netdryrun.drivers.nxos.x__as_path__mutmut_46": {
+      "class": "equivalent",
+      "reason": "render_as_path lowercases the segment kind and tests for the substrings 'set' and 'confed': the same rendering for every segment",
+      "diff": "b68033f7e027900f"
+    },
+    "netdryrun.drivers.nxos.x__communities__mutmut_16": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "fbccf4ca7ed4594e"
+    },
+    "netdryrun.drivers.nxos.x__communities__mutmut_30": {
+      "class": "message-text",
+      "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
+      "diff": "fccc900a8158a61e"
+    },
+    "netdryrun.drivers.nxos.x_parse_ping_reply__mutmut_2": {
+      "class": "equivalent",
+      "reason": "the error is caught and read as (0, 0), ping did not run; the command name is never shown",
+      "diff": "03cb63725aa1cb20"
+    },
+    "netdryrun.drivers.nxos.xǁNxosDriverǁall_routes__mutmut_3": {
+      "class": "equivalent",
+      "reason": "only family == 6 selects IPv6; any other default reads IPv4, as 4 does",
+      "diff": "d4e205a51bd142ad"
+    }
+  },
+  "checks": {}
+}

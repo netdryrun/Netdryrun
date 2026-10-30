@@ -1,0 +1,26 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf-name-out":	"RED",
+					"vrf-router-id":	"10.0.2.1",
+					"vrf-local-as":	"65001",
+					"TABLE_af":	{
+						"ROW_af":	{
+							"af-id":	"2",
+							"TABLE_saf":	{
+								"ROW_saf":	{
+									"safi":	1,
+									"af-name":	"IPv6 Unicast"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}

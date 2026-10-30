@@ -52,3 +52,15 @@ def test_capture_script_parses_and_refuses_an_unknown_driver():
     assert subprocess.run(["bash", "-n", script]).returncode == 0
     r = subprocess.run(["bash", script, "nosuchdriver"], capture_output=True, text=True)
     assert r.returncode == 2 and "usage" in r.stderr
+
+
+def test_page_renders_once_every_driver_is_released(monkeypatch):
+    """A driver in sync_facts.UNRELEASED is kept off the page; releasing it is one line, so the page must
+    already render it: verified cells, its image and its beta label, never a doubled one."""
+    import sync_facts
+    monkeypatch.setattr(sync_facts, "UNRELEASED", set())
+    page = compat_matrix.render()
+    for name in DRIVERS:
+        assert sync_facts.PLATFORMS[name][2] in page
+    assert "(beta) (beta)" not in page
+    assert "no must-fail test" not in page.split("## `bgp_route` keys")[0]

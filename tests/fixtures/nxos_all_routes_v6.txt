@@ -1,0 +1,71 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf-name-out":	"default",
+					"TABLE_addrf":	{
+						"ROW_addrf":	{
+							"addrf":	"ipv6",
+							"TABLE_prefix":	{
+								"ROW_prefix":	[{
+										"ipprefix":	"2001:db8:1::/64",
+										"ucast-nhops":	1,
+										"mcast-nhops":	0,
+										"attached":	"true",
+										"TABLE_path":	{
+											"ROW_path":	{
+												"ubest":	"true",
+												"ipnexthop":	"2001:db8:1::1",
+												"ifname":	"Eth1/1",
+												"uptime":	"PT7M6S",
+												"pref":	0,
+												"metric":	0,
+												"clientname":	"direct",
+												"type":	""
+											}
+										}
+									}, {
+										"ipprefix":	"2001:db8:1::1/128",
+										"ucast-nhops":	1,
+										"mcast-nhops":	0,
+										"attached":	"true",
+										"TABLE_path":	{
+											"ROW_path":	{
+												"ubest":	"true",
+												"ipnexthop":	"2001:db8:1::1",
+												"ifname":	"Eth1/1",
+												"uptime":	"PT7M6S",
+												"pref":	0,
+												"metric":	0,
+												"clientname":	"local"
+											}
+										}
+									}, {
+										"ipprefix":	"2001:db8:20::/48",
+										"ucast-nhops":	1,
+										"mcast-nhops":	0,
+										"attached":	"false",
+										"TABLE_path":	{
+											"ROW_path":	{
+												"ubest":	"true",
+												"ipnexthop":	"2001:db8:1::2",
+												"uptime":	"PT6M51S",
+												"pref":	20,
+												"metric":	0,
+												"clientname":	"bgp-65001",
+												"type":	"external",
+												"tag":	65002
+											}
+										}
+									}]
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}

@@ -23,5 +23,14 @@
       "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.",
       "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Config applied with `setup:` commands is checked. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4."
     ]
+  },
+  "nxos": {
+    "date": "2026-10-30",
+    "limits": [
+      "Each NX-OS node is a VM inside its container: NX-API answered 5 to 7 minutes after deploy in our runs, and the node needs KVM, 4 vCPUs and about 9 GiB of memory (8 GB for the VM). Give checks a `timeout` of at least 900 s.",
+      "Failure scenarios (`link_down`, `node_isolated`) on an NX-OS node are refused: the container's interfaces only carry frames to the VM. Take the link down on the other side of the link.",
+      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.",
+      "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4."
+    ]
   }
 }

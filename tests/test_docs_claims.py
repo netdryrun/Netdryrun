@@ -18,9 +18,14 @@ import pytest
 import yaml
 
 from netdryrun import checks, cli, config, runner
-from netdryrun.drivers import DRIVERS
+from netdryrun.drivers import DRIVERS as ALL_DRIVERS
 
 ROOT = Path(__file__).resolve().parents[1]
+# Public docs follow releases: a driver no release has shipped yet (scripts/sync_facts.py UNRELEASED) is not
+# documented. Shipping it removes it from UNRELEASED, and these tests then require its docs.
+_SYNC_FACTS = (ROOT / "scripts" / "sync_facts.py").read_text(encoding="utf-8")
+UNRELEASED = set(re.findall(r'"(\w+)"', re.search(r"^UNRELEASED = \{([^}]*)\}", _SYNC_FACTS, re.M).group(1)))
+DRIVERS = {k: v for k, v in ALL_DRIVERS.items() if k not in UNRELEASED}
 CONFIG_MD = (ROOT / "website" / "docs" / "reference" / "config.md").read_text(encoding="utf-8")
 CLI_MD = (ROOT / "website" / "docs" / "reference" / "cli.md").read_text(encoding="utf-8")
 CLI_PY = inspect.getsource(cli)
@@ -114,10 +119,19 @@ def test_value_lists():
     ping = first_table(section(CONFIG_MD, "ping"))
     assert backticked(row(ping, "expect")) == {"success", "failure"}
     top = first_table(section(CONFIG_MD, "Top-level keys"))
-    assert backticked(row(top, "nodes.<node>.driver")) & set(DRIVERS) == set(config.DRIVER_NAMES) == set(DRIVERS)
+    documented = backticked(row(top, "nodes.<node>.driver")) & set(ALL_DRIVERS)
+    assert documented == set(config.DRIVER_NAMES) - UNRELEASED == set(DRIVERS)
+    assert set(config.DRIVER_NAMES) == set(ALL_DRIVERS)
 
 
-DISPLAY = {"frr": "FRR", "sonic": "SONiC", "srlinux": "SR Linux", "eos": "Arista EOS"}
+DISPLAY = {"frr": "FRR", "sonic": "SONiC", "srlinux": "SR Linux", "eos": "Arista EOS", "nxos": "Cisco NX-OS"}
+
+
+def test_unreleased_drivers_are_registered_and_undocumented():
+    """An unreleased driver is in the code (and tested) but not yet in the public reference."""
+    assert UNRELEASED <= set(ALL_DRIVERS)
+    for name in UNRELEASED:
+        assert DISPLAY[name] not in CONFIG_MD, f"{name} is documented before a release ships it"
 
 
 def test_evpn_support_claim_matches_the_drivers():
