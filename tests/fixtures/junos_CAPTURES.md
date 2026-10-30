@@ -46,3 +46,5 @@ Captured live on 2026-10-28 from `cjunosevolved:26.2R1.7-EVO` (containerlab 0.81
 | `junos_instances.txt` | `show route instance \| display json \| no-more` (same lab, with routing-instance CUST added: master, CUST, mgmt_junos and two private instances) |
 | `junos_bgp_neighbor_vrf_idle.txt` | `show bgp neighbor instance CUST \| display json \| no-more` (same lab: a CUST peer with no link, idle) |
 | `junos_ping_vrf_local.txt` | `ping 10.77.0.1 source 10.77.0.1 count 3 rapid wait 1 routing-instance CUST \| display json \| no-more` (same lab) |
+| `junos_route_no_med.txt` | `show route 192.168.3.1/32 exact table inet.0 all extensive \| display json \| no-more` (2026-10-31, interop lab `ndr-interop-l1`: an eBGP path FRR sent with no MED; no `metric` element) |
+| `junos_route_med0.txt` | `show route 192.168.5.1/32 exact table inet.0 all extensive \| display json \| no-more` (same lab: FRR's own network route, sent with MED 0; `metric` "0") |
