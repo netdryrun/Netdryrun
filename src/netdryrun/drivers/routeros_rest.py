@@ -83,4 +83,36 @@ def as_bool(request: str, value: object) -> bool:
     raise unexpected(request, f"not a boolean: {str(value)[:60]!r}")
 
 
-__all__ = ["DriverError", "Reply", "as_bool", "as_int", "classify_reply"]
+# The request, run inside the router's container (the host cannot reach the router's management address: live capture,
+# 2026-10-30). Prints the HTTP status (000 when there was no HTTP answer), then the body. Python 3 standard library only.
+HELPER = r"""import base64
+import os
+import sys
+import urllib.error
+import urllib.request
+
+method, path, cred = sys.argv[1], sys.argv[2], sys.argv[3]
+body = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None
+target = os.environ.get("MT_TARGET", "http://172.31.255.30")
+headers = {"Accept": "application/json", "Authorization": "Basic " + base64.b64encode(cred.encode()).decode()}
+data = None
+if body is not None:
+    data = body.encode()
+    headers["Content-Type"] = "application/json"
+req = urllib.request.Request(target + "/rest" + path, data=data, method=method, headers=headers)
+try:
+    with urllib.request.urlopen(req, timeout=45) as r:
+        status, payload = r.status, r.read()
+except urllib.error.HTTPError as e:
+    status, payload = e.code, e.read()
+except Exception as exc:
+    sys.stderr.write("rest_helper: %r" % (exc,) + chr(10))
+    status, payload = 0, b""
+sys.stdout.write("%03d\n" % status)
+sys.stdout.flush()
+sys.stdout.buffer.write(payload)
+sys.stdout.buffer.flush()
+"""
+
+
+__all__ = ["DriverError", "HELPER", "Reply", "as_bool", "as_int", "classify_reply"]

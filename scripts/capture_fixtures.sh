@@ -2,7 +2,7 @@
 # Re-capture a driver's fixtures from a live lab: deploy the pinned example, run exactly the commands the
 # driver runs, write the outputs in the format of tests/fixtures/, destroy the lab.
 #
-#   scripts/capture_fixtures.sh <frr|srlinux|eos|sonic> [--out DIR] [--keep]
+#   scripts/capture_fixtures.sh <frr|srlinux|eos|sonic|routeros> [--out DIR] [--keep]
 #
 # The weekly drift check (research/quality-schedule.md, S3) runs this for every driver, then
 # `python3 scripts/fixture_shape.py` (what changed in shape) and the driver tests on the fresh captures.
@@ -25,7 +25,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DRIVERS_HERE="frr srlinux eos sonic"
+DRIVERS_HERE="frr srlinux eos sonic routeros"
 DRIVERS_ON_BRANCHES="junos (ndr/junos) nxos (ndr/nxos)"
 
 usage() {
@@ -56,6 +56,8 @@ case $DRIVER in
   eos)     EXAMPLE=examples/arista-frr; HEAVY=1;
            NOT_CAPTURED="eos_bgp_paths_empty eos_bgp_paths_local eos_bgp_paths_noexport (need a missing, a local and a no-export prefix)" ;;
   sonic)   EXAMPLE=examples/sonic-frr; HEAVY=1; NOT_CAPTURED="" ;;
+  routeros) EXAMPLE=examples/mikrotik; HEAVY=1;
+           NOT_CAPTURED="routeros_routes_red routeros_ping_fail (need a VRF and an unreachable target)" ;;
   junos|nxos) echo "$DRIVER: its driver and captures are on branch ndr/$DRIVER; add it to the driver table when it merges" >&2; exit 2 ;;
   *) usage ;;
 esac
@@ -215,6 +217,24 @@ capture_eos() {                     # eos.py: bgp_neighbors, routes, bgp_paths, 
   sleep 8
   cap eos_leak_route cli "show ip route vrf default 0.0.0.0/0 | json"
   cap eos_leak_bgp   cli "show ip bgp 0.0.0.0/0 vrf default | json"
+}
+
+# RouterOS runs in a VM inside the container, and the host cannot reach its management address: every request goes through the
+# driver's own helper inside the container (routeros_rest.HELPER), exactly as the driver sends it. One CHR node per lab.
+capture_routeros() {                # routeros.py: sessions, connections, routing tables, the routing route table, ping
+  local n=$P-r1 helper
+  helper=$(PYTHONPATH=src python3 -c 'from netdryrun.drivers.routeros_rest import HELPER; print(HELPER)')
+  ros() { docker exec "$n" python3 -c "$helper" "$1" "$2" admin:admin "${3:-}" | tail -n +2; }
+  ros_imported() { ros GET /log | grep -q "NDR r1.rsc imported to the last line"; }
+  ros_established() { ros GET /routing/bgp/session | grep -q '"established":"true"'; }
+  wait_for "the startup config to be imported on r1 (the VM boots in about a minute, then the import runs)" 600 ros_imported
+  wait_for "r1 BGP established with frr1" 180 ros_established
+  sleep 10
+  cap   routeros_bgp_session     ros GET /routing/bgp/session
+  cap   routeros_bgp_connection  ros GET /routing/bgp/connection
+  cap   routeros_rtable          ros GET /routing/table
+  cap   routeros_routes_main     ros GET "/routing/route?routing-table=main"
+  cap   routeros_ping            ros POST /ping '{"address":"10.0.100.2","count":"3"}'
 }
 
 # ---- Run ---------------------------------------------------------------------------------------------------------

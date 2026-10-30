@@ -595,6 +595,17 @@ def test_validate_refuses_a_link_fault_on_sr_linux(tmp_path, capsys):
     assert "failure scenarios on SR Linux nodes (srl1) are not supported yet" in capsys.readouterr().err
 
 
+def test_validate_refuses_a_link_fault_on_routeros(tmp_path, capsys):
+    (tmp_path / "t.clab.yml").write_text("name: t\ntopology:\n  nodes:\n    r1: {kind: mikrotik_ros}\n"
+                                         "    frr1: {kind: linux, image: frr}\n")
+    (tmp_path / "netdryrun.yml").write_text(
+        "lab: t.clab.yml\nchecks:\n  - {type: bgp_session, node: frr1, neighbor: 10.0.0.1}\n"
+        "scenarios:\n  - link_down: {node: r1, interface: eth1}\n"
+        "    checks:\n      - {type: bgp_session, node: frr1, neighbor: 10.0.0.1, state: down}\n")
+    assert main(["validate", str(tmp_path)]) == 2
+    assert "failure scenarios on MikroTik RouterOS nodes (r1) are not supported yet" in capsys.readouterr().err
+
+
 def test_validate_passes_a_good_config_without_docker(tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("PATH", str(tmp_path))   # no containerlab, no docker: validate must not need them
     assert main(["validate", str(_lab_folder(tmp_path))]) == 0

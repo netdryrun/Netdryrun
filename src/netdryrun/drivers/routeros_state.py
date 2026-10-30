@@ -18,7 +18,7 @@ import ipaddress
 import re
 from dataclasses import dataclass, field
 
-from .base import unexpected
+from .base import parser, unexpected
 from .routeros_rest import as_bool, as_int
 
 
@@ -30,6 +30,7 @@ class Session:
     vrf: str
     established: bool
     received_count: int | None      # prefix-count: RECEIVED, not accepted
+    afi: str = "ip"                  # remote.afi: ip | ipv6 | ...
 
 
 @dataclass(frozen=True)
@@ -81,11 +82,12 @@ def _need(request: str, row: dict, *keys: str) -> None:
             raise unexpected(request, f"row without {k!r}")
 
 
+@parser("/routing/bgp/session")
 def parse_sessions(rows) -> list[Session]:
     req = "/routing/bgp/session"
     out = []
     for r in rows:
-        _need(req, r, "name", "remote.address", "remote.as", "established")
+        _need(req, r, "name", "remote.address", "remote.as", "established", "remote.afi")
         host, vrf = _addr(req, r["remote.address"])
         established = as_bool(req, r["established"])
         if "prefix-count" in r:
@@ -94,10 +96,11 @@ def parse_sessions(rows) -> list[Session]:
             raise unexpected(req, f"established session {r['name']!r} without a prefix-count")
         else:
             count = None
-        out.append(Session(str(r["name"]), host, as_int(req, r["remote.as"]), vrf, established, count))
+        out.append(Session(str(r["name"]), host, as_int(req, r["remote.as"]), vrf, established, count, str(r["remote.afi"])))
     return out
 
 
+@parser("/routing/bgp/connection")
 def parse_connections(rows) -> list[Connection]:
     req = "/routing/bgp/connection"
     out = []
@@ -108,6 +111,7 @@ def parse_connections(rows) -> list[Connection]:
     return out
 
 
+@parser("/routing/table")
 def parse_tables(rows) -> dict[str, bool]:
     """Routing table name to whether it is usable. A table missing from this list does not exist."""
     req = "/routing/table"
@@ -128,6 +132,7 @@ _BGP_IN = re.compile(r"^bgp-IP-\S+$")
 _BGP_OUT = re.compile(r"^bgp-output-\S+$")
 
 
+@parser("/routing/route")
 def parse_routing_routes(rows) -> list[RoutingRoute]:
     req = "/routing/route"
     out = []
@@ -194,6 +199,7 @@ def best_paths(paths: list[RoutingRoute], prefix: str, table: str) -> list[Routi
             and p.contribution in ("active", "best-candidate")]
 
 
+@parser("/ping")
 def parse_ping(rows) -> tuple[int, int]:
     """(sent, received) from the last cumulative row of a REST ping answer."""
     req = "/ping"

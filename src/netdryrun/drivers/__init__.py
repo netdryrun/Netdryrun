@@ -1,14 +1,16 @@
 """Per-platform drivers that turn device state into a common shape."""
 from __future__ import annotations
 
-from ..lab import Lab, Node
+from ..lab import ROUTEROS_KINDS, Lab, Node
 from .base import Driver, DriverError
 from .eos import EosDriver
 from .frr import FrrDriver
+from .routeros import RouterosDriver
 from .sonic import SonicDriver
 from .srlinux import SrlDriver
 
-DRIVERS: dict[str, type[Driver]] = {"frr": FrrDriver, "srlinux": SrlDriver, "eos": EosDriver, "sonic": SonicDriver}
+DRIVERS: dict[str, type[Driver]] = {"frr": FrrDriver, "srlinux": SrlDriver, "eos": EosDriver, "sonic": SonicDriver,
+                                    "routeros": RouterosDriver}
 
 
 def detect(node: Node) -> str:
@@ -16,6 +18,8 @@ def detect(node: Node) -> str:
         return "srlinux"
     if node.kind in ("arista_ceos", "ceos"):
         return "eos"
+    if node.kind in ROUTEROS_KINDS or any(w in node.image.lower() for w in ("mikrotik", "routeros")):
+        return "routeros"
     if node.kind in ("sonic-vs", "sonic_vs") or "sonic" in node.image.lower():
         return "sonic"
     if "frr" in node.image.lower():

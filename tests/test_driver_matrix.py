@@ -18,6 +18,7 @@ Meta-test: every registered driver × every check type needs at least one cell o
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -250,6 +251,102 @@ def _cells() -> list[Cell]:
     add("srlinux", "pass", "ping replies", p, ping(fx("srl_ping.txt")))
     add("srlinux", "fail", "no replies", p, ping(no_replies(fx("srl_ping.txt"))))
     add("srlinux", "fail", "must fail but replies", {**p, "expect": "failure"}, ping(fx("srl_ping.txt")))
+
+    # ---- MikroTik RouterOS 7 (REST inside the container; fixtures are hand-written with the structure of a live CHR 7.23.8
+    # capture: the captures themselves are unpublished until MikroTik answers a terms question) -----------------------
+    ros_sessions = json.loads(fx("routeros_bgp_session.txt"))
+    ros_conns = json.loads(fx("routeros_bgp_connection.txt"))
+    ros_main = json.loads(fx("routeros_routes_main.txt"))
+    ros_red = json.loads(fx("routeros_routes_red.txt"))
+    ros_tables = json.loads(fx("routeros_rtable.txt"))
+
+    def body(rows, status=200):
+        return f"{status}\n{json.dumps(rows)}"
+
+    def exact(rows, prefix):
+        return [r for r in rows if r.get("dst-address") == prefix]
+
+    def ros_neighbors(sessions=None, conns=None, routes=None, vrf_rows=None):
+        rules = [("/routing/bgp/session", body(ros_sessions if sessions is None else sessions)),
+                 ("/routing/bgp/connection", body(ros_conns if conns is None else conns)),
+                 ("/routing/table", body(ros_tables))]
+        rules.append(("/routing/route?routing-table=" + ("RED" if vrf_rows is not None else "main"),
+                      body(ros_main if routes is None else routes)))
+        return rules
+
+    def ros_routes(prefix, rows, table="main", tables=None):
+        return [("/routing/route?dst-address=" + prefix, body(exact(rows, prefix))), ("/routing/table", body(tables or ros_tables))]
+
+    def ros_paths(prefix, rows, table="main"):
+        return [*ros_routes(prefix, rows, table), ("/routing/bgp/session", body(ros_sessions))]
+
+    def ros_down(sessions):
+        out = json.loads(json.dumps(sessions))
+        for s in out:
+            if s["name"] == "peer1-1":
+                s["established"] = "false"
+                s.pop("prefix-count", None)
+        return out
+
+    s = {"type": "bgp_session", "neighbor": "192.0.2.2"}
+    px = {"type": "bgp_prefixes", "neighbor": "192.0.2.2"}
+    add("routeros", "pass", "session established", s, ros_neighbors())
+    add("routeros", "fail", "session not established", s, ros_neighbors(sessions=ros_down(ros_sessions)))
+    add("routeros", "fail", "session must be down but is up", {**s, "state": "down"}, ros_neighbors())
+    # a connection that cannot start has no session row: idle, never established and never "unknown peer"
+    add("routeros", "fail", "inactive connection has no session", {**s, "neighbor": "192.0.2.99"}, ros_neighbors())
+    add("routeros", "fail", "ipv6 session is refused, not skipped", s,
+        ros_neighbors(sessions=[*ros_sessions, {**ros_sessions[2], "name": "v6-1", "remote.address": "2001:db8::2", "remote.afi": "ipv6"}]))
+    add("routeros", "fail", "unknown VRF", {**s, "vrf": "NOPE"}, ros_neighbors())
+    # prefix-count is the RECEIVED count (4: one prefix is rejected by the input filter); accepted is 3
+    add("routeros", "pass", "prefixes within max", {**px, "max": 3}, ros_neighbors())
+    add("routeros", "pass", "accepted count is exact", {**px, "exact": 3}, ros_neighbors())
+    add("routeros", "fail", "prefixes over max", {**px, "max": 2}, ros_neighbors())
+    add("routeros", "fail", "received count is not the accepted count", {**px, "exact": 4}, ros_neighbors())
+    add("routeros", "fail", "prefixes under min", {**px, "min": 4}, ros_neighbors())
+    add("routeros", "fail", "prefixes on a session that is down", {**px, "min": 1}, ros_neighbors(sessions=ros_down(ros_sessions)))
+
+    r = {"type": "route", "prefix": "10.20.0.0/24"}
+    add("routeros", "pass", "route present", r, ros_routes("10.20.0.0/24", ros_main))
+    add("routeros", "fail", "leaked route is installed", {**r, "present": False}, ros_routes("10.20.0.0/24", ros_main))
+    add("routeros", "fail", "route missing", {**r, "prefix": "10.99.0.0/24"}, ros_routes("10.99.0.0/24", ros_main))
+    add("routeros", "fail", "route via the wrong protocol", {**r, "protocol": "static"}, ros_routes("10.20.0.0/24", ros_main))
+    # the BGP default is received and best, yet the static default is the active route (live capture: best-candidate)
+    add("routeros", "fail", "leak received but not selected", {"type": "route", "prefix": "0.0.0.0/0", "present": False},
+        ros_routes("0.0.0.0/0", ros_main))
+    add("routeros", "pass", "a policy-filtered path is not a route", {"type": "route", "prefix": "10.66.0.0/24", "present": False},
+        ros_routes("10.66.0.0/24", ros_main))
+    add("routeros", "fail", "a policy-filtered path is not present", {"type": "route", "prefix": "10.66.0.0/24"},
+        ros_routes("10.66.0.0/24", ros_main))
+    add("routeros", "pass", "route in a VRF", {"type": "route", "prefix": "198.18.2.0/24", "vrf": "RED"},
+        ros_routes("198.18.2.0/24", ros_red, "RED"))
+    add("routeros", "fail", "route in an unknown VRF", {"type": "route", "prefix": "198.18.2.0/24", "vrf": "NOPE"},
+        ros_routes("198.18.2.0/24", ros_red, "NOPE"))
+
+    br = {"type": "bgp_route", "prefix": "10.20.0.0/24"}
+    add("routeros", "pass", "bgp path present", br, ros_paths("10.20.0.0/24", ros_main))
+    add("routeros", "pass", "bgp path attributes", {**br, "as_path": "65002", "local_pref": 200, "med": 50, "communities": ["65002:100"]},
+        ros_paths("10.20.0.0/24", ros_main))
+    add("routeros", "fail", "leaked bgp path", {**br, "present": False}, ros_paths("10.20.0.0/24", ros_main))
+    add("routeros", "fail", "wrong as_path", {**br, "as_path": "65999"}, ros_paths("10.20.0.0/24", ros_main))
+    add("routeros", "fail", "wrong local_pref", {**br, "local_pref": 999}, ros_paths("10.20.0.0/24", ros_main))
+    add("routeros", "fail", "community missing", {**br, "communities": ["65000:999"]}, ros_paths("10.20.0.0/24", ros_main))
+    add("routeros", "fail", "community present that must be absent", {**br, "without_communities": ["65002:100"]},
+        ros_paths("10.20.0.0/24", ros_main))
+    # a path with no LOCAL_PREF attribute: the default is not read, so no local_pref check can pass on it
+    add("routeros", "fail", "local_pref the router does not report", {"type": "bgp_route", "prefix": "10.21.0.0/24", "local_pref": 100},
+        ros_paths("10.21.0.0/24", ros_main))
+    add("routeros", "pass", "path without a local_pref attribute", {"type": "bgp_route", "prefix": "10.21.0.0/24", "as_path": "65002"},
+        ros_paths("10.21.0.0/24", ros_main))
+    add("routeros", "fail", "filtered path is not a bgp path", {"type": "bgp_route", "prefix": "10.66.0.0/24"},
+        ros_paths("10.66.0.0/24", ros_main))
+
+    p = {"type": "ping", "target": "10.20.0.1"}
+    add("routeros", "pass", "ping replies", p, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
+    add("routeros", "fail", "no replies", p, [("/ping", body(json.loads(fx("routeros_ping_fail.txt"))))])
+    add("routeros", "fail", "must fail but replies", {**p, "expect": "failure"}, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
+    add("routeros", "fail", "ping in a VRF is refused", {**p, "vrf": "RED"}, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
+    add("routeros", "fail", "http error is a failed ping", p, [("/ping", body({"error": 400, "message": "Bad Request"}, 400))])
     return cells
 
 

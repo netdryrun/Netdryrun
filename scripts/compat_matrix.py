@@ -33,6 +33,7 @@ EXAMPLES = {
     "srlinux": ("examples/srl-frr", "srl1"),
     "sonic": ("examples/sonic-frr", "sonic1"),
     "eos": ("examples/arista-frr", "ceos1"),
+    "routeros": ("examples/mikrotik", "r1"),
 }
 # What the image tag does not say. Where the image comes from, and the software inside it.
 NOS = {
@@ -40,9 +41,11 @@ NOS = {
     "srlinux": ("Nokia SR Linux", "Public image (ghcr.io)."),
     "sonic": ("SONiC (docker-sonic-vs)", "From the SONiC project's CI build server; contains FRR 10.7.1. Pinned by build id."),
     "eos": ("Arista EOS (cEOS-lab)", "Bring your own image (free from arista.com, cannot be redistributed)."),
+    "routeros": ("MikroTik RouterOS 7 (CHR)", "Bring your own image (the CHR VMDK from mikrotik.com, built with vrnetlab; cannot be "
+                 "redistributed; one CHR node per lab until MikroTik confirms more)."),
 }
-# Drivers still in beta (the word is shown next to the platform). None of the four on this page is.
-BETA: frozenset[str] = frozenset()
+# Drivers still in beta (the word is shown next to the platform).
+BETA: frozenset[str] = frozenset({"routeros"})
 
 REFUSED_AFI = {"evpn": "no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0`"}
 ATTRIBUTES = ("present", "as_path", "as_path_regex", "local_pref", "med", "next_hop", "communities", "without_communities")
@@ -51,11 +54,11 @@ ATTRIBUTES = ("present", "as_path", "as_path_regex", "local_pref", "med", "next_
 def _load():
     sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(ROOT / "scripts")]
     import test_driver_matrix as m
-    from sync_facts import PLATFORMS
+    from sync_facts import PLATFORMS, UNRELEASED
 
     from netdryrun.config import AFIS, CHECK_TYPES
     from netdryrun.drivers import DRIVERS
-    return m.CELLS, DRIVERS, CHECK_TYPES, AFIS, PLATFORMS
+    return m.CELLS, DRIVERS, CHECK_TYPES, AFIS, PLATFORMS, UNRELEASED
 
 
 def _image(driver: str) -> str:
@@ -81,13 +84,14 @@ def _cell(cells, driver: str, ctype: str, pred=lambda c: True, controls: bool = 
 
 
 def render() -> str:
-    cells, drivers, check_types, afis, platforms = _load()
+    cells, drivers, check_types, afis, platforms, unreleased = _load()
     verified = json.loads(VERIFIED.read_text(encoding="utf-8"))
-    names = list(platforms)
-    if set(names) != set(EXAMPLES) or set(names) != set(drivers) or set(names) != set(verified):
+    if not set(platforms) == set(EXAMPLES) == set(drivers) == set(verified):
         raise SystemExit(f"compat_matrix: drivers {sorted(drivers)}, EXAMPLES {sorted(EXAMPLES)}, platforms {sorted(platforms)} "
                          f"and {VERIFIED.name} {sorted(verified)} must name the same drivers")
-    short = {d: platforms[d][2] + (" (beta)" if d in BETA else "") for d in names}
+    # public claims follow releases: a driver no release has shipped (sync_facts.UNRELEASED) is not on the page yet
+    names = [d for d in platforms if d not in unreleased]
+    short = {d: platforms[d][2] + (" (beta)" if d in BETA and "beta" not in platforms[d][2] else "") for d in names}
     out: list[str] = []
     w = out.append
 

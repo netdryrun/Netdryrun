@@ -1,0 +1,36 @@
+[
+ {
+  ".id": "*20190001",
+  "afi": "ip",
+  "belongs-to": "bgp-IP-203.0.113.2@*1",
+  "contribution": "active",
+  "distance": "20",
+  "dst-address": "198.18.2.0/24",
+  "routing-table": "RED",
+  "bgp": "true",
+  "bgp.origin": "igp",
+  "bgp.session": "red1-1",
+  "gateway": "203.0.113.2@RED",
+  "immediate-gw": "203.0.113.2@RED%ether2",
+  "scope": "40",
+  "target-scope": "10",
+  "bgp.med": "0",
+  "nexthop-id": "*2028",
+  "bgp.as-path": "65003,65003,65003",
+  "active": "true"
+ },
+ {
+  ".id": "*20183093",
+  "active": "true",
+  "afi": "ip",
+  "belongs-to": "connected",
+  "connect": "true",
+  "contribution": "active",
+  "distance": "0",
+  "dst-address": "203.0.113.0/30",
+  "gateway": "ether3@RED",
+  "immediate-gw": "ether3",
+  "local-address": "203.0.113.1%ether3",
+  "routing-table": "RED"
+ }
+]

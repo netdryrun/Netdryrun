@@ -16,6 +16,10 @@ class LabError(RuntimeError):
     pass
 
 
+# containerlab kinds of a RouterOS (CHR) node: a VM inside the container
+ROUTEROS_KINDS = ("mikrotik_ros", "vr-ros", "vr-mikrotik_ros")
+
+
 @dataclass
 class Node:
     name: str        # short name from the topology, e.g. r1
@@ -246,6 +250,10 @@ class Lab:
         return ifaces
 
     def _require_linux_links(self, node: str) -> None:
+        if self.nodes[node].kind in ROUTEROS_KINDS:
+            raise LabError(f"failure scenarios on MikroTik RouterOS nodes ({node}) are not supported yet: the router is a VM "
+                           "behind its container, so its links are not the container's interfaces; "
+                           "take the link down on the FRR/Linux side of the link instead")
         if self.nodes[node].kind in ("nokia_srlinux", "srl"):
             raise LabError(f"failure scenarios on SR Linux nodes ({node}) are not supported yet; "
                            "take the link down on the FRR/Linux side of the link instead")

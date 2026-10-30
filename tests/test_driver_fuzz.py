@@ -17,7 +17,8 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from netdryrun.drivers import DriverError, eos, frr, srlinux
+from netdryrun.drivers import DriverError, eos, frr, routeros_state, srlinux
+from netdryrun.drivers.routeros_rest import classify_reply
 
 FIX = Path(__file__).parent / "fixtures"
 SETTINGS = settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
@@ -77,6 +78,19 @@ def srl_list_empty(key):
     return check
 
 
+def _ros_rows(text):
+    """What the RouterOS driver hands the state parsers: the rows of a readable REST answer. An empty list is an
+    observed empty answer; an object, an error status or anything unreadable raises (classify_reply)."""
+    reply = classify_reply("GET /x", 200, text).require_ok()
+    if reply.kind == "object":
+        raise DriverError("an object where rows are expected")
+    return list(reply.rows)
+
+
+def ros_empty(d) -> bool:
+    return d == []
+
+
 @dataclass
 class Case:
     id: str
@@ -127,6 +141,17 @@ CASES = [
     Case("srlinux.parse_all_routes", lambda t: srlinux.parse_all_routes(t), ["srl_route.txt"], srl_list_empty("route")),
     Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, SRL_ROW),
          ["srl_attr_set_best.txt", "srl_attr_set_backup.txt"], lambda d: False),
+]
+CASES += [
+    Case("routeros_state.parse_sessions", lambda t: routeros_state.parse_sessions(_ros_rows(t)),
+         ["routeros_bgp_session.txt"], ros_empty),
+    Case("routeros_state.parse_connections", lambda t: routeros_state.parse_connections(_ros_rows(t)),
+         ["routeros_bgp_connection.txt"], ros_empty),
+    Case("routeros_state.parse_tables", lambda t: routeros_state.parse_tables(_ros_rows(t)), ["routeros_rtable.txt"], ros_empty),
+    Case("routeros_state.parse_routing_routes", lambda t: routeros_state.parse_routing_routes(_ros_rows(t)),
+         ["routeros_routes_main.txt", "routeros_routes_red.txt"], ros_empty),
+    Case("routeros_state.parse_ping", lambda t: routeros_state.parse_ping(_ros_rows(t)),
+         ["routeros_ping.txt", "routeros_ping_fail.txt"], lambda d: False),
 ]
 IDS = [c.id for c in CASES]
 
@@ -360,6 +385,7 @@ DRIVER_PARSER_MODULES = {
     "sonic": ["netdryrun.drivers.sonic", "netdryrun.drivers.frr"],
     "eos": ["netdryrun.drivers.eos", "netdryrun.drivers.frr"],   # parse_ping is FRR's
     "srlinux": ["netdryrun.drivers.srlinux", "netdryrun.drivers.frr"],
+    "routeros": ["netdryrun.drivers.routeros", "netdryrun.drivers.routeros_rest", "netdryrun.drivers.routeros_state"],
 }
 
 
