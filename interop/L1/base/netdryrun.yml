@@ -134,7 +134,7 @@ checks:
   - {name: "T01 j1 med0 on a1-lo (MED 30 at origin)", type: bgp_route, node: j1, prefix: 192.168.3.1/32, med: 0}
   - {name: "T03 s1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: s1, prefix: 192.168.1.1/32, med: 0}
   - {name: "T04 n1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: n1, prefix: 192.168.1.1/32, med: 0}
-  - {name: "T05 a1 v6 count on v4-only session", type: bgp_prefixes, node: a1, neighbor: 10.1.3.2, afi: ipv6-unicast, min: 1}
+  - {name: "T05 a1 v6 count on v4-only session", type: bgp_prefixes, node: a1, neighbor: 10.1.3.2, afi: ipv6-unicast, min: 1, timeout: 60}   # positive and expected to fail: no need to wait the Junos boot timeout
   - {name: "T06 a1 ecmp non-best next hop", type: bgp_route, node: a1, prefix: 192.168.6.0/24, next_hop: 10.1.7.2}
   - {name: "T07 j1 regex anchored on wrong AS", type: bgp_route, node: j1, prefix: 192.168.3.1/32, as_path_regex: "^65003"}
   - {name: "T08 j1 wrong large community", type: bgp_route, node: j1, prefix: 192.168.2.1/32, communities: ["65002:1:2"]}
