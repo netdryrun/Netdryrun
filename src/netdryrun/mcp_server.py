@@ -48,7 +48,9 @@ CONTRACT = (
     "INCONCLUSIVE means stop: the lab never reached a testable state, so don't retry more than once, and don't "
     "apply the change. Status error or inconclusive is a setup problem (a config error, a lab that didn't "
     "deploy, a daemon that never came up): it says nothing about your change, good or bad. Never invent or weaken checks to make a change pass: if no checks exist, call "
-    "record_baseline, or verify_change with the intent the ticket states."
+    "record_baseline, or verify_change with the intent the ticket states. "
+    "Results are compact and bounded (about 2,000 tokens): when a run is bigger, `truncated` names what was left "
+    "out (passing checks first, never the status, the verdict or the counts) and evidence_file holds everything."
 )
 
 
@@ -198,6 +200,94 @@ def _summary(rep, evidence_path: str | None, tested: dict | None = None) -> dict
     }
 
 
+# ---- Compact results (0.4.1). An agent pays for every token of a result, and a long one pushes the verdict out of
+# its attention: each tool result is compact JSON within RESULT_BUDGET_CHARS (JSON runs about 3-4 characters per
+# token, so roughly 2,000 to 2,700 tokens). A bigger result is cut in a fixed order, least deciding first; the
+# fields that decide are never in a cut list, at least one failure always stays, and `truncated` names every cut
+# with its count and points to the file that holds everything.
+RESULT_BUDGET_CHARS = 8000
+_RESERVE = 400            # room for the `truncated` object itself
+_SHORT = 120              # the last resort: lab text in the kept items shortened to this
+# (path, keep at least): lists (or objects) cut from the end, in this order
+RUN_CUTS = ((("checks",), 0), (("tested", "files"), 0), (("failures",), 1))
+VERIFY_CUTS = ((("declared",), 0), (("allowed",), 0), (("baseline", "problems"), 0), (("warnings",), 0),
+               (("inconclusive", "moving"), 0), (("guards", "failures"), 1), (("undeclared",), 1),
+               (("not_happened",), 1), (("intent", "lines"), 1))
+
+
+def _dumps(data) -> str:
+    return json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+
+
+def _get(data: dict, path: tuple):
+    for k in path:
+        if not isinstance(data, dict):
+            return None
+        data = data.get(k)
+    return data
+
+
+def _set(data: dict, path: tuple, value) -> None:
+    for k in path[:-1]:
+        data = data[k]
+    data[path[-1]] = value
+
+
+def _kept(items: list, n: int, path: tuple) -> list:
+    """The first n items to keep. For `checks`, failed checks are kept before passing ones (whose count is in
+    `passed`), in file order."""
+    if path != ("checks",):
+        return items[:n]
+    order = sorted(range(len(items)), key=lambda i: (bool(items[i].get("passed")), i))
+    keep = set(order[:n])
+    return [x for i, x in enumerate(items) if i in keep]
+
+
+def _shorten(node):
+    if isinstance(node, str) and len(node) > _SHORT:
+        return node[:_SHORT - 1] + "…"
+    if isinstance(node, list):
+        return [_shorten(x) for x in node]
+    if isinstance(node, dict):
+        return {k: _shorten(v) for k, v in node.items()}
+    return node
+
+
+def _render(result: dict, cuts) -> str:
+    """The result as compact JSON within RESULT_BUDGET_CHARS, with `truncated` (null when nothing was cut)."""
+    out = json.loads(json.dumps(result))
+    limit = RESULT_BUDGET_CHARS - _RESERVE
+    omitted: dict[str, int] = {}
+    for path, floor in cuts:
+        if len(_dumps(out)) <= limit:
+            break
+        value = _get(out, path)
+        if not value:
+            continue
+        is_map = isinstance(value, dict)
+        items = list(value.items()) if is_map else list(value)
+
+        def fits(n, items=items, path=path, is_map=is_map):
+            kept = _kept(items, n, path)
+            _set(out, path, dict(kept) if is_map else kept)
+            return len(_dumps(out)) <= limit
+        lo, hi = min(floor, len(items)), len(items)
+        while lo < hi:                      # the most items that fit (at least `floor`)
+            mid = (lo + hi + 1) // 2
+            lo, hi = (mid, hi) if fits(mid) else (lo, mid - 1)
+        fits(lo)
+        if lo < len(items):
+            omitted[".".join(path)] = len(items) - lo
+    if len(_dumps(out)) > limit:            # still over: shorten the lab text in what was kept
+        for path, _ in cuts:
+            value = _get(out, path)
+            if value:
+                _set(out, path, _shorten(value))
+        omitted["text"] = 1
+    out["truncated"] = None if not omitted else {"omitted": omitted, "full_result": result.get("evidence_file")}
+    return _dumps(out)
+
+
 WSL_MOUNTS = Path("/mnt")  # where WSL mounts the Windows drives
 _WINDOWS_PATH = re.compile(r"^([A-Za-z]):[\\/](.*)$")
 
@@ -340,6 +430,14 @@ def _tested(cfg, deployed: bool) -> dict:
             "files": dict(sorted(files.items())), "complete": complete}
 
 
+def _evidence_json(rep, tested: dict) -> str:
+    """The full report (netdryrun.report/v1) plus `tested` with every file hash: the reference a cut result
+    points to (`truncated.full_result`). An added field, allowed within v1."""
+    data = json.loads(report.to_json(rep))
+    data["tested"] = tested
+    return json.dumps(data, indent=2)
+
+
 def _execute(path: str, deploy: bool, keep: bool) -> str:
     try:
         cfg = _load(path)
@@ -353,11 +451,11 @@ def _execute(path: str, deploy: bool, keep: bool) -> str:
         tmp = evidence.with_name(f".{evidence.name}.{os.getpid()}.tmp")
         tmp.unlink(missing_ok=True)
         with open(tmp, "x", encoding="utf-8") as f:
-            f.write(report.to_json(rep))
+            f.write(_evidence_json(rep, tested))
         os.replace(tmp, evidence)
     except OSError:
         evidence = None   # a read-only folder must not turn a finished run into a tool error with no verdict
-    return json.dumps(_summary(rep, str(evidence) if evidence else None, tested), indent=2)
+    return _render(_summary(rep, str(evidence) if evidence else None, tested), RUN_CUTS)
 
 
 @mcp.tool(description=_describe("""
@@ -491,7 +589,7 @@ def verify_change(topology: str, before: str, after: str, intent: str, guards: s
         evidence.write_text(vreport.to_json(res), encoding="utf-8")
     except (OSError, ValueError, TypeError):
         evidence = None   # an unwritable folder must not turn a finished verify into a tool error with no verdict
-    return json.dumps(_verify_summary(res, str(evidence) if evidence else None), indent=2)
+    return _render(_verify_summary(res, str(evidence) if evidence else None), VERIFY_CUTS)
 
 
 @mcp.tool(description=_describe("""

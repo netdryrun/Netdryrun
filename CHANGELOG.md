@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1 (unreleased)
+
+### Added
+
+- **Compact MCP results.** Every MCP tool result is compact JSON within a fixed budget (8,000 characters, about 2,000 tokens). A bigger result is cut, least deciding first (passing checks, then tested file hashes, then failures beyond the first; for `verify_change`, declared and allowed items first, never the first undeclared item). The new field `truncated` is null when nothing was cut, otherwise it names each cut with its count and points to `evidence_file`, which now also holds `tested` with every file hash. `status`, `verdict`, the counts, `error`, `inconclusive_reason` and `evidence_file` are never cut. Fields are only added (`netdryrun.mcp-result/v1`).
+
+### Changed
+
+- **Arista EOS advertisement delay is read.** The settle and hold windows stretch for a configured `out-delay` (the neighbor's own, else its peer group's), read from `show running-config section router bgp`: cEOS's `show ip bgp neighbors` doesn't show it (live capture, 4.36.3M). A configuration that can't be read leaves the delay unknown, never 0.
+
 ## 0.4.0 (unreleased)
 
 ### Added
