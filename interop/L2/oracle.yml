@@ -154,9 +154,6 @@ baseline:
     U01:
       expect: fail
       why: 'r1 exports its loopback with no MED attribute; the reference says a missing MED fails even med: 0'
-    U02:
-      expect: fail
-      why: as U01, read on c1
     U03:
       expect: fail
       why: as U01, read on c3 (FRR control)
@@ -325,9 +322,6 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       U01:
-        expect: fail
-        why: unchanged from the baseline
-      U02:
         expect: fail
         why: unchanged from the baseline
       U03:
@@ -499,9 +493,6 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       U01:
-        expect: fail
-        why: unchanged from the baseline
-      U02:
         expect: fail
         why: unchanged from the baseline
       U03:
@@ -676,9 +667,6 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       U01:
-        expect: fail
-        why: unchanged from the baseline
-      U02:
         expect: fail
         why: unchanged from the baseline
       U03:
@@ -868,9 +856,6 @@ overlays:
       U01:
         expect: fail
         why: 'not evaluated: the r1-c2 session is down (AS mismatch) and no check expects it down'
-      U02:
-        expect: fail
-        why: unchanged from the baseline
       U03:
         expect: fail
         why: unchanged from the baseline
@@ -1053,9 +1038,6 @@ overlays:
       U01:
         expect: fail
         why: unchanged from the baseline
-      U02:
-        expect: fail
-        why: 'not evaluated: the c1-e1 session is shut and no check expects it down'
       U03:
         expect: fail
         why: unchanged from the baseline
@@ -1243,9 +1225,6 @@ overlays:
       U01:
         expect: fail
         why: 'not evaluated: the r1-c2 session is torn down (prefix limit, idle forever) and no check expects it down'
-      U02:
-        expect: fail
-        why: unchanged from the baseline
       U03:
         expect: fail
         why: unchanged from the baseline
@@ -1427,9 +1406,6 @@ overlays:
       U01:
         expect: fail
         why: unchanged from the baseline
-      U02:
-        expect: fail
-        why: unchanged from the baseline
       U03:
         expect: fail
         why: 'not evaluated: the r1-c3 session is down (MD5 mismatch) and no check expects it down'
@@ -1594,9 +1570,6 @@ overlays:
       U01:
         expect: fail
         why: unchanged from the baseline
-      U02:
-        expect: fail
-        why: unchanged from the baseline
       U03:
         expect: fail
         why: unchanged from the baseline
@@ -1606,3 +1579,8 @@ overlays:
       U05:
         expect: fail
         why: unchanged from the baseline
+pairs: []
+refusals:
+  U02:
+    expect: error
+    why: 'med: 0 on cEOS: refused before deploy (IOP-2 fix); exit 2, no lab deployed, never a pass'

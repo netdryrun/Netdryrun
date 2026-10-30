@@ -9,6 +9,8 @@
 # c1<-r1 3 (r1/c2/c3 loopbacks), c2<-r1 5 (r1/c1/c3 loopbacks, P1, P2), c3<-r1 5 (r1/c1/c2 loopbacks, P1, P2),
 # c1<-e1 2, c3<-e1 1. r1 exports its loopback with no MED (SR Linux sets none).
 lab: L2
+refusals:   # run 2: checks 0.4 refuses before deploying; each runs alone from base/refuse-<ID>.yml
+  U02: {expect: error, why: "med: 0 on cEOS: refused before deploy (IOP-2 fix); exit 2, no lab deployed, never a pass"}
 baseline:
   status: failed   # by design: the U* traps fail
   default: {expect: pass, why: "baseline configuration provides it (see the counts and paths above)"}

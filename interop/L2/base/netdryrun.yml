@@ -1,5 +1,6 @@
 # Interop L2 iBGP / route reflector. Every check has an ID in its name; interop/L2/oracle.yml gives the expected
 # verdict of each one in the baseline and in every overlay. U* checks are traps: expected to FAIL in the baseline.
+# U02 (`med: 0` on cEOS) moved to refuse-U02.yml in run 2: 0.4 refuses it before deploying (IOP-2 fix).
 # P1 = 203.0.113.0/24 (e1 sends it to c1 only), P2 = 198.51.100.0/24 (e1 sends it to c1 and c3).
 lab: topology.clab.yml
 timeout: 1200   # cJunosEvolved boots a VM (4 to 20 minutes); check.yml (reapply runs) uses 120
@@ -67,7 +68,6 @@ checks:
 
   # ---- traps: the oracle expects every U* check to FAIL in the baseline
   - {name: "U01 c2 med0 on r1-lo (no MED)", type: bgp_route, node: c2, prefix: 10.100.0.1/32, med: 0}
-  - {name: "U02 c1 med0 on r1-lo (no MED)", type: bgp_route, node: c1, prefix: 10.100.0.1/32, med: 0}
   - {name: "U03 c3 med0 on r1-lo (no MED)", type: bgp_route, node: c3, prefix: 10.100.0.1/32, med: 0}
   - {name: "U04 c2 P2 local-pref 150", type: bgp_route, node: c2, prefix: 198.51.100.0/24, local_pref: 150}
   - {name: "U05 c3 P2 own eBGP next hop", type: bgp_route, node: c3, prefix: 198.51.100.0/24, next_hop: 10.3.3.1}

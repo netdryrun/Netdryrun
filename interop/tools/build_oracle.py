@@ -45,7 +45,7 @@ def expand(lab: str) -> dict:
     for cid in ids:
         base[cid] = dict(src["baseline"]["checks"].get(cid) or src["baseline"]["default"])
     out = {"lab": lab, "generated_from": f"interop/{DIRS[lab][0]}/oracle.src.yml", "baseline": {"status": src["baseline"]["status"],
-           "checks": base}, "overlays": {}}
+           "checks": base}, "overlays": {}, "pairs": src.get("pairs", []), "refusals": src.get("refusals", {})}
     for oid, ov in src["overlays"].items():
         exp = {}
         if ov.get("status") == "error":

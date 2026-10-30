@@ -1,0 +1,5 @@
+# Run 2 refusal probe: `med: 0` on a cEOS node must be refused before the lab deploys (exit 2), never a pass.
+lab: topology.clab.yml
+timeout: 60
+checks:
+  - {name: "U02 c1 med0 on r1-lo (no MED)", type: bgp_route, node: c1, prefix: 10.100.0.1/32, med: 0}

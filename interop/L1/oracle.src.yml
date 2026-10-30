@@ -11,6 +11,11 @@
 # spoke. So f1 offers each spoke 208 routes minus its own: j1 206, s1 207, a1 207 per session, n1 206 (own lo and the
 # aggregate, which carries 65004). IPv6: each v6 spoke gets the other's loopback and f1's: 2.
 lab: L1
+pairs:   # exactly one of each pair passes wherever both expect `either`
+  - [C77, T06]
+refusals:   # run 2: checks 0.4 refuses before deploying; each runs alone from base/refuse-<ID>.yml
+  T02: {expect: error, why: "med: 0 on cEOS: 0.4 refuses it before deploy (IOP-2 fix: cEOS prints MED 0 for no MED); exit 2, no lab deployed, never a pass"}
+  C80: {expect: error, why: "med: 0 on cEOS is refused before deploy even where a MED 0 was really sent (cEOS can't tell them apart)"}
 baseline:
   status: failed   # by design: the T* traps and R* probes fail
   default: {expect: pass, why: "baseline configuration provides it (see the check's comment block in netdryrun.yml and the counts above)"}
@@ -28,7 +33,11 @@ baseline:
     C65: {expect: pass, why: "as-set aggregate of 65004 and 65006 contributors; an AS_SET is unordered (RFC 4271), so {65004,65006} must match whatever order the NOS prints"}
     C66: {expect: pass, why: "as C65"}
     C67: {expect: pass, why: "as C65"}
-    C77: {expect: pass, why: "ECMP: identical attributes on both sessions, EOS tie-break on lowest peer address picks 10.1.3.2 as best (NOS assumption: EOS has no older-path rule by default)"}
+    # Run 2 correction (commit with reason): run 1 showed cEOS keeps the first-received path as ECMP head ("Not best:
+    # ECMP-Fast configured" on the other), so which session wins depends on which came up first. The oracle line rested
+    # on a NOS assumption (lowest peer address) that was wrong. Netdryrun read cEOS's own best correctly. New rule:
+    # exactly one of C77 / T06 passes, and it is the path cEOS marks best (pair rule in `pairs`).
+    C77: {expect: either, why: "ECMP head is whichever path cEOS received first (ECMP-Fast); exactly one of C77/T06 passes"}
     C78: {expect: pass, why: "f1's own network route carries MED 0 (FRR sets the MED of a network statement) and f1 keeps its own MED toward eBGP (NOS assumption)"}
     C79: {expect: pass, why: "as C78"}
     C80: {expect: pass, why: "as C78"}
@@ -38,7 +47,7 @@ baseline:
     T03: {expect: fail, why: "j1 sets MED 10; at s1 it is absent or 10, never 0"}
     T04: {expect: fail, why: "j1 sets MED 10; at n1 it is absent or 10, never 0"}
     T05: {expect: fail, why: "a1's sessions carry IPv4 unicast only: 0 IPv6 prefixes, min 1 fails"}
-    T06: {expect: fail, why: "10.1.7.2 is the non-best ECMP path (C77): bgp_route asserts the best path only"}
+    T06: {expect: either, why: "pair of C77: bgp_route asserts the best path only, so exactly one of the two passes"}
     T07: {expect: fail, why: "j1's path to a1-lo is '65005 65003 65003': ^65003 does not match"}
     T08: {expect: fail, why: "s1 tags 65002:1:1, not 65002:1:2"}
     T09: {expect: fail, why: "eBGP path without LOCAL_PREF: effective value is s1's default 100, not 200"}
@@ -117,6 +126,7 @@ overlays:
       C28: {expect: fail, why: "206"}
       C29: {expect: fail, why: "206"}
       R03: {expect: pass, why: "rejected by import policy: absent from the routing table and the BGP table"}
+      T06: {expect: fail, why: "rejected: no BGP path"}
   M09:
     status: failed
     flips:
@@ -130,6 +140,7 @@ overlays:
       C92: {expect: fail, why: "no best path to read"}
       C93: {expect: fail, why: "no best path to read"}
       C94: {expect: fail, why: "no best path to read"}
+      T06: {expect: fail, why: "no best path on a1"}
       C86: {expect: fail, why: "s1 can't resolve 192.168.6.0/24, so its reply to 192.168.6.1 hits the static default discard"}
     # unchanged by design: counts C24-C30 (the route passed import policy: accepted), R01-R03 (it was received),
     # T06. NOS assumptions (model review, Grok): each spoke keeps the update rather than discarding it at receipt;

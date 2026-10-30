@@ -237,16 +237,12 @@ baseline:
       expect: pass
       why: baseline configuration provides it (see the check's comment block in netdryrun.yml and the counts above)
     C77:
-      expect: pass
-      why: 'ECMP: identical attributes on both sessions, EOS tie-break on lowest peer address picks 10.1.3.2 as best (NOS assumption: EOS has
-        no older-path rule by default)'
+      expect: either
+      why: ECMP head is whichever path cEOS received first (ECMP-Fast); exactly one of C77/T06 passes
     C78:
       expect: pass
       why: f1's own network route carries MED 0 (FRR sets the MED of a network statement) and f1 keeps its own MED toward eBGP (NOS assumption)
     C79:
-      expect: pass
-      why: as C78
-    C80:
       expect: pass
       why: as C78
     C81:
@@ -295,9 +291,6 @@ baseline:
       expect: fail
       why: 'a1 sets MED 30; f1 strips a MED learned from another AS before eBGP (FRR), so j1 sees no MED or 30, never 0; the reference says a
         missing MED fails even med: 0'
-    T02:
-      expect: fail
-      why: j1 sets MED 10; at a1 it is absent (stripped by f1) or 10, never 0
     T03:
       expect: fail
       why: j1 sets MED 10; at s1 it is absent or 10, never 0
@@ -308,8 +301,8 @@ baseline:
       expect: fail
       why: 'a1''s sessions carry IPv4 unicast only: 0 IPv6 prefixes, min 1 fails'
     T06:
-      expect: fail
-      why: '10.1.7.2 is the non-best ECMP path (C77): bgp_route asserts the best path only'
+      expect: either
+      why: 'pair of C77: bgp_route asserts the best path only, so exactly one of the two passes'
     T07:
       expect: fail
       why: 'j1''s path to a1-lo is ''65005 65003 65003'': ^65003 does not match'
@@ -571,15 +564,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -627,9 +617,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -640,7 +627,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -903,15 +890,12 @@ overlays:
         expect: fail
         why: a1 installs the /25 (no covering static more specific)
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -959,9 +943,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -972,7 +953,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -1229,15 +1210,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -1285,9 +1263,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -1298,7 +1273,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -1555,15 +1530,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -1611,9 +1583,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -1624,7 +1593,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -1880,15 +1849,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -1936,9 +1902,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -1949,7 +1912,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -2207,15 +2170,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -2263,9 +2223,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -2276,7 +2233,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -2534,15 +2491,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -2590,9 +2544,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -2603,7 +2554,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -2632,6 +2583,7 @@ overlays:
     - C77
     - C93
     - R03
+    - T06
     checks:
       C01:
         expect: pass
@@ -2870,9 +2822,6 @@ overlays:
       C79:
         expect: pass
         why: unchanged from the baseline
-      C80:
-        expect: pass
-        why: unchanged from the baseline
       C81:
         expect: pass
         why: unchanged from the baseline
@@ -2918,9 +2867,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -2932,7 +2878,7 @@ overlays:
         why: unchanged from the baseline
       T06:
         expect: fail
-        why: unchanged from the baseline
+        why: 'rejected: no BGP path'
       T07:
         expect: fail
         why: unchanged from the baseline
@@ -2965,6 +2911,7 @@ overlays:
     - C92
     - C93
     - C94
+    - T06
     checks:
       C01:
         expect: pass
@@ -3203,9 +3150,6 @@ overlays:
       C79:
         expect: pass
         why: unchanged from the baseline
-      C80:
-        expect: pass
-        why: unchanged from the baseline
       C81:
         expect: pass
         why: unchanged from the baseline
@@ -3251,9 +3195,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -3265,7 +3206,7 @@ overlays:
         why: unchanged from the baseline
       T06:
         expect: fail
-        why: unchanged from the baseline
+        why: no best path on a1
       T07:
         expect: fail
         why: unchanged from the baseline
@@ -3559,15 +3500,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: fail
         why: 'not evaluated: the j1-f1 IPv4 session is down (prefix limit) and no check expects it down'
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -3615,9 +3553,6 @@ overlays:
       T01:
         expect: fail
         why: 'not evaluated: the j1-f1 IPv4 session is down (prefix limit) and no check expects it down'
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -3628,7 +3563,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -3921,7 +3856,7 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
@@ -3929,9 +3864,6 @@ overlays:
       C79:
         expect: fail
         why: 'not evaluated: the s1-f1 IPv4 session is down (peer AS mismatch) and no check expects it down'
-      C80:
-        expect: pass
-        why: unchanged from the baseline
       C81:
         expect: pass
         why: unchanged from the baseline
@@ -3977,9 +3909,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: 'not evaluated: the s1-f1 IPv4 session is down (peer AS mismatch) and no check expects it down'
@@ -3990,7 +3919,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -4037,8 +3966,8 @@ overlays:
     - C74
     - C76
     - C77
-    - C80
     - C93
+    - T06
     checks:
       C01:
         expect: pass
@@ -4277,9 +4206,6 @@ overlays:
       C79:
         expect: pass
         why: unchanged from the baseline
-      C80:
-        expect: fail
-        why: 'not evaluated: the a1-f1 link3 session is shut and no check expects it down'
       C81:
         expect: pass
         why: unchanged from the baseline
@@ -4325,9 +4251,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: 'not evaluated: the a1-f1 link3 session is shut and no check expects it down'
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -4627,15 +4550,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -4683,9 +4603,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -4696,7 +4613,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -4955,15 +4872,12 @@ overlays:
         expect: pass
         why: unchanged from the baseline
       C77:
-        expect: pass
+        expect: either
         why: unchanged from the baseline
       C78:
         expect: pass
         why: unchanged from the baseline
       C79:
-        expect: pass
-        why: unchanged from the baseline
-      C80:
         expect: pass
         why: unchanged from the baseline
       C81:
@@ -5011,9 +4925,6 @@ overlays:
       T01:
         expect: fail
         why: unchanged from the baseline
-      T02:
-        expect: fail
-        why: unchanged from the baseline
       T03:
         expect: fail
         why: unchanged from the baseline
@@ -5024,7 +4935,7 @@ overlays:
         expect: fail
         why: unchanged from the baseline
       T06:
-        expect: fail
+        expect: either
         why: unchanged from the baseline
       T07:
         expect: fail
@@ -5044,3 +4955,13 @@ overlays:
       R03:
         expect: fail
         why: unchanged from the baseline
+pairs:
+- - C77
+  - T06
+refusals:
+  T02:
+    expect: error
+    why: 'med: 0 on cEOS: 0.4 refuses it before deploy (IOP-2 fix: cEOS prints MED 0 for no MED); exit 2, no lab deployed, never a pass'
+  C80:
+    expect: error
+    why: 'med: 0 on cEOS is refused before deploy even where a MED 0 was really sent (cEOS can''t tell them apart)'

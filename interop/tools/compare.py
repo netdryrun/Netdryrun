@@ -21,10 +21,13 @@ import yaml
 
 HERE = Path(__file__).resolve().parents[1]
 ORACLES = {"L1": "L1/oracle.yml", "L1s8": "L1/s8/oracle.yml", "L2": "L2/oracle.yml"}
-NAME = re.compile(r"^(?P<variant>[A-Za-z0-9]+)-(?P<mode>fresh|reapply)-(?P<n>[\w]+)\.json$")
+NAME = re.compile(r"^(?P<variant>[A-Za-z0-9]+)-(?P<mode>fresh|reapply|refusal)-(?P<n>[\w]+)\.json$")
 
 
 def expected(oracle: dict, variant: str) -> dict:
+    if variant.startswith("refuse"):
+        r = oracle["refusals"][variant[len("refuse"):]]
+        return {"status": "error", "checks": {}, "why": r["why"]}
     return oracle["baseline"] if variant == "base" else oracle["overlays"][variant]
 
 
@@ -39,9 +42,18 @@ def compare_run(oracle: dict, variant: str, report: dict) -> dict:
                 mism.append({"check": cid, "expect": e["expect"], "actual": "not run", "detail": "", "why": e["why"]})
             continue
         actual = "pass" if c["passed"] else "fail"
+        if e["expect"] == "either":
+            continue
         if actual != e["expect"]:
             mism.append({"check": cid, "expect": e["expect"], "actual": actual, "detail": c.get("detail", ""),
                          "why": e["why"], "class": "BLOCKER" if actual == "pass" else "MAJOR"})
+    for pair in oracle.get("pairs", []):
+        if all(exp.get("checks", {}).get(c, {}).get("expect") == "either" for c in pair) and all(c in got for c in pair):
+            n = sum(bool(got[c]["passed"]) for c in pair)
+            if n != 1:
+                mism.append({"check": "+".join(pair), "expect": "exactly one pass", "actual": f"{n} passed",
+                             "detail": "; ".join(str(got[c].get("detail", ""))[:120] for c in pair),
+                             "why": "pair rule", "class": "BLOCKER" if n > 1 else "MAJOR"})
     return {"status": report.get("status"), "expected_status": exp["status"], "error": report.get("error"),
             "mismatches": mism, "checks": len(got)}
 
@@ -62,7 +74,7 @@ def main(labs: list[str]) -> None:
             runs[m["variant"]].append((m["mode"], m["n"], json.loads(f.read_text(encoding="utf-8"))))
         lines += [f"## {lab}", "", "| Variant | Run | Status (expected) | Checks | Mismatches |", "|---|---|---|---|---|"]
         detail = []
-        order = ["base"] + list(oracle["overlays"])
+        order = ["base"] + list(oracle["overlays"]) + [f"refuse{r}" for r in oracle.get("refusals", {})]
         for variant in order:
             for mode, n, rep in runs.get(variant, []):
                 r = compare_run(oracle, variant, rep)

@@ -1,5 +1,7 @@
 # Interop L1 mixed-5. Every check has an ID in its name; interop/L1/oracle.yml gives the expected verdict of each
 # one in the baseline and in every overlay. T* checks are traps: the oracle expects them to FAIL in the baseline.
+# T02 and C80 (`med: 0` on cEOS) moved to refuse-T02.yml / refuse-C80.yml in run 2: 0.4 refuses them before
+# deploying (IOP-2 fix), which would stop the whole file.
 # R* checks are "received but rejected" probes: they fail in the baseline and pass only in the S4 overlays.
 lab: topology.clab.yml
 timeout: 1200   # cJunosEvolved boots a VM (4 to 20 minutes); check.yml (reapply runs) uses 120
@@ -111,7 +113,6 @@ checks:
   - {name: "C77 a1 ecmp best next hop", type: bgp_route, node: a1, prefix: 192.168.6.0/24, next_hop: 10.1.3.2}
   - {name: "C78 j1 med0 on f1-lo", type: bgp_route, node: j1, prefix: 192.168.5.1/32, med: 0}
   - {name: "C79 s1 med0 on f1-lo", type: bgp_route, node: s1, prefix: 192.168.5.1/32, med: 0}
-  - {name: "C80 a1 med0 on f1-lo", type: bgp_route, node: a1, prefix: 192.168.5.1/32, med: 0}
   - {name: "C81 n1 med0 on f1-lo", type: bgp_route, node: n1, prefix: 192.168.5.1/32, med: 0}
   - {name: "C88 j1 best path f2-lan", type: bgp_route, node: j1, prefix: 192.168.6.0/24}
   - {name: "C89 s1 best path f2-lan", type: bgp_route, node: s1, prefix: 192.168.6.0/24}
@@ -131,7 +132,6 @@ checks:
 
   # ---- traps: the oracle expects every T* check to FAIL in the baseline
   - {name: "T01 j1 med0 on a1-lo (MED 30 at origin)", type: bgp_route, node: j1, prefix: 192.168.3.1/32, med: 0}
-  - {name: "T02 a1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: a1, prefix: 192.168.1.1/32, med: 0}
   - {name: "T03 s1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: s1, prefix: 192.168.1.1/32, med: 0}
   - {name: "T04 n1 med0 on j1-lo (MED 10 at origin)", type: bgp_route, node: n1, prefix: 192.168.1.1/32, med: 0}
   - {name: "T05 a1 v6 count on v4-only session", type: bgp_prefixes, node: a1, neighbor: 10.1.3.2, afi: ipv6-unicast, min: 1}

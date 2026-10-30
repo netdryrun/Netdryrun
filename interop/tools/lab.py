@@ -115,6 +115,19 @@ def main(argv: list[str]) -> int:
                             *(["--keep"] if "--keep" in argv else [])])
         log(f"FRESH {lab} {variant} #{tag} exit {r.returncode} in {time.time() - t0:.0f}s")
         return r.returncode
+    if op == "refusal":
+        cid = argv[2]
+        out = RESULTS / lab / f"refuse{cid}-refusal-1.json"
+        before = subprocess.run(["docker", "ps", "-a", "-q"], capture_output=True, text=True).stdout.split()
+        r = subprocess.run([nd, "run", str(BUILD / lab / "base" / f"refuse-{cid}.yml"), "--json", str(out),
+                            "--no-step-summary"], capture_output=True, text=True)
+        after = subprocess.run(["docker", "ps", "-a", "-q"], capture_output=True, text=True).stdout.split()
+        v = subprocess.run([nd, "validate", str(BUILD / lab / "base" / f"refuse-{cid}.yml")], capture_output=True, text=True)
+        log(f"REFUSAL {lab} {cid}: run exit {r.returncode}, containers before/after {len(before)}/{len(after)}; "
+            f"validate exit {v.returncode}")
+        print("   run: " + (r.stdout + r.stderr).strip()[-600:])
+        print("   validate: " + (v.stdout + v.stderr).strip()[-400:])
+        return r.returncode
     if op == "check":
         variant, tag = argv[2], argv[3]
         out = RESULTS / lab / f"{variant}-reapply-{tag}.json"
