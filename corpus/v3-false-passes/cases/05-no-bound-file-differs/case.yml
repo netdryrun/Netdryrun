@@ -1,0 +1,22 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 05-no-bound-file-differs
+title: The change edits a file the lab never loads
+mode: verify
+command: netdryrun verify lab/topology.clab.yml --before before --after after --config-dir configs --intent intent.yml --json
+  report.json
+expected:
+  status: error
+  exit_code: 2
+  must_report:
+  - nothing to verify
+expected_from: 0.4.0
+fixed_in: 0.4.0
+passed_wrongly:
+  in: the 0.4 development build before the expert gauntlet (verify is new in 0.4; this was never released)
+  as: NO BEHAVIOR CHANGE after four boots
+source: 0.4 expert gauntlet, finding R3
+holds:
+- tests/test_verify_gauntlet.py::test_no_bound_file_differing_is_an_error_before_any_boot
+pre_registered: '2026-10-30'
+live_verified: false

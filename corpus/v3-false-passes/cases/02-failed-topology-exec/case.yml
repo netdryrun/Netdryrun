@@ -1,0 +1,23 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 02-failed-topology-exec
+title: 'A topology exec: command that fails'
+mode: run
+command: netdryrun run lab --json report.json
+expected:
+  status: error
+  exit_code: 2
+  must_report:
+  - r1
+  - defualt-originate
+  - exec
+expected_from: 0.4.0
+fixed_in: 0.4.0
+passed_wrongly:
+  in: netdryrun 0.3.3 and earlier
+  as: passed (exit 0)
+source: Advisory 0.3.3-exec-not-checked; 0.4 multi-vendor audit finding F1
+holds:
+- tests/test_startup_config_load.py::test_audit_f1_an_exec_command_that_failed_fails_the_deploy
+pre_registered: '2026-10-30'
+live_verified: false

@@ -1,0 +1,24 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 03-link-local-next-hop-typo
+title: A link-local next hop that is a typo
+mode: verify
+command: netdryrun verify lab/topology.clab.yml --before before --after after --config-dir configs --intent intent.yml --json
+  report.json
+expected:
+  status: failed
+  exit_code: 1
+  verdict: 'UNDECLARED CHANGES: DO NOT APPLY'
+  must_report:
+  - fe80::dead
+expected_from: 0.4.0
+fixed_in: 0.4.0
+passed_wrongly:
+  in: the 0.4 development build before the expert gauntlet (verify is new in 0.4; this was never released)
+  as: NO BEHAVIOR CHANGE (the typed difference was collapsed)
+source: 0.4 expert gauntlet, finding R1
+holds:
+- tests/test_verify_gauntlet.py::test_a_link_local_next_hop_is_named_by_its_owner_and_anything_else_kept
+- tests/test_verify_gauntlet.py::test_cold_6_an_unowned_link_local_is_kept_only_when_the_config_names_it
+pre_registered: '2026-10-30'
+live_verified: false

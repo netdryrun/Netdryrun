@@ -1,0 +1,22 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 07-pr-edits-its-own-workflow
+title: A pull request edits the workflow that judges it
+mode: action
+command: git diff --name-only --no-renames base head -- .github/workflows .github/actions
+expected:
+  status: refused
+  exit_code: 1
+  must_report:
+  - the PR changes the workflow that runs this verdict
+expected_from: 0.4.0
+fixed_in: 0.4.0
+passed_wrongly:
+  in: the 0.4 development build before the expert gauntlet (verify is new in 0.4; this was never released)
+  as: the PR's edited intent was accepted
+source: 0.4 expert gauntlet, finding R7
+holds:
+- tests/test_action_verify.py::test_a_pr_that_changes_a_workflow_is_refused_in_mode_verify
+- tests/test_action_verify.py::test_a_workflow_change_alone_is_refused_too
+pre_registered: '2026-10-30'
+live_verified: false

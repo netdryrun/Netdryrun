@@ -1,0 +1,24 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 06-appears-on-a-blackhole
+title: A declared route that is only a blackhole
+mode: verify
+command: netdryrun verify lab/topology.clab.yml --before before --after after --config-dir configs --intent intent.yml --json
+  report.json
+expected:
+  status: failed
+  exit_code: 1
+  verdict: 'UNDECLARED CHANGES: DO NOT APPLY'
+  must_report:
+  - discard
+expected_from: 0.4.0
+fixed_in: 0.4.0
+passed_wrongly:
+  in: the 0.4 development build before the expert gauntlet (verify is new in 0.4; this was never released)
+  as: INTENT MATCHED
+source: 0.4 expert gauntlet, finding R5
+holds:
+- tests/test_verify_gauntlet.py::test_appears_on_is_not_satisfied_by_a_discard_route
+- tests/test_verify_gauntlet.py::test_a_discard_route_is_declared_with_state_discard
+pre_registered: '2026-10-30'
+live_verified: false

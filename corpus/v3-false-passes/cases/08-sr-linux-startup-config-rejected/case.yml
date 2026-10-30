@@ -1,0 +1,24 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 08-sr-linux-startup-config-rejected
+title: An SR Linux startup config the router rejects
+mode: run
+command: netdryrun run lab --json report.json
+expected:
+  status: error
+  exit_code: 2
+  must_report:
+  - failed to load its startup config
+  - peer-groop
+expected_from: 0.4.0
+fixed_in: 0.4.0
+passed_wrongly:
+  in: netdryrun 0.3.3 and earlier
+  as: passed (exit 0)
+source: 0.4 multi-vendor audit, finding F3
+holds:
+- tests/test_startup_config_load.py::test_audit_f3_an_sr_linux_startup_config_it_failed_to_load_is_an_error
+pre_registered: '2026-10-30'
+live_verified: false
+requires_images:
+- ghcr.io/nokia/srlinux:26.7.2

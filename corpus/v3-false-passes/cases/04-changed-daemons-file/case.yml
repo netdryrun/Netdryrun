@@ -1,0 +1,23 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 04-changed-daemons-file
+title: A changed FRR daemons file
+mode: verify
+command: netdryrun verify lab/topology.clab.yml --before before --after after --config-dir configs --intent intent.yml --json
+  report.json
+expected:
+  status: error
+  exit_code: 2
+  must_report:
+  - separate PR
+  - daemons
+expected_from: 0.4.0
+fixed_in: 0.4.0
+passed_wrongly:
+  in: the 0.4 development build before the expert gauntlet (verify is new in 0.4; this was never released)
+  as: NO BEHAVIOR CHANGE or INTENT MATCHED (the file was only logged)
+source: 0.4 expert gauntlet, finding R2
+holds:
+- tests/test_verify_run_mutants.py::test_a_changed_daemons_file_on_the_demo_lab_is_refused
+pre_registered: '2026-10-30'
+live_verified: false

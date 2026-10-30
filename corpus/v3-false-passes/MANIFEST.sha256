@@ -1,0 +1,8 @@
+918fad032750785082810fcbe657f5d6066f615691b881bdd035a93593d7ea45  cases/01-rejected-config-line/case.yml
+cb6322653971d840b0f7507771de44b948771b364f4b3e7c533e7a49c5ff4fbb  cases/02-failed-topology-exec/case.yml
+6f005dbb12c317bdfab31c27799cd2f1bca6dc4d6722ca9a86863549e1c0d83d  cases/03-link-local-next-hop-typo/case.yml
+0070a83985f8c61aad6368e241eb5c9f39b1c80db14c782206b57d6829c68380  cases/04-changed-daemons-file/case.yml
+7f24dad3576312676e9018c6a91e23f78e29f7806156240887598d0543642164  cases/05-no-bound-file-differs/case.yml
+6482fdb23c0692c10175fc1d64ccb8fae519e7542a813eda2172888ee500901e  cases/06-appears-on-a-blackhole/case.yml
+25353a7e5fae2f0e691dc61852666ce0857c6a52966b0546758b1ea6261f8d24  cases/07-pr-edits-its-own-workflow/case.yml
+19e68931b8c98a48cb91006229beaa93a9b4f991c6cad4adcef67c6108ad4a03  cases/08-sr-linux-startup-config-rejected/case.yml

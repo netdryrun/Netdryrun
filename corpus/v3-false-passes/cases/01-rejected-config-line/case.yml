@@ -1,0 +1,22 @@
+# Pre-registered 2026-10-30: the expected verdict was written before the case was ever run.
+# It must be failed or error, never passed. See ../../README.md.
+id: 01-rejected-config-line
+title: A config line FRR rejects at boot
+mode: run
+command: netdryrun run lab --json report.json
+expected:
+  status: error
+  exit_code: 2
+  must_report:
+  - FRR rejected configuration lines
+  - default-orignate
+expected_from: 0.3.3
+fixed_in: 0.3.3
+passed_wrongly:
+  in: netdryrun 0.3.2 and earlier
+  as: passed (exit 0)
+source: Advisory 0.3.2-rejected-config
+holds:
+- tests/test_frr_config_load.py
+pre_registered: '2026-10-30'
+live_verified: false

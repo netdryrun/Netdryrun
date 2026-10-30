@@ -1,0 +1,15 @@
+name: Netdryrun verify
+on: pull_request
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: netdryrun/netdryrun@v0.4.0
+        with:
+          mode: verify
+          topology: lab/topology.clab.yml
+          intent-file: intent.yml
+          allow-intent-edit: false

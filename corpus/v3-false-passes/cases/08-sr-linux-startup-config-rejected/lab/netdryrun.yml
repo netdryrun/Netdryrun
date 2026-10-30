@@ -1,0 +1,10 @@
+# The change is an export filter on srl1 (deny everything toward frr1). The guard: frr1 must not learn a default route.
+lab: topology.clab.yml
+timeout: 90
+
+checks:
+  - type: route
+    node: frr1
+    prefix: 0.0.0.0/0
+    protocol: bgp
+    present: false

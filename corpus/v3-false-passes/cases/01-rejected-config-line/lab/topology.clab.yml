@@ -1,0 +1,28 @@
+# corpus v3 case 01: the FRR triangle, with three lines in r1.conf that FRR rejects at boot.
+# Three FRR routers in a triangle, each in its own AS, each announcing one LAN prefix.
+name: ndr-v3-fp01
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    r1:
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/r1.conf:/etc/frr/frr.conf
+    r2:
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/r2.conf:/etc/frr/frr.conf
+    r3:
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/r3.conf:/etc/frr/frr.conf
+  links:
+    - endpoints: ["r1:eth1", "r2:eth1"]
+    - endpoints: ["r2:eth2", "r3:eth1"]
+    - endpoints: ["r3:eth2", "r1:eth2"]

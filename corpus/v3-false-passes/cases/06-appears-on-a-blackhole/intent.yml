@@ -1,0 +1,4 @@
+# The change announces the customer block 10.101.0.0/24; both routers should carry it.
+intent:
+  - prefix: 10.101.0.0/24
+    appears_on: [r1, r2]

@@ -1,0 +1,25 @@
+zebra=yes
+bgpd=yes
+ospfd=no
+ospf6d=no
+ripd=no
+ripngd=no
+isisd=no
+pimd=no
+ldpd=no
+nhrpd=no
+eigrpd=no
+babeld=no
+sharpd=no
+staticd=yes
+pbrd=no
+bfdd=no
+fabricd=no
+vrrpd=no
+
+vtysh_enable=yes
+zebra_options="  -A 127.0.0.1 -s 90000000"
+bgpd_options="   -A 127.0.0.1"
+staticd_options="-A 127.0.0.1"
+# a shell file: FRR's start script runs it, so it can change the router's config at boot
+( sleep 30; vtysh -c 'configure terminal' -c 'router bgp 65001' -c 'no neighbor 10.0.12.2' ) &
