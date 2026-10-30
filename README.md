@@ -32,7 +32,7 @@ FAILED: 5 passed, 1 failed (6 checks)
 That run caught a leaked default route that was *received but not selected*. Ping and session checks alone would miss this example: every session is up and every address answers. (A static analyzer such as Batfish also catches this particular leak; the [Batfish page](https://netdryrun.com/batfish/) shows one that it misses and a lab catches.)
 
 <!-- facts:readme_status -->
-> Status: **v0.3.2.** Runs on Linux and WSL2, with drivers for FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image). On the [verdict corpus](https://netdryrun.com/corpus/) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 17/18, ping-only 9/18, all-sessions-up 7/18. Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.3.1.
+> Status: **v0.3.3.** Runs on Linux and WSL2, with drivers for FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image). On the [verdict corpus](https://netdryrun.com/corpus/) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 16 of 17 deterministic cases correct, ping-only 9/17, all-sessions-up 7/17; case 18 is nondeterministic in this lab and excluded from the score (listed with its reruns). Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.3.1.
 <!-- /facts:readme_status -->
 
 ## Why
@@ -154,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.2
+      - uses: netdryrun/netdryrun@v0.3.3
         with:
           path: network/        # folder containing netdryrun.yml
 ```
@@ -226,6 +226,8 @@ How results are checked and released, with evidence for each claim: [How it's bu
 - **Outage replays:** famous real-world outages (route leaks, mass withdrawals) rebuilt as runnable labs and check packs. Would your change have caused one?
 - More failure scenarios, more check types (OSPF/IS-IS, traceroute) and drivers
 - PR comments with diffs, and signed evidence for change tickets
+
+If Netdryrun caught something for you, a ⭐ helps other engineers and agents find it.
 
 ## License
 

@@ -98,6 +98,7 @@ nav:
       - "Add Netdryrun to your lab (10 minutes)": guides/your-lab.md
       - Test an FRR change in CI: guides/frr-ci.md
       - Test a SONiC change in CI: guides/sonic-ci.md
+      - "AI agents without Docker: the pull-request path": guides/agent-pr.md
   - Reference:
       - netdryrun.yml: reference/config.md
       - CLI and reports: reference/cli.md

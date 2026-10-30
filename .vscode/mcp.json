@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "netdryrun": {
+      "type": "stdio",
+      "command": "netdryrun",
+      "args": ["mcp"]
+    }
+  }
+}

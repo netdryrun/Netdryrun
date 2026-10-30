@@ -50,7 +50,8 @@ checks:
   node: r1
   neighbor: 10.0.12.2
   afi: ipv4-unicast
-  exact: 2
+  min: 2
+  max: 4
 - type: bgp_session
   node: r1
   neighbor: 10.0.13.2
@@ -64,10 +65,11 @@ checks:
 
 ## 2. Review it
 
-A recorded baseline says "nothing may change", which is rarely what you want: `exact: 2` fails the day a site adds a LAN. Decide what is allowed to change.
+A recorded baseline allows only modest growth: from 0.3.3 each prefix count is today's count as `min` and 20% more (at least 2) as `max` (0.3.2 and earlier recorded `exact`, which failed the day a site added a LAN). Decide what is allowed to change.
 
 - **Keep** every `bgp_session` check.
-- **Turn exact prefix counts into ranges**, for example `min: 2` and `max: 10`. `max` stays a cheap leak guard. `netdryrun record --min-prefixes` records minimums from the start.
+- **Set the prefix ranges to the growth you expect**, for example `max: 10` where sites are added often. `max` stays a cheap leak guard. `--exact-prefixes` pins exact counts; `--min-prefixes` records minimums only.
+- **Keep the standard guards** `record` adds: no default route and no link subnet via BGP on each BGP node. A prefix range has room for one leaked default route; the guard is what catches it.
 - **Keep the route checks you care about**, and drop the rest.
 
 Add `--attributes` to `record` if you also want each route's AS path, local preference and communities pinned.
@@ -134,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.2
+      - uses: netdryrun/netdryrun@v0.3.3
         with:
           path: network/
           pr-comment: true

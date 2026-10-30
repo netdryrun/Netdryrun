@@ -9,6 +9,8 @@ EOS keys every answer by VRF (`{"vrfs": {name: ...}}`). A VRF missing from that 
 """
 from __future__ import annotations
 
+import re
+
 import ipaddress
 
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
@@ -68,7 +70,16 @@ def _summary(text: str, vrf: str, afi: str, into: dict[str, BgpNeighbor] | None)
         if not isinstance(p, dict) or not isinstance(p.get("peerState"), str) or not p["peerState"].strip():
             raise unexpected(command, f"{addr}: {str(p)[:150]}")
         key = _canon_addr(str(addr))
-        n = out.get(key) or BgpNeighbor(str(addr), p["peerState"].split()[0].lower())
+        # "Idle(Admin)" (EOS prints no space) -> "idle": the first word is the FSM state
+        state = re.split(r"[\s(]", p["peerState"].strip(), maxsplit=1)[0].lower()
+        n = out.get(key) or BgpNeighbor(str(addr), state)
+        if n.address != str(addr):
+            # scoped link-locals sharing a key (one peer is also listed once per address family): ambiguous, and a
+            # down session is never hidden by an up one
+            if str(addr) not in n.ambiguous:
+                n.ambiguous = (n.ambiguous or [n.address]) + [str(addr)]
+            if n.state == "established" and state != "established":
+                n.state = state
         if "prefixAccepted" in p:
             n.prefixes[afi] = as_int(command, p["prefixAccepted"])
         elif n.state == "established":  # a missing count would read as 0 prefixes, passing `max`
@@ -157,7 +168,7 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
                 as_path=" ".join(str((p.get("asPathEntry") or {}).get("asPath", "")).split()),
                 next_hop=_canon_addr(str(nh)) if nh else None,
                 local_pref=as_int(BGP_CMD, p["localPreference"]) if "localPreference" in p else None,
-                med=as_int(BGP_CMD, p.get("med", 0)),
+                med=as_int(BGP_CMD, p["med"]) if "med" in p else None,   # no MED attribute: unknown, not 0
                 communities=canon_communities(detail.get("communityList")),
                 large_communities=canon_communities(detail.get("largeCommunityList")),
                 neighbor=(p.get("peerEntry") or {}).get("peerAddr") or None,

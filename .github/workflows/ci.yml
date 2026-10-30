@@ -37,11 +37,15 @@ jobs:
         example: [frr-bgp, srl-frr]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
-      - uses: ./
+      - id: ndr
+        uses: ./
         with:
           path: examples/${{ matrix.example }}
           artifact-name: report-${{ matrix.example }}
           pr-comment: ${{ matrix.example == 'frr-bgp' }}
+      - name: The agent result agrees with the run
+        if: always() && steps.ndr.outputs.status != ''
+        run: python scripts/check_verdict.py netdryrun-verdict.json "${{ steps.ndr.outputs.status }}"
 
   # Proves the tool catches a real mistake: this run MUST fail.
   catches-bad-change:
@@ -60,6 +64,8 @@ jobs:
           echo "status=${{ steps.ndr.outputs.status }} failed=${{ steps.ndr.outputs.failed }}"
           test "${{ steps.ndr.outputs.status }}" = "failed"
           test "${{ steps.ndr.outputs.failed }}" -ge 1
+      - name: The agent result says the same, with the failures and the files tested
+        run: python scripts/check_verdict.py netdryrun-verdict.json failed
 
   # The agent demo: Netdryrun MUST reject attempt 1 on the leak guards only (it opens the filters)
   # and accept attempt 2 (two prefix-list lines). demo.sh exits non-zero otherwise.

@@ -1,0 +1,40 @@
+# The leaky export policy, plus RFC 9234 BGP roles on every session. Expected: PASS (the route is not advertised).
+# Run: netdryrun run examples/leak-pattern/netdryrun-roles.yml
+lab: topology-roles.clab.yml
+timeout: 90   # seconds each positive check may wait for convergence
+
+checks:
+  # What "nothing is wrong" looks like: every session up, the customer reachable. The leak passes all of these.
+  - type: bgp_session
+    node: net
+    neighbor: 10.0.1.2    # customer
+  - type: bgp_session
+    node: net
+    neighbor: 10.0.2.2    # provider
+  - type: bgp_session
+    node: net
+    neighbor: 10.0.3.2    # peer
+  - type: route
+    node: peer
+    prefix: 192.0.2.0/24  # the peer should reach our customer through us
+    protocol: bgp
+  - type: bgp_route
+    node: peer
+    prefix: 192.0.2.0/24
+    as_path: "65001 65010"
+    next_hop: 10.0.3.1
+  - type: ping
+    node: peer
+    source: 198.51.100.1
+    target: 192.0.2.1
+  # What catches it: the peer must not learn the provider's routes from us.
+  - type: bgp_prefixes
+    node: peer
+    neighbor: 10.0.3.1
+    min: 2                # our own prefix and the customer's
+    max: 2
+  - type: route
+    node: peer
+    prefix: 203.0.113.0/24   # the provider's prefix
+    protocol: bgp
+    present: false

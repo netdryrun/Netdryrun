@@ -355,6 +355,9 @@ FAIL_SAFE = [
     # nxos.parse_ping_reply: (0, 0) -> "ping did not run"
     ("nxos.parse_ping_reply", nxos.parse_ping_reply, ["nxos_ping_ok.txt", "nxos_ping_fail.txt", "nxos_ping_novrf.txt"],
      _ping_ok),
+    # reads a whole boot log: it finds vtysh's error lines or nothing, and never crashes
+    ("frr.parse_config_load_errors", frr.parse_config_load_errors,
+     ["frr_boot_log_rejected.txt", "frr_boot_log_clean.txt"], lambda r: isinstance(r, list) and all(isinstance(x, str) for x in r)),
 ]
 FS_IDS = [c[0] for c in FAIL_SAFE]
 

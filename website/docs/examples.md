@@ -26,6 +26,7 @@ Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images a
 | [arista-frr](#arista-frr) | Arista cEOS + FRR (your image) | A bring-your-own vendor image | `PASSED: 10 passed, 0 failed` | `0` | 97 s |
 | [agent-demo](#agent-demo) `demo.sh` | FRR | An agent's leaky change rejected, the fix accepted | `Demo OK` | `0` | 70 s |
 | [batfish-pipeline](#batfish-pipeline) | FRR | Batfish first, then the lab; three bad changes | `PASSED: 10 passed, 0 failed` | `0` | 100 s |
+| [leak-pattern](#leak-pattern) | FRR | Transit-provider routes leaked to a peer (RFC 7908 Type 3), and the same change with RFC 9234 BGP roles | `PASSED: 8 passed, 0 failed`; the leak `FAILED: 6 passed, 2 failed`; with roles `PASSED: 8 passed, 0 failed` | `0`; `1`; `0` | 42 to 43 s |
 
 ## frr-bgp
 
@@ -118,6 +119,14 @@ The image comes from the SONiC build server, not a registry. To get it and run t
 **Shows:** what each stage catches. Three changes to r2 are in `changes/`: a leaked default route and a route-map typo (Batfish fails them in 2 to 3 seconds of analysis) and a switch to FRR's `traditional` defaults, which Batfish passes but the lab fails. See [Batfish, then Netdryrun](batfish.md) for the measured results.
 
 **Expected:** `pipeline.sh` with no change: Batfish `8 passed, 0 failed`, then `PASSED: 10 passed, 0 failed (10 checks)`, exit code `0`. The time in the table includes both stages, with the Batfish service already running.
+
+## leak-pattern
+
+[`examples/leak-pattern`](https://github.com/netdryrun/netdryrun/tree/main/examples/leak-pattern): "A transit leak that ping can't see". Four FRR routers: `net` (the network under change) with a customer, a transit provider and a settlement-free peer. The leaky config changes one line, the peer's outbound route-map, so the provider's prefix reaches the peer. Sessions stay up and the customer stays reachable.
+
+**Shows:** the check that catches it looks at the peer's table: no BGP route to the provider's prefix, plus a prefix count. A third run keeps the leaky policy but configures [RFC 9234](https://www.rfc-editor.org/rfc/rfc9234) roles on both ends of every session, and the leak is gone. The [README](https://github.com/netdryrun/netdryrun/blob/main/examples/leak-pattern/README.md) shows how to see it by hand and states the limits.
+
+**Expected:** `netdryrun run examples/leak-pattern/netdryrun.yml` gives `PASSED: 8 passed, 0 failed (8 checks)`, exit code `0`. `netdryrun-leaky.yml` gives `FAILED: 6 passed, 2 failed (8 checks)`, exit code `1`, failing the peer's prefix count and the absence of `203.0.113.0/24`. `netdryrun-roles.yml` gives `PASSED: 8 passed, 0 failed (8 checks)`, exit code `0`. Times are from one run of each on 0.3.3.
 
 ## Use an example as a template
 

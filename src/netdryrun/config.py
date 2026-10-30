@@ -279,6 +279,12 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
                 params[key] = str(ipaddress.ip_address(params[key]))
     except ValueError as e:
         raise ConfigError(f"{where}: {e}") from None
+    if "next_hop" in params and ipaddress.ip_address(params["next_hop"].split("%")[0]).is_link_local:
+        # devices report a link-local next hop without its interface, and two sessions can share one (fe80::1 on
+        # eth1 and on eth2): a path through either would match, so the check can't say which one it tests
+        raise ConfigError(f"{where}: next_hop {params['next_hop']!r} is link-local: it names no interface, and two "
+                          "sessions can share it, so Netdryrun can't tell which path it is. Check a global next hop, "
+                          "or the path's AS path or communities")
     for key in ("min", "max", "exact", "local_pref", "med"):
         if key in params and (not _is_int(params[key]) or params[key] < 0):
             raise ConfigError(f"{where}: {key} must be a non-negative integer, got {params[key]!r}")

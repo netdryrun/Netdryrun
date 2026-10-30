@@ -268,3 +268,23 @@ def test_the_report_write_never_follows_a_hardlink(tmp_path, monkeypatch):
     out = json.loads(mcp_server.dry_run(str(tmp_path / "lab")))
     assert outside.read_text() == "keep me\n" and out["evidence_file"] == str(report)
     assert json.loads(report.read_text())["status"] == "failed"
+
+
+def test_tested_does_not_list_or_walk_a_folder_outside_the_root(tmp_path, monkeypatch):
+    # 0.3.3 audit (ChatGPT): the root check came after is_dir() and rglob() on an outside folder
+    from netdryrun import agent_result, mcp_server
+    from netdryrun.runner import load_config
+    lab, outside = tmp_path / "lab", tmp_path / "outside"
+    lab.mkdir()
+    outside.mkdir()
+    (outside / "secret.conf").write_text("x\n")
+    (lab / "topology.clab.yml").write_text(
+        f"name: t\ntopology:\n  nodes:\n    r1: {{kind: linux, image: frr, binds: ['{outside}:/x']}}\n")
+    (lab / "netdryrun.yml").write_text("lab: topology.clab.yml\nchecks:\n  - {type: route, node: r1, prefix: 10.0.0.0/24}\n")
+    monkeypatch.setenv("NETDRYRUN_MCP_ROOT", str(lab))
+    seen = []
+    real_rglob = agent_result.Path.rglob
+    monkeypatch.setattr(agent_result.Path, "rglob", lambda self, pat: seen.append(self) or real_rglob(self, pat))
+    t = mcp_server._tested(load_config(lab), deployed=True)
+    assert t["complete"] is False and not any("secret" in k for k in t["files"])
+    assert not any(str(p).startswith(str(outside)) for p in seen)

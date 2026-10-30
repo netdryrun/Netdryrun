@@ -468,12 +468,12 @@ def test_frr_parse_bgp_paths():
     paths = frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/16")
     assert paths[0] == BgpPath(True, "65002 65003", "10.0.0.2", 200, 7, ["65000:1", "65535:65281"], ["65000:1:2"],
                                "10.0.0.2")
-    assert paths[1] == BgpPath(False, "", "10.0.0.3", 100, 0, [], [], "10.0.0.3")
+    assert paths[1] == BgpPath(False, "", "10.0.0.3", 100, None, [], [], "10.0.0.3")
     assert frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/16", default_local_pref=None)[1].local_pref is None
     assert frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/16", default_local_pref=150)[1].local_pref == 150
     assert frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/24") == [] and frr.parse_bgp_paths("{}", "10.1.0.0/16") == []
     one = bgp_text("10.1.0.0/16", {"bestpath": {"overall": False}, "aspath": None, "nexthops": None, "peer": None})
-    assert frr.parse_bgp_paths(one, "10.1.0.0/16") == [BgpPath(False, "", None, 100, 0, [], [], None)]
+    assert frr.parse_bgp_paths(one, "10.1.0.0/16") == [BgpPath(False, "", None, 100, None, [], [], None)]
 
 
 @pytest.mark.parametrize("hops,expected", [
@@ -721,7 +721,7 @@ def test_srl_parse_attr_set():
     assert srlinux.parse_attr_set(ATTR, row) == BgpPath(True, "65002 65003", "2001:db8::2", 200, 9, ["65000:10"],
                                                         ["1:2:3"], "10.0.0.2", False)
     bare = srlinux.parse_attr_set(J({"x": 1}), {"neighbor": "0.0.0.0", "origin-protocol": "static"}, 150)
-    assert bare == BgpPath(False, "", None, 150, 0, [], [], "0.0.0.0", True)
+    assert bare == BgpPath(False, "", None, 150, None, [], [], "0.0.0.0", True)
     assert srlinux.parse_attr_set(J({"x": 1}), row).local_pref is None
     with pytest.raises(DriverError):
         srlinux.parse_attr_set("{}", row)
@@ -1020,13 +1020,13 @@ def test_eos_bgp_paths():
     obs = EosDriver(lab, "r1").bgp_paths(pfx)
     assert lab.lines() == ["Cli -p 15 -c show ip bgp 10.1.0.0/16 vrf default | json"] and len(obs.evidence) == 1
     assert obs.value == [BgpPath(True, "65002 65003", "2001:db8::2", 200, 5, ["65000:10"], ["1:2:3"], "10.0.0.2"),
-                         BgpPath(False, "", None, None, 0, [], [], None)]
+                         BgpPath(False, "", None, None, None, [], [], None)]
     lab = Lab([("bgp", eos_bgp("red"))])
     assert EosDriver(lab, "r1").bgp_paths("2001:db8::/32", "red").value == []
     assert lab.lines() == ["Cli -p 15 -c show ipv6 bgp 2001:db8::/32 vrf red | json"]
     bare = eos_bgp(entries={pfx: {"bgpRoutePaths": [{"routeType": None, "asPathEntry": None, "routeDetail": None,
                                                      "peerEntry": None}]}})
-    assert eos.parse_bgp_paths(bare, pfx) == [BgpPath(False, "", None, None, 0, [], [], None)]
+    assert eos.parse_bgp_paths(bare, pfx) == [BgpPath(False, "", None, None, None, [], [], None)]
     with pytest.raises(DriverError):
         eos.parse_bgp_paths(eos_bgp(entries={pfx: {"bgpRoutePaths": [{"med": "x"}]}}), pfx)
 

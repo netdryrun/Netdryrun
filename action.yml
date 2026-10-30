@@ -15,6 +15,9 @@ inputs:
   json-report:
     description: Path for the JSON evidence report
     default: netdryrun-report.json
+  verdict-report:
+    description: "Path for the agent result: status, verdict, failures and the sha256 of every file tested, as JSON in the shape the MCP tools return (netdryrun.mcp-result/v1). Uploaded with the reports"
+    default: netdryrun-verdict.json
   junit-report:
     description: Path for the JUnit XML report
     default: netdryrun-junit.xml
@@ -33,6 +36,9 @@ inputs:
   pr-comment:
     description: "On pull requests, post (and keep updating) one comment with the verdict and evidence. Needs permissions pull-requests: write"
     default: "false"
+  comment-author:
+    description: "The account that writes the PR comment: only its comment is updated, so a comment someone else posted with the same marker is ignored. The default is the account behind the default github-token; set it when you pass another token"
+    default: github-actions[bot]
   github-token:
     description: Token for the PR comment
     default: ${{ github.token }}
@@ -97,19 +103,29 @@ runs:
         NDR_PATH: ${{ inputs.path }}
         NDR_JSON: ${{ inputs.json-report }}
         NDR_JUNIT: ${{ inputs.junit-report }}
+        NDR_VERDICT: ${{ inputs.verdict-report }}
         NDR_SETTLE: ${{ inputs.settle }}
         NDR_HOLD: ${{ inputs.hold }}
       run: |
         set +e
         # Reports left in the workspace (committed in the PR, or from an earlier run on a self-hosted
         # runner) must never be read, posted or uploaded as this run's result
-        sudo rm -f -- "$NDR_JSON" "$NDR_JUNIT" netdryrun-summary.md netdryrun-comment.json
+        # A directory at a report path (committed in the PR) would make the report write fail and turn a
+        # failed run into "error": remove it too, but never the workspace or anything above it.
+        for f in "$NDR_JSON" "$NDR_JUNIT" "$NDR_VERDICT" netdryrun-summary.md netdryrun-comment.json; do
+          if [ -d "$f" ] && [ ! -L "$f" ] && [ "$(realpath -- "$f")" != "$(realpath .)" ] \
+             && case "$(realpath .)/" in "$(realpath -- "$f")/"*) false;; *) true;; esac; then
+            sudo rm -rf -- "$f"
+          else
+            sudo rm -f -- "$f"
+          fi
+        done
         # containerlab needs root on GitHub-hosted runners. Pass only what Netdryrun needs (not the
         # job's tokens, not the runner user's home). This only narrows the environment: a lab runs
         # privileged containers, so run untrusted topologies only in jobs without secrets.
         sudo env -i "PATH=$PATH" "HOME=/root" "GITHUB_STEP_SUMMARY=$GITHUB_STEP_SUMMARY" \
           netdryrun run "$NDR_PATH" \
-          --json "$NDR_JSON" --junit "$NDR_JUNIT" --markdown netdryrun-summary.md --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
+          --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown netdryrun-summary.md --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
         echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
     - name: Read result
@@ -147,6 +163,7 @@ runs:
         path: |
           ${{ inputs.json-report }}
           ${{ inputs.junit-report }}
+          ${{ inputs.verdict-report }}
         if-no-files-found: ignore
         retention-days: 14
 
@@ -155,21 +172,28 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
-        REPO: ${{ github.repository }}
-        PR: ${{ github.event.pull_request.number }}
+        NDR_COMMENT_API: ${{ github.api_url }}
+        NDR_REPO: ${{ github.repository }}
+        NDR_PR: ${{ github.event.pull_request.number }}
+        NDR_COMMIT: ${{ github.event.pull_request.head.sha }}
+        NDR_LABEL: ${{ inputs.path }}
+        NDR_AUTHOR: ${{ inputs.comment-author }}
+        NDR_VERDICT: ${{ inputs.verdict-report }}
+        NDR_SUMMARY: netdryrun-summary.md
+        NDR_STATUS: ${{ steps.result.outputs.status }}
       run: |
-        # A comment problem must never turn a test result red: every failure here is a warning.
-        set +e
-        [ -f netdryrun-summary.md ] || { echo "no summary to post"; exit 0; }
-        python -c "import json; b = open('netdryrun-summary.md', encoding='utf-8').read(); json.dump({'body': '<!-- netdryrun-comment -->\n' + b}, open('netdryrun-comment.json', 'w'))"
-        ID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- netdryrun-comment -->")) | .id' 2>/dev/null | awk 'NR==1')
-        if [ -n "$ID" ]; then
-          gh api -X PATCH "repos/$REPO/issues/comments/$ID" --input netdryrun-comment.json --silent
-        else
-          gh api -X POST "repos/$REPO/issues/$PR/comments" --input netdryrun-comment.json --silent
-        fi
-        [ $? -eq 0 ] || echo "::warning title=Netdryrun::could not comment on the PR (needs permissions pull-requests: write; fork PRs can't be commented on)"
-        exit 0
+        # One comment per lab, updated in place: a fixed header (status, verdict, counts and the PR head commit,
+        # held to the run's checked status), then the summary. A run that wrote no report still rewrites the
+        # header, as error. A comment problem is only a warning: it never turns a test result red.
+        python - <<'EOF'
+        import os, sys
+        try:
+            from netdryrun.comment import main_github
+        except ImportError as e:
+            print(f"::warning title=Netdryrun::could not comment on the PR (Netdryrun is not installed: {e})")
+            sys.exit(0)
+        sys.exit(main_github(os.environ))
+        EOF
 
     - name: Upload evidence to Netdryrun Cloud
       id: cloud

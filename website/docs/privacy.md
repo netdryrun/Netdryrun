@@ -27,7 +27,7 @@ When you write to an @netdryrun.com address, Cloudflare Email Routing forwards t
 
 ## Configs you send us
 
-If you are a [design partner](design-partners.md), you send us sanitized configs so we can build a lab of part of your network. We use them only for your lab. We build labs with the help of Anthropic's Claude, so Anthropic processes the configs on our behalf, under commercial terms that don't allow training on them; no other AI service receives them. We delete them within 30 days after delivery unless you ask us to keep them. Lawful basis: your request (the work you asked us to do).
+If you are a [design partner](design-partners.md), your configs stay on your side by default: the lab runs on your machine or CI runner, and we see only what you choose to share. If you opt in to sending us sanitized configs so we can build a lab of part of your network, we use them only for your lab. We build labs with the help of Anthropic's Claude, so Anthropic processes the configs on our behalf, under commercial terms that don't allow training on them; no other AI service receives them. We delete them within 30 days after delivery unless you ask us to keep them. Lawful basis: your request (the work you asked us to do).
 
 ## GitHub and PyPI
 

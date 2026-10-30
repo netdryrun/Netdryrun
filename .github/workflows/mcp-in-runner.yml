@@ -1,0 +1,38 @@
+# 0.3.3 spike (d): the MCP server inside a GitHub-hosted runner, driven by a scripted MCP client
+# (scripts/mcp_in_runner.py). Runs on pushes to the 0.3.3 branch that touch the server or the spike.
+name: MCP in runner (spike)
+
+on:
+  push:
+    branches: [ndr/agent-runtime]
+    paths:
+      - "src/netdryrun/**"
+      - "scripts/mcp_in_runner.py"
+      - ".github/workflows/mcp-in-runner.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-in-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install containerlab and Netdryrun with the MCP extra
+        run: |
+          bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
+          python -m pip install --quiet ".[mcp]" jsonschema
+      - name: Drive the MCP server with a scripted client
+        run: python scripts/mcp_in_runner.py --out "$RUNNER_TEMP/mcp-in-runner.json"
+      - name: Upload the spike result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: mcp-in-runner
+          path: ${{ runner.temp }}/mcp-in-runner.json
+          if-no-files-found: ignore

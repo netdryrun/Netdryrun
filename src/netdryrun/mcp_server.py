@@ -6,32 +6,27 @@ and only proceeds if the status is "passed".
 """
 from __future__ import annotations
 
-import ipaddress
 import json
 import os
 import re
-import shlex
+import threading
+import time
+import uuid
 from pathlib import Path
 
 from mcp.server import MCPServer
 
 from . import __version__, report
-from .config import CHECK_TYPES, VRF_NAME, ConfigError
-from .drivers import DriverError, detect
-from .lab import Lab, LabError, Node
+from .config import CHECK_TYPES, ConfigError
+from .drivers import DriverError
+from .lab import Lab, LabError
+from .agent_result import (CHECKS_PASSED, DO_NOT_APPLY, INCONCLUSIVE, RESULT_SCHEMA, TESTED_FILES_MAX,  # noqa: F401
+                           VERDICT_ENUM, VERDICTS, _check, _containers, _evidence, _failures, _next_diagnostic,
+                           _show_command, _summary, _text, hold_to_files)
+from .agent_result import _tested as _tested_files
 from .runner import check_topology, destroy_active_labs, load_config, run
 
 mcp = MCPServer("netdryrun", version=__version__, website_url="https://netdryrun.com")
-
-# The result contract, published as https://netdryrun.com/schemas/mcp-result-v1.json. The three verdict strings
-# are frozen: agents match on them, so they never change within v1.
-RESULT_SCHEMA = "netdryrun.mcp-result/v1"
-CHECKS_PASSED = "CHECKS PASSED (only what the checks cover)"   # never "safe": a pass covers only the checks
-DO_NOT_APPLY = "DO NOT APPLY THIS CHANGE"
-INCONCLUSIVE = ("INCONCLUSIVE: the lab did not reach a testable state; this says nothing about your change. "
-                "Do not apply it until a run passes.")
-VERDICT_ENUM = (CHECKS_PASSED, DO_NOT_APPLY, INCONCLUSIVE)
-VERDICTS = {"passed": CHECKS_PASSED, "inconclusive": INCONCLUSIVE}   # any other status, including future ones: DO_NOT_APPLY
 
 # Said by every tool description, so an agent that reads only one tool still gets the rules.
 CONTRACT = (
@@ -49,148 +44,6 @@ CONTRACT = (
 
 def _describe(text: str) -> str:
     return " ".join(text.split()) + " " + CONTRACT
-
-
-def _text(value, limit: int) -> str | None:
-    """Text that can quote lab output (an error line, a state name), kept to one short line: it reaches
-    the agent as data, never as a block that could pass for instructions. The verdict never depends on it."""
-    if value is None or value == "":
-        return None
-    t = " ".join(str(value).split())
-    return t if len(t) <= limit else t[:limit] + "..."
-
-
-def _check(r) -> dict:
-    c = {"name": _text(r.check.name, 300), "passed": r.passed, "detail": _text(r.detail, 300)}
-    if not r.passed and r.attempts and r.samples_unready == r.attempts:
-        # every sample failed for lack of state (the command failed, its output was unreadable, or no BGP
-        # neighbors at all): a lab problem on that node is as likely as a bad change
-        c["unready"] = True
-    return c
-
-
-# How each driver runs one CLI command inside its node: the prefix of a next_diagnostic command.
-_CLI = {"frr": ("vtysh", "-c"), "sonic": ("vtysh", "-c"), "eos": ("Cli", "-p", "15", "-c"), "srlinux": ("sr_cli",)}
-
-
-def _driver_name(rep, node: str) -> str | None:
-    override = rep.config.drivers.get(node)
-    if override:
-        return override if override in _CLI else None
-    info = (rep.environment.get("nodes") or {}).get(node)
-    if not isinstance(info, dict):
-        return None
-    try:
-        return detect(Node(node, "", str(info.get("kind", "")), str(info.get("image", ""))))
-    except DriverError:
-        return None
-
-
-def _show_command(driver: str, check) -> str | None:
-    """One read-only CLI command that shows the state a failed check looked at, in the node's own CLI. Only
-    validated values reach it (a VRF name, a parsed prefix or address), never free text from the config."""
-    p, t = check.params, check.type
-    vrf = str(p.get("vrf", "default"))
-    if not VRF_NAME.fullmatch(vrf):
-        return None
-    try:
-        if t in ("route", "bgp_route"):
-            addr = ipaddress.ip_network(str(p["prefix"]), strict=False)
-        elif t == "ping":
-            addr = ipaddress.ip_address(str(p["target"]))
-        else:   # bgp_session, bgp_prefixes: the neighbor's family, when it is an address
-            try:
-                addr = ipaddress.ip_address(str(p.get("neighbor", "")))
-            except ValueError:
-                addr = None
-    except (KeyError, ValueError):
-        return None
-    afi = str(p.get("afi", "ipv6-unicast" if addr and addr.version == 6 else "ipv4-unicast"))
-    v6 = (addr.version == 6) if addr else afi == "ipv6-unicast"
-    fam, bgp_afi = ("ipv6", "ipv6") if v6 else ("ip", "ipv4")
-    if driver in ("frr", "sonic"):
-        in_vrf = "" if vrf == "default" else f" vrf {vrf}"
-        if t == "bgp_session":
-            return f"show bgp{in_vrf} summary"
-        if t == "bgp_prefixes":
-            return "show bgp l2vpn evpn summary" if afi == "evpn" else f"show bgp{in_vrf} {bgp_afi} unicast summary"
-        if t in ("route", "ping"):
-            return f"show {fam} route{in_vrf} {addr}"
-        if t == "bgp_route":
-            return f"show bgp{in_vrf} {bgp_afi} unicast {addr}"
-    if driver == "eos":
-        if t in ("bgp_session", "bgp_prefixes"):
-            return "show bgp evpn summary" if afi == "evpn" else f"show {fam} bgp summary vrf {vrf}"
-        if t in ("route", "ping"):
-            return f"show {fam} route vrf {vrf} {addr}"
-        if t == "bgp_route":
-            return f"show {fam} bgp {addr} vrf {vrf}"
-    if driver == "srlinux":
-        table = "ipv6-unicast" if v6 else "ipv4-unicast"
-        if t in ("bgp_session", "bgp_prefixes"):
-            return f"info from state /network-instance {vrf} protocols bgp neighbor *"
-        if t == "route":
-            return (f"info from state /network-instance {vrf} route-table {table} route {addr} "
-                    "id * route-type * route-owner * origin-network-instance *")
-        if t == "bgp_route":
-            return (f"info from state /network-instance {vrf} bgp-rib afi-safi {table} {table} local-rib "
-                    f"route {addr} neighbor * origin-protocol * path-id *")
-        if t == "ping":   # the whole table: which route, if any, covers the target
-            return (f"info from state /network-instance {vrf} route-table {table} route * "
-                    "id * route-type * route-owner * origin-network-instance *")
-    return None
-
-
-def _containers(rep) -> dict[str, str]:
-    try:
-        return {name: n.container for name, n in Lab(rep.config.lab).nodes.items()}
-    except Exception:  # topology gone or unreadable: fall back to containerlab's default names
-        return {}
-
-
-def _next_diagnostic(rep, check, containers: dict[str, str]) -> str | None:
-    node = str(check.params.get("node", ""))
-    driver = _driver_name(rep, node)
-    show = _show_command(driver, check) if driver else None
-    container = containers.get(node) or (f"clab-{rep.lab_name}-{node}" if rep.lab_name and node else None)
-    if not show or not container:
-        return None
-    return "docker exec " + shlex.join([container, *_CLI[driver], show])
-
-
-def _evidence(r) -> dict | None:
-    """A short excerpt of the raw evidence: the first command that failed, else the last command run."""
-    if not r.evidence:
-        return None
-    e = next((x for x in r.evidence if x.get("rc") != 0), r.evidence[-1])
-    return {"cmd": _text(e.get("cmd"), 200), "rc": e.get("rc"),
-            "excerpt": _text(str(e.get("output") or "").strip() or e.get("stderr"), 200)}
-
-
-def _failures(rep) -> list[dict]:
-    failed = [r for r in rep.results if not r.passed]
-    containers = _containers(rep) if failed else {}
-    return [{"check": _text(r.check.name, 300), "node": _text(r.check.params.get("node"), 100),
-             "reason": _text(r.detail, 300), "evidence": _evidence(r),
-             "next_diagnostic": _next_diagnostic(rep, r.check, containers)} for r in failed]
-
-
-def _summary(rep, evidence_path: str | None, tested: dict | None = None) -> dict:
-    """The tool result. `tested` is read before the run (_execute passes it); without it, the files are read now."""
-    return {
-        "schema": RESULT_SCHEMA,
-        "status": rep.status,
-        "passed": rep.passed,
-        "failed": rep.failed,
-        "error": _text(rep.error, 1000),
-        "inconclusive_reason": _text(rep.inconclusive_reason, 1000),
-        "lab": _text(rep.lab_name, 100),
-        "checks": [_check(r) for r in rep.results],
-        "failures": _failures(rep),
-        "evidence_file": evidence_path,
-        "verdict": VERDICTS.get(rep.status, DO_NOT_APPLY),
-        "tested": tested if tested is not None else _tested(rep.config, deployed=False),
-    }
 
 
 WSL_MOUNTS = Path("/mnt")  # where WSL mounts the Windows drives
@@ -269,90 +122,66 @@ def _load(path: str):
     return cfg
 
 
-TESTED_FILES_MAX = 200   # a bind of a large folder must not turn a dry run into a hashing job
-
-
 def _tested(cfg, deployed: bool) -> dict:
-    """What a run tested, so a verdict can be tied to a version of the files (agent eval T06: a run on the
-    unedited folder looked like a run of the change): a sha256 of netdryrun.yml, the topology and every file the
-    topology binds, loads as a startup config or licence, or reads as env-files, in defaults, kinds, groups and
-    nodes (a bound folder: the files in it), read before the run; `config` is the netdryrun.yml that ran. Keys
-    are paths relative to the folder of netdryrun.yml. `complete` is false when a file can't be read, is
-    outside NETDRYRUN_MCP_ROOT (not read), is named with ~, ${VAR} or a URL (containerlab resolves those; not
-    read here), or there are more than TESTED_FILES_MAX."""
-    import hashlib
-    import itertools
-
-    import yaml
-
-    base, lab_dir = cfg.path.parent.resolve(), cfg.lab.parent.resolve()
-    sources = [cfg.path, cfg.lab]
-    complete = True
-    try:
-        t = (yaml.safe_load(cfg.lab.read_text(encoding="utf-8")) or {}).get("topology") or {}
-    except (OSError, yaml.YAMLError, AttributeError):
-        t, complete = {}, False
-    sections = [t.get("defaults"), *((t.get("kinds") or {}).values()), *((t.get("groups") or {}).values()),
-                *((t.get("nodes") or {}).values())]
-    refs: list[str] = []
-    for sec in (s for s in sections if isinstance(s, dict)):
-        refs += [str(b).split(":", 1)[0] for b in sec.get("binds") or [] if isinstance(b, str)]
-        refs += [str(e) for e in sec.get("env-files") or [] if isinstance(e, str)]
-        for key in ("startup-config", "license"):
-            v = sec.get(key)
-            if isinstance(v, str) and "\n" not in v:   # containerlab also takes a startup config inline
-                refs.append(v)
-    for ref in refs:
-        # containerlab expands ~ (the sudo user's home) and ${VAR}, and downloads URLs: not read here, so the
-        # list can't say it is complete
-        if ref.startswith("~") or "$" in ref or re.match(r"^[a-z][a-z0-9+.-]*://", ref, re.I):
-            complete = False
-        else:
-            sources.append(lab_dir / ref)
-    files: dict[str, str] = {}
-    for src in sources:
-        src = Path(src)
-        if src.is_dir():   # stop walking at the cap: a bound system folder can hold many thousands of files
-            found = list(itertools.islice((p for p in src.rglob("*") if p.is_file()), TESTED_FILES_MAX + 1))
-        else:
-            found = [src]
-        for f in sorted(found):
-            f = f.resolve()
-            try:
-                key = Path(os.path.relpath(f, base)).as_posix()
-            except ValueError:   # another drive on Windows
-                key = f.as_posix()
-            if key in files:
-                continue
-            if len(files) >= TESTED_FILES_MAX or _outside_root(f):
-                complete = False
-                continue
-            try:
-                files[key] = hashlib.sha256(f.read_bytes()).hexdigest()
-            except OSError:
-                complete = False
-    return {"config": str(cfg.path.resolve()), "lab_deployed_by_this_run": deployed,
-            "files": dict(sorted(files.items())), "complete": complete}
+    """agent_result._tested, holding the file reads to NETDRYRUN_MCP_ROOT."""
+    return _tested_files(cfg, deployed, _outside_root)
 
 
-def _execute(path: str, deploy: bool, keep: bool) -> str:
+def _setup_error(text: str) -> dict:
+    return {"schema": RESULT_SCHEMA, "status": "error", "error": text, "verdict": DO_NOT_APPLY}
+
+
+def _prepare(path: str, deploy: bool):
+    """(cfg, tested, None), or (None, None, the error result): what a run needs before the lab starts. Quick, so a
+    config error or a path outside NETDRYRUN_MCP_ROOT is answered at once."""
     try:
         cfg = _load(path)
     except ConfigError as e:
-        return json.dumps({"schema": RESULT_SCHEMA, "status": "error", "error": str(e), "verdict": DO_NOT_APPLY})
-    tested = _tested(cfg, deployed=deploy)   # read before the run: the files the lab is deployed from
-    rep = run(cfg, deploy=deploy, keep=keep)
-    evidence = cfg.path.parent / "netdryrun-report.json"
+        return None, None, _setup_error(str(e))
+    return cfg, _tested(cfg, deployed=deploy), None   # read before the run: the files the lab is deployed from
+
+
+def _finish(cfg, rep, tested: dict, evidence_name: str = "netdryrun-report.json") -> dict:
+    """The result of a finished run, with the full report written next to netdryrun.yml."""
+    evidence = cfg.path.parent / evidence_name
     try:
         # a new file renamed over the old name: a planted symlink or hardlink there is replaced, never written through
-        tmp = evidence.with_name(f".{evidence.name}.{os.getpid()}.tmp")
+        tmp = evidence.with_name(f".{evidence.name}.{os.getpid()}.{threading.get_ident()}.tmp")
         tmp.unlink(missing_ok=True)
         with open(tmp, "x", encoding="utf-8") as f:
             f.write(report.to_json(rep))
         os.replace(tmp, evidence)
     except OSError:
         evidence = None   # a read-only folder must not turn a finished run into a tool error with no verdict
-    return json.dumps(_summary(rep, str(evidence) if evidence else None, tested), indent=2)
+    return hold_to_files(_summary(rep, str(evidence) if evidence else None, tested), cfg, tested, _outside_root)
+
+
+def _execute(path: str, deploy: bool, keep: bool) -> str:
+    cfg, tested, err = _prepare(path, deploy)
+    if err:
+        return json.dumps(err)
+    return json.dumps(_finish(cfg, run(cfg, deploy=deploy, keep=keep), tested), indent=2)
+
+
+# The asynchronous shape (0.3.3): start_run answers at once with a run ID, get_result polls. A dry run takes
+# 60-120 s, longer than some clients wait for one tool call. Runs live in this server process: a finished
+# result stays readable until RUNS_KEPT newer runs have finished; a running one is never dropped.
+RUNS_KEPT = 20
+POLL_AFTER_S = 15
+_RUNS: dict[str, dict] = {}
+_RUNS_LOCK = threading.Lock()
+
+
+def _pending(run_id: str, entry: dict) -> dict:
+    """A run that hasn't finished: no verdict, so it can't be read as one."""
+    return {"schema": RESULT_SCHEMA, "run_id": run_id, "status": "running",
+            "elapsed_s": round(time.monotonic() - entry["started"], 1), "poll_after_s": POLL_AFTER_S}
+
+
+def _forget_old_runs() -> None:
+    finished = [k for k, v in _RUNS.items() if v["result"] is not None]
+    for k in finished[:max(0, len(finished) - RUNS_KEPT)]:
+        del _RUNS[k]
 
 
 @mcp.tool(description=_describe("""
@@ -379,6 +208,56 @@ def dry_run(path: str, keep_lab: bool = False) -> str:
 
 
 @mcp.tool(description=_describe("""
+    The asynchronous dry_run, for clients that give up on a long tool call: returns at once with a `run_id`
+    and status running (no verdict yet), then deploys, checks and destroys the lab like dry_run. Call
+    get_result with the run_id every poll_after_s seconds until status is no longer running. Same `path` and
+    keep_lab as dry_run. A config error, or a path outside NETDRYRUN_MCP_ROOT, is answered at once with
+    status error and no run_id. The run lives in this server: if the server restarts, start again.
+    """))
+def start_run(path: str, keep_lab: bool = False) -> str:
+    cfg, tested, err = _prepare(path, deploy=True)
+    if err:
+        return json.dumps(err)
+    entry = {"started": time.monotonic(), "result": None}
+    with _RUNS_LOCK:
+        run_id = uuid.uuid4().hex[:12]
+        while run_id in _RUNS:   # never two runs under one ID
+            run_id = uuid.uuid4().hex[:12]
+        _forget_old_runs()
+        _RUNS[run_id] = entry
+
+    def work() -> None:
+        try:
+            # its own report file: several runs of one folder must not share the evidence of the last one
+            result = _finish(cfg, run(cfg, deploy=True, keep=keep_lab), tested, f"netdryrun-report-{run_id}.json")
+        except BaseException as e:   # never a run that stays "running" forever, whatever ends the worker
+            result = _setup_error(f"internal error: {type(e).__name__}: {e}. This is a Netdryrun bug, not a "
+                                  "verdict on the change")
+        entry["result"] = {**result, "run_id": run_id}
+
+    threading.Thread(target=work, name=f"netdryrun-run-{run_id}", daemon=True).start()
+    return json.dumps(_pending(run_id, entry))
+
+
+@mcp.tool(description=_describe("""
+    The result of a run started with start_run. While status is running there is no verdict: wait
+    poll_after_s seconds and call again (a dry run takes about 60-120 s). Once it has finished, the result is
+    exactly dry_run's, with its run_id: act on `status` and the verdict as for dry_run. An unknown run_id is
+    status error.
+    """))
+def get_result(run_id: str) -> str:
+    with _RUNS_LOCK:
+        entry = _RUNS.get(run_id)
+    if entry is None:
+        return json.dumps(_setup_error(f"unknown run_id {run_id!r}: it was never started in this server, or it "
+                                       f"finished more than {RUNS_KEPT} runs ago, or the server restarted; "
+                                       "start the run again"))
+    if entry["result"] is None:
+        return json.dumps(_pending(run_id, entry))
+    return json.dumps(entry["result"], indent=2)
+
+
+@mcp.tool(description=_describe("""
     Run the checks in netdryrun.yml at `path` against a lab that is already running (no deploy, no
     destroy), such as one kept with dry_run keep_lab=true. Same result and verdict as dry_run. Configs
     edited after the lab started do not reach it: to test a change, use dry_run.
@@ -389,12 +268,16 @@ def run_checks(path: str) -> str:
 
 @mcp.tool(description=_describe("""
     Snapshot a known-good lab (containerlab topology file) as netdryrun.yml check text: every established
-    BGP session, prefix count and BGP route. Call it when no checks exist, before changing the configs,
-    then dry-run the change against this baseline. With attributes=true, also pin each BGP route's AS path,
-    local preference and communities. Returns the YAML; nothing is written to disk. Show it to the human:
-    the checks belong to the network team.
+    BGP session, prefix count (today's count as min, max with 20% headroom) and BGP route. Call it when no
+    checks exist, before changing the configs, then dry-run the change against this baseline. With
+    attributes=true, also pin each BGP route's AS path, local preference and communities. By default it also
+    adds the standard guards (no default route and no link subnet via BGP on each BGP node); guards=false
+    leaves them out. A first line
+    starting "# INCOMPLETE BASELINE" means routes were left out: say so to the human. Returns the YAML;
+    nothing is written to disk. Show it to the human: the checks belong to the network team.
     """))
-def record_baseline(topology: str, deploy: bool = True, wait_seconds: float = 45, attributes: bool = False) -> str:
+def record_baseline(topology: str, deploy: bool = True, wait_seconds: float = 45, attributes: bool = False,
+                    guards: bool = True) -> str:
     import time
 
     from .record import record, render
@@ -416,7 +299,7 @@ def record_baseline(topology: str, deploy: bool = True, wait_seconds: float = 45
         if deploy:
             lab.deploy()
             time.sleep(wait_seconds)
-        data, warnings = record(topo, attributes=attributes)
+        data, warnings = record(topo, attributes=attributes, guards=guards)
     except LabError as e:
         return json.dumps({"error": str(e)})
     finally:
@@ -479,7 +362,12 @@ def main() -> None:
                 signal.signal(sig, _on_terminate)
             except (ValueError, OSError):
                 pass
-    mcp.run()
+    try:
+        mcp.run()
+    finally:
+        # stdin closed (the client went away) while a start_run worker still runs: that thread dies with the
+        # process before its own cleanup, so destroy the labs this server started here
+        destroy_active_labs()
 
 
 if __name__ == "__main__":

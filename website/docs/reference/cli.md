@@ -50,14 +50,16 @@ OK: examples/frr-bgp/netdryrun.yml (7 checks, lab .../examples/frr-bgp/topology.
 netdryrun record path/to/topology.clab.yml --deploy
 ```
 
-Snapshots a known-good lab into a `netdryrun.yml` baseline: every established BGP session, every prefix count (exact, or minimums with `--min-prefixes`) and up to 50 BGP routes per node. Commit it, and every later change is tested against today's behavior. Review the file before committing: remove what is allowed to change, and add negative checks for what must never happen.
+Snapshots a known-good lab into a `netdryrun.yml` baseline (the default VRF only, a known limit: add checks for other VRFs by hand; fix scheduled: 0.4): every established BGP session, every prefix count and up to 50 BGP routes per node and address family. From 0.3.3 a prefix count is a range: today's count as `min`, and `max` with 20% headroom (at least 2) for normal growth, which still catches a leak that multiplies the count; a neighbor that sends nothing stays `exact: 0`. When a node has more BGP routes than are recorded, the file starts with an `# INCOMPLETE BASELINE` line naming the node and the count, and the same line is printed on stderr: a change to an unrecorded route goes unnoticed, so add checks for the routes that matter. Commit it, and every later change is tested against today's behavior. Review the file before committing: remove what is allowed to change, and add negative checks for what must never happen.
 
 | Option | Meaning |
 |---|---|
 | `--out FILE` | Where to write (default: `netdryrun.yml` next to the topology) |
 | `--deploy` | Deploy the lab first and destroy it afterwards (otherwise the lab must be running) |
 | `--wait SECONDS` | With `--deploy`: time for BGP to converge before recording (default 45) |
-| `--min-prefixes` | Record prefix counts as minimums instead of exact |
+| `--exact-prefixes` | Pin prefix counts exactly (0.3.2 and earlier did this by default) |
+| `--min-prefixes` | Record prefix counts as minimums only |
+| `--no-guards` | Leave out the standard [guards](../recipes.md#guard-recipes), which `record` writes by default from 0.3.3: on each BGP node, no default route via BGP (`0.0.0.0/0`, and `::/0` with IPv6 BGP) and no link subnet of the topology via BGP, each as a `route` check with `present: false`. Each guard is first run on the recording lab: one the lab already fails (a default the node learns or merely receives via BGP from upstream, say) is left out, and a comment in the file says why. They are on by default because a prefix-count range has room for one leaked default route |
 | `--no-routes` | Don't record individual routes |
 | `--attributes` | Also record a `bgp_route` check per BGP route, pinning its best path's AS path, local preference and communities (not MED or next hop, which follow the topology) |
 | `--force` | Overwrite an existing file |
@@ -79,6 +81,7 @@ Opens a short feedback form on GitHub in your browser, prefilled with your Netdr
 | `--json FILE` | | Write the full evidence report as JSON |
 | `--markdown FILE` | | Write a Markdown summary (for PR comments) |
 | `--junit FILE` | | Write JUnit XML (for CI test reporting) |
+| `--verdict FILE` | | Write the agent result as JSON: status, verdict, failures and the sha256 of every file tested, the shape the MCP tools return (from 0.3.3) |
 | `--settle SECONDS` | `10` | Wait before post-convergence checks, and in a scenario after the fault took effect |
 | `--hold SECONDS` | `10` | How long a post-convergence check must hold (a check's own `hold` key overrides it). In a scenario, positive checks must hold this long too |
 | `--debug` | | Print the traceback of an internal error |
@@ -189,6 +192,10 @@ Long outputs are truncated (the last 20,000 characters of command output are kep
 ### Markdown
 
 `--markdown FILE` writes a short summary: a heading (passed, failed, inconclusive, or could not run), the reason when inconclusive, the pass/fail counts and lab name, a table of checks with failures first, and a footer with the Netdryrun and containerlab versions. This is the same text appended to the GitHub Actions step summary.
+
+### Agent result
+
+`--verdict FILE` (from 0.3.3) writes what an AI agent reads: the same `netdryrun.mcp-result/v1` object the MCP tools return ([schema](https://netdryrun.com/schemas/mcp-result-v1.json)), with `status`, the frozen `verdict` string, `failures` (each with a reason, an evidence excerpt and a read-only `next_diagnostic` command), `evidence_file` (the `--json` report, if requested) and `tested` (the `netdryrun.yml` that ran and a sha256 of every file the topology uses, read before the run; `lab_deployed_by_this_run` is `false` for `check`). A config error writes the setup-error shape: `status: error`, an `error` line and `DO NOT APPLY THIS CHANGE`. Decide on `status`, not on the text.
 
 ### JUnit XML
 

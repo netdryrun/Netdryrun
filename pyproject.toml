@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "netdryrun"
-version = "0.3.2"
-description = "Find the route leaks that ping and 'BGP up' checks miss: dry-run network changes in a real containerlab lab, with a pass/fail verdict and evidence. CLI, GitHub Action and MCP server."
+version = "0.3.3"
+description = "Validate BGP and routing changes in a real containerlab lab: pass/fail verdict with evidence. Finds the route leaks that ping and 'BGP up' checks miss. CLI, GitHub Action and MCP server."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
@@ -107,5 +107,5 @@ only_mutate = [
 pytest_add_cli_args_test_selection = ["tests/"]
 also_copy = [
   "examples/", "website/", "scripts/", "corpus/", "advisories/", ".github/", "action.yml", "server.json",
-  "README.md", "AGENTS.md", "CHANGELOG.md", "skills/",
+  "README.md", "AGENTS.md", "CHANGELOG.md", "skills/", "templates/",
 ]

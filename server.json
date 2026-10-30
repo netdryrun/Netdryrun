@@ -2,18 +2,18 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.netdryrun/netdryrun",
   "title": "Netdryrun",
-  "description": "Netdryrun dry-runs a network change in a real lab before it reaches production.",
+  "description": "Validate BGP and routing changes in a real containerlab lab: pass/fail verdict with evidence.",
   "repository": {
     "url": "https://github.com/netdryrun/netdryrun",
     "source": "github"
   },
   "websiteUrl": "https://netdryrun.com/ai-agents/",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "netdryrun",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "runtimeHint": "uvx",
       "packageArguments": [{"type": "positional", "value": "mcp"}],
       "transport": {

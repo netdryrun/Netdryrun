@@ -70,7 +70,7 @@ A BGP session reaches a state.
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `neighbor` | yes | | Neighbor IP address as configured on `node` |
+| `neighbor` | yes | | Neighbor IP address as configured on `node`. A link-local address that several sessions share (`fe80::1` on two interfaces) is ambiguous: the check is not evaluated, so use a global address |
 | `state` | no | `established` | One of `idle`, `connect`, `active`, `opensent`, `openconfirm`, `established`, or `down` (any state except established). Case-insensitive |
 
 The check fails if the neighbor is not configured. A `state` other than `established` makes it a post-convergence check.
@@ -87,7 +87,7 @@ The number of prefixes accepted from a neighbor is within a range. Accepted mean
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `neighbor` | yes | | Neighbor IP address |
+| `neighbor` | yes | | Neighbor IP address (a link-local address several sessions share is ambiguous, as for `bgp_session`) |
 | `min` | one of `min`, `max`, `exact` | | Lower bound, inclusive |
 | `max` | one of `min`, `max`, `exact` | | Upper bound, inclusive |
 | `exact` | one of `min`, `max`, `exact` | | Exact count |
@@ -150,8 +150,8 @@ Attributes of the BGP **best path** for a prefix: communities, AS path, local pr
 | `as_path` | no | | Exact AS path, ASNs separated by spaces: `"65002 65003"`. `""` is the empty path of a locally originated route. AS sets are written `{65004,65005}` |
 | `as_path_regex` | no | | Python regular expression searched in the AS path string, for example `"^65002 "` (learned from 65002) or `"(^| )65666( |$)"` (passes through 65666). It runs with no time limit, so avoid nested repeats such as `(\d+ ?)+$` that can backtrack for minutes |
 | `local_pref` | no | | Exact local preference |
-| `med` | no | | Exact MED. A path without MED counts as `0`, as best-path selection treats it by default |
-| `next_hop` | no | | Exact next hop address |
+| `med` | no | | Exact MED. A path with no MED attribute fails the check, even `med: 0`: with `bgp bestpath med missing-as-worst` a missing MED is the worst, not 0 |
+| `next_hop` | no | | Exact next hop address. A link-local address is refused: devices report it without its interface, and two sessions can share one, so the check couldn't say which path it tests |
 | `present` | no | `true` | `false` means no path at all for the prefix in the BGP table, best or not, valid or not. Unquoted `true` or `false` only |
 | `vrf` | no | `default` | VRF or network-instance |
 
@@ -296,6 +296,18 @@ They run in this order:
 2. **Every BGP session on the node is up.** Positive checks only prove convergence for the sessions and routes you happened to check, and a leak can arrive later over a session nobody checked. So for each node (and VRF) that carries a post-convergence check, Netdryrun waits until every configured BGP neighbor there is `established`, with unchanged prefix counts, on 2 consecutive samples. Neighbors that a `bgp_session` check expects in another state (for example `state: down`) don't count. The wait is capped at the largest `timeout` of that node's post-convergence checks. If a session there never comes up, those checks fail as **not evaluated**, naming the session: a down session is a finding, as everywhere else. If a session is down on purpose, add a `bgp_session` check with `state: down` for it. (A node that never answers with BGP state, or whose positive checks never got usable state, is not waited for; prefix counts still changing at the cap don't block.) A node that answers with **no BGP neighbors at all** is not converged: that is what a node answers before its BGP config is applied, and a leak can arrive once it is. Netdryrun keeps waiting, up to the cap. If the node still reports no neighbors then and the file says it runs BGP (a `bgp_session`, `bgp_prefixes` or `bgp_route` check on it, or a `route` check with `protocol: bgp`), its post-convergence checks fail as **not evaluated** ("reported no BGP neighbors by the cap"), every sample unready, so a leak guard can't pass on a router whose BGP config never loaded (from 0.3.2; when nothing anywhere gave usable state, the run is inconclusive). A node with no BGP check anywhere in the file may not run BGP at all: its post-convergence checks run anyway, each with a warning in its result ("reported no BGP neighbors for N s; the check was evaluated without BGP convergence"), and the verdict is unchanged. So a node that doesn't run BGP adds one `timeout` of waiting before its post-convergence checks. 0.3.1 and later.
 3. A settle delay (`--settle`, default 10 seconds; at least 30 seconds if the file has no positive checks, because nothing else has shown that the network converged).
 4. Each one must then hold for the hold window (`--hold` or the check's `hold`, default 10 seconds), sampled every 3 seconds. A violation at any sample fails the check immediately.
+
+### Config that fails to load
+
+A pass only means something if the lab ran the config you wrote. FRR loads its config line by line at boot and skips a line it rejects (a typo, an incomplete command, a command this release doesn't have), so after the checks Netdryrun reads the boot log of every FRR node in the lab: any rejected line makes the run an **error (exit 2)**, naming the node, the line and the reason. A daemon can complain about a line and still apply it (bgpd answers `bgp graceful-restart` with "Failure to communicate" on FRR 10.4.1). So such a line doesn't count when line N of the node's `frr.conf` is that line and that daemon's own running config (`vtysh -d <daemon>`) has it under the same headers at every depth (`router bgp`, VRF, address family, `vni`), at least as many times as the file does, and has the line's whole block as written. A refused header line (`vni 10`, `address-family ...`) always counts. Every other kind of rejection always counts, and so does any line when the running config or `frr.conf` can't be read. A boot log that can't be read is an error too, and so is an FRR node whose log shows no sign of a config load (Netdryrun reads the load FRR's image runs at boot: `frr.conf` through `vtysh -b`, or a daemon reading its own file). Only the current boot counts, so a line fixed and reloaded with a restart no longer does. A node whose driver can't be detected (FRR in an image not named for it) is read too. A `setup:` command that fails (`vtysh -c` exits 1 on a rejected line) stops the run on every platform.
+
+Known limit: **A line FRR warned about but applied can still make the run an error** (fail closed). Only a line a daemon answered with "Failure to communicate" is compared with the running config; a `Warning` line, a line for `mgmtd` (static routes on FRR 10, whose stored config can show a line a daemon then failed to apply) and a line from a daemon's own config file always count. Mitigation: rewrite the line so FRR loads it without a complaint. Fix scheduled: 0.4 (a live capture of each kind). The comparison also assumes `/etc/frr/frr.conf` is still the file FRR loaded at boot: a lab hook that rewrites it (`write memory`) before the run ends leaves only the check that line N is the reported line. Fix scheduled: 0.4 (compare the file's change time with the boot).
+
+Known limit: **Startup config on Arista cEOS, Nokia SR Linux and SONiC**: Netdryrun doesn't yet check that every line of a startup config loaded, so a line the NOS rejected leaves the lab running without it. Config applied with `setup:` commands is checked. Mitigation: for each changed line, add a positive check that holds only if the line loaded. Fix scheduled: 0.4. (FRR is checked from 0.3.3: see [the 0.3.2 advisory](https://github.com/netdryrun/netdryrun/blob/main/advisories/0.3.2-rejected-config/README.md).)
+
+Known limit: **Graceful restart on SR Linux, EOS and SONiC** (found by the 0.3.3 cross-platform review): while a peer restarts with graceful restart, its routes stay in the table marked stale until it re-sends them or the stale timer ends, and on these platforms the BGP checks count a stale path as present and best. A route check can pass on a route that is about to go. On FRR, Netdryrun reads the stale flag: a route or `bgp_route` check never passes on a stale path (0.3.3). Mitigation: leave graceful restart off in the lab, or give the checks a `timeout` above the stale timer. Fix scheduled: 0.4 (read the stale flag on the other platforms, from a live graceful-restart capture).
+
+Known limit: **SR Linux prefix counts** (found by the 0.3.3 cross-platform review, seen on a live SR Linux 26.7.2): a `bgp_prefixes` count on SR Linux includes routes dropped by BGP loop detection, which are not usable, so a `min` or `exact` check can pass with fewer usable prefixes. Mitigation: pair the count with `route` checks for the prefixes that matter. Fix scheduled: 0.4 (count usable routes only).
 
 Known limit: the gate sees sessions up and prefix counts stable, not routes still in flight. A peer with a long BGP advertisement interval can deliver a route after a post-convergence check was released and held, so a leak guard can pass on a route that hadn't arrived yet. Raise `--settle` and `--hold` above the slowest advertisement interval in your lab. Planned for 0.4: read each peer's configured advertisement interval and extend the settle window automatically.
 

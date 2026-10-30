@@ -92,6 +92,9 @@ class FakeLab:
     def running_containers(self):
         return {n.container for n in self.nodes.values()}
 
+    def boot_log(self, node):   # a clean FRR boot: every config line loaded
+        return ExecResult([], 0, "[45|bgpd] done", "")
+
     def run_setup(self, *a, **k):
         pass
 

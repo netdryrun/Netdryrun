@@ -1,0 +1,26 @@
+# Cases whose verdict in this lab follows a race, not the change. Marked after the runs, without editing the
+# pre-registered case files or their expected verdicts (corpus/v2/cases/ is unchanged).
+#
+# - Excluded from every score (RESULTS.md, the corpus page, the README and site status lines), and listed with
+#   every Netdryrun verdict seen so far.
+# - corpus/run.py runs each one 3 times and records all three verdicts per strategy in results.json ("runs").
+# - The release gate records the distribution as a known item: a verdict change here is never a blocker. A verdict
+#   change on any other case still is.
+#
+# A deterministic replacement (same intent, race removed) goes into a later corpus version, with its expected
+# verdict committed before it runs.
+
+18-aggregate-discard-route-removed:
+  why: >-
+    With the discard route for 192.0.2.0/24 deleted, FRR's BGP import check (enabled: the path shows "inaccessible,
+    import-check enabled") sometimes withholds the aggregate and sometimes announces it. Withheld, the upstream and
+    the peer lose it and the intent checks (I2, I5) fail; announced, they pass, and the harm left is the routing loop
+    for unused addresses in the aggregate, which no check probes. Same build, same machine, same case: different
+    verdicts.
+  netdryrun_verdicts:
+  - {when: "2026-10-27", run: "first v2 run, development build before 0.3.1", verdict: safe}
+  - {when: "2026-10-27", run: "0.3.1 release gate rerun (the committed results.json)", verdict: unsafe}
+  - {when: "2026-10-29", run: "0.3.3 release gate, build ada4dd0", verdict: safe}
+  - {when: "2026-10-29", run: "rerun 1 of 3, build ada4dd0", verdict: unsafe}
+  - {when: "2026-10-29", run: "rerun 2 of 3, build ada4dd0", verdict: unsafe}
+  - {when: "2026-10-29", run: "rerun 3 of 3, build ada4dd0", verdict: safe}

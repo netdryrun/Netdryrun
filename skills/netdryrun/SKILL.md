@@ -1,6 +1,7 @@
 ---
 name: netdryrun
 description: Dry-run a routing or policy change (BGP, prefix lists, route maps, communities, static routes) in a real containerlab lab with Netdryrun before proposing or applying it, and report the verdict. Use whenever you are about to propose, apply or approve a network configuration change in a repository that has a netdryrun.yml or a containerlab topology.
+compatibility: Linux, Docker, containerlab (root-equivalent)
 ---
 
 # Netdryrun: no routing change without a verdict

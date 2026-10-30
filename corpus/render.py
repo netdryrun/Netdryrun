@@ -37,8 +37,16 @@ def outcome(expected: str, verdict: str) -> str:
     return "false pass" if expected == "unsafe" else "false block"
 
 
-def stats(rows: list[dict]) -> dict:
+def nondeterministic(corpus: Path = HERE) -> dict:
+    """Cases marked in NONDETERMINISTIC.yml after the run: their verdict follows a race in the lab. Not scored."""
+    path = corpus / "NONDETERMINISTIC.yml"
+    return (yaml.safe_load(path.read_text(encoding="utf-8")) or {}) if path.exists() else {}
+
+
+def stats(rows: list[dict], skip=()) -> dict:
+    """Scores over the deterministic cases: the IDs in `skip` (nondeterministic) are left out."""
     out = {}
+    rows = [r for r in rows if r["id"] not in skip]
     unsafe = [r for r in rows if r["expected"] == "unsafe"]
     for s in LABELS:
         oc = [outcome(r["expected"], r["strategies"][s]["verdict"]) for r in rows]
@@ -53,14 +61,17 @@ def stats(rows: list[dict]) -> dict:
 
 def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, amendments: Path = AMENDMENTS) -> str:
     rows, env = data["cases"], data["environment"]
-    st = stats(rows)
+    nd = nondeterministic(corpus)
+    st = stats(rows, nd)
     rel = corpus.relative_to(HERE.parent).as_posix()
     lines = [
         f"Generated {env['generated']} with netdryrun {env['netdryrun']}, containerlab {env['containerlab']}, "
         f"FRR {env['frr_image']}, commit `{env.get('commit', '?')}`. Rerun everything with `python corpus/run.py{env.get('rerun_args', '')}`.", "",
         "**Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were "
         f"committed before any run (see the git history of `{rel}/cases/`). Losses are kept and shown at the same size as the catches.", "",
-        f"{h} Summary ({st['total']} cases: {st['unsafe']} harmful, {st['safe']} safe)", "",
+        (f"{h} Summary ({st['total']} deterministic cases: {st['unsafe']} harmful, {st['safe']} safe; "
+         f"{len(nd)} nondeterministic, not scored)" if nd else
+         f"{h} Summary ({st['total']} cases: {st['unsafe']} harmful, {st['safe']} safe)"), "",
         "| Strategy | Correct | Harmful changes caught | Approved a bad change | Blocked a good change | Errors |",
         "|---|---|---|---|---|---|",
     ]
@@ -72,9 +83,23 @@ def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, 
     for r in rows:
         cells = [MARK[outcome(r["expected"], r["strategies"][s]["verdict"])] for s in LABELS]
         flagged = "; ".join(r["strategies"]["netdryrun"]["failed_checks"]) or "nothing"
+        if r["id"] in nd:
+            cells = ["🎲 not scored"] * len(LABELS)
+            flagged = "nondeterministic in this lab: see below"
         name = f"[{r['title']}]({link(r['id'])})" if link else r["title"]
         lines.append(f"| `{r['id']}` {name} | {r['category']} | {r['expected']} | {' | '.join(cells)} | {flagged} |")
-    losses = [r for r in rows if outcome(r["expected"], r["strategies"]["netdryrun"]["verdict"]) != "correct"]
+    losses = [r for r in rows if r["id"] not in nd
+              and outcome(r["expected"], r["strategies"]["netdryrun"]["verdict"]) != "correct"]
+    if nd:
+        lines += ["", f"{h} Nondeterministic cases (not scored)", "",
+                  "Same build, same machine, same case, different verdicts: the verdict follows a race in the lab, not "
+                  "the change. These cases are left out of every score above and listed here with every Netdryrun "
+                  f"verdict seen. The case files and expected verdicts are unchanged; the list is in `{rel}/NONDETERMINISTIC.yml`.", ""]
+        for cid, x in nd.items():
+            row = next((r for r in rows if r["id"] == cid), {"title": cid, "expected": "?"})
+            seen = "; ".join(f"{v['when']}, {v['run']}: **{v['verdict']}**" for v in x["netdryrun_verdicts"])
+            lines.append(f"- **`{cid}` {row['title']}** (expected {row['expected']}). {x['why'].strip()} "
+                         f"Netdryrun verdicts: {seen}.")
     lines += ["", f"{h} Netdryrun's losses", ""]
     if not losses:
         lines.append("None in this run.")
@@ -244,7 +269,7 @@ def render_v2() -> None:
     body = body.replace("`corpus/v2/cases/`", f"[`corpus/v2/cases/`]({REPO}/tree/main/corpus/v2/cases)")
     head = SITE_PAGE.read_text(encoding="utf-8").split(V2_MARKER)[0].rstrip("\n")
     SITE_PAGE.write_text(head + "\n\n" + V2_MARKER + "\n\n" + intro + "\n\n" + body, encoding="utf-8", newline="\n")
-    st = stats(data["cases"])
+    st = stats(data["cases"], nondeterministic(V2))
     print(f"wrote corpus/v2/RESULTS.md and the v2 section of {SITE_PAGE.name}")
     print(json.dumps({s: st[s] for s in LABELS} | {"total": st["total"], "unsafe": st["unsafe"]}, indent=1))
 

@@ -161,14 +161,11 @@ def test_failed_command_is_the_evidence_and_lab_text_stays_one_short_line():
     assert "\n" not in f["evidence"]["excerpt"] and len(f["evidence"]["excerpt"]) == 203
 
 
-def test_registry_description_is_the_definition_and_fits_the_registry():
-    # the MCP Registry schema (server.schema.json) caps description at 100 characters, so server.json carries
-    # the opening clause of the one-sentence definition, word for word
+def test_the_skill_carries_the_one_sentence_definition():
+    # the registry description is search words instead (0.3.3), checked in test_listing_text.py
     definition = ("Netdryrun dry-runs a network change in a real lab before it reaches production: it boots the "
                   "topology with the changed configs, waits for routing to converge, checks what must and must "
                   "never happen, and returns a verdict with evidence.")
-    description = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["description"]
-    assert 1 <= len(description) <= 100 and definition.startswith(description.rstrip("."))
     assert definition in (ROOT / "skills/netdryrun/SKILL.md").read_text(encoding="utf-8")
 
 
@@ -201,7 +198,7 @@ def test_tools_over_stdio_return_the_contract(tmp_path):
     _validate(json.loads(types), "check_types_result")
     _validate(json.loads(baseline), "tool_error")
     # every tool carries the rules, so an agent that reads one tool still gets them
-    assert set(tools) == {"dry_run", "run_checks", "record_baseline", "validate", "check_types"}
+    assert set(tools) == {"dry_run", "start_run", "get_result", "run_checks", "record_baseline", "validate", "check_types"}
     for name, text in tools.items():
         for phrase in ("before proposing or applying any routing or policy change", "Ping is not a test",
                        "60–120 s", "Linux or WSL2", "root-equivalent", "macOS", "Docker-in-Docker",

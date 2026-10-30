@@ -1,0 +1,43 @@
+# Pipeline for a GitLab copy of this repository (GitHub stays the source). It tests the CI/CD
+# component in templates/ on the examples and, on a semantic-version tag, creates the release that
+# publishes the component to the GitLab CI/CD Catalog. Needs a runner that allows privileged jobs:
+# gitlab.com's default hosted Linux runners do.
+stages: [test, verify, release]
+
+include:
+  # The component at this commit, with Netdryrun from this commit (not the release on PyPI)
+  - component: $CI_SERVER_FQDN/$CI_PROJECT_PATH/netdryrun@$CI_COMMIT_SHA
+    inputs:
+      job-name: netdryrun-frr-bgp
+      path: examples/frr-bgp
+      netdryrun-package: "."
+  - component: $CI_SERVER_FQDN/$CI_PROJECT_PATH/netdryrun@$CI_COMMIT_SHA
+    inputs:
+      job-name: netdryrun-frr-bgp-broken
+      path: examples/frr-bgp-broken
+      netdryrun-package: "."
+
+# The broken example leaks routes: Netdryrun must catch it (exit code 1). Any other result fails.
+netdryrun-frr-bgp-broken:
+  allow_failure:
+    exit_codes: [1]
+
+frr-bgp-broken-must-fail:
+  stage: verify
+  image: busybox:1.37
+  needs: [netdryrun-frr-bgp-broken]
+  script:
+    - echo "netdryrun-frr-bgp-broken status=$NETDRYRUN_STATUS failed=$NETDRYRUN_FAILED"
+    - test "$NETDRYRUN_STATUS" = failed && test "$NETDRYRUN_FAILED" -gt 0
+
+# The Catalog only lists releases made by the release keyword in a pipeline, from tags like 0.4.0
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+  script:
+    - echo "Releasing the Netdryrun component $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    description: "Netdryrun $CI_COMMIT_TAG. Changelog: https://github.com/netdryrun/netdryrun/blob/main/CHANGELOG.md"

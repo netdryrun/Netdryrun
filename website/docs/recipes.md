@@ -52,7 +52,7 @@ One check per neighbor that catches a leak of *any* prefix, including ones nobod
   max: 10
 ```
 
-The count is of *accepted* prefixes (received minus rejected by import policy), so this also shows a filter that suddenly drops everything (`min`). `record --min-prefixes` writes the `min` side for every neighbor; add `max` by hand.
+The count is of *accepted* prefixes (received minus rejected by import policy), so this also shows a filter that suddenly drops everything (`min`). From 0.3.3, `netdryrun record` writes both sides for every neighbor: today's count as `min` and `max` with 20% headroom; adjust `max` to the growth you expect. `record` also writes the no-default-route and link-subnet guards below for every BGP node (`--no-guards` leaves them out).
 
 **Tested:** passes on `frr-bgp` (2 prefixes); fails on r2 announcing 12 extra static /24s with `redistribute static`, exit 1:
 

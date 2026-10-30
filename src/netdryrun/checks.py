@@ -44,11 +44,19 @@ def _not_configured(neighbor: str, seen: dict) -> str:
     return f"neighbor {neighbor} not configured (seen: {', '.join(seen)})"
 
 
+def _ambiguous(neighbor: str, n) -> str:
+    return Unready(f"neighbor {neighbor} is ambiguous: {len(n.ambiguous)} sessions share it "
+                   f"({', '.join(n.ambiguous)}), and either one's state would answer for the other; "
+                   "check a global address instead")
+
+
 def _bgp_session(d: Driver, p: dict) -> tuple[bool, str, list]:
     obs = d.bgp_neighbors(p.get("vrf", "default"))
     n = obs.value.get(p["neighbor"])
     if n is None:
         return False, _not_configured(p["neighbor"], obs.value), obs.evidence
+    if n.ambiguous:
+        return False, _ambiguous(p["neighbor"], n), obs.evidence
     if p["state"] == "down":
         return n.state != "established", f"state is {n.state}", obs.evidence
     return n.state == p["state"], f"state is {n.state}", obs.evidence
@@ -59,6 +67,8 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
     n = obs.value.get(p["neighbor"])
     if n is None:
         return False, _not_configured(p["neighbor"], obs.value), obs.evidence
+    if n.ambiguous:
+        return False, _ambiguous(p["neighbor"], n), obs.evidence
     if n.state != "established":
         # counters reset to 0 when a session drops (e.g. a max-prefix trip), so a count
         # from a down session would satisfy "max" by accident

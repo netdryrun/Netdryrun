@@ -380,6 +380,16 @@ def layer_static(args) -> Layer:
            if not n.startswith(OUR_LAB_PREFIX.removeprefix("clab-"))]
     layer.add("lab-names", "every topology we ship is named ndr-*", BLOCKER, not off,
               "; ".join(off) or f"{len(topos)} topologies")
+    tracked = run(["git", "ls-files"]).out.split()
+    texts = []
+    for f in tracked:
+        try:
+            texts.append((f, (ROOT / f).read_text(encoding="utf-8")))
+        except (UnicodeDecodeError, OSError):
+            pass   # binary or unreadable: no public text in it
+    retired = retired_string_problems(texts)
+    layer.add("retired-strings", "no retired public string outside the history (CHANGELOG, advisories, records)",
+              BLOCKER, not retired, "; ".join(retired[:10]) or "none")
 
     if args.candidate:
         candidate_checks(layer, args.version)
@@ -418,6 +428,28 @@ def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
                 found.append((f"{rel}:{text.count(chr(10), 0, m.start()) + 1} {m.group(0)}", m.group(1)))
     problems = [f"{where} says {v}" for where, v in found if v != version]
     return found, problems
+
+
+# Public strings the project retired, with the release that retired them. An agent or a user copies these
+# exactly, so a doc that still shows one is a wrong instruction. The old text stays only where history is
+# recorded: the paths below, and a line that says it is history.
+RETIRED = {"SAFE" + " TO PROCEED": "the MCP pass verdict until 0.3.1 (0.3.2: CHECKS PASSED (only what the checks cover))"}
+RETIRED_HISTORY_PATHS = ("CHANGELOG.md", "advisories/", "releases/", "examples/agent-eval/results/",
+                         "examples/agent-eval/RESULTS.md", "examples/agent-demo/AGENT-RUN.md")
+RETIRED_HISTORY_LINE = re.compile(r"\b\d+\.\d+\.\d+ (said|returned)\b|\bbefore \d+\.\d+\.\d+\b|\brenamed\b", re.I)
+
+
+def retired_string_problems(texts) -> list[str]:
+    """`path:line: retired "..." (why)` for each retired string found outside the recorded history."""
+    problems = []
+    for path, text in texts:
+        if path.startswith(RETIRED_HISTORY_PATHS):
+            continue
+        for n, line in enumerate(text.splitlines(), 1):
+            for old, why in RETIRED.items():
+                if old in line and not RETIRED_HISTORY_LINE.search(line):
+                    problems.append(f"{path}:{n}: retired {old!r} ({why})")
+    return problems
 
 
 def python_support_problems() -> list[str]:
@@ -621,18 +653,21 @@ def layer_mutation(args) -> Layer:
         caught = len(checked) - len(survived)
         score = 100.0 * caught / max(1, len(checked))
         untested = sum(checked[n] == "no tests" for n in survived)
-        summary = (f"{caught}/{len(checked)} mutants caught ({score:.1f}%); not caught: "
+        by_class = accepted_by_class(accepted, survived, diffs)
+        summary = (f"{len(mine)} generated, {caught}/{len(checked)} caught ({score:.1f}%); not caught: "
                    f"{len(survived) - untested} survived the tests, {untested} in code no test runs"
-                   + (f", {len(survived) - len(open_)} accepted" if len(survived) != len(open_) else "")
-                   + (f"; {len(stale)} accepted entries no longer match their mutant's diff (re-review them)"
+                   + (f", {len(survived) - len(open_)} accepted ("
+                      + ", ".join(f"{v} {k}" for k, v in sorted(by_class.items())) + ")"
+                      if len(survived) != len(open_) else "")
+                   + (f"; {len(stale)} accepted entries don't accept their mutant (diff moved, no class, or no reviewed argument): see the notes"
                       if stale else ""))
         if not checked:
             layer.add(f"mutants-{module}", f"no surviving mutants in {VERDICT_MODULES[module]}", BLOCKER, False,
                       "no mutants were checked", tail(out), p.seconds)
             continue
         layer.add(f"mutants-{module}", f"no surviving mutants in {VERDICT_MODULES[module]}", BLOCKER, not open_,
-                  summary, tail("\n".join(f"{n}: {checked[n]}" + (f"  [accepted: {reason(accepted[n])}]" if accepted_now(accepted, n, diffs)
-                                                                   else "  [STALE acceptance]" if n in accepted else "")
+                  summary, tail("\n".join(f"{n}: {checked[n]}" + (f"  [accepted, {accepted[n]['class']}: {reason(accepted[n])}]" if accepted_now(accepted, n, diffs)
+                                                                   else f"  [NOT accepted: {acceptance_problem(accepted[n], n, diffs)}]" if n in accepted else "")
                                           for n in survived), 40), p.seconds if module == modules[0] else 0.0,
                   cmdline(["mutmut", *cmd[3:]]))
     gone = sorted(n for n in accepted if n not in survived_names
@@ -656,10 +691,52 @@ def reason(entry) -> str:
     return entry if isinstance(entry, str) else entry.get("reason", "")
 
 
+# Every accepted survivor says why in one of these classes (RELEASE-GATE.md, Layer 4).
+ACCEPT_CLASSES = ("message-text", "logging", "equivalent", "timing-only", "safety")
+
+# The functions that decide a verdict: check evaluation, the convergence and no-neighbor gates, inconclusive
+# classification, the fault-visible wait and the exit-code mapping. A survivor here is accepted only with a
+# written argument that it can't turn a failure into a pass, checked by the Layer 6 adversarial reviewer
+# ("argument" and "reviewed" in its accepted.json entry). The `tested` hashing (agent_result.py) is not in
+# the mutated modules; its behaviour is pinned by tests.
+VERDICT_FUNCTIONS = frozenset({
+    "checks._bgp_session", "checks._bgp_prefixes", "checks._route", "checks._ping", "checks._bgp_route",
+    "checks._not_configured", "checks.is_post_convergence", "checks._evaluate", "checks._counts", "checks.run_check",
+    "checks.hold_check", "checks.converge_then_hold", "checks.run_round_robin", "checks._reach_view",
+    "checks.hold_together", "checks.never_ready_nodes", "checks.inconclusive_reason",
+    "runner._bgp_convergence_gate", "runner._wait_fault_visible", "runner._link_sessions",
+    "runner._sessions_over_links", "runner._reach_then_hold", "runner.run_scenario",
+    "runner.RunReport.passed", "runner.RunReport.failed", "runner.RunReport.status",
+    "runner.RunReport.inconclusive_reason", "runner.RunReport.exit_code", "runner.rejected_config",
+})
+
+
+def acceptance_problem(entry, name: str, diffs: dict[str, str]) -> str | None:
+    """Why an accepted.json entry doesn't accept this mutant today, or None if it does."""
+    if not isinstance(entry, dict):
+        return "no entry, or the old format with no diff fingerprint"
+    if name not in diffs or entry.get("diff") != mutant_fingerprint(diffs[name]):
+        return "its diff fingerprint doesn't match this mutant (code moved: re-review)"
+    if entry.get("class") not in ACCEPT_CLASSES:
+        return f"no class (one of {', '.join(ACCEPT_CLASSES)})"
+    if mutant_function(name) in VERDICT_FUNCTIONS and not (entry.get("argument") and entry.get("reviewed")):
+        return ("a verdict-deciding function: needs a written argument that it can't turn a failure into a pass, "
+                "checked by the adversarial reviewer (argument, reviewed)")
+    return None
+
+
+def accepted_by_class(accepted: dict, names, diffs: dict[str, str]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for n in names:
+        if acceptance_problem(accepted.get(n), n, diffs) is None:
+            out[accepted[n]["class"]] = out.get(accepted[n]["class"], 0) + 1
+    return out
+
+
 def accepted_now(accepted: dict, name: str, diffs: dict[str, str]) -> bool:
-    """Accepted only if the entry pins the diff this mutant has today."""
-    entry = accepted.get(name)
-    return isinstance(entry, dict) and name in diffs and entry.get("diff") == mutant_fingerprint(diffs[name])
+    """Accepted only if the entry pins the diff this mutant has today, names a class, and, in a verdict-deciding
+    function, carries a reviewed argument."""
+    return acceptance_problem(accepted.get(name), name, diffs) is None
 
 
 def pin_accepted(args, accepted: dict, diffs: dict[str, str]) -> None:
@@ -707,8 +784,10 @@ def mutant_section(survivors: dict[str, list[str]], status: dict, accepted: dict
     for func, ns in sorted(by_func.items(), key=lambda kv: (-len(kv[1]), kv[0])):
         lines += [f"## `{func}` ({len(ns)})", ""]
         for n in ns:
-            note = (f" (accepted: {reason(accepted[n])})" if accepted_now(accepted, n, diffs) else
-                    f" (STALE acceptance, re-review: {reason(accepted[n])})" if n in accepted else "")
+            note = (f" (accepted, {accepted[n]['class']}: {reason(accepted[n])})" if accepted_now(accepted, n, diffs) else
+                    f" (NOT accepted: {acceptance_problem(accepted[n], n, diffs)}; {reason(accepted[n])})" if n in accepted else "")
+            if n in accepted and isinstance(accepted[n], dict) and accepted[n].get("argument"):
+                note += f"; argument: {accepted[n]['argument']}; reviewed: {accepted[n].get('reviewed', 'no')}"
             fp = mutant_fingerprint(diffs.get(n, ""))
             lines += [f"`{n}`: {status[n]}{note}; diff fingerprint `{fp}`", "", "```diff",
                       diffs.get(n) or "(no diff)", "```", ""]
@@ -897,6 +976,57 @@ def live_examples(live: Live, args) -> None:
               "\n".join(f"{n}: {s:.0f} s (documented {'-'.join(map(str, d))} s)" for n, s, d in times))
 
 
+def harmful_approved(cases: list[dict], skip=()) -> list[str]:
+    """The case IDs where a harmful change ("expected": "unsafe") got Netdryrun's approval: the false passes, counted
+    on their own. Cases in `skip` (nondeterministic) are left out."""
+    return sorted(c["id"] for c in cases if c["id"] not in skip
+                  and c.get("expected") == "unsafe" and c.get("strategies", {}).get("netdryrun", {}).get("verdict") == "safe")
+
+
+# The cases each corpus may exempt from the verdict diff: adding one to NONDETERMINISTIC.yml takes a change here too.
+NONDETERMINISTIC_PINNED = {"v1": [], "v2": ["18-aggregate-discard-route-removed"]}
+
+
+def nondeterministic_problems(version: str, nd: dict, new: dict) -> list[str]:
+    """Why the nondeterministic exemption doesn't hold this run: a list that differs from the pinned one, a case
+    that didn't run its repeats, or any run that ended in error (an error is never part of the race)."""
+    out = []
+    if sorted(nd) != sorted(NONDETERMINISTIC_PINNED.get(version, [])):
+        out.append(f"NONDETERMINISTIC.yml lists {sorted(nd)}, the gate pins {NONDETERMINISTIC_PINNED.get(version, [])}")
+    for cid in sorted(nd):
+        runs = new.get(cid, {}).get("runs") or []
+        if len(runs) < 2:
+            out.append(f"{cid}: {len(runs)} runs recorded, not the repeats")
+        bad = [f"run {i + 1} {s}" for i, r in enumerate(runs) for s, v in r.items() if v not in ("safe", "unsafe")]
+        if bad:
+            out.append(f"{cid}: error in {', '.join(bad)}")
+    return out
+
+
+def nd_always_approved(published: dict, rerun: dict) -> bool:
+    """A harmful nondeterministic case that Netdryrun approved in every run of this release."""
+    runs = rerun.get("runs") or []
+    expected = rerun.get("expected") or published.get("expected")   # a case new in this release has no published row
+    return expected == "unsafe" and bool(runs) and all(r.get("netdryrun") == "safe" for r in runs)
+
+
+def nondeterministic_cases(corpus: Path) -> dict:
+    """corpus/[v2/]NONDETERMINISTIC.yml: cases whose verdict follows a race in the lab, recorded and never a blocker."""
+    import yaml   # the gate's Python has Netdryrun's dependencies (Layer 5 installs the package)
+    path = corpus / "NONDETERMINISTIC.yml"
+    return (yaml.safe_load(path.read_text(encoding="utf-8")) or {}) if path.exists() else {}
+
+
+def harmful_approved_check(published: list[dict], rerun: list[dict], skip=()) -> tuple[bool, str]:
+    """A harmful case approved that isn't among the published known misses is a BLOCKER, whatever the score."""
+    known, now = set(harmful_approved(published, skip)), harmful_approved(rerun, skip)
+    new = [c for c in now if c not in known]
+    summary = f"harmful changes approved: {len(now)} ({', '.join(now) or 'none'}); published known misses: "               f"{', '.join(sorted(known)) or 'none'}"
+    if new:
+        summary += f"; new, not published: {', '.join(new)}"
+    return not new, summary
+
+
 def live_corpora(live: Live, args) -> None:
     """Rerun both Verdict Corpus versions from a scratch copy; every verdict must match results.json."""
     layer = live.layer
@@ -911,12 +1041,13 @@ def live_corpora(live: Live, args) -> None:
         committed = ROOT / "corpus" / sub / "results" / "results.json"
         fresh = copy / sub / "results" / "results.json"
         diffs = []
+        nd = nondeterministic_cases(ROOT / "corpus" / sub)
         if fresh.exists():   # kept beside GATE.md: the corpus results of this exact release, for the docs
             write_out(args, f"corpus-{version}-results.json", fresh.read_text(encoding="utf-8"))
         if p.code == 0:
             old = {c["id"]: c for c in json.loads(committed.read_text(encoding="utf-8"))["cases"]}
             new = {c["id"]: c for c in json.loads(fresh.read_text(encoding="utf-8"))["cases"]}
-            for cid in sorted(set(old) | set(new)):
+            for cid in sorted((set(old) | set(new)) - set(nd)):
                 for s in ("ping", "sessions", "netdryrun"):
                     a = old.get(cid, {}).get("strategies", {}).get(s, {}).get("verdict")
                     b = new.get(cid, {}).get("strategies", {}).get(s, {}).get("verdict")
@@ -926,6 +1057,27 @@ def live_corpora(live: Live, args) -> None:
                   BLOCKER, p.code == 0 and not diffs,
                   f"exit {p.code}" if p.code else (f"{len(diffs)} verdict(s) differ" if diffs else "all verdicts match"),
                   "\n".join(diffs) or tail(p.out), p.seconds, cmdline(["python", "corpus/run.py", "--corpus", version]))
+        if p.code == 0 and (nd or NONDETERMINISTIC_PINNED.get(version)):
+            # the verdicts are recorded, never a blocker: they follow the lab, not the change. The exemption
+            # itself is held: the pinned list, the repeats ran, and no run ended in error
+            problems = nondeterministic_problems(version, nd, new)
+            layer.add(f"corpus-{version}-nondeterministic-held",
+                      f"Verdict Corpus {version}: the nondeterministic exemption holds (pinned list, repeats ran, no error)",
+                      BLOCKER, not problems, "; ".join(problems) or ", ".join(sorted(nd)))
+            seen = "; ".join(f"{cid}: " + ", ".join(str(r.get("netdryrun")) for r in new.get(cid, {}).get("runs", []))
+                             for cid in nd)
+            # every run approving a harmful case is shown as a failed INFO line: not a blocker (it happens by chance),
+            # but in plain sight
+            approved = [cid for cid in nd if nd_always_approved(old.get(cid, {}), new.get(cid, {}))]
+            layer.add(f"corpus-{version}-nondeterministic",
+                      f"Verdict Corpus {version}: nondeterministic cases recorded (known, not scored, never a blocker)",
+                      INFO, not approved, f"Netdryrun verdicts per run: {seen}"
+                      + (f"; every run approved the harmful change: {', '.join(approved)}" if approved else ""))
+        if p.code == 0 and fresh.exists():
+            ok, summary = harmful_approved_check(list(old.values()), list(new.values()), nd)
+            layer.add(f"corpus-{version}-harmful-approved",
+                      f"Verdict Corpus {version}: no harmful change approved beyond the published known misses",
+                      BLOCKER, ok, summary)
         live.assert_clean(f"corpus-{version}", f"Verdict Corpus {version}")
 
 

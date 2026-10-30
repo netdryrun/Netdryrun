@@ -1,0 +1,183 @@
+# Netdryrun as a GitLab CI/CD component: the GitLab equivalent of action.yml.
+# Docs: https://github.com/netdryrun/netdryrun/blob/main/templates/README.md (not listed on the website yet)
+spec:
+  description: Test network changes in a real virtual lab (containerlab) before they reach production.
+  inputs:
+    job-name:
+      description: Name of the job this component adds
+      default: netdryrun
+    stage:
+      description: Stage the job runs in
+      default: test
+    image:
+      description: >-
+        Job image for docker executors (ignored by shell runners). The default is containerlab's own
+        Docker-in-Docker image (Debian, Python 3.11, containerlab preinstalled), tag = containerlab version.
+      default: ghcr.io/srl-labs/containerlab/devcontainer-dind-slim:0.81.1
+    path:
+      description: netdryrun.yml or the folder containing it
+      default: "."
+    containerlab-version:
+      description: containerlab version to install if the runner has none (pinned for reproducible runs; empty = latest)
+      default: "0.81.1"
+    netdryrun-package:
+      description: What pip installs (a pinned release by default; a path or a git URL also work)
+      default: netdryrun==0.3.3
+    json-report:
+      description: Path for the JSON evidence report
+      default: netdryrun-report.json
+    verdict-report:
+      description: >-
+        Path for the agent result: status, verdict, failures and the sha256 of every file tested, as JSON in
+        the shape the MCP tools return (netdryrun.mcp-result/v1). Kept with the reports
+      default: netdryrun-verdict.json
+    mr-comment:
+      description: >-
+        On merge request pipelines, post (and keep updating) one note with the verdict, starting with the
+        fixed machine-readable header. Needs a project access token in the variable named below
+      default: "false"
+    mr-comment-token-variable:
+      description: >-
+        Name of the masked CI/CD variable that holds a project access token with the api scope and at least
+        the Reporter role (CI_JOB_TOKEN can't write merge request notes)
+      default: NETDRYRUN_GITLAB_TOKEN
+    junit-report:
+      description: Path for the JUnit XML report (published as the pipeline's test report)
+      default: netdryrun-junit.xml
+    markdown-report:
+      description: Path for the Markdown summary (also printed in the job log)
+      default: netdryrun-summary.md
+    settle:
+      description: Seconds to wait before negative checks
+      default: "10"
+    hold:
+      description: Seconds a negative check must hold
+      default: "10"
+    artifacts-expire-in:
+      description: How long GitLab keeps the reports
+      default: 14 days
+---
+"$[[ inputs.job-name ]]":
+  stage: $[[ inputs.stage ]]
+  image: $[[ inputs.image ]]
+  # Runner tags: add them by redefining the job in your .gitlab-ci.yml, e.g. netdryrun: {tags: [privileged]}
+  variables:
+    NDR_PATH: $[[ inputs.path ]]
+    NDR_CLAB_VERSION: $[[ inputs.containerlab-version ]]
+    NDR_PACKAGE: $[[ inputs.netdryrun-package ]]
+    NDR_JSON: $[[ inputs.json-report ]]
+    NDR_JUNIT: $[[ inputs.junit-report ]]
+    NDR_VERDICT: $[[ inputs.verdict-report ]]
+    NDR_MR_COMMENT: $[[ inputs.mr-comment ]]
+    NDR_TOKEN_VAR: $[[ inputs.mr-comment-token-variable ]]
+    NDR_MARKDOWN: $[[ inputs.markdown-report ]]
+    NDR_SETTLE: $[[ inputs.settle ]]
+    NDR_HOLD: $[[ inputs.hold ]]
+  script:
+    - |
+      set +e
+      # The merge request note (one per lab: marker, fixed header with the commit, then the summary), written
+      # however the script ends, even before Netdryrun was installed: a run that wrote no report rewrites the
+      # header as error. Its exit code is kept; a note problem is only a warning.
+      ndr_note() {
+      if [ -n "${VENV:-}" ] && [ -x "$VENV/bin/python" ]; then NDR_PY="$VENV/bin/python"; else NDR_PY=python3; fi
+      NDR_MARKDOWN="$NDR_MARKDOWN" "$NDR_PY" - <<'NOTE'
+      import os, sys
+      try:
+          from netdryrun.comment import main_gitlab
+      except ImportError as e:
+          if os.environ.get("NDR_MR_COMMENT") == "true" and os.environ.get("CI_MERGE_REQUEST_IID"):
+              print(f"WARNING: Netdryrun: no merge request note (Netdryrun is not installed: {e}). An older note "
+                    "may still be there: its header names the commit it describes")
+          sys.exit(0)
+      sys.exit(main_gitlab(os.environ))
+      NOTE
+      }
+      trap ndr_note EXIT
+      # Root directly, else passwordless sudo, else the runner user (must be in the docker and clab_admins groups)
+      if [ "$(id -u)" = 0 ]; then AS_ROOT=""; elif sudo -n true 2>/dev/null; then AS_ROOT="sudo"; else AS_ROOT=""; fi
+      # Reports left in the workspace (committed in the MR, or from an earlier run on a shell runner)
+      # must never be read or uploaded as this run's result
+      # A directory at a report path (committed in the MR) would make the report write fail and turn a failed
+      # run into "error": remove it too, but never the workspace or anything above it.
+      for f in "$NDR_JSON" "$NDR_JUNIT" "$NDR_MARKDOWN" "$NDR_VERDICT" netdryrun.env; do
+        if [ -d "$f" ] && [ ! -L "$f" ] && [ "$(realpath -- "$f")" != "$(realpath .)" ] \
+           && case "$(realpath .)/" in "$(realpath -- "$f")/"*) false;; *) true;; esac; then
+          $AS_ROOT rm -rf -- "$f"
+        else
+          $AS_ROOT rm -f -- "$f"
+        fi
+      done
+
+      # Docker: the runner's (shell runner, mounted socket) or our own daemon (privileged Docker-in-Docker image)
+      if ! docker info >/dev/null 2>&1 && [ -x /usr/local/share/docker-init.sh ]; then
+        echo "Starting Docker inside the job container"
+        /usr/local/share/docker-init.sh true >/dev/null 2>&1
+      fi
+      if ! docker info >/dev/null 2>&1; then
+        echo "ERROR: Netdryrun: no usable Docker. containerlab needs a privileged docker executor or a shell runner with Docker (https://github.com/netdryrun/netdryrun/blob/main/templates/README.md#runner-requirements)"
+        exit 2
+      fi
+
+      if command -v containerlab >/dev/null; then
+        have="$(containerlab version | awk '/version:/ {print $2; exit}')"
+        if [ -n "$NDR_CLAB_VERSION" ] && [ "$have" != "$NDR_CLAB_VERSION" ]; then
+          echo "WARNING: Netdryrun: containerlab $have is installed; requested $NDR_CLAB_VERSION"
+        fi
+      elif [ -n "$NDR_CLAB_VERSION" ]; then
+        curl -sL https://get.containerlab.dev | $AS_ROOT bash -s -- -v "$NDR_CLAB_VERSION"
+      else
+        curl -sL https://get.containerlab.dev | $AS_ROOT bash
+      fi
+      containerlab version | grep -i version || { echo "ERROR: Netdryrun: containerlab is not installed"; exit 2; }
+
+      VENV="$(mktemp -d)/venv"
+      python3 -m venv "$VENV" && "$VENV/bin/python" -m pip install --quiet "$NDR_PACKAGE" || { echo "ERROR: Netdryrun: could not install $NDR_PACKAGE (needs Python 3.10+)"; exit 2; }
+
+      # Pass only what Netdryrun needs (not CI_JOB_TOKEN or other job variables, not the runner user's
+      # home). This only narrows the environment: a lab runs privileged containers, so run untrusted
+      # topologies only in jobs without secrets, on runners that run nothing else.
+      if [ -n "$AS_ROOT" ] || [ "$(id -u)" = 0 ]; then LAB_HOME=/root; else LAB_HOME="$HOME"; fi
+      $AS_ROOT env -i "PATH=$VENV/bin:$PATH" "HOME=$LAB_HOME" \
+        netdryrun run "$NDR_PATH" \
+        --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown "$NDR_MARKDOWN" --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
+      NDR_EXIT=$?
+
+      # Job outputs (dotenv, for later jobs): only a report that matches this run's exit code counts
+      # (as the same user as the run: the workspace may not be writable by the image's user)
+      $AS_ROOT env "NDR_EXIT=$NDR_EXIT" "NDR_JSON=$NDR_JSON" "$VENV/bin/python" - <<'EOF'
+      import json, os, re
+      EXIT = {"passed": "0", "failed": "1", "error": "2", "inconclusive": "3"}
+      try:
+          rep = json.load(open(os.environ["NDR_JSON"]))
+          out = {"status": rep["status"], "passed": int(rep["summary"]["passed"]), "failed": int(rep["summary"]["failed"]),
+                 "inconclusive_reason": rep.get("inconclusive_reason") or ""}
+          if EXIT.get(out["status"]) != os.environ.get("NDR_EXIT"):
+              raise ValueError("the report does not match the run's exit code")
+      except Exception:
+          out = {"status": "error", "passed": 0, "failed": 0, "inconclusive_reason": ""}
+      # The reason can quote lab output: one line, no quotes, backslashes, $ or backticks
+      out["inconclusive_reason"] = re.sub(r"[`$\\\"']", "", " ".join(str(out["inconclusive_reason"]).split()))[:500]
+      with open("netdryrun.env", "w") as f:
+          for k, v in out.items():
+              f.write(f"NETDRYRUN_{k.upper()}={' '.join(str(v).split())}\n")
+      EOF
+
+      [ -f "$NDR_MARKDOWN" ] && cat "$NDR_MARKDOWN"
+      case "$NDR_EXIT" in
+        0) ;;
+        3) echo "ERROR: Netdryrun: inconclusive: the lab never reached a testable state, so this says nothing about the change. Rerun it (or raise the timeout)" ;;
+        *) echo "ERROR: Netdryrun: network checks did not pass (exit code $NDR_EXIT)" ;;
+      esac
+      exit "$NDR_EXIT"
+  artifacts:
+    when: always
+    expire_in: $[[ inputs.artifacts-expire-in ]]
+    paths:
+      - $[[ inputs.json-report ]]
+      - $[[ inputs.junit-report ]]
+      - $[[ inputs.markdown-report ]]
+      - $[[ inputs.verdict-report ]]
+    reports:
+      junit: $[[ inputs.junit-report ]]
+      dotenv: netdryrun.env

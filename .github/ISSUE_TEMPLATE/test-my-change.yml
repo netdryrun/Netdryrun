@@ -11,6 +11,8 @@ body:
         **This issue is public.** Sanitize first: documentation addresses (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24, 2001:db8::/32), private AS numbers (64512–65534), no secrets, no hostnames that identify you. For something you can't share publicly, email hello@netdryrun.com instead.
 
         Supported today: FRR, Nokia SR Linux, SONiC VS and Arista cEOS. A pass covers only the checks in the lab: see [what a lab cannot prove](https://netdryrun.com/trust/#what-a-lab-cannot-prove).
+
+        Run Cisco IOS XE or IOS XR under your own Cisco licence? Help us verify the upcoming Cisco drivers on your image, and get the verdicts first.
   - type: textarea
     id: change
     attributes:

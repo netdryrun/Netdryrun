@@ -97,6 +97,9 @@ class FakeLab:
             return set(self.running)
         return {n.container for n in self.nodes.values()}
 
+    def boot_log(self, node):   # a clean FRR boot: every config line loaded
+        return ExecResult([], 0, "[45|bgpd] done", "")
+
     def run_setup(self, node, cmds, log=None):
         self.events.append(("setup", node, tuple(cmds), log is not None))
 
@@ -1787,3 +1790,18 @@ def test_the_no_neighbors_result_is_a_complete_failed_result(monkeypatch):
     assert iso(r.started)
     assert len(r.history) == 50 and r.attempts > 50 and r.samples_unready == r.attempts   # last 50 kept, all counted
     assert all(h.get("unready") for h in r.history)
+
+
+def test_the_fault_wait_names_every_session_still_up_even_after_an_unreadable_node(monkeypatch):
+    """0.3.3 adversarial review (mutant _wait_fault_visible_20): an unreadable node must not stop the scan, so
+    the error names a later node whose session over the downed link is still established."""
+    clock = Clock()
+    monkeypatch.setattr(runner, "_clock", clock)
+    monkeypatch.setattr(runner, "_sleep", clock.sleep)
+    a = Drv(clock, neighbors_error=DriverError("vtysh timed out"))
+    b = Drv(clock, neighbors={"default": {"10.0.12.1": "established"}})
+    sc = Scenario("s", [Fault("link_down", "r1", "eth1")], [route("x")])
+    with pytest.raises(LabError) as e:
+        runner._wait_fault_visible([("r1", "default", "10.0.12.2"), ("r2", "default", "10.0.12.1")],
+                                   {"r1": a, "r2": b}.__getitem__, 9, sc)
+    assert "r1: BGP state unreadable" in str(e.value) and "r2 -> 10.0.12.1" in str(e.value)

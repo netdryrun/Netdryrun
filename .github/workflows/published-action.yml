@@ -16,7 +16,7 @@ env:
   # The release under test. Pinned by tag on purpose: this must be exactly what the docs tell
   # users to write. Bump it together with the `uses:` refs below after each release; the
   # `install` job fails when PyPI has a newer release than this.
-  RELEASE: "0.3.2"
+  RELEASE: "0.3.3"
 
 jobs:
   action-passes:
@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       # Pinned by tag on purpose (not by SHA, not ./): this is the line from the docs.
-      - uses: netdryrun/netdryrun@v0.3.2
+      - uses: netdryrun/netdryrun@v0.3.3
         id: ndr
         with:
           path: examples/frr-bgp
@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       # Pinned by tag on purpose (not by SHA, not ./): this is the line from the docs.
-      - uses: netdryrun/netdryrun@v0.3.2
+      - uses: netdryrun/netdryrun@v0.3.3
         id: ndr
         continue-on-error: true
         with:

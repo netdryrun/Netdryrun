@@ -174,9 +174,9 @@ def _action_step(name):
 
 def test_action_removes_stale_reports_before_the_run():
     run = _action_step("Run Netdryrun")["run"]
-    rm = run.index("rm -f")
-    assert rm < run.index("netdryrun run")
-    for f in ('"$NDR_JSON"', '"$NDR_JUNIT"', "netdryrun-summary.md"):
+    rm = run.index("for f in ")   # the files to clear, then rm -f (or rm -rf for a planted directory)
+    assert rm < run.index("rm -f") < run.index("netdryrun run")
+    for f in ('"$NDR_JSON"', '"$NDR_JUNIT"', '"$NDR_VERDICT"', "netdryrun-summary.md"):
         assert f in run[rm:run.index("\n", rm)]
 
 

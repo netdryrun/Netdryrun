@@ -16,7 +16,7 @@ This is a record of one real run, not the scripted replay in `demo.sh`. On 2026-
 1. Read `TICKET.md`, `configs/edge1.conf` and `netdryrun.yml`.
 2. Loaded the Netdryrun MCP tools.
 3. Edited `configs/edge1.conf`: added the new block to both prefix lists.
-4. Called `dry_run` on the folder. Result: `status: passed`, 14 of 14 checks, verdict `SAFE TO PROCEED`.
+4. Called `dry_run` on the folder. Result: `status: passed`, 14 of 14 checks, verdict `SAFE TO PROCEED` (the pass verdict before 0.3.2, which renamed it `CHECKS PASSED (only what the checks cover)`).
 5. Proposed the change, with the verdict.
 
 Its change:

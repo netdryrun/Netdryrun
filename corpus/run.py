@@ -37,10 +37,17 @@ from netdryrun.runner import run
 HERE = Path(__file__).resolve().parent
 CORPORA = {"v1": HERE, "v2": HERE / "v2"}   # v1 lives at the top of corpus/ and is frozen
 STRATEGIES = {"ping": "baseline-ping.yml", "sessions": "baseline-sessions.yml", "netdryrun": "intent.yml"}
+NONDETERMINISTIC_RUNS = 3   # a case whose verdict follows a race in the lab runs this many times (NONDETERMINISTIC.yml)
 
 
 class CaseError(ValueError):
     pass
+
+
+def nondeterministic(corpus: Path = HERE) -> dict:
+    """Case IDs marked in NONDETERMINISTIC.yml after the run: excluded from the score, run several times."""
+    path = corpus / "NONDETERMINISTIC.yml"
+    return (yaml.safe_load(path.read_text(encoding="utf-8")) or {}) if path.exists() else {}
 
 
 def load_cases(prefix: str | None, corpus: Path = HERE) -> list[dict]:
@@ -131,16 +138,19 @@ def write_results(rows: list[dict], out: Path, env: dict, corpus: Path = HERE) -
         "| Strategy | Correct | False passes (bad change approved) | False blocks (good change rejected) | Errors |",
         "|---|---|---|---|---|",
     ]
+    scored = [r for r in rows if not r.get("nondeterministic")]
     for s in names:
-        oc = [outcome(r["expected"], r["strategies"][s]["verdict"]) for r in rows]
-        lines.append(f"| {s} | {oc.count('correct')}/{len(rows)} | {oc.count('false pass')} | {oc.count('false block')} | {oc.count('error')} |")
+        oc = [outcome(r["expected"], r["strategies"][s]["verdict"]) for r in scored]
+        lines.append(f"| {s} | {oc.count('correct')}/{len(scored)} | {oc.count('false pass')} | {oc.count('false block')} | {oc.count('error')} |")
     lines += ["", "## Cases", "", "| Case | Category | Expected | Ping | Sessions | Netdryrun | What Netdryrun flagged |", "|---|---|---|---|---|---|---|"]
     mark = {"correct": "✅", "false pass": "❌ false pass", "false block": "⚠️ false block", "error": "💥 error"}
     for r in rows:
         cells = [mark[outcome(r["expected"], r["strategies"][s]["verdict"])] for s in names]
+        if r.get("nondeterministic"):
+            cells = ["🎲 not scored"] * len(names)
         flagged = "; ".join(r["strategies"]["netdryrun"]["failed_checks"]) or "nothing"
         lines.append(f"| `{r['id']}` {r['title']} | {r['category']} | {r['expected']} | {' | '.join(cells)} | {flagged} |")
-    losses = [r for r in rows if outcome(r["expected"], r["strategies"]["netdryrun"]["verdict"]) != "correct"]
+    losses = [r for r in scored if outcome(r["expected"], r["strategies"]["netdryrun"]["verdict"]) != "correct"]
     lines += ["", "## Netdryrun losses", ""]
     if not losses:
         lines.append("None in this run.")
@@ -178,17 +188,25 @@ def main() -> int:
     if args.corpus != "v1":
         env["corpus"] = args.corpus
         env["rerun_args"] = f" --corpus {args.corpus}"
+    nd = nondeterministic(corpus)
     rows = []
     for case in cases:
         print(f"== {case['id']}: {case['title']} (expected {case['expected']})", flush=True)
         try:
-            row = evaluate(case, root, args.keep, corpus)
+            n = NONDETERMINISTIC_RUNS if case["id"] in nd else 1
+            # --keep keeps only the last run's lab: an earlier one left running would collide with the next deploy
+            runs = [evaluate(case, root, args.keep and i == n - 1, corpus) for i in range(n)]
+            row = runs[0]
+            if n > 1:   # the first run stays the row's verdict; every run is kept
+                row["nondeterministic"] = True
+                row["runs"] = [{s: r["strategies"][s]["verdict"] for s in STRATEGIES} for r in runs]
         except CaseError as e:
             print(f"   CASE ERROR: {e}", flush=True)
             return 2
         rows.append(row)
         print("   " + "  ".join(f"{s}={row['strategies'][s]['verdict']}" for s in STRATEGIES)
-              + f"  ({row['seconds']}s)", flush=True)
+              + f"  ({row['seconds']}s)" + (f"  nondeterministic, runs: {row['runs']}" if row.get("runs") else ""),
+              flush=True)
     if not args.case:
         write_results(rows, corpus / "results", env, corpus)
         print(f"wrote {corpus.relative_to(HERE.parent).as_posix()}/RESULTS.md and results/results.json")

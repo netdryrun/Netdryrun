@@ -5,9 +5,9 @@
 
 > Netdryrun is an open-source tool (Python, Apache-2.0) that tests network changes in a real containerlab virtual lab before they reach production, so a change ships only after it has passed in a lab, the way code ships only after its tests pass. It waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network OSes: FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.
 
-Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.3.2). Source: https://github.com/netdryrun/netdryrun
+Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.3.3). Source: https://github.com/netdryrun/netdryrun
 
-Facts (generated from the source): version 0.3.2; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
+Facts (generated from the source): version 0.3.3; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
 <!-- /facts:llms_summary -->
 
 ## Docs

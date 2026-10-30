@@ -1,0 +1,32 @@
+# Four FRR routers: the network under change (net), its customer, its upstream provider and a settlement-free peer.
+name: ndr-leak-pattern
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    net:
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/net.conf:/etc/frr/frr.conf
+    cust:
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/cust.conf:/etc/frr/frr.conf
+    prov:
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/prov.conf:/etc/frr/frr.conf
+    peer:
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/peer.conf:/etc/frr/frr.conf
+  links:
+    - endpoints: ["net:eth1", "cust:eth1"]
+    - endpoints: ["net:eth2", "prov:eth1"]
+    - endpoints: ["net:eth3", "peer:eth1"]

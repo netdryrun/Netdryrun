@@ -1,0 +1,28 @@
+2026/10/29 16:26:12 WATCHFRR: [T83RR-8SM5G] watchfrr 10.4.1_git starting: vty@0
+2026/10/29 16:26:12 WATCHFRR: [ZCJ3S-SPH5S] zebra state -> down : initial connection attempt failed
+2026/10/29 16:26:12 WATCHFRR: [ZCJ3S-SPH5S] mgmtd state -> down : initial connection attempt failed
+2026/10/29 16:26:12 WATCHFRR: [ZCJ3S-SPH5S] bgpd state -> down : initial connection attempt failed
+2026/10/29 16:26:12 WATCHFRR: [ZCJ3S-SPH5S] staticd state -> down : initial connection attempt failed
+2026/10/29 16:26:12 WATCHFRR: [YFT0P-5Q5YX] Forked background command [pid 12]: /usr/lib/frr/watchfrr.sh restart all
+[38|mgmtd] sending configuration
+[39|zebra] sending configuration
+[45|bgpd] sending configuration
+[53|watchfrr] sending configuration
+[55|staticd] sending configuration
+Waiting for children to finish applying config...
+2026/10/29 16:26:13 WATCHFRR: [VTVCM-Y2NW3] Configuration Read in Took: 00:00:00
+The route-map 'ALLOW-ALL' does not exist.
+The route-map 'ALLOW-ALL' does not exist.
+The route-map 'ALLOW-ALL' does not exist.
+The route-map 'ALLOW-ALL' does not exist.
+2026/10/29 16:26:13 WATCHFRR: [QDG3Y-BY5TN] zebra state -> up : connect succeeded
+2026/10/29 16:26:13 WATCHFRR: [QDG3Y-BY5TN] mgmtd state -> up : connect succeeded
+2026/10/29 16:26:13 WATCHFRR: [QDG3Y-BY5TN] bgpd state -> up : connect succeeded
+2026/10/29 16:26:13 WATCHFRR: [QDG3Y-BY5TN] staticd state -> up : connect succeeded
+2026/10/29 16:26:13 WATCHFRR: [KWE5Q-QNGFC] all daemons up, doing startup-complete notify
+2026/10/29 16:26:12 ZEBRA: [NNACN-54BDA][EC 4043309110] Disabling MPLS support (no kernel support)
+[39|zebra] done
+[53|watchfrr] done
+[55|staticd] done
+[38|mgmtd] done
+[45|bgpd] done

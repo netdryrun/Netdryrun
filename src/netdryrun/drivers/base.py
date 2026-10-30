@@ -92,6 +92,10 @@ class BgpNeighbor:
     address: str
     state: str                                          # lower-case, e.g. "established"
     prefixes: dict[str, int] = field(default_factory=dict)  # afi -> accepted/received prefixes
+    # Scoped link-locals (fe80::1%eth1, fe80::1%eth2) share one key. When several sessions do, they are all listed
+    # here and no session or prefix check is evaluated on the key: either session's state or count would answer
+    # for the other one.
+    ambiguous: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -108,7 +112,8 @@ class BgpPath:
     as_path: str | None             # ASNs separated by spaces, sets as {a,b}; "" for a locally originated route
     next_hop: str | None
     local_pref: int | None          # effective value: the default local preference when the path carries none
-    med: int | None                 # a path without MED counts as 0, as best-path selection treats it by default
+    med: int | None                 # None for a path with no MED attribute: a `med` check fails on it, even
+                                    # `med: 0` (missing-as-worst makes a missing MED the worst, not 0)
     communities: list[str] = field(default_factory=list)        # canonical (config.parse_community), standard
     large_communities: list[str] = field(default_factory=list)  # canonical a:b:c
     neighbor: str | None = None
