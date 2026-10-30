@@ -1,0 +1,12 @@
+BASELINE L1: T01,T02,T03,T04,T05,T06,T07,T08,T09,R01,R02,R03
+BASELINE L2: U01,U02,U03,U04,U05
+M02: C17=fail; C26=fail; C28=fail; C29=fail; C30=fail; C72=fail; C73=fail; C74=fail; C75=fail; C76=fail
+M05: C53=fail; C55=fail; C58=fail
+M08: C28=fail; C29=fail; C38=fail; C77=fail; C93=fail; R03=pass
+M09: C32=fail; C88=fail; C91=fail; C89=fail; C92=fail; C38=fail; C77=fail; C93=fail; C90=fail; C94=fail; C86=fail
+M11: C05=fail; C06=fail; C17=fail; C18=fail; C19=fail; C20=fail; C21=fail; C22=fail; C23=fail; C47=fail; C58=fail; C59=fail; C62=fail; C72=fail; C24=fail; C28=fail; C29=fail; C30=fail; C26=fail; C27=fail; C31=fail; C39=fail; C60=fail; C61=fail; C82=fail; C86=fail; C34=fail; C35=fail; C48=fail; C49=fail; C55=fail; C56=fail; C64=fail; C66=fail; C79=fail; C89=fail; C92=fail; C69=fail; C73=fail; C83=fail
+M14: C23=fail; C24=fail; C26=fail; C28=fail; C29=fail; C30=fail
+N03: D19=fail; D40=fail; D21=fail; D35=fail; D23=fail; D30=fail; D13=fail; D27=fail; D28=fail; D15=fail; D16=fail; D14=fail; U04=pass; U05=pass
+N04: D03=fail; D04=fail; D12=fail; D15=fail; D11=fail; D13=fail; D27=fail; D33=fail; D41=fail; D38=fail; D14=fail; D16=fail; D21=fail; D22=fail; D25=fail; D46=fail; D28=fail; D29=fail; D35=fail; D39=fail; D43=fail; D45=fail; D24=fail; D26=fail; D36=fail; D37=fail; D48=fail
+N05: D07=fail; D08=fail; D17=fail; D14=fail; D31=fail; D32=fail; D36=fail; D42=fail; D19=fail; D40=fail; D21=fail; D23=fail; D35=fail; D11=fail; D13=fail; D15=fail; D16=fail; D27=fail; D28=fail; D30=fail; U04=pass; U05=pass
+N08: D32=fail; D33=fail; D29=fail; D34=fail

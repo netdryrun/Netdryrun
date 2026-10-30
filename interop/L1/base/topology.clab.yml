@@ -31,6 +31,8 @@ topology:
         - configs/f1.conf:/etc/frr/frr.conf
       exec:
         - ip route del default
+        # the FRR image starts with IPv6 forwarding off: without this f1 drops transit IPv6 (C87, run 1)
+        - sysctl -w net.ipv6.conf.all.forwarding=1
     f2:
       kind: linux
       image: quay.io/frrouting/frr:10.4.1
