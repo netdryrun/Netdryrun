@@ -207,7 +207,10 @@ def test_routes_on_live_output():
     assert red == [Route("172.16.2.0/24", "bgp", True)]
     # denied by inbound policy: in neither table (NX-OS keeps no rejected paths without soft-reconfiguration)
     assert nxos.parse_routes(read("nxos_route_66.txt"), read("nxos_bgp_66.txt"), "192.168.66.0/24") == []
-    assert nxos.parse_routes(read("nxos_route_emptyvrf.txt"), read("nxos_bgp_emptyvrf.txt"), "10.0.0.0/8", "EMPTY") == []
+    # an existing VRF without routes: NX-OS 10.4(8) answered an empty table in one boot and "nothing" (null) in
+    # another (captures 2026-10-28 and 2026-10-30); "nothing" is trusted only after `show vrf` (the driver tests)
+    assert nxos.parse_routes(read("nxos_route_emptyvrf.txt"), read("nxos_bgp_emptyvrf.txt"), "10.0.0.0/8", "EMPTY") in ([], None)
+    assert nxos.parse_routes(read("nxos_route_emptyvrf_null.txt"), read("nxos_bgp_emptyvrf.txt"), "10.0.0.0/8", "EMPTY") is None
     # a VRF that doesn't exist: both commands print nothing, which is not "no routes" until the VRF is confirmed
     assert nxos.parse_routes(read("nxos_route_novrf.txt"), read("nxos_bgp_novrf.txt"), "10.0.0.0/8", "NOPE") is None
     # another VRF's answer is never this VRF's absence
@@ -245,7 +248,8 @@ def test_learned_needs_a_path_type_and_an_address():
 def test_all_routes_vrfs_and_ping_on_live_output():
     assert len(nxos.parse_all_routes(read("nxos_all_routes.txt"))) == 7
     assert "bgp" in {r.protocol for r in nxos.parse_all_routes(read("nxos_all_routes_v6.txt"))}
-    assert nxos.parse_all_routes(read("nxos_all_routes_emptyvrf.txt"), "EMPTY") == []
+    assert nxos.parse_all_routes(read("nxos_all_routes_emptyvrf.txt"), "EMPTY") in ([], None)
+    assert nxos.parse_all_routes(read("nxos_all_routes_emptyvrf_null.txt"), "EMPTY") is None
     assert nxos.parse_all_routes(read("nxos_all_routes_novrf.txt"), "NOPE") is None
     assert nxos.parse_bgp_vrfs(read("nxos_bgp_vrf_list.txt")) == ["RED", "default"]
     assert nxos.parse_vrf_state(read("nxos_vrf_red.txt"), "RED") == "Up"
@@ -449,3 +453,13 @@ def test_exact_commands_per_vrf_and_family():
 def test_helper_can_be_quoted_by_the_capture_script():
     """scripts/capture_fixtures.sh passes HELPER inside single quotes to `bash -c`."""
     assert not set("'$`") & set(nxos.HELPER)
+
+
+@pytest.mark.parametrize("route,all_routes", [("nxos_route_emptyvrf.txt", "nxos_all_routes_emptyvrf.txt"),
+                                              ("nxos_route_emptyvrf_null.txt", "nxos_all_routes_emptyvrf_null.txt")])
+def test_both_live_shapes_of_an_empty_vrf_are_a_confirmed_absence(route, all_routes):
+    """Whichever shape NX-OS answers for an existing VRF without routes, the driver confirms the VRF and reads
+    a real absence; for a VRF that doesn't exist, the same "nothing" raises (test_unknown_vrf_is_never_no_routes)."""
+    lab = live_lab([("show ip route 10.0.0.0/8 vrf EMPTY", read(route)), ("show ip route vrf EMPTY", read(all_routes))])
+    d = NxosDriver(lab, "n1")
+    assert d.routes("10.0.0.0/8", "EMPTY").value == [] and d.all_routes("EMPTY").value == []

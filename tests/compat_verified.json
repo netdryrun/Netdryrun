@@ -25,7 +25,7 @@
     ]
   },
   "nxos": {
-    "date": "2026-10-28",
+    "date": "2026-10-30",
     "limits": [
       "Each NX-OS node is a VM inside its container: NX-API answered 5 to 7 minutes after deploy in our runs, and the node needs KVM, 4 vCPUs and about 9 GiB of memory (8 GB for the VM). Give checks a `timeout` of at least 900 s.",
       "Failure scenarios (`link_down`, `node_isolated`) on an NX-OS node are refused: the container's interfaces only carry frames to the VM. Take the link down on the other side of the link.",
