@@ -68,7 +68,11 @@ def run_case(d: Path, c: dict, version: str, dry: bool) -> dict:
     if dry:
         return {**row, "result": "dry-run", "why": f"cd {d.name} && {c['command']}"}
     p = subprocess.run(cmd, cwd=d, capture_output=True, text=True, timeout=3600)
-    problems = judge(c, p.returncode, p.stdout + p.stderr)
+    text = p.stdout + p.stderr
+    report = d / "report.json"
+    if c.get("report_must_contain") and report.exists():
+        text += report.read_text(encoding="utf-8", errors="replace")
+    problems = judge(c, p.returncode, text)
     return {**row, "result": "match" if not problems else "MISMATCH", "exit_code": p.returncode, "why": "; ".join(problems)}
 
 

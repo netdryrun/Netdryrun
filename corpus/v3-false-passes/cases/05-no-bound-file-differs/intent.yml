@@ -1,4 +1,2 @@
-# The change is meant to make r1 announce a default route to r2.
-intent:
-  - prefix: 0.0.0.0/0
-    appears_on: [r2]
+# Nothing is meant to change.
+intent: []

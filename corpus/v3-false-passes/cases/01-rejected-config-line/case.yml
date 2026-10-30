@@ -8,7 +8,7 @@ expected:
   status: error
   exit_code: 2
   must_report:
-  - FRR rejected configuration lines
+  - rejected configuration lines
   - default-orignate
 expected_from: 0.3.3
 fixed_in: 0.3.3

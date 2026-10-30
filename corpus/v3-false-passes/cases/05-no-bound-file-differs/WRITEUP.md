@@ -5,7 +5,7 @@ Found by: 0.4 expert gauntlet, finding R3. Fixed in **0.4.0**.
 
 ## What was tested
 
-The pull request adds `r1.conf.new` with a default-route announcement. The topology binds `r1.conf`, not `r1.conf.new`, so the lab boots the same files on both sides. The intent declares a new default route at r2.
+The pull request adds `r1.conf.new` with a default-route announcement. The topology binds `r1.conf`, not `r1.conf.new`, so the lab boots the same files on both sides. The intent declares that nothing changes, so two identical labs compared equal.
 
 ## What passed wrongly
 

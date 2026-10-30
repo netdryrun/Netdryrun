@@ -17,6 +17,10 @@ verify replaced every link-local address with `fe80::` because "only a boot make
 
 A link-local next hop is named by the lab node and interface that own it. An address no node owns is kept as written, so the typo is a difference: the report names `fe80::dead` and the verdict is UNDECLARED CHANGES.
 
+## What this case does and does not show
+
+In 0.4 the change also fails because the running config of r2 differs and nothing declares it (the config-change rule), so the verdict would be *failed* even without the link-local fix. The case pins that the report names the address `fe80::dead` (searched in the console output and in `report.json`); the tests below pin the rule itself. It is a smoke test, not a discriminator. The lab must be run to confirm FRR really sends that next hop.
+
 ## The tests that hold it
 
 - `tests/test_verify_gauntlet.py::test_a_link_local_next_hop_is_named_by_its_owner_and_anything_else_kept`

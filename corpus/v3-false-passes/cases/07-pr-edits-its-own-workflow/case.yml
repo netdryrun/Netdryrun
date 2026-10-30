@@ -3,7 +3,7 @@
 id: 07-pr-edits-its-own-workflow
 title: A pull request edits the workflow that judges it
 mode: action
-command: git diff --name-only --no-renames base head -- .github/workflows .github/actions
+command: git diff --no-index --name-only base/.github head/.github
 expected:
   status: refused
   exit_code: 1

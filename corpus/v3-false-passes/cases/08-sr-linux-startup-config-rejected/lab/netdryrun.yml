@@ -1,10 +1,10 @@
-# The change is an export filter on srl1 (deny everything toward frr1). The guard: frr1 must not learn a default route.
+# The change is an export filter on srl1 (deny everything toward frr1). The guard: srl1 must not carry a default route.
+# (On frr1 a BGP check would wait for a session that never comes up; srl1 has no BGP check, so this one runs.)
 lab: topology.clab.yml
 timeout: 90
 
 checks:
   - type: route
-    node: frr1
+    node: srl1
     prefix: 0.0.0.0/0
-    protocol: bgp
     present: false

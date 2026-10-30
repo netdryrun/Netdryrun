@@ -1,6 +1,6 @@
 # Corpus v3: the false passes
 
-Every case here is a change, a lab or a pull request on which a version of Netdryrun (or of its `verify` code before release) **said yes when the answer was not yes**, or could have. Each is a small, self-contained, rerunnable case with the verdict recorded before anything was run, the release that fixed it, and the test that now holds it.
+Every case here is a change, a lab or a pull request on which a version of Netdryrun (or of its `verify` code before release) **said yes when the answer was not yes**, or in two cases (03, 04) is a smoke test of a rule that has its own tests. Each is a small, self-contained, rerunnable case with the verdict recorded before anything was run, the release that fixed it, and the test that now holds it.
 
 The [Verdict Corpus](../../website/docs/corpus.md) asks whether Netdryrun catches harmful network changes. This set asks the harder question about the tool itself: **where did it pass something it should not have, and does it still?** We publish our own failures because that is the evidence a change tester has to earn.
 
@@ -9,7 +9,7 @@ The [Verdict Corpus](../../website/docs/corpus.md) asks whether Netdryrun catche
 - **The expected verdict is written first.** Each `case.yml` was committed before any case was run (`pre_registered`), and `MANIFEST.sha256` pins the file. A change to an expected verdict after that is listed in [AMENDMENTS.md](AMENDMENTS.md) with the reason; `check_cases.py` fails if the manifest and the files disagree.
 - **Every expected verdict is a failure or an error.** Never a pass: a false-pass case that expects a pass proves nothing. `check_cases.py` enforces it.
 - **A case says which versions it applies to.** `expected_from` is the first version that must give the recorded verdict. Older versions are the ones that got it wrong; `run_cases.py` skips a case on an older version instead of expecting the impossible. Several cases are marked from 0.4.0: 0.4 is not released yet, and they do not apply to 0.3.3.
-- **Honest provenance.** Cases 01, 02 and 08 are false passes in **released** versions (0.3.2, 0.3.3), each with an advisory or a changelog entry. Cases 03 to 07 were found by our own review of the **unreleased** `verify` code before it shipped; they never reached a user, and the write-up says so.
+- **Honest provenance.** Cases 01, 02 and 08 are false passes in **released** versions (0.3.2, 0.3.3): 01 and 02 have an advisory each; 08 was a limit we had already disclosed for 0.3.3. Cases 03 to 07 were found by our own review of the **unreleased** `verify` code before it shipped; they never reached a user, and the write-up says so.
 - **Written and checked offline; not yet run in a lab.** `live_verified: false` in every `case.yml` until a lab run confirms the verdict. The offline check proves the files are well-formed and consistent with the write-up. It does not prove the verdict. Where a lab run shows the pre-registered expectation to be wrong, that is a published correction, not a quiet edit.
 
 | # | Case | Mode | Passed wrongly in | Fixed in | Expected |

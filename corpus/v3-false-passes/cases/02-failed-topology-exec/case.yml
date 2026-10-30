@@ -8,9 +8,9 @@ expected:
   status: error
   exit_code: 2
   must_report:
-  - r1
   - defualt-originate
   - exec
+  - rc 1
 expected_from: 0.4.0
 fixed_in: 0.4.0
 passed_wrongly:

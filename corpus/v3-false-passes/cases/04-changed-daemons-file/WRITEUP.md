@@ -5,13 +5,13 @@ Found by: 0.4 expert gauntlet, finding R2. Fixed in **0.4.0**.
 
 ## What was tested
 
-The only file that differs between *before* and *after* is FRR's `daemons`, a shell file that FRR's start script runs. The after version adds a line that removes the BGP neighbor 30 seconds after boot. The intent declares that nothing changes.
+The only file that differs between *before* and *after* is FRR's `daemons`, a shell file that FRR's start script runs. The after version adds a line that removes the BGP neighbor 10 minutes after boot, long after verify has taken its snapshots. The intent declares that nothing changes.
 
 ## What passed wrongly
 
 The 0.4 development build before the expert gauntlet (verify is new in 0.4; this was never released) answered: **NO BEHAVIOR CHANGE or INTENT MATCHED (the file was only logged)**.
 
-verify reasoned only about the router config. Any other bound file that differed was logged, so a file that rewrites the config at boot or runs vtysh passed under an empty intent.
+verify reasoned only about the router config. Any other bound file that differed was only logged, and the effect arrives after the snapshots, so a file that rewrites the config at boot or runs vtysh passed under an empty intent.
 
 ## What happens now
 

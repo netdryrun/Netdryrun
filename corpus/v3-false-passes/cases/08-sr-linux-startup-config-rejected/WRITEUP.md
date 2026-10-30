@@ -5,13 +5,13 @@ Found by: 0.4 multi-vendor audit, finding F3. Fixed in **0.4.0**.
 
 ## What was tested
 
-srl1's JSON startup config has a misspelled key, `peer-groop`, in the BGP block that applies an export policy. SR Linux rejects the whole file and starts without it (deploy exit code 0). The only guard is that frr1 must not learn a default route.
+srl1's JSON startup config has a misspelled key, `peer-groop`, in the BGP block that applies an export policy. SR Linux rejects the whole file and starts without it (deploy exit code 0). The only guard is that srl1 itself must not carry a default route.
 
 ## What passed wrongly
 
 Netdryrun 0.3.3 and earlier answered: **passed (exit 0)**.
 
-0.3.3 did not read SR Linux's log. Without the config nothing is announced at all, so the guard "no default route at frr1" passed on a network the change never reached.
+0.3.3 did not read SR Linux's log. Without the config srl1 runs no BGP at all, so the guard "no default route on srl1" passed on a network the change never reached. This was a disclosed limit of 0.3.3 (SR Linux startup config was not verified), not an unknown one.
 
 ## What happens now
 
