@@ -1,0 +1,46 @@
+# Live must-fail coverage for the NX-OS driver (beta gate): every check type, on a live Nexus 9000v, each
+# violation a real state of this lab (see topology.clab.yml). Run with scripts/nxos_live_mustfail.py, which
+# requires every "MUST FAIL" check to fail on usable device state (never on a node that didn't answer) and
+# every "MUST PASS" control to pass.
+lab: topology.clab.yml
+timeout: 900   # the VM boots for 5-7 minutes before NX-API answers
+
+checks:
+  # ---- bgp_session
+  - {name: "MUST PASS: session to f1 established", type: bgp_session, node: n1, neighbor: 10.0.1.2}
+  - {name: "MUST PASS: session in VRF RED established", type: bgp_session, node: n1, neighbor: 10.0.2.2, vrf: RED}
+  # (also tells the convergence gate that 10.0.9.9 is expected down, so negative checks don't wait for it)
+  - {name: "MUST PASS: configured neighbor 10.0.9.9 is down", type: bgp_session, node: n1, neighbor: 10.0.9.9, state: down}
+  - {name: "MUST FAIL: idle neighbor expected established", type: bgp_session, node: n1, neighbor: 10.0.9.9}
+  - {name: "MUST FAIL: up session expected down", type: bgp_session, node: n1, neighbor: 10.0.1.2, state: down}
+
+  # ---- bgp_prefixes (f1 sends 4, n1's inbound policy denies 1: 3 accepted; 1 over IPv6)
+  - {name: "MUST PASS: exactly 3 accepted", type: bgp_prefixes, node: n1, neighbor: 10.0.1.2, exact: 3}
+  - {name: "MUST PASS: exactly 1 IPv6 accepted", type: bgp_prefixes, node: n1, neighbor: "2001:db8:1::2", afi: ipv6-unicast, exact: 1}
+  - {name: "MUST FAIL: over max", type: bgp_prefixes, node: n1, neighbor: 10.0.1.2, max: 2}
+  - {name: "MUST FAIL: under min", type: bgp_prefixes, node: n1, neighbor: 10.0.1.2, min: 4}
+  - {name: "MUST FAIL: IPv6 over max", type: bgp_prefixes, node: n1, neighbor: "2001:db8:1::2", afi: ipv6-unicast, max: 0}
+
+  # ---- route
+  - {name: "MUST PASS: 192.168.20.0/24 via bgp", type: route, node: n1, prefix: 192.168.20.0/24, protocol: bgp}
+  - {name: "MUST PASS: default via static", type: route, node: n1, prefix: 0.0.0.0/0, protocol: static}
+  - {name: "MUST PASS: denied prefix absent", type: route, node: n1, prefix: 192.168.66.0/24, present: false}
+  - {name: "MUST FAIL: leaked default received but not installed", type: route, node: n1, prefix: 0.0.0.0/0, protocol: bgp, present: false}
+  - {name: "MUST FAIL: denied prefix expected present", type: route, node: n1, prefix: 192.168.66.0/24}
+  - {name: "MUST FAIL: wrong protocol", type: route, node: n1, prefix: 192.168.20.0/24, protocol: static}
+
+  # ---- bgp_route
+  - {name: "MUST PASS: best path attributes", type: bgp_route, node: n1, prefix: 192.168.20.0/24, as_path: "65002",
+     local_pref: 200, med: 50, next_hop: 10.0.1.2, communities: ["65002:100", "65002:1:1"], without_communities: [no-export]}
+  - {name: "MUST PASS: prepended path in VRF RED", type: bgp_route, node: n1, prefix: 172.16.2.0/24, vrf: RED, as_path: "65003 65003 65003"}
+  - {name: "MUST FAIL: leaked default in the BGP table", type: bgp_route, node: n1, prefix: 0.0.0.0/0, present: false}
+  - {name: "MUST FAIL: wrong local-pref", type: bgp_route, node: n1, prefix: 192.168.20.0/24, local_pref: 100}
+  - {name: "MUST FAIL: missing community", type: bgp_route, node: n1, prefix: 192.168.20.0/24, communities: ["65002:999"]}
+  - {name: "MUST FAIL: forbidden large community", type: bgp_route, node: n1, prefix: 192.168.20.0/24, without_communities: ["65002:1:1"]}
+  - {name: "MUST FAIL: wrong AS path in VRF RED", type: bgp_route, node: n1, prefix: 172.16.2.0/24, vrf: RED, as_path: "65003"}
+
+  # ---- ping
+  - {name: "MUST PASS: ping f1 from the loopback", type: ping, node: n1, target: 192.168.20.1, source: 192.168.10.1, count: 3}
+  - {name: "MUST PASS: ping in VRF RED", type: ping, node: n1, target: 10.0.2.2, vrf: RED, count: 3}
+  - {name: "MUST FAIL: unreachable target", type: ping, node: n1, target: 192.0.2.1, count: 2}
+  - {name: "MUST FAIL: expected to fail but replies", type: ping, node: n1, target: 192.168.20.1, source: 192.168.10.1, count: 3, expect: failure}
