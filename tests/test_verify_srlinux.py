@@ -65,9 +65,14 @@ def test_only_established_is_up():
     for state, up in (("established", True), ("idle", False), ("active", False), ("connect", False), ("opensent", False),
                       ("openconfirm", False)):
         text = edit(NEIGHBORS, lambda d, st=state: d["neighbor"][0].update({"session-state": st}))
-        if not up:   # a session that is not established has no local address to report
-            text = edit(NEIGHBORS, lambda d, st=state: (d["neighbor"][0].update({"session-state": st}),
-                                                       d["neighbor"][0]["transport"].pop("local-address")))
+        if not up:   # a session that is not established has no local address to report, and its family is down
+            def down(d, st=state):
+                d["neighbor"][0].update({"session-state": st})
+                d["neighbor"][0]["transport"].pop("local-address")
+                for a in d["neighbor"][0]["afi-safi"]:
+                    if a["afi-safi-name"] == "ipv4-unicast":
+                        a["oper-state"] = "down"
+            text = edit(NEIGHBORS, down)
         assert parse_neighbors(text, "default")["10.0.100.2"].established is up
 
 
@@ -319,10 +324,8 @@ def test_a_cut_or_empty_answer_raises_or_is_complete_never_a_crash_or_a_smaller_
 @pytest.mark.parametrize("name,parse,fixture", CASES, ids=[c[0] for c in CASES])
 def test_wrong_json_types_raise_snapshot_errors_only(name, parse, fixture):
     for text in ("[]", "[1]", "\"x\"", "7", "true", "null", "{\"a\": 1}", "{\"neighbor\": 1}", "{\"route\": 1}", "{\"index\": 1}"):
-        try:
+        with pytest.raises(SnapshotError):
             parse(text)
-        except SnapshotError:
-            pass
 
 
 # ---- the collector refuses until every source exists ---------------------------------------------------------------
