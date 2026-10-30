@@ -48,3 +48,4 @@ Captured live on 2026-10-28 from `cjunosevolved:26.2R1.7-EVO` (containerlab 0.81
 | `junos_ping_vrf_local.txt` | `ping 10.77.0.1 source 10.77.0.1 count 3 rapid wait 1 routing-instance CUST \| display json \| no-more` (same lab) |
 | `junos_route_no_med.txt` | `show route 192.168.3.1/32 exact table inet.0 all extensive \| display json \| no-more` (2026-10-31, interop lab `ndr-interop-l1`: an eBGP path FRR sent with no MED; no `metric` element) |
 | `junos_route_med0.txt` | `show route 192.168.5.1/32 exact table inet.0 all extensive \| display json \| no-more` (same lab: FRR's own network route, sent with MED 0; `metric` "0") |
+| `junos_bgp_neighbor_hidden_nexthop.txt` | `show bgp neighbor instance master \| display json \| no-more` (2026-10-31, interop lab `ndr-interop-l1`, overlay M09: one received route hidden for "Protocol nexthop is not on the interface"; received 206, accepted 205) |

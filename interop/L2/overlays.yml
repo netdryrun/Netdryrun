@@ -134,7 +134,7 @@ overlays:
         replace: "route-map TO-C1 permit 10\n set metric 50\n set community 65200:1\n set large-community 65200:0:1\n"
         with: "route-map TO-C1 permit 10\n set metric 50\n set community 65200:1\n"
     apply:
-      - {node: e1, vtysh: ["route-map TO-C1 permit 10", "no set large-community"]}
+      - {node: e1, vtysh: ["route-map TO-C1 permit 10", "no set large-community 65200:0:1"]}
     revert:
       - {node: e1, vtysh: ["route-map TO-C1 permit 10", "set large-community 65200:0:1"]}
     probe:

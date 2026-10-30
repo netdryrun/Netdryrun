@@ -53,7 +53,7 @@ overlays:
         replace: "   set large-community 65003:1:1\n"
         with: ""
     apply:
-      - {node: a1, eos: ["route-map EXPORT permit 10", "no set large-community"]}
+      - {node: a1, eos: ["route-map EXPORT permit 10", "no set large-community 65003:1:1"]}
     revert:
       - {node: a1, eos: ["route-map EXPORT permit 10", "set large-community 65003:1:1"]}
     probe:
@@ -88,7 +88,7 @@ overlays:
         replace: "   set as-path prepend 65003\n"
         with: ""
     apply:
-      - {node: a1, eos: ["route-map EXPORT permit 10", "no set as-path prepend"]}
+      - {node: a1, eos: ["route-map EXPORT permit 10", "no set as-path prepend 65003"]}
     revert:
       - {node: a1, eos: ["route-map EXPORT permit 10", "set as-path prepend 65003"]}
     probe:
