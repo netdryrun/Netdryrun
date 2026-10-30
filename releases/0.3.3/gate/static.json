@@ -2,10 +2,10 @@
  "layer": "static",
  "title": "Layer 1: static",
  "version": "0.3.3",
- "started": "2026-10-30 03:53:02 UTC",
- "seconds": 0.9,
+ "started": "2026-10-30 06:17:53 UTC",
+ "seconds": 1.1,
  "git": {
-  "sha": "91b4820a7857e8b8af25a7be7e6ac66601011838",
+  "sha": "d9311cfa43be4a26ed186c5300f95bd496a70fff",
   "dirty": false,
   "branch": "ndr/agent-runtime"
  },
@@ -26,7 +26,7 @@
    "seconds": 0.0,
    "summary": "All checks passed!",
    "output": "All checks passed!",
-   "command": "/home/ndr/.venvs/rel032/bin/python -m ruff check --output-format concise ."
+   "command": "/home/ndr/.venvs/netdryrun/bin/python -m ruff check --output-format concise ."
   },
   {
    "id": "actionlint",
@@ -53,7 +53,7 @@
    "title": "shellcheck, warning level, 18 scripts",
    "severity": "MAJOR",
    "status": "PASS",
-   "seconds": 0.1,
+   "seconds": 0.2,
    "summary": "clean",
    "output": "",
    "command": "shellcheck -S warning <scripts>"
@@ -76,7 +76,7 @@
    "seconds": 0.2,
    "summary": "facts: in sync (version 0.3.3, 0 problem(s))",
    "output": "facts: in sync (version 0.3.3, 0 problem(s))",
-   "command": "/home/ndr/.venvs/rel032/bin/python scripts/sync_facts.py --check"
+   "command": "/home/ndr/.venvs/netdryrun/bin/python scripts/sync_facts.py --check"
   },
   {
    "id": "versions",
@@ -125,36 +125,6 @@
    "status": "PASS",
    "seconds": 0.0,
    "summary": "none",
-   "output": "",
-   "command": ""
-  },
-  {
-   "id": "changelog-cut",
-   "title": "CHANGELOG has no Unreleased entries left (all under 0.3.3)",
-   "severity": "BLOCKER",
-   "status": "PASS",
-   "seconds": 0.0,
-   "summary": "cut",
-   "output": "",
-   "command": ""
-  },
-  {
-   "id": "tag-unused",
-   "title": "tag v0.3.3 does not exist yet",
-   "severity": "BLOCKER",
-   "status": "PASS",
-   "seconds": 0.0,
-   "summary": "unused",
-   "output": "",
-   "command": ""
-  },
-  {
-   "id": "pypi-unused",
-   "title": "PyPI has no netdryrun 0.3.3 yet",
-   "severity": "BLOCKER",
-   "status": "PASS",
-   "seconds": 0.0,
-   "summary": "HTTP 404",
    "output": "",
    "command": ""
   }

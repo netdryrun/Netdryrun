@@ -2,23 +2,19 @@
 
 Written by `scripts/release_gate.py` (see [RELEASING.md](../../RELEASING.md)). Do not edit by hand: rerun a layer, or record a decision in `accepted.json` or `review.md`.
 
-**READY TO PUBLISH**: every layer before publishing ran on the same clean commit; no BLOCKER failed or was skipped; every MAJOR passed or was accepted. Tag it, then run `after-publish` to clear it.
-
-**Layers not run yet:**
-
-- Layer 7: after-publish proof
+**CLEARED**: every layer ran on the same clean commit; no BLOCKER failed or was skipped; every MAJOR passed or was accepted.
 
 | Layer | Commit | Ran | Time | Result |
 |---|---|---|---|---|
-| [Layer 1: static](#layer-1-static) | `91b4820a78` | 2026-10-30 03:53:02 UTC | 0.9 s | 14 PASS |
+| [Layer 1: static](#layer-1-static) | `d9311cfa43` | 2026-10-30 06:17:53 UTC | 1.1 s | 11 PASS |
 | [Layer 2: unit tests on every supported Python](#layer-2-unit-tests-on-every-supported-python) | `878ac81b42` | 2026-10-30 00:35:51 UTC | 4.0 min | 7 PASS |
 | [Layer 4: mutation testing](#layer-4-mutation-testing) | `878ac81b42` | 2026-10-30 00:45:03 UTC | 22.8 min | 4 PASS |
 | [Layer 5: live matrix on the built package](#layer-5-live-matrix-on-the-built-package) | `878ac81b42` | 2026-10-30 01:08:40 UTC | 156.9 min | 2 ACCEPTED, 50 PASS |
-| Layer 7: after-publish proof | | not run | | |
+| [Layer 7: after-publish proof](#layer-7-after-publish-proof) | `3c0af38b92` | 2026-10-30 03:55:15 UTC | 2.7 min | 2 ACCEPTED, 12 PASS |
 
 ## Layer 1: static
 
-Commit `91b4820a7857e8b8af25a7be7e6ac66601011838` on `ndr/agent-runtime`; 2026-10-30 03:53:02 UTC; 0.9 s; Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64); Python 3.10.12; --strict.
+Commit `d9311cfa43be4a26ed186c5300f95bd496a70fff` on `ndr/agent-runtime`; 2026-10-30 06:17:53 UTC; 1.1 s; Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64); Python 3.10.12; --strict.
 
 Tools: actionlint 1.7.7; ruff 0.17.3; shellcheck 0.8.0.
 
@@ -27,7 +23,7 @@ Tools: actionlint 1.7.7; ruff 0.17.3; shellcheck 0.8.0.
 | ruff (config in pyproject.toml) | BLOCKER | **PASS** | 0.0 s | All checks passed! |
 | actionlint on every workflow (with shellcheck) | BLOCKER | **PASS** | 0.1 s | clean |
 | shellcheck, error level, 18 scripts | BLOCKER | **PASS** | 0.2 s | clean |
-| shellcheck, warning level, 18 scripts | MAJOR | **PASS** | 0.1 s | clean |
+| shellcheck, warning level, 18 scripts | MAJOR | **PASS** | 0.2 s | clean |
 | no empty ${{ }} in action.yml or workflows | BLOCKER | **PASS** | 0.0 s | none |
 | public facts match the source (sync_facts.py --check) | BLOCKER | **PASS** | 0.2 s | facts: in sync (version 0.3.3, 0 problem(s)) |
 | every version reference says 0.3.3 | BLOCKER | **PASS** | 0.0 s | 39 references agree |
@@ -35,9 +31,6 @@ Tools: actionlint 1.7.7; ruff 0.17.3; shellcheck 0.8.0.
 | every example has a documented expected result and exit code | MAJOR | **PASS** | 0.0 s | 8 examples |
 | every topology we ship is named ndr-* | BLOCKER | **PASS** | 0.0 s | 90 topologies |
 | no retired public string outside the history (CHANGELOG, advisories, records) | BLOCKER | **PASS** | 0.0 s | none |
-| CHANGELOG has no Unreleased entries left (all under 0.3.3) | BLOCKER | **PASS** | 0.0 s | cut |
-| tag v0.3.3 does not exist yet | BLOCKER | **PASS** | 0.0 s | unused |
-| PyPI has no netdryrun 0.3.3 yet | BLOCKER | **PASS** | 0.0 s | HTTP 404 |
 
 ## Layer 2: unit tests on every supported Python
 
@@ -212,6 +205,29 @@ Tools: containerlab ⣴⡾⠛⠛⠖ ⢠⣶⠟⠛⢷⣦ ⢸⣿⣧ ⣿ ⠘⠛⢻�
 | two runs at once: no lab left running | BLOCKER | **PASS** | 0.0 s | none left |
 | Docker restarts mid-run: never passed, a clear message | BLOCKER | **PASS** | 3.9 min | exit 2 |
 | Docker restart: no lab left running | BLOCKER | **PASS** | 0.0 s | none left |
+
+## Layer 7: after-publish proof
+
+Commit `3c0af38b9245ab5c62bd129ef0df3e51f597d5ef` on `ndr/agent-runtime`; 2026-10-30 03:55:15 UTC; 2.7 min; Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64); Python 3.10.12.
+
+Tools: uv 0.13.6 (x86_64-unknown-linux-gnu).
+
+| Check | Severity | Result | Time | Notes |
+|---|---|---|---|---|
+| PyPI serves netdryrun 0.3.3 | BLOCKER | **PASS** | 0.0 s | HTTP 200 |
+| pip install netdryrun==0.3.3 on Python 3.10: --version, validate, MCP handshake | BLOCKER | **PASS** | 10.4 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.10: --version, MCP handshake | BLOCKER | **PASS** | 2.8 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.11: --version, validate, MCP handshake | BLOCKER | **PASS** | 10.0 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.11: --version, MCP handshake | BLOCKER | **PASS** | 2.0 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.12: --version, validate, MCP handshake | BLOCKER | **PASS** | 8.9 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.12: --version, MCP handshake | BLOCKER | **PASS** | 1.9 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.13: --version, validate, MCP handshake | BLOCKER | **PASS** | 10.3 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.13: --version, MCP handshake | BLOCKER | **PASS** | 2.1 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.14: --version, validate, MCP handshake | BLOCKER | **PASS** | 8.4 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.14: --version, MCP handshake | BLOCKER | **PASS** | 2.2 s | MCP handshake OK |
+| frr-bgp from PyPI: `PASSED: 11 passed, 0 failed`, exit 0, no lab left | BLOCKER | **PASS** | 1.7 min | exit 0 |
+| the MCP Registry lists io.github.netdryrun/netdryrun 0.3.3 | MAJOR | **ACCEPTED** | 0.0 s | listed versions: 0.3.0, 0.3.1, 0.3.2 (accepted: Checked again by hand through the registry's public API at 2026-10-30 06:17 UTC: it lists io.github.netdryrun/netdryrun 0.3.3 as latest (isLatest true, publishedAt 2026-10-30 03:55:33 UTC, status active). The search endpoint did not list it yet when the layer's check ran, minutes after the MCP Registry workflow published it. The release-consistency check (scripts/release_gate.py consistency, branch ndr/release-consistency) also passed on all five sources for 0.3.3 minutes before.) |
+| latest published-action.yml run | MAJOR | **ACCEPTED** | 0.0 s | gh is not installed (accepted: Checked by hand through the public GitHub Actions API, because the gate reads it with the gh CLI, which the release machine doesn't use: run 54 of Published release (commit 298bcf6 on main, RELEASE 0.3.3) completed successfully. Run 53, on the merge commit 63182f5, failed as designed: it still pinned 0.3.2 while PyPI already served 0.3.3.) |
 
 ## Layer 6: independent review
 
