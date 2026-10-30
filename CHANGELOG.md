@@ -43,6 +43,7 @@ The agent contract: what an AI agent needs to choose Netdryrun, read its result 
 - **`SAFE TO PROCEED` is now `CHECKS PASSED (only what the checks cover)`.** A pass covers only what the checks look at; a change that breaks something no check covers passes too, so the verdict no longer says "safe". Wording like "safe to proceed" is kept for a planned before/after comparison verdict that passes only when a change shows no undeclared differences ([verdict spec](https://netdryrun.com/spec/verdict-v1/)).
 - **Who is affected:** an agent, prompt, `AGENTS.md` rule or script that matched the text `SAFE TO PROCEED` in an MCP result. It will no longer see that text, so it treats every pass as not-a-pass (fail closed, never the other way).
 - **Migration:** decide on the `status` field (`passed`, `failed`, `inconclusive`, `error`), the enum the verdict is mapped from, not on the verdict text; or match the new string exactly. Update `AGENTS.md` lines that say "only if the verdict is SAFE TO PROCEED" to "only if `status` is `passed`" ([snippet](https://netdryrun.com/ai-agents/#paste-this-into-your-network-repositorys-agentsmd)). The CLI, its exit codes, the JSON report and the GitHub Action are unchanged.
+- **Note added in 0.4.1:** this was a breaking change shipped in a patch release. Under the versioning and deprecation policy published in 0.4.1, a contract change like this one belongs in a minor release, announced with its migration, and the verdict strings are now frozen within their schema version.
 
 ### Added
 

@@ -1,6 +1,6 @@
 # Versioning and deprecation policy (draft for 0.4.1)
 
-**Status: draft, not published.** It becomes the page `website/docs/reference/versioning.md` in 0.4.1 (RELEASES.md: "a versioning and deprecation policy for the MCP contract, the Action and the result schema"). Until then nothing here is a public promise. Open questions for the owner are at the end.
+**Status: draft, not published.** It becomes the page `website/docs/reference/versioning.md` in 0.4.1 (RELEASES.md: "a versioning and deprecation policy for the MCP contract, the Action and the result schema"). Until then nothing here is a public promise. The owner's decisions on the open questions are at the end.
 
 ## Why
 
@@ -11,7 +11,7 @@ Netdryrun is read by programs: CI jobs gate on its exit code, AI agents act on i
 
 ## What is a contract
 
-Only these are covered. Everything else (the Python modules, log lines, the wording of `detail` strings, the order of checks run concurrently, the commands a driver sends) can change in any release.
+Only these are covered. The Python API (`netdryrun.runner`, `netdryrun.drivers` and every other module) is internal until 1.0, with no stability promise. Everything else (log lines, the wording of `detail` strings, the order of checks run concurrently, the commands a driver sends) can change in any release.
 
 | Contract | Where it is defined | What is stable |
 |---|---|---|
@@ -53,6 +53,7 @@ A driver marked beta (Cisco NX-OS from 0.4.1; Juniper if it ships as beta) is co
 
 - Release tags (`vX.Y.Z`) are immutable; the docs pin an exact tag (`netdryrun/netdryrun@v0.4.1`), and `sync_facts.py` keeps every pinned reference on the current release.
 - The Action installs the Netdryrun version that matches its tag. A workflow pinned to an old tag keeps getting that version.
+- Before 1.0 there is no floating tag (`v0`): a minor release may break a contract, and a floating tag would deliver that unannounced. Pin an exact tag or a commit SHA. From 1.0, a floating major tag (`v1`) follows the GitHub Actions convention; a SHA pin stays the recommendation for security.
 - A yanked PyPI release (0.3.0) stays yanked; its advisory names the release that replaces it.
 
 ## How it is enforced (0.4.1 work)
@@ -61,9 +62,9 @@ A driver marked beta (Cisco NX-OS from 0.4.1; Juniper if it ships as beta) is co
 - **The schema test** already checks every result against its JSON Schema; it extends to check that each schema only adds properties relative to the previous release's file.
 - **Deprecation warnings are tested** like any output: a deprecated input produces the warning on all three surfaces.
 
-## Open questions for the owner
+## Decisions (2026-10-30)
 
-1. Is "two minor releases and 90 days" the right floor while there are few outside users? Shorter (one minor, 30 days) keeps 0.x nimble; longer reassures early adopters.
-2. Should the Action get a floating major tag (`v0`) for users who want fixes automatically? It conflicts with "pin an exact tag", and a floating tag can change what a pinned workflow runs.
-3. Does the Python API (`netdryrun.runner`, `netdryrun.drivers`) stay explicitly internal until 1.0? This draft says yes.
-4. Should the 0.3.2 verdict-string rename get a retroactive note in the changelog, saying it would be a minor-release change under this policy?
+1. **The deprecation floor stays at two minor releases and 90 days.** Agents build on the contract; a stable contract is part of being a tool they can rely on.
+2. **No floating `v0` tag.** Before 1.0 a minor release may break a contract, so a floating tag would deliver breaking changes unannounced. Pinning an exact tag (or a commit SHA) is the rule. From 1.0, a floating `v1` tag follows the GitHub Actions convention; pinning a SHA stays the recommendation for security.
+3. **The Python API is internal until 1.0** (`netdryrun.runner`, `netdryrun.drivers`, every other module): no stability promise.
+4. **The 0.3.2 verdict rename gets a retroactive changelog note**: under this policy it would have been a minor-release change.
