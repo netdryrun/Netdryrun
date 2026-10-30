@@ -39,9 +39,14 @@ def overlays(lab: str) -> dict:
 
 def build(lab: str, variant: str, out: Path) -> Path:
     base, extra, _ = LABS[lab]
-    if out.exists():
-        shutil.rmtree(out)
-    shutil.copytree(HERE / base, out)
+    # containerlab keeps a running lab's state in clab-<name>/ next to the topology (cEOS flash among it): never
+    # touch it. Everything else in OUTDIR is rebuilt.
+    out.mkdir(parents=True, exist_ok=True)
+    for f in out.iterdir():
+        if f.name.startswith("clab-"):
+            continue
+        shutil.rmtree(f) if f.is_dir() else f.unlink()
+    shutil.copytree(HERE / base, out, dirs_exist_ok=True)
     if extra:
         for f in (HERE / extra).iterdir():
             if f.name != "overlays.yml":

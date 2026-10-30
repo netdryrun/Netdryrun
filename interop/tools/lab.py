@@ -46,7 +46,7 @@ def container(lab: str, node: str) -> str:
 
 def sh(cmd: list[str], stdin: str | None = None, timeout: float = 300) -> subprocess.CompletedProcess:
     r = subprocess.run(cmd, input=stdin, capture_output=True, text=True, timeout=timeout)
-    log(f"$ {' '.join(cmd)[:160]} -> rc={r.rc if hasattr(r, 'rc') else r.returncode}")
+    log(f"$ {' '.join(cmd)[:160]} -> rc={r.returncode}")
     out = (r.stdout + r.stderr).strip()
     if out:
         print("   " + out[-1500:].replace("\n", "\n   "), flush=True)
@@ -103,7 +103,8 @@ def probe_cmd(step: dict) -> list[str]:
 def main(argv: list[str]) -> int:
     op, lab = argv[0], argv[1]
     (RESULTS / lab).mkdir(parents=True, exist_ok=True)
-    build(lab, "base", BUILD / lab / "base")
+    if op in ("fresh", "refusal") or not (BUILD / lab / "base" / "check.yml").exists():
+        build(lab, "base", BUILD / lab / "base")   # only between labs: a running lab's dir is left alone
     nd = str(VENV / "netdryrun")
     if op == "fresh":
         variant, tag = argv[2], argv[3]
