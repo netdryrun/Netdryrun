@@ -40,7 +40,11 @@ class NotApplicable(Exception):
 
 
 class Harness:
-    def run(self, rule: str, kind: str):          # kind: "trap" | "control"
+    # Real harnesses also define `fixture(rule, kind, variant) -> bytes`: the captured raw device output that
+    # run() parses with the driver's real parser. `run_kit(strict=True)` refuses a harness without them.
+    variants = 1      # how many surface forms of each fixture the harness can feed (CRLF, reordered rows, other versions)
+
+    def run(self, rule: str, kind: str, variant: int = 0):          # kind: "trap" | "control"
         raise NotImplementedError
 
 
@@ -63,19 +67,19 @@ def _is(kind) -> Callable[[object], bool]:
 
 
 def _snap(o) -> Snapshot:
-    if not isinstance(o, Snapshot):
+    if type(o) is not Snapshot:
         raise TypeError(f"expected a Snapshot, got {type(o).__name__}")
     return o
 
 
 def _sess(o) -> Session:
-    if not isinstance(o, Session):
+    if type(o) is not Session:
         raise TypeError(f"expected a Session, got {type(o).__name__}")
     return o
 
 
 def _cfg(o) -> ConfigLoad:
-    if not isinstance(o, ConfigLoad):
+    if type(o) is not ConfigLoad:
         raise TypeError(f"expected a ConfigLoad, got {type(o).__name__}")
     return o
 
@@ -88,22 +92,23 @@ SCENARIOS: list[Scenario] = [
     Scenario("C1", "a failed collection is not an empty table",
              "0.3.0 advisory (error read as 'no routes'); MikroTik 7.23 (non-2xx, no answer); NX-OS transport",
              "the lookup command for 192.0.2.1/32 fails: non-zero exit, exit 0 with an error text, or no answer",
-             lambda o: _expect(_snap(o).lookup(lambda e: e.prefix == P) is not Lookup.ABSENT
+             lambda o: _expect(c.route_present(_snap(o), P) is Lookup.UNKNOWN
                                and _snap(o).completeness is not Completeness.COMPLETE,
-                               "a failed command became a COMPLETE (or absent) snapshot"),
+                               "a failed command must give UNKNOWN from a non-COMPLETE snapshot (not absent, not present)"),
              lambda o: _expect(c.route_present(_snap(o), P) is Lookup.PRESENT, "healthy answer: 192.0.2.1/32 is present")),
     Scenario("C2", "truncated output cannot prove absence",
              "gauntlet: output limits and timeouts; 'truncated' state in the 0.4.2 review",
-             "the table output is cut mid-way; 198.51.100.0/24 is not in what was read",
-             lambda o: _expect(c.route_present(_snap(o), Prefix.parse("198.51.100.0/24")) is not Lookup.ABSENT,
-                               "absence was proven from a truncated table"),
+             "the table output is cut mid-way, or ends with `Displayed 20 of 500` and exit 0; 198.51.100.0/24 is not in what was read",
+             lambda o: _expect(c.route_present(_snap(o), Prefix.parse("198.51.100.0/24")) is Lookup.UNKNOWN
+                               and _snap(o).completeness is not Completeness.COMPLETE,
+                               "a truncated table must give UNKNOWN from a non-COMPLETE snapshot"),
              lambda o: _expect(c.route_present(_snap(o), Prefix.parse("198.51.100.0/24")) is Lookup.ABSENT,
                                "a complete table without 198.51.100.0/24 must prove it absent")),
     Scenario("C3", "an empty answer needs a confirmed scope",
              "NX-OS empty-VRF trap; MikroTik: unknown routing-table answers 200 with an empty list; 0.3.0 `vrf: all`",
              "an empty answer for VRF NOPE, which the router was never asked to confirm exists",
-             lambda o: _expect(c.route_present(_snap(o), P) is not Lookup.ABSENT,
-                               "an empty answer for an unconfirmed VRF read as absent"),
+             lambda o: _expect(c.route_present(_snap(o), P) is Lookup.UNKNOWN,
+                               "an empty answer for an unconfirmed VRF must be UNKNOWN"),
              lambda o: _expect(c.route_present(_snap(o), P) is Lookup.ABSENT,
                                "an empty answer for a VRF confirmed to exist is absent")),
     Scenario("C4", "unsupported is stated, never zero",
@@ -133,7 +138,9 @@ SCENARIOS: list[Scenario] = [
     Scenario("C8", "a blackhole or unresolved next hop is not installed",
              "gauntlet R5: `appears_on` satisfied by `ip route X Null0` + redistribute static",
              "192.0.2.1/32 is in the FIB with a blackhole (or unresolved) next hop",
-             lambda o: _expect(c.installed_route(_snap(o), P) is not Tri.YES, "a blackhole read as an installed route"),
+             lambda o: _expect(c.installed_route(_snap(o), P) is not Tri.YES
+                               and c.route_present(_snap(o), P) is Lookup.PRESENT,
+                               "a blackhole read as installed, or dropped from the table (the prefix must stay, as a discard entry)"),
              lambda o: _expect(c.installed_route(_snap(o), P) is Tri.YES, "a gateway next hop is installed")),
     Scenario("C9", "prefixes are exact and keep their mask",
              "IOS XE: children of 'N/L is subnetted' print without a mask; a dropped mask hides a /32 (false absent)",
@@ -160,9 +167,11 @@ SCENARIOS: list[Scenario] = [
     Scenario("C13", "interface and scoped rows are never prefixes",
              "MikroTik: /routing/route lists `belongs-to: interface` rows (`ether3`, `fe80::%ether3/64`)",
              "the table lists two real prefixes plus interface rows and a scoped link-local",
-             lambda o: _expect(len(_snap(o).items) == 2 and all(isinstance(e, c.RibEntry) for e in _snap(o).items),
-                               "a pseudo row became a route entry"),
-             lambda o: _expect(len(_snap(o).items) == 2, "two real prefixes expected")),
+             lambda o: _expect({str(e.prefix) for e in _snap(o).items} == {"192.0.2.1/32", "198.51.100.0/24"}
+                               and all(type(e) is c.RibEntry for e in _snap(o).items),
+                               "a pseudo row became a route entry, or a real prefix was dropped"),
+             lambda o: _expect({str(e.prefix) for e in _snap(o).items} == {"192.0.2.1/32", "198.51.100.0/24"},
+                               "exactly the two real prefixes expected")),
     Scenario("C14", "a missing attribute is unknown, not a default",
              "BgpPath docs (`med: None` fails even `med: 0`); MikroTik: missing `bgp.local-pref` is not 0",
              "a path row carries no local-pref (and no way to know the router's default)",
@@ -194,14 +203,15 @@ SCENARIOS: list[Scenario] = [
     Scenario("C19", "stale paths prove neither presence nor absence",
              "0.4.2 review: graceful-restart / LLGR stale flags",
              "192.0.2.1/32 is present only as a graceful-restart stale path",
-             lambda o: _expect(c.route_present(_snap(o), P) is not Lookup.PRESENT, "a stale path satisfied a presence check"),
+             lambda o: _expect(c.route_present(_snap(o), P) is Lookup.UNKNOWN,
+                               "a stale path must give UNKNOWN: present would pass a presence check, and dropping it "
+                               "(then COMPLETE) would pass an absence check"),
              lambda o: _expect(c.route_present(_snap(o), P) is Lookup.PRESENT, "a live path is present")),
     Scenario("C20", "add-path keeps path identity",
              "0.4.2 review: add-path path ids; best is per prefix, not per path",
-             "the peer sent two paths for 192.0.2.1/32 with path ids 1 and 2; one is best",
-             lambda o: _expect(sorted(e.path_id for e in _snap(o).items if e.prefix == P) == [1, 2]
-                               and sum(e.best for e in _snap(o).items if e.prefix == P) == 1,
-                               "paths merged or best flagged on both"),
+             "the peer sent two paths for 192.0.2.1/32 with path ids 1 and 2 (multipath: both may be installed)",
+             lambda o: _expect(sorted(str(e.path_id) for e in _snap(o).items if e.prefix == P) == ["1", "2"],
+                               "add-path or multipath paths merged into one"),
              lambda o: _expect(len(_snap(o).items) == 1, "a single path stays one entry")),
     Scenario("C21", "a link-local next hop is address plus interface",
              "gauntlet R1: `_boot_free` collapsed every link-local to `fe80::`, hiding a configured wrong next hop",
@@ -212,10 +222,32 @@ SCENARIOS: list[Scenario] = [
                                "a global next hop is one hop")),
     Scenario("C22", "'the peer sent P' needs a path received from that peer",
              "MikroTik `bgp-output` candidates; gauntlet R5 (redistribute static); `local_candidate` in BgpPath",
-             f"192.0.2.1/32 is in the BGP table only through this router's own network statement; the check asks if {PEER_A} sent it",
+             f"192.0.2.1/32 is in the BGP table only through this router's own network statement, or its sender was inferred "
+             f"from the next hop, or only {PEER_B} sent it (two peers in the fixture); the check asks if {PEER_A} sent it",
              lambda o: _expect(c.received_from(_snap(o), PEER_A, P) is not Lookup.PRESENT,
                                "a locally originated route read as 'the peer sent it'"),
              lambda o: _expect(c.received_from(_snap(o), PEER_A, P) is Lookup.PRESENT, "a path received from the peer counts")),
+    Scenario("C24", "the answer must come from the node asked",
+             "Grok review: docker exec into the wrong container (bgp vs host), vtysh against another file; exit 0",
+             "the command answered with another device's hostname (r2 asked of r1), healthy and complete",
+             lambda o: _expect(c.route_present(_snap(o), P) is not Lookup.ABSENT
+                               and _snap(o).completeness is not Completeness.COMPLETE,
+                               "another device's answer was taken as this node's COMPLETE table"),
+             lambda o: _expect(c.route_present(_snap(o), P) is Lookup.PRESENT, "the right device's answer is read")),
+    Scenario("C25", "a row the parser cannot classify aborts the collection",
+             "Grok review: `except: continue` on a refused row, then COMPLETE; IOS XE masks, unknown flags",
+             "the table has 198.51.100.0/24 on a row with a flag the parser does not know, and nothing else unusual",
+             lambda o: _expect(c.route_present(_snap(o), Prefix.parse("198.51.100.0/24")) is not Lookup.ABSENT,
+                               "an unclassifiable row was skipped and the rest called COMPLETE"),
+             lambda o: _expect(c.route_present(_snap(o), Prefix.parse("198.51.100.0/24")) is Lookup.PRESENT,
+                               "a fully classifiable row is present")),
+    Scenario("C26", "only 'established' is up; unknown state text raises",
+             "Grok review: any row mapped to Established; `Idle (PfxCt)` after a prefix limit dropped the feed",
+             f"{PEER_A} is listed as `Idle (PfxCt)` (and {PEER_B} as `Active`); the rest of the table is healthy",
+             lambda o: _expect(c.session_established(_snap(o), PEER_A, AFI4) is not Tri.YES
+                               and c.session_established(_snap(o), PEER_B, AFI4) is not Tri.YES,
+                               "a down or prefix-limited session read as established"),
+             lambda o: _expect(c.session_established(_snap(o), PEER_A, AFI4) is Tri.YES, "`Established` is up")),
     Scenario("C23", "an attribute the command omits is unknown",
              "0.4.2 review: non-detail shows omit communities; gauntlet R6 (Adj-RIB-Out shown before encoding)",
              f"the best path is shown by a command that does not print communities; the check asks that {COMMUNITY} is absent",
@@ -225,6 +257,7 @@ SCENARIOS: list[Scenario] = [
                                "a complete community list without it proves it absent")),
 ]
 
+SCENARIOS.sort(key=lambda s: int(s.rule[1:]))
 RULES = [s.rule for s in SCENARIOS]
 
 
@@ -236,10 +269,10 @@ class Result:
     message: str = ""
 
 
-def _judge(scenario: Scenario, kind: str, harness: Harness) -> Result:
+def _judge(scenario: Scenario, kind: str, harness: Harness, variant: int = 0) -> Result:
     judge = scenario.trap if kind == "trap" else scenario.control
     try:
-        outcome = harness.run(scenario.rule, kind)
+        outcome = harness.run(scenario.rule, kind, variant)
     except NotApplicable as e:
         return Result(scenario.rule, kind, "n/a", str(e) or "not applicable")
     except CollectionError as e:
@@ -255,12 +288,32 @@ def _judge(scenario: Scenario, kind: str, harness: Harness) -> Result:
     return Result(scenario.rule, kind, "pass" if problem is None else "fail", problem or "")
 
 
-def run_kit(harness: Harness) -> list[Result]:
-    return [_judge(s, kind, harness) for s in SCENARIOS for kind in ("trap", "control")]
+def run_kit(harness: Harness, strict: bool = False) -> list[Result]:
+    """Every trap and control, once per fixture variant the harness offers. A driver that keys on one surface form of
+    a fixture (its prefix, its error string, a pager token) is caught by the variants, which the driver's own tests
+    supply: reordered rows, CRLF, a syslog line above the table, another software version."""
+    variants = max(1, int(getattr(harness, "variants", 1)))
+    results = [_judge(s, kind, harness, v) for s in SCENARIOS for kind in ("trap", "control") for v in range(variants)]
+    if strict:   # the mode a real driver's tests use: raw captured fixtures on disk, at least two surface forms
+        if variants < 2:
+            results.append(Result("*", "kit", "fail", "strict: the harness must supply at least 2 fixture variants"))
+        for s in SCENARIOS:
+            for kind in ("trap", "control"):
+                for v in range(variants):
+                    raw = harness.fixture(s.rule, kind, v) if hasattr(harness, "fixture") else None
+                    if not raw:
+                        results.append(Result(s.rule, kind, "fail", f"strict: no raw fixture bytes (variant {v})"))
+    return results
+
+
+# Rules a NOS may genuinely be unable to show. Every other rule must be demonstrated by every driver.
+MAY_BE_NOT_APPLICABLE = frozenset({"C4", "C6", "C16", "C19", "C20", "C23"})
 
 
 def failures(results: list[Result], not_applicable: set[str] = frozenset()) -> list[str]:
     out = [f"{r.rule} {r.kind}: {r.message}" for r in results if r.status == "fail"]
+    out += [f"{r}: may not be declared not applicable (allowed only for {sorted(MAY_BE_NOT_APPLICABLE)})"
+            for r in sorted(set(not_applicable) - MAY_BE_NOT_APPLICABLE)]
     out += [f"{r.rule} {r.kind}: declared not applicable ({r.message}) but the rule is required"
             for r in results if r.status == "n/a" and r.rule not in not_applicable]
     return out

@@ -7,11 +7,12 @@ from netdryrun import contract as c
 from netdryrun.contract import (UNKNOWN, Attrs, Cause, CollectionError, Completeness, ConfigLoad, HopKind, Lookup,
                                 NextHop, Origin, Prefix, Provenance, RibEntry, Scope, Snapshot, Stage, Tri)
 
-PROV = Provenance("r1", ("show",), 100.0)
+PROV = Provenance("r1", ("show route", "show vrf"), 100.0)
 
 
 def snap(items=(), completeness=Completeness.COMPLETE, confirmed=True, cause=None):
-    return Snapshot(Scope("r1"), PROV, completeness, tuple(items), cause, "", confirmed, "show vrf" if confirmed else "")
+    return Snapshot(Scope("r1"), PROV, completeness, tuple(items), cause, "", confirmed, "show vrf" if confirmed else "",
+                    "no pager, row count matches" if completeness is Completeness.COMPLETE else "")
 
 
 def route(prefix="10.0.0.0/24", stale=False, stages=(Stage.FIB,)):
@@ -81,7 +82,7 @@ def test_stale_and_unknown_staleness_paths_are_not_live():
 # C7, C8 ------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("kind", [HopKind.BLACKHOLE, HopKind.REJECT, HopKind.UNRESOLVED])
 def test_a_hop_that_does_not_forward_is_not_installed(kind):
-    e = RibEntry(Prefix.parse("10.0.0.0/24"), Origin.STATIC, frozenset({Stage.FIB}), next_hops=(NextHop(kind),))
+    e = RibEntry(Prefix.parse("10.0.0.0/24"), Origin.STATIC, frozenset({Stage.FIB}), next_hops=(NextHop(kind),), stale=False)
     assert e.installed is Tri.NO
     assert c.installed_route(snap([e]), Prefix.parse("10.0.0.0/24")) is Tri.NO
 
@@ -136,7 +137,68 @@ def test_unknown_sentinel_is_falsy_unique_and_not_zero():
 
 
 def test_config_applied_is_yes_only_when_verified_and_clean():
-    assert c.config_applied(ConfigLoad(True)) is Tri.YES
+    assert c.config_applied(ConfigLoad(True, evidence="running config")) is Tri.YES
     assert c.config_applied(ConfigLoad(False)) is Tri.UNKNOWN
-    assert c.config_applied(ConfigLoad(True, rejected=("neighbor x default-orignate",))) is Tri.NO
+    assert c.config_applied(ConfigLoad(True, ("neighbor x default-orignate",), evidence="x")) is Tri.NO
     assert c.config_applied(ConfigLoad(False, rejected=("x",))) is Tri.NO
+
+
+# C26 session state text --------------------------------------------------------------------------------------
+@pytest.mark.parametrize("text,state", [
+    ("Established", c.SessionState.ESTABLISHED), ("Estab", c.SessionState.ESTABLISHED),
+    ("Idle (Admin)", c.SessionState.NOT_ESTABLISHED), ("Idle (PfxCt)", c.SessionState.NOT_ESTABLISHED),
+    ("Idle(Admin)", c.SessionState.NOT_ESTABLISHED), ("Active", c.SessionState.NOT_ESTABLISHED),
+    ("OpenSent", c.SessionState.NOT_ESTABLISHED), ("connect", c.SessionState.NOT_ESTABLISHED)])
+def test_session_state_text(text, state):
+    assert c.parse_session_state(text) is state
+
+
+@pytest.mark.parametrize("text", ["", "Up", "5", "Established-ish", None])
+def test_unknown_session_state_text_raises(text):
+    with pytest.raises(CollectionError):
+        c.parse_session_state(text)
+
+
+# K2/K3 quantifiers over a snapshot ---------------------------------------------------------------------------
+def _up(r):
+    return r.prefix.net.prefixlen == 24
+
+
+@pytest.mark.parametrize("completeness,confirmed,cause", [
+    (Completeness.TRUNCATED, True, None), (Completeness.STALE, True, None), (Completeness.COMPLETE, False, None)])
+def test_every_and_none_need_the_whole_confirmed_table(completeness, confirmed, cause):
+    s = snap([route()], completeness, confirmed, cause)
+    assert s.every(_up) is Tri.UNKNOWN
+    assert s.none(lambda r: r.prefix.net.prefixlen == 25) is Tri.UNKNOWN      # an empty match on a partial table
+
+
+def test_every_and_none_on_a_complete_table():
+    s = snap([route("10.0.0.0/24"), route("10.0.1.0/24")])
+    assert s.every(_up) is Tri.YES
+    assert snap([route("10.0.0.0/24"), route("10.0.1.0/25")]).every(_up) is Tri.NO
+    assert snap().every(_up) is Tri.UNKNOWN                                    # K2: an empty set proves nothing
+    assert s.none(lambda r: r.prefix.net.prefixlen == 25) is Tri.YES
+    assert s.none(_up) is Tri.NO
+    assert snap([route(stale=True)]).every(_up) is Tri.UNKNOWN
+    assert snap([route(stale=True)]).none(_up) is Tri.UNKNOWN
+
+
+# C2 / provenance ---------------------------------------------------------------------------------------------
+def test_complete_needs_evidence_and_provenance_needs_commands():
+    with pytest.raises(CollectionError):
+        Snapshot(Scope("r1"), PROV, Completeness.COMPLETE, (), None, "", True, "show vrf")      # no complete_evidence
+    with pytest.raises(CollectionError):
+        Provenance("r1", (), 1.0)
+    with pytest.raises(CollectionError):
+        Provenance("", ("show",), 1.0)
+
+
+# C22 derived sender ------------------------------------------------------------------------------------------
+def test_a_sender_inferred_from_derived_data_is_unknown():
+    p = Prefix.parse("10.0.0.0/24")
+    e = RibEntry(p, Origin.RECEIVED, frozenset({Stage.LOC_RIB}), "10.0.0.1", stale=False)
+    derived = Snapshot(Scope("r1"), Provenance("r1", ("show route", "show vrf"), 1.0, Stage.BEST), Completeness.COMPLETE, (e,), None,
+                       "", True, "show vrf", "complete")
+    assert c.received_from(derived, "10.0.0.1", p) is Lookup.UNKNOWN
+    assert c.received_from(snap([e]), "10.0.0.1", p) is Lookup.PRESENT
+    assert c.received_from(snap([e]), "10.0.0.2", p) is Lookup.ABSENT
