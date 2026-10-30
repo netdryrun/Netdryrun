@@ -246,6 +246,47 @@ def test_debug_keys_are_ignored_by_name_only():
         parse_routing_routes([route(**{"degub.fwp-ptr": "0x1"})])
 
 
+# ---- cold-review findings (0.4.1 merge review): one signal is never enough --------------------------------------
+def test_a_filtered_contribution_without_the_filtered_flag_is_an_error_not_accepted():
+    row = route(**{"dst-address": "192.168.66.0/24", "contribution": "filtered"})   # no "filtered" key
+    row.pop("active")
+    with pytest.raises(DriverError, match="filtered"):
+        parse_routing_routes([row])
+
+
+def test_the_filtered_flag_without_a_filtered_contribution_is_an_error():
+    row = route(**{"filtered": "true"})
+    with pytest.raises(DriverError, match="filtered"):
+        parse_routing_routes([row])
+
+
+def test_a_session_in_a_table_without_the_vrf_suffix_is_an_error_not_the_default_vrf():
+    with pytest.raises(DriverError, match="routing table"):
+        parse_sessions([session(**{"routing-table": "RED"})])
+
+
+def test_a_session_whose_suffix_and_table_disagree_is_an_error():
+    with pytest.raises(DriverError, match="routing table"):
+        parse_sessions([session(**{"remote.address": "10.0.2.2@RED", "routing-table": "BLUE"})])
+
+
+def test_a_session_in_the_main_table_may_carry_the_table_name():
+    assert parse_sessions([session(**{"routing-table": "main"})])[0].vrf == "default"
+
+
+def test_a_connection_takes_its_vrf_from_its_routing_table():
+    rows = [{".id": "*4", "inactive": "false", "name": "red-f2", "remote.address": "10.0.2.2", "remote.as": "65003",
+             "routing-table": "RED", "instance": "bgp1"}]
+    assert parse_connections(rows)[0].vrf == "RED"
+
+
+def test_a_connection_whose_vrf_and_table_disagree_is_an_error():
+    rows = [{".id": "*4", "inactive": "false", "name": "x", "remote.address": "10.0.2.2", "remote.as": "65003",
+             "routing-table": "main", "vrf": "RED", "instance": "bgp1"}]
+    with pytest.raises(DriverError, match="routing table"):
+        parse_connections(rows)
+
+
 # ---- ping -----------------------------------------------------------------------------------------------------
 def test_ping_uses_the_last_cumulative_row():
     rows = [{"host": "10.0.1.2", "packet-loss": "0", "received": "1", "sent": "1", "seq": "0", "size": "56", "time": "315us", "ttl": "64"},

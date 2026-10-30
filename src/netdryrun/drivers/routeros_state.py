@@ -89,6 +89,9 @@ def parse_sessions(rows) -> list[Session]:
     for r in rows:
         _need(req, r, "name", "remote.address", "remote.as", "established", "remote.afi")
         host, vrf = _addr(req, r["remote.address"])
+        if _vrf(r.get("routing-table")) != vrf:   # two signals for the VRF (the @suffix and the table) must agree
+            raise unexpected(req, f"session {r['name']!r}: routing table {r.get('routing-table')!r} does not match the VRF "
+                                  f"{vrf!r} in its address")
         established = as_bool(req, r["established"])
         if "prefix-count" in r:
             count = as_int(req, r["prefix-count"])
@@ -107,7 +110,11 @@ def parse_connections(rows) -> list[Connection]:
     for r in rows:
         _need(req, r, "name", "remote.address", "inactive")
         host, _ = _addr(req, r["remote.address"])
-        out.append(Connection(str(r["name"]), host, _vrf(r.get("vrf")), as_bool(req, r["inactive"]), r.get(".about")))
+        vrf = _vrf(r.get("routing-table"))
+        if "vrf" in r and _vrf(r["vrf"]) != vrf:   # two signals for the VRF (vrf and routing-table) must agree
+            raise unexpected(req, f"connection {r['name']!r}: vrf {r['vrf']!r} does not match its routing table "
+                                  f"{r.get('routing-table')!r}")
+        out.append(Connection(str(r["name"]), host, vrf, as_bool(req, r["inactive"]), r.get(".about")))
     return out
 
 
@@ -144,6 +151,10 @@ def parse_routing_routes(rows) -> list[RoutingRoute]:
         contribution = r["contribution"]
         if contribution not in _CONTRIBUTIONS:
             raise unexpected(req, f"unknown contribution {str(contribution)[:40]!r}")
+        # a policy-rejected path is flagged twice (contribution and the filtered key); one signal alone is never enough
+        flagged = as_bool(req, r["filtered"]) if "filtered" in r else False
+        if flagged != (contribution == "filtered"):
+            raise unexpected(req, f"filtered flag {r.get('filtered')!r} and contribution {contribution!r} disagree")
         belongs = r["belongs-to"]
         if belongs in ("connected", "interface", "static"):
             kind = belongs
@@ -174,7 +185,7 @@ def parse_routing_routes(rows) -> list[RoutingRoute]:
         out.append(RoutingRoute(
             kind=kind, table=str(r["routing-table"]), prefix=prefix, contribution=contribution,
             active=as_bool(req, r["active"]) if "active" in r else False,
-            filtered=as_bool(req, r["filtered"]) if "filtered" in r else False,
+            filtered=contribution == "filtered",
             distance=as_int(req, r["distance"]) if "distance" in r else None,
             gateway=r.get("gateway"), session=session, as_path=as_path,
             local_pref=as_int(req, r["bgp.local-pref"]) if "bgp.local-pref" in r else None,
