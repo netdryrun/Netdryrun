@@ -38,10 +38,12 @@ PLATFORMS = {
     "eos": ("Arista EOS (cEOS, bring your own image)", "Arista EOS (bring your own cEOS image)", "Arista EOS"),
     "nxos": ("Cisco NX-OS (Nexus 9000v, beta, bring your own image)", "Cisco NX-OS (beta, bring your own Nexus 9000v image)",
              "Cisco NX-OS (beta)"),
+    "routeros": ("MikroTik RouterOS 7 (CHR, beta, bring your own image)", "MikroTik RouterOS 7 (beta, bring your own CHR image)",
+                 "MikroTik RouterOS (beta)"),
 }
 # Drivers in the code that no release has shipped yet: public facts follow releases, so these stay out of
 # every status line until the release that ships them removes them from this set.
-UNRELEASED = {"nxos"}
+UNRELEASED = {"nxos", "routeros"}
 
 
 def _rel(paths) -> list[str]:

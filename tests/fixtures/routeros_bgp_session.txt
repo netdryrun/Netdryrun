@@ -1,0 +1,51 @@
+[
+ {
+  ".id": "*2800001",
+  "established": "true",
+  "hold-time": "9s",
+  "input.filter": "ACCEPT-ALL",
+  "instance": "bgp1",
+  "keepalive-time": "3s",
+  "local.afi": "ip",
+  "local.as": "65001",
+  "name": "red1-1",
+  "prefix-count": "1",
+  "remote.address": "203.0.113.2@RED",
+  "remote.afi": "ip",
+  "remote.as": "65003",
+  "uptime": "4m9s",
+  "routing-table": "RED"
+ },
+ {
+  ".id": "*2800002",
+  "established": "true",
+  "hold-time": "9s",
+  "input.filter": "ACCEPT-ALL",
+  "instance": "bgp1",
+  "keepalive-time": "3s",
+  "local.afi": "ip",
+  "local.as": "65001",
+  "name": "peer2-1",
+  "prefix-count": "1",
+  "remote.address": "198.51.100.2",
+  "remote.afi": "ip",
+  "remote.as": "65004",
+  "uptime": "4m9s"
+ },
+ {
+  ".id": "*2800003",
+  "established": "true",
+  "hold-time": "9s",
+  "input.filter": "ACCEPT-ALL",
+  "instance": "bgp1",
+  "keepalive-time": "3s",
+  "local.afi": "ip",
+  "local.as": "65001",
+  "name": "peer1-1",
+  "prefix-count": "4",
+  "remote.address": "192.0.2.2",
+  "remote.afi": "ip",
+  "remote.as": "65002",
+  "uptime": "4m9s"
+ }
+]

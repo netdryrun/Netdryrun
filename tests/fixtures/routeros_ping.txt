@@ -1,0 +1,41 @@
+[
+ {
+  "avg-rtt": "315us",
+  "host": "10.20.0.1",
+  "max-rtt": "315us",
+  "min-rtt": "315us",
+  "packet-loss": "0",
+  "received": "1",
+  "sent": "1",
+  "seq": "0",
+  "size": "56",
+  "time": "315us",
+  "ttl": "64"
+ },
+ {
+  "avg-rtt": "315us",
+  "host": "10.20.0.1",
+  "max-rtt": "315us",
+  "min-rtt": "315us",
+  "packet-loss": "0",
+  "received": "2",
+  "sent": "2",
+  "seq": "1",
+  "size": "56",
+  "time": "315us",
+  "ttl": "64"
+ },
+ {
+  "avg-rtt": "315us",
+  "host": "10.20.0.1",
+  "max-rtt": "315us",
+  "min-rtt": "315us",
+  "packet-loss": "0",
+  "received": "3",
+  "sent": "3",
+  "seq": "2",
+  "size": "56",
+  "time": "315us",
+  "ttl": "64"
+ }
+]

@@ -34,6 +34,7 @@ EXAMPLES = {
     "sonic": ("examples/sonic-frr", "sonic1"),
     "eos": ("examples/arista-frr", "ceos1"),
     "nxos": ("examples/nxos-frr", "n1"),
+    "routeros": ("examples/mikrotik", "r1"),
 }
 # What the image tag does not say. Where the image comes from, and the software inside it.
 NOS = {
@@ -43,9 +44,11 @@ NOS = {
     "eos": ("Arista EOS (cEOS-lab)", "Bring your own image (free from arista.com, cannot be redistributed)."),
     "nxos": ("Cisco NX-OS (Nexus 9000v)", "Bring your own image (the Nexus 9000v qcow2 from cisco.com, built with "
              "vrnetlab; cannot be redistributed)."),
+    "routeros": ("MikroTik RouterOS 7 (CHR)", "Bring your own image (the CHR VMDK from mikrotik.com, built with vrnetlab; cannot be "
+                 "redistributed; one CHR node per lab until MikroTik confirms more)."),
 }
 # Drivers still in beta (the word is shown next to the platform).
-BETA: frozenset[str] = frozenset({"nxos"})
+BETA: frozenset[str] = frozenset({"nxos", "routeros"})
 
 REFUSED_AFI = {"evpn": "no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0`"}
 ATTRIBUTES = ("present", "as_path", "as_path_regex", "local_pref", "med", "next_hop", "communities", "without_communities")

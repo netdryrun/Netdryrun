@@ -32,5 +32,15 @@
       "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.",
       "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4."
     ]
+  },
+  "routeros": {
+    "date": "2026-10-30",
+    "limits": [
+      "Each RouterOS node is a VM inside its container: the REST API answers about a minute after deploy, and the startup config is imported after that (an import stops at its first error), so give checks a `timeout` of at least 600 s. One CHR node per lab until MikroTik confirms more are allowed.",
+      "IPv6 sessions and routes, ping inside a VRF, and failure scenarios (`link_down`, `node_isolated`) are refused with a clear message, not answered.",
+      "`bgp_prefixes` counts prefixes the router received AND policy accepted (derived from the routing route table): the session's own `prefix-count` includes rejected prefixes and is not used.",
+      "A path without a LOCAL_PREF attribute reports local_pref as unknown, never as the default: a `local_pref` check on it fails.",
+      "graceful restart, add-path, multipath and max-prefix behaviour are not captured yet: a route row with a key the parser does not know stops the read with an error."
+    ]
   }
 }

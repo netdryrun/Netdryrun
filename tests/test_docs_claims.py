@@ -124,7 +124,8 @@ def test_value_lists():
     assert set(config.DRIVER_NAMES) == set(ALL_DRIVERS)
 
 
-DISPLAY = {"frr": "FRR", "sonic": "SONiC", "srlinux": "SR Linux", "eos": "Arista EOS", "nxos": "Cisco NX-OS"}
+DISPLAY = {"frr": "FRR", "sonic": "SONiC", "srlinux": "SR Linux", "eos": "Arista EOS", "nxos": "Cisco NX-OS",
+           "routeros": "MikroTik RouterOS"}
 
 
 def test_unreleased_drivers_are_registered_and_undocumented():

@@ -1,0 +1,16 @@
+[
+ {
+  ".id": "*0",
+  "dynamic": "true",
+  "fib": "",
+  "invalid": "false",
+  "name": "main"
+ },
+ {
+  ".id": "*1",
+  "dynamic": "true",
+  "fib": "",
+  "invalid": "false",
+  "name": "RED"
+ }
+]

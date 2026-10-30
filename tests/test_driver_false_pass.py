@@ -12,6 +12,7 @@ from netdryrun.drivers import DriverError, eos, frr, srlinux
 from netdryrun.drivers.eos import EosDriver
 from netdryrun.drivers.frr import FrrDriver
 from netdryrun.drivers.nxos import NxosDriver
+from netdryrun.drivers.routeros import RouterosDriver
 from netdryrun.drivers.sonic import SonicDriver
 from netdryrun.drivers.srlinux import SrlDriver
 from netdryrun.lab import ExecResult
@@ -91,7 +92,7 @@ def test_frr_vrf_all_shaped_output_is_unexpected():
         frr.parse_routes(vrf_all, "192.168.3.0/24")
 
 
-@pytest.mark.parametrize("cls", [FrrDriver, SonicDriver, EosDriver, SrlDriver, NxosDriver])
+@pytest.mark.parametrize("cls", [FrrDriver, SonicDriver, EosDriver, SrlDriver, NxosDriver, RouterosDriver])
 @pytest.mark.parametrize("vrf", ["all", "ALL", "All", "", "a b", "red|x", "*"])
 def test_special_or_bad_vrf_names_raise_on_every_driver(cls, vrf):
     lab = Lab([("", "{}")])

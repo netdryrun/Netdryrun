@@ -1,0 +1,49 @@
+# MikroTik RouterOS 7 (CHR, beta driver) and FRR. Run: netdryrun run examples/mikrotik
+# The good configs pass. leaks/frr1.conf (FRR sends a default route it shouldn't) fails exactly the two leak guards on
+# r1: the leaked default is received and is BGP's best path, but r1's own static default is the active route.
+lab: topology.clab.yml
+timeout: 600   # the CHR VM boots, then the startup config is imported: the REST API answers before the import is done
+
+checks:
+  - type: bgp_session
+    node: r1
+    neighbor: 10.0.100.2
+  - type: bgp_session
+    node: frr1
+    neighbor: 10.0.100.1
+  - type: bgp_prefixes
+    node: r1
+    neighbor: 10.0.100.2
+    min: 1
+  - type: route
+    node: r1
+    prefix: 192.168.20.0/24
+    protocol: bgp
+  - type: route
+    node: frr1
+    prefix: 192.168.10.1/32
+    protocol: bgp
+  - type: bgp_route
+    node: r1
+    prefix: 192.168.20.0/24
+    as_path: "65020"
+    next_hop: 10.0.100.2
+  - type: ping
+    node: r1
+    source: 192.168.10.1
+    target: 192.168.20.1
+  - type: route        # r1's own default route is in place and active
+    node: r1
+    prefix: 0.0.0.0/0
+    protocol: static
+
+  # The leak guards: no BGP path for 0.0.0.0/0 on r1, installed or not.
+  - type: route
+    node: r1
+    prefix: 0.0.0.0/0
+    protocol: bgp
+    present: false
+  - type: bgp_route
+    node: r1
+    prefix: 0.0.0.0/0
+    present: false
