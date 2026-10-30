@@ -59,3 +59,46 @@ A reviewer who knew nothing of the work read `git diff origin/main...ndr/release
 2. **Compatibility limit text contradicted the code** (EOS, SONiC, SR Linux, NX-OS limits said a stale path "counts as present and best; no stale marker is read yet", while this branch refuses stale paths). Rewritten in `tests/compat_verified.json` and the generated page (`website/docs/reference/compatibility.md`, `llms-full.txt`) and the draft regenerated: the mark is read from the NOS's own field, and the text says plainly that no live graceful restart has been captured. The NX-OS line is not on the public page (unreleased). These public-page edits ship only with the release.
 3. **RouterOS VRF sessions were assumed to carry an `@VRF` suffix** (a VRF session without it would have been read as the default VRF). Fixed test-first (83a7686): the address suffix and the `routing-table` key must agree for sessions, and `vrf` and `routing-table` for connections; a disagreement raises. The `@VRF` naming itself is still only in the hand-written fixture (no live VRF capture), listed above as unverified.
 Checked and found clean by the reviewer: driver detection order, the RouterOS REST layer (non-2xx, empty body, non-JSON, status 0), IPv6 and ping-in-VRF refusals, exact-prefix matching, NX-OS null-versus-empty handling, stale handling, registration consistency (DRIVER_NAMES, DRIVERS, PLATFORMS, UNRELEASED, EXAMPLES, compat data, capture script), no public mention of the unreleased drivers, and that no must-fail cell can pass on unreadable output. Not covered by the reviewer: `test_nxos*`, `test_routeros_rest`, `test_driver_fuzz` were not run by it (run here: green). A reviewer's pass is not the gate.
+
+## SR Linux snapshot for `verify_change` (moved here from 0.4): offline part, 2026-10-30
+Code and tests are on **`ndr/srl-snapshot`**, not on this branch: the snapshot types (`verify/snapshot.py`) exist only on the 0.4 line, so the branch is cut from `origin/ndr/release-0.4.0` (9d519e1). It merges into this branch after 0.4 ships (new files only: `src/netdryrun/verify/srlinux.py`, `tests/test_verify_srlinux.py`, `docs/SRL-SNAPSHOT.md`; no existing file is edited, so no conflict is expected). What exists: strict readers for BGP neighbors, the IPv4 route table, the BGP Local-RIB path listing and attribute sets, built test-first (red on import, then 66 tests green) from the real SR Linux 26.7.2 captures. **What does not exist: a `Snapshot`.** `SrlCollector.collect()` refuses, runs no command and names the missing sources; `classify_nodes` still refuses SR Linux nodes, so an SR Linux node is never passed. Field-to-source gaps and the live capture list are in `docs/SRL-SNAPSHOT.md` on that branch.
+
+### Contract rules (C1 to C26, `design/modular-architecture.md` on `ndr/contract-0.4.2`), by name
+"Carried" means a test in `tests/test_verify_srlinux.py` fails if the parser breaks the rule. "Missing capture" means the rule cannot be honoured until a live capture exists; the collector refuses meanwhile.
+| Rule | SR Linux state |
+|---|---|
+| C1 failed command is not empty | carried: empty, non-JSON, `[]`, `null`, `{"neighbor": {}}` all raise; only `{}` is an empty answer |
+| C2 COMPLETE needs evidence | carried: the collector never returns a snapshot; it refuses |
+| C3 confirm the VRF before an empty answer | missing capture (only the default network instance; other instances are refused) |
+| C4 unsupported AFI or stage | carried: an enabled non-IPv4 family, IPv6 prefixes, an IPv6 RIB request are refused |
+| C5 stage-separated counts | partly carried: received, active, rejected, suppressed, sent kept apart, none called "accepted"; the Adj-RIB-In stage is a missing capture |
+| C6 soft-reconfig off means not collected | missing capture (Adj-RIB-In listing) |
+| C7 best is not installed | carried for the route table (`fib_programmed` is separate from `active`, and from best/used in the RIB); next hops are a missing capture |
+| C8 discard and reject kept, not installed | partly: unknown route types raise and the rejected counter is kept; blackhole and discard next-hop groups are a missing capture |
+| C9 exact prefixes with mask | carried: no mask, host bits set, other family all raise |
+| C10 an absent flag is not the opposite | carried: every flag the reader uses is required and strictly boolean |
+| C11 no session row is not established | carried at the parser (only `session-state: established` is up); the absence-means-down handling belongs to the collector (missing) |
+| C12 match sessions by id | carried: paths are keyed by (instance, family, peer, path id, prefix); duplicates raise |
+| C13 interface or scoped rows are never prefixes | carried: a peer address or prefix that is not an address raises |
+| C14 a missing attribute is unknown | carried: absent MED or local-pref is `None`, never 0 or a default |
+| C15 per-AFI state | carried: counters and enabled families are per family |
+| C16 applied config verified | missing capture (running config) |
+| C17 a failed lab command fails the node | not carried yet: the collector exists only as a refusal; its command runner must check the exit code when the real one is written |
+| C18 next-hop set equality | missing capture (next-hop-group members) |
+| C19 stale paths prove neither presence nor absence | carried: `stale-route` true and `pending-delete` true raise; that the field flips in a real graceful restart is unverified |
+| C20 add-path identity | carried: path id is in the key; add-path send or receive on a session is refused |
+| C21 link-local is address plus interface | carried as a refusal: a link-local next hop raises (its interface is not captured) |
+| C22 "peer sent P" needs a received path | missing capture (Adj-RIB-In); the Local-RIB `received` flag is not used for it |
+| C23 an omitted attribute is unknown | carried: absent attributes are `None`; unknown attributes (extended communities, aggregator, cluster list, originator id) raise instead of being dropped |
+| C24 the answer is from the node asked | not carried yet: one collector per node name, but no command runs until the captures exist |
+| C25 an unclassifiable row aborts | carried: unknown fields, route types, origins, states and AS path segment types raise |
+| C26 only "established" is up | carried: the six session states are enumerated; anything else raises |
+
+### Gauntlet lessons (R1 to R8)
+R1 link-local next hops: refused, not resolved. R2/R3 bound config files and R4 config the lab never exercises: need the running-config capture. R5 blackhole `appears_on`: missing capture (discard next-hop groups). R6 send-community and local-as flags: read as part of the allowlist but not compared, missing capture. R7 workflow edit with intent: not a driver matter. R8 `--unobserved` detection: `classify_nodes` refuses SR Linux nodes outright.
+
+### Not verified (SR Linux snapshot)
+- No `Snapshot` is built; `verify_change` still refuses SR Linux. Nothing here is a release claim.
+- Parsers are built from one SR Linux version (26.7.2) and one topology each; every shape beyond the captured ones raises or is untested. No live run, no mutation run, no outside review.
+- The stale and pending-delete fields were never seen true. Tested on Windows, Python 3.14 only.
+- Live captures needed (list in `docs/SRL-SNAPSHOT.md` on `ndr/srl-snapshot`) wait for the lab queue after 0.4's gate: loop count first, then the snapshot captures.
