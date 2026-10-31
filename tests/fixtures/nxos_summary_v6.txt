@@ -33,13 +33,13 @@
 										"ROW_neighbor":	{
 											"neighborid":	"2001:db8:1::2",
 											"neighborversion":	"4",
-											"msgrecvd":	9,
-											"msgsent":	9,
+											"msgrecvd":	4,
+											"msgsent":	4,
 											"neighbortableversion":	"4",
 											"inq":	"0",
 											"outq":	"0",
 											"neighboras":	"65002",
-											"time":	"PT5M46S",
+											"time":	"PT30S",
 											"state":	"Established",
 											"prefixreceived":	"1"
 										}

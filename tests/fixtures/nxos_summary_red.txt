@@ -33,13 +33,13 @@
 										"ROW_neighbor":	{
 											"neighborid":	"10.0.2.2",
 											"neighborversion":	"4",
-											"msgrecvd":	9,
-											"msgsent":	9,
+											"msgrecvd":	4,
+											"msgsent":	4,
 											"neighbortableversion":	"4",
 											"inq":	"0",
 											"outq":	"0",
 											"neighboras":	"65003",
-											"time":	"PT5M49S",
+											"time":	"PT31S",
 											"state":	"Established",
 											"prefixreceived":	"1"
 										}

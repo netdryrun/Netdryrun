@@ -14,9 +14,9 @@
 								"ROW_saf":	{
 									"safi":	1,
 									"af-name":	"IPv4 Unicast",
-									"tableversion":	"6",
-									"configuredpeers":	"2",
-									"capablepeers":	"1",
+									"tableversion":	"7",
+									"configuredpeers":	"3",
+									"capablepeers":	"2",
 									"totalnetworks":	"4",
 									"totalpaths":	"4",
 									"memoryused":	"1168",
@@ -33,15 +33,27 @@
 										"ROW_neighbor":	[{
 												"neighborid":	"10.0.1.2",
 												"neighborversion":	"4",
-												"msgrecvd":	12,
-												"msgsent":	9,
-												"neighbortableversion":	"6",
+												"msgrecvd":	7,
+												"msgsent":	4,
+												"neighbortableversion":	"7",
 												"inq":	"0",
 												"outq":	"0",
 												"neighboras":	"65002",
-												"time":	"PT5M44S",
+												"time":	"PT31S",
 												"state":	"Established",
 												"prefixreceived":	"3"
+											}, {
+												"neighborid":	"10.0.3.2",
+												"neighborversion":	"4",
+												"msgrecvd":	5,
+												"msgsent":	4,
+												"neighbortableversion":	"7",
+												"inq":	"0",
+												"outq":	"0",
+												"neighboras":	"65004",
+												"time":	"PT30S",
+												"state":	"Established",
+												"prefixreceived":	"0"
 											}, {
 												"neighborid":	"10.0.9.9",
 												"neighborversion":	"4",
@@ -51,7 +63,7 @@
 												"inq":	"0",
 												"outq":	"0",
 												"neighboras":	"65009",
-												"time":	"PT5M51S",
+												"time":	"PT39S",
 												"state":	"Idle",
 												"prefixreceived":	"0"
 											}]

@@ -18,7 +18,7 @@
 										"ROW_path":	{
 											"ubest":	"true",
 											"ipnexthop":	"2001:db8:1::2",
-											"uptime":	"PT6M59S",
+											"uptime":	"PT43S",
 											"pref":	20,
 											"metric":	0,
 											"clientname":	"bgp-65001",

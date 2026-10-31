@@ -411,6 +411,10 @@ FAIL_SAFE = [
      lambda r: isinstance(r, list) and all(isinstance(x, str) for x in r)),
     # nxos.parse_version: None -> the version is reported as unknown
     ("nxos.parse_version", nxos.parse_version, ["nxos_version.txt"], lambda r: r is None or isinstance(r, str)),
+    # nxos.parse_startup_log: [] means "every line loaded"; test_nxos.py checks it never comes from text that
+    # doesn't show a config typed and a startup completed
+    ("nxos.parse_startup_log", nxos.parse_startup_log, ["nxos_boot_log_clean.txt", "nxos_boot_log_rejected.txt"],
+     lambda r: isinstance(r, list) and all(isinstance(x, str) for x in r)),
     # nxos.parse_ping_reply: (0, 0) -> "ping did not run"
     ("nxos.parse_ping_reply", nxos.parse_ping_reply, ["nxos_ping_ok.txt", "nxos_ping_fail.txt", "nxos_ping_novrf.txt"],
      _ping_ok),

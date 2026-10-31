@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from netdryrun.drivers import DRIVERS, DriverError, detect, nxos
 from netdryrun.drivers.base import NoSuchInstance, Route
@@ -154,7 +156,8 @@ def test_summary_reads_accepted_prefixes_and_every_state():
     """f1 sends four prefixes and n1's inbound route-map denies one: prefixreceived reads 3 (accepted)."""
     n = nxos.parse_bgp_summary(read("nxos_summary_v4.txt"))
     assert {k: (v.state, v.prefixes) for k, v in n.items()} == {
-        "10.0.1.2": ("established", {"ipv4-unicast": 3}), "10.0.9.9": ("idle", {"ipv4-unicast": 0})}
+        "10.0.1.2": ("established", {"ipv4-unicast": 3}), "10.0.9.9": ("idle", {"ipv4-unicast": 0}),
+        "10.0.3.2": ("established", {"ipv4-unicast": 0})}   # f3 sends nothing: up with zero prefixes
     out = {}
     nxos.parse_bgp_summary(read("nxos_summary_v4.txt"), into=out)
     nxos.parse_bgp_summary(read("nxos_summary_v6.txt"), afi="ipv6-unicast", into=out)
@@ -246,7 +249,7 @@ def test_learned_needs_a_path_type_and_an_address():
 
 
 def test_all_routes_vrfs_and_ping_on_live_output():
-    assert len(nxos.parse_all_routes(read("nxos_all_routes.txt"))) == 7
+    assert len(nxos.parse_all_routes(read("nxos_all_routes.txt"))) == 9
     assert "bgp" in {r.protocol for r in nxos.parse_all_routes(read("nxos_all_routes_v6.txt"))}
     assert nxos.parse_all_routes(read("nxos_all_routes_emptyvrf.txt"), "EMPTY") in ([], None)
     assert nxos.parse_all_routes(read("nxos_all_routes_emptyvrf_null.txt"), "EMPTY") is None
@@ -296,12 +299,12 @@ def live_lab(extra=()):
 
 def test_driver_on_live_output():
     d = NxosDriver(live_lab(), "n1")
-    assert set(d.bgp_neighbors().value) == {"10.0.1.2", "10.0.9.9", "2001:db8:1::2"}
+    assert set(d.bgp_neighbors().value) == {"10.0.1.2", "10.0.3.2", "10.0.9.9", "2001:db8:1::2"}
     assert set(d.bgp_neighbors("RED").value) == {"10.0.2.2"}
     assert sorted((r.protocol, r.active) for r in d.routes("0.0.0.0/0").value) == [("bgp", False), ("static", True)]
     assert d.bgp_paths("192.168.20.0/24").value[0].local_pref == 200
     assert d.routes("10.0.0.0/8", "EMPTY").value == []          # VRF confirmed: a real absence
-    assert len(d.all_routes().value) == 7 and d.all_routes("EMPTY").value == []
+    assert len(d.all_routes().value) == 9 and d.all_routes("EMPTY").value == []
     obs = d.ping("192.168.20.1", "192.168.10.1", 3)
     assert obs.value == (3, 3)
     assert obs.evidence[0]["cmd"] == "nxapi cli_ascii: ping 192.168.20.1 count 3 source 192.168.10.1 vrf default"
@@ -529,3 +532,74 @@ def test_nos_version_comes_from_show_version():
     assert nxos.parse_version(ok({"x": 1})) is None
     assert NxosDriver(Lab([("show version", read("nxos_version.txt"))]), "n1").nos_version() == "NX-OS 10.4(8)"
     assert NxosDriver(Lab([("show version", (3, "", "not ready"))]), "n1").nos_version() is None
+
+
+# ------------------------------------------------------------------------------- startup config, VRFs, MRAI
+
+def test_rejected_startup_lines_are_read_from_vrnetlabs_log():
+    """Live (vrnetlab 85445ed, NX-OS 10.4(8)): two bad lines added to examples/nxos-frr's config."""
+    assert nxos.parse_startup_log(read("nxos_boot_log_rejected.txt")) == [
+        "this-is-not-a-command (% Invalid command at '^' marker.)",
+        "ip prefix-list PROBE seq 5 permit 300.0.0.0/8 (% Invalid command at '^' marker.)"]
+    # the capture lab's clean boot: a password WARNING and a syslog message inside RESULT lines are not rejections
+    assert nxos.parse_startup_log(read("nxos_boot_log_clean.txt")) == []
+
+
+@pytest.mark.parametrize("text,why", [
+    ("", "no completed startup"), (None, "no completed startup"),
+    ("2026-10-31 11:13:44,164: launch INFO Startup complete in: 0:04:23\n", "no startup config typed"),
+])
+def test_a_log_that_cant_show_the_config_loaded_is_never_clean(text, why):
+    with pytest.raises(DriverError, match=why):
+        nxos.parse_startup_log(text)
+
+
+def test_an_error_line_or_a_rejection_after_a_warning_counts():
+    log = ("2026-10-31 11:13:43,958: launch INFO CONFIG:feature bgp\n"
+           "2026-10-31 11:13:43,958: launch INFO RESULT:WARNING: something\nERROR: feature not licensed\n"
+           "2026-10-31 11:13:44,164: launch INFO Startup complete in: 0:04:23\n")
+    assert nxos.parse_startup_log(log) == ["feature bgp (ERROR: feature not licensed)"]
+
+
+def test_the_runner_refuses_a_lab_whose_nxos_config_was_rejected():
+    from netdryrun.lab import ExecResult as R
+    from netdryrun.runner import _startup_load
+
+    class BootLab:
+        def __init__(self, rc, out):
+            self.r = R(["docker", "logs"], rc, out, "")
+
+        def boot_log(self, name):
+            return self.r
+    bad = _startup_load(BootLab(0, read("nxos_boot_log_rejected.txt")), "n1", "nxos", lambda n: [])
+    assert bad == ["this-is-not-a-command (% Invalid command at '^' marker.)",
+                   "ip prefix-list PROBE seq 5 permit 300.0.0.0/8 (% Invalid command at '^' marker.)"]
+    assert _startup_load(BootLab(0, read("nxos_boot_log_clean.txt")), "n1", "nxos", lambda n: []) == []
+    unread = _startup_load(BootLab(1, ""), "n1", "nxos", lambda n: [])
+    assert len(unread) == 1 and "unknown" in unread[0]
+    assert "unknown" in _startup_load(BootLab(0, "nothing here"), "n1", "nxos", lambda n: [])[0]
+
+
+def test_system_vrfs_are_never_recorded():
+    """Live `show vrf` (10.4(8)) lists NX-OS's own egress-loadbalance-resolution VRF next to management."""
+    assert nxos.parse_vrfs(read("nxos_vrf_all.txt")) == ["EMPTY", "RED"]
+
+
+def test_the_advertisement_interval_is_the_assumed_default():
+    """NX-OS shows no advertisement interval anywhere (live): 30 s is assumed so the settle window stretches."""
+    n = nxos.parse_bgp_summary(read("nxos_summary_v4.txt"))
+    assert {v.adv_interval for v in n.values()} == {30.0}
+
+
+@settings(max_examples=200, deadline=None)
+@given(text=st.text(max_size=400) | st.lists(st.sampled_from([
+    "2026-10-31 11:13:43,958: launch INFO CONFIG:router bgp 1", "2026-10-31 11:13:43,958: launch INFO RESULT:",
+    "% Invalid command at '^' marker.", "WARNING: x", "Startup complete in: 0:04:23", "garbage", ""]),
+    max_size=12).map("\n".join))
+def test_a_clean_load_needs_a_typed_config_and_a_completed_startup(text):
+    try:
+        result = nxos.parse_startup_log(text)
+    except DriverError:
+        return
+    if result == []:
+        assert "Startup complete in:" in text and "CONFIG:" in text

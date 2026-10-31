@@ -319,6 +319,10 @@ def _cells() -> list[Cell]:
     add("nxos", "fail", "prefixes not exact", {**px, "exact": count + 1}, neighbors(v4, v6))
     add("nxos", "fail", "prefixes under min", {**px, "min": count + 1}, neighbors(v4, v6))
     add("nxos", "fail", "prefixes on a session that is down", {**px, "min": 1}, neighbors(nxos_session_down(v4), v6))
+    # f3 (live) sends nothing: the session is up and the count is a real 0, which `min` must not pass
+    add("nxos", "pass", "session up with zero prefixes, exact 0", {**px, "neighbor": "10.0.3.2", "exact": 0},
+        neighbors(v4, v6))
+    add("nxos", "fail", "session up, zero prefixes", {**px, "neighbor": "10.0.3.2", "min": 1}, neighbors(v4, v6))
     v6px = {**px, "neighbor": "2001:db8:1::2", "afi": "ipv6-unicast"}
     add("nxos", "pass", "ipv6-unicast prefixes within max", {**v6px, "max": 1}, neighbors(v4, v6))
     add("nxos", "fail", "ipv6-unicast prefixes over max", {**v6px, "max": 0}, neighbors(v4, v6))

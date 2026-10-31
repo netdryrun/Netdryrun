@@ -26,6 +26,11 @@
 													"needsresync":	"false",
 													"locked":	"false",
 													"table-map-filtered":	"false",
+													"TABLE_advertisedto":	{
+														"ROW_advertisedto":	{
+															"advertisedto":	"10.0.3.2"
+														}
+													},
 													"TABLE_path":	{
 														"ROW_path":	{
 															"pathnr":	"0",

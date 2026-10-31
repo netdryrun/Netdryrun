@@ -18,7 +18,7 @@
 											"ROW_path":	{
 												"entry":	0,
 												"ifname":	"Null0",
-												"uptime":	"PT7M4S",
+												"uptime":	"PT58S",
 												"pref":	1,
 												"metric":	0,
 												"clientname":	"static",
@@ -35,7 +35,7 @@
 												"entry":	0,
 												"ipnexthop":	"10.0.1.1",
 												"ifname":	"Eth1/1",
-												"uptime":	"PT7M6S",
+												"uptime":	"PT60S",
 												"pref":	0,
 												"metric":	0,
 												"clientname":	"direct",
@@ -52,7 +52,41 @@
 												"entry":	0,
 												"ipnexthop":	"10.0.1.1",
 												"ifname":	"Eth1/1",
-												"uptime":	"PT7M6S",
+												"uptime":	"PT60S",
+												"pref":	0,
+												"metric":	0,
+												"clientname":	"local",
+												"ubest":	"true"
+											}
+										}
+									}, {
+										"ipprefix":	"10.0.3.0/30",
+										"ucast-nhops":	1,
+										"mcast-nhops":	0,
+										"attached":	"true",
+										"TABLE_path":	{
+											"ROW_path":	{
+												"entry":	0,
+												"ipnexthop":	"10.0.3.1",
+												"ifname":	"Eth1/3",
+												"uptime":	"PT58S",
+												"pref":	0,
+												"metric":	0,
+												"clientname":	"direct",
+												"ubest":	"true"
+											}
+										}
+									}, {
+										"ipprefix":	"10.0.3.1/32",
+										"ucast-nhops":	1,
+										"mcast-nhops":	0,
+										"attached":	"true",
+										"TABLE_path":	{
+											"ROW_path":	{
+												"entry":	0,
+												"ipnexthop":	"10.0.3.1",
+												"ifname":	"Eth1/3",
+												"uptime":	"PT58S",
 												"pref":	0,
 												"metric":	0,
 												"clientname":	"local",
@@ -69,7 +103,7 @@
 													"entry":	0,
 													"ipnexthop":	"192.168.10.1",
 													"ifname":	"Lo0",
-													"uptime":	"PT7M4S",
+													"uptime":	"PT58S",
 													"pref":	0,
 													"metric":	0,
 													"clientname":	"local",
@@ -78,7 +112,7 @@
 													"entry":	1,
 													"ipnexthop":	"192.168.10.1",
 													"ifname":	"Lo0",
-													"uptime":	"PT7M4S",
+													"uptime":	"PT58S",
 													"pref":	0,
 													"metric":	0,
 													"clientname":	"direct",
@@ -94,7 +128,7 @@
 											"ROW_path":	{
 												"entry":	0,
 												"ipnexthop":	"10.0.1.2",
-												"uptime":	"PT6M49S",
+												"uptime":	"PT44S",
 												"pref":	20,
 												"metric":	50,
 												"clientname":	"bgp-65001",
@@ -112,7 +146,7 @@
 											"ROW_path":	{
 												"entry":	0,
 												"ipnexthop":	"10.0.1.2",
-												"uptime":	"PT6M49S",
+												"uptime":	"PT44S",
 												"pref":	20,
 												"metric":	0,
 												"clientname":	"bgp-65001",

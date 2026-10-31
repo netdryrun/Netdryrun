@@ -1,0 +1,598 @@
+/launch.py:96: SyntaxWarning: invalid escape sequence '\('
+  b"\(yes\/skip\/no\)\[no\]:",
+/launch.py:97: SyntaxWarning: invalid escape sequence '\('
+  b"\(yes\/no\)\[n\]:",
+/launch.py:98: SyntaxWarning: invalid escape sequence '\('
+  b"\(yes\/no\)\[no\]:",
+2026-10-31 11:09:20,774: vrnetlab   [1;94m	DEBUG[0m Creating overlay disk image: /n9kv-9300-10.4.8.M-overlay.qcow2
+2026-10-31 11:09:20,789: vrnetlab   [1;94m	DEBUG[0m Starting vrnetlab N9KV
+2026-10-31 11:09:20,789: vrnetlab   [1;94m	DEBUG[0m VMs: [<__main__.N9KV_vm object at 0x7a7e2e0e8830>]
+2026-10-31 11:09:20,789: vrnetlab   [1;94m	DEBUG[0m VM not started; starting!
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m ----------------START ENVIRONMENT VARIABLES-----------------
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_INTFS: 3
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_NODE_GROUP: 
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_NODE_KIND: cisco_n9kv
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_NODE_LAB_DIR: /home/ndr/.cache/netdryrun/labs/clab-ndr-cap-nxos/n1
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_NODE_LONGNAME: clab-ndr-cap-nxos-n1
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_NODE_NAME: n1
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_NODE_TYPE: 
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_OWNER: ndr
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CLAB_TOPO_FILE: /tmp/tmp.uqZzIuCcSD/lab/topology.clab.yml
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CLAB_LABEL_CONTAINERLAB: ndr-cap-nxos
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m CONNECTION_MODE: tc
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m DOCKER_NET_V4_ADDR: 172.20.20.0/24
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m DOCKER_NET_V6_ADDR: 3fff:172:20:20::/64
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m HOME: /root
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m HOSTNAME: n1
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m LC_CTYPE: C.UTF-8
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m NO_PROXY: localhost,127.0.0.1,::1,*.local,172.20.20.0/24,3fff:172:20:20::/64,f1,f2,f3,n1
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m PASSWORD: admin
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m PATH: /.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m QEMU_MEMORY: 8192
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m TERM: xterm
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m USERNAME: admin
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m UV: /usr/bin/uv
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m UV_RUN_RECURSION_DEPTH: 1
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m VIRTUAL_ENV: /.venv
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m no_proxy: localhost,127.0.0.1,::1,*.local,172.20.20.0/24,3fff:172:20:20::/64,f1,f2,f3,n1
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m -----------------END ENVIRONMENT VARIABLES------------------
+2026-10-31 11:09:20,789: vrnetlab   [1;32m	INFO[0m Launching N9KV_vm arch x86_64 with 4 SMP/VCPU and 8192 M of RAM
+2026-10-31 11:09:20,790: vrnetlab   [1;32m	INFO[0m Transparent mgmt interface: [31mDisabled[0m
+2026-10-31 11:09:20,790: vrnetlab   [1;94m	DEBUG[0m number of provisioned data plane interfaces is 3
+2026-10-31 11:09:20,790: vrnetlab   [1;94m	DEBUG[0m waiting for provisioned interfaces to appear...
+2026-10-31 11:09:20,790: vrnetlab   [1;94m	DEBUG[0m highest allocated interface id determined to be: 3...
+2026-10-31 11:09:20,790: vrnetlab   [1;94m	DEBUG[0m interfaces provisioned, continuing...
+2026-10-31 11:09:20,797: vrnetlab   [1;94m	DEBUG[0m Found MAC address aa:c1:ab:b1:b9:3d for interface eth1
+2026-10-31 11:09:20,797: vrnetlab   [1;32m	INFO[0m Using container interface MAC aa:c1:ab:b1:b9:3d for VM NIC eth1
+2026-10-31 11:09:20,798: vrnetlab   [1;94m	DEBUG[0m Found MAC address aa:c1:ab:80:7b:39 for interface eth2
+2026-10-31 11:09:20,798: vrnetlab   [1;32m	INFO[0m Using container interface MAC aa:c1:ab:80:7b:39 for VM NIC eth2
+2026-10-31 11:09:20,799: vrnetlab   [1;94m	DEBUG[0m Found MAC address aa:c1:ab:f6:81:95 for interface eth3
+2026-10-31 11:09:20,799: vrnetlab   [1;32m	INFO[0m Using container interface MAC aa:c1:ab:f6:81:95 for VM NIC eth3
+2026-10-31 11:09:20,800: vrnetlab   [1;94m	DEBUG[0m qemu cmd: qemu-system-x86_64 -enable-kvm -display none -machine pc -chardev socket,id=monitor0,host=::,port=4000,server=on,wait=off -monitor chardev:monitor0 -chardev socket,id=serial0,host=::,port=5000,server=on,wait=off,telnet=on -serial chardev:serial0 -m 8192 -cpu host -smp 4 -drive file=/n9kv-9300-10.4.8.M-overlay.qcow2,if=none,id=drive-sata-disk0,format=qcow2 -bios /OVMF.fd -boot c -device ahci,id=ahci0,bus=pci.0 -device ide-hd,drive=drive-sata-disk0,bus=ahci0.0,id=drive-sata-disk0,bootindex=1 -uuid f9f803ec-7bd4-407e-9f6f-e9e443da7c63 -device pci-bridge,chassis_nr=1,id=pci.1 -device pci-bridge,chassis_nr=2,id=pci.2 -device pci-bridge,chassis_nr=3,id=pci.3 -device pci-bridge,chassis_nr=4,id=pci.4 -device pci-bridge,chassis_nr=5,id=pci.5 -device e1000,netdev=p00,mac=0C:00:e9:17:97:00 -netdev user,id=p00,net=10.0.0.0/24,host=10.0.0.2,dns=10.0.0.3,dhcpstart=10.0.0.15,hostfwd=tcp:0.0.0.0:22-10.0.0.15:22,hostfwd=udp:0.0.0.0:161-10.0.0.15:161,hostfwd=tcp:0.0.0.0:80-10.0.0.15:80,hostfwd=tcp:0.0.0.0:443-10.0.0.15:443,hostfwd=tcp:0.0.0.0:830-10.0.0.15:830,hostfwd=tcp:0.0.0.0:6030-10.0.0.15:6030,hostfwd=tcp:0.0.0.0:8080-10.0.0.15:8080,hostfwd=tcp:0.0.0.0:9339-10.0.0.15:9339,hostfwd=tcp:0.0.0.0:32767-10.0.0.15:32767,hostfwd=tcp:0.0.0.0:50051-10.0.0.15:50051,hostfwd=tcp:0.0.0.0:57400-10.0.0.15:57400,tftp=/tftpboot -device e1000,netdev=p01,mac=aa:c1:ab:b1:b9:3d,bus=pci.1,addr=0x2 -netdev tap,id=p01,ifname=tap1,script=/etc/tc-tap-ifup,downscript=no -device e1000,netdev=p02,mac=aa:c1:ab:80:7b:39,bus=pci.1,addr=0x3 -netdev tap,id=p02,ifname=tap2,script=/etc/tc-tap-ifup,downscript=no -device e1000,netdev=p03,mac=aa:c1:ab:f6:81:95,bus=pci.1,addr=0x4 -netdev tap,id=p03,ifname=tap3,script=/etc/tc-tap-ifup,downscript=no
+2026-10-31 11:09:22,802: base_driver [1;32m	INFO[0m closing connection to '127.0.0.1' on port '4000'
+2026-10-31 11:09:22,802: base_driver [1;32m	INFO[0m connection to '127.0.0.1' on port '4000' closed successfully
+2026-10-31 11:09:22,802: base_driver [1;32m	INFO[0m opening connection to '127.0.0.1' on port '4000'
+2026-10-31 11:09:22,804: base_driver [1;32m	INFO[0m connection to '127.0.0.1' on port '4000' opened successfully
+2026-10-31 11:09:22,804: base_driver [1;32m	INFO[0m closing connection to '127.0.0.1' on port '5000'
+2026-10-31 11:09:22,804: base_driver [1;32m	INFO[0m connection to '127.0.0.1' on port '5000' closed successfully
+2026-10-31 11:09:22,804: base_driver [1;32m	INFO[0m opening connection to '127.0.0.1' on port '5000'
+2026-10-31 11:09:22,804: base_driver [1;32m	INFO[0m connection to '127.0.0.1' on port '5000' opened successfully
+Standalone chassis 
+check_bootmode: grub2pxe: grub failed, launch ipxe
+Trying to load ipxe 
+Loading Application: 
+/Vendor(429bdb26-48a6-47bd-664c-801204061400)/UnknownMedia(6)/EndEntire
+cannot load imageFailed to launch ipxe 
+Came back to grub, now load efi shell
+Trying to load efishell 
+Loading Application: 
+/Vendor(429bdb26-48a6-47bd-664c-801204061400)/UnknownMedia(6)/EndEntire
+cannot load imageFailed to launch shell
+Trying to read config file /boot/grub/menu.lst.local from (hd0,4) 
+ Filesystem type is ext2fs, partition type 0x83
+Trying to read config file /boot/grub/menu.lst.local from (hd0,5) 
+ Filesystem type is ext2fs, partition type 0x83
+Sysconf checksum failed. Using default values
+mount: overlay mounted on /newroot/usr.
+Installing klm_card_index
+done
+Linking n9k flash devices
+creating flash devices BOOT_DEV= sda
+Replacing inittab for N9Kv pEoR node - peorhost
+INIT: version 2.88 booting
+Setting up sysV scripts for host node
+Installing ata_piix module ... done.
+Installing kheaders module ... done.
+Unsquashing rootfs ...
+is_lxc: is_titan_eor:y is_stby: suffix: klm_ftrace: /isanboot/lib/modules/klm_ftrace.o
+Installing ftrace in lxc 0 mode done
+Executing /etc/rc.d/rcS.d//S06exablaze start
+Executing /etc/rc.d/rcS.d//S06exablaze start 
+
+Checking all filesystems.cgroups initialized
+Trying to mount cdrom...
+Checking rpmstore swap in host context.
+tune2fs 1.45.6 (20-Mar-2020)
+Setting reserved blocks percentage to 0% (0 blocks)
+no existing SSD stats file found!!!
+Starting crond: OK
+INIT: Entering runlevel: 3
+cp: cannot stat '/nxos/tmp/vdc_1_sup1': No such file or directory
+Stopping crond: OK
+Starting crond: OK
+3356847 blocks
+103394 blocks
+120378 blocks
+/isan/vdc_1/virtual-instance/sup1/rootfs
+rm: cannot remove '/isan/bin/bios_imgs/*': No such file or directory
+rm: cannot remove '/isan/lib/libtahusdcli.so': No such file or directory
+
+
+mv: cannot stat '/opt': No such file or directory
+
+
+ENSURE THERE IS ATLEAST 1400000K FREE SPACE IN THE LOGFLASH DIR. PLEASE
+REBOOT WITH AN OLDER IMAGE AND USE 'delete logflash:...' TO FREE UP SPACE.
+
+
+mount: overlay mounted on /usr.
+Linking n9k flash devices
+creating flash devices BOOT_DEV= sda
+mknod: /dev/sda7: File exists
+Replacing inittab for N9Kv pEoR node - vsup
+INIT: version 2.88 booting
+Executing /etc/rc.d/rcS.d//S06exablaze start
+Executing /etc/rc.d/rcS.d//S06exablaze start 
+Unsquashing rootfs ...
+No TOR virtual chassis
+skip untra_klms
+Enabling 8250 serial driver spurious INTs workaround
+Installing isan procfs isan_proc_name=isan26... done.
+Directory walk started
+Directory walk done - 0 packages
+Temporary output repo path: /bootflash/.rpmstore/patching/patchrepo/.repodata/
+Preparing sqlite DBs
+Pool started (with 5 workers)
+Pool finished
+Installing SSE module with card index 21099 and vslot ID 26 ... done.
+Creating SSE device node 243 ... done.
+cg controllers already mounted at /var/cgroup
+Inserting kernel_services module ... done.
+Making kernel_services character devices
+is_lxc: is_titan_eor:y is_stby:0 suffix: klm_ftrace: /isanboot/lib/modules/klm_ftrace.o
+klm_ftrace already loaded. skip.
+Loading I2C driver ... done.
+Installing CCTRL driver for card_type 29 in vslot ID 26 on a VM without NEED_GEM ... done.
+31.81: Interrupt throttling disabled. No cctrl irq detected.
+Loading IGB driver ... done.
+
+Checking all filesystems.Warning: switch is starting up with default configuration
+
+Installing SPROM driver ... 21099 Extracting rpms from image...
+IS_N9K done.
+Resetting Backplane ACT2/SPROM...SUP IOFPGA Base addr 0xSUP IOFPGA Reset control reg. addr 0x8000084old data: 0 new data: 8
+old data: 8 new data: 0
+CORTINA-SUPInstalling pfmsvcs module ...done.
+Installing nvram module ... done.
+Installing if_index module with port mode 6 ... done.
+Installing fcfwd
+Installing RNI lcnd ... done
+Running mode is N9K-ToR ...done
+Installing LC netdev container_id=0 is_standby=0 ... done
+Installing psdev module ... done.
+Installing veobc module ... done.
+Clean up previous pcap files present in tmp directory
+Checking SR card
+Card Index is 21099
+Inserting eMMC module ... 
+Inserting mtdphysmap module...[   34.058844] Error: Could not find mtd devices 
+Inserting OBFL module ... done.
+Making OBFL character devices
+mounting plog for N9k!
+34.11: mounting plog for N9k!
+34.14: Done..mounting plog for N9k!
+Sat Oct 31 11:10:10 UTC 2026::Starting Nexus 9000v initial VNIC deposit into vnicBank
+Trying to mount cdrom...
+Sat Oct 31 11:10:11 UTC 2026::Done with Nexus 9000v initial VNIC deposit into vnicBank
+hypervisor is Standard PC (i440FX + PIIX, 1996)
+Copying correct libcrdcfgdata.so for EOR VP Sup
+COPY the image to ORIG_LC_FS_PATH 
+
+
+/etc/rc.d/rcS.d//S80check-tor: Do not copy /isanboot/bin/images/ins_tor_n9k.bin to /origfs/orig_lc_fs/isanboot/bin/images
+update-alternatives: Linking /usr/bin/unshare to /usr/bin/unshare.util-linux
+ Removing any system startup links for cgroups-init ...
+tune2fs 1.45.6 (20-Mar-2020)
+Setting reserved blocks percentage to 0% (0 blocks)
+ Adding system startup for /etc/init.d/cgroups-init.
+Loading system software
+no existing SSD stats file found!!!
+Starting crond: OK
+kernel.core_pattern = |/bin/sparsecore.sh %p %h %P
+Starting rpcbind daemon...done.
+Saving image for img-sync ...
+creating NFS state directory: done
+starting 8 nfsd kernel threads: done
+starting mountd: done
+starting statd: done
+exit code: 1
+Stopping crond: OK
+Installing local RPMS
+Starting crond: OK
+Patch Repository Setup completed successfully
+Creating /dev/mcelog
+Starting mcelog daemon
+N9K CPA setup done
+INIT: Entering runlevel: 3
+Replacement complete. All system shutdown binaries now point to /sbin/rep_file.
+Running S93thirdparty-script...
+vlc_card_index 0
+S26: sw_id 21099 vp 0
+S26 C: sw_id 21099, Retaining libcrdcfgdata.so as is
+
+
+Starting lem_drv driver
+done
+Netbroker support IS present in the kernel.
+done
+Disabling cisco netbroker hooks ... done
+Skipping EMON in vmachine...
+Executing Prune clis.
+Removing exusd cli files if it is not exbl_card in prune_clis
+ethernet switching mode Sat Oct 31 11:11:03 UTC 2026
+prepare span CLI
+2026 Oct 31 11:11:09  %$ VDC-1 %$  %USER-2-SYSTEM_MSG: <<%USBHSD-2-MOUNT>> logflash: online  - usbhsd
+2026 Oct 31 11:11:10  %$ VDC-1 %$ %KERN-0-SYSTEM_MSG: [   34.058844] Error: Could not find mtd devices  - kernel
+2026 Oct 31 11:11:14  %$ VDC-1 %$ netstack: Registration with cli server complete
+2026 Oct 31 11:11:21  %$ VDC-1 %$ %USER-2-SYSTEM_MSG: ssnmgr_app_init called on ssnmgr up - aclmgr
+2026 Oct 31 11:11:22  %$ VDC-1 %$ %USER-1-SYSTEM_MSG:  VP aclqos tah stats get   - pltfm_config
+2026 Oct 31 11:11:25  %$ VDC-1 %$ %USER-2-SYSTEM_MSG: Installing thirdparty RPMs - /thirdparty_install.py
+2026 Oct 31 11:11:26  %$ VDC-1 %$ %USER-0-SYSTEM_MSG: end of default policer - copp
+2026 Oct 31 11:11:26  %$ VDC-1 %$ %COPP-2-COPP_NO_POLICY: Control-plane is unprotected.
+2026 Oct 31 11:11:28  %$ VDC-1 %$ %CARDCLIENT-2-FPGA_BOOT_GOLDEN: IOFPGA booted from Golden
+2026 Oct 31 11:11:28  %$ VDC-1 %$ %PLATFORM-2-MOD_PRESENT: Detected the presence of Module 1
+2026 Oct 31 11:11:30  %$ VDC-1 %$ %VDC_MGR-2-VDC_ONLINE: vdc 1 has come online 
+2026 Oct 31 11:11:31 switch %$ VDC-1 %$ %PLATFORM-2-MOD_INSERTED: Module 1 inserted (Nexus 9000v 64 port Ethernet Module), 3 VNICs mapped
+Waiting for system online status before starting POAP ...
+2026 Oct 31 11:11:49 switch %$ VDC-1 %$ %PLATFORM-2-MOD_DETECT: Module 1 detected (Serial number 9FKJXBUPE6E) Module-Type Nexus 9000v 64 port Ethernet Module Model N9K-X9364v
+2026 Oct 31 11:11:49 switch %$ VDC-1 %$ %PLATFORM-2-MOD_PWRUP: Module 1 powered up (Serial number 9FKJXBUPE6E)
+Waiting for system online status before starting POAP ...
+2026 Oct 31 11:12:30 switch %$ VDC-1 %$ %ASCII-CFG-2-CONF_CONTROL: System ready
+Enabling LLDP
+Starting Auto Provisioning ...
+2026 Oct 31 11:12:35 switch %$ VDC-1 %$ %POAP-2-POAP_INITED: [99526Q6MBXJ-0C:17:97:00:1B:08] - POAP process initialized
+Done2026-10-31 11:12:38,933: launch     [1;94m	DEBUG[0m matched poap prompt
+2026-10-31 11:12:38,934: vrnetlab   [1;94m	DEBUG[0m writing to serial console: 'yes'
+2026-10-31 11:12:38,935: vrnetlab   [1;32m	INFO[0m waiting for 'Do you want to enforce secure password standard' on serial console
+yes
+Disabling POAP.......Disabling POAP
+2026 Oct 31 11:12:51 switch %$ VDC-1 %$ %USER-2-SYSTEM_MSG: Thirdparty RPMs installation succeeded - /thirdparty_install.py
+2026 Oct 31 11:12:51 switch %$ VDC-1 %$ poap: Rolling back, please wait... (This may take 5-15 minutes) 
+Disabling lldp
+
+
+         ---- System Admin Account Setup ----
+
+
+Do you want to enforce secure password standard (yes/no) [y]: 2026-10-31 11:13:16,409: vrnetlab   [1;32m	INFO[0m read from serial console: 'yes
+Disabling POAP.......Disabling POAP
+2026 Oct 31 11:12:51 switch %$ VDC-1 %$ %USER-2-SYSTEM_MSG: Thirdparty RPMs installation succeeded - /thirdparty_install.py
+2026 Oct 31 11:12:51 switch %$ VDC-1 %$ poap: Rolling back, please wait... (This may take 5-15 minutes) 
+Disabling lldp
+
+
+         ---- System Admin Account Setup ----
+
+
+Do you want to enforce secure password standard (yes/no) [y]: '
+2026-10-31 11:13:16,412: vrnetlab   [1;94m	DEBUG[0m writing to serial console: 'no'
+2026-10-31 11:13:16,412: vrnetlab   [1;32m	INFO[0m waiting for 'Enter the password for "admin"' on serial console
+no
+
+  Enter the password for "admin": 2026-10-31 11:13:16,461: vrnetlab   [1;32m	INFO[0m read from serial console: 'no
+
+  Enter the password for "admin": '
+2026-10-31 11:13:16,461: vrnetlab   [1;94m	DEBUG[0m writing to serial console: 'admin'
+2026-10-31 11:13:16,461: vrnetlab   [1;32m	INFO[0m waiting for 'Confirm the password for "admin"' on serial console
+
+  Confirm the password for "admin": 2026-10-31 11:13:16,567: vrnetlab   [1;32m	INFO[0m read from serial console: '
+  Confirm the password for "admin": '
+2026-10-31 11:13:16,567: vrnetlab   [1;94m	DEBUG[0m writing to serial console: 'admin'
+2026-10-31 11:13:16,568: vrnetlab   [1;32m	INFO[0m waiting for 'Would you like to enter the basic configuration dialog' on serial console
+
+
+         ---- Basic System Configuration Dialog VDC: 1 ----
+
+This setup utility will guide you through the basic configuration of
+the system. Setup configures only enough connectivity for management
+of the system.
+
+Please register Cisco Nexus9000 Family devices promptly with your
+supplier. Failure to register may affect response times for initial
+service calls. Nexus9000 devices must be registered to receive 
+entitled support services.
+
+Press Enter at anytime to skip a dialog. Use ctrl-c at anytime
+to skip the remaining dialogs.
+
+ Would you like to enter the basic configuration dialog (yes/no): 2026-10-31 11:13:17,970: vrnetlab   [1;32m	INFO[0m read from serial console: '
+
+         ---- Basic System Configuration Dialog VDC: 1 ----
+
+This setup utility will guide you through the basic configuration of
+the system. Setup configures only enough connectivity for management
+of the system.
+
+Please register Cisco Nexus9000 Family devices promptly with your
+supplier. Failure to register may affect response times for initial
+service calls. Nexus9000 devices must be registered to receive 
+entitled support services.
+
+Press Enter at anytime to skip a dialog. Use ctrl-c at anytime
+to skip the remaining dialogs.
+
+ Would you like to enter the basic configuration dialog (yes/no): '
+2026-10-31 11:13:17,970: vrnetlab   [1;94m	DEBUG[0m writing to serial console: 'no'
+
+
+
+Abort Power On Auto Provisioning [yes - continue with normal setup, no - continue with Power On Auto Provisioning] (yes/no)[no]: no
+
+2026 Oct 31 11:13:17 switch %$ VDC-1 %$ %COPP-2-COPP_POLICY: Control-Plane is protected with policy copp-system-p-policy-strict.
+
+
+
+2026-10-31 11:13:20,975: launch     [1;94m	DEBUG[0m matched login prompt
+2026-10-31 11:13:20,975: launch     [1;94m	DEBUG[0m trying to log in with "admin" / admin
+2026-10-31 11:13:20,975: vrnetlab   [1;94m	DEBUG[0m writing to serial console: 'admin'
+2026-10-31 11:13:20,975: vrnetlab   [1;32m	INFO[0m waiting for 'Password:' on serial console
+admin
+Password: 2026-10-31 11:13:21,021: vrnetlab   [1;32m	INFO[0m read from serial console: 'admin
+Password: '
+2026-10-31 11:13:21,021: vrnetlab   [1;94m	DEBUG[0m writing to serial console: 'admin'
+2026-10-31 11:13:21,021: launch     [1;32m	INFO[0m Scrapli timeout is 900s (default 900s)
+2026-10-31 11:13:21,256: base_driver [1;32m	INFO[0m attempting to acquire 'privilege_exec' privilege level
+2026-10-31 11:13:21,259: sync_channel [1;32m	INFO[0m sending channel input: terminal length 0; strip_prompt: True; eager: False
+2026-10-31 11:13:21,353: sync_channel [1;32m	INFO[0m sending channel input: terminal width 511; strip_prompt: True; eager: False
+2026-10-31 11:13:21,445: launch     [1;32m	INFO[0m Startup configuration file found
+2026-10-31 11:13:21,492: base_driver [1;32m	INFO[0m attempting to acquire 'configuration' privilege level
+2026-10-31 11:13:21,493: sync_channel [1;32m	INFO[0m sending channel input: configure terminal; strip_prompt: True; eager: False
+2026-10-31 11:13:21,632: base_driver [1;32m	INFO[0m attempting to acquire 'configuration' privilege level
+2026-10-31 11:13:21,633: sync_channel [1;32m	INFO[0m sending channel input: terminal dont-ask; strip_prompt: True; eager: False
+2026-10-31 11:13:21,729: sync_channel [1;32m	INFO[0m sending channel input: hostname n1; strip_prompt: True; eager: False
+2026-10-31 11:13:21,867: sync_channel [1;32m	INFO[0m sending channel input: username admin password 0 admin role network-admin; strip_prompt: True; eager: False
+2026-10-31 11:13:22,005: sync_channel [1;32m	INFO[0m sending channel input: !; strip_prompt: True; eager: False
+2026-10-31 11:13:22,061: sync_channel [1;32m	INFO[0m sending channel input: vrf context management; strip_prompt: True; eager: False
+2026-10-31 11:13:22,153: sync_channel [1;32m	INFO[0m sending channel input: ip route 0.0.0.0/0 10.0.0.2; strip_prompt: True; eager: False
+2026-10-31 11:13:22,245: sync_channel [1;32m	INFO[0m sending channel input: ipv6 route ::/0 2001:db8::1; strip_prompt: True; eager: False
+2026-10-31 11:13:22,341: sync_channel [1;32m	INFO[0m sending channel input: exit; strip_prompt: True; eager: False
+2026-10-31 11:13:22,437: sync_channel [1;32m	INFO[0m sending channel input: !; strip_prompt: True; eager: False
+2026-10-31 11:13:22,489: sync_channel [1;32m	INFO[0m sending channel input: interface mgmt0; strip_prompt: True; eager: False
+2026-10-31 11:13:22,585: sync_channel [1;32m	INFO[0m sending channel input: ip address 10.0.0.15/24; strip_prompt: True; eager: False
+2026-10-31 11:13:22,698: sync_channel [1;32m	INFO[0m sending channel input: ipv6 address 2001:db8::2/64; strip_prompt: True; eager: False
+2026-10-31 11:13:22,789: sync_channel [1;32m	INFO[0m sending channel input: exit; strip_prompt: True; eager: False
+2026-10-31 11:13:22,885: sync_channel [1;32m	INFO[0m sending channel input: !; strip_prompt: True; eager: False
+2026-10-31 11:13:22,941: sync_channel [1;32m	INFO[0m sending channel input: ssh key rsa 2048 force; strip_prompt: True; eager: False
+2026-10-31 11:13:23,947: sync_channel [1;32m	INFO[0m sending channel input: feature ssh; strip_prompt: True; eager: False
+2026-10-31 11:13:24,041: sync_channel [1;32m	INFO[0m sending channel input: !; strip_prompt: True; eager: False
+2026-10-31 11:13:24,093: sync_channel [1;32m	INFO[0m sending channel input: feature scp-server; strip_prompt: True; eager: False
+2026-10-31 11:13:24,185: sync_channel [1;32m	INFO[0m sending channel input: feature nxapi; strip_prompt: True; eager: False
+2026-10-31 11:13:25,373: sync_channel [1;32m	INFO[0m sending channel input: feature telnet; strip_prompt: True; eager: False
+2026-10-31 11:13:25,473: sync_channel [1;32m	INFO[0m sending channel input: feature netconf; strip_prompt: True; eager: False
+2026-10-31 11:13:26,855: sync_channel [1;32m	INFO[0m sending channel input: feature grpc; strip_prompt: True; eager: False
+2026-10-31 11:13:29,811: sync_channel [1;32m	INFO[0m sending channel input: !; strip_prompt: True; eager: False
+2026-10-31 11:13:29,865: sync_channel [1;32m	INFO[0m sending channel input: feature bgp; strip_prompt: True; eager: False
+2026-10-31 11:13:30,394: sync_channel [1;32m	INFO[0m sending channel input: vrf context RED; strip_prompt: True; eager: False
+2026-10-31 11:13:30,489: sync_channel [1;32m	INFO[0m sending channel input: vrf context EMPTY; strip_prompt: True; eager: False
+2026-10-31 11:13:30,581: sync_channel [1;32m	INFO[0m sending channel input: interface Ethernet1/1; strip_prompt: True; eager: False
+2026-10-31 11:13:30,673: sync_channel [1;32m	INFO[0m sending channel input:   no switchport; strip_prompt: True; eager: False
+2026-10-31 11:13:31,834: sync_channel [1;32m	INFO[0m sending channel input:   ip address 10.0.1.1/30; strip_prompt: True; eager: False
+2026-10-31 11:13:31,929: sync_channel [1;32m	INFO[0m sending channel input:   ipv6 address 2001:db8:1::1/64; strip_prompt: True; eager: False
+2026-10-31 11:13:32,025: sync_channel [1;32m	INFO[0m sending channel input:   no shutdown; strip_prompt: True; eager: False
+2026-10-31 11:13:32,141: sync_channel [1;32m	INFO[0m sending channel input: interface Ethernet1/2; strip_prompt: True; eager: False
+2026-10-31 11:13:32,241: sync_channel [1;32m	INFO[0m sending channel input:   no switchport; strip_prompt: True; eager: False
+2026-10-31 11:13:32,539: sync_channel [1;32m	INFO[0m sending channel input:   vrf member RED; strip_prompt: True; eager: False
+2026-10-31 11:13:32,637: sync_channel [1;32m	INFO[0m sending channel input:   ip address 10.0.2.1/30; strip_prompt: True; eager: False
+2026-10-31 11:13:32,729: sync_channel [1;32m	INFO[0m sending channel input:   no shutdown; strip_prompt: True; eager: False
+2026-10-31 11:13:32,825: sync_channel [1;32m	INFO[0m sending channel input: interface Ethernet1/3; strip_prompt: True; eager: False
+2026-10-31 11:13:32,917: sync_channel [1;32m	INFO[0m sending channel input:   no switchport; strip_prompt: True; eager: False
+2026-10-31 11:13:33,184: sync_channel [1;32m	INFO[0m sending channel input:   ip address 10.0.3.1/30; strip_prompt: True; eager: False
+2026-10-31 11:13:33,285: sync_channel [1;32m	INFO[0m sending channel input:   no shutdown; strip_prompt: True; eager: False
+2026-10-31 11:13:33,395: sync_channel [1;32m	INFO[0m sending channel input: interface loopback0; strip_prompt: True; eager: False
+2026-10-31 11:13:33,493: sync_channel [1;32m	INFO[0m sending channel input:   ip address 192.168.10.1/32; strip_prompt: True; eager: False
+2026-10-31 11:13:33,597: sync_channel [1;32m	INFO[0m sending channel input: ip route 0.0.0.0/0 Null0; strip_prompt: True; eager: False
+2026-10-31 11:13:33,689: sync_channel [1;32m	INFO[0m sending channel input: ip prefix-list DENY66 seq 5 permit 192.168.66.0/24; strip_prompt: True; eager: False
+2026-10-31 11:13:33,817: sync_channel [1;32m	INFO[0m sending channel input: ip prefix-list P20 seq 5 permit 192.168.20.0/24; strip_prompt: True; eager: False
+2026-10-31 11:13:35,865: sync_channel [1;32m	INFO[0m sending channel input: route-map FROM-F1 deny 10; strip_prompt: True; eager: False
+2026-10-31 11:13:35,974: sync_channel [1;32m	INFO[0m sending channel input:   match ip address prefix-list DENY66; strip_prompt: True; eager: False
+2026-10-31 11:13:36,074: sync_channel [1;32m	INFO[0m sending channel input: route-map FROM-F1 permit 20; strip_prompt: True; eager: False
+2026-10-31 11:13:36,175: sync_channel [1;32m	INFO[0m sending channel input:   match ip address prefix-list P20; strip_prompt: True; eager: False
+2026-10-31 11:13:36,269: sync_channel [1;32m	INFO[0m sending channel input:   set local-preference 200; strip_prompt: True; eager: False
+2026-10-31 11:13:36,361: sync_channel [1;32m	INFO[0m sending channel input: route-map FROM-F1 permit 30; strip_prompt: True; eager: False
+2026-10-31 11:13:36,453: sync_channel [1;32m	INFO[0m sending channel input: route-map ALL permit 10; strip_prompt: True; eager: False
+2026-10-31 11:13:36,551: sync_channel [1;32m	INFO[0m sending channel input: router bgp 65001; strip_prompt: True; eager: False
+2026-10-31 11:13:38,772: sync_channel [1;32m	INFO[0m sending channel input:   router-id 192.168.10.1; strip_prompt: True; eager: False
+2026-10-31 11:13:38,873: sync_channel [1;32m	INFO[0m sending channel input:   address-family ipv4 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:38,969: sync_channel [1;32m	INFO[0m sending channel input:     network 192.168.10.1/32; strip_prompt: True; eager: False
+2026-10-31 11:13:39,061: sync_channel [1;32m	INFO[0m sending channel input:   address-family ipv6 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:39,162: sync_channel [1;32m	INFO[0m sending channel input:   neighbor 10.0.1.2; strip_prompt: True; eager: False
+2026-10-31 11:13:39,253: sync_channel [1;32m	INFO[0m sending channel input:     remote-as 65002; strip_prompt: True; eager: False
+2026-10-31 11:13:39,345: sync_channel [1;32m	INFO[0m sending channel input:     address-family ipv4 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:39,441: sync_channel [1;32m	INFO[0m sending channel input:       route-map FROM-F1 in; strip_prompt: True; eager: False
+2026-10-31 11:13:39,541: sync_channel [1;32m	INFO[0m sending channel input:       route-map ALL out; strip_prompt: True; eager: False
+2026-10-31 11:13:39,637: sync_channel [1;32m	INFO[0m sending channel input:       send-community; strip_prompt: True; eager: False
+2026-10-31 11:13:39,738: sync_channel [1;32m	INFO[0m sending channel input:       send-community extended; strip_prompt: True; eager: False
+2026-10-31 11:13:39,833: sync_channel [1;32m	INFO[0m sending channel input:   neighbor 2001:db8:1::2; strip_prompt: True; eager: False
+2026-10-31 11:13:39,929: sync_channel [1;32m	INFO[0m sending channel input:     remote-as 65002; strip_prompt: True; eager: False
+2026-10-31 11:13:40,021: sync_channel [1;32m	INFO[0m sending channel input:     address-family ipv6 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:40,117: sync_channel [1;32m	INFO[0m sending channel input:       route-map ALL in; strip_prompt: True; eager: False
+2026-10-31 11:13:40,213: sync_channel [1;32m	INFO[0m sending channel input:       route-map ALL out; strip_prompt: True; eager: False
+2026-10-31 11:13:40,313: sync_channel [1;32m	INFO[0m sending channel input:   neighbor 10.0.9.9; strip_prompt: True; eager: False
+2026-10-31 11:13:40,405: sync_channel [1;32m	INFO[0m sending channel input:     remote-as 65009; strip_prompt: True; eager: False
+2026-10-31 11:13:40,501: sync_channel [1;32m	INFO[0m sending channel input:     address-family ipv4 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:40,597: sync_channel [1;32m	INFO[0m sending channel input:   neighbor 10.0.3.2; strip_prompt: True; eager: False
+2026-10-31 11:13:40,689: sync_channel [1;32m	INFO[0m sending channel input:     remote-as 65004; strip_prompt: True; eager: False
+2026-10-31 11:13:40,785: sync_channel [1;32m	INFO[0m sending channel input:     address-family ipv4 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:40,885: sync_channel [1;32m	INFO[0m sending channel input:       route-map ALL in; strip_prompt: True; eager: False
+2026-10-31 11:13:40,981: sync_channel [1;32m	INFO[0m sending channel input:   vrf RED; strip_prompt: True; eager: False
+2026-10-31 11:13:41,073: sync_channel [1;32m	INFO[0m sending channel input:     address-family ipv4 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:41,165: sync_channel [1;32m	INFO[0m sending channel input:     neighbor 10.0.2.2; strip_prompt: True; eager: False
+2026-10-31 11:13:41,257: sync_channel [1;32m	INFO[0m sending channel input:       remote-as 65003; strip_prompt: True; eager: False
+2026-10-31 11:13:41,349: sync_channel [1;32m	INFO[0m sending channel input:       address-family ipv4 unicast; strip_prompt: True; eager: False
+2026-10-31 11:13:41,441: sync_channel [1;32m	INFO[0m sending channel input:         route-map ALL in; strip_prompt: True; eager: False
+2026-10-31 11:13:41,533: sync_channel [1;32m	INFO[0m sending channel input:         route-map ALL out; strip_prompt: True; eager: False
+2026-10-31 11:13:41,629: sync_channel [1;32m	INFO[0m sending channel input: no terminal dont-ask; strip_prompt: True; eager: False
+2026-10-31 11:13:41,729: sync_channel [1;32m	INFO[0m sending channel input: copy running-config startup-config; strip_prompt: True; eager: False
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:hostname n1
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:username admin password 0 admin role network-admin
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:WARNING: Minimum recommended length of 8 characters.
+WARNING: Password should contain characters from at least three of the following classes: lower case letters, upper case letters, digits and special characters.
+WARNING: it is too short
+WARNING: Configuration accepted because password strength check is disabled
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:!
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:vrf context management
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:ip route 0.0.0.0/0 10.0.0.2
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:ipv6 route ::/0 2001:db8::1
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:exit
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:!
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:interface mgmt0
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:ip address 10.0.0.15/24
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:ipv6 address 2001:db8::2/64
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:exit
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:!
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:ssh key rsa 2048 force
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:feature ssh
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:!
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:feature scp-server
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:feature nxapi
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,958: launch     [1;32m	INFO[0m CONFIG:feature telnet
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:feature netconf
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:2026 Oct 31 11:13:24 n1 %$ VDC-1 %$ %SECURITYD-2-FEATURE_NXAPI_ENABLE: Feature nxapi is being enabled on HTTPS.
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:feature grpc
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:!
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:feature bgp
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:vrf context RED
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:vrf context EMPTY
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:interface Ethernet1/1
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  no switchport
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  ip address 10.0.1.1/30
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  ipv6 address 2001:db8:1::1/64
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  no shutdown
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:interface Ethernet1/2
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  no switchport
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  vrf member RED
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:Warning: Deleted all L3 config on interface Ethernet1/2
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  ip address 10.0.2.1/30
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  no shutdown
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:interface Ethernet1/3
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  no switchport
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  ip address 10.0.3.1/30
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  no shutdown
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:interface loopback0
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m CONFIG:  ip address 192.168.10.1/32
+2026-10-31 11:13:43,959: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:ip route 0.0.0.0/0 Null0
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:ip prefix-list DENY66 seq 5 permit 192.168.66.0/24
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:ip prefix-list P20 seq 5 permit 192.168.20.0/24
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:route-map FROM-F1 deny 10
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  match ip address prefix-list DENY66
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:route-map FROM-F1 permit 20
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  match ip address prefix-list P20
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  set local-preference 200
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:route-map FROM-F1 permit 30
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:route-map ALL permit 10
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:router bgp 65001
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  router-id 192.168.10.1
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  address-family ipv4 unicast
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:    network 192.168.10.1/32
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  address-family ipv6 unicast
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  neighbor 10.0.1.2
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:    remote-as 65002
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:    address-family ipv4 unicast
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:      route-map FROM-F1 in
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:      route-map ALL out
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:      send-community
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:      send-community extended
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:  neighbor 2001:db8:1::2
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:    remote-as 65002
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:    address-family ipv6 unicast
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m CONFIG:      route-map ALL in
+2026-10-31 11:13:43,960: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:      route-map ALL out
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:  neighbor 10.0.9.9
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:    remote-as 65009
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:    address-family ipv4 unicast
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:  neighbor 10.0.3.2
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:    remote-as 65004
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:    address-family ipv4 unicast
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:      route-map ALL in
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:  vrf RED
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:    address-family ipv4 unicast
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:    neighbor 10.0.2.2
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:      remote-as 65003
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:      address-family ipv4 unicast
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:        route-map ALL in
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m CONFIG:        route-map ALL out
+2026-10-31 11:13:43,961: launch     [1;32m	INFO[0m RESULT:
+2026-10-31 11:13:43,961: base_driver [1;32m	INFO[0m closing connection to '127.0.0.1' on port '22'
+2026-10-31 11:13:44,013: base_driver [1;32m	INFO[0m attempting to acquire 'privilege_exec' privilege level
+2026-10-31 11:13:44,013: sync_channel [1;32m	INFO[0m sending channel input: end; strip_prompt: True; eager: False
+2026-10-31 11:13:44,161: base_driver [1;32m	INFO[0m attempting to acquire 'privilege_exec' privilege level
+2026-10-31 11:13:44,164: base_driver [1;32m	INFO[0m connection to '127.0.0.1' on port '22' closed successfully
+2026-10-31 11:13:44,164: launch     [1;32m	INFO[0m Startup complete in: 0:04:23.374852

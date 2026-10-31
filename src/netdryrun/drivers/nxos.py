@@ -84,6 +84,21 @@ VERSION_CMD = "show version"
 # vrnetlab puts the VM's management (mgmt0, a default route to the container) in this VRF: its state is vrnetlab's,
 # not the lab's (Batfish lab-validation found the same artefacts), so `record` never reads it
 MGMT_VRF = "management"
+# VRFs NX-OS creates itself (live 10.4(8): `show vrf` lists "egress-loadbalance-resolution-", name cut at 32): never
+# a lab's VRF, so `record` doesn't read them
+SYSTEM_VRF_PREFIXES = ("egress-loadbalance-resolution",)
+# NX-OS doesn't show the advertisement interval it applies (live: not in `show bgp ... neighbors`, not in
+# `show running-config bgp all`). An unknown interval would never stretch the settle window, so the driver reports
+# 30 s, the usual Cisco eBGP default, as the upper bound for the default. A larger configured
+# `advertisement-interval` is not read (stated limit)
+ASSUMED_ADV_INTERVAL = 30.0
+
+# The startup config vrnetlab types at boot, as its log shows it (live, vrnetlab 85445ed): each line as
+# "... INFO ... CONFIG:<line>", then "... RESULT:<NX-OS's answer>", which can run on over unprefixed lines
+STARTUP_LOG_CMD = "docker logs <n9kv container>"
+_LOG_LINE = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d+: ")
+_LOG_ENTRY = re.compile(r"\b(CONFIG|RESULT):(.*)$")
+_STARTUP_DONE = "Startup complete in:"
 BGP_VRFS_CMD = "show bgp vrf all ipv4 unicast summary"
 PING_CMD = "ping <target> vrf <vrf>"
 
@@ -188,7 +203,8 @@ def parse_bgp_summary(text: str, vrf: str = "default", afi: str = "ipv4-unicast"
                     if not isinstance(addr, str) or not addr or not isinstance(state, str) or not state.strip():
                         raise unexpected(SUMMARY_CMD, str(n)[:150])
                     key = _canon_addr(addr)
-                    nb = out.get(key) or BgpNeighbor(addr, state.split()[0].lower())
+                    nb = out.get(key) or BgpNeighbor(addr, state.split()[0].lower(),
+                                                     adv_interval=ASSUMED_ADV_INTERVAL)
                     if "prefixreceived" in n:
                         nb.prefixes[afi] = as_int(SUMMARY_CMD, n["prefixreceived"])
                     elif nb.state == "established":  # a missing count would read as 0 prefixes, passing `max`
@@ -398,9 +414,38 @@ def parse_vrfs(text: str) -> list[str]:
         name, state = row.get("vrf_name"), row.get("vrf_state")
         if not isinstance(name, str) or not name or not isinstance(state, str):
             raise unexpected(VRFS_CMD, str(row)[:150])
-        if state.lower() == "up" and name not in ("default", MGMT_VRF):
+        if state.lower() == "up" and name not in ("default", MGMT_VRF) and not name.startswith(SYSTEM_VRF_PREFIXES):
             out.append(name)
     return sorted(out)
+
+
+def parse_startup_log(text: str) -> list[str]:
+    """Each startup-config line NX-OS rejected at boot ("<line> (<NX-OS's message>)"), from vrnetlab's container log;
+    [] when every line loaded. A line is rejected when its RESULT has a line starting `% ` (NX-OS's CLI error: "%
+    Invalid command at '^' marker.") or `ERROR:`; a WARNING or a syslog message inside a RESULT is not. A log that
+    shows no config typed, or no "Startup complete", can't say whether the config loaded: an error, never clean."""
+    if not isinstance(text, str) or _STARTUP_DONE not in text:
+        raise DriverError("vrnetlab's log shows no completed startup (no \"Startup complete\" line), so whether the "
+                          "startup config loaded is unknown")
+    entries: list[list] = []          # [kind, first line, continuation lines]
+    for raw in text.splitlines():
+        line = raw.rstrip("\r")
+        if _LOG_LINE.match(line):
+            m = _LOG_ENTRY.search(line)
+            entries.append([m.group(1), m.group(2), []] if m else ["other", "", []])
+        elif entries:
+            entries[-1][2].append(line)
+    configs = [e for e in entries if e[0] == "CONFIG"]
+    if not configs:
+        raise DriverError("vrnetlab's log shows no startup config typed, so whether it loaded is unknown")
+    rejected = []
+    for i, e in enumerate(entries):
+        if e[0] != "RESULT" or i == 0 or entries[i - 1][0] != "CONFIG":
+            continue
+        why = [ln.strip() for ln in [e[1], *e[2]] if ln.strip().startswith(("% ", "ERROR:"))]
+        if why:
+            rejected.append(f"{entries[i - 1][1].strip()} ({'; '.join(why)})")
+    return rejected
 
 
 @parser(VERSION_CMD)

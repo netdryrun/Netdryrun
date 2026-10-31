@@ -18,7 +18,7 @@
 										"ROW_path":	[{
 												"entry":	0,
 												"ifname":	"Null0",
-												"uptime":	"PT6M27S",
+												"uptime":	"PT53S",
 												"pref":	1,
 												"metric":	0,
 												"clientname":	"static",
@@ -26,7 +26,7 @@
 											}, {
 												"entry":	0,
 												"ipnexthop":	"10.0.1.2",
-												"uptime":	"PT6M12S",
+												"uptime":	"PT39S",
 												"pref":	20,
 												"metric":	0,
 												"clientname":	"bgp-65001",

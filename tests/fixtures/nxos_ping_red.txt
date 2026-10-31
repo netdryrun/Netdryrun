@@ -1,7 +1,7 @@
 {
 	"jsonrpc":	"2.0",
 	"result":	{
-		"msg":	"PING 10.0.2.2 (10.0.2.2): 56 data bytes\n64 bytes from 10.0.2.2: icmp_seq=0 ttl=63 time=22.535 ms\n64 bytes from 10.0.2.2: icmp_seq=1 ttl=63 time=12.988 ms\n64 bytes from 10.0.2.2: icmp_seq=2 ttl=63 time=4.086 ms\n\n--- 10.0.2.2 ping statistics ---\n3 packets transmitted, 3 packets received, 0.00% packet loss\nround-trip min/avg/max = 4.086/13.202/22.535 ms\n"
+		"msg":	"PING 10.0.2.2 (10.0.2.2): 56 data bytes\n64 bytes from 10.0.2.2: icmp_seq=0 ttl=63 time=4.267 ms\n64 bytes from 10.0.2.2: icmp_seq=1 ttl=63 time=0.685 ms\n64 bytes from 10.0.2.2: icmp_seq=2 ttl=63 time=0.478 ms\n\n--- 10.0.2.2 ping statistics ---\n3 packets transmitted, 3 packets received, 0.00% packet loss\nround-trip min/avg/max = 0.478/1.81/4.267 ms\n"
 	},
 	"id":	1
 }
