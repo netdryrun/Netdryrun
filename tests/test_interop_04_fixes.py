@@ -247,8 +247,10 @@ def test_junos_live_policy_reject_and_unusable_next_hop_count_two():
     # captured live: 3 received; 192.168.21.0/24 rejected by import policy, 192.168.22.0/24 with a next hop Junos
     # can't use. The reference count is 2 (FRR, EOS and SR Linux count the second one).
     d = _junos_lab("junos_bgp_neighbor_policy_and_nexthop.txt", "junos_rp_hidden.txt")
-    n = d.bgp_neighbors().value["10.0.100.2"]
+    obs = d.bgp_neighbors()
+    n = obs.value["10.0.100.2"]
     assert (n.prefixes, n.prefixes_upto) == ({"ipv4-unicast": 2}, {})
+    assert len(obs.evidence) == 3          # the neighbor output, the hidden routes, the neighbor output again
     assert d.lab.calls[-1].startswith("cli -c 'show bgp neighbor instance master")   # read again after the hidden
     assert d.lab.calls[-2].startswith("cli -c 'show route receive-protocol bgp 10.0.100.2 table inet.0 hidden "
                                       "extensive")
