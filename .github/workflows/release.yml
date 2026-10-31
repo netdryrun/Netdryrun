@@ -1,9 +1,11 @@
 name: Release
 
 # Publishes to PyPI with Trusted Publishing (OIDC): no tokens or passwords are stored anywhere.
+# A push to a release branch is a dry run: the same build and artifact hand-off, nothing published.
 on:
   push:
     tags: ["v*"]
+    branches: ["ndr/release-*"]
 
 permissions:
   contents: read
@@ -17,6 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Check tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           pkg="$(python -c "import re,pathlib;print(re.search(r'__version__ = \"(.+?)\"', pathlib.Path('src/netdryrun/__init__.py').read_text()).group(1))")"
           test "v$pkg" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != package v$pkg"; exit 1; }
@@ -28,8 +31,24 @@ jobs:
           name: dist
           path: dist/
 
+  dry-run:
+    needs: build
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - name: What publish would upload (nothing is published from a branch)
+        run: |
+          ls -l dist/
+          test "$(find dist -name '*.whl' | wc -l)" = 1 && test "$(find dist -name '*.tar.gz' | wc -l)" = 1
+          python -m pip install --quiet twine && python -m twine check --strict dist/*
+
   publish:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -45,6 +64,7 @@ jobs:
 
   github-release:
     needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

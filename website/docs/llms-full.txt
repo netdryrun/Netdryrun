@@ -1331,7 +1331,7 @@ jobs:
           path: network/        # folder containing netdryrun.yml
 ```
 
-It needs a Linux runner with Docker. GitHub-hosted `ubuntu-latest` runners work.
+It needs a Linux runner with Docker. GitHub-hosted `ubuntu-latest` runners work. From 0.4.1 the Action's own steps run on Node.js 24, so a self-hosted runner needs GitHub Actions runner 2.327.1 or later.
 
 ## Inputs
 

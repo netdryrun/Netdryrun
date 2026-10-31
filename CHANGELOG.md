@@ -9,6 +9,12 @@
 - **SR Linux: a path marked invalid (`valid-route: false`) that gives no `invalid-reason` is an error**, never a received or an absent path (a release that omits the reason couldn't be told from a route import policy rejected).
 - **Juniper: the prefix count is read from a table that held still.** The neighbor output and the hidden routes are two commands; the neighbor output is now read again after the hidden routes, and the count is used only when both reads agree and the hidden routes number received minus accepted. Otherwise everything is read once more, and a second disagreement is an error (no usable state), never a count.
 
+### Changed
+
+- **The GitHub Action uses `actions/setup-python` v7 and `actions/upload-artifact` v7** (Dependabot, 11 Action bumps across the workflows). Both run on Node.js 24, which needs GitHub Actions runner 2.327.1 or later: GitHub-hosted runners have it; a self-hosted runner must be updated before it runs `netdryrun/Netdryrun@v0.4.1`.
+- **The site keeps `/.well-known/security.txt`:** `actions/upload-pages-artifact` v4 and later leave dotfiles out of the Pages artifact, so the Pages workflow sets `include-hidden-files` and checks the file is in the artifact.
+- **A push to a release branch dry-runs the release workflow** (build, the artifact hand-off, `twine check`); only a `v*` tag publishes. CI runs on release branches too.
+
 ## 0.4.0 (2026-10-31)
 
 ### Added
