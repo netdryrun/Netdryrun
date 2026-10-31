@@ -354,6 +354,25 @@ def adv_intervals(text: str) -> dict[tuple[str, str], float]:
     return out
 
 
+def add_path_tx(text: str) -> set[tuple[str, str, str]]:
+    """(vrf, neighbor, afi-safi) where add-path TX shows in either direction's capabilities (this node may send
+    the neighbor several paths per prefix). Anything not a clear "no" counts as add-path."""
+    out = set()
+    for vrf, inst in _json(NEIGHBORS_CMD, text).items():
+        for key, nb in inst.items() if isinstance(inst, dict) else ():
+            if key in ("vrfId", "vrfName") or not isinstance(nb, dict):
+                continue
+            caps = nb.get("neighborCapabilities", {})
+            ap = caps.get("addPath", {}) if isinstance(caps, dict) else None
+            if not isinstance(ap, dict):
+                ap = {af: None for af in AF_KEYS}
+            for af, info in ap.items():
+                if af in AF_KEYS and (not isinstance(info, dict) or any(v is not False for k, v in info.items()
+                                                                           if k.startswith("tx"))):
+                    out.add((vrf, canon_ip(key), AF_KEYS[af]))
+    return out
+
+
 def _add_path_rx(nb: dict, af: str) -> bool:
     """The neighbor said it may send this node several paths per prefix (its add-path TX capability)."""
     caps = nb.get("neighborCapabilities", {})
@@ -657,9 +676,11 @@ def adj_command(vrf: str, afi: str, neighbor: str, direction: str) -> str:
     return f"show bgp{in_vrf} {afi} unicast neighbors {canon_ip(neighbor)} {which} json"
 
 
-def parse_adj(text: str, cmd: str, afi: str, direction: str) -> dict[tuple[str, int], BgpAttrs]:
+def parse_adj(text: str, cmd: str, afi: str, direction: str,
+              add_path_tx: bool = True) -> dict[tuple[str, int], BgpAttrs]:
     """{(prefix, path id): attributes} from an advertised-routes / received-routes detail listing. `{}` is
-    a session with nothing in that direction."""
+    a session with nothing in that direction. `add_path_tx` False says the node can't send this neighbor more
+    than one path per prefix: FRR still lists every multipath path, and the one sent is the best (interop IOP-8)."""
     data = _json(cmd, text)
     if not isinstance(data, dict):
         raise _bad(cmd, text)
@@ -683,6 +704,8 @@ def parse_adj(text: str, cmd: str, afi: str, direction: str) -> dict[tuple[str, 
         if not plist:
             raise _bad(cmd, f"{prefix}: no path")
         id_key = "addpathTxId"
+        if len(plist) > 1 and not add_path_tx and not any(isinstance(p, dict) and id_key in p for p in plist):
+            plist = [_best_sent(cmd, prefix, plist)]
         for i, p in enumerate(plist):
             _src, _rx, attrs, raw = parse_attrs(cmd, p, f"{prefix} path {i}")
             if len(plist) > 1 and id_key not in raw:
@@ -700,6 +723,22 @@ def parse_adj(text: str, cmd: str, afi: str, direction: str) -> dict[tuple[str, 
         listed += 1
     _check_total(cmd, data, listed)
     return out
+
+
+def _best_sent(cmd: str, prefix: str, plist: list) -> dict:
+    """Without add-path a neighbor gets one path per prefix, the best: the one path FRR flags bestpath.overall.
+    No best path, or more than one, is unreadable, never a guess."""
+    best = []
+    for i, p in enumerate(plist):
+        if not isinstance(p, dict):
+            raise _bad(cmd, f"{prefix} path {i}: not an object")
+        if "bestpath" in p and _flag(cmd, _obj(cmd, p["bestpath"], f"{prefix} path {i}.bestpath", BESTPATH_KEYS),
+                                     "overall", f"{prefix} path {i}.bestpath"):
+            best.append(p)
+    if len(best) != 1:
+        raise _bad(cmd, f"{prefix}: {len(plist)} paths listed without add-path and {len(best)} flagged best; verify "
+                        "can't tell which one the neighbor was sent")
+    return best[0]
 
 
 def _check_total(cmd: str, data: dict, listed: int) -> None:
@@ -797,6 +836,7 @@ class FrrCollector:
         neighbors_text = self._vtysh(NEIGHBORS_CMD, raw)
         sessions = parse_neighbors(neighbors_text)
         sent = sent_counters(neighbors_text)
+        tx_add_path = add_path_tx(neighbors_text)
         adv_interval = max(adv_intervals(neighbors_text).values(), default=0.0)
         ribs = {afi: parse_routes(self._vtysh(ROUTE_CMDS[afi], raw), afi) for afi in ("ipv4", "ipv6")}
         tables = {afi: parse_bgp_table(self._vtysh(BGP_CMDS[afi], raw), afi) for afi in ("ipv4", "ipv6")}
@@ -837,7 +877,7 @@ class FrrCollector:
                     directions = ["out"] + (["in"] if fam in s.soft_reconfig_in else [])
                     for d in directions:
                         cmd = adj_command(vrf, afi, nbr, d)
-                        listing = parse_adj(self._vtysh(cmd, raw), cmd, afi, d)
+                        listing = parse_adj(self._vtysh(cmd, raw), cmd, afi, d, (vrf, nbr, fam) in tx_add_path)
                         if d == "out" and not listing and sent.get((vrf, nbr, fam), 0) > 0:
                             raise CommandFailed(f"`vtysh -c '{cmd}'` on {node} listed nothing, but the neighbor output "
                                                 f"says {sent[(vrf, nbr, fam)]} prefixes were sent: not read as "

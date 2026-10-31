@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 (unreleased)
+
+### Fixes
+
+- **`verify` reads an FRR lab where a node has equal multipath paths to a prefix it advertises** (0.4 interop test, IOP-8; tests in `tests/test_verify_adj_multipath.py`). FRR's `advertised-routes detail json` lists every multipath path, with no add-path ID when the session has no add-path, and verify stopped with "several paths without addpathTxId" (exit `2`). Without add-path the neighbor is sent one path, the best: verify now reads the one path FRR flags best. Where the node may send add-path to that neighbor (any add-path TX capability in its neighbor output), or where no path or more than one is flagged best, the snapshot is still unreadable (exit `2`), never a guess.
+
 ## 0.4.0 (2026-10-31)
 
 ### Added

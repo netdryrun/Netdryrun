@@ -95,10 +95,12 @@ def test_junos_undercount_does_not_pass_an_upper_bound_the_reference_count_break
 # verify stops: "several paths without addpathTxId; verify can't tell them apart" -> ERROR: NO VERDICT on a lab whose
 # only change was declared. Without add-path the neighbor gets one path: the best one.
 
-@pytest.mark.xfail(strict=True, reason="IOP-8 is deferred to 0.4.1: verify gives no verdict on FRR ECMP labs "
-                   "(fails closed, never approves)")
 def test_verify_adj_out_with_multipath_reads_the_advertised_best_path():
+    # fixed in 0.4.1: a session without add-path TX (fb's neighbor output says so) gets the best path only
     from netdryrun.verify import frr as vfrr
     cmd = "show bgp ipv4 unicast neighbors 10.9.3.2 advertised-routes detail json"
-    out = vfrr.parse_adj(read("frr_adj_out_multipath.txt"), cmd, "ipv4", "out")
+    text = read("frr_adj_out_multipath.txt")
+    out = vfrr.parse_adj(text, cmd, "ipv4", "out", add_path_tx=False)
     assert [k for k in out if k[0] == "192.168.3.1/32"] == [("192.168.3.1/32", 0)]
+    best = [p for p in json.loads(text)["advertisedRoutes"]["192.168.3.1/32"]["paths"] if "bestpath" in p]
+    assert out[("192.168.3.1/32", 0)] == vfrr.parse_attrs(cmd, best[0], "best")[2]
