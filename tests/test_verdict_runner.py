@@ -78,6 +78,9 @@ class FakeLab:
     def existing_containers(self):
         return self.existing
 
+    def image_digest(self, image):
+        return {"quay.io/frrouting/frr:10.4.1": "quay.io/frrouting/frr@sha256:" + "a" * 64}.get(image)
+
     def deploy(self):
         self.deployed += 1
         self.events.append(("deploy",))
@@ -141,6 +144,10 @@ class Drv:
         self.paths_ = paths or {}
         self.ping_, self.neighbors_error, self.on_call = ping, neighbors_error, on_call
         self.calls: list[tuple] = []
+        self.name = "frr"
+
+    def nos_version(self):
+        return "FRRouting 10.4.1_git"
 
     def bgp_neighbors(self, vrf="default"):
         self.calls.append(("bgp_neighbors", vrf, self.clock.now))
@@ -153,8 +160,8 @@ class Drv:
             raise NoSuchInstance(f"no VRF {vrf}")
         out = {}
         for a, s in _at(self.neighbors[vrf], self.clock.now).items():
-            state, pfx = (s, {"ipv4-unicast": 3}) if isinstance(s, str) else s
-            out[a] = BgpNeighbor(a, state, dict(pfx))
+            state, pfx, interval = (s, {"ipv4-unicast": 3}, 0.0) if isinstance(s, str) else (*s, 0.0)[:3]
+            out[a] = BgpNeighbor(a, state, dict(pfx), adv_interval=interval)
         return Observation(out, [{"cmd": "nbr"}])
 
     def routes(self, prefix, vrf="default"):
@@ -423,7 +430,9 @@ def test_report_started(monkeypatch):
     e = make(monkeypatch)
     rep = e.run([route("a")])
     assert iso(rep.started) and rep.lab_name == "t"
-    assert rep.environment["nodes"]["r1"] == {"kind": "linux", "image": "quay.io/frrouting/frr:10.4.1"}
+    assert rep.environment["nodes"]["r1"] == {"kind": "linux", "image": "quay.io/frrouting/frr:10.4.1",
+                                              "config_load": "clean", "nos_version": "FRRouting 10.4.1_git",
+                                              "image_digest": "quay.io/frrouting/frr@sha256:" + "a" * 64}
     assert set(rep.environment) == {"netdryrun", "containerlab", "python", "host", "nodes"}
 
 
@@ -1659,6 +1668,25 @@ def test_run_scenario_gate_warning_is_added_to_each_check(monkeypatch):
     assert e.results[0].detail == r.detail
 
 
+
+# ----------------------------------------------------------------- advertisement intervals stretch the windows
+
+def test_a_leak_slowed_by_a_peers_advertisement_interval_is_still_seen(monkeypatch):
+    """0.3.2 multi-vendor audit: r2 sends to r1 at most every 60 s (its advertisement interval), so a leak can
+    reach r1 at t=45 s, after the default settle and hold (10 s each): the negative check sampled a prefix
+    count stable at 0 and passed. The windows stretch to the longest interval any session reports."""
+    slow = {"default": {"10.0.12.1": ("established", {"ipv4-unicast": 3}, 60.0)}}
+    e = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": lambda t, p: t >= 45}},
+             r2={"neighbors": slow, "routes": {"default": always}})
+    rep = e.run([leak("neg")], settle=10, hold=10)
+    assert rep.status == "failed" and not by_name(rep)["neg"].passed
+    assert any("advertisement interval" in line and "60" in line for line in e.logs)
+
+
+def test_short_advertisement_intervals_leave_the_windows_alone(monkeypatch):
+    e = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": never}})
+    rep = e.run([leak("neg")], settle=10, hold=10)
+    assert rep.status == "passed" and not any("advertisement interval" in line for line in e.logs)
 # ----------------------------------------------------------------------------------------------- never testable
 
 def _bgpd_off_everywhere(monkeypatch):
@@ -1792,6 +1820,44 @@ def test_the_no_neighbors_result_is_a_complete_failed_result(monkeypatch):
     assert all(h.get("unready") for h in r.history)
 
 
+# ------------------------------------------------------------------- a config the NOS rejected is never a pass
+
+def test_a_rejected_config_line_makes_the_run_an_error_never_a_pass(monkeypatch):
+    """Live repro (FRR 10.4.1): a misspelled change line was skipped at boot and every check passed. Every
+    check passing on a node whose config didn't load cleanly is status error (exit 2), naming the node and
+    the line."""
+    e = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": never}})
+    clean = e.lab.boot_log
+    log = "[45|bgpd] sending configuration\nline 18: % Unknown command[31]:   neighbor 10.0.12.1 default-orignate\n"
+    e.lab.boot_log = lambda node: ExecResult([], 0, log, "") if node == "r2" else clean(node)
+    rep = e.run([leak("neg")], settle=10, hold=10)
+    assert rep.status == "error" and rep.exit_code == 2
+    assert "r2" in rep.error and "default-orignate" in rep.error
+    assert by_name(rep)["neg"].passed                       # the results are kept as evidence
+    assert rep.environment["nodes"]["r2"]["config_load"] == [
+        "line 18: neighbor 10.0.12.1 default-orignate (Unknown command)"]
+    assert rep.environment["nodes"]["r1"]["config_load"] == "clean"
+
+
+def test_a_driver_that_cannot_verify_the_load_says_so(monkeypatch):
+    e = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": never}})
+    e.lab.nodes["r3"] = Node("r3", "clab-t-r3", "juniper_cjunosevolved", "cjunosevolved:25.2R1.8-EVO")
+    e.drivers["r3"].name = "junos"
+    rep = e.run([leak("neg")], settle=10, hold=10)
+    assert rep.status == "passed"
+    assert rep.environment["nodes"]["r3"]["config_load"] == "not verified on junos"
+
+
+def test_the_report_names_each_nodes_image_digest_and_nos_version(monkeypatch):
+    """A verdict is tied to what ran: the image by digest (a tag can move) and the version the NOS reports. Not
+    readable is null, never a guess."""
+    e = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": always}})
+    e.drivers["r3"].nos_version = lambda: None
+    e.lab.image_digest = lambda image: None
+    rep = e.run([route("pos")])
+    nodes = rep.environment["nodes"]
+    assert nodes["r1"]["nos_version"] == "FRRouting 10.4.1_git" and nodes["r3"]["nos_version"] is None
+    assert all(n["image_digest"] is None for n in nodes.values())
 def test_the_fault_wait_names_every_session_still_up_even_after_an_unreadable_node(monkeypatch):
     """0.3.3 adversarial review (mutant _wait_fault_visible_20): an unreadable node must not stop the scan, so
     the error names a later node whose session over the downed link is still established."""

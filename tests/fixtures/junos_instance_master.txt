@@ -1,0 +1,157 @@
+{
+    "instance-information" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/junos/26.2R0/junos-routing", 
+                        "junos:style" : "terse"
+                       }, 
+        "instance-core" : [
+        {
+            "instance-name" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "instance-type" : [
+            {
+                "data" : "forwarding"
+            }
+            ], 
+            "instance-rib" : [
+            {
+                "irib-name" : [
+                {
+                    "data" : "inet.0"
+                }
+                ], 
+                "irib-active-count" : [
+                {
+                    "data" : "9"
+                }
+                ], 
+                "irib-holddown-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "irib-hidden-count" : [
+                {
+                    "data" : "2"
+                }
+                ]
+            }, 
+            {
+                "irib-name" : [
+                {
+                    "data" : "inet.2"
+                }
+                ], 
+                "irib-active-count" : [
+                {
+                    "data" : "5"
+                }
+                ], 
+                "irib-holddown-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "irib-hidden-count" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }, 
+            {
+                "irib-name" : [
+                {
+                    "data" : "inet.3"
+                }
+                ], 
+                "irib-active-count" : [
+                {
+                    "data" : "5"
+                }
+                ], 
+                "irib-holddown-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "irib-hidden-count" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }, 
+            {
+                "irib-name" : [
+                {
+                    "data" : "inet6.0"
+                }
+                ], 
+                "irib-active-count" : [
+                {
+                    "data" : "7"
+                }
+                ], 
+                "irib-holddown-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "irib-hidden-count" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }, 
+            {
+                "irib-name" : [
+                {
+                    "data" : "inet6.2"
+                }
+                ], 
+                "irib-active-count" : [
+                {
+                    "data" : "5"
+                }
+                ], 
+                "irib-holddown-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "irib-hidden-count" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }, 
+            {
+                "irib-name" : [
+                {
+                    "data" : "inet6.3"
+                }
+                ], 
+                "irib-active-count" : [
+                {
+                    "data" : "5"
+                }
+                ], 
+                "irib-holddown-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "irib-hidden-count" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }
+            ]
+        }
+        ]
+    }
+    ]
+}

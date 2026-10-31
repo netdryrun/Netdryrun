@@ -43,13 +43,34 @@ def unexpected(command: str, text: object) -> DriverError:
     return DriverError(f"unexpected output from `{command}`: {snippet}")
 
 
-def load_json(command: str, text: str):
+class RepeatedKey(ValueError):
+    def __init__(self, key: str):
+        super().__init__(key)
+        self.key = key
+
+
+def no_repeated_keys(pairs: list) -> dict:
+    """A JSON object whose keys are all different. A repeated key is never "the last one wins": json.loads would
+    keep one value and drop the other silently (0.4: Junos repeats `protocol-nh`)."""
+    out: dict = {}
+    for k, v in pairs:
+        if k in out:
+            raise RepeatedKey(k)
+        out[k] = v
+    return out
+
+
+def load_json(command: str, text: str, object_pairs_hook=no_repeated_keys):
     """JSON from a device command. Empty output is not an empty result: every supported NOS prints a
-    JSON document (at least `{}`) for a state query that succeeded."""
+    JSON document (at least `{}`) for a state query that succeeded. A repeated key in one object is an error,
+    unless the driver's hook knows what the repeat means (Junos)."""
     if not isinstance(text, str) or not text.strip():
         raise unexpected(command, "no output")
     try:
-        return json.loads(text)
+        return json.loads(text, object_pairs_hook=object_pairs_hook)
+    except RepeatedKey as e:
+        raise DriverError(f"`{command}`: repeated key {e.key!r} in one JSON object; refusing to read one of its "
+                          "values as the only one") from None
     except (json.JSONDecodeError, RecursionError):
         raise unexpected(command, text) from None
 
@@ -92,6 +113,16 @@ class BgpNeighbor:
     address: str
     state: str                                          # lower-case, e.g. "established"
     prefixes: dict[str, int] = field(default_factory=dict)  # afi -> accepted/received prefixes
+    # afi -> the most the count can be, where the device leaves received routes out of it for a reason its output
+    # doesn't give (Junos hides routes import policy rejected and routes whose next hop it can't use alike): the
+    # reference count, received minus rejected by import policy, is then from prefixes[afi] to this (interop IOP-7)
+    prefixes_upto: dict[str, int] = field(default_factory=dict)
+    # afi -> why the hidden routes behind a prefixes_upto range couldn't be read (a failed command, unreadable output)
+    prefixes_unread: dict[str, str] = field(default_factory=dict, compare=False)
+    # seconds between advertisements to this neighbor (MRAI) as the device reports it, or the platform's default
+    # where it reports none; None: not known. A route can arrive this late after the session looks settled.
+    # A timer, not the session's identity: not part of equality.
+    adv_interval: float | None = field(default=None, compare=False)
     # Scoped link-locals (fe80::1%eth1, fe80::1%eth2) share one key. When several sessions do, they are all listed
     # here and no session or prefix check is evaluated on the key: either session's state or count would answer
     # for the other one.
@@ -189,6 +220,9 @@ class Driver:
 
     # bgp_route keys this driver cannot read; a check that uses one is a setup error, never a guess
     unsupported_bgp_attributes: frozenset[str] = frozenset()
+    # bgp_route values this driver's output can't tell apart from another state: {key: {value: why}}; a check
+    # that asserts one is refused before deploying (fail closed)
+    ambiguous_bgp_values: dict[str, dict] = {}
     # bgp_prefixes address families this driver has no prefix counts for (refused before deploying)
     unsupported_afis: frozenset[str] = frozenset()
 
@@ -199,3 +233,11 @@ class Driver:
     def all_routes(self, vrf: str = "default", family: int = 4) -> Observation:
         """Every route in the table (used by `netdryrun record`)."""
         raise NotImplementedError
+
+    def nos_version(self) -> str | None:
+        """The NOS version the node reports, or None where this driver doesn't read it (yet)."""
+        return None
+
+    def vrfs(self) -> Observation:
+        """The node's active VRFs other than default (list[str], used by `netdryrun record`)."""
+        raise DriverError(f"listing VRFs is not supported on {self.name} yet")

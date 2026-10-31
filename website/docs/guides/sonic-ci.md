@@ -5,7 +5,7 @@ description: Run SONiC (docker-sonic-vs) in containerlab on every pull request, 
 
 # Test a SONiC change in CI
 
-SONiC is different from most network OSes in a lab: the virtual switch image boots with no configuration, and its services come up one by one after the container starts. This guide shows how to get the image, configure the switch once it's ready, and check its routing on every pull request. It uses [`examples/sonic-frr`](https://github.com/netdryrun/netdryrun/tree/main/examples/sonic-frr): a SONiC VS switch peering eBGP with an FRR router. Every output below is from a real run.
+SONiC is different from most network OSes in a lab: the virtual switch image boots with no configuration, and its services come up one by one after the container starts. This guide shows how to get the image, configure the switch once it's ready, and check its routing on every pull request. It uses [`examples/sonic-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/sonic-frr): a SONiC VS switch peering eBGP with an FRR router. Every output below is from a real run.
 
 ## 1. Get the image
 
@@ -170,7 +170,7 @@ jobs:
           curl -fsSL -o docker-sonic-vs.gz \
             "https://sonic-build.azurewebsites.net/api/sonic/artifacts?branchName=master&platform=vs&target=target/docker-sonic-vs.gz"
           docker load -i docker-sonic-vs.gz
-      - uses: netdryrun/netdryrun@v0.3.3
+      - uses: netdryrun/Netdryrun@v0.4.0
         with:
           path: network/sonic/
 ```

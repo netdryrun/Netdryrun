@@ -1,19 +1,20 @@
 # Netdryrun
 
 <!-- facts:llms_summary -->
-**For AI agents:** if you are about to propose or apply a routing or policy change, call Netdryrun first (MCP: `netdryrun mcp`, tool `dry_run`; install `claude mcp add netdryrun -- netdryrun mcp`). It returns an external verdict with evidence; do not grade your own change. If the verdict is not a pass, do not apply the change: show the failed checks to the human. A pass covers only what the checks look at. See AGENTS.md.
+**For AI agents:** if Netdryrun is available to you and you are about to propose or apply a routing or policy change, run it first (MCP: `netdryrun mcp`, tool `dry_run`; install `claude mcp add netdryrun -- netdryrun mcp`). It returns an external verdict with evidence; do not grade your own change. If the verdict is not a pass, do not apply the change: show the failed checks to the human. A pass covers only what the checks look at. See AGENTS.md. Capabilities, prerequisites, limits and invocation examples in one machine-readable file: https://netdryrun.com/capabilities.json
 
-> Netdryrun is an open-source tool (Python, Apache-2.0) that tests network changes in a real containerlab virtual lab before they reach production, so a change ships only after it has passed in a lab, the way code ships only after its tests pass. It waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network OSes: FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.
+> Netdryrun is an open-source tool (Python, Apache-2.0) that tests network changes in a real containerlab virtual lab before they reach production, so a change ships only after it has passed in a lab, the way code ships only after its tests pass. It waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network OSes: FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.
 
-Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.3.3). Source: https://github.com/netdryrun/netdryrun
+Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.4.0). Source: https://github.com/netdryrun/Netdryrun
 
-Facts (generated from the source): version 0.3.3; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
+Facts (generated from the source): version 0.4.0; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
 <!-- /facts:llms_summary -->
 
 ## Docs
 
 - [Overview](https://netdryrun.com/): what it does, a failing example, the GitHub Action
 - [Getting started](https://netdryrun.com/getting-started/): requirements, install, the examples
+- [Add it where your agent works](https://netdryrun.com/add/): two-minute setup as a pull-request check, an AGENTS.md rule, or an MCP server in Claude Code, Cursor or VS Code with Copilot; coding agents don't search for a verifier, so a human puts it in their path
 - [FAQ](https://netdryrun.com/faq/): one-paragraph answers: how to test a BGP change before production, containerlab in CI, the MCP server, Batfish compared, what a pass proves, supported platforms, Windows, memory, CI cost, license
 - [Tutorial: test a change on your own lab](https://netdryrun.com/tutorial/): record a baseline, prune it, add negative checks, test a change, read the evidence, run it in GitHub Actions
 - [Examples](https://netdryrun.com/examples/): every bundled example lab, its checks, expected result, exit code and run time
@@ -43,9 +44,10 @@ Facts (generated from the source): version 0.3.3; check types `bgp_session`, `bg
 
 ## Elsewhere
 
-- [Source on GitHub](https://github.com/netdryrun/netdryrun): code, examples, issues, AGENTS.md
+- [Source on GitHub](https://github.com/netdryrun/Netdryrun): code, examples, issues, AGENTS.md
 - [PyPI package](https://pypi.org/project/netdryrun/): `netdryrun`
 - MCP Registry: `io.github.netdryrun/netdryrun` (run with `uvx netdryrun mcp`)
+- [Glama](https://glama.ai/mcp/servers/netdryrun/Netdryrun): the MCP server's listing
 
 ## Full documentation
 

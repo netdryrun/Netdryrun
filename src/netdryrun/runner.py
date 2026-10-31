@@ -264,26 +264,106 @@ def check_topology(config: Config) -> Lab:
     return lab
 
 
-def rejected_config(lab, config: Config) -> str:
-    """Why the lab did not run the config as written, or "". FRR applies its config line by line at boot and skips
-    a line it rejects (a typo, a command this release doesn't have): the lab then runs without it, and the checks
-    test a network the change never reached. Read after the checks, when every node has booted; a boot log that
-    can't be read is no proof either. (Other NOSes: see the config reference, "Config that fails to load".)"""
-    found = []
+def _driver_of(config: Config):
+    """The driver a node runs as: the config's override, else detected from its kind and image; None: unknown."""
+    def driver_of(name: str, node) -> str | None:
+        try:
+            return config.drivers.get(name) or detect(node)
+        except DriverError:
+            return None   # FRR in an image not named for it is still FRR: its rejected lines still count
+    return driver_of
+
+
+def _bound_files(lab, name: str) -> list[str]:
+    """The binds and startup-config the topology gives a node (in its node entry, defaults, kinds or groups)."""
+    from .verify.run import bind_reach
+    try:
+        targets = bind_reach(Path(lab.topology))
+    except Exception:   # unreadable here: verify's and the run's own topology checks report it
+        return ["(the topology's binds could not be read)"]
+    return [f"{src}:{dest}" for src, where in targets.items() for node, dest in where if node == name]
+
+
+# Where a file bound into docker-sonic-vs can change its config (CONFIG_DB, FRR, templates, supervisord's programs):
+# a bind into, or above, any of these (multi-vendor audit F6)
+SONIC_CONFIG_PLACES = ("/etc", "/usr", "/var/lib")
+
+
+def _sonic_config_bind(bind: str) -> bool:
+    if bind.startswith("(") or bind.endswith(":startup-config"):
+        return True
+    dest = bind.split(":", 2)[1] if ":" in bind else bind
+    d = "/" + dest.strip("/")
+    return d == "/" or any(d == p or d.startswith(p + "/") or p.startswith(d + "/") for p in SONIC_CONFIG_PLACES)
+
+
+SRL_LOAD_FAILED = "Load of startup configuration failed"
+
+
+def _startup_load(lab, name: str, driver: str, bound, deployed: bool = True) -> list[str] | None:
+    """A non-FRR node's startup-config load ([]: clean, else why not), or None where no platform rule applies
+    (recorded "not verified on <driver>"). On a lab this run didn't deploy (`check`), SR Linux and SONiC are not
+    verified: SR Linux's deploy may have failed with the container still running, and no setup command ran on
+    SONiC (multi-vendor audit F2)."""
+    if driver == "eos":
+        # cEOS skips a startup-config line it rejects and loads the rest, like FRR; it lists them (live, 4.36.3M)
+        from .drivers.eos import STARTUP_ERRORS_CMD, parse_startup_config_errors
+        r = lab.exec(name, ["Cli", "-p", "15", "-c", STARTUP_ERRORS_CMD])
+        if r.rc != 0:
+            return [f"its startup-config errors could not be read ({(r.stderr or r.stdout).strip()[-200:]}), so "
+                    "whether its config loaded is unknown"]
+        try:
+            return parse_startup_config_errors(r.stdout)
+        except DriverError as e:
+            return [f"{e}; so whether its config loaded is unknown"]
+    if driver in ("srlinux", "sonic") and not deployed:
+        return None
+    if driver == "srlinux":
+        # A CLI startup config is one commit containerlab applies at deploy: a line that doesn't parse, or a commit
+        # that fails, fails the deploy (live, 26.7.2). A JSON one SR Linux loads itself, and when it rejects it the
+        # deploy still succeeds and the node runs without it (live): its log says so (multi-vendor audit F3)
+        r = lab.exec(name, ["grep", "-h", SRL_LOAD_FAILED, "/var/log/messages"])
+        if r.rc == 1:   # grep: no such line
+            return []
+        if r.rc != 0:
+            return [f"its startup-config load log could not be read ({(r.stderr or r.stdout).strip()[-200:] or 'rc '}"
+                    f"{'' if (r.stderr or r.stdout).strip() else r.rc}), so whether its config loaded is unknown"]
+        why = " ".join(r.stdout.split())
+        return [f"it failed to load its startup config: {why[why.find(SRL_LOAD_FAILED):][:300]}"]
+    if driver == "sonic":
+        # docker-sonic-vs has no startup config: Netdryrun configures it with setup commands, each checked. A
+        # config file bound into it is not checked: an error, never a silent pass
+        files = [b for b in bound(name) if _sonic_config_bind(b)]
+        if files:
+            return [f"a config bound into a SONiC node is not checked ({', '.join(files[:3])}): configure SONiC "
+                    "with setup commands (nodes.<name>.setup), which are checked"]
+        return []
+    return None
+
+
+def config_load_by_node(lab, driver_of, bound=None, deployed: bool = True) -> dict[str, list[str]]:
+    """Each node whose config load was read -> why the lab didn't run its config as written ([]: it did). FRR
+    applies its config line by line at boot and skips a line it rejects (a typo, a command this release doesn't
+    have): the lab then runs without it, and the checks test a network the change never reached. Read when every
+    node has booted; a boot log that can't be read is no proof either. FRR nodes are always listed; a node whose
+    driver is unknown only when its log shows rejected lines. (Other NOSes: see the config reference, "Config
+    that fails to load".)"""
+    bound = bound or (lambda name: _bound_files(lab, name))
+    found: dict[str, list[str]] = {}
     for name, node in lab.nodes.items():
         if node.kind in ("bridge", "ovs-bridge"):   # no container, no config
             continue
-        try:
-            driver = config.drivers.get(name) or detect(node)
-        except DriverError:
-            driver = None   # FRR in an image not named for it is still FRR: its rejected lines still count
+        driver = driver_of(name, node)
         if driver not in ("frr", None):
+            load = _startup_load(lab, name, driver, bound, deployed)
+            if load is not None:
+                found[name] = load
             continue
         r = lab.boot_log(name)
         if r.rc != 0:
             if driver == "frr":
-                found.append(f"{name}: its boot log could not be read ({(r.stderr or r.stdout).strip()[-200:]}), "
-                             "so whether its config loaded is unknown")
+                found[name] = [f"its boot log could not be read ({(r.stderr or r.stdout).strip()[-200:]}), "
+                               "so whether its config loaded is unknown"]
             continue
         errors = parse_config_load_errors(r.stdout)
         daemons = communicate_daemons(r.stdout)
@@ -300,14 +380,22 @@ def rejected_config(lab, config: Config) -> str:
                 why = (bad[0].stderr or "").strip()[-200:]
                 errors = [*errors, f"(not checked against the running config: {why or 'it could not be read'})"]
         if errors:
-            found.append(f"{name}: {'; '.join(errors)}")
+            found[name] = errors
         elif driver == "frr" and not LOAD_RAN.search(r.stdout):
-            found.append(f"{name}: its boot log shows no sign of a config load (no vtysh boot output, no daemon "
-                         "config line), so whether its config loaded is unknown. Netdryrun reads the config load "
-                         "FRR's image runs at boot (frr.conf, vtysh -b)")
+            found[name] = ["its boot log shows no sign of a config load (no vtysh boot output, no daemon config "
+                           "line), so whether its config loaded is unknown. Netdryrun reads the config load FRR's "
+                           "image runs at boot (frr.conf, vtysh -b)"]
+        elif driver == "frr":
+            found[name] = []
+    return found
+
+
+def rejected_config_message(by_node: dict[str, list[str]]) -> str:
+    """The error for nodes that didn't run their config as written, or "" when every one did."""
+    found = [f"{name}: {'; '.join(errors)}" for name, errors in by_node.items() if errors]
     if not found:
         return ""
-    return ("FRR rejected configuration lines at boot, so the lab ran without them and the checks did not test the "
+    return ("The NOS rejected configuration lines at boot, so the lab ran without them and the checks did not test the "
             f"change as written: {' | '.join(found)}. Fix the config and run again.")
 
 
@@ -370,6 +458,8 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         positives = [c for c in config.checks if not is_post_convergence(c)]
         negatives = [c for c in config.checks if is_post_convergence(c)]
         report.results += run_round_robin(positives, drivers, on_result=on_result, clock=_clock, sleep=_sleep)
+        if negatives or config.scenarios:
+            settle, hold = _stretch_for_advertisement_intervals(lab, driver_for, config, settle, hold, log)
         if negatives:
             gate_warnings: dict[int, str] = {}
             not_converged = _bgp_convergence_gate(negatives, config.checks, drivers, log=log,
@@ -422,7 +512,9 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
                 if sc is not config.scenarios[-1]:
                     log(f"The network did not recover after scenario '{sc.name}'; later scenarios skipped")
                 break
-        rejected = rejected_config(lab, config)
+        by_node = config_load_by_node(lab, _driver_of(config), deployed=deploy)
+        _config_load(lab, driver_for, report, by_node)
+        rejected = rejected_config_message(by_node)
         if rejected:
             report.error = rejected
     except KeyboardInterrupt as e:
@@ -500,6 +592,62 @@ def _with_warnings(warnings: dict[int, str], on_result=None):
         if on_result:
             on_result(r)
     return add
+
+
+def _config_load(lab, driver_for, report: RunReport, by_node: dict[str, list[str]]) -> None:
+    """Each node's config load in the report (environment.nodes.<node>.config_load: "clean", why it didn't load
+    as written, or "not verified on <driver>"), with its image digest and NOS version, so a verdict is tied to
+    what ran."""
+    nodes = report.environment.setdefault("nodes", {})
+    for node in sorted(lab.nodes):
+        try:
+            drv = driver_for(node)
+        except DriverError:
+            # a host, or a router whose driver can't be detected: its load is read only if its log shows FRR's
+            # rejected lines (an error then); otherwise it is said, never "clean" (multi-vendor audit F7)
+            if lab.nodes[node].kind not in ("bridge", "ovs-bridge"):
+                nodes.setdefault(node, {})["config_load"] = "not verified (no routing driver)"
+            continue
+        entry = nodes.setdefault(node, {})
+        entry["nos_version"] = drv.nos_version()
+        entry["image_digest"] = lab.image_digest(lab.nodes[node].image)
+        if node not in by_node:
+            entry["config_load"] = f"not verified on {drv.name}"
+        else:
+            entry["config_load"] = list(by_node[node]) or "clean"
+
+
+ADV_MARGIN = 2.0   # seconds beyond the longest advertisement interval
+
+
+def _stretch_for_advertisement_intervals(lab, driver_for, config: Config, settle: float, hold: float, log):
+    """(settle, hold), each at least the longest advertisement interval (MRAI) any BGP session in the lab reports,
+    plus a margin (0.3.2 multi-vendor audit). A peer sends at most once per interval, so a leak can arrive that
+    long after the sessions look settled; with shorter windows a negative check samples a prefix count still
+    stable at 0 and passes. A route that crosses several such peers can take one interval per hop: raise
+    --settle for that."""
+    vrfs = {"default"} | {c.params["vrf"] for c in config.checks if c.params.get("vrf")}
+    vrfs |= {c.params["vrf"] for sc in config.scenarios for c in sc.checks if c.params.get("vrf")}
+    longest, where = 0.0, ""
+    for node in sorted(lab.nodes):
+        try:
+            drv = driver_for(node)
+        except DriverError:
+            continue   # a node without a routing driver (a host) sends no BGP updates
+        for vrf in sorted(vrfs):
+            try:
+                neighbors = drv.bgp_neighbors(vrf).value
+            except DriverError:
+                continue   # no BGP there (yet): its sessions are judged by the gate and the checks
+            for n in neighbors.values():
+                if n.adv_interval is not None and n.adv_interval > longest:
+                    longest, where = n.adv_interval, f"{node} (to {n.address}{'' if vrf == 'default' else f', vrf {vrf}'})"
+    need = longest + ADV_MARGIN if longest > 0 else 0.0
+    if need > min(settle, hold):
+        log(f"{where} has an advertisement interval of {longest:g}s, so a route can arrive that late: settle and "
+            f"hold extended to at least {need:g}s")
+        settle, hold = max(settle, need), max(hold, need)
+    return settle, hold
 
 
 def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drivers: dict,

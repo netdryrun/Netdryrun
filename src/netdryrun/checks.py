@@ -75,11 +75,25 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
         return False, f"session is {n.state}; prefix counts are only meaningful when established", obs.evidence
     afi = p.get("afi", "ipv4-unicast")
     count = n.prefixes.get(afi, 0)  # established but the family reports nothing: zero prefixes
-    if "exact" in p:
-        ok = count == p["exact"]
-    else:
-        ok = count >= p.get("min", 0) and ("max" not in p or count <= p["max"])
-    return ok, f"{count} {afi} prefixes accepted", obs.evidence
+    low, high = (p["exact"], p["exact"]) if "exact" in p else (p.get("min", 0), p.get("max"))
+
+    def within(c: int) -> bool:
+        return low <= c and (high is None or c <= high)
+
+    top = n.prefixes_upto.get(afi, count)
+    if top == count:
+        return within(count), f"{count} {afi} prefixes accepted", obs.evidence
+    # Some received routes are hidden for a reason the device doesn't give, so the count is somewhere from
+    # `count` to `top`: judged only when every value in that range gives the same answer (interop IOP-7)
+    span = (f"{count} to {top} {afi} prefixes accepted ({top - count} received route(s) hidden: rejected by "
+            "import policy or with a next hop the node can't use, which its output doesn't tell apart)")
+    if within(count) and within(top):
+        return True, span, obs.evidence
+    if top < low or (high is not None and count > high):
+        return False, span, obs.evidence
+    if afi in n.prefixes_unread:   # the hidden routes couldn't be read: no usable state, not a wrong network
+        return False, Unready(f"error: {span}: {n.prefixes_unread[afi]}"), obs.evidence
+    return False, f"{span}: can't tell whether the bound holds", obs.evidence
 
 
 def _route(d: Driver, p: dict) -> tuple[bool, str, list]:

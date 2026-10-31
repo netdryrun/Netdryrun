@@ -25,7 +25,9 @@ def step_script() -> str:
 
 def test_the_step_is_wired_to_the_lab_the_head_commit_and_the_author():
     env = STEP["env"]
-    assert env["NDR_LABEL"] == "${{ inputs.path }}"
+    # the lab: the checks file in mode run, the topology in mode verify (0.4)
+    assert env["NDR_LABEL"] == "${{ inputs.mode == 'verify' && inputs.topology || inputs.path }}"
+    assert env["NDR_MODE"] == "${{ inputs.mode }}" and env["NDR_JSON"] == "${{ inputs.json-report }}"
     assert env["NDR_COMMIT"] == "${{ github.event.pull_request.head.sha }}"
     assert env["NDR_AUTHOR"] == "${{ inputs.comment-author }}"
     assert env["NDR_STATUS"] == "${{ steps.result.outputs.status }}"
@@ -71,6 +73,29 @@ def test_a_run_with_no_report_posts_an_error_header_for_the_head_commit(tmp_path
     assert lines[0] == "<!-- netdryrun-comment examples/frr-bgp -->"
     head = json.loads(re.search(r"\{.*\}", lines[1]).group(0))
     assert head["status"] == "error" and head["commit"] == sha
+
+
+def test_a_verify_job_posts_the_verify_header_from_its_report(tmp_path):
+    """mode: verify writes no agent result (verdict-report): the header comes from the verify report, so an
+    approved change never reads as error, and a run-mode verdict never appears."""
+    from netdryrun.verify import report as vr
+    Fake.calls = []
+    srv = http.server.HTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    (tmp_path / "netdryrun-report.json").write_text(json.dumps(
+        {"schema": vr.SCHEMA, "status": "matched", "verdict": vr.VERDICTS["matched"], "undeclared": [],
+         "not_happened": [], "guards": {"passed": 3, "failed": 0}}), encoding="utf-8")
+    env = {"PATH": "", "PYTHONPATH": str(ROOT / "src"), "GH_TOKEN": "t", "NDR_COMMENT_API": f"http://127.0.0.1:{srv.server_port}",
+           "NDR_REPO": "o/r", "NDR_PR": "3", "NDR_COMMIT": "cd" * 20, "NDR_LABEL": "lab/topology.clab.yml",
+           "NDR_AUTHOR": "github-actions[bot]", "NDR_VERDICT": "netdryrun-verdict.json", "NDR_SUMMARY": "nope.md",
+           "NDR_STATUS": "matched", "NDR_MODE": "verify", "NDR_JSON": "netdryrun-report.json"}
+    p = subprocess.run([sys.executable, "-c", step_script()], cwd=tmp_path, env=env, capture_output=True, text=True)
+    srv.shutdown()
+    assert p.returncode == 0, p.stderr
+    (_, text), = Fake.calls
+    head = json.loads(re.search(r"\{.*\}", text.split("\n")[1]).group(0))
+    assert head["schema"] == "netdryrun.verify/v1" and head["status"] == "matched"
+    assert head["verdict"] == "INTENT MATCHED" and "CHECKS PASSED" not in text
 
 
 def test_without_netdryrun_installed_the_step_only_warns(tmp_path):

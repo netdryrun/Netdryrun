@@ -40,4 +40,4 @@ release:
     - echo "Releasing the Netdryrun component $CI_COMMIT_TAG"
   release:
     tag_name: $CI_COMMIT_TAG
-    description: "Netdryrun $CI_COMMIT_TAG. Changelog: https://github.com/netdryrun/netdryrun/blob/main/CHANGELOG.md"
+    description: "Netdryrun $CI_COMMIT_TAG. Changelog: https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md"

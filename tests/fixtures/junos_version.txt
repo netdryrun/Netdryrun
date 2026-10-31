@@ -1,0 +1,50 @@
+{
+    "software-information" : [
+    {
+        "host-name" : [
+        {
+            "data" : "j1"
+        }
+        ], 
+        "product-model" : [
+        {
+            "data" : "ptx10001-36mr"
+        }
+        ], 
+        "product-name" : [
+        {
+            "data" : "jnp10001-36mr"
+        }
+        ], 
+        "junos-version" : [
+        {
+            "data" : "26.2R1.7-EVO"
+        }
+        ], 
+        "yocto-version" : [
+        {
+            "data" : "4.0.28"
+        }
+        ], 
+        "kernel-version" : [
+        {
+            "data" : "5.15.164-10.22.33.18-yocto-standard-juniper-19183-g14666b62b00b"
+        }
+        ], 
+        "package-information" : [
+        {
+            "name" : [
+            {
+                "data" : "junos-evo-install-ptx-fixed-x86-64-26.2R1.7-EVO"
+            }
+            ], 
+            "comment" : [
+            {
+                "data" : "JUNOS-EVO OS 64-bit [junos-evo-install-ptx-fixed-x86-64-26.2R1.7-EVO]"
+            }
+            ]
+        }
+        ]
+    }
+    ]
+}

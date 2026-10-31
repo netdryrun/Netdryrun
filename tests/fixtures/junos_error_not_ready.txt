@@ -1,0 +1,46 @@
+{
+    "xnm:error" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/xnm/1.1/xnm", 
+                        "xmlns:xnm" : "http://xml.juniper.net/xnm/1.1/xnm"
+                       }, 
+        "message" : [
+        {
+            "data" : "the command-handler subsystem is not responding to management requests"
+        }
+        ]
+        "error" : [
+        {
+            "attributes" : {"xmlns" : "http://xml.juniper.net/xnm/1.1/xnm", 
+                            "xmlns:xnm" : "http://xml.juniper.net/xnm/1.1/xnm"
+                           }, 
+            "message" : [
+            {
+                "data" : "the routing subsystem is not running"
+            }
+            ], 
+            "reason" : [
+            {
+                "daemon" : [
+                {
+                    "data" : "routing"
+                }
+                ], 
+                "process-not-running" : [
+                {
+                    "data" : [null]
+                }
+                ]
+            }
+            ]
+        }
+        ], 
+        "cli" : [
+        {
+            "banner" : [
+            {
+            }
+            ]
+        }
+        ]
+}

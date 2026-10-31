@@ -1,0 +1,39 @@
+{
+    "xnm:error" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/xnm/1.1/xnm", 
+                        "xmlns:xnm" : "http://xml.juniper.net/xnm/1.1/xnm"
+                       }, 
+        "message" : [
+        {
+            "data" : "the command-handler subsystem is not responding to management requests"
+        }
+        ]
+        "ping-results" : [
+        {
+            "source-daemon" : [
+            {
+                "data" : "/bin/ping"
+            }
+            ], 
+            "message" : [
+            {
+                "data" : "connect: Connection timed out"
+            }
+            ], 
+            "ping-failure" : [
+            {
+                "data" : "no response"
+            }
+            ]
+        }
+        ], 
+        "cli" : [
+        {
+            "banner" : [
+            {
+            }
+            ]
+        }
+        ]
+}

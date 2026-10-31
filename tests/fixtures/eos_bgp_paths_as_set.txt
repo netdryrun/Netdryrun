@@ -1,0 +1,118 @@
+{
+    "vrfs": {
+        "default": {
+            "vrf": "default",
+            "routerId": "3.3.3.3",
+            "asn": "65003",
+            "bgpRouteEntries": {
+                "172.16.0.0/16": {
+                    "address": "172.16.0.0",
+                    "maskLength": 16,
+                    "bgpRoutePaths": [
+                        {
+                            "nextHop": "10.1.3.2",
+                            "reasonNotBestpath": "noReason",
+                            "localPreference": 100,
+                            "weight": 0,
+                            "tag": 0,
+                            "med": 0,
+                            "routeType": {
+                                "stale": false,
+                                "valid": true,
+                                "suppressed": false,
+                                "active": true,
+                                "backup": false,
+                                "ecmpHead": true,
+                                "ecmp": true,
+                                "ecmpContributor": true,
+                                "atomicAggregator": false,
+                                "queued": false,
+                                "luRoute": false,
+                                "sixPeRoute": false,
+                                "ucmp": false,
+                                "implicitEcmpFast": false,
+                                "origin": "Incomplete"
+                            },
+                            "peerEntry": {
+                                "peerAddr": "10.1.3.2",
+                                "peerRouterId": "5.5.5.5"
+                            },
+                            "asPathEntry": {
+                                "asPathType": "External",
+                                "asPath": "65005 {65004 65006}"
+                            },
+                            "routeDetail": {
+                                "aggregator": " (aggregated by 65005 5.5.5.5)",
+                                "nextHopVrfName": "",
+                                "communityList": [
+                                    "65004:100"
+                                ],
+                                "extCommunityList": [],
+                                "extCommunityListRaw": [],
+                                "largeCommunityList": [],
+                                "rxSafi": "Unicast",
+                                "origin": "Incomplete",
+                                "recvdFromRRClient": false,
+                                "recmpEligible": false,
+                                "tunnelRibEligible": false,
+                                "igpMetric": 0
+                            },
+                            "timestamp": 1793381443
+                        },
+                        {
+                            "nextHop": "10.1.7.2",
+                            "reasonNotBestpath": "noReason",
+                            "localPreference": 100,
+                            "weight": 0,
+                            "tag": 0,
+                            "med": 0,
+                            "routeType": {
+                                "stale": false,
+                                "valid": true,
+                                "suppressed": false,
+                                "active": false,
+                                "backup": false,
+                                "ecmpHead": false,
+                                "ecmp": true,
+                                "ecmpContributor": true,
+                                "atomicAggregator": false,
+                                "queued": false,
+                                "luRoute": false,
+                                "sixPeRoute": false,
+                                "ucmp": false,
+                                "implicitEcmpFast": false,
+                                "origin": "Incomplete"
+                            },
+                            "peerEntry": {
+                                "peerAddr": "10.1.7.2",
+                                "peerRouterId": "5.5.5.5"
+                            },
+                            "asPathEntry": {
+                                "asPathType": "External",
+                                "asPath": "65005 {65004 65006}"
+                            },
+                            "routeDetail": {
+                                "aggregator": " (aggregated by 65005 5.5.5.5)",
+                                "nextHopVrfName": "",
+                                "communityList": [
+                                    "65004:100"
+                                ],
+                                "extCommunityList": [],
+                                "extCommunityListRaw": [],
+                                "largeCommunityList": [],
+                                "rxSafi": "Unicast",
+                                "origin": "Incomplete",
+                                "recvdFromRRClient": false,
+                                "recmpEligible": false,
+                                "tunnelRibEligible": false,
+                                "igpMetric": 0
+                            },
+                            "timestamp": 1793381443
+                        }
+                    ],
+                    "totalPaths": 2
+                }
+            }
+        }
+    }
+}

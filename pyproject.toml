@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "netdryrun"
-version = "0.3.3"
+version = "0.4.0"
 description = "Validate BGP and routing changes in a real containerlab lab: pass/fail verdict with evidence. Finds the route leaks that ping and 'BGP up' checks miss. CLI, GitHub Action and MCP server."
 readme = "README.md"
 license = "Apache-2.0"
@@ -52,9 +52,9 @@ dev = [
 [project.urls]
 Homepage = "https://netdryrun.com"
 Documentation = "https://netdryrun.com/getting-started/"
-Changelog = "https://github.com/netdryrun/netdryrun/blob/main/CHANGELOG.md"
-Issues = "https://github.com/netdryrun/netdryrun/issues"
-Source = "https://github.com/netdryrun/netdryrun"
+Changelog = "https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md"
+Issues = "https://github.com/netdryrun/Netdryrun/issues"
+Source = "https://github.com/netdryrun/Netdryrun"
 
 [project.scripts]
 netdryrun = "netdryrun.cli:main"
@@ -103,6 +103,13 @@ only_mutate = [
   "src/netdryrun/config.py",
   "src/netdryrun/runner.py",
   "src/netdryrun/drivers/*",
+  "src/netdryrun/verify/engine.py",
+  "src/netdryrun/verify/intent.py",
+  "src/netdryrun/verify/frr.py",
+  "src/netdryrun/verify/snapshot.py",
+  "src/netdryrun/verify/converge.py",
+  "src/netdryrun/verify/run.py",
+  "src/netdryrun/verify/report.py",
 ]
 pytest_add_cli_args_test_selection = ["tests/"]
 also_copy = [

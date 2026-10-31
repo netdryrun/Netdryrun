@@ -5,7 +5,7 @@ description: Boot your FRR routers in containerlab on every pull request, apply 
 
 # Test an FRR change in CI
 
-You keep FRR configs in git, one `frr.conf` per router. This guide makes every pull request that touches them boot the routers in containerlab with the changed configs, check how they route, and fail the job if something broke. It uses [`examples/frr-bgp`](https://github.com/netdryrun/netdryrun/tree/main/examples/frr-bgp) and its broken twin [`examples/frr-bgp-broken`](https://github.com/netdryrun/netdryrun/tree/main/examples/frr-bgp-broken); every output below is from a real run.
+You keep FRR configs in git, one `frr.conf` per router. This guide makes every pull request that touches them boot the routers in containerlab with the changed configs, check how they route, and fail the job if something broke. It uses [`examples/frr-bgp`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp) and its broken twin [`examples/frr-bgp-broken`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp-broken); every output below is from a real run.
 
 ## 1. The lab: one folder next to your configs
 
@@ -119,7 +119,7 @@ On FRR, each check type reads a different part of the router, and the difference
 | `bgp_route` | `show bgp ipv4 unicast <prefix> json` (bgpd) | The best path's AS path, next hop, local preference, MED, communities. Catches a change that still delivers the route, but the long way |
 | `ping` | `ping -I <source>` in the container | The data plane, from the source address you give |
 
-BGP's best path and zebra's selected route are not the same thing. A default route leaked by a peer is `*>` (best) in `show bgp ipv4 unicast`, because the static it loses to isn't a BGP path, and it is not selected in `show ip route`. Read the table that answers your question: `bgp_route` for "which path does BGP prefer", `route` for "what does the router forward with". The [hidden leak lab](https://github.com/netdryrun/netdryrun/tree/main/examples/srl-hidden-leak) shows both side by side.
+BGP's best path and zebra's selected route are not the same thing. A default route leaked by a peer is `*>` (best) in `show bgp ipv4 unicast`, because the static it loses to isn't a BGP path, and it is not selected in `show ip route`. Read the table that answers your question: `bgp_route` for "which path does BGP prefer", `route` for "what does the router forward with". The [hidden leak lab](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-hidden-leak) shows both side by side.
 
 ## 3. Run it locally
 
@@ -191,7 +191,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.3
+      - uses: netdryrun/Netdryrun@v0.4.0
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true
@@ -230,6 +230,6 @@ The failing run is shorter because it has no failure scenario. `frr-bgp` takes l
     ```
 
     A `bgp_session` check passes either way; `bgp_prefixes` and `route` checks catch it. Keep the same `frr defaults` line in the lab as in production.
-- **containerlab gives `linux` nodes a default route** via the management network. FRR sees it as a kernel route with distance 0, which beats a static or BGP default. If your change or your checks involve the default route, delete it with `exec: ["ip route del default"]` on the node, as the [hidden leak lab](https://github.com/netdryrun/netdryrun/tree/main/examples/srl-hidden-leak) does.
+- **containerlab gives `linux` nodes a default route** via the management network. FRR sees it as a kernel route with distance 0, which beats a static or BGP default. If your change or your checks involve the default route, delete it with `exec: ["ip route del default"]` on the node, as the [hidden leak lab](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-hidden-leak) does.
 - **Lab names are global on a machine.** Two jobs on one self-hosted runner, or two copies of a folder, must use different `name:` values in `topology.clab.yml`.
 - **`frr.conf` is read at boot.** Netdryrun deploys a fresh lab on every run, so the pull request's file is always the one tested. If you poke at a lab kept with `--keep`, changes you make in `vtysh` are not in the file.

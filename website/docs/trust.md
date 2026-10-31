@@ -7,20 +7,27 @@ description: Netdryrun license (Apache-2.0), how releases are published with PyP
 
 ## License
 
-Netdryrun™ is open source under the [Apache License 2.0](https://github.com/netdryrun/netdryrun/blob/main/LICENSE). The source is at [github.com/netdryrun/netdryrun](https://github.com/netdryrun/netdryrun).
+Netdryrun™ is open source under the [Apache License 2.0](https://github.com/netdryrun/Netdryrun/blob/main/LICENSE). The source is at [github.com/netdryrun/Netdryrun](https://github.com/netdryrun/Netdryrun).
 
 ## How releases are published
 
 - Releases are built and published by a GitHub Actions workflow when a version tag (`v*`) is pushed. The workflow checks that the tag matches the package version before building.
 - Packages are uploaded to [PyPI](https://pypi.org/project/netdryrun/) with **Trusted Publishing** (OpenID Connect). No PyPI token or password is stored in the repository or its secrets; PyPI accepts the upload because it comes from that workflow in that repository.
 - The same workflow creates a GitHub release with the built files attached.
-- The GitHub Action (`netdryrun/netdryrun@v0.3.3`) installs Netdryrun from the action's own source at the tag you reference. Pin a tag or a commit SHA.
+- The GitHub Action (`netdryrun/Netdryrun@v0.4.0`) installs Netdryrun from the action's own source at the tag you reference. Pin a tag or a commit SHA.
 
 ## Reporting a security issue
 
 Email **[security@netdryrun.com](mailto:security@netdryrun.com)**. Please do not open a public issue for a vulnerability. Include the version, what you found, and how to reproduce it.
 
-Past advisories: [0.3.0 could pass a check without testing what the file said](https://github.com/netdryrun/netdryrun/blob/main/advisories/0.3.0-false-pass/README.md), found by our own audit and fixed in 0.3.1, with a rerunnable test for each path. 0.3.0 is yanked on PyPI.
+Advisories: every false pass we have found, in our own audits and games before any outside user reported it:
+
+| Version | What could pass wrongly | Status |
+|---|---|---|
+| 0.3.0 | A check could pass without testing what the file said | Fixed in 0.3.1; 0.3.0 is yanked on PyPI. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.0-false-pass/README.md) |
+| 0.3.2 and earlier | An FRR config line the router rejected at boot was skipped silently | Fixed in 0.3.3. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.2-rejected-config/README.md) |
+| 0.3.3 and earlier | A failed topology `exec:` command left the lab without that config | Fixed in 0.4.0. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.3-exec-not-checked/README.md) |
+| 0.3.3 and earlier | On Arista EOS, `med: 0` passed on a path received with no MED (cEOS prints MED 0 for both) | Fixed in 0.4.0: a `med: 0` check on EOS is refused. [Changelog](https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md) |
 
 ## What a lab cannot prove
 
@@ -29,11 +36,11 @@ A Netdryrun pass means the change behaved correctly in a lab. The lab runs real 
 - **Vendor-specific behavior.** Open-source and container routers (FRR, SR Linux, SONiC VS) are not your vendor's routers, and even Arista cEOS is not the same as EOS on hardware. Defaults, policy evaluation and bugs differ between implementations and versions. For Arista you can bring your own licensed cEOS image.
 - **Scale.** A lab has a handful of nodes and small tables, not full Internet tables or hundreds of peers.
 - **Hardware and ASIC behavior.** Containers have no forwarding hardware, so TCAM limits, hardware programming and line-rate effects are not tested.
-- **Config the NOS skipped, on some platforms.** On FRR, a config line rejected at boot makes the run an error. On Arista cEOS, SR Linux and SONiC, Netdryrun doesn't yet check that every startup-config line loaded (fix scheduled for 0.4): add a positive check for what each changed line creates.
+- **Config the NOS skipped.** A config line rejected at boot makes the run an error on FRR and Arista cEOS (each lists what it skipped), SR Linux fails containerlab's deploy on one, and SONiC is configured by checked `setup:` commands (a config bound into it is an error). On Juniper (beta) the load is not verified yet, and the report says so: add a positive check for what each changed line creates.
 - **Timing at scale.** Convergence time in a small lab says little about convergence time in a large production network.
 
 <!-- facts:trust_scope -->
-Version 0.3.3 also covers only BGP (IPv4/IPv6 unicast), routes, BGP best-path attributes and ping, plus link-down, node-isolation and route-injection (FRR only) failure scenarios. OSPF/IS-IS adjacencies and path checks are not covered yet.
+Version 0.4.0 also covers only BGP (IPv4/IPv6 unicast), routes, BGP best-path attributes and ping, plus link-down, node-isolation and route-injection (FRR only) failure scenarios. OSPF/IS-IS adjacencies and path checks are not covered yet.
 <!-- /facts:trust_scope -->
 
 ## Running untrusted labs
@@ -61,4 +68,4 @@ The GitHub Action has a `cloud` input reserved for a future hosted service, Netd
 
 ## Trademarks
 
-"Netdryrun" and the Netdryrun logos are trademarks of the Netdryrun project. The Apache-2.0 license covers the code, not the name: forks are welcome under a different name. See the [trademark policy](https://github.com/netdryrun/netdryrun/blob/main/TRADEMARKS.md).
+"Netdryrun" and the Netdryrun logos are trademarks of the Netdryrun project. The Apache-2.0 license covers the code, not the name: forks are welcome under a different name. See the [trademark policy](https://github.com/netdryrun/Netdryrun/blob/main/TRADEMARKS.md).

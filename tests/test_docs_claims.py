@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -23,11 +24,14 @@ from netdryrun.drivers import DRIVERS as ALL_DRIVERS
 ROOT = Path(__file__).resolve().parents[1]
 # Public docs follow releases: a driver no release has shipped yet (scripts/sync_facts.py UNRELEASED) is not
 # documented. Shipping it removes it from UNRELEASED, and these tests then require its docs.
-_SYNC_FACTS = (ROOT / "scripts" / "sync_facts.py").read_text(encoding="utf-8")
-UNRELEASED = set(re.findall(r'"(\w+)"', re.search(r"^UNRELEASED = \{([^}]*)\}", _SYNC_FACTS, re.M).group(1)))
+sys.path.insert(0, str(ROOT / "scripts"))
+from sync_facts import UNRELEASED as _UNRELEASED  # noqa: E402
+
+UNRELEASED = set(_UNRELEASED)
 DRIVERS = {k: v for k, v in ALL_DRIVERS.items() if k not in UNRELEASED}
 CONFIG_MD = (ROOT / "website" / "docs" / "reference" / "config.md").read_text(encoding="utf-8")
 CLI_MD = (ROOT / "website" / "docs" / "reference" / "cli.md").read_text(encoding="utf-8")
+VERIFY_MD = (ROOT / "website" / "docs" / "reference" / "verify.md").read_text(encoding="utf-8")
 CLI_PY = inspect.getsource(cli)
 
 ROW_KEY = re.compile(r"^\| `([^`]+)`", re.M)
@@ -124,7 +128,8 @@ def test_value_lists():
     assert set(config.DRIVER_NAMES) == set(ALL_DRIVERS)
 
 
-DISPLAY = {"frr": "FRR", "sonic": "SONiC", "srlinux": "SR Linux", "eos": "Arista EOS", "nxos": "Cisco NX-OS"}
+DISPLAY = {"frr": "FRR", "sonic": "SONiC", "srlinux": "SR Linux", "eos": "Arista EOS", "junos": "Juniper",
+           "nxos": "Cisco NX-OS"}
 
 
 def test_unreleased_drivers_are_registered_and_undocumented():
@@ -183,10 +188,13 @@ def test_documented_defaults():
 # ------------------------------------------------------------------------------------------------- CLI
 
 def test_every_cli_option_is_documented_and_every_documented_option_exists():
+    """`netdryrun verify`'s options are documented on its own page (reference/verify.md), the rest in cli.md."""
     documented = set(re.findall(r"^\| `(--[a-z-]+)", CLI_MD, re.M))
+    for line in re.findall(r"^\| `--.*", VERIFY_MD, re.M):
+        documented |= set(re.findall(r"`(--[a-z-]+)", line.split("|")[1]))
     code = set(re.findall(r'add_argument\("(--[a-z-]+)"', CLI_PY)) - {"--version"}
-    assert code - documented == set(), f"options the CLI has but cli.md doesn't list: {sorted(code - documented)}"
-    assert documented - code == set(), f"options cli.md lists but the CLI doesn't have: {sorted(documented - code)}"
+    assert code - documented == set(), f"options the CLI has but the reference doesn't list: {sorted(code - documented)}"
+    assert documented - code == set(), f"options the reference lists but the CLI doesn't have: {sorted(documented - code)}"
 
 
 def test_documented_option_defaults():

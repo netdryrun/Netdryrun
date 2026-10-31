@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://netdryrun.com/schemas/verify-v1.json",
+  "title": "Netdryrun verify report (netdryrun.verify/v1)",
+  "description": "What `netdryrun verify --json` writes: the declared intent, the verdict, every undeclared difference with a next diagnostic command, every declared change that didn't happen, and both snapshots as evidence. 0.4, FRR only.",
+  "type": "object",
+  "required": ["schema", "verdict", "status", "notice", "intent", "run_id", "started", "finished", "topology", "before",
+               "after", "failed_because", "warnings", "error", "inconclusive", "determinism", "baseline", "diff_items", "undeclared",
+               "not_happened", "declared", "allowed", "untested_config", "unobserved", "guards", "guards_source", "timings", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "netdryrun.verify/v1"},
+    "verdict": {"enum": ["INTENT MATCHED", "NO BEHAVIOR CHANGE", "UNDECLARED CHANGES: DO NOT APPLY", "INCONCLUSIVE",
+                         "INCONCLUSIVE: UNHEALTHY BASELINE", "ERROR: NO VERDICT"]},
+    "status": {"enum": ["matched", "no_change", "failed", "inconclusive", "unhealthy_baseline", "error"],
+               "description": "Exit codes: matched and no_change 0, failed 1, error 2, inconclusive and unhealthy_baseline 3."},
+    "notice": {"type": "string"},
+    "intent": {
+      "description": "The declared intent, echoed for a human to review: explained is not the same as safe. Null when the intent file could not be read.",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["source", "supplied_by", "lines", "allow_anywhere", "file"],
+         "additionalProperties": false,
+         "properties": {
+           "source": {"type": "string"},
+           "supplied_by": {"type": "string"},
+           "lines": {"type": "array", "items": {"type": "string"}},
+           "allow_anywhere": {"type": "array", "items": {"type": "string"}},
+           "file": {"type": "object"}
+         }}
+      ]
+    },
+    "run_id": {"type": "string"},
+    "started": {"type": "string"},
+    "finished": {"type": "string"},
+    "topology": {"type": "string"},
+    "before": {"type": "string"},
+    "after": {"type": "string"},
+    "failed_because": {"type": "array", "items": {"enum": ["undeclared", "not_happened", "guards"]}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "error": {"type": ["string", "null"]},
+    "inconclusive": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["side", "reason", "moving", "advice"], "additionalProperties": false,
+         "properties": {"side": {"enum": ["before", "after", "rerun"]}, "reason": {"type": "string"},
+                        "moving": {"type": "array", "items": {"type": "string"}}, "advice": {"type": "string"}}}
+      ]
+    },
+    "determinism": {
+      "description": "An approving verdict boots each side a second time: identical is false (and the status inconclusive) when a rerun gave a different snapshot, listing every item that differed (prefixed with its side). null when nothing was approved, or a rerun never settled.",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["reruns", "identical", "differing"], "additionalProperties": false,
+         "properties": {"reruns": {"type": "array", "items": {"enum": ["before", "after"]}}, "identical": {"type": "boolean"},
+                        "differing": {"type": "array", "items": {"type": "string"}}}}
+      ]
+    },
+    "baseline": {"type": "object", "required": ["healthy", "problems", "overridden"], "additionalProperties": false,
+                 "properties": {"healthy": {"type": "boolean"}, "problems": {"type": "array", "items": {"type": "string"}},
+                                "overridden": {"type": "boolean"}}},
+    "diff_items": {"type": "integer", "minimum": 0},
+    "undeclared": {"type": "array", "items": {"$ref": "#/$defs/item"}},
+    "not_happened": {"type": "array", "items": {
+      "type": "object", "required": ["intent", "line", "reason"], "additionalProperties": false,
+      "properties": {"intent": {"type": "integer", "minimum": 0}, "line": {"type": "string"}, "reason": {"type": "string"}}}},
+    "declared": {"type": "array", "items": {
+      "type": "object", "required": ["intent", "line", "details", "items"], "additionalProperties": false,
+      "properties": {"intent": {"type": "integer", "minimum": 0}, "line": {"type": "string"},
+                     "details": {"type": "array", "items": {"type": "object"}},
+                     "items": {"type": "array", "items": {"type": "string"}}}}},
+    "allowed": {"type": "array", "items": {
+      "type": "object", "required": ["pattern", "vrf", "expanded", "routes", "items"], "additionalProperties": false,
+      "properties": {"pattern": {"type": "string"}, "vrf": {"type": "string"},
+                     "expanded": {"type": "array", "items": {"type": "string"}},
+                     "routes": {"type": "array", "items": {
+                       "type": "object", "required": ["node", "vrf", "prefix"], "additionalProperties": false,
+                       "properties": {"node": {"type": "string"}, "vrf": {"type": "string"},
+                                      "prefix": {"type": "string"}}}},
+                     "items": {"type": "array", "items": {"type": "string"}}}}},
+    "untested_config": {"type": "array", "description": "Running-config lines of an approved change that verify did not see exercised in the lab (not tested if the lab doesn't exercise them), per node, each with the section headers above it (from 0.4)",
+      "items": {"type": "object", "required": ["node", "added", "removed"], "additionalProperties": false,
+                "properties": {"node": {"type": "string"}, "added": {"type": "array", "items": {"type": "string"}},
+                               "removed": {"type": "array", "items": {"type": "string"}}}}},
+    "unobserved": {"type": "object", "additionalProperties": {"type": "string"}},
+    "guards": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["status", "passed", "failed", "failures"],
+         "properties": {"status": {"enum": ["passed", "failed", "inconclusive", "error"]},
+                        "passed": {"type": "integer", "minimum": 0}, "failed": {"type": "integer", "minimum": 0},
+                        "error": {"type": ["string", "null"]}, "source": {"type": "string"},
+                        "failures": {"type": "array", "items": {
+                          "type": "object", "required": ["check", "reason"],
+                          "properties": {"check": {"type": "string"}, "node": {"type": ["string", "null"]},
+                                         "reason": {"type": "string"}}}}}}
+      ]
+    },
+    "guards_source": {"enum": ["before-ref", "explicit", "none"]},
+    "timings": {"type": "object", "additionalProperties": false,
+                "properties": {"before_s": {"type": "number"}, "after_s": {"type": "number"},
+                               "rerun_before_s": {"type": "number"}, "rerun_after_s": {"type": "number"}}},
+    "evidence": {"type": "object", "required": ["before", "after"], "additionalProperties": false,
+                 "properties": {"before": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/snapshot"}]},
+                                "after": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/snapshot"}]}}}
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "required": ["kind", "node", "vrf", "change", "fields", "before", "after", "summary", "next_diagnostic"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["session", "rib", "path", "adj_out", "adj_in", "vrf", "config"]},
+        "node": {"type": "string"},
+        "vrf": {"type": "string"},
+        "afi": {"enum": ["ipv4", "ipv6"]},
+        "safi": {"const": "unicast"},
+        "prefix": {"type": "string"},
+        "neighbor": {"type": "string", "description": "session: the neighbor; path: the source (an address, or local); adj_out/adj_in: the session"},
+        "protocol": {"type": "string"},
+        "path_id": {"type": "integer", "minimum": 1},
+        "change": {"enum": ["added", "removed", "changed"]},
+        "fields": {"type": "array", "items": {"type": "string"}},
+        "route_before": {"enum": ["absent", "received (not selected)", "selected (not in the FIB)", "selected and in the FIB", "selected and in the FIB as a discard route (blackhole, reject or unreachable: traffic is dropped)"]},
+        "route_after": {"enum": ["absent", "received (not selected)", "selected (not in the FIB)", "selected and in the FIB", "selected and in the FIB as a discard route (blackhole, reject or unreachable: traffic is dropped)"]},
+        "before": {},
+        "after": {},
+        "summary": {"type": "string"},
+        "next_diagnostic": {"type": "string"},
+        "lines": {"type": "object", "description": "kind config: the running-config lines the after side adds and removes, each with its section headers",
+                  "required": ["added", "removed"], "additionalProperties": false,
+                  "properties": {"added": {"type": "array", "items": {"type": "string"}},
+                                 "removed": {"type": "array", "items": {"type": "string"}}}}
+      }
+    },
+    "snapshot": {
+      "type": "object", "required": ["schema", "nodes", "unobserved"], "additionalProperties": false,
+      "properties": {
+        "schema": {"const": "netdryrun.snapshot/v1"},
+        "nodes": {"type": "object", "additionalProperties": {
+          "type": "object", "required": ["driver", "vrfs", "items"], "additionalProperties": false,
+          "properties": {"driver": {"type": "string"}, "vrfs": {"type": "array", "items": {"type": "string"}},
+                         "config": {"type": "array", "items": {"type": "string"}},
+                         "items": {"type": "array", "items": {"type": "object", "required": ["key", "value"],
+                                                              "additionalProperties": false,
+                                                              "properties": {"key": {"type": "object"}, "value": {}}}},
+                         "raw": {"type": "array", "items": {"type": "object"}}}}},
+        "unobserved": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    }
+  }
+}

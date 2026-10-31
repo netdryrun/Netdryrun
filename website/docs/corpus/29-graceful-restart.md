@@ -13,7 +13,7 @@ A resilience feature; the routing outcome is unchanged.
 
 ## The config change
 
-Against the FRR configs of the [base lab](https://github.com/netdryrun/netdryrun/tree/main/corpus/base/configs):
+Against the FRR configs of the [base lab](https://github.com/netdryrun/Netdryrun/tree/main/corpus/base/configs):
 
 ```diff
 --- a/pe1.conf
@@ -39,7 +39,7 @@ The expected verdict was committed to git before any run. All three strategies t
 
 ## What Netdryrun flagged
 
-Nothing: every check in the [intent spec](https://github.com/netdryrun/netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
+Nothing: every check in the [intent spec](https://github.com/netdryrun/Netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
 
 ## Reproduce it
 
@@ -49,4 +49,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 29
 ```
 
-Case file: [`corpus/cases/29-graceful-restart.yml`](https://github.com/netdryrun/netdryrun/blob/main/corpus/cases/29-graceful-restart.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.
+Case file: [`corpus/cases/29-graceful-restart.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/29-graceful-restart.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.

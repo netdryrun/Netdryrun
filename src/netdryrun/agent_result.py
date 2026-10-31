@@ -163,12 +163,22 @@ def _summary(rep, evidence_path: str | None, tested: dict | None = None) -> dict
         "failures": _failures(rep),
         "evidence_file": evidence_path,
         "verdict": VERDICTS.get(rep.status, DO_NOT_APPLY),
-        "tested": tested if tested is not None else _tested(rep.config, deployed=False),
+        "tested": _with_nodes(tested if tested is not None else _tested(rep.config, deployed=False), rep),
     }
 
 
 
 TESTED_FILES_MAX = 200   # a bind of a large folder must not turn a dry run into a hashing job
+
+
+def _with_nodes(tested: dict, rep) -> dict:
+    """`tested.nodes`: each node's image, its digest and the NOS version it reported (null where not read), and
+    its config load, so a verdict is tied to what ran, not only to the files."""
+    nodes = {}
+    for name, n in sorted((rep.environment.get("nodes") or {}).items()):
+        nodes[name] = {"image": n.get("image", ""), "image_digest": n.get("image_digest"),
+                       "nos_version": n.get("nos_version"), "config_load": n.get("config_load", "not checked")}
+    return {**tested, "nodes": nodes}
 
 
 def _tested(cfg, deployed: bool, outside_root=lambda path: None) -> dict:
@@ -296,6 +306,41 @@ def pr_comment_header(result: dict, commit: str | None = None) -> str:
         passed, failed = (passed, failed) if counts_ok else (0, 0)
     data = {"schema": RESULT_SCHEMA, "status": status, "verdict": verdict, "passed": passed, "failed": failed}
     words = f"**Netdryrun: {verdict}** · status `{status}` · {passed} passed, {failed} failed"
+    if isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{7,40}", commit):
+        data["commit"] = commit
+        words += f" · commit `{commit[:12]}`"
+    return f"<!-- netdryrun-verdict: {json.dumps(data)} -->\n{words}\n"
+
+
+def verify_comment_header(report: dict, commit: str | None = None) -> str:
+    """pr_comment_header for mode: verify (0.4): the same two lines, read from the verify report
+    (`netdryrun.verify/v1`), with verify's own verdict and counts of undeclared differences and declared changes
+    that didn't happen. Only a known status whose verdict is verify's word for it, and an approval
+    (INTENT MATCHED, NO BEHAVIOR CHANGE) with nothing undeclared, nothing missing and no failed guard, is shown;
+    anything else is status error, ERROR: NO VERDICT. It never says a run-mode verdict."""
+    from .verify import report as vreport
+
+    r = report if isinstance(report, dict) else {}
+    status, verdict = r.get("status"), r.get("verdict")
+    undeclared, missing = r.get("undeclared"), r.get("not_happened")
+    guards = r.get("guards") if isinstance(r.get("guards"), dict) else {}
+    lists_ok = isinstance(undeclared, list) and isinstance(missing, list)
+    ok = (r.get("schema") == vreport.SCHEMA and status in vreport.VERDICTS and verdict == vreport.VERDICTS[status]
+          and lists_ok and (status not in ("matched", "no_change")
+                            or (not undeclared and not missing and not guards.get("failed"))))
+    if not ok:
+        status, verdict = "error", vreport.VERDICTS["error"]
+    counts = (len(undeclared), len(missing)) if lists_ok else (0, 0)
+    # running-config lines of an approval that the lab didn't exercise (gauntlet 0.4, R4): never hidden
+    untested = r.get("untested_config") if isinstance(r.get("untested_config"), list) else []
+    lines = sum(len(u.get("added") or []) + len(u.get("removed") or []) for u in untested if isinstance(u, dict))
+    if status not in ("matched", "no_change"):
+        lines = 0
+    data = {"schema": vreport.SCHEMA, "status": status, "verdict": verdict, "undeclared": counts[0],
+            "not_happened": counts[1], "untested_config_lines": lines}
+    words = (f"**Netdryrun verify: {verdict}** · status `{status}` · {counts[0]} undeclared, "
+             f"{counts[1]} not happened" + (f" · {lines} config line(s) not tested if the lab doesn't exercise them"
+                                            if lines else ""))
     if isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{7,40}", commit):
         data["commit"] = commit
         words += f" · commit `{commit[:12]}`"

@@ -7,13 +7,13 @@ description: What support Netdryrun offers, how versions are numbered, what coun
 
 ## Support
 
-Netdryrun is free open-source software under Apache-2.0, provided as is. Support for free use is best effort through [GitHub issues](https://github.com/netdryrun/netdryrun/issues). Security reports get priority (see [Contact](contact.md)). There is no uptime or response-time guarantee for free use.
+Netdryrun is free open-source software under Apache-2.0, provided as is. Support for free use is best effort through [GitHub issues](https://github.com/netdryrun/Netdryrun/issues). Security reports get priority (see [Contact](contact.md)). There is no uptime or response-time guarantee for free use.
 
 Only the latest release gets fixes. Upgrading is the fix for bugs in older releases.
 
 ## Version numbers
 
-Netdryrun uses [semantic versioning](https://semver.org). Before 1.0, a minor release (0.2 to 0.3) may contain breaking changes; patch releases (0.2.0 to 0.2.1) never do. Every change is in the [changelog](https://github.com/netdryrun/netdryrun/blob/main/CHANGELOG.md).
+Netdryrun uses [semantic versioning](https://semver.org). Before 1.0, a minor release (0.2 to 0.3) may contain breaking changes; patch releases (0.2.0 to 0.2.1) never do. Every change is in the [changelog](https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md).
 
 ## What counts as a breaking change
 

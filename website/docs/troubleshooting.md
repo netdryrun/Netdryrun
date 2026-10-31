@@ -395,4 +395,4 @@ Fix: check that the lab boots (`containerlab inspect`, `docker logs <container>`
 
 ## Still stuck
 
-Run with `--keep-on-failure`, look inside the nodes with `docker exec`, and read the JSON report (`--json report.json`): every check keeps the raw commands and output. If it looks like a bug, [open an issue](https://github.com/netdryrun/netdryrun/issues) with the report attached. See [Support](support.md).
+Run with `--keep-on-failure`, look inside the nodes with `docker exec`, and read the JSON report (`--json report.json`): every check keeps the raw commands and output. If it looks like a bug, [open an issue](https://github.com/netdryrun/Netdryrun/issues) with the report attached. See [Support](support.md).

@@ -31,6 +31,7 @@ python scripts/release_gate.py unit              # minutes
 python scripts/release_gate.py mutation          # minutes to an hour
 python scripts/release_gate.py live              # 1 to 2 hours, on the lab machine
 python scripts/release_gate.py after-publish 0.4.0
+python scripts/release_gate.py consistency      # seconds: every public place names the release (nightly)
 python scripts/release_gate.py all               # static, unit, mutation, live
 python scripts/release_gate.py report            # rebuild GATE.md from the recorded layers
 ```
@@ -39,6 +40,12 @@ Each layer records its results in `releases/<version>/gate/<layer>.json` along w
 the time, the host and the tool versions. `GATE.md` is then rebuilt from every recorded layer,
 because the layers run on different machines and at different times. The script exits non-zero
 when a BLOCKER fails.
+
+A fix late in a release that touches some verdict modules reruns mutation on those modules only:
+`mutation --modules drivers --carry-mutation <earlier gate/mutation.json>`. Every other module keeps
+its earlier record only if its source file is byte-identical at the new commit; GATE.md says
+"carried over from <commit>" on each one. A module whose source changed, or one neither mutated nor
+carried, fails the layer. The other layers run in full on the new commit.
 
 ### 1. Static
 
@@ -49,7 +56,7 @@ when a BLOCKER fails.
 - **No empty `${{ }}`** in `action.yml` or the workflows: GitHub rejects the whole file.
 - **`scripts/sync_facts.py --check`**: the public numbers and versions match the source.
 - **Version consistency**: `pyproject.toml`, `src/netdryrun/__init__.py`, both versions in
-  `server.json`, the newest CHANGELOG release heading, and every `netdryrun/netdryrun@vX.Y.Z`
+  `server.json`, the newest CHANGELOG release heading, and every `netdryrun/Netdryrun@vX.Y.Z`
   in the docs, examples and workflows must give the same version.
 - **Python range**: `requires-python` and the classifiers match the versions the unit layer tests.
 - **Every example is documented**: each folder in `examples/` has an expected result and exit
@@ -140,9 +147,17 @@ python scripts/release_gate.py after-publish 0.4.0
   `--version`, `validate` and the MCP handshake;
 - `uvx netdryrun@0.4.0` on every supported Python, then `--version` and the MCP handshake;
 - one live example (`frr-bgp`) run with the package from PyPI;
-- the MCP Registry lists the new version;
 - the Action by its new tag passes a good change and rejects a bad one (the
-  [`published-action.yml`](.github/workflows/published-action.yml) workflow).
+  [`published-action.yml`](.github/workflows/published-action.yml) workflow);
+- release consistency (BLOCKER): every public place names the new version, and each one that doesn't
+  is listed: PyPI's latest version, the GitHub release marked latest, `main`'s README status line,
+  every `uses: netdryrun/Netdryrun@vX` on `main` (outside the CHANGELOG, advisories and release
+  records), `RELEASE` in `published-action.yml` on `main`, the netdryrun.com home page and
+  `llms.txt`, and the MCP Registry's latest version. One request per source, no retries: a source
+  that can't be reached is SKIP, never a pass.
+
+The nightly gate on `main` runs the same checks between releases (`release_gate.py consistency
+--strict`), outside the release record: a failure there pages the owner and blocks promotion.
 
 ## What blocks a release
 
@@ -175,11 +190,12 @@ A release is never "probably fine".
    and `review.md`) together with the release changes.
 6. **Tag and push:** `git tag vX.Y.Z && git push origin vX.Y.Z`. The release workflow publishes
    to PyPI and creates the GitHub release. The MCP Registry workflow publishes `server.json`.
-7. **Prove it:** run `python scripts/release_gate.py after-publish X.Y.Z`, bump `RELEASE` and
-   the `uses:` refs in `published-action.yml`, and commit the updated `releases/X.Y.Z/`. Then
-   `report` must say CLEARED.
-8. **Merge** the release branch into `main`. The website deploys from `main`, so the docs switch
-   to the new version only after the proof.
+7. **Merge** the release branch into `main` (a merge commit), then bump `RELEASE` and the `uses:`
+   refs in `published-action.yml` on `main`. The website deploys from `main`.
+8. **Paste the release notes** into the GitHub release and mark it **latest**, before CLEARED: the
+   after-publish consistency check fails until the GitHub latest release is `vX.Y.Z`.
+9. **Prove it:** run `python scripts/release_gate.py after-publish X.Y.Z` and commit the updated
+   `releases/X.Y.Z/`. Then `report` must say CLEARED; merge that record into `main`.
 
 ## Running it in CI
 

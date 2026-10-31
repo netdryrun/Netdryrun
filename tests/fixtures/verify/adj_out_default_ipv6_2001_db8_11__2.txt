@@ -1,0 +1,4 @@
+# live capture: FRRouting 10.4.1_git, node edge1 of tests/fixtures/verify-lab, `vtysh -c 'show bgp ipv6 unicast neighbors 2001:db8:11::2 advertised-routes detail json'`, 2026-10-28
+{
+"bgpTableVersion":1,"bgpLocalRouterId":"192.0.2.1","defaultLocPrf":100,"localAS":65000,"advertisedRoutes": {}
+,"totalPrefixCounter":0,"filteredPrefixCounter":0}

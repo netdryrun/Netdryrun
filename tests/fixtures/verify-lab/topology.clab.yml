@@ -1,0 +1,45 @@
+# The lab the FRR fixtures in tests/fixtures/verify were captured from (scripts/capture_verify_fixtures.py).
+# The agent demo's four routers, plus what the verify snapshot must read on one node (edge1): an iBGP route
+# reflected with a cluster list and originator ID and a next hop resolved over OSPF (rr1, r9), a VRF with its
+# own BGP session (cust2), an IPv6 session with a link-local next hop (peer1), soft-reconfiguration inbound and
+# a route received but filtered (up1's default route), a floating static, communities of all three kinds, an
+# AS_SET aggregate, ECMP and a configured neighbor that never comes up (10.0.9.2).
+name: ndr-vfy-fixtures
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+    binds:
+      - configs/daemons:/etc/frr/daemons
+      - configs/vtysh.conf:/etc/frr/vtysh.conf
+  nodes:
+    edge1:
+      binds: [configs/edge1.conf:/etc/frr/frr.conf]
+      exec:
+        - ip link add cust type vrf table 1001
+        - ip link set cust up
+        - ip link set eth4 master cust
+        # the address only after eth4 is in the VRF: set by FRR, it raced the line above and sometimes left a
+        # stray kernel route in table 1001 (a difference between two boots of the same configs)
+        - ip addr add 10.10.1.1/30 dev eth4
+    cust1:
+      binds: [configs/cust1.conf:/etc/frr/frr.conf]
+    up1:
+      binds: [configs/up1.conf:/etc/frr/frr.conf]
+    peer1:
+      binds: [configs/peer1.conf:/etc/frr/frr.conf]
+    cust2:
+      binds: [configs/cust2.conf:/etc/frr/frr.conf]
+    rr1:
+      binds: [configs/rr1.conf:/etc/frr/frr.conf]
+    r9:
+      binds: [configs/r9.conf:/etc/frr/frr.conf]
+  links:
+    - endpoints: ["edge1:eth1", "cust1:eth1"]
+    - endpoints: ["edge1:eth2", "up1:eth1"]
+    - endpoints: ["edge1:eth3", "peer1:eth1"]
+    - endpoints: ["edge1:eth4", "cust2:eth1"]
+    - endpoints: ["edge1:eth5", "rr1:eth1"]
+    - endpoints: ["edge1:eth6", "up1:eth2"]
+    - endpoints: ["rr1:eth2", "r9:eth1"]

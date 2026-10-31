@@ -12,7 +12,7 @@ You have a containerlab BGP lab: a `topology.clab.yml` and its router configs. T
 3. add one check for something that must never happen,
 4. run it on every pull request.
 
-The commands and output below are from a real run on Netdryrun™ 0.3.1, containerlab 0.81.1 and FRR 10.4.1 on WSL2, with the [`frr-bgp`](../examples.md#frr-bgp) example copied into a folder named `my-lab` standing in for your lab. The [tutorial](../tutorial.md) is the long version of the same path, with a failing change and the evidence it leaves.
+The recording below is a real run on Netdryrun™ 0.3.3 (from PyPI, 2026-10-30), containerlab 0.81.1 and FRR 10.4.1 on WSL2 (home folder shortened to `~`); the validate and failure excerpts in steps 3 and 4 come from the tutorial, with the [`frr-bgp`](../examples.md#frr-bgp) example copied into a folder named `my-lab` standing in for your lab. The [tutorial](../tutorial.md) is the long version of the same path, with a failing change and the evidence it leaves.
 
 ## Before you start
 
@@ -30,13 +30,13 @@ Deploying lab ndr-my-lab, then waiting 45s for the network to converge...
 recording r1 (frr)
 recording r2 (frr)
 recording r3 (frr)
-Recorded 18 checks to /home/ndr/work/docs031/my-lab/netdryrun.yml. Review it, then: netdryrun run /home/ndr/work/docs031/my-lab
+Recorded 30 checks to ~/my-lab/netdryrun.yml. Review it, then: netdryrun run ~/my-lab
 ```
 
-`record --deploy` deploys the lab, waits for BGP to converge (`--wait`, 45 seconds by default), writes `netdryrun.yml` next to the topology, and destroys the lab. Without `--deploy` it reads a lab that is already running. It writes one check for every established BGP session, every prefix count, and up to 50 BGP routes per node:
+`record --deploy` deploys the lab, waits for BGP to converge (`--wait`, 45 seconds by default), writes `netdryrun.yml` next to the topology, and destroys the lab. Without `--deploy` it reads a lab that is already running. It writes one check for every established BGP session, every prefix count and up to 50 BGP routes per node, plus the standard guards (no default route and no link subnet via BGP):
 
 ```yaml title="my-lab/netdryrun.yml (recorded)"
-# Recorded by netdryrun 0.3.1 record on 2026-10-28T02:26:27+00:00.
+# Recorded by netdryrun 0.3.3 record on 2026-10-30T10:41:34+00:00.
 # This is a baseline of the network's behavior when it was recorded. Review it before committing:
 # remove anything that is allowed to change, and add negative checks (route present: false,
 # ping expect: failure) for things that must never happen. Docs: https://netdryrun.com/reference/config/
@@ -55,13 +55,24 @@ checks:
 - type: bgp_session
   node: r1
   neighbor: 10.0.13.2
-# ... 15 more: the same pattern for r2 and r3, plus one route check per learned LAN
+# ... the second prefix count, and one route check per learned LAN
+- type: route          # a standard guard: no default route via BGP
+  node: r1
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+- type: route          # a standard guard: no link subnet via BGP (one per link)
+  node: r1
+  prefix: 10.0.12.0/30
+  protocol: bgp
+  present: false
+# ... 22 more: the same pattern for r2 and r3
 ```
 
 !!! tip "A lab you just cloned"
     The recorded file is the lab's steady state, written down. `netdryrun run` deploys the lab from scratch and checks that it reaches that state again. That is useful on its own, before you test any change: after you clone a public lab, bump an image tag, or move the lab to another machine or to CI, a pass says the lab still converges the way it did when you recorded it. A failure names the session or route that didn't come back.
 
-`record` reads BGP. Routes from OSPF, IS-IS, static or connected can be checked too: add `route` checks with `protocol: ospf` (or `isis`, `static`, `connected`) by hand. Checks for the OSPF and IS-IS adjacencies themselves are planned for 0.5.
+`record` reads BGP. Routes from OSPF, IS-IS, static or connected can be checked too: add `route` checks with `protocol: ospf` (or `isis`, `static`, `connected`) by hand. Checks for the OSPF and IS-IS adjacencies themselves are on the roadmap, not in a release yet.
 
 ## 2. Review it
 
@@ -76,7 +87,7 @@ Add `--attributes` to `record` if you also want each route's AS path, local pref
 
 ## 3. Add one negative check
 
-`record` writes down only what exists. It can't know what must never exist. Start with the leak that the usual checks miss, a default route arriving over BGP:
+From 0.3.3, `record` already adds the two standard guards on every BGP node: no default route via BGP and no link subnet via BGP. Beyond those, it writes down only what exists; it can't know what else must never happen in your network. Add the leak that matters most to you. If your recorded file has no default-route guard (for example, one recorded with `--no-guards`), this is the one to start with:
 
 ```yaml title="add under checks:"
 - type: route          # nobody sends r1 a default route
@@ -92,7 +103,7 @@ Check the file without starting a lab. This is the tutorial's reviewed file, wit
 
 ```text
 $ netdryrun validate my-lab
-OK: my-lab/netdryrun.yml (13 checks, lab /home/ndr/work/docs031/my-lab/topology.clab.yml, 3 nodes)
+OK: my-lab/netdryrun.yml (13 checks, lab ~/my-lab/topology.clab.yml, 3 nodes)
   - [bgp_session] r1: BGP session to 10.0.12.2 is established
   - [bgp_session] r1: BGP session to 10.0.13.2 is established
   - [bgp_session] r2: BGP session to 10.0.12.1 is established
@@ -136,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.3
+      - uses: netdryrun/Netdryrun@v0.4.0
         with:
           path: network/
           pr-comment: true

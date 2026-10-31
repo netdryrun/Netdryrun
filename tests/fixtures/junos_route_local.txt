@@ -1,0 +1,212 @@
+{
+    "route-information" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/junos/26.2R0/junos-routing"}, 
+        "route-table" : [
+        {
+            "table-name" : [
+            {
+                "data" : "inet.0"
+            }
+            ], 
+            "destination-count" : [
+            {
+                "data" : "11"
+            }
+            ], 
+            "total-route-count" : [
+            {
+                "data" : "13"
+            }
+            ], 
+            "active-route-count" : [
+            {
+                "data" : "9"
+            }
+            ], 
+            "holddown-route-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "hidden-route-count" : [
+            {
+                "data" : "2"
+            }
+            ], 
+            "rt" : [
+            {
+                "attributes" : {"junos:style" : "detail"}, 
+                "rt-destination" : [
+                {
+                    "data" : "10.0.1.1"
+                }
+                ], 
+                "rt-prefix-length" : [
+                {
+                    "data" : "32"
+                }
+                ], 
+                "rt-entry-count" : [
+                {
+                    "data" : "1", 
+                    "attributes" : {"junos:format" : "1 entry"}
+                }
+                ], 
+                "rt-announced-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "rt-state" : [
+                {
+                }
+                ], 
+                "tsi" : [
+                {
+                    "attributes" : {"junos:indent" : "0"}
+                }, 
+                {
+                    "attributes" : {"junos:indent" : "0"}
+                }
+                ], 
+                "rt-entry" : [
+                {
+                    "active-tag" : [
+                    {
+                        "data" : "*"
+                    }
+                    ], 
+                    "current-active" : [
+                    {
+                        "data" : [null]
+                    }
+                    ], 
+                    "last-active" : [
+                    {
+                        "data" : [null]
+                    }
+                    ], 
+                    "protocol-name" : [
+                    {
+                        "data" : "Local"
+                    }
+                    ], 
+                    "preference" : [
+                    {
+                        "data" : "0"
+                    }
+                    ], 
+                    "nhh" : [
+                    {
+                        "attributes" : {"junos:indent" : "16"}, 
+                        "nh-type" : [
+                        {
+                            "data" : "Local"
+                        }
+                        ], 
+                        "nh-index" : [
+                        {
+                            "data" : "0"
+                        }
+                        ], 
+                        "nh-address" : [
+                        {
+                            "data" : "0x55b09d814278"
+                        }
+                        ], 
+                        "nh-reference-count" : [
+                        {
+                            "data" : "14"
+                        }
+                        ], 
+                        "nh-kernel-id" : [
+                        {
+                            "data" : "0"
+                        }
+                        ]
+                    }
+                    ], 
+                    "nh" : [
+                    {
+                        "attributes" : {"junos:indent" : "16"}, 
+                        "nh-string" : [
+                        {
+                            "data" : "Next hop"
+                        }
+                        ], 
+                        "nh-local-interface" : [
+                        {
+                            "data" : "et-0/0/0.0"
+                        }
+                        ]
+                    }
+                    ], 
+                    "rt-entry-state" : [
+                    {
+                        "data" : "Active NoReadvrt Int"
+                    }
+                    ], 
+                    "local-as" : [
+                    {
+                        "data" : "65001"
+                    }
+                    ], 
+                    "age" : [
+                    {
+                        "data" : "2:59", 
+                        "attributes" : {"junos:seconds" : "179"}
+                    }
+                    ], 
+                    "validation-state" : [
+                    {
+                        "data" : "unverified"
+                    }
+                    ], 
+                    "task-name" : [
+                    {
+                        "data" : "IF"
+                    }
+                    ], 
+                    "as-path" : [
+                    {
+                        "data" : "AS path: I"
+                    }
+                    ], 
+                    "bgp-path-attributes" : [
+                    {
+                        "attr-as-path-effective" : [
+                        {
+                            "aspath-effective-string" : [
+                            {
+                                "data" : "AS path: "
+                            }
+                            ], 
+                            "attr-value" : [
+                            {
+                                "data" : "I"
+                            }
+                            ]
+                        }
+                        ]
+                    }
+                    ], 
+                    "rtrib-secondary" : [
+                    {
+                        "data" : " inet.2 inet.3"
+                    }
+                    ], 
+                    "thread-name" : [
+                    {
+                        "data" : "junos-main"
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }
+        ]
+    }
+    ]
+}

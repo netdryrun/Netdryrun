@@ -5,7 +5,7 @@ description: A neutral comparison of Batfish, pyATS/Genie, containerlab and Netd
 
 # When to use what
 
-Several good open-source tools help you test network changes. They answer different questions and work well together. This page tries to describe each one fairly; if something here is wrong or out of date, please [open an issue](https://github.com/netdryrun/netdryrun/issues).
+Several good open-source tools help you test network changes. They answer different questions and work well together. This page tries to describe each one fairly; if something here is wrong or out of date, please [open an issue](https://github.com/netdryrun/Netdryrun/issues).
 
 ## The short version
 
@@ -62,7 +62,7 @@ Netdryrun adds a test layer on top of a containerlab lab:
 - every run produces one pass/fail result, a CI-friendly exit code, and a JSON evidence file
 
 <!-- facts:when_status -->
-Version 0.3.3 has drivers for FRR, Nokia SR Linux, SONiC and Arista EOS (bring your own cEOS image), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
+Version 0.4.0 has drivers for FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image) and Juniper cJunosEvolved (beta), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
 <!-- /facts:when_status -->
 It does not do static analysis, build labs for you, or test production devices.
 

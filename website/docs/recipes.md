@@ -7,7 +7,7 @@ description: Copy-paste netdryrun.yml fragments for frequent BGP mistakes (a def
 
 `netdryrun record` writes down what exists. These fragments add what must **never** happen, plus failures the network must survive. Paste them under `checks:` or `scenarios:` in your `netdryrun.yml`, then change the node names, neighbors and prefixes to your lab's.
 
-The node names and addresses are those of the [`frr-bgp` example](examples.md#frr-bgp): three FRR routers in a triangle, r1 (AS 65001, `10.0.12.1` to r2, `10.0.13.1` to r3), r2 (AS 65002) and r3 (AS 65003), each announcing one LAN, `192.168.<n>.0/24`. Every fragment on this page passes `netdryrun validate` when added to [`examples/frr-bgp/netdryrun.yml`](https://github.com/netdryrun/netdryrun/blob/main/examples/frr-bgp/netdryrun.yml). Check yours the same way, without starting a lab:
+The node names and addresses are those of the [`frr-bgp` example](examples.md#frr-bgp): three FRR routers in a triangle, r1 (AS 65001, `10.0.12.1` to r2, `10.0.13.1` to r3), r2 (AS 65002) and r3 (AS 65003), each announcing one LAN, `192.168.<n>.0/24`. Every fragment on this page passes `netdryrun validate` when added to [`examples/frr-bgp/netdryrun.yml`](https://github.com/netdryrun/Netdryrun/blob/main/examples/frr-bgp/netdryrun.yml). Check yours the same way, without starting a lab:
 
 ```bash
 netdryrun validate my-lab
@@ -156,7 +156,7 @@ In a triangle, r3 also passes r2's flood on to r1, unless r1 limits r3 too: the 
   [FAIL] r1: route 10.255.0.2/32 via ospf is present -- not active via ospf; seen: nothing (60.4s)
 ```
 
-Netdryrun can't check OSPF or IS-IS adjacencies themselves yet: those checks are planned for 0.5. Until then, a route learned from the protocol is the evidence that the adjacency came up.
+Netdryrun can't check OSPF or IS-IS adjacencies themselves yet: those checks are on the roadmap, not in a release yet. Until then, a route learned from the protocol is the evidence that the adjacency came up.
 
 ## Scenario catalog
 

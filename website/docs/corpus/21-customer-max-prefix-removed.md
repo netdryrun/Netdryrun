@@ -15,7 +15,7 @@ Note: Latent risk: no steady-state check can see it until the customer actually 
 
 ## The config change
 
-Against the FRR configs of the [base lab](https://github.com/netdryrun/netdryrun/tree/main/corpus/base/configs):
+Against the FRR configs of the [base lab](https://github.com/netdryrun/Netdryrun/tree/main/corpus/base/configs):
 
 ```diff
 --- a/pe1.conf
@@ -42,13 +42,13 @@ The expected verdict was committed to git before any run. All three strategies t
 
 ## What Netdryrun flagged
 
-Nothing: every check in the [intent spec](https://github.com/netdryrun/netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
+Nothing: every check in the [intent spec](https://github.com/netdryrun/Netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
 
 Against the pre-registered verdict this counts as one of Netdryrun's losses (false pass).
 
 ## Finding after the run
 
-The pre-registered verdict above is unchanged. From [AMENDMENTS.md](https://github.com/netdryrun/netdryrun/blob/main/corpus/AMENDMENTS.md):
+The pre-registered verdict above is unchanged. From [AMENDMENTS.md](https://github.com/netdryrun/Netdryrun/blob/main/corpus/AMENDMENTS.md):
 
 **Cases 18, 23, 21 and 30 are real misses.** 18 and 23 are gaps in the intent spec (no check for unexpected routes reaching the customer or the upstream). 21 and 30 are latent risks that no steady-state check can see; they need a failure-injection scenario where the customer or peer actually misbehaves. These stay as losses.
 
@@ -60,4 +60,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 21
 ```
 
-Case file: [`corpus/cases/21-customer-max-prefix-removed.yml`](https://github.com/netdryrun/netdryrun/blob/main/corpus/cases/21-customer-max-prefix-removed.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.
+Case file: [`corpus/cases/21-customer-max-prefix-removed.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/21-customer-max-prefix-removed.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.

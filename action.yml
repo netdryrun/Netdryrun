@@ -6,9 +6,24 @@ branding:
   color: green
 
 inputs:
+  mode:
+    description: "run (the default): deploy the lab of netdryrun.yml and run its checks. verify: on a pull request, boot the topology with the base branch's configs and with the PR merged into it, and fail on every behavior difference the intent file doesn't declare (0.4, FRR only)"
+    default: run
   path:
-    description: netdryrun.yml or the folder containing it
+    description: "mode: run: netdryrun.yml or the folder containing it"
     default: "."
+  topology:
+    description: "mode: verify: the containerlab topology file (it must be the same in the base and the head)"
+    default: ""
+  intent-file:
+    description: "mode: verify: the intent file, what the change is meant to do. It should come from the ticket; a PR that adds or edits it fails unless allow-intent-edit is true"
+    default: netdryrun-intent.yml
+  allow-intent-edit:
+    description: "mode: verify: let a PR that adds or edits the intent file run. Set it only when branch protection requires a code-owner review on that file (CODEOWNERS lists the intent file and netdryrun.yml)"
+    default: "false"
+  allow-check-edit:
+    description: "mode: run: let a PR that changes netdryrun.yml and the lab's configs together run. Set it only when branch protection requires a code-owner review on netdryrun.yml (CODEOWNERS lists it)"
+    default: "false"
   containerlab-version:
     description: containerlab version to install (pinned for reproducible runs; empty = latest)
     default: "0.81.1"
@@ -30,6 +45,9 @@ inputs:
   settle:
     description: Seconds to wait before negative checks
     default: "10"
+  timeout:
+    description: "mode: verify only. Seconds each lab may take to reach a stable snapshot (default 300). Raise it for a lab with a slow-booting node: cJunosEvolved took 4 to 19 minutes to boot, and an approval boots each side twice, so also set the job's timeout-minutes"
+    default: "300"
   hold:
     description: Seconds a negative check must hold
     default: "10"
@@ -51,16 +69,19 @@ inputs:
 
 outputs:
   status:
-    description: "passed, failed, error or inconclusive (the lab never reached a testable state: says nothing about the change)"
+    description: "mode: run: passed, failed, error or inconclusive (the lab never reached a testable state: says nothing about the change). mode: verify: matched, no_change, failed, error, inconclusive or unhealthy_baseline"
     value: ${{ steps.result.outputs.status }}
+  verdict:
+    description: "mode: run: CHECKS PASSED (only what the checks cover), DO NOT APPLY THIS CHANGE or INCONCLUSIVE. mode: verify: INTENT MATCHED, NO BEHAVIOR CHANGE, UNDECLARED CHANGES: DO NOT APPLY, INCONCLUSIVE, INCONCLUSIVE: UNHEALTHY BASELINE or ERROR: NO VERDICT. Decide on status, not on the text"
+    value: ${{ steps.result.outputs.verdict }}
   inconclusive-reason:
     description: Why the run was inconclusive (empty otherwise)
     value: ${{ steps.result.outputs.inconclusive_reason }}
   passed:
-    description: Number of passed checks
+    description: "Number of passed checks (mode: verify: declared intent lines observed, plus standing guards passed)"
     value: ${{ steps.result.outputs.passed }}
   failed:
-    description: Number of failed checks
+    description: "Number of failed checks (mode: verify: undeclared differences, declared lines that didn't happen, and standing guards failed)"
     value: ${{ steps.result.outputs.failed }}
   evidence-url:
     description: Link to the evidence page (when cloud is true)
@@ -72,6 +93,147 @@ runs:
     - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
       with:
         python-version: "3.12"
+
+    - name: Check the intent file
+      id: intent
+      if: inputs.mode == 'verify'
+      shell: bash
+      env:
+        NDR_JSON: ${{ inputs.json-report }}
+        NDR_JUNIT: ${{ inputs.junit-report }}
+        NDR_TOPOLOGY: ${{ inputs.topology }}
+        NDR_INTENT: ${{ inputs.intent-file }}
+        NDR_ALLOW_INTENT_EDIT: ${{ inputs.allow-intent-edit }}
+        NDR_BASE: ${{ github.event.pull_request.base.sha }}
+        NDR_HEAD: ${{ github.event.pull_request.head.sha }}
+        NDR_MERGE: ${{ github.sha }}
+      run: |
+        # Reports left in the workspace must never be read, posted or uploaded as this run's result
+        sudo rm -f -- "$NDR_JSON" "$NDR_JUNIT" netdryrun-summary.md netdryrun-comment.json
+        python - <<'EOF'
+        import os, re, subprocess, sys
+
+        def git(*args):
+            return subprocess.run(["git", *args], capture_output=True, text=True)
+
+        def fail(msg):
+            # one line for the log, and the PR comment says it too (the comment step posts the summary)
+            print(f"::error title=Netdryrun verify::{msg}")
+            with open("netdryrun-summary.md", "w", encoding="utf-8") as f:
+                f.write(f"### ⚠️ Netdryrun verify: ERROR: NO VERDICT\n\n{msg}\n")
+            sys.exit(1)
+
+        base, head = os.environ.get("NDR_BASE", ""), os.environ.get("NDR_HEAD", "")
+        merge = os.environ.get("NDR_MERGE", "")
+        sha = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
+        if not (sha.fullmatch(base) and sha.fullmatch(head) and sha.fullmatch(merge)):
+            fail("mode: verify runs on pull_request events: it compares the base branch with the PR merged into it")
+        if not os.environ.get("NDR_TOPOLOGY", "").strip():
+            fail("mode: verify needs the topology input (the containerlab topology file)")
+        intent = os.environ.get("NDR_INTENT", "").strip()
+        if not intent:
+            fail("mode: verify needs the intent-file input")
+        for c in (merge, base, head):   # a shallow checkout (the default) may hold only the merge commit
+            if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
+                git("fetch", "--no-tags", "--depth=2", "origin", c)
+                if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
+                    fail(f"cannot fetch commit {c} (use actions/checkout with fetch-depth: 0)")
+        # What lands is the PR merged into the base branch as it is now (GitHub's merge commit, github.sha), not
+        # the PR head: two edits can each be harmless and harmful together. Before = the merge's first parent
+        # (the base branch tip), after = the merge commit; its second parent must be this PR's head.
+        parents = git("rev-list", "--parents", "-n", "1", merge).stdout.split()
+        if len(parents) != 3 or parents[2] != head:
+            fail("github.sha is not this pull request's merge commit (its parents must be the base branch and the PR "
+                 "head): run mode: verify on the pull_request event, whose default checkout is that merge commit")
+        base, head = parents[1], merge
+        # Under pull_request the workflow comes from the merge commit: a PR that edits it sets this step's own
+        # inputs (allow-intent-edit, intent-file, topology), so it would grant itself the exception (gauntlet R7)
+        wf = git("diff", "--name-only", "--no-renames", base, head, "--", ".github/workflows", ".github/actions")
+        if wf.returncode != 0 or wf.stdout.strip():
+            fail(f"the PR changes the workflow that runs this verdict ({', '.join(wf.stdout.split()[:5]) or 'unreadable'}): "
+                 "the workflow sets allow-intent-edit, intent-file and topology, so the PR would choose how it is "
+                 "judged. Change the workflow in a separate reviewed PR.")
+        changed = git("diff", "--name-only", "--no-renames", base, head, "--", intent)
+        if changed.returncode != 0:
+            fail(f"cannot compare the intent file between the base and the head: {' '.join(changed.stderr.split())[:300]}")
+        if changed.stdout.strip():
+            if os.environ.get("NDR_ALLOW_INTENT_EDIT") != "true":
+                fail("intent edited in this PR: requires a code-owner approval. The PR adds or edits the intent "
+                     "file, so the change would write its own allowlist. Take the intent from the ticket in a "
+                     "separate reviewed PR, or set allow-intent-edit: true only where branch protection requires "
+                     "a code-owner review of the intent file.")
+            print("::warning title=Netdryrun verify::intent edited in this PR: allowed by allow-intent-edit, so a "
+                  "code-owner review of the intent file must be required by branch protection")
+        if git("cat-file", "-e", f"{head}:./{os.path.normpath(intent)}").returncode != 0:
+            fail("the intent file is not in the PR merged into its base: add it (from the ticket) in a reviewed change first")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"base={base}\nhead={head}\n")
+        EOF
+
+    - name: Check the checks file
+      # mode: run on a pull request: a PR that changes the checks and the configs together would grade its own
+      # change (it can weaken the check that would catch it). Refused before any lab boots, unless the
+      # workflow says a code owner must review netdryrun.yml.
+      if: inputs.mode == 'run' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        NDR_PATH: ${{ inputs.path }}
+        NDR_ALLOW_CHECK_EDIT: ${{ inputs.allow-check-edit }}
+        NDR_BASE: ${{ github.event.pull_request.base.sha }}
+        NDR_HEAD: ${{ github.event.pull_request.head.sha }}
+        NDR_MERGE: ${{ github.sha }}
+      run: |
+        python - <<'EOF'
+        import os, re, subprocess, sys
+
+        def git(*args):
+            return subprocess.run(["git", *args], capture_output=True, text=True)
+
+        def fail(msg):
+            print(f"::error title=Netdryrun::{msg}")
+            with open("netdryrun-summary.md", "w", encoding="utf-8") as f:
+                f.write(f"### ⚠️ Netdryrun: ERROR: NO VERDICT\n\n{msg}\n")
+            sys.exit(1)
+
+        base, head, merge = (os.environ.get(k, "") for k in ("NDR_BASE", "NDR_HEAD", "NDR_MERGE"))
+        sha = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
+        if not (sha.fullmatch(base) and sha.fullmatch(head) and sha.fullmatch(merge)):
+            fail("cannot tell what this pull request changes (no base, head or merge commit)")
+        for c in (merge, base, head):   # a shallow checkout may hold only the merge commit
+            if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
+                git("fetch", "--no-tags", "--depth=2", "origin", c)
+                if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
+                    fail(f"cannot fetch commit {c} (use actions/checkout with fetch-depth: 0)")
+        parents = git("rev-list", "--parents", "-n", "1", merge).stdout.split()
+        if len(parents) != 3 or parents[2] != head:
+            fail("github.sha is not this pull request's merge commit (its parents must be the base branch and the PR head)")
+        path = os.path.normpath(os.environ.get("NDR_PATH", ".") or ".")
+        checks = path if path.endswith((".yml", ".yaml")) else os.path.join(path, "netdryrun.yml")
+        lab = os.path.dirname(checks) or "."
+        changed = git("diff", "--name-only", "--no-renames", parents[1], merge, "--", lab)
+        if changed.returncode != 0:
+            fail(f"cannot list what the PR changes: {' '.join(changed.stderr.split())[:300]}")
+        files = [os.path.normpath(f) for f in changed.stdout.split()]
+        # the workflow (and a local action it wraps) sets path and allow-check-edit: changed together with anything
+        # else, the PR picks which lab and checks grade it (it can point path at a lab it didn't touch)
+        wf = git("diff", "--name-only", "--no-renames", parents[1], merge, "--", ".github/workflows", ".github/actions")
+        rest = git("diff", "--name-only", "--no-renames", parents[1], merge, "--", ".",
+                   ":!.github/workflows", ":!.github/actions")
+        if (wf.returncode != 0 or rest.returncode != 0) or (wf.stdout.strip() and rest.stdout.strip()):
+            fail(f"the PR changes the workflow that runs the checks ({', '.join(wf.stdout.split()[:5]) or 'unreadable'}) "
+                 "together with the lab: the workflow sets path and allow-check-edit, so the PR would choose which "
+                 "checks grade it. Change the workflow in a separate reviewed PR.")
+        checks_changed = os.path.normpath(checks) in files
+        configs_changed = [f for f in files if f != os.path.normpath(checks)]
+        if checks_changed and configs_changed:
+            msg = ("checks and configs changed in the same PR: the PR edits netdryrun.yml and the lab's configs "
+                   f"({', '.join(configs_changed[:5])}{' ...' if len(configs_changed) > 5 else ''}), so the change "
+                   "would grade itself. Change the checks in a separate reviewed PR, or set allow-check-edit: true "
+                   "only where branch protection requires a code-owner review of netdryrun.yml.")
+            if os.environ.get("NDR_ALLOW_CHECK_EDIT") != "true":
+                fail(msg)
+            print(f"::warning title=Netdryrun::{msg} Allowed by allow-check-edit.")
+        EOF
 
     - name: Install containerlab
       shell: bash
@@ -100,12 +262,18 @@ runs:
       id: run
       shell: bash
       env:
+        NDR_MODE: ${{ inputs.mode }}
         NDR_PATH: ${{ inputs.path }}
         NDR_JSON: ${{ inputs.json-report }}
         NDR_JUNIT: ${{ inputs.junit-report }}
         NDR_VERDICT: ${{ inputs.verdict-report }}
         NDR_SETTLE: ${{ inputs.settle }}
+        NDR_TIMEOUT: ${{ inputs.timeout }}
         NDR_HOLD: ${{ inputs.hold }}
+        NDR_TOPOLOGY: ${{ inputs.topology }}
+        NDR_INTENT: ${{ inputs.intent-file }}
+        NDR_BASE: ${{ steps.intent.outputs.base }}
+        NDR_HEAD: ${{ steps.intent.outputs.head }}
       run: |
         set +e
         # Reports left in the workspace (committed in the PR, or from an earlier run on a self-hosted
@@ -123,30 +291,76 @@ runs:
         # containerlab needs root on GitHub-hosted runners. Pass only what Netdryrun needs (not the
         # job's tokens, not the runner user's home). This only narrows the environment: a lab runs
         # privileged containers, so run untrusted topologies only in jobs without secrets.
-        sudo env -i "PATH=$PATH" "HOME=/root" "GITHUB_STEP_SUMMARY=$GITHUB_STEP_SUMMARY" \
-          netdryrun run "$NDR_PATH" \
-          --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown netdryrun-summary.md --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
-        echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        case "$NDR_MODE" in
+          run)
+            sudo env -i "PATH=$PATH" "HOME=/root" "GITHUB_STEP_SUMMARY=$GITHUB_STEP_SUMMARY" \
+              netdryrun run "$NDR_PATH" \
+              --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown netdryrun-summary.md --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
+            code=$?
+            ;;
+          verify)
+            # Before = the base branch tip, after = the PR's merge commit; the standing guards are the base's
+            # netdryrun.yml next to the topology. git runs as root on the runner's checkout: trust
+            # exactly that repository.
+            top="$(git rev-parse --show-toplevel)"
+            sudo env -i "PATH=$PATH" "HOME=/root" \
+              "GIT_CONFIG_COUNT=1" "GIT_CONFIG_KEY_0=safe.directory" "GIT_CONFIG_VALUE_0=$top" \
+              netdryrun verify "$NDR_TOPOLOGY" --before "$NDR_BASE" --after "$NDR_HEAD" --intent "$NDR_INTENT" \
+              --intent-source action --json "$NDR_JSON" --markdown netdryrun-summary.md --hold "$NDR_HOLD" \
+              --timeout "$NDR_TIMEOUT"
+            code=$?
+            if [ -f netdryrun-summary.md ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+              cat netdryrun-summary.md >> "$GITHUB_STEP_SUMMARY"
+            fi
+            ;;
+          *)
+            echo "::error title=Netdryrun::mode must be run or verify"
+            code=2
+            ;;
+        esac
+        echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 
     - name: Read result
       id: result
       if: always()
       shell: bash
       env:
+        NDR_MODE: ${{ inputs.mode }}
         NDR_JSON: ${{ inputs.json-report }}
         NDR_EXIT: ${{ steps.run.outputs.exit_code }}
       run: |
         python - <<'EOF'
         import json, os, re
-        EXIT = {"passed": "0", "failed": "1", "error": "2", "inconclusive": "3"}
+        VERIFY = os.environ.get("NDR_MODE") == "verify"
+        if VERIFY:
+            EXIT = {"matched": "0", "no_change": "0", "failed": "1", "error": "2", "inconclusive": "3",
+                    "unhealthy_baseline": "3"}
+            VERDICT = {"matched": "INTENT MATCHED", "no_change": "NO BEHAVIOR CHANGE",
+                       "failed": "UNDECLARED CHANGES: DO NOT APPLY", "inconclusive": "INCONCLUSIVE",
+                       "unhealthy_baseline": "INCONCLUSIVE: UNHEALTHY BASELINE", "error": "ERROR: NO VERDICT"}
+        else:
+            EXIT = {"passed": "0", "failed": "1", "error": "2", "inconclusive": "3"}
+            VERDICT = {"passed": "CHECKS PASSED (only what the checks cover)", "failed": "DO NOT APPLY THIS CHANGE", "error": "DO NOT APPLY THIS CHANGE",
+                       "inconclusive": "INCONCLUSIVE"}
         try:
             rep = json.load(open(os.environ["NDR_JSON"]))
-            out = {"status": rep["status"], "passed": int(rep["summary"]["passed"]), "failed": int(rep["summary"]["failed"]),
-                   "inconclusive_reason": rep.get("inconclusive_reason") or ""}
+            if VERIFY:
+                if rep["schema"] != "netdryrun.verify/v1" or rep["verdict"] != VERDICT.get(rep["status"]):
+                    raise ValueError("not a verify report")
+                g = rep["guards"] or {}
+                out = {"status": rep["status"], "passed": len(rep["declared"]) + int(g.get("passed", 0)),
+                       "failed": len(rep["undeclared"]) + len(rep["not_happened"]) + int(g.get("failed", 0)),
+                       "inconclusive_reason": (rep["inconclusive"] or {}).get("reason") or ""}
+            else:
+                out = {"status": rep["status"], "passed": int(rep["summary"]["passed"]), "failed": int(rep["summary"]["failed"]),
+                       "inconclusive_reason": rep.get("inconclusive_reason") or ""}
             if EXIT.get(out["status"]) != os.environ.get("NDR_EXIT"):
                 raise ValueError("the report does not match the run's exit code")
         except Exception:
             out = {"status": "error", "passed": 0, "failed": 0, "inconclusive_reason": ""}
+        out["verdict"] = VERDICT[out["status"]]   # from a fixed table, never from the report's text
+        # the one passing outcome per mode, after the cross-check above (a contradiction is status error)
+        out["ok"] = "true" if out["status"] in (("matched", "no_change") if VERIFY else ("passed",)) else "false"
         # The reason can quote lab output: one line, and no quotes, backslashes, $ or backticks, in case
         # a workflow pastes the output into a shell through an expression
         out["inconclusive_reason"] = re.sub(r"[`$\\\"']", "", " ".join(str(out["inconclusive_reason"]).split()))[:500]
@@ -176,8 +390,10 @@ runs:
         NDR_REPO: ${{ github.repository }}
         NDR_PR: ${{ github.event.pull_request.number }}
         NDR_COMMIT: ${{ github.event.pull_request.head.sha }}
-        NDR_LABEL: ${{ inputs.path }}
+        NDR_LABEL: ${{ inputs.mode == 'verify' && inputs.topology || inputs.path }}
         NDR_AUTHOR: ${{ inputs.comment-author }}
+        NDR_MODE: ${{ inputs.mode }}
+        NDR_JSON: ${{ inputs.json-report }}
         NDR_VERDICT: ${{ inputs.verdict-report }}
         NDR_SUMMARY: netdryrun-summary.md
         NDR_STATUS: ${{ steps.result.outputs.status }}
@@ -219,15 +435,20 @@ runs:
         echo "Evidence: $URL"
 
     - name: Fail on failed checks
-      # The job is green only when the run exited 0 AND its report says passed: a report that contradicts
-      # the exit code, or no report, is status error and must never read as a pass
-      if: steps.run.outputs.exit_code != '0' || steps.result.outputs.status != 'passed'
+      # The job is green only when the run exited 0 AND its report passes (run: passed; verify: INTENT MATCHED
+      # or NO BEHAVIOR CHANGE): a report that contradicts the exit code, or no report, is status error and
+      # must never read as a pass
+      if: steps.run.outputs.exit_code != '0' || steps.result.outputs.ok != 'true'
       shell: bash
       env:
         NDR_STATUS: ${{ steps.result.outputs.status }}
+        NDR_VERDICT: ${{ steps.result.outputs.verdict }}
+        NDR_MODE: ${{ inputs.mode }}
       run: |
-        if [ "$NDR_STATUS" = "inconclusive" ]; then
-          echo "::error title=Netdryrun::inconclusive: the lab never reached a testable state, so this says nothing about the change. Rerun it (or raise the timeout)"
+        if [ "$NDR_STATUS" = "inconclusive" ] || [ "$NDR_STATUS" = "unhealthy_baseline" ]; then
+          echo "::error title=Netdryrun::$NDR_VERDICT: the lab never reached a testable state, so this says nothing about the change. Retry at most once, then escalate"
+        elif [ "$NDR_MODE" = "verify" ]; then
+          echo "::error title=Netdryrun verify::$NDR_VERDICT (status: $NDR_STATUS)"
         else
           echo "::error title=Netdryrun::network checks did not pass (status: $NDR_STATUS)"
         fi

@@ -7,7 +7,7 @@ description: Frequently asked questions about Netdryrun. What it is, how to test
 
 ## What is Netdryrun?
 
-Netdryrun™ is an open-source (Apache-2.0) tool that dry-runs a network change in a real containerlab virtual lab before it reaches production. It boots your topology with the changed configs, waits for routing to converge, checks BGP sessions, prefix counts, routes, BGP best-path attributes and ping reachability against a `netdryrun.yml` file, and returns a pass/fail verdict with the commands and raw output as evidence. Supported network operating systems: <!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image)<!-- /facts:faq_platforms -->. It runs as a CLI, a GitHub Action and an MCP server for AI agents. See [Getting started](getting-started.md).
+Netdryrun™ is an open-source (Apache-2.0) tool that dry-runs a network change in a real containerlab virtual lab before it reaches production. It boots your topology with the changed configs, waits for routing to converge, checks BGP sessions, prefix counts, routes, BGP best-path attributes and ping reachability against a `netdryrun.yml` file, and returns a pass/fail verdict with the commands and raw output as evidence. Supported network operating systems: <!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image)<!-- /facts:faq_platforms -->. It runs as a CLI, a GitHub Action and an MCP server for AI agents. See [Getting started](getting-started.md).
 
 ## How do I test a BGP change before it reaches production?
 
@@ -15,11 +15,11 @@ Build a containerlab lab of the affected part of the network, apply the change t
 
 ## How do I run containerlab in CI?
 
-On GitHub, add the Netdryrun action to a workflow on `pull_request`: `uses: netdryrun/netdryrun@v0.3.3` with `path:` pointing at the folder that holds `netdryrun.yml`. It installs containerlab on the GitHub-hosted `ubuntu-latest` runner, deploys the lab, runs the checks, destroys the lab, uploads JSON and JUnit reports and fails the job on any failed check. A small FRR lab takes about 1 to 2 minutes per job ([measured times](#how-long-does-a-run-take-and-what-does-ci-cost)). Other CI systems can run the same `netdryrun run` command on a Linux runner with Docker and containerlab installed. See [GitHub Action](github-action.md), and the [FRR](guides/frr-ci.md) and [SONiC](guides/sonic-ci.md) CI guides.
+On GitHub, add the Netdryrun action to a workflow on `pull_request`: `uses: netdryrun/Netdryrun@v0.4.0` with `path:` pointing at the folder that holds `netdryrun.yml`. It installs containerlab on the GitHub-hosted `ubuntu-latest` runner, deploys the lab, runs the checks, destroys the lab, uploads JSON and JUnit reports and fails the job on any failed check. A small FRR lab takes about 1 to 2 minutes per job ([measured times](#how-long-does-a-run-take-and-what-does-ci-cost)). Other CI systems can run the same `netdryrun run` command on a Linux runner with Docker and containerlab installed. See [GitHub Action](github-action.md), and the [FRR](guides/frr-ci.md) and [SONiC](guides/sonic-ci.md) CI guides.
 
 ## Is there an MCP server for testing network changes?
 
-Yes. `netdryrun mcp` starts Netdryrun's built-in MCP server over stdio (`uvx netdryrun mcp` runs it without installing; in Claude Code, `claude mcp add netdryrun -- netdryrun mcp`). An AI agent calls `dry_run` with the path to a lab folder; Netdryrun deploys the lab, runs every check, destroys the lab and returns a `verdict` field: `CHECKS PASSED (only what the checks cover)`, `DO NOT APPLY THIS CHANGE` or `INCONCLUSIVE` (decide on `status`, not on the text). The tools are <!-- facts:mcp_tools -->`dry_run`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`<!-- /facts:mcp_tools -->. It only builds labs on the machine where it runs and cannot connect to real devices. It is listed in the official MCP Registry as `io.github.netdryrun/netdryrun`. See [AI agents (MCP)](ai-agents.md).
+Yes. `netdryrun mcp` starts Netdryrun's built-in MCP server over stdio (`uvx netdryrun mcp` runs it without installing; in Claude Code, `claude mcp add netdryrun -- netdryrun mcp`). An AI agent calls `dry_run` with the path to a lab folder; Netdryrun deploys the lab, runs every check, destroys the lab and returns a `verdict` field: `CHECKS PASSED (only what the checks cover)`, `DO NOT APPLY THIS CHANGE` or `INCONCLUSIVE` (decide on `status`, not on the text). The tools are <!-- facts:mcp_tools -->`dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`<!-- /facts:mcp_tools -->. It only builds labs on the machine where it runs and cannot connect to real devices. It is listed in the official MCP Registry as `io.github.netdryrun/netdryrun`. See [AI agents (MCP)](ai-agents.md).
 
 ## Does Netdryrun touch my production network?
 
@@ -54,13 +54,13 @@ They work together. See [When to use what](when-to-use-what.md) for a longer, ne
 
 ## Which network operating systems are supported?
 
-<!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image)<!-- /facts:faq_platforms -->. Labs can mix them: the examples pair each one with FRR. See [drivers](reference/config.md#drivers) for what each driver supports.
+<!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image)<!-- /facts:faq_platforms -->. Labs can mix them: the examples pair each one with FRR. See [drivers](reference/config.md#drivers) for what each driver supports.
 
 ## Why not Cisco or Juniper?
 
 Not in a release yet. Their lab images need a vendor account and can't be redistributed. Netdryrun's CI and examples must run for anyone, so every image they use has to be free to pull: FRR, SR Linux and SONiC VS are. Arista cEOS is free to download with an account but can't be redistributed, so its example needs you to import your own image.
 
-Cisco and Juniper images (for example IOS XRd, Cisco 8000 emulator, cRPD, vJunos) need an account, a license or both, and several are virtual machines that containerlab runs through vrnetlab. Drivers for them follow the same bring-your-own-image model as cEOS: Juniper (cJunosEvolved) and Cisco NX-OS (Nexus 9000v) come first, as beta, and IOS XE and IOS XR later. If you need one, say so in an [issue](https://github.com/netdryrun/netdryrun/issues).
+Cisco and Juniper images (for example IOS XRd, Cisco 8000 emulator, cRPD, vJunos) need an account, a license or both, and several are virtual machines that containerlab runs through vrnetlab. Drivers for them follow the same bring-your-own-image model as cEOS: Juniper (cJunosEvolved) and Cisco NX-OS (Nexus 9000v) come first, as beta, and IOS XE and IOS XR later. If you need one, say so in an [issue](https://github.com/netdryrun/Netdryrun/issues).
 
 ## Does it work on Windows?
 
@@ -132,4 +132,4 @@ Apache-2.0, for the code. "Netdryrun" and the logo are trademarks: forks are wel
 
 ## Where do I get help?
 
-Read [Troubleshooting](troubleshooting.md) first. Then [open an issue](https://github.com/netdryrun/netdryrun/issues) with the JSON report attached. See [Support](support.md).
+Read [Troubleshooting](troubleshooting.md) first. Then [open an issue](https://github.com/netdryrun/Netdryrun/issues) with the JSON report attached. See [Support](support.md).

@@ -1,5 +1,5 @@
 # Netdryrun as a GitLab CI/CD component: the GitLab equivalent of action.yml.
-# Docs: https://github.com/netdryrun/netdryrun/blob/main/templates/README.md (not listed on the website yet)
+# Docs: https://github.com/netdryrun/Netdryrun/blob/main/templates/README.md (not listed on the website yet)
 spec:
   description: Test network changes in a real virtual lab (containerlab) before they reach production.
   inputs:
@@ -22,7 +22,7 @@ spec:
       default: "0.81.1"
     netdryrun-package:
       description: What pip installs (a pinned release by default; a path or a git URL also work)
-      default: netdryrun==0.3.3
+      default: netdryrun==0.4.0
     json-report:
       description: Path for the JSON evidence report
       default: netdryrun-report.json
@@ -115,7 +115,7 @@ spec:
         /usr/local/share/docker-init.sh true >/dev/null 2>&1
       fi
       if ! docker info >/dev/null 2>&1; then
-        echo "ERROR: Netdryrun: no usable Docker. containerlab needs a privileged docker executor or a shell runner with Docker (https://github.com/netdryrun/netdryrun/blob/main/templates/README.md#runner-requirements)"
+        echo "ERROR: Netdryrun: no usable Docker. containerlab needs a privileged docker executor or a shell runner with Docker (https://github.com/netdryrun/Netdryrun/blob/main/templates/README.md#runner-requirements)"
         exit 2
       fi
 

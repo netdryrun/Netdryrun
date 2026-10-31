@@ -23,7 +23,7 @@ netdryrun.com is static documentation hosted on GitHub Pages. To deliver the pag
 
 ## Email
 
-When you write to an @netdryrun.com address, Cloudflare Email Routing forwards the message to our mailbox. We use your address and message only to answer you and keep the conversation for as long as it's useful, then delete it. Security reports may be kept as records of how the issue was handled. Lawful basis: our legitimate interest in answering you.
+When you write to an @netdryrun.com address, Cloudflare Email Routing forwards the message to our mailbox. Mail we send from an @netdryrun.com address goes out through Resend, an email delivery service, which handles the recipient address and message to deliver it. We use your address and message only to answer you and keep the conversation for as long as it's useful, then delete it. Security reports may be kept as records of how the issue was handled. Lawful basis: our legitimate interest in answering you.
 
 ## Configs you send us
 
@@ -35,7 +35,7 @@ Issues, pull requests and discussions on [github.com/netdryrun](https://github.c
 
 ## Transfers
 
-GitHub, Cloudflare and Anthropic are based in the United States. Transfers of personal data from the EU or UK rely on the EU-US Data Privacy Framework (and its UK extension) where the company is certified, and on the European Commission's standard contractual clauses otherwise.
+GitHub, Cloudflare, Resend and Anthropic are based in the United States. Transfers of personal data from the EU or UK rely on the EU-US Data Privacy Framework (and its UK extension) where the company is certified, and on the European Commission's standard contractual clauses otherwise.
 
 ## Your rights
 

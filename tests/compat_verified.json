@@ -5,23 +5,33 @@
   "srlinux": {
     "date": "2026-10-27",
     "limits": [
-      "`bgp_prefixes` counts the neighbor's `received-routes`, which on SR Linux 26.7.2 includes routes that fail BGP loop detection and are not usable. On a live capture of `examples/srl-frr` on 2026-10-28 the counter read 3 where one prefix was usable and `rejected-routes` read 0. A `min` or `exact` prefix check on SR Linux can pass on a count that includes unusable routes. The test data above predates that capture; it has not yet been re-captured. Mitigation: pair the count with `route` checks for the prefixes that matter. Fix scheduled: 0.4.",
-      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.",
-      "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Config applied with `setup:` commands is checked. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4."
+      "`bgp_prefixes` counts the neighbor's `received-routes`, which on SR Linux 26.7.2 includes routes that fail BGP loop detection and are not usable. On a live capture of `examples/srl-frr` on 2026-10-28 the counter read 3 where one prefix was usable and `rejected-routes` read 0. A `min` or `exact` prefix check on SR Linux can pass on a count that includes unusable routes. The test data above predates that capture; it has not yet been re-captured. Mitigation: pair the count with `route` checks for the prefixes that matter. Fix scheduled: 0.4.1.",
+      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1.",
+      "A path SR Linux marks invalid (`invalid-reason`) for anything but `rejected-route` (rejected by import policy, which doesn't count as received) is an error until the driver reads that reason: a check on that prefix fails with the reason named, never passes."
     ]
   },
   "sonic": {
     "date": "2026-10-28",
     "limits": [
-      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.",
-      "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Config applied with `setup:` commands is checked. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4."
+      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1."
     ]
   },
   "eos": {
     "date": "2026-10-28",
     "limits": [
-      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.",
-      "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Config applied with `setup:` commands is checked. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4."
+      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1.",
+      "`med: 0` is refused before the lab boots (exit 2): cEOS 4.36.3M prints MED 0 for a path received with no MED (live capture, 0.4 interop test), and no field of `show ip bgp <prefix> | json` tells the two apart. A non-zero MED is checked as usual; a path whose MED reads 0 reports it as \"not set\"."
+    ]
+  },
+  "junos": {
+    "date": "2026-10-29",
+    "limits": [
+      "Hidden routes count as received, except routes Junos hid because the import policy rejected them (`hidden-reason` \"Rejected by import policy\"): those can never be used, and FRR and Arista EOS don't keep them at all.",
+      "`bgp_route` reads routes received over BGP only. Junos doesn't list its own static, direct or aggregate routes as BGP routes, even when an export policy advertises them.",
+      "`bgp_prefixes` counts received routes minus those import policy rejected, reading the hidden routes' reasons when Junos hides any. A hidden route whose reason is neither \"Rejected by import policy\" nor \"Protocol nexthop is not on the interface\" leaves the count a range from accepted to received, and a bound is judged only when the whole range agrees (otherwise the check fails, never passes).",
+      "Link and node faults on a cJunosEvolved node and `inject_routes` from it are refused before deploying.",
+      "Every deploy installs Junos in the VM: about 4 minutes to a CLI on a quiet 20-thread host, up to 19 minutes with a CPU-heavy job beside it. Set `CPTX_NUM_IF` (see the example) and a check `timeout` that covers the boot.",
+      "startup config: Netdryrun doesn't verify that the startup config loaded on Junos yet (the report says `not verified on junos`). Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.1."
     ]
   },
   "nxos": {

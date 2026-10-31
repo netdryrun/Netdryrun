@@ -2,7 +2,7 @@
 # Re-capture a driver's fixtures from a live lab: deploy the pinned example, run exactly the commands the
 # driver runs, write the outputs in the format of tests/fixtures/, destroy the lab.
 #
-#   scripts/capture_fixtures.sh <frr|srlinux|eos|sonic|nxos> [--out DIR] [--keep]
+#   scripts/capture_fixtures.sh <frr|srlinux|eos|sonic|junos|nxos> [--out DIR] [--keep]
 #
 # The weekly drift check (research/quality-schedule.md, S3) runs this for every driver, then
 # `python3 scripts/fixture_shape.py` (what changed in shape) and the driver tests on the fresh captures.
@@ -15,7 +15,7 @@
 #                     compare shapes. Fixtures with no capture here are listed in NOT_CAPTURED below.
 #
 # Labs are named ndr-cap-<driver> (containers clab-ndr-cap-<driver>-*) and only that name is ever destroyed.
-# cEOS, SONiC and NX-OS are heavy: they take the vendor-VM lab lock (lesson 54) and retry every 5 minutes.
+# cEOS, SONiC, cJunosEvolved and NX-OS are heavy: they take the vendor-VM lab lock (lesson 54) and retry every 5 minutes.
 #   NDR_LOCK_DIR        lock directory (default /home/ndr/vendor-vm-lab.lock)
 #   NDR_LOCK_WAIT_MAX   seconds to keep retrying for the lock (default 7200)
 #   NDR_LOCK_HELD=1     the caller already holds the lock
@@ -25,8 +25,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DRIVERS_HERE="frr srlinux eos sonic nxos"
-DRIVERS_ON_BRANCHES="junos (ndr/junos)"
+DRIVERS_HERE="frr srlinux eos sonic junos nxos"
+DRIVERS_ON_BRANCHES=""
 
 usage() {
   echo "usage: $0 <${DRIVERS_HERE// /|}> [--out DIR] [--keep]" >&2
@@ -57,7 +57,10 @@ case $DRIVER in
            NOT_CAPTURED="eos_bgp_paths_empty eos_bgp_paths_local eos_bgp_paths_noexport (need a missing, a local and a no-export prefix)" ;;
   sonic)   EXAMPLE=examples/sonic-frr; HEAVY=1; NOT_CAPTURED="" ;;
   nxos)    EXAMPLE=scripts/labs/nxos-cap; HEAVY=1; NOT_CAPTURED="" ;;
-  junos) echo "$DRIVER: its driver and captures are on branch ndr/$DRIVER; add it to the driver table when it merges" >&2; exit 2 ;;
+  # every junos fixture comes from richer labs (ndr-junos-cap, ndr-junos-ibgp: a VRF, an IPv6 session, an idle
+  # peer, hidden routes, iBGP): the example reproduces none of them exactly, so every capture is a shape capture
+  junos)   EXAMPLE=examples/junos-frr; HEAVY=1;
+           NOT_CAPTURED="junos_bgp_neighbor_red junos_bgp_neighbor_all_idle junos_route_hidden_policy junos_route_hidden_nexthop junos_route_red junos_route_ibgp junos_route_ibgp_noexport junos_error_not_ready* (need a VRF, an idle peer, an import reject, an unusable next hop, iBGP, a booting rpd)" ;;
   *) usage ;;
 esac
 P=clab-$LAB            # container name prefix
@@ -288,6 +291,34 @@ TABLE
   shape nxos_nbr_detail       nx "show bgp ipv4 unicast neighbors 10.0.1.2 vrf default"
   shape nxos_bgp_process_emptyvrf nx "show bgp process vrf EMPTY"
   shape nxos_bgp_process_novrf nx "show bgp process vrf NOPE"
+}
+
+capture_junos() {                   # junos.py: bgp_neighbors, routes, bgp_paths, ping, the leak; j1 of examples/junos-frr
+  local j=$P-j1
+  # the container's own `cli -c` ignores its argument: the driver uses the container's SSH hop to the VM
+  cli() { docker exec "$j" ssh -q -i /root/.ssh/sshkey -o StrictHostKeyChecking=no -o BatchMode=yes root@176.1.1.1 \
+          "cli -c '$1 | display json | no-more'"; }
+  wait_for "j1 BGP established" 1800 bash -c "docker exec $j ssh -q -i /root/.ssh/sshkey -o StrictHostKeyChecking=no -o BatchMode=yes root@176.1.1.1 \"cli -c 'show bgp summary | no-more'\" | grep -q Establ"
+  wait_for "j1 to learn 192.168.20.0/24" 300 bash -c "docker exec $j ssh -q -i /root/.ssh/sshkey -o StrictHostKeyChecking=no -o BatchMode=yes root@176.1.1.1 \"cli -c 'show route 192.168.20.0/24 exact | no-more'\" | grep -q BGP"
+  wait_for "j1 to learn 2001:db8:20::/48" 300 bash -c "docker exec $j ssh -q -i /root/.ssh/sshkey -o StrictHostKeyChecking=no -o BatchMode=yes root@176.1.1.1 \"cli -c 'show route 2001:db8:20::/48 exact | no-more'\" | grep -q BGP"
+  sleep 5
+  shape junos_version          cli "show version"
+  shape junos_bgp_neighbor     cli "show bgp neighbor instance master"
+  shape junos_route_paths      cli "show route 192.168.20.0/24 exact table inet.0 all extensive"
+  shape junos_route_static     cli "show route 0.0.0.0/0 exact table inet.0 all extensive"
+  shape junos_route_v6         cli "show route 2001:db8:20::/48 exact table inet6.0 all extensive"
+  shape junos_route_empty      cli "show route 10.99.0.0/16 exact table inet.0 all extensive"
+  shape junos_route_no_table   cli "show route 10.99.0.0/16 exact table NOPE.inet.0 all extensive"
+  shape junos_route_table      cli "show route table inet.0"
+  shape junos_instance_master  cli "show route instance master"
+  shape junos_instance_none    cli "show route instance NOPE"
+  shape junos_bgp_neighbor_none cli "show bgp neighbor instance NOPE"
+  shape junos_ping             cli "ping 192.168.20.1 count 3 rapid wait 1 source 192.168.10.1"
+  shape junos_ping_noreply     cli "ping 10.0.100.3 count 3 rapid wait 1"
+  # the hidden leak: a BGP default received, inactive behind j1's own static default
+  frr1 -c "conf t" -c "router bgp 65020" -c "address-family ipv4 unicast" -c "neighbor 10.0.100.1 default-originate" >/dev/null
+  wait_for "j1 to receive the leaked default" 120 bash -c "docker exec $j ssh -q -i /root/.ssh/sshkey -o StrictHostKeyChecking=no -o BatchMode=yes root@176.1.1.1 \"cli -c 'show route 0.0.0.0/0 exact | no-more'\" | grep -q BGP"
+  shape junos_route_leak       cli "show route 0.0.0.0/0 exact table inet.0 all extensive"
 }
 
 # ---- Run ---------------------------------------------------------------------------------------------------------

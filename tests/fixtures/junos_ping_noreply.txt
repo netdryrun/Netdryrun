@@ -1,0 +1,45 @@
+{
+    "ping-results" : [
+    {
+        "target-host" : [
+        {
+            "data" : "10.0.1.3"
+        }
+        ], 
+        "target-ip" : [
+        {
+            "data" : "10.0.1.3"
+        }
+        ], 
+        "packet-size" : [
+        {
+            "data" : "56"
+        }
+        ], 
+        "probe-results-summary" : [
+        {
+            "probes-sent" : [
+            {
+                "data" : "3"
+            }
+            ], 
+            "responses-received" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "packet-loss" : [
+            {
+                "data" : "100"
+            }
+            ]
+        }
+        ], 
+        "ping-failure" : [
+        {
+            "data" : "no response"
+        }
+        ]
+    }
+    ]
+}

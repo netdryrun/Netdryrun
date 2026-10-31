@@ -1,0 +1,808 @@
+{
+    "bgp-information" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/junos/26.2R0/junos-routing"}, 
+        "bgp-peer" : [
+        {
+            "attributes" : {"junos:style" : "detail"}, 
+            "peer-address" : [
+            {
+                "data" : "10.0.1.2"
+            }
+            ], 
+            "peer-as" : [
+            {
+                "data" : "65002"
+            }
+            ], 
+            "local-address" : [
+            {
+                "data" : "unspecified"
+            }
+            ], 
+            "local-as" : [
+            {
+                "data" : "65001"
+            }
+            ], 
+            "peer-group" : [
+            {
+                "data" : "f1"
+            }
+            ], 
+            "peer-cfg-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-fwd-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-type" : [
+            {
+                "data" : "External"
+            }
+            ], 
+            "peer-state" : [
+            {
+                "data" : "Idle"
+            }
+            ], 
+            "peer-flags" : [
+            {
+                "data" : "PeerInterfaceUnknown"
+            }
+            ], 
+            "rsync-flags" : [
+            {
+            }
+            ], 
+            "last-state" : [
+            {
+                "data" : "NoState"
+            }
+            ], 
+            "last-event" : [
+            {
+                "data" : "NoEvent"
+            }
+            ], 
+            "last-error" : [
+            {
+                "data" : "None"
+            }
+            ], 
+            "bgp-option-information" : [
+            {
+                "export-policy" : [
+                {
+                    "data" : "EXPORT-OWN"
+                }
+                ], 
+                "import-policy" : [
+                {
+                    "data" : "IMPORT-F1"
+                }
+                ], 
+                "send-community-type" : [
+                {
+                }
+                ], 
+                "bgp-options" : [
+                {
+                    "data" : "PeerAS Refresh"
+                }
+                ], 
+                "bgp-options2" : [
+                {
+                }
+                ], 
+                "bgp-options-extended" : [
+                {
+                    "data" : "GracefulShutdownRcv"
+                }
+                ], 
+                "bgp-options-extended2" : [
+                {
+                }
+                ], 
+                "holdtime" : [
+                {
+                    "data" : "90"
+                }
+                ], 
+                "preference" : [
+                {
+                    "data" : "170"
+                }
+                ], 
+                "gshut-recv-local-preference" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }
+            ], 
+            "flap-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "elapsed-time" : [
+            {
+                "data" : "2:52", 
+                "attributes" : {"junos:seconds" : "172"}
+            }
+            ], 
+            "recv-ebgp-origin-validation-state" : [
+            {
+                "data" : "Reject"
+            }
+            ], 
+            "bgp-malformed-attributes" : [
+            {
+                "malformed-information" : [
+                {
+                    "log-interval" : [
+                    {
+                        "data" : "300"
+                    }
+                    ], 
+                    "route-limit" : [
+                    {
+                        "data" : "1000"
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }, 
+        {
+            "attributes" : {"junos:style" : "detail"}, 
+            "peer-address" : [
+            {
+                "data" : "10.0.2.2"
+            }
+            ], 
+            "peer-as" : [
+            {
+                "data" : "65003"
+            }
+            ], 
+            "local-address" : [
+            {
+                "data" : "unspecified"
+            }
+            ], 
+            "local-as" : [
+            {
+                "data" : "65001"
+            }
+            ], 
+            "peer-group" : [
+            {
+                "data" : "f2"
+            }
+            ], 
+            "peer-cfg-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-fwd-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-type" : [
+            {
+                "data" : "External"
+            }
+            ], 
+            "peer-state" : [
+            {
+                "data" : "Idle"
+            }
+            ], 
+            "peer-flags" : [
+            {
+                "data" : "PeerInterfaceUnknown"
+            }
+            ], 
+            "rsync-flags" : [
+            {
+            }
+            ], 
+            "last-state" : [
+            {
+                "data" : "NoState"
+            }
+            ], 
+            "last-event" : [
+            {
+                "data" : "NoEvent"
+            }
+            ], 
+            "last-error" : [
+            {
+                "data" : "None"
+            }
+            ], 
+            "bgp-option-information" : [
+            {
+                "export-policy" : [
+                {
+                    "data" : "EXPORT-OWN"
+                }
+                ], 
+                "import-policy" : [
+                {
+                    "data" : "ACCEPT-ALL"
+                }
+                ], 
+                "send-community-type" : [
+                {
+                }
+                ], 
+                "bgp-options" : [
+                {
+                    "data" : "PeerAS Refresh"
+                }
+                ], 
+                "bgp-options2" : [
+                {
+                }
+                ], 
+                "bgp-options-extended" : [
+                {
+                    "data" : "GracefulShutdownRcv"
+                }
+                ], 
+                "bgp-options-extended2" : [
+                {
+                }
+                ], 
+                "holdtime" : [
+                {
+                    "data" : "90"
+                }
+                ], 
+                "preference" : [
+                {
+                    "data" : "170"
+                }
+                ], 
+                "gshut-recv-local-preference" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }
+            ], 
+            "flap-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "elapsed-time" : [
+            {
+                "data" : "2:52", 
+                "attributes" : {"junos:seconds" : "172"}
+            }
+            ], 
+            "recv-ebgp-origin-validation-state" : [
+            {
+                "data" : "Reject"
+            }
+            ], 
+            "bgp-malformed-attributes" : [
+            {
+                "malformed-information" : [
+                {
+                    "log-interval" : [
+                    {
+                        "data" : "300"
+                    }
+                    ], 
+                    "route-limit" : [
+                    {
+                        "data" : "1000"
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }, 
+        {
+            "attributes" : {"junos:style" : "detail"}, 
+            "peer-address" : [
+            {
+                "data" : "10.0.3.2"
+            }
+            ], 
+            "peer-as" : [
+            {
+                "data" : "65003"
+            }
+            ], 
+            "local-address" : [
+            {
+                "data" : "unspecified"
+            }
+            ], 
+            "local-as" : [
+            {
+                "data" : "65001"
+            }
+            ], 
+            "peer-group" : [
+            {
+                "data" : "f2-red"
+            }
+            ], 
+            "peer-cfg-rti" : [
+            {
+                "data" : "RED"
+            }
+            ], 
+            "peer-fwd-rti" : [
+            {
+                "data" : "RED"
+            }
+            ], 
+            "peer-type" : [
+            {
+                "data" : "External"
+            }
+            ], 
+            "peer-state" : [
+            {
+                "data" : "Idle"
+            }
+            ], 
+            "peer-flags" : [
+            {
+                "data" : "PeerInterfaceUnknown"
+            }
+            ], 
+            "rsync-flags" : [
+            {
+            }
+            ], 
+            "last-state" : [
+            {
+                "data" : "NoState"
+            }
+            ], 
+            "last-event" : [
+            {
+                "data" : "NoEvent"
+            }
+            ], 
+            "last-error" : [
+            {
+                "data" : "None"
+            }
+            ], 
+            "bgp-option-information" : [
+            {
+                "export-policy" : [
+                {
+                    "data" : "EXPORT-RED"
+                }
+                ], 
+                "import-policy" : [
+                {
+                    "data" : "ACCEPT-ALL"
+                }
+                ], 
+                "send-community-type" : [
+                {
+                }
+                ], 
+                "bgp-options" : [
+                {
+                    "data" : "PeerAS Refresh"
+                }
+                ], 
+                "bgp-options2" : [
+                {
+                }
+                ], 
+                "bgp-options-extended" : [
+                {
+                    "data" : "GracefulShutdownRcv"
+                }
+                ], 
+                "bgp-options-extended2" : [
+                {
+                }
+                ], 
+                "holdtime" : [
+                {
+                    "data" : "90"
+                }
+                ], 
+                "preference" : [
+                {
+                    "data" : "170"
+                }
+                ], 
+                "gshut-recv-local-preference" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }
+            ], 
+            "flap-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "elapsed-time" : [
+            {
+                "data" : "2:52", 
+                "attributes" : {"junos:seconds" : "172"}
+            }
+            ], 
+            "recv-ebgp-origin-validation-state" : [
+            {
+                "data" : "Reject"
+            }
+            ], 
+            "bgp-malformed-attributes" : [
+            {
+                "malformed-information" : [
+                {
+                    "log-interval" : [
+                    {
+                        "data" : "300"
+                    }
+                    ], 
+                    "route-limit" : [
+                    {
+                        "data" : "1000"
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }, 
+        {
+            "attributes" : {"junos:style" : "detail"}, 
+            "peer-address" : [
+            {
+                "data" : "10.0.9.9"
+            }
+            ], 
+            "peer-as" : [
+            {
+                "data" : "65009"
+            }
+            ], 
+            "local-address" : [
+            {
+                "data" : "unspecified"
+            }
+            ], 
+            "local-as" : [
+            {
+                "data" : "65001"
+            }
+            ], 
+            "peer-group" : [
+            {
+                "data" : "ghost"
+            }
+            ], 
+            "peer-cfg-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-fwd-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-type" : [
+            {
+                "data" : "External"
+            }
+            ], 
+            "peer-state" : [
+            {
+                "data" : "Idle"
+            }
+            ], 
+            "peer-flags" : [
+            {
+                "data" : "PeerInterfaceUnknown"
+            }
+            ], 
+            "rsync-flags" : [
+            {
+            }
+            ], 
+            "last-state" : [
+            {
+                "data" : "NoState"
+            }
+            ], 
+            "last-event" : [
+            {
+                "data" : "NoEvent"
+            }
+            ], 
+            "last-error" : [
+            {
+                "data" : "None"
+            }
+            ], 
+            "bgp-option-information" : [
+            {
+                "send-community-type" : [
+                {
+                }
+                ], 
+                "bgp-options" : [
+                {
+                    "data" : "PeerAS Refresh"
+                }
+                ], 
+                "bgp-options2" : [
+                {
+                }
+                ], 
+                "bgp-options-extended" : [
+                {
+                    "data" : "GracefulShutdownRcv"
+                }
+                ], 
+                "bgp-options-extended2" : [
+                {
+                }
+                ], 
+                "holdtime" : [
+                {
+                    "data" : "90"
+                }
+                ], 
+                "preference" : [
+                {
+                    "data" : "170"
+                }
+                ], 
+                "gshut-recv-local-preference" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }
+            ], 
+            "flap-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "elapsed-time" : [
+            {
+                "data" : "2:52", 
+                "attributes" : {"junos:seconds" : "172"}
+            }
+            ], 
+            "recv-ebgp-origin-validation-state" : [
+            {
+                "data" : "Reject"
+            }
+            ], 
+            "bgp-malformed-attributes" : [
+            {
+                "malformed-information" : [
+                {
+                    "log-interval" : [
+                    {
+                        "data" : "300"
+                    }
+                    ], 
+                    "route-limit" : [
+                    {
+                        "data" : "1000"
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }, 
+        {
+            "attributes" : {"junos:style" : "detail"}, 
+            "peer-address" : [
+            {
+                "data" : "2001:db8:1::2"
+            }
+            ], 
+            "peer-as" : [
+            {
+                "data" : "65002"
+            }
+            ], 
+            "local-address" : [
+            {
+                "data" : "unspecified"
+            }
+            ], 
+            "local-as" : [
+            {
+                "data" : "65001"
+            }
+            ], 
+            "peer-group" : [
+            {
+                "data" : "f1-v6"
+            }
+            ], 
+            "peer-cfg-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-fwd-rti" : [
+            {
+                "data" : "master"
+            }
+            ], 
+            "peer-type" : [
+            {
+                "data" : "External"
+            }
+            ], 
+            "peer-state" : [
+            {
+                "data" : "Idle"
+            }
+            ], 
+            "peer-flags" : [
+            {
+                "data" : "PeerInterfaceUnknown"
+            }
+            ], 
+            "rsync-flags" : [
+            {
+            }
+            ], 
+            "last-state" : [
+            {
+                "data" : "NoState"
+            }
+            ], 
+            "last-event" : [
+            {
+                "data" : "NoEvent"
+            }
+            ], 
+            "last-error" : [
+            {
+                "data" : "None"
+            }
+            ], 
+            "bgp-option-information" : [
+            {
+                "export-policy" : [
+                {
+                    "data" : "EXPORT-OWN6"
+                }
+                ], 
+                "import-policy" : [
+                {
+                    "data" : "ACCEPT-ALL"
+                }
+                ], 
+                "nlri-policy" : [
+                {
+                    "nlri-type" : [
+                    {
+                        "data" : "inet6-unicast"
+                    }
+                    ], 
+                    "nlri-export-policy" : [
+                    {
+                        "data" : "EXPORT-OWN6"
+                    }
+                    ], 
+                    "nlri-import-policy" : [
+                    {
+                        "data" : "ACCEPT-ALL"
+                    }
+                    ]
+                }
+                ], 
+                "send-community-type" : [
+                {
+                }
+                ], 
+                "bgp-options" : [
+                {
+                    "data" : "AddressFamily PeerAS Refresh"
+                }
+                ], 
+                "bgp-options2" : [
+                {
+                }
+                ], 
+                "bgp-options-extended" : [
+                {
+                    "data" : "GracefulShutdownRcv"
+                }
+                ], 
+                "bgp-options-extended2" : [
+                {
+                }
+                ], 
+                "address-families" : [
+                {
+                    "data" : "inet6-unicast"
+                }
+                ], 
+                "holdtime" : [
+                {
+                    "data" : "90"
+                }
+                ], 
+                "preference" : [
+                {
+                    "data" : "170"
+                }
+                ], 
+                "gshut-recv-local-preference" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }
+            ], 
+            "flap-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "elapsed-time" : [
+            {
+                "data" : "2:52", 
+                "attributes" : {"junos:seconds" : "172"}
+            }
+            ], 
+            "recv-ebgp-origin-validation-state" : [
+            {
+                "data" : "Reject"
+            }
+            ], 
+            "bgp-malformed-attributes" : [
+            {
+                "malformed-information" : [
+                {
+                    "log-interval" : [
+                    {
+                        "data" : "300"
+                    }
+                    ], 
+                    "route-limit" : [
+                    {
+                        "data" : "1000"
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }
+        ]
+    }
+    ]
+}

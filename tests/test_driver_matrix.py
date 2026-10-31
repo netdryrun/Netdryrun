@@ -60,6 +60,19 @@ def no_replies(text: str) -> str:
     return re.sub(r"^\d+ bytes from .*\n", "", out, flags=re.M)
 
 
+def junos_session_down(text: str) -> str:
+    """The same Junos capture with every peer-state Established replaced (Junos JSON wraps leaves in data)."""
+    out, n = re.subn(r'("peer-state"\s*:\s*\[\s*\{\s*"data"\s*:\s*")Established"', r'\1Active"', text)
+    assert n, "no peer-state to edit: has the capture's format changed?"
+    return out
+
+
+def junos_no_replies(text: str) -> str:
+    out, n = re.subn(r'("responses-received"\s*:\s*\[\s*\{\s*"data"\s*:\s*")\d+"', r'\g<1>0"', text)
+    assert n, "no responses-received to edit"
+    return out
+
+
 # Answers that are not captures, kept to the minimum and named so a reader sees them
 EOS_NO_V6_PEERS = '{"vrfs": {"default": {"vrf": "default", "peers": {}}}}'   # `show ipv6 bgp summary` with no IPv6 peers
 FRR_NO_BGP_PATH = "{}"                                                       # `show bgp ... <prefix> json` for an unknown prefix
@@ -135,6 +148,19 @@ def nxos_rules():
     def ping(text):
         return [("cli_ascii ping", text)]
     return neighbors, routes, paths, ping
+def junos_rules():
+    """Junos CLI over the cJunosEvolved container's SSH hop; `default` is the master instance."""
+    def neighbors(text):
+        # 10.0.1.2's hidden routes: one rejected by import policy, one with an unusable next hop (interop IOP-7)
+        return [("show bgp neighbor instance master", text),
+                ("receive-protocol bgp 10.0.1.2 table inet.0 hidden", fx("junos_rp_hidden_lab1.txt"))]
+
+    def routes(text):
+        return [("exact table inet.0 all extensive", text)]
+
+    def ping(text):
+        return [("ping", text)]
+    return neighbors, routes, routes, ping
 
 
 @dataclass
@@ -338,6 +364,53 @@ def _cells() -> list[Cell]:
         ping(fx("nxos_ping_fail.txt")))
     add("nxos", "fail", "must fail but replies", {**p, "expect": "failure"}, ping(fx("nxos_ping_lo.txt")))
     add("nxos", "fail", "ping did not run (bad source)", p, ping(fx("nxos_ping_badsrc.txt")))
+
+    # ---- Juniper cJunosEvolved (beta) ----------------------------------------------------------------------
+    neighbors, routes, paths, ping = junos_rules()
+    nbr, count = "10.0.1.2", 4   # 5 received, 1 rejected by import policy
+    s = {"type": "bgp_session", "neighbor": nbr}
+    px = {"type": "bgp_prefixes", "neighbor": nbr}
+    add("junos", "pass", "session established", s, neighbors(fx("junos_bgp_neighbor.txt")))
+    add("junos", "fail", "session not established", s, neighbors(junos_session_down(fx("junos_bgp_neighbor.txt"))))
+    add("junos", "fail", "session must be down but is up", {**s, "state": "down"}, neighbors(fx("junos_bgp_neighbor.txt")))
+    add("junos", "pass", "prefixes within max", {**px, "max": count}, neighbors(fx("junos_bgp_neighbor.txt")))
+    add("junos", "fail", "prefixes over max", {**px, "max": count - 1}, neighbors(fx("junos_bgp_neighbor.txt")))
+    add("junos", "fail", "prefixes not exact", {**px, "exact": count + 1}, neighbors(fx("junos_bgp_neighbor.txt")))
+    add("junos", "fail", "prefixes under min", {**px, "min": count + 1}, neighbors(fx("junos_bgp_neighbor.txt")))
+    add("junos", "fail", "prefixes on a session that is down", {**px, "min": 1},
+        neighbors(junos_session_down(fx("junos_bgp_neighbor.txt"))))
+    # the IPv4 session has no inet6.0 RIB: its IPv6 count is 0, never the IPv4 count
+    add("junos", "fail", "ipv6-unicast prefixes under min", {**px, "afi": "ipv6-unicast", "min": 1},
+        neighbors(fx("junos_bgp_neighbor.txt")))
+    r = {"type": "route", "prefix": "10.20.0.0/24"}
+    add("junos", "pass", "route present", r, routes(fx("junos_route_paths.txt")))
+    add("junos", "fail", "leaked route is installed", {**r, "present": False}, routes(fx("junos_route_paths.txt")))
+    # the leaked default loses to the static on preference, yet BGP received it (examples/junos-frr)
+    add("junos", "fail", "leak received but not selected", {"type": "route", "prefix": "0.0.0.0/0", "present": False},
+        routes(fx("junos_route_leak.txt")))
+    # hidden because its next hop is unusable: received, so present
+    add("junos", "fail", "hidden route received", {"type": "route", "prefix": "10.31.0.0/24", "present": False},
+        routes(fx("junos_route_hidden_nexthop.txt")))
+    add("junos", "fail", "route via the wrong protocol", {**r, "protocol": "static"}, routes(fx("junos_route_paths.txt")))
+    br = {"type": "bgp_route", "prefix": "10.20.0.0/24"}
+    add("junos", "pass", "bgp path present", br, paths(fx("junos_route_paths.txt")))
+    add("junos", "fail", "leaked bgp path", {**br, "present": False}, paths(fx("junos_route_paths.txt")))
+    add("junos", "fail", "wrong as_path", {**br, "as_path": "65999"}, paths(fx("junos_route_paths.txt")))
+    add("junos", "fail", "wrong local_pref", {**br, "local_pref": 999}, paths(fx("junos_route_paths.txt")))
+    add("junos", "fail", "wrong med", {**br, "med": 0}, paths(fx("junos_route_paths.txt")))   # best path's MED is 50
+    add("junos", "fail", "as_path_regex matches only the backup path", {**br, "as_path_regex": "^65003"},
+        paths(fx("junos_route_paths.txt")))
+    add("junos", "fail", "community missing", {**br, "communities": ["65000:999"]}, paths(fx("junos_route_paths.txt")))
+    add("junos", "fail", "no-export present", {"type": "bgp_route", "prefix": "10.51.0.0/24",
+                                               "without_communities": ["no-export"]}, paths(fx("junos_route_ibgp_noexport.txt")))
+    add("junos", "fail", "iBGP next hop is the protocol next hop, not the forwarding one",
+        {"type": "bgp_route", "prefix": "10.50.0.0/24", "next_hop": "10.0.1.2"}, paths(fx("junos_route_ibgp.txt")))
+    add("junos", "fail", "leaked default in the BGP table", {"type": "bgp_route", "prefix": "0.0.0.0/0", "present": False},
+        paths(fx("junos_route_leak.txt")))
+    p = {"type": "ping", "target": "10.20.0.1"}
+    add("junos", "pass", "ping replies", p, ping(fx("junos_ping.txt")))
+    add("junos", "fail", "no replies", p, ping(junos_no_replies(fx("junos_ping.txt"))))
+    add("junos", "fail", "must fail but replies", {**p, "expect": "failure"}, ping(fx("junos_ping.txt")))
     return cells
 
 

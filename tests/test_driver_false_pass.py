@@ -8,9 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from netdryrun.drivers import DriverError, eos, frr, srlinux
+from netdryrun.drivers import DriverError, eos, frr, junos, srlinux
 from netdryrun.drivers.eos import EosDriver
 from netdryrun.drivers.frr import FrrDriver
+from netdryrun.drivers.junos import JunosDriver
 from netdryrun.drivers.nxos import NxosDriver
 from netdryrun.drivers.sonic import SonicDriver
 from netdryrun.drivers.srlinux import SrlDriver
@@ -91,7 +92,7 @@ def test_frr_vrf_all_shaped_output_is_unexpected():
         frr.parse_routes(vrf_all, "192.168.3.0/24")
 
 
-@pytest.mark.parametrize("cls", [FrrDriver, SonicDriver, EosDriver, SrlDriver, NxosDriver])
+@pytest.mark.parametrize("cls", [FrrDriver, SonicDriver, EosDriver, SrlDriver, JunosDriver, NxosDriver])
 @pytest.mark.parametrize("vrf", ["all", "ALL", "All", "", "a b", "red|x", "*"])
 def test_special_or_bad_vrf_names_raise_on_every_driver(cls, vrf):
     lab = Lab([("", "{}")])
@@ -218,8 +219,18 @@ def test_srl_failed_local_pref_lookup_raises():
     (lambda t: srlinux.parse_routes("{}", "0.0.0.0/0", t), read("srl_leak_rib.txt").replace('"route"', '"routes"')),
     (lambda t: srlinux.parse_rib_paths(t, "0.0.0.0/0"), read("srl_leak_rib.txt").replace('"prefix"', '"pfx"')),
     (lambda t: srlinux.parse_bgp_neighbors(t), read("srl_bgp_neighbors.txt").replace('"neighbor"', '"peer"')),
+    (lambda t: junos.parse_routes(t, "0.0.0.0/0"), read("junos_route_leak.txt").replace('"rt"', '"route"')),
+    (lambda t: junos.parse_routes(t, "0.0.0.0/0"), read("junos_route_leak.txt").replace('"route-table"', '"table"')),
+    (lambda t: junos.parse_routes(t, "0.0.0.0/0"), read("junos_route_leak.txt").replace('"rt-entry"', '"entry"')),
+    (lambda t: junos.parse_bgp_paths(t, "0.0.0.0/0"), read("junos_route_leak.txt").replace('"rt"', '"routes"')),
+    (lambda t: junos.parse_bgp_neighbors(t, "master"), read("junos_bgp_neighbor.txt").replace('"bgp-peer"', '"peer"')),
+    (lambda t: junos.parse_bgp_neighbors(t, "master"),
+     read("junos_bgp_neighbor.txt").replace('"accepted-prefix-count"', '"accepted"')),
+    (lambda t: junos.parse_routes(t, "0.0.0.0/0"), ""),
 ], ids=[
-    "frr-route-renamed-container", "frr-route-empty-output", "frr-route-list", "frr-all-routes-list", "frr-all-routes-entry-not-list", "frr-bgp-paths-renamed", "frr-bgp-paths-empty-output", "frr-neighbor-without-bgpState", "frr-neighbor-counter-renamed", "frr-neighbors-no-instance", "eos-routes-renamed", "eos-bgp-side-renamed", "eos-routes-list", "eos-routes-empty-output", "eos-bgp-paths-vrfs-renamed", "eos-bgp-paths-paths-renamed", "eos-summary-peers-renamed", "eos-summary-counter-renamed", "srl-route-renamed", "srl-route-list", "srl-route-prefix-key-renamed", "srl-rib-renamed", "srl-rib-prefix-renamed", "srl-neighbors-renamed"])
+    "frr-route-renamed-container", "frr-route-empty-output", "frr-route-list", "frr-all-routes-list", "frr-all-routes-entry-not-list", "frr-bgp-paths-renamed", "frr-bgp-paths-empty-output", "frr-neighbor-without-bgpState", "frr-neighbor-counter-renamed", "frr-neighbors-no-instance", "eos-routes-renamed", "eos-bgp-side-renamed", "eos-routes-list", "eos-routes-empty-output", "eos-bgp-paths-vrfs-renamed", "eos-bgp-paths-paths-renamed", "eos-summary-peers-renamed", "eos-summary-counter-renamed", "srl-route-renamed", "srl-route-list", "srl-route-prefix-key-renamed", "srl-rib-renamed", "srl-rib-prefix-renamed", "srl-neighbors-renamed", "junos-rt-renamed", "junos-route-table-renamed",
+    "junos-rt-entry-renamed", "junos-bgp-rt-renamed", "junos-peers-renamed", "junos-counter-renamed",
+    "junos-empty-output"])
 def test_unexpected_output_raises(parse, text):
     with pytest.raises(DriverError, match="unexpected output|vtysh|EOS error"):
         parse(text)
@@ -236,6 +247,9 @@ def test_real_empty_answers_still_read_as_empty():
     assert srlinux.parse_routes(read("srl_rib_empty.txt"), "10.0.0.0/24", read("srl_rib_empty.txt")) == []
     assert srlinux.parse_routes(_obj({"route": []}), "10.0.0.0/24", _obj({"route": []})) == []
     assert srlinux.parse_rib_paths(read("srl_rib_empty.txt"), "10.0.0.0/24") == []
+    assert junos.parse_routes(read("junos_route_empty.txt"), "10.0.0.0/24") == []
+    assert junos.parse_bgp_paths(read("junos_route_empty.txt"), "10.0.0.0/24") == []
+    assert junos.parse_bgp_neighbors(read("junos_bgp_neighbor_none.txt"), "master") == {}
 
 
 # ---------------------------------------------------------------- 4. invalid / not-selected BGP paths
@@ -287,3 +301,24 @@ def test_eos_invalid_received_path_counts_as_present():
             p["routeType"].update(valid=False, active=False)
     routes = eos.parse_routes(_obj({"vrfs": {"default": {"routes": {}}}}), _obj(bgp), "192.168.20.0/24")
     assert [(r.protocol, r.active) for r in routes] == [("bgp", False)]
+
+
+def test_junos_received_paths_count_as_present():
+    """The leaked default (inactive: a static wins on preference) and a path hidden for an unusable next
+    hop were received: both present for `present: false`, on the route and the BGP side."""
+    assert [(r.protocol, r.active) for r in junos.parse_routes(read("junos_route_leak.txt"), "0.0.0.0/0")] == \
+        [("static", True), ("bgp", False)]
+    assert [(r.protocol, r.active) for r in junos.parse_routes(read("junos_route_hidden_nexthop.txt"),
+                                                               "10.31.0.0/24")] == [("bgp", False)]
+    assert len(junos.parse_bgp_paths(read("junos_route_hidden_nexthop.txt"), "10.31.0.0/24")) == 1
+
+
+def test_junos_unknown_instance_raises_instead_of_no_routes():
+    lab = Lab([("show route instance", read("junos_instance_none.txt")),
+               ("bgp neighbor", read("junos_bgp_neighbor_none.txt")), ("show route", read("junos_route_no_table.txt"))])
+    d = JunosDriver(lab, "j1")
+    for call in (lambda: d.routes("10.0.0.0/24", vrf="CUSTOMR"), lambda: d.bgp_paths("10.0.0.0/24", vrf="CUSTOMR"),
+                 lambda: d.bgp_neighbors(vrf="CUSTOMR"), lambda: d.all_routes(vrf="CUSTOMR")):
+        with pytest.raises(DriverError, match="routing-instance 'CUSTOMR' does not exist"):
+            call()
+

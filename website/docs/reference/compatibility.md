@@ -9,6 +9,8 @@ description: Which network operating systems Netdryrun is verified on, the exact
 
 Netdryrun reads each network OS through a driver. A driver is only as good as the device output it was built and tested on, so this page lists, for every driver, the exact image it is verified on, the date its test data was last captured from a live lab, and what each check does on it. It is generated from the tests (`tests/test_driver_matrix.py`) and from the images the shipped examples pin; if a cell is not on this page, it is not tested.
 
+Where each one runs live: FRR and SR Linux images are public, so this repository's CI boots them on every change (the `frr-bgp` and `srl-frr` examples). SONiC and Arista cEOS images can't be pulled from a public registry, so they are run live in the release gate on the maintainers' lab, and CI tests their drivers against the captured output.
+
 ## Verified images
 
 | Platform | Image verified on | Source of the image | Test data last captured live | Status |
@@ -17,6 +19,7 @@ Netdryrun reads each network OS through a driver. A driver is only as good as th
 | Nokia SR Linux | `ghcr.io/nokia/srlinux:26.7.2` | Public image (ghcr.io). | 2026-10-27 | released |
 | SONiC | `docker-sonic-vs:master.1258173-c10162df4` | From the SONiC project's CI build server; contains FRR 10.7.1. Pinned by build id. | 2026-10-28 | released |
 | Arista EOS (bring your own cEOS image) | `ceos:4.36.3M` | Bring your own image (free from arista.com, cannot be redistributed). | 2026-10-28 | released |
+| Juniper cJunosEvolved (beta) | `cjunosevolved:26.2R1.7-EVO` | Bring your own image (free from Juniper for non-production labs, cannot be redistributed). Runs a VM: needs KVM and about 8 GB per node. | 2026-10-29 | beta |
 
 Every shipped example pins its image, so a new NOS release shows up as a deliberate change with re-captured test data, never as a silent change under the tests. `scripts/capture_fixtures.sh` captures the test data again from the pinned images, and `scripts/fixture_shape.py` reports any change in shape. A different image or version may work; it is not verified until it appears here.
 
@@ -24,46 +27,51 @@ Every shipped example pins its image, so a new NOS release shows up as a deliber
 
 Each cell counts the tests on that driver's own captured output: a *must-fail* test is a violation that has to end the check as failed, a *control* is the same output without the violation, which has to pass (so a must-fail test cannot pass only because a capture no longer parses).
 
-| Check type | FRR | SR Linux | SONiC | Arista EOS |
-|---|---|---|---|---|
-| `bgp_session` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
-| `bgp_prefixes` | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) |
-| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) |
-| `bgp_route` | verified (5 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) |
-| `ping` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
+| Check type | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) |
+|---|---|---|---|---|---|
+| `bgp_session` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
+| `bgp_prefixes` | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (5 must-fail, 1 control) |
+| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) |
+| `bgp_route` | verified (5 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (9 must-fail, 1 control) |
+| `ping` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
 
 ## BGP prefix counts by address family
 
-| Address family | FRR | SR Linux | SONiC | Arista EOS |
-|---|---|---|---|---|
-| `ipv4-unicast` | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) |
-| `ipv6-unicast` | verified (2 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (1 must-fail) |
-| `evpn` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` |
+| Address family | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) |
+|---|---|---|---|---|---|
+| `ipv4-unicast` | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) |
+| `ipv6-unicast` | verified (2 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
+| `evpn` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` |
 
 A check on a refused address family stops the run before the lab is deployed, with a message that names the driver. It is never run and never read as zero.
 
 ## `bgp_route` keys
 
-| Key | FRR | SR Linux | SONiC | Arista EOS |
-|---|---|---|---|---|
-| `present` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) |
-| `as_path` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
-| `as_path_regex` | no must-fail test | no must-fail test | no must-fail test | no must-fail test |
-| `local_pref` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | no must-fail test |
-| `med` | no must-fail test | no must-fail test | no must-fail test | no must-fail test |
-| `next_hop` | no must-fail test | no must-fail test | no must-fail test | no must-fail test |
-| `communities` | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | no must-fail test |
-| `without_communities` | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) |
+| Key | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) |
+|---|---|---|---|---|---|
+| `present` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (2 must-fail) |
+| `as_path` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
+| `as_path_regex` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
+| `local_pref` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) |
+| `med` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
+| `next_hop` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
+| `communities` | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | no must-fail test | verified (1 must-fail) |
+| `without_communities` | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | verified (1 must-fail) |
 
 ## Known limits
 
-- **SR Linux:** `bgp_prefixes` counts the neighbor's `received-routes`, which on SR Linux 26.7.2 includes routes that fail BGP loop detection and are not usable. On a live capture of `examples/srl-frr` on 2026-10-28 the counter read 3 where one prefix was usable and `rejected-routes` read 0. A `min` or `exact` prefix check on SR Linux can pass on a count that includes unusable routes. The test data above predates that capture; it has not yet been re-captured. Mitigation: pair the count with `route` checks for the prefixes that matter. Fix scheduled: 0.4.
-- **SR Linux:** graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.
-- **SR Linux:** startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Config applied with `setup:` commands is checked. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.
-- **SONiC:** graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.
-- **SONiC:** startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Config applied with `setup:` commands is checked. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.
-- **Arista EOS:** graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.
-- **Arista EOS:** startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Config applied with `setup:` commands is checked. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.
+- **SR Linux:** `bgp_prefixes` counts the neighbor's `received-routes`, which on SR Linux 26.7.2 includes routes that fail BGP loop detection and are not usable. On a live capture of `examples/srl-frr` on 2026-10-28 the counter read 3 where one prefix was usable and `rejected-routes` read 0. A `min` or `exact` prefix check on SR Linux can pass on a count that includes unusable routes. The test data above predates that capture; it has not yet been re-captured. Mitigation: pair the count with `route` checks for the prefixes that matter. Fix scheduled: 0.4.1.
+- **SR Linux:** graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1.
+- **SR Linux:** A path SR Linux marks invalid (`invalid-reason`) for anything but `rejected-route` (rejected by import policy, which doesn't count as received) is an error until the driver reads that reason: a check on that prefix fails with the reason named, never passes.
+- **SONiC:** graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1.
+- **Arista EOS:** graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1.
+- **Arista EOS:** `med: 0` is refused before the lab boots (exit 2): cEOS 4.36.3M prints MED 0 for a path received with no MED (live capture, 0.4 interop test), and no field of `show ip bgp <prefix> | json` tells the two apart. A non-zero MED is checked as usual; a path whose MED reads 0 reports it as "not set".
+- **Juniper (beta):** Hidden routes count as received, except routes Junos hid because the import policy rejected them (`hidden-reason` "Rejected by import policy"): those can never be used, and FRR and Arista EOS don't keep them at all.
+- **Juniper (beta):** `bgp_route` reads routes received over BGP only. Junos doesn't list its own static, direct or aggregate routes as BGP routes, even when an export policy advertises them.
+- **Juniper (beta):** `bgp_prefixes` counts received routes minus those import policy rejected, reading the hidden routes' reasons when Junos hides any. A hidden route whose reason is neither "Rejected by import policy" nor "Protocol nexthop is not on the interface" leaves the count a range from accepted to received, and a bound is judged only when the whole range agrees (otherwise the check fails, never passes).
+- **Juniper (beta):** Link and node faults on a cJunosEvolved node and `inject_routes` from it are refused before deploying.
+- **Juniper (beta):** Every deploy installs Junos in the VM: about 4 minutes to a CLI on a quiet 20-thread host, up to 19 minutes with a CPU-heavy job beside it. Set `CPTX_NUM_IF` (see the example) and a check `timeout` that covers the boot.
+- **Juniper (beta):** startup config: Netdryrun doesn't verify that the startup config loaded on Junos yet (the report says `not verified on junos`). Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.1.
 
 ## How a platform gets on this page
 

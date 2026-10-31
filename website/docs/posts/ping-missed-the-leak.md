@@ -13,7 +13,7 @@ This post walks through that case with the bundled [`frr-bgp-broken`](../example
 
 ## The lab and the change
 
-Three FRR routers in a triangle, each in its own AS, each announcing one LAN over eBGP: r1 (AS 65001, `192.168.1.0/24`), r2 (AS 65002, `192.168.2.0/24`) and r3 (AS 65003, `192.168.3.0/24`). The example is the [`frr-bgp`](../examples.md#frr-bgp) lab with one change in r2's config, [`r2-bad.conf`](https://github.com/netdryrun/netdryrun/blob/main/examples/frr-bgp-broken/r2-bad.conf):
+Three FRR routers in a triangle, each in its own AS, each announcing one LAN over eBGP: r1 (AS 65001, `192.168.1.0/24`), r2 (AS 65002, `192.168.2.0/24`) and r3 (AS 65003, `192.168.3.0/24`). The example is the [`frr-bgp`](../examples.md#frr-bgp) lab with one change in r2's config, [`r2-bad.conf`](https://github.com/netdryrun/Netdryrun/blob/main/examples/frr-bgp-broken/r2-bad.conf):
 
 ```text title="r2-bad.conf"
 router bgp 65002
@@ -28,7 +28,7 @@ router bgp 65002
 
 ## The checks
 
-The example's [`netdryrun.yml`](https://github.com/netdryrun/netdryrun/blob/main/examples/frr-bgp-broken/netdryrun.yml) has six checks, all on r1: both BGP sessions established, between 1 and 10 prefixes from r2, a route to r3's LAN, a ping from r1's LAN to r3's, and one negative check:
+The example's [`netdryrun.yml`](https://github.com/netdryrun/Netdryrun/blob/main/examples/frr-bgp-broken/netdryrun.yml) has six checks, all on r1: both BGP sessions established, between 1 and 10 prefixes from r2, a route to r3's LAN, a ping from r1's LAN to r3's, and one negative check:
 
 ```yaml
 - type: route        # nothing should send r1 a default route
@@ -44,7 +44,7 @@ On Linux or WSL2 with Docker and containerlab:
 
 ```bash
 pipx install netdryrun
-git clone https://github.com/netdryrun/netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp-broken
 ```
 
@@ -64,7 +64,7 @@ Destroying lab...
 FAILED: 5 passed, 1 failed (6 checks)
 ```
 
-Exit code `1`. In the 0.3.1 release check, the same example took 39 seconds from deploy to destroy, with the images already pulled ([`live.json`](https://github.com/netdryrun/netdryrun/blob/main/releases/0.3.1/gate/live.json)).
+Exit code `1`. In the 0.3.1 release check, the same example took 39 seconds from deploy to destroy, with the images already pulled ([`live.json`](https://github.com/netdryrun/Netdryrun/blob/main/releases/0.3.1/gate/live.json)).
 
 ## The diff against a ping-only check
 
@@ -107,7 +107,7 @@ The run with `--json report.json` writes every command and its raw output next t
 }
 ```
 
-The raw output behind a "(not selected)" verdict looks like this. This excerpt is from a different lab with the same leak: a peer router, `peer1`, received an upstream's default route (a validation run on Netdryrun 0.3.0, committed as the test fixture [`report-real-failed-leak.json`](https://github.com/netdryrun/netdryrun/blob/main/tests/fixtures/report-real-failed-leak.json). The report stores `output` as the command's text; here it is parsed and shortened to the fields that matter):
+The raw output behind a "(not selected)" verdict looks like this. This excerpt is from a different lab with the same leak: a peer router, `peer1`, received an upstream's default route (a validation run on Netdryrun 0.3.0, committed as the test fixture [`report-real-failed-leak.json`](https://github.com/netdryrun/Netdryrun/blob/main/tests/fixtures/report-real-failed-leak.json). The report stores `output` as the command's text; here it is parsed and shortened to the fields that matter):
 
 ```json
 {
@@ -137,13 +137,13 @@ docker exec clab-ndr-frr-broken-r1 vtysh -c "show bgp ipv4 unicast 0.0.0.0/0"
 
 ## Why it matters if nothing changed
 
-In this lab the leak is harmless today. It stops being harmless when the route it loses to goes away: a link fails, someone cleans up a static default, a device without a management default runs the same config. Then the received default becomes the best route, and all traffic with no more specific route goes to the neighbor that leaked it. The [hidden-leak lab](https://github.com/netdryrun/netdryrun/tree/main/examples/srl-hidden-leak) shows the same leak on Nokia SR Linux and FRR, how to see it by hand in each CLI, and what happens when the static default goes away.
+In this lab the leak is harmless today. It stops being harmless when the route it loses to goes away: a link fails, someone cleans up a static default, a device without a management default runs the same config. Then the received default becomes the best route, and all traffic with no more specific route goes to the neighbor that leaked it. The [hidden-leak lab](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-hidden-leak) shows the same leak on Nokia SR Linux and FRR, how to see it by hand in each CLI, and what happens when the static default goes away.
 
 A static analyzer such as Batfish also catches this particular leak, from the configs alone. The [Batfish page](../batfish.md) shows a leak it misses and the lab catches.
 
 ## Try it without installing anything
 
-[Open Netdryrun in GitHub Codespaces](https://codespaces.new/netdryrun/netdryrun?quickstart=1) and click **Create codespace**. It comes with Docker, containerlab and Netdryrun, and pulls the FRR image. When the terminal shows `Ready`, run:
+[Open Netdryrun in GitHub Codespaces](https://codespaces.new/netdryrun/Netdryrun?quickstart=1) and click **Create codespace**. It comes with Docker, containerlab and Netdryrun, and pulls the FRR image. When the terminal shows `Ready`, run:
 
 ```bash
 netdryrun run examples/frr-bgp-broken

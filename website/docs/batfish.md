@@ -7,7 +7,7 @@ description: A two-stage gate for network changes. Batfish analyses FRR configs 
 
 [Batfish](https://batfish.org) and Netdryrun™ answer different questions. Batfish reads configs and models the network's routing and forwarding: nothing has to boot, and in the runs below its analysis took 2 to 6 seconds once the Batfish service was running. Netdryrun boots the configs in a containerlab lab and checks what the routing software really does. Run Batfish first on every commit, and boot the lab only when it passes.
 
-This page reports one measured run of that pipeline: four versions of a small FRR network, each tested by both stages. The code is in [`examples/batfish-pipeline`](https://github.com/netdryrun/netdryrun/tree/main/examples/batfish-pipeline).
+This page reports one measured run of that pipeline: four versions of a small FRR network, each tested by both stages. The code is in [`examples/batfish-pipeline`](https://github.com/netdryrun/Netdryrun/tree/main/examples/batfish-pipeline).
 
 ## The pipeline
 
@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/netdryrun@v0.3.3
+      - uses: netdryrun/Netdryrun@v0.4.0
         with:
           path: examples/batfish-pipeline
 ```
@@ -63,7 +63,7 @@ The workflow is an example to copy: this repository's CI does not run it, and it
 
 ## Results
 
-Measured on 2026-10-27 from a fresh clone of commit f368194 (later commits change only documentation), following the example's [README](https://github.com/netdryrun/netdryrun/tree/main/examples/batfish-pipeline#run-it) word for word, on WSL2 (20 cores, 16 GB) with images already pulled: `batfish/batfish:2026.08.27.3685`, pybatfish 2026.9.17.3748, Netdryrun 0.3.0 from PyPI, containerlab 0.81.1, FRR 10.4.1. The Batfish service was already running. The Batfish stage includes loading the snapshot; the lab stage includes deploying and destroying the lab. Each change below replaces r2's config; the last column is the command that reproduces the row.
+Measured on 2026-10-27 from a fresh clone of commit f368194 (later commits change only documentation), following the example's [README](https://github.com/netdryrun/Netdryrun/tree/main/examples/batfish-pipeline#run-it) word for word, on WSL2 (20 cores, 16 GB) with images already pulled: `batfish/batfish:2026.08.27.3685`, pybatfish 2026.9.17.3748, Netdryrun 0.3.0 from PyPI, containerlab 0.81.1, FRR 10.4.1. The Batfish service was already running. The Batfish stage includes loading the snapshot; the lab stage includes deploying and destroying the lab. Each change below replaces r2's config; the last column is the command that reproduces the row.
 
 | Change to r2 | Batfish | Netdryrun lab | Who caught it | Reproduce |
 |---|---|---|---|---|
@@ -82,7 +82,7 @@ The route-map typo is also caught first: Batfish's `undefinedReferences` questio
 
 According to the [FRR documentation](https://docs.frrouting.org/en/latest/bgp.html#clicmd-bgp-ebgp-requires-policy), `bgp ebgp-requires-policy` is on by default under the `traditional` profile and off under `datacenter`. An eBGP neighbor with no inbound and outbound policy then receives nothing and sends nothing, but the session still comes up. In the lab, r2 shows `(Policy) (Policy)` for both neighbors and 0 prefixes each way, and 6 of the 10 checks fail: r2's LAN is unreachable from r1, even after the link-failure scenario.
 
-Batfish passed this change. It accepted `frr defaults traditional` without modelling what that profile implies, and predicted every route as before. When `bgp ebgp-requires-policy` is written out explicitly, Batfish reports it as an unrecognized line rather than applying it (Batfish 2026.08.27.3685; the commands are in the example's [README](https://github.com/netdryrun/netdryrun/tree/main/examples/batfish-pipeline#reproduce-the-findings)).
+Batfish passed this change. It accepted `frr defaults traditional` without modelling what that profile implies, and predicted every route as before. When `bgp ebgp-requires-policy` is written out explicitly, Batfish reports it as an unrecognized line rather than applying it (Batfish 2026.08.27.3685; the commands are in the example's [README](https://github.com/netdryrun/Netdryrun/tree/main/examples/batfish-pipeline#reproduce-the-findings)).
 
 ### Where they agreed
 
@@ -101,7 +101,7 @@ Batfish reads FRR configs as part of its Cumulus Linux and SONiC support. In thi
 - **SONiC layout.** Next to a `config_db.json` with the hostname and interface addresses, the unchanged `frr.conf` files also parse as `SONIC` with status `PASSED` and no warnings. Batfish predicted the same routes as through the Cumulus path, for the baseline and for the `traditional` change.
 - **Not every FRR command or default was supported in this test.** In this test, the defaults profile is accepted but not modelled, and `bgp ebgp-requires-policy` is not recognized at all. Make the gate fail on any file that does not parse cleanly or has a parse warning (`fileParseStatus`, `parseWarning`), as the example script does.
 
-The commands that reproduce these findings, and the `(Policy)` output from FRR, are in the example's [README](https://github.com/netdryrun/netdryrun/tree/main/examples/batfish-pipeline#reproduce-the-findings).
+The commands that reproduce these findings, and the `(Policy)` output from FRR, are in the example's [README](https://github.com/netdryrun/Netdryrun/tree/main/examples/batfish-pipeline#reproduce-the-findings).
 
 These findings cover only BGP with route-maps on three FRR routers. Batfish's support for other vendors (Cisco, Juniper, Arista, Palo Alto and more) is much broader and is not tested here.
 

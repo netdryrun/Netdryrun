@@ -1,0 +1,161 @@
+{
+ "layer": "after-publish",
+ "title": "Layer 7: after-publish proof",
+ "version": "0.3.3",
+ "started": "2026-10-30 06:06:12 UTC",
+ "seconds": 151.3,
+ "git": {
+  "sha": "91b4820a7857e8b8af25a7be7e6ac66601011838",
+  "dirty": false,
+  "branch": "HEAD"
+ },
+ "host": "Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64)",
+ "python": "3.10.12",
+ "strict": false,
+ "tools": {
+  "uv": "0.13.6 (x86_64-unknown-linux-gnu)"
+ },
+ "checks": [
+  {
+   "id": "pypi",
+   "title": "PyPI serves netdryrun 0.3.3",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "HTTP 200",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "pip-3.10",
+   "title": "pip install netdryrun==0.3.3 on Python 3.10: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 8.0,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "uvx-3.10",
+   "title": "uvx netdryrun@0.3.3 on Python 3.10: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 1.7,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "pip-3.11",
+   "title": "pip install netdryrun==0.3.3 on Python 3.11: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 7.6,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "uvx-3.11",
+   "title": "uvx netdryrun@0.3.3 on Python 3.11: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 1.6,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "pip-3.12",
+   "title": "pip install netdryrun==0.3.3 on Python 3.12: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 8.5,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "uvx-3.12",
+   "title": "uvx netdryrun@0.3.3 on Python 3.12: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 1.7,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "pip-3.13",
+   "title": "pip install netdryrun==0.3.3 on Python 3.13: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 7.8,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "uvx-3.13",
+   "title": "uvx netdryrun@0.3.3 on Python 3.13: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 1.6,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "pip-3.14",
+   "title": "pip install netdryrun==0.3.3 on Python 3.14: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 8.1,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "uvx-3.14",
+   "title": "uvx netdryrun@0.3.3 on Python 3.14: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 1.9,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.3.3', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate']\nMCP handshake OK",
+   "command": ""
+  },
+  {
+   "id": "live-example",
+   "title": "frr-bgp from PyPI: `PASSED: 11 passed, 0 failed`, exit 0, no lab left",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 101.3,
+   "summary": "exit 0",
+   "output": "Netdryrun 0.3.3: 7 checks from /tmp/ndr-gate-publish-mfmqr8wg/frr-bgp/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (13.4s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (13.4s)\n  [PASS] r1: route 192.168.3.0/24 via bgp is present -- active via bgp (13.4s)\n  [PASS] r1: ping 192.168.3.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (13.4s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] r1: prefixes from 10.0.12.2 >= 1 and <= 10 -- 2 ipv4-unicast prefixes accepted (held 10s, 4 samples) (10.0s)\n  [PASS] r1: BGP best path for 192.168.2.0/24 has as-path '65002', next hop 10.0.12.2 -- best path: as-path '65002', next hop 10.0.12.2, local-pref 100, MED 0, communities none (held 10s, 4 samples) (10.0s)\n  [PASS] r1: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 4 samples) (10.0s)\nScenario: r1-r2 link fails\n  the fault took effect after 0s (2 BGP session(s) over the downed links are down)\n  settling 10s before the scenario's checks\n  [PASS] [r1-r2 link fails] r1: route 192.168.2.0/24 via bgp is present -- active via bgp (held 12s, 3 samples) (19.4s)\n  [PASS] [r1-r2 link fails] r1: ping 192.168.2.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (held 12s, 3 samples) (19.4s)\n  [PASS] [r1-r2 link fails] r1: BGP best path for 192.168.2.0/24 has as-path '65003 65002', next hop 10.0.13.2 -- best path: as-path '65003 65002', next hop 10.0.13.2, local-pref 100, MED not set, communities none (held 10s, 4 samples) (10.3s)\n  [PASS] [r1-r2 link fails] r1: BGP session to 10.0.12.2 is down -- state is active (held 10s, 4 samples) (10.3s)\nRestored 1 link(s) and 0 route injection(s); settling 10s\nDestroying lab...\nPASSED: 11 passed, 0 failed (11 checks)",
+   "command": ""
+  },
+  {
+   "id": "mcp-registry",
+   "title": "the MCP Registry lists io.github.netdryrun/netdryrun 0.3.3",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "listed versions: 0.3.0, 0.3.1, 0.3.2, 0.3.3",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "published-action",
+   "title": "latest published-action.yml run",
+   "severity": "MAJOR",
+   "status": "SKIP",
+   "seconds": 0.0,
+   "summary": "gh is not installed",
+   "output": "",
+   "command": ""
+  }
+ ],
+ "sections": []
+}

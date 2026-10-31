@@ -5,16 +5,16 @@ description: Every Netdryrun example lab. What each one shows, its topology and 
 
 # Examples
 
-The repository's [`examples/`](https://github.com/netdryrun/netdryrun/tree/main/examples) folder has one lab per supported network OS, a deliberately broken change, a teaching lab about leaks that ping can't see, the AI agent demo, and a Batfish-then-lab pipeline. Each folder holds a containerlab topology, the router configs and a `netdryrun.yml`.
+The repository's [`examples/`](https://github.com/netdryrun/Netdryrun/tree/main/examples) folder has one lab per supported network OS, a deliberately broken change, a teaching lab about leaks that ping can't see, the AI agent demo, and a Batfish-then-lab pipeline. Each folder holds a containerlab topology, the router configs and a `netdryrun.yml`.
 
 ```bash
-git clone https://github.com/netdryrun/netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp
 ```
 
 ## At a glance
 
-Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images already pulled, measured on 2026-10-27 with containerlab 0.81.1 and Netdryrun™ 0.3.1, by the live layer of the 0.3.1 release check, which ran every example once on the built package ([`releases/0.3.1/gate/live.json`](https://github.com/netdryrun/netdryrun/blob/main/releases/0.3.1/gate/live.json) in the repository). `agent-demo` is the whole `demo.sh`, both attempts. They include deploying and destroying the lab. The first run of each example also pulls its images.
+Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images already pulled, measured on 2026-10-27 with containerlab 0.81.1 and Netdryrun™ 0.3.1, by the live layer of the 0.3.1 release check, which ran every example once on the built package ([`releases/0.3.1/gate/live.json`](https://github.com/netdryrun/Netdryrun/blob/main/releases/0.3.1/gate/live.json) in the repository). `agent-demo` is the whole `demo.sh`, both attempts. They include deploying and destroying the lab. The first run of each example also pulls its images.
 
 | Example | Network OS | Shows | Expected | Exit | Time |
 |---|---|---|---|---|---|
@@ -24,13 +24,14 @@ Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images a
 | [srl-hidden-leak](#srl-hidden-leak) | Nokia SR Linux + FRR | A leaked default that ping, sessions and the routing table miss, on both NOSes | `PASSED: 9 passed, 0 failed`; each leak `FAILED: 8 passed, 1 failed` | `0`; `1` | 59 to 60 s |
 | [sonic-frr](#sonic-frr) | SONiC VS + FRR | Configuring a NOS after boot, a port-down scenario | `PASSED: 8 passed, 0 failed` | `0` | 92 s |
 | [arista-frr](#arista-frr) | Arista cEOS + FRR (your image) | A bring-your-own vendor image | `PASSED: 10 passed, 0 failed` | `0` | 97 s |
+| [junos-frr](#junos-frr) | Juniper cJunosEvolved (beta) + FRR (your image) | The hidden leak on Junos, with the beta driver | `PASSED: 13 passed, 0 failed`; each leak `FAILED: 12 passed, 1 failed` | `0`; `1` | 398 s |
 | [agent-demo](#agent-demo) `demo.sh` | FRR | An agent's leaky change rejected, the fix accepted | `Demo OK` | `0` | 70 s |
 | [batfish-pipeline](#batfish-pipeline) | FRR | Batfish first, then the lab; three bad changes | `PASSED: 10 passed, 0 failed` | `0` | 100 s |
 | [leak-pattern](#leak-pattern) | FRR | Transit-provider routes leaked to a peer (RFC 7908 Type 3), and the same change with RFC 9234 BGP roles | `PASSED: 8 passed, 0 failed`; the leak `FAILED: 6 passed, 2 failed`; with roles `PASSED: 8 passed, 0 failed` | `0`; `1`; `0` | 42 to 43 s |
 
 ## frr-bgp
 
-[`examples/frr-bgp`](https://github.com/netdryrun/netdryrun/tree/main/examples/frr-bgp): three FRR routers (r1, r2, r3) in a triangle, each in its own AS, each announcing one LAN over eBGP.
+[`examples/frr-bgp`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp): three FRR routers (r1, r2, r3) in a triangle, each in its own AS, each announcing one LAN over eBGP.
 
 **Shows:** the basic check types, a negative check and a failure scenario. r1 checks both BGP sessions, a prefix count between 1 and 10 (a leak guard), a route to r3's LAN, a ping to it, the AS path and next hop of the best path to r2's LAN (a `bgp_route` check), and that no default route arrives. The scenario takes the r1-r2 link down and checks that r2's LAN is still reachable through r3, that the best path now goes through r3 (AS path `65003 65002`), and that the session over the failed link is down.
 
@@ -42,7 +43,7 @@ To run it on every pull request, see [Test an FRR change in CI](guides/frr-ci.md
 
 ## frr-bgp-broken
 
-[`examples/frr-bgp-broken`](https://github.com/netdryrun/netdryrun/tree/main/examples/frr-bgp-broken): the same triangle, but r2's config (`r2-bad.conf`) adds `default-originate` toward r1.
+[`examples/frr-bgp-broken`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp-broken): the same triangle, but r2's config (`r2-bad.conf`) adds `default-originate` toward r1.
 
 **Shows:** a bad change being caught. Sessions are up and the ping still works, because r1 receives the leaked default route but does not select it. The negative route check fails anyway: a received-but-not-selected route counts as present.
 
@@ -56,7 +57,7 @@ CI runs this example on every push and expects it to fail.
 
 ## srl-frr
 
-[`examples/srl-frr`](https://github.com/netdryrun/netdryrun/tree/main/examples/srl-frr): a Nokia SR Linux router (`srl1`) peering eBGP with FRR (`frr1`).
+[`examples/srl-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-frr): a Nokia SR Linux router (`srl1`) peering eBGP with FRR (`frr1`).
 
 **Shows:** a mixed-vendor lab. Both sessions, a BGP route on each side, a ping in each direction, and the best path's AS path, local preference and next hop on `srl1`. SR Linux boots slower, so the file sets `timeout: 120`.
 
@@ -64,9 +65,9 @@ CI runs this example on every push and expects it to fail.
 
 ## srl-hidden-leak
 
-[`examples/srl-hidden-leak`](https://github.com/netdryrun/netdryrun/tree/main/examples/srl-hidden-leak): "The route leak ping can't see". SR Linux (`srl1`) and FRR (`frr1`) peer eBGP, and each has its own static default route. [`leaks/`](https://github.com/netdryrun/netdryrun/tree/main/examples/srl-hidden-leak/leaks) holds two one-line changes that each leak a default route to the peer: `default-originate` on FRR, and an export statement matching `protocol static` on SR Linux.
+[`examples/srl-hidden-leak`](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-hidden-leak): "The route leak ping can't see". SR Linux (`srl1`) and FRR (`frr1`) peer eBGP, and each has its own static default route. [`leaks/`](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-hidden-leak/leaks) holds two one-line changes that each leak a default route to the peer: `default-originate` on FRR, and an export statement matching `protocol static` on SR Linux.
 
-**Shows:** a leak that is received but never selected, because it loses to the static. Sessions, ping and the routing table look unchanged. The [README](https://github.com/netdryrun/netdryrun/blob/main/examples/srl-hidden-leak/README.md) teaches how to see it by hand in each CLI (the BGP RIB on SR Linux, a `B` route without `>*` on FRR) and what happens when the static goes away. One `bgp_route` check with `present: false` per router catches each leak. Run `netdryrun run examples/srl-hidden-leak` as is, then copy a file from `leaks/` over `configs/` and run it again.
+**Shows:** a leak that is received but never selected, because it loses to the static. Sessions, ping and the routing table look unchanged. The [README](https://github.com/netdryrun/Netdryrun/blob/main/examples/srl-hidden-leak/README.md) teaches how to see it by hand in each CLI (the BGP RIB on SR Linux, a `B` route without `>*` on FRR) and what happens when the static goes away. One `bgp_route` check with `present: false` per router catches each leak. Run `netdryrun run examples/srl-hidden-leak` as is, then copy a file from `leaks/` over `configs/` and run it again.
 
 **Expected:** good configs `PASSED: 9 passed, 0 failed (9 checks)`, exit code `0`. Each leak `FAILED: 8 passed, 1 failed (9 checks)`, exit code `1`, failing only the guard on the receiving router:
 
@@ -78,7 +79,7 @@ Needs Netdryrun 0.3.1 or later: 0.3.0 counts `srl1`'s own static default as a BG
 
 ## sonic-frr
 
-[`examples/sonic-frr`](https://github.com/netdryrun/netdryrun/tree/main/examples/sonic-frr): SONiC VS (`sonic1`, the `docker-sonic-vs` image) peering eBGP with FRR (`frr1`).
+[`examples/sonic-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/sonic-frr): SONiC VS (`sonic1`, the `docker-sonic-vs` image) peering eBGP with FRR (`frr1`).
 
 **Shows:** a NOS that is configured after boot. SONiC VS has no startup config here; `setup` commands in `netdryrun.yml` wait for its services, set the interface addresses and configure BGP. Checks: the session, a route on each side, a ping, a prefix count, best-path attributes on `sonic1`, and a scenario that takes the SONiC port `Ethernet0` down and checks that the session drops and the route is withdrawn.
 
@@ -88,15 +89,19 @@ The image comes from the SONiC build server, not a registry. To get it and run t
 
 ## arista-frr
 
-[`examples/arista-frr`](https://github.com/netdryrun/netdryrun/tree/main/examples/arista-frr): an Arista cEOS router (`ceos1`) peering eBGP with FRR (`frr1`).
+[`examples/arista-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/arista-frr): an Arista cEOS router (`ceos1`) peering eBGP with FRR (`frr1`).
 
 **Shows:** a vendor image you bring yourself. cEOS-lab is free from arista.com with an account but can't be redistributed, so import it as `ceos:4.36.3M` first (the comment in `topology.clab.yml` shows how). Checks: both sessions, a prefix count, a route on each side, a ping, best-path attributes on `ceos1`, no default route at the Arista, and a scenario that takes the link down from the FRR side.
 
 **Expected:** `PASSED: 10 passed, 0 failed (10 checks)`, exit code `0`. Without the image, the run stops with exit code `2`; see [the cEOS image is missing](troubleshooting.md#the-ceos-image-is-missing).
 
+## junos-frr
+
+The [hidden-leak lab](#srl-hidden-leak) on **Juniper cJunosEvolved** (beta driver, your own image) instead of SR Linux: a peer starts sending a default route it shouldn't, the session stays up, ping works, and the leaked route sits in Junos's table as an inactive BGP route. The good configs pass all 13 checks; each of the two one-line leaks fails exactly the guard on the router that receives it. cJunosEvolved boots a VM that installs Junos on every deploy: about 4 minutes to a CLI on a quiet host (the 398 s above), up to 19 minutes with a CPU-heavy job beside it, so give its checks a `timeout` that covers the boot. It needs a host with KVM and about 10 GB of free memory. Everything else is in the example's [README](https://github.com/netdryrun/Netdryrun/tree/main/examples/junos-frr) and the [driver reference](reference/junos.md).
+
 ## agent-demo
 
-[`examples/agent-demo`](https://github.com/netdryrun/netdryrun/tree/main/examples/agent-demo): an edge router (`edge1`, AS 65000) with a customer, an upstream and a peer, a ticket ([`TICKET.md`](https://github.com/netdryrun/netdryrun/blob/main/examples/agent-demo/TICKET.md)) and the network team's 14 checks, including route-leak guards.
+[`examples/agent-demo`](https://github.com/netdryrun/Netdryrun/tree/main/examples/agent-demo): an edge router (`edge1`, AS 65000) with a customer, an upstream and a peer, a ticket ([`TICKET.md`](https://github.com/netdryrun/Netdryrun/blob/main/examples/agent-demo/TICKET.md)) and the network team's 14 checks, including route-leak guards.
 
 **Shows:** how an AI agent's change is judged. `demo.sh` replays two hand-written attempts: removing the prefix-list filters (passes the ticket checks, fails the leak guards) and adding the new block to two prefix lists (passes everything). See [AI agents](ai-agents.md#demo-a-ticket-a-tempting-change-a-verdict) and the [real agent run](ai-agents.md#a-real-agent-run).
 
@@ -114,7 +119,7 @@ The image comes from the SONiC build server, not a registry. To get it and run t
 
 ## batfish-pipeline
 
-[`examples/batfish-pipeline`](https://github.com/netdryrun/netdryrun/tree/main/examples/batfish-pipeline): the `frr-bgp` triangle behind a two-stage gate. `pipeline.sh` runs Batfish on the configs first (nothing boots), then the lab. It needs a running Batfish service and `pybatfish`.
+[`examples/batfish-pipeline`](https://github.com/netdryrun/Netdryrun/tree/main/examples/batfish-pipeline): the `frr-bgp` triangle behind a two-stage gate. `pipeline.sh` runs Batfish on the configs first (nothing boots), then the lab. It needs a running Batfish service and `pybatfish`.
 
 **Shows:** what each stage catches. Three changes to r2 are in `changes/`: a leaked default route and a route-map typo (Batfish fails them in 2 to 3 seconds of analysis) and a switch to FRR's `traditional` defaults, which Batfish passes but the lab fails. See [Batfish, then Netdryrun](batfish.md) for the measured results.
 
@@ -122,9 +127,9 @@ The image comes from the SONiC build server, not a registry. To get it and run t
 
 ## leak-pattern
 
-[`examples/leak-pattern`](https://github.com/netdryrun/netdryrun/tree/main/examples/leak-pattern): "A transit leak that ping can't see". Four FRR routers: `net` (the network under change) with a customer, a transit provider and a settlement-free peer. The leaky config changes one line, the peer's outbound route-map, so the provider's prefix reaches the peer. Sessions stay up and the customer stays reachable.
+[`examples/leak-pattern`](https://github.com/netdryrun/Netdryrun/tree/main/examples/leak-pattern): "A transit leak that ping can't see". Four FRR routers: `net` (the network under change) with a customer, a transit provider and a settlement-free peer. The leaky config changes one line, the peer's outbound route-map, so the provider's prefix reaches the peer. Sessions stay up and the customer stays reachable.
 
-**Shows:** the check that catches it looks at the peer's table: no BGP route to the provider's prefix, plus a prefix count. A third run keeps the leaky policy but configures [RFC 9234](https://www.rfc-editor.org/rfc/rfc9234) roles on both ends of every session, and the leak is gone. The [README](https://github.com/netdryrun/netdryrun/blob/main/examples/leak-pattern/README.md) shows how to see it by hand and states the limits.
+**Shows:** the check that catches it looks at the peer's table: no BGP route to the provider's prefix, plus a prefix count. A third run keeps the leaky policy but configures [RFC 9234](https://www.rfc-editor.org/rfc/rfc9234) roles on both ends of every session, and the leak is gone. The [README](https://github.com/netdryrun/Netdryrun/blob/main/examples/leak-pattern/README.md) shows how to see it by hand and states the limits.
 
 **Expected:** `netdryrun run examples/leak-pattern/netdryrun.yml` gives `PASSED: 8 passed, 0 failed (8 checks)`, exit code `0`. `netdryrun-leaky.yml` gives `FAILED: 6 passed, 2 failed (8 checks)`, exit code `1`, failing the peer's prefix count and the absence of `203.0.113.0/24`. `netdryrun-roles.yml` gives `PASSED: 8 passed, 0 failed (8 checks)`, exit code `0`. Times are from one run of each on 0.3.3.
 

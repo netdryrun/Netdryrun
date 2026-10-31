@@ -7,8 +7,8 @@ site_description: >-
 site_author: Netdryrun
 copyright: 'Netdryrun™ is open source under the Apache-2.0 license. Netdryrun and the Netdryrun logo are trademarks. <a href="/privacy/">Privacy</a> · <a href="/trust/">Trust</a> · <a href="/support/">Support</a> · <a href="/contact/">Contact</a>'
 
-repo_url: https://github.com/netdryrun/netdryrun
-repo_name: netdryrun/netdryrun
+repo_url: https://github.com/netdryrun/Netdryrun
+repo_name: netdryrun/Netdryrun
 edit_uri: edit/main/website/docs/
 
 theme:
@@ -51,6 +51,10 @@ theme:
 extra_css:
   - stylesheets/brand.css
 
+# Click-to-load YouTube embeds: nothing loads from YouTube before a click (see the file's header for usage)
+extra_javascript:
+  - javascripts/video-embed.js
+
 # Publish /.well-known/security.txt (MkDocs skips dot-folders by default)
 exclude_docs: |
   !.well-known/
@@ -65,9 +69,24 @@ not_in_nav: |
 # Per-page schema.org JSON-LD (FAQPage, TechArticle, BlogPosting, BreadcrumbList); the site-wide graph is in overrides/main.html.
 hooks:
   - hooks/structured_data.py
+  # RSS for the News section, from the posts' front matter (no extra plugin)
+  - hooks/news_feed.py
 
 plugins:
   - search
+  # News: release notes, findings and write-ups (Material's built-in blog plugin). The RSS feed is hooks/news_feed.py.
+  - blog:
+      blog_dir: news
+      blog_toc: true
+      post_url_format: "{slug}"
+      post_date_format: long
+      post_readtime: false
+      authors: false
+      archive: false
+      categories_allowed:
+        - Releases
+        - Findings
+        - Write-ups
   # Self-host fonts and other external assets at build time: visitors' browsers never contact Google.
   - privacy
 
@@ -75,6 +94,7 @@ markdown_extensions:
   - abbr
   - admonition
   - attr_list
+  - md_in_html
   - def_list
   - tables
   - toc:
@@ -89,10 +109,17 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
-  - "Tutorial: test a change on your own lab": tutorial.md
-  - Examples: examples.md
-  - Guard recipes and scenarios: recipes.md
+  - Get started:
+      - Getting started: getting-started.md
+      - Add it where your agent works: add.md
+      - "Tutorial: test a change on your own lab": tutorial.md
+      - Examples: examples.md
+      - Guard recipes and scenarios: recipes.md
+  - Use it:
+      - GitHub Action: github-action.md
+      - AI agents (MCP): ai-agents.md
+      - Troubleshooting: troubleshooting.md
+      - FAQ: faq.md
   - Guides:
       - "Validate a BGP change before production": guides/validate-bgp-change.md
       - "Add Netdryrun to your lab (10 minutes)": guides/your-lab.md
@@ -102,28 +129,29 @@ nav:
   - Reference:
       - netdryrun.yml: reference/config.md
       - CLI and reports: reference/cli.md
+      - "verify (0.4, FRR only)": reference/verify.md
+      - Juniper driver (beta): reference/junos.md
       - Compatibility matrix: reference/compatibility.md
       - "Network Change Verdict v1 (spec)": spec/verdict-v1.md
-  - GitHub Action: github-action.md
-  - Batfish, then Netdryrun: batfish.md
-  - AI agents (MCP): ai-agents.md
-  - Troubleshooting: troubleshooting.md
-  - FAQ: faq.md
-  - Posts:
+  - Evidence:
+      - Verdict corpus: corpus.md
+      - How it's built: how-its-built.md
+      - Batfish, then Netdryrun: batfish.md
+      - When to use what: when-to-use-what.md
+  - News: news/index.md
+  - Write-ups:
       - "Ping and 'BGP up' passed. The route leak was still there.": posts/ping-missed-the-leak.md
-  - Verdict corpus: corpus.md
-  - How it's built: how-its-built.md
-  - When to use what: when-to-use-what.md
-  - Trust and security: trust.md
-  - Support and versioning: support.md
-  - Design partners: design-partners.md
-  - Contact: contact.md
-  - Privacy notice: privacy.md
+  - Project:
+      - Trust and security: trust.md
+      - Support and versioning: support.md
+      - Design partners: design-partners.md
+      - Contact: contact.md
+      - Privacy notice: privacy.md
 
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/netdryrun/netdryrun
+      link: https://github.com/netdryrun/Netdryrun
       name: Netdryrun on GitHub
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/netdryrun/

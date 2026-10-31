@@ -3,6 +3,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("release_gate", ROOT / "scripts" / "release_gate.py")
@@ -47,6 +48,24 @@ def test_reason_reads_both_formats():
     assert gate.reason({"reason": "text", "diff": "x"}) == "text"
 
 
+def test_every_verdict_module_is_mutated_and_has_a_coverage_floor():
+    """Meta-test: a module that joins VERDICT_MODULES (verify.engine and verify.intent in 0.4) is in mutmut's
+    only_mutate, exists, has a coverage floor, and its mutant names match the gate's glob and prefix."""
+    import fnmatch
+    import re
+
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    block = re.search(r"only_mutate = \[(.*?)\]", text, re.S).group(1)
+    only = re.findall(r'"([^"]+)"', block)
+    assert set(gate.COVERAGE_FLOORS) == set(gate.VERDICT_MODULES)
+    assert {"verify.engine", "verify.intent"} <= set(gate.VERDICT_MODULES)
+    for name, path in gate.VERDICT_MODULES.items():
+        assert (ROOT / path).exists(), path
+        assert any(fnmatch.fnmatch(path, pat) or path.rstrip("/") + "/*" == pat for pat in only), (name, only)
+        dotted = path.removeprefix("src/").removesuffix(".py").rstrip("/").replace("/", ".")
+        assert dotted == f"netdryrun.{name}", (name, dotted)        # the gate's glob and survivor prefix
+        assert 0 < gate.COVERAGE_FLOORS[name] <= 100
+    assert gate.mutant_function("netdryrun.verify.engine.x_match__mutmut_3") == "verify.engine.match"
 # ------------------------------------------------------------- classed acceptances (RELEASE-GATE.md Layer 4, 2026-10-28)
 
 def test_an_acceptance_needs_one_of_the_fixed_classes():
@@ -200,3 +219,87 @@ def test_a_harmful_nondeterministic_case_approved_in_every_run_is_shown():
     assert not gate.nd_always_approved({"expected": "safe"}, _nd_row(("safe", "safe", "safe"),))
     assert not gate.nd_always_approved({"expected": "unsafe"}, {})
     assert gate.nd_always_approved({}, {"expected": "unsafe", **_nd_row(("safe", "safe", "safe"))})   # new case
+
+
+# ------------------------------------------------- scoped verdict modules (coordinator decision, 0.4, 2026-10-30)
+
+def test_a_scoped_module_blocks_on_its_verdict_path_and_on_untested_code_only():
+    assert gate.gated("verify.engine", "netdryrun.verify.engine.x_match__mutmut_3", "survived")      # fully gated
+    assert gate.gated("verify.frr", "netdryrun.verify.frr.x__boot_free__mutmut_1", "survived")
+    assert not gate.gated("verify.frr", "netdryrun.verify.frr.x_parse_attrs__mutmut_9", "survived")
+    assert gate.gated("verify.frr", "netdryrun.verify.frr.x_parse_attrs__mutmut_9", "no tests")       # untested code
+    assert gate.gated("verify.snapshot", "netdryrun.verify.snapshot.xǁItemKeyǁ__post_init____mutmut_2", "survived")
+
+
+def test_every_scoped_function_exists():
+    import ast
+    src = ROOT / "src" / "netdryrun"
+    for module, fns in gate.SCOPED_FUNCTIONS.items():
+        assert module in gate.VERDICT_MODULES, module
+        tree = ast.parse((src / (module.replace(".", "/") + ".py")).read_text(encoding="utf-8"))
+        found = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                found |= {f"{node.name}.{f.name}" for f in node.body if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef))}
+            elif isinstance(node, ast.FunctionDef):
+                found.add(node.name)
+        assert fns <= found, (module, sorted(fns - found))
+
+
+def _prev_record(tmp_path, sha="a" * 40):
+    checks = [{"id": f"mutants-{m}", "title": f"no surviving mutants in {p}", "severity": "BLOCKER", "status": "PASS",
+               "seconds": 1.0, "summary": f"{m} summary", "output": f"{m} output", "command": "mutmut run"}
+              for m, p in gate.VERDICT_MODULES.items()]
+    sections = [f"**{gate.VERDICT_MODULES['verify.frr']}: 3 survivors outside the gated functions** (...)",
+                f"**{gate.VERDICT_MODULES['drivers']}: old drivers section**", "**Surviving mutants by function**"]
+    path = tmp_path / "mutation.json"
+    path.write_text(json.dumps({"git": {"sha": sha}, "checks": checks, "sections": sections}), encoding="utf-8")
+    return path
+
+
+def test_a_mutation_record_carries_over_only_for_byte_identical_modules(tmp_path, monkeypatch):
+    """A module not rerun keeps its earlier record only when its source is byte-identical at this commit (0.4.0
+    interop fixes: only drivers changed); a module whose source changed since is a BLOCKER failure, never a pass."""
+    changed = {gate.VERDICT_MODULES["checks"]: "src/netdryrun/checks.py"}
+    calls = []
+
+    def git(*args):
+        calls.append(args)
+        assert args[:3] == ("diff", "--name-only", "a" * 40) and args[3] == "HEAD" and args[4] == "--"
+        return changed.get(args[5], "")
+    monkeypatch.setattr(gate, "git", git)
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.carry_mutation(layer, str(_prev_record(tmp_path)), ["drivers"])
+    by_id = {c.id: c for c in layer.checks}
+    assert set(by_id) == {f"mutants-{m}" for m in gate.VERDICT_MODULES if m != "drivers"}
+    assert by_id["mutants-verify.frr"].status == gate.PASS
+    assert by_id["mutants-verify.frr"].summary == (f"carried over from aaaaaaa: {gate.VERDICT_MODULES['verify.frr']} is "
+                                                   "byte-identical at this commit. verify.frr summary")
+    assert by_id["mutants-verify.frr"].output == "verify.frr output"
+    assert by_id["mutants-checks"].status == gate.FAIL
+    assert "src/netdryrun/checks.py changed since aaaaaaa: mutate it at this commit" in by_id["mutants-checks"].summary
+    assert layer.sections == [f"**{gate.VERDICT_MODULES['verify.frr']}: 3 survivors outside the gated functions** (...)"]
+
+
+def test_a_carried_failure_stays_a_failure_and_an_unreadable_diff_is_not_identical(tmp_path, monkeypatch):
+    path = _prev_record(tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["checks"][0]["status"] = "FAIL"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(gate, "git", lambda *a: None if a[5].endswith("config.py") else "")
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.carry_mutation(layer, str(path), [])
+    by_id = {c.id: c for c in layer.checks}
+    assert by_id[data["checks"][0]["id"]].status == gate.FAIL
+    assert by_id["mutants-config"].status == gate.FAIL and "git can't compare" in by_id["mutants-config"].summary
+
+
+def test_a_verdict_module_neither_mutated_nor_carried_fails_the_layer():
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.require_every_module(layer, ["drivers", "checks"])
+    missing = {c.id for c in layer.checks}
+    assert missing == {f"mutants-{m}" for m in gate.VERDICT_MODULES if m not in ("drivers", "checks")}
+    assert all(c.status == gate.FAIL and c.severity == gate.BLOCKER for c in layer.checks)
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.require_every_module(layer, list(gate.VERDICT_MODULES))
+    assert layer.checks == []

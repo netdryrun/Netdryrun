@@ -17,7 +17,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 SITE_PAGE = HERE.parent / "website" / "docs" / "corpus.md"
 CASE_DIR = HERE.parent / "website" / "docs" / "corpus"   # one page per case: website/docs/corpus/<id>.md
-REPO = "https://github.com/netdryrun/netdryrun"
+REPO = "https://github.com/netdryrun/Netdryrun"
 SPECS = {"ping": "baseline-ping.yml", "sessions": "baseline-sessions.yml", "netdryrun": "intent.yml"}
 LABELS = {"ping": "Ping only", "sessions": "All BGP sessions up", "netdryrun": "Netdryrun intent checks"}
 MARK = {"correct": "✅", "false pass": "❌ approved a bad change", "false block": "⚠️ blocked a good change", "error": "💥 error"}
@@ -287,7 +287,7 @@ def main() -> None:
     marker = "<!-- RESULTS -->"
     head = page.split(marker)[0]
     tail = "\n" + V2_MARKER + page.split(V2_MARKER, 1)[1] if V2_MARKER in page else ""
-    SITE_PAGE.write_text(head + marker + "\n\n" + body.replace("`corpus/cases/`", "[`corpus/cases/`](https://github.com/netdryrun/netdryrun/tree/main/corpus/cases)") + tail, encoding="utf-8", newline="\n")
+    SITE_PAGE.write_text(head + marker + "\n\n" + body.replace("`corpus/cases/`", "[`corpus/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/cases)") + tail, encoding="utf-8", newline="\n")
     print(f"wrote {write_case_pages(data)} case pages to {CASE_DIR}")
     st = stats(data["cases"])
     print(json.dumps({

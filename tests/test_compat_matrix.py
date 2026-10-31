@@ -58,7 +58,8 @@ def test_page_renders_once_every_driver_is_released(monkeypatch):
     """A driver in sync_facts.UNRELEASED is kept off the page; releasing it is one line, so the page must
     already render it: verified cells, its image and its beta label, never a doubled one."""
     import sync_facts
-    monkeypatch.setattr(sync_facts, "UNRELEASED", set())
+    monkeypatch.setattr(sync_facts, "PLATFORMS", {**sync_facts.PLATFORMS, **sync_facts.UNRELEASED})
+    monkeypatch.setattr(sync_facts, "UNRELEASED", {})
     page = compat_matrix.render()
     for name in DRIVERS:
         assert sync_facts.PLATFORMS[name][2] in page

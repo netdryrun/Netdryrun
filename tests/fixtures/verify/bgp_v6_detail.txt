@@ -1,0 +1,21 @@
+# live capture: FRRouting 10.4.1_git, node edge1 of tests/fixtures/verify-lab, `vtysh -c 'show bgp vrf all ipv6 unicast detail json'`, 2026-10-28
+{
+"default":{
+ "vrfId": 0,
+ "vrfName": "default",
+ "tableVersion": 1,
+ "routerId": "192.0.2.1",
+ "defaultLocPrf": 100,
+ "localAS": 65000,
+ "routes": { "2001:db8:20::/48": [{"aspath":{"string":"65300","segments":[{"type":"as-sequence","list":[65300]}],"length":1},"origin":"IGP","metric":0,"locPrf":150,"valid":true,"version":1,"bestpath":{"bestpathFromAs":65300,"overall":true,"selectionReason":"First path received"},"community":{"string":"65300:7 no-export","list":["65300:7","noExport"]},"lastUpdate":{"epoch":1793162476,"string":"Wed Oct 28 04:41:16 2026"},"nexthops":[{"ip":"fe80::a8c1:abff:feb5:4b08","hostname":"peer1","afi":"ipv6","scope":"link-local","linkLocalOnly":true,"length":16,"metric":0,"accessible":true,"used":true}],"peer":{"peerId":"2001:db8:11::2","routerId":"198.51.100.1","hostname":"peer1","domainname":"localdomain","type":"external"}}]
+ } , "totalRoutes": 1, "totalPaths": 1 } 
+,
+"cust":{
+ "vrfId": 3,
+ "vrfName": "cust",
+ "tableVersion": 0,
+ "routerId": "10.10.1.1",
+ "defaultLocPrf": 100,
+ "localAS": 65000,
+ "routes": {  } , "totalRoutes": 0, "totalPaths": 0 } 
+}

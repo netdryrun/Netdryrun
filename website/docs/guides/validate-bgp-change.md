@@ -52,7 +52,7 @@ A typical leak: a new export policy also sends a default route or a customer's r
 - **When to call it:** before proposing or applying any routing or policy change. Don't grade your own change.
 - **How:** the MCP server (`uvx netdryrun mcp`, listed in the official MCP Registry) exposes `dry_run`, `run_checks`, `record_baseline`, `validate` and `check_types`.
 - **Reading the result:** decide on `status`, not on the wording. Only `passed` means every check passed, and it covers only what the checks look at. On `failed`, show the failed checks and their evidence to the human, and don't apply the change.
-- Rules and setup: [AI agents (MCP)](../ai-agents.md) and [AGENTS.md](https://github.com/netdryrun/netdryrun/blob/main/AGENTS.md).
+- Rules and setup: [AI agents (MCP)](../ai-agents.md) and [AGENTS.md](https://github.com/netdryrun/Netdryrun/blob/main/AGENTS.md).
 
 ## What a lab can and can't prove
 

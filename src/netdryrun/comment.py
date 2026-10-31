@@ -12,7 +12,7 @@ import json
 import re
 import urllib.request
 
-from .agent_result import pr_comment_header
+from .agent_result import pr_comment_header, verify_comment_header
 
 MARK = "<!-- netdryrun-comment"
 NO_REPORT = ("*Netdryrun wrote no report for this run: it did not start, or stopped before writing one. The job "
@@ -28,9 +28,10 @@ def marker(label: str) -> str:
     return f"{MARK} {safe} -->"
 
 
-def body(verdict_path: str, status: str, summary_path: str, label: str, commit: str | None) -> str:
+def body(verdict_path: str, status: str, summary_path: str, label: str, commit: str | None, mode: str = "run") -> str:
     """The comment for one run: marker, header, then the Markdown summary (or a no-report line). The agent
-    result counts only when it agrees with the run's checked status; otherwise the header reads error."""
+    result counts only when it agrees with the run's checked status; otherwise the header reads error. In
+    mode verify, `verdict_path` is the verify report (verify_comment_header)."""
     try:
         result = json.load(open(verdict_path, encoding="utf-8"))
     except (OSError, ValueError):
@@ -44,7 +45,8 @@ def body(verdict_path: str, status: str, summary_path: str, label: str, commit: 
     # The summary quotes device output (in failed checks' evidence): it must not carry a second marker or a
     # look-alike header that a reader could take for the real one, so no HTML comment opens in it
     summary = summary.replace("<!--", "&lt;!--")
-    head = marker(label) + "\n" + pr_comment_header(result, commit=commit) + "\n"
+    header = verify_comment_header if mode == "verify" else pr_comment_header
+    head = marker(label) + "\n" + header(result, commit=commit) + "\n"
     if len(head) + len(summary) > MAX_BODY:
         summary = summary[:MAX_BODY - len(head) - len(CUT)] + CUT
     return head + summary
@@ -92,8 +94,10 @@ def upsert_gitlab(api: str, project: str, iid: str, token: str, mark: str, text:
 def main_github(env) -> int:
     """The Action's comment step. Reads NDR_* variables (see action.yml); always exits 0."""
     try:
-        text = body(env.get("NDR_VERDICT", ""), env.get("NDR_STATUS", ""), env.get("NDR_SUMMARY", ""),
-                    env.get("NDR_LABEL", ""), env.get("NDR_COMMIT"))
+        verify = env.get("NDR_MODE") == "verify"   # verify writes no agent result: its report is read
+        text = body(env.get("NDR_JSON" if verify else "NDR_VERDICT", ""), env.get("NDR_STATUS", ""),
+                    env.get("NDR_SUMMARY", ""), env.get("NDR_LABEL", ""), env.get("NDR_COMMIT"),
+                    mode="verify" if verify else "run")
         done = upsert_github(env.get("NDR_COMMENT_API", "https://api.github.com"), env["NDR_REPO"], env["NDR_PR"],
                              env.get("GH_TOKEN", ""), env.get("NDR_AUTHOR", "github-actions[bot]"),
                              marker(env.get("NDR_LABEL", "")), text)

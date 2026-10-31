@@ -1,0 +1,735 @@
+{
+  "schema": "netdryrun.corpus/v1",
+  "environment": {
+    "generated": "2026-10-30T19:47:47+00:00",
+    "netdryrun": "0.4.0",
+    "containerlab": "0.81.1",
+    "frr_image": "quay.io/frrouting/frr:10.4.1",
+    "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "commit": "unknown",
+    "corpus": "v2",
+    "rerun_args": " --corpus v2"
+  },
+  "cases": [
+    {
+      "id": "01-no-change",
+      "title": "No change (control)",
+      "category": "control",
+      "expected": "safe",
+      "rationale": "The base lab runs unchanged. Every strategy must call it safe, including while the two misbehaving-neighbor scenarios run.",
+      "source": null,
+      "note": null,
+      "edits": [],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 183
+    },
+    {
+      "id": "02-redistribute-connected-pe2",
+      "title": "redistribute connected added on pe2",
+      "category": "hygiene",
+      "expected": "unsafe",
+      "rationale": "pe2's link /30s, its loopback and the management subnet become BGP routes. The peer export filter keeps them from the peer, but they reach pe1 over iBGP and go on to the customer. Reviewers reject leaking infrastructure to customers. (Re-expresses v1 case 18 on the other router.)",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "router bgp 65000\n address-family ipv4 unicast\n  redistribute connected\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I6 customer has no BGP route for link 10.0.3.0/30",
+            "I6 customer has no BGP route for link 10.0.4.0/30",
+            "I6 customer has no BGP route for pe2 loopback"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 182
+    },
+    {
+      "id": "03-test-prefix-left-in-config",
+      "title": "pe1 originates 1.1.1.0/24 left over from a lab test",
+      "category": "hijack",
+      "expected": "unsafe",
+      "rationale": "A network statement for 1.1.1.0/24 (often used as junk space in tests) is left in the production config. Our customer's traffic to the public resolver at 1.1.1.1 is now blackholed by us. Export filters keep it from the upstream and the peer. (Re-expresses v1 case 23 with a prefix on the I7 sentinel list.)",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "ip route 1.1.1.0/24 blackhole\nrouter bgp 65000\n address-family ipv4 unicast\n  network 1.1.1.0/24\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I7 customer has no route for 1.1.1.0/24"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 181
+    },
+    {
+      "id": "04-redundant-aggregate-typo",
+      "title": "Aggregate added on pe2 for redundancy, mistyped as 192.0.12.0/24",
+      "category": "hijack",
+      "expected": "unsafe",
+      "rationale": "The operator meant to originate our 192.0.2.0/24 from pe2 too, but typed 192.0.12.0/24, someone else's space. The peer export filter only allows our real aggregate, so the peer does not see it, but pe1 sends it to the customer, whose traffic to that network is now blackholed. (v1 case 23 class with a prefix that is not on any sentinel list.)",
+      "source": null,
+      "note": "Expected to be missed. I7 only spot-checks a few well-known prefixes, and nothing bounds what the customer receives.",
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "ip route 192.0.12.0/24 blackhole\nrouter bgp 65000\n address-family ipv4 unicast\n  network 192.0.12.0/24\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 183
+    },
+    {
+      "id": "05-customer-max-prefix-removed",
+      "title": "Customer maximum-prefix safety limit removed",
+      "category": "latent-risk",
+      "expected": "unsafe",
+      "rationale": "Nothing changes in steady state, but a customer that floods us with more-specifics from its /16 would now have all of them accepted and passed to the upstream and the peer. Reviewers reject removing safety limits. (Re-expresses v1 case 21, now with a limit that can trip.)",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.1.2 maximum-prefix 50 restart 1\n",
+          "with": ""
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+            "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 143
+    },
+    {
+      "id": "06-peer-import-filter-permit-all",
+      "title": "Peer inbound filter replaced with permit-all",
+      "category": "latent-risk",
+      "expected": "unsafe",
+      "rationale": "Nothing changes today because the peer only sends its /24, but anything the peer sends is now accepted, including a more-specific of our customer's space that would hijack the customer's traffic. Reviewers reject removing an import filter. (Re-expresses v1 case 30.)",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe2",
+          "append": "route-map ALLOW-ALL permit 10"
+        },
+        {
+          "node": "pe2",
+          "replace": "  neighbor 10.0.4.2 route-map FROM-PEER in",
+          "with": "  neighbor 10.0.4.2 route-map ALLOW-ALL in"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
+            "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
+            "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 164
+    },
+    {
+      "id": "07-customer-adds-prefixes",
+      "title": "Customer announces two more /24s from its /16",
+      "category": "customer-growth",
+      "expected": "safe",
+      "rationale": "The customer adds 10.100.1.0/24 and 10.100.2.0/24, inside its registered 10.100.0.0/16. Announcing them upstream and to the peer is the desired outcome. (Re-expresses v1 case 06, which v1's exact prefix count wrongly blocked.)",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "ce1",
+          "append": "ip route 10.100.1.0/24 blackhole\nip route 10.100.2.0/24 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 10.100.1.0/24\n  network 10.100.2.0/24\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 184
+    },
+    {
+      "id": "08-customer-announces-aggregate",
+      "title": "Customer also announces its covering /16",
+      "category": "customer-growth",
+      "expected": "safe",
+      "rationale": "The customer starts announcing 10.100.0.0/16, its registered block, alongside the /24. The import filter allows it (le 24 includes the /16 itself), and a customer announcing its own allocation is normal.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "ce1",
+          "append": "ip route 10.100.0.0/16 blackhole\nrouter bgp 65100\n address-family ipv4 unicast\n  network 10.100.0.0/16\n exit-address-family"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 183
+    },
+    {
+      "id": "09-ibgp-send-community-line-removed",
+      "title": "Explicit send-community line removed on the pe1 to pe2 iBGP session",
+      "category": "vendor-default",
+      "expected": "safe",
+      "rationale": "FRR sends communities to every neighbor by default, so deleting the explicit line is a no-op and pe2 still sees the customer community. Labeled from v1's measured post-run finding on case 12, not from fresh judgment (see INTENT.md). On platforms that do not send communities by default, the same edit would be harmful.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.3.2 send-community\n",
+          "with": ""
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 183
+    },
+    {
+      "id": "10-ibgp-standard-communities-disabled",
+      "title": "Standard communities explicitly disabled on the pe1 to pe2 iBGP session",
+      "category": "policy-bug",
+      "expected": "unsafe",
+      "rationale": "pe1 stops sending standard communities to pe2, so the customer route arrives at pe2 without 65000:100. pe2's peer export policy matches on that community, so the customer route stops reaching the peer: the customer loses the peering path it pays for.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.3.2 send-community\n",
+          "with": "  no neighbor 10.0.3.2 send-community standard\n"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I2 peer has customer route",
+            "I3 customer reaches peer",
+            "I5 peer receives 2 to 51 prefixes from us"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 379
+    },
+    {
+      "id": "11-customer-max-prefix-warning-only",
+      "title": "Customer maximum-prefix changed to warning-only",
+      "category": "latent-risk",
+      "expected": "unsafe",
+      "rationale": "The limit now only logs a warning instead of shutting the session, so a customer flood is accepted and passed on. A common \"temporary\" change after a limit tripped once. Nothing changes in steady state.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.1.2 maximum-prefix 50 restart 1",
+          "with": "  neighbor 10.0.1.2 maximum-prefix 50 warning-only"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+            "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 149
+    },
+    {
+      "id": "12-customer-max-prefix-raised",
+      "title": "Customer maximum-prefix raised from 50 to 100",
+      "category": "hygiene",
+      "expected": "safe",
+      "rationale": "The customer is growing and asked for a higher limit. The limit still exists and still shuts the session on a flood well beyond the customer's needs.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.1.2 maximum-prefix 50 restart 1",
+          "with": "  neighbor 10.0.1.2 maximum-prefix 100 restart 1"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 189
+    },
+    {
+      "id": "13-upstream-routes-tagged-as-customer",
+      "title": "Upstream import policy tags routes with the customer community (copy-paste error)",
+      "category": "route-leak",
+      "expected": "unsafe",
+      "rationale": "FROM-UPSTREAM now sets 65000:100 instead of 65000:200. Every export policy treats upstream routes as customer routes, so the upstream's routes and its default are announced to the peer, giving the peer free transit through our upstream.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": " set community 65000:200\n",
+          "with": " set community 65000:100\n"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I4 no upstream route leaked to peer",
+            "I4 no default leaked to peer"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 185
+    },
+    {
+      "id": "14-customer-gets-default-only",
+      "title": "Customer export policy restricted to the default route",
+      "category": "policy-bug",
+      "expected": "unsafe",
+      "rationale": "A default-only template is applied to a customer that pays for full routes. The customer still has connectivity through the default but loses the specific routes it needs for its own traffic engineering, which breaks its contract.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "ip prefix-list DEFAULT-ONLY seq 10 permit 0.0.0.0/0"
+        },
+        {
+          "node": "pe1",
+          "replace": "route-map TO-CUSTOMER permit 10\n",
+          "with": "route-map TO-CUSTOMER permit 10\n match ip address prefix-list DEFAULT-ONLY\n"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "customer reaches upstream",
+            "customer reaches peer"
+          ],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I3 customer has upstream route",
+            "I3 customer has peer route",
+            "I3 customer reaches upstream",
+            "I3 customer reaches peer"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 338
+    },
+    {
+      "id": "15-upstream-default-filtered",
+      "title": "Default route from the upstream filtered on import",
+      "category": "policy-bug",
+      "expected": "unsafe",
+      "rationale": "A deny clause for 0.0.0.0/0 is added to FROM-UPSTREAM (\"we don't need a default from transit\"). In this network the upstream's default is how the customer reaches everything beyond the two lab prefixes, so the customer loses most of the internet.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "append": "ip prefix-list DEFAULT-ONLY seq 10 permit 0.0.0.0/0\nroute-map FROM-UPSTREAM deny 5\n match ip address prefix-list DEFAULT-ONLY"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "unsafe",
+          "correct": true,
+          "failed_checks": [
+            "I3 customer has default"
+          ],
+          "error": null
+        }
+      },
+      "seconds": 274
+    },
+    {
+      "id": "16-customer-session-peer-group",
+      "title": "Customer session moved into a CUSTOMERS peer-group",
+      "category": "refactor",
+      "expected": "safe",
+      "rationale": "A refactor that moves the customer's route-maps and limit onto a peer-group so future customers share them. The customer's effective policy is unchanged.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": " neighbor 10.0.1.2 remote-as 65100\n",
+          "with": " neighbor CUSTOMERS peer-group\n neighbor 10.0.1.2 remote-as 65100\n neighbor 10.0.1.2 peer-group CUSTOMERS\n"
+        },
+        {
+          "node": "pe1",
+          "replace": "  neighbor 10.0.1.2 route-map FROM-CUSTOMER in\n  neighbor 10.0.1.2 route-map TO-CUSTOMER out\n  neighbor 10.0.1.2 maximum-prefix 50 restart 1\n",
+          "with": "  neighbor CUSTOMERS route-map FROM-CUSTOMER in\n  neighbor CUSTOMERS route-map TO-CUSTOMER out\n  neighbor CUSTOMERS maximum-prefix 50 restart 1\n"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 185
+    },
+    {
+      "id": "17-customer-region-community",
+      "title": "Add an informational region community to customer routes",
+      "category": "hygiene",
+      "expected": "safe",
+      "rationale": "Customer routes get 65000:110 (region tag) next to 65000:100. The export policies match on 65000:100, which is still present, so nothing else changes.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": " set community 65000:100\n",
+          "with": " set community 65000:100 65000:110\n"
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": true,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 186
+    },
+    {
+      "id": "18-aggregate-discard-route-removed",
+      "title": "Discard route for our aggregate deleted as unused",
+      "category": "hygiene",
+      "expected": "unsafe",
+      "rationale": "The blackhole static for 192.0.2.0/24 looks unused and is cleaned up. Either the aggregate stops being announced (if BGP requires a matching route), or it is still announced with nothing to absorb traffic for unused addresses in it: that traffic follows the upstream's default straight back to the upstream, a routing loop. Both are harmful.",
+      "source": null,
+      "note": null,
+      "edits": [
+        {
+          "node": "pe1",
+          "replace": "ip route 192.0.2.0/24 blackhole\n",
+          "with": ""
+        }
+      ],
+      "strategies": {
+        "ping": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "sessions": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        },
+        "netdryrun": {
+          "verdict": "safe",
+          "correct": false,
+          "failed_checks": [],
+          "error": null
+        }
+      },
+      "seconds": 185,
+      "nondeterministic": true,
+      "runs": [
+        {
+          "ping": "safe",
+          "sessions": "safe",
+          "netdryrun": "safe"
+        },
+        {
+          "ping": "safe",
+          "sessions": "safe",
+          "netdryrun": "safe"
+        },
+        {
+          "ping": "safe",
+          "sessions": "safe",
+          "netdryrun": "unsafe"
+        }
+      ]
+    }
+  ]
+}

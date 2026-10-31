@@ -31,7 +31,7 @@ INTERFACE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]{0,14}")   # Linux: at 
 
 TOP_LEVEL_KEYS = ("lab", "timeout", "checks", "nodes", "scenarios")
 NODE_KEYS = ("driver", "setup")
-DRIVER_NAMES = ("frr", "srlinux", "eos", "sonic", "nxos")   # must match drivers.DRIVERS (a test keeps them in sync)
+DRIVER_NAMES = ("frr", "srlinux", "eos", "sonic", "junos", "nxos")   # must match drivers.DRIVERS (a test keeps them in sync)
 SCENARIO_KEYS = ("name", "link_down", "node_isolated", "inject_routes", "checks")
 LINK_DOWN_KEYS = ("node", "interface")
 INJECT_KEYS = ("node", "prefixes", "count", "from", "as_path")

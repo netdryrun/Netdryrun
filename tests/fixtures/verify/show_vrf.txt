@@ -1,0 +1,2 @@
+# live capture: FRRouting 10.4.1_git, node edge1 of tests/fixtures/verify-lab, `vtysh -c 'show vrf'`, 2026-10-28
+vrf cust id 3 table 1001
