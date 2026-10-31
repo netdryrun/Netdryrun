@@ -160,6 +160,9 @@ class Drv:
             raise NoSuchInstance(f"no VRF {vrf}")
         out = {}
         for a, s in _at(self.neighbors[vrf], self.clock.now).items():
+            if isinstance(s, BgpNeighbor):
+                out[a] = s
+                continue
             state, pfx, interval = (s, {"ipv4-unicast": 3}, 0.0) if isinstance(s, str) else (*s, 0.0)[:3]
             out[a] = BgpNeighbor(a, state, dict(pfx), adv_interval=interval)
         return Observation(out, [{"cmd": "nbr"}])
@@ -1168,6 +1171,15 @@ def test_gate_waits_for_prefix_counts_to_settle(monkeypatch):
     e.drivers["r1"].neighbors = {"default": lambda t: {"10.0.12.2": ("established", {"ipv4-unicast": min(int(t), 6)})}}
     assert gate(e, [leak("n")]) == {}
     assert e.clock.now == 9   # counts 0, 3, 6, 6
+
+
+def test_gate_waits_for_received_counts_too(monkeypatch):
+    # review of the IOP-7 fix: accepted holds at 2 while received (hidden routes) still grows; not converged yet
+    e = make(monkeypatch)
+    e.drivers["r1"].neighbors = {"default": lambda t: {"10.0.12.2": BgpNeighbor(
+        "10.0.12.2", "established", {"ipv4-unicast": 2}, {"ipv4-unicast": 2 + min(int(t), 6)} if t else {})}}
+    assert gate(e, [leak("n")]) == {}
+    assert e.clock.now == 9   # received 2 (no range), 5, 8, 8
 
 
 def test_gate_counts_that_never_settle_dont_block(monkeypatch):

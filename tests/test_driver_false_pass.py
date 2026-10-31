@@ -257,12 +257,14 @@ def _invalid(path: dict) -> dict:
     return {**path, "valid-route": False, "best-route": False, "used-route": False}
 
 
-def test_srl_invalid_received_path_counts_as_present():
-    """SR Linux skipped `valid-route: false`; EOS counted it. Received counts as present on every driver."""
+def test_srl_invalid_received_path_is_never_read_as_absent():
+    """SR Linux skipped `valid-route: false`; EOS counted it, so `present: false` passed on SR Linux only. Since
+    0.4.1 an invalid path that gives no `invalid-reason` is an error (the driver can't tell it was received, review
+    of the interop IOP-6 fix): still never absent, so `present: false` can't pass on it."""
     rib = json.loads(read("srl_leak_rib.txt"))
     rib["route"] = [_invalid(r) for r in rib["route"] if r["origin-protocol"] == "bgp"]
-    routes = srlinux.parse_routes("{\n}", "0.0.0.0/0", _obj(rib))
-    assert [(r.protocol, r.active) for r in routes] == [("bgp", False)]
+    with pytest.raises(DriverError, match="marked invalid with no reason"):
+        srlinux.parse_routes("{\n}", "0.0.0.0/0", _obj(rib))
 
 
 def _frr_invalid_path_output() -> str:

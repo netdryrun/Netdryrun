@@ -485,6 +485,11 @@ def parse_ping(text: str) -> tuple[int, int]:
 
 # --------------------------------------------------------------------------------------------- driver
 
+def _counts(neighbors: dict[str, BgpNeighbor]) -> dict:
+    """What the neighbor output says per session: accepted and received counts (two reads must agree)."""
+    return {a: (n.state, dict(n.prefixes), dict(n.prefixes_upto)) for a, n in neighbors.items()}
+
+
 class JunosDriver(Driver):
     name = "junos"
     # bgp_neighbors reads the inet.0 and inet6.0 RIB counts only: an EVPN count would always read 0
@@ -515,37 +520,54 @@ class JunosDriver(Driver):
         return Observation(parse_vrfs(self._cli(INSTANCES_CMD, ev)), ev)
 
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
+        """Where Junos hid routes, the hidden routes are a second command: the neighbor output is read again after
+        them, and the count is used only when both neighbor reads agree and the hidden routes number received minus
+        accepted. Otherwise everything is read once more; a second disagreement is an error, never a count."""
         vrf = self._vrf(vrf)
-        ev: list[dict] = []
-        neighbors = parse_bgp_neighbors(self._cli(f"show bgp neighbor instance {_instance(vrf)}", ev), _instance(vrf))
-        if not neighbors and vrf != "default":
-            self._confirm_instance(vrf, None, ev)
-        for n in neighbors.values():
-            for afi in list(n.prefixes_upto):
-                self._count_hidden(n, afi, vrf, ev)
-        return Observation(neighbors, ev)
+        cmd = f"show bgp neighbor instance {_instance(vrf)}"
+        for attempt in (1, 2):
+            ev: list[dict] = []
+            neighbors = parse_bgp_neighbors(self._cli(cmd, ev), _instance(vrf))
+            if not neighbors and vrf != "default":
+                self._confirm_instance(vrf, None, ev)
+            first = _counts(neighbors)
+            if not any(n.prefixes_upto for n in neighbors.values()):
+                return Observation(neighbors, ev)
+            agree = True
+            for n in neighbors.values():
+                for afi in list(n.prefixes_upto):
+                    agree = self._count_hidden(n, afi, vrf, ev) and agree
+            if agree and _counts(parse_bgp_neighbors(self._cli(cmd, ev), _instance(vrf))) == first:
+                return Observation(neighbors, ev)
+        raise DriverError(f"the BGP neighbor counts{'' if vrf == 'default' else f' in {vrf}'} and the hidden routes "
+                          "behind them changed between reads, twice: no prefix count is read from a moving table")
 
-    def _count_hidden(self, n: BgpNeighbor, afi: str, vrf: str, ev: list[dict]) -> None:
+    def _count_hidden(self, n: BgpNeighbor, afi: str, vrf: str, ev: list[dict]) -> bool:
         """The reference count, received minus rejected by import policy, from the reasons of the routes Junos
         hid. When they can't all be read, the count stays the range from accepted to received (interop IOP-7);
         a failed read is kept in prefixes_unread, so a check that can't be judged says the node gave no usable
-        state, not that the network is wrong."""
+        state, not that the network is wrong. False: the hidden routes don't number received minus accepted (the
+        table moved between the two commands)."""
         try:
             peer = str(ipaddress.ip_address(n.address))   # from device output, going back into a CLI string
         except ValueError:
             n.prefixes_unread[afi] = f"peer address {n.address!r} can't be used in a command"
-            return
+            return True
         table = _table(vrf, 6 if afi == "ipv6-unicast" else 4)
         try:
             counts = parse_hidden_received(self._cli(f"show route receive-protocol bgp {peer} table {table} "
                                                      "hidden extensive", ev), table)
         except DriverError as e:
             n.prefixes_unread[afi] = str(e)
-            return
+            return True
+        if counts is None:
+            return True                                   # a reason the driver can't classify: the range stays
         received = n.prefixes_upto[afi]
-        if counts is not None and counts[0] == received - n.prefixes[afi]:
-            n.prefixes[afi] = received - counts[1]
-            del n.prefixes_upto[afi]
+        if counts[0] != received - n.prefixes[afi]:
+            return False
+        n.prefixes[afi] = received - counts[1]
+        del n.prefixes_upto[afi]
+        return True
 
     def _no_table(self, vrf: str, table: str, ev: list[dict]) -> list:
         """`route-table-error`: the instance must exist, and must not list the table; then it has no routes."""

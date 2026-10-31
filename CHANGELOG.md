@@ -5,6 +5,9 @@
 ### Fixes
 
 - **`verify` reads an FRR lab where a node has equal multipath paths to a prefix it advertises** (0.4 interop test, IOP-8; tests in `tests/test_verify_adj_multipath.py`). FRR's `advertised-routes detail json` lists every multipath path, with no add-path ID when the session has no add-path, and verify stopped with "several paths without addpathTxId" (exit `2`). Without add-path the neighbor is sent one path, the best: verify now reads the one path FRR flags best. Where the node may send add-path to that neighbor (any add-path TX capability in its neighbor output), or where no path or more than one is flagged best, the snapshot is still unreadable (exit `2`), never a guess.
+- **Convergence waits for received counts too.** The BGP gate before negative checks compared accepted prefix counts only; where a driver knows more routes were received than it counts (Junos hidden routes), a route still arriving there now resets the wait as well.
+- **SR Linux: a path marked invalid (`valid-route: false`) that gives no `invalid-reason` is an error**, never a received or an absent path (a release that omits the reason couldn't be told from a route import policy rejected).
+- **Juniper: the prefix count is read from a table that held still.** The neighbor output and the hidden routes are two commands; the neighbor output is now read again after the hidden routes, and the count is used only when both reads agree and the hidden routes number received minus accepted. Otherwise everything is read once more, and a second disagreement is an error (no usable state), never a count.
 
 ## 0.4.0 (2026-10-31)
 

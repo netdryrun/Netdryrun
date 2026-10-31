@@ -709,7 +709,9 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 s["streak"], s["detail"] = 0, f"BGP session(s) on {node}{where} not established: {', '.join(down)}"
                 s["history"].append(_sample(t, False, s["detail"]))
                 continue
-            counts = {a: dict(n.prefixes) for a, n in nbrs.items()}
+            # received counts too, where the driver knows more were received than it counts (Junos hidden routes):
+            # a route still arriving there is churn even when the accepted count holds still
+            counts = {a: (dict(n.prefixes), dict(n.prefixes_upto)) for a, n in nbrs.items()}
             s["streak"] = s["streak"] + 1 if s["streak"] and counts == s["counts"] else 1
             s["counts"] = counts
             s["history"].append(_sample(t, True, "every BGP session established"))

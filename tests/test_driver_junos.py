@@ -282,7 +282,8 @@ def test_commands_go_through_the_vm_ssh_hop():
                ("receive-protocol bgp 10.0.1.2 table inet.0 hidden", read("junos_rp_hidden_lab1.txt"))])
     n = JunosDriver(lab, "j1").bgp_neighbors().value
     assert lab.argv[0][:2] == ["ssh", "-q"] and "root@176.1.1.1" in lab.argv[0]
-    assert lab.calls == ["cli -c 'show bgp neighbor instance master | display json | no-more'",
+    assert lab.calls[-1] == "cli -c 'show bgp neighbor instance master | display json | no-more'"   # read again
+    assert lab.calls[:-1] == ["cli -c 'show bgp neighbor instance master | display json | no-more'",
                          "cli -c 'show route receive-protocol bgp 10.0.1.2 table inet.0 hidden extensive "
                          "| display json | no-more'"]
     # 5 received, 1 rejected by import policy: the route hidden for its next hop was received (interop IOP-7)

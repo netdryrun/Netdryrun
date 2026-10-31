@@ -85,16 +85,23 @@ def _bgp_learned(row: dict) -> bool:
 def _received(row: dict) -> bool:
     """False for a path SR Linux keeps in its local RIB after import policy rejected it (`invalid-reason:
     {rejected-route: true}`): FRR, EOS and Junos keep no such path and it can never be used, so it was not
-    received (interop IOP-6). Any other invalid reason is one this driver hasn't seen: an error, never a guess."""
+    received (interop IOP-6). Any other invalid reason is one this driver hasn't seen: an error, never a guess. So
+    is a path marked invalid (`valid-route: false`) that gives no reason: the driver can't tell it was received."""
+    valid = row.get("valid-route")
+    if valid is not None and not isinstance(valid, bool):
+        raise unexpected(RIB_CMD, f"valid-route {str(valid)[:100]}")
     why = row.get("invalid-reason")
     if why is None:
-        return True
-    if not isinstance(why, dict) or not all(isinstance(v, bool) for v in why.values()):
+        why = {}
+    elif not isinstance(why, dict) or not all(isinstance(v, bool) for v in why.values()):
         raise unexpected(RIB_CMD, f"invalid-reason {str(why)[:100]}")
     reasons = sorted(k for k, v in why.items() if v)
     if any(k != "rejected-route" for k in reasons):
         raise DriverError(f"{row.get('prefix')}: the path from {row.get('neighbor')} is invalid for "
                           f"{', '.join(reasons)}, a reason the srlinux driver doesn't read yet")
+    if valid is False and not reasons:
+        raise DriverError(f"{row.get('prefix')}: the path from {row.get('neighbor')} is marked invalid with no "
+                          "reason given; the srlinux driver can't tell whether it was received")
     return not reasons
 
 
