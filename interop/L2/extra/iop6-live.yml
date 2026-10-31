@@ -1,0 +1,12 @@
+# Live confirmation of the IOP-6 false-pass path (written before the run). On L2, r1 (SR Linux) gets an import
+# policy that rejects P1 (203.0.113.0/24) from its clients. Reference expectation for each check:
+#   X1 route P1 protocol bgp active: false -> FAIL (a route rejected by import policy is not received)
+#   X2 bgp_route P1 present: false        -> PASS (same reason)
+#   X3 route P1 protocol bgp              -> FAIL
+# A pass on X1 is the false pass.
+lab: topology.clab.yml
+timeout: 60
+checks:
+  - {name: "X1 r1 P1 present not selected", type: route, node: r1, prefix: 203.0.113.0/24, protocol: bgp, active: false}
+  - {name: "X2 r1 P1 absent", type: bgp_route, node: r1, prefix: 203.0.113.0/24, present: false}
+  - {name: "X3 r1 P1 active", type: route, node: r1, prefix: 203.0.113.0/24, protocol: bgp}
