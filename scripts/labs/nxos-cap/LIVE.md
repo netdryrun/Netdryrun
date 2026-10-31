@@ -2,6 +2,14 @@
 
 The lab in this folder, on `vrnetlab/cisco_n9kv:9300-10.4.8.M` (NX-OS 10.4(8), built locally with vrnetlab, never redistributed), WSL2 Ubuntu 22.04, under the vendor-VM lab lock.
 
+## Live runs, 2026-10-31 (Netdryrun 0.4.0 + branch ndr/nxos, WSL with 24 GB)
+
+- **Fixture capture** (`scripts/capture_fixtures.sh nxos`, 330 s): this lab now has f3, a peer that sends nothing. Shape drift from 2026-10-30 is benign: an `advertisedto` table now that a third peer exists; VRF `EMPTY` answered `null` again (both shapes are kept and tested). New: `show vrf` lists NX-OS's own `egress-loadbalance-resolution-` VRF (left out of `record`); `show running-config bgp all` shows no advertisement interval (30 s assumed); vrnetlab's boot log (`Startup complete in: 0:04:23`).
+- **Rejected startup lines** (`scripts/nxos_probe_rejected.sh`, 307 s): two bad lines in examples/nxos-frr's config. vrnetlab logged `RESULT:` with a caret line, then `% Invalid command at '^' marker.` for each; the driver now refuses such a run.
+- **Live must-fail gate: met** (1,027 s): 16 must-fail on usable state and 14 controls, every check type, including **session up with zero prefixes** (f3: `min: 1` fails on `0 ipv4-unicast prefixes accepted`). Negative checks held 42 s: the 30 s advertisement interval stretched the windows.
+- **examples/nxos-frr**: good configs passed 10/10 (358 s, first pass at 257 s); the leak failed exactly its two guards (377 s). Startup-config check clean on both.
+- **Mutation** (mutmut on netdryrun.drivers.nxos.*, under the lock): 892 killed, 40 survived, all accepted with reasons in releases/0.4.1/accepted.json (20 message text only, 20 equivalent).
+
 ## Live must-fail gate, 2026-10-30 (Netdryrun 0.3.3 + branch ndr/nxos)
 
 `PYTHONPATH=src python3 scripts/nxos_live_mustfail.py` on [`mustfail.yml`](mustfail.yml): **met**. 27 checks, 985 s including the boot.

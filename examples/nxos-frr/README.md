@@ -29,16 +29,16 @@ The host needs KVM (`/dev/kvm`) and about 10 GB of free RAM for the VM (vrnetlab
 netdryrun run examples/nxos-frr
 ```
 
-`timeout: 900` in [`netdryrun.yml`](netdryrun.yml) covers the boot: NX-OS answered NX-API about 5 to 7 minutes after deploy in our runs, and vrnetlab then applies the startup config. While the VM boots, every check sample says `NX-API not reachable (is NX-OS still booting?)` and counts as "no usable state yet", never as "no sessions" or "no routes".
+`timeout: 900` in [`netdryrun.yml`](netdryrun.yml) covers the boot: the VM boots for about 4 to 7 minutes, then vrnetlab types the startup config into it. The driver asks nothing until vrnetlab reports that config applied (`/health` reads `0 running`): before that every check sample says `NX-OS is not ready` and counts as "no usable state yet", never as "no sessions" or "no routes", and no check can pass on a half-configured switch. A startup-config line NX-OS rejects (vrnetlab logs `% Invalid command`) stops the run with an error naming the line: the lab would run without it.
 
-Measured on WSL2 (Ubuntu 22.04, 20 threads, 16 GB for WSL), 2026-10-28, Netdryrun from the `ndr/nxos` branch:
+Measured on WSL2 (Ubuntu 22.04, 20 threads, 24 GB for WSL), 2026-10-31, Netdryrun 0.4.0 plus the `ndr/nxos` branch:
 
 | Run | Result | First check passed after deploy | Whole run |
 |---|---|---|---|
-| Good configs | passed, 10 of 10 | 306 s | 358 s |
-| With [`leaks/frr1.conf`](leaks/frr1.conf) | failed, 8 passed, 2 failed | 290 s | 333 s |
+| Good configs | passed, 10 of 10 | 257 s | 358 s |
+| With [`leaks/frr1.conf`](leaks/frr1.conf) | failed, 8 passed, 2 failed | 281 s | 377 s |
 
-The capture lab (n9kv with `QEMU_MEMORY: 8192` and two FRR peers) logged `Startup complete in: 0:07:04`, with NX-API answering at 411 s; the container used 9.1 GiB.
+NX-OS doesn't show the advertisement interval it applies, so the driver assumes 30 s (the usual Cisco eBGP default) and the settle and hold windows stretch to 32 s. The capture lab (`QEMU_MEMORY: 8192`, three FRR peers) logged `Startup complete in: 0:04:23` on 2026-10-31 (0:07:04 on 2026-10-28, with 16 GB for WSL); the container used 9.1 GiB.
 
 ## The leak
 
@@ -58,24 +58,25 @@ To try it, copy it over the good config and run again; `git checkout configs/` p
 With the leak (real output):
 
 ```text
-  [PASS] n1: route 0.0.0.0/0 via static is present -- active via static (290.3s)
-  [PASS] n1: BGP session to 10.0.100.2 is established -- state is established (294.1s)
-  [PASS] frr1: BGP session to 10.0.100.1 is established -- state is established (294.1s)
-  [PASS] n1: ping 192.168.20.1 from 192.168.10.1 expects success -- 3/3 replies (need 2) (294.1s)
-  [PASS] n1: prefixes from 10.0.100.2 >= 1 -- 2 ipv4-unicast prefixes accepted (297.9s)
-  [PASS] n1: route 192.168.20.0/24 via bgp is present -- active via bgp (297.9s)
-  [PASS] frr1: route 192.168.10.1/32 via bgp is present -- active via bgp (297.9s)
-Convergence checks done; settling 10s before post-convergence checks...
-  [PASS] n1: BGP best path for 192.168.20.0/24 has as-path '65020', next hop 10.0.100.2 -- best path: as-path '65020', next hop 10.0.100.2, local-pref 100, MED 0, communities none (held 10s, 4 samples) (10.4s)
-  [FAIL] n1: route 0.0.0.0/0 via bgp is absent -- unexpectedly present via bgp (not selected) (0.8s)
-  [FAIL] n1: no BGP path for 0.0.0.0/0 -- unexpectedly in the BGP table (1 path(s); as-path '65020', next hop 10.0.100.2, local-pref 100, MED 0, communities none) (0.8s)
+  [PASS] n1: BGP session to 10.0.100.2 is established -- state is established (281.4s)
+  [PASS] n1: prefixes from 10.0.100.2 >= 1 -- 2 ipv4-unicast prefixes accepted (281.4s)
+  [PASS] n1: route 192.168.20.0/24 via bgp is present -- active via bgp (281.4s)
+  [PASS] n1: ping 192.168.20.1 from 192.168.10.1 expects success -- 3/3 replies (need 2) (281.4s)
+  [PASS] n1: route 0.0.0.0/0 via static is present -- active via static (281.4s)
+  [PASS] frr1: BGP session to 10.0.100.1 is established -- state is established (284.7s)
+  [PASS] frr1: route 192.168.10.1/32 via bgp is present -- active via bgp (284.7s)
+n1 (to 10.0.100.2) has an advertisement interval of 30s, so a route can arrive that late: settle and hold extended to at least 32s
+Convergence checks done; settling 32s before post-convergence checks...
+  [PASS] n1: BGP best path for 192.168.20.0/24 has as-path '65020', next hop 10.0.100.2 -- best path: as-path '65020', next hop 10.0.100.2, local-pref 100, MED not set, communities none (held 32s, 11 samples) (32.3s)
+  [FAIL] n1: route 0.0.0.0/0 via bgp is absent -- unexpectedly present via bgp (not selected) (0.7s)
+  [FAIL] n1: no BGP path for 0.0.0.0/0 -- unexpectedly in the BGP table (1 path(s); as-path '65020', next hop 10.0.100.2, local-pref 100, MED not set, communities none) (0.7s)
 Destroying lab...
 FAILED: 8 passed, 2 failed (10 checks)
 ```
 
 Everything monitoring usually watches is green: the sessions, the ping, n1's own default route. Only the two leak guards fail. (The prefix count went from 1 to 2, so a `max: 1` on `bgp_prefixes` would catch it too; the `min: 1` check here doesn't.)
 
-The good configs pass all ten, including both guards (`route 0.0.0.0/0 via bgp is absent -- absent (held 11s, 4 samples)` and `no BGP path for 0.0.0.0/0 -- no BGP path`).
+The good configs pass all ten, including both guards (`route 0.0.0.0/0 via bgp is absent -- absent (held 33s, 10 samples)` and `no BGP path for 0.0.0.0/0 -- no BGP path (held 33s, 10 samples)`).
 
 ## How the driver sees it
 
@@ -95,3 +96,6 @@ NX-OS runs in a VM inside the container, so the driver asks NX-API from inside t
 - Link-failure scenarios on the NX-OS node are refused: the container's `eth1` only carries frames to the VM. Take the link down on the FRR side instead.
 - `inject_routes` needs an FRR node, as on every other platform.
 - NX-OS keeps no route rejected by inbound policy (without soft-reconfiguration), so a denied route is simply absent, and `bgp_prefixes` counts accepted routes (live: four sent, one denied, `prefixreceived` 3).
+- `med: 0` is refused before deploying: NX-OS prints MED 0 for a path received with no MED, so the two can't be told apart. Check a non-zero MED.
+- The advertisement interval is assumed to be 30 s (NX-OS doesn't show it); a larger configured `advertisement-interval` is not read, so raise `--settle` and `--hold` above it.
+- Graceful restart: a stale path counts as present and best (NX-OS marks it `pathstaled`, which isn't read yet).

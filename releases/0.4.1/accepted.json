@@ -175,6 +175,21 @@
       "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
       "diff": "fccc900a8158a61e"
     },
+    "netdryrun.drivers.nxos.x_parse_startup_log__mutmut_21": {
+      "class": "equivalent",
+      "reason": "the kind of a log line that is neither CONFIG nor RESULT, and its text, are never read: only CONFIG and RESULT are compared",
+      "diff": "af0e17a30d5104e6"
+    },
+    "netdryrun.drivers.nxos.x_parse_startup_log__mutmut_22": {
+      "class": "equivalent",
+      "reason": "the kind of a log line that is neither CONFIG nor RESULT, and its text, are never read: only CONFIG and RESULT are compared",
+      "diff": "d55e36d3904e177a"
+    },
+    "netdryrun.drivers.nxos.x_parse_startup_log__mutmut_23": {
+      "class": "equivalent",
+      "reason": "the kind of a log line that is neither CONFIG nor RESULT, and its text, are never read: only CONFIG and RESULT are compared",
+      "diff": "e82de8682fbf7572"
+    },
     "netdryrun.drivers.nxos.x_parse_ping_reply__mutmut_2": {
       "class": "equivalent",
       "reason": "the error is caught and read as (0, 0), ping did not run; the command name is never shown",
