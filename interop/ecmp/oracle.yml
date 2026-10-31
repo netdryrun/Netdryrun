@@ -1,0 +1,5 @@
+# Written before the run. netdryrun verify on this FRR-only lab: before = configs/, after = after/ (fc adds a static
+# discard route for 198.18.0.0/24), intent declares exactly that.
+expect:
+  status: matched       # INTENT MATCHED, exit 0 (verify's supported case: every node FRR)
+  why: the only difference is fc's declared discard route; fb has two equal paths to 192.168.3.1/32 but advertises one to fc (no add-path), the same on both sides

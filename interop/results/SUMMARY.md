@@ -92,18 +92,38 @@ which are oracle lines that rested on a wrong NOS assumption.
 
 | Variant | Run | Status (expected) | Checks | Mismatches |
 |---|---|---|---|---|
-| base | not run | | | |
-| N01 | not run | | | |
-| N02 | not run | | | |
-| N03 | not run | | | |
-| N04 | not run | | | |
-| N05 | not run | | | |
-| N06 | not run | | | |
-| N07 | not run | | | |
-| N08 | not run | | | |
+| base | fresh 1 | failed | 52 | none |
+| base | fresh 2 | failed | 52 | none |
+| base | fresh 3 | failed | 52 | none |
+| base | reapply afterN04 | failed | 52 | none |
+| base | reapply afterN05 | failed | 52 | none |
+| base | reapply afterN06 | failed | 52 | none |
+| base | reapply afterN07 | failed | 52 | none |
+| base | reapply final | failed | 52 | none |
+| N01 | fresh 1 | failed | 52 | none |
+| N01 | fresh 2 | failed | 52 | none |
+| N01 | fresh 3 | failed | 52 | none |
+| N01 | reapply 1 | failed | 52 | none |
+| N02 | reapply 1 | failed | 52 | none |
+| N03 | fresh 1 | failed | 52 | D15(pass) |
+| N03 | reapply 1 | failed | 52 | D15(pass) |
+| N03 | reapply 2 | failed | 52 | D15(pass) |
+| N03 | reapply 3 | failed | 52 | D15(pass) |
+| N04 | reapply 1 | failed | 52 | none |
+| N05 | reapply 1 | failed | 52 | none |
+| N06 | reapply 1 | failed | 52 | none |
+| N07 | reapply 1 | failed | 52 | none |
+| N08 | fresh 1 | failed | 52 | none |
+| N08 | fresh 2 | failed | 52 | none |
+| N08 | fresh 3 | failed | 52 | none |
+| N08 | reapply 1 | failed | 52 | none |
 | refuseU02 | refusal 1 | error | 0 | none |
 
 ### Mismatch details
 
+- N03 fresh 1 **D15**: oracle fail (4); actual pass: 5 ipv4-unicast prefixes accepted (held 13s, 3 samples)
+- N03 reapply 1 **D15**: oracle fail (4); actual pass: 5 ipv4-unicast prefixes accepted (held 26s, 2 samples)
+- N03 reapply 2 **D15**: oracle fail (4); actual pass: 5 ipv4-unicast prefixes accepted (held 15s, 2 samples)
+- N03 reapply 3 **D15**: oracle fail (4); actual pass: 5 ipv4-unicast prefixes accepted (held 16s, 2 samples)
 - refuseU02 refusal 1 error: U02 c1 med0 on r1-lo (no MED): med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED (check a non-zero MED, or check this route on another platform)
 

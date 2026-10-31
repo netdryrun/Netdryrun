@@ -81,3 +81,17 @@ def test_junos_undercount_does_not_pass_an_upper_bound_the_reference_count_break
     ok, detail, _ = EVALUATORS["bgp_prefixes"](junos.JunosDriver(Lab(), "j1"),
                                                {"node": "j1", "neighbor": "10.1.1.2", "max": 205})
     assert not ok, detail
+
+
+# ---- MAJOR IOP-8: verify refuses every FRR snapshot where a node has two multipath paths to a prefix it advertises.
+# Live (S11 on L1, then reproduced on a 3-node FRR-only lab, interop/ecmp/): fb has two equal eBGP paths to
+# 192.168.3.1/32 (two parallel sessions to fa) and advertises the prefix to fc without add-path. FRR's
+# `advertised-routes detail json` lists both paths (pathCount 2, one `bestpath.overall`) with no addpathTxId, and
+# verify stops: "several paths without addpathTxId; verify can't tell them apart" -> ERROR: NO VERDICT on a lab whose
+# only change was declared. Without add-path the neighbor gets one path: the best one.
+
+def test_verify_adj_out_with_multipath_reads_the_advertised_best_path():
+    from netdryrun.verify import frr as vfrr
+    cmd = "show bgp ipv4 unicast neighbors 10.9.3.2 advertised-routes detail json"
+    out = vfrr.parse_adj(read("frr_adj_out_multipath.txt"), cmd, "ipv4", "out")
+    assert [k for k in out if k[0] == "192.168.3.1/32"] == [("192.168.3.1/32", 0)]

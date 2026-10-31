@@ -1,0 +1,4 @@
+intent:   # the ticket: fc gets a discard route for 198.18.0.0/24 (local only)
+  - prefix: 198.18.0.0/24
+    appears_on: [fc]
+    state: discard
