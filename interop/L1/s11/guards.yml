@@ -1,0 +1,8 @@
+# S11 standing guards (from the base branch): the four spokes' "no BGP default" guards, run on the after lab.
+lab: topology.clab.yml
+timeout: 1200
+checks:
+  - {name: "G68 j1 no bgp default", type: bgp_route, node: j1, prefix: 0.0.0.0/0, present: false}
+  - {name: "G69 s1 no bgp default", type: bgp_route, node: s1, prefix: 0.0.0.0/0, present: false}
+  - {name: "G70 a1 no bgp default", type: bgp_route, node: a1, prefix: 0.0.0.0/0, present: false}
+  - {name: "G71 n1 no bgp default", type: bgp_route, node: n1, prefix: 0.0.0.0/0, present: false}

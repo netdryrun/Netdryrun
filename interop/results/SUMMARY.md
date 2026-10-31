@@ -9,45 +9,84 @@ which are oracle lines that rested on a wrong NOS assumption.
 
 | Variant | Run | Status (expected) | Checks | Mismatches |
 |---|---|---|---|---|
-| base | fresh 1 | failed | 106 | C48(fail), C67(fail), C77(fail), C87(fail), T01(pass), T02(pass), T06(pass) |
-| M01 | not run | | | |
-| M02 | not run | | | |
-| M03 | not run | | | |
-| M04 | not run | | | |
-| M05 | not run | | | |
-| M06 | not run | | | |
-| M07 | not run | | | |
-| M08 | not run | | | |
-| M09 | not run | | | |
-| M10 | not run | | | |
-| M11 | not run | | | |
-| M12 | not run | | | |
-| M13 | not run | | | |
-| M14 | not run | | | |
+| base | fresh 1 | failed | 104 | none |
+| base | fresh 2 | failed | 104 | none |
+| base | fresh 3 | failed | 104 | none |
+| base | reapply afterM10 | failed | 104 | none |
+| base | reapply afterM11 | failed | 104 | none |
+| base | reapply afterM12 | failed | 104 | none |
+| base | reapply afterM13 | failed | 104 | none |
+| M01 | fresh 1 | failed | 104 | none |
+| M01 | fresh 2 | failed | 104 | none |
+| M01 | fresh 3 | failed | 104 | none |
+| M01 | reapply 1 | failed | 104 | none |
+| M02 | fresh 1 | failed | 104 | none |
+| M02 | fresh 2 | failed | 104 | none |
+| M02 | fresh 3 | failed | 104 | none |
+| M02 | reapply 1 | failed | 104 | none |
+| M03 | fresh 1 | failed | 104 | none |
+| M03 | fresh 2 | failed | 104 | none |
+| M03 | fresh 3 | failed | 104 | none |
+| M03 | reapply 1 | failed | 104 | none |
+| M04 | fresh 1 | failed | 104 | none |
+| M04 | fresh 2 | failed | 104 | none |
+| M04 | fresh 3 | failed | 104 | none |
+| M04 | reapply 1 | failed | 104 | none |
+| M05 | reapply 1 | failed | 104 | none |
+| M06 | fresh 1 | failed | 104 | none |
+| M06 | reapply 1 | failed | 104 | none |
+| M07 | reapply 1 | failed | 104 | R02(fail) |
+| M08 | reapply 1 | failed | 104 | none |
+| M09 | fresh 1 | failed | 104 | C24(fail), C89(pass), C92(pass) |
+| M09 | reapply 1 | failed | 104 | C24(fail), C89(pass), C92(pass) |
+| M09 | reapply 2 | failed | 104 | C24(fail), C89(pass), C92(pass) |
+| M09 | reapply 3 | failed | 104 | C24(fail), C89(pass), C92(pass) |
+| M10 | reapply 1 | failed | 104 | none |
+| M11 | reapply 1 | failed | 104 | none |
+| M12 | reapply 1 | failed | 104 | none |
+| M13 | reapply 1 | failed | 104 | none |
+| M14 | reapply 1 | failed | 104 | none |
+| refuseT02 | refusal 1 | error | 0 | none |
+| refuseC80 | refusal 1 | error | 0 | none |
 
 ### Mismatch details
 
-- base fresh 1 **C48**: oracle pass (baseline configuration provides it (see the check's comment block in netdryrun.yml and the counts above)); actual fail: error: `sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 192.168.1.1/32 neighbor * origin-protocol * path-id *` failed on s1 (rc=1): Parsing error: Unknown token '/'. Options are ['#', '>', '>>', 'depth', 'detail', 'flat
-- base fresh 1 **C67**: oracle pass (as C65); actual fail: as-path is '65005 {65004 65006}', expected '65005 {65004,65006}' (best path: as-path '65005 {65004 65006}', next hop 10.1.3.2, local-pref 100, MED 0, communities 65004:100)
-- base fresh 1 **C77**: oracle pass (ECMP: identical attributes on both sessions, EOS tie-break on lowest peer address picks 10.1.3.2 as best (NOS assumption: EOS has no older-path rule by default)); actual fail: next hop is 10.1.7.2, expected 10.1.3.2 (best path: as-path '65005 65006', next hop 10.1.7.2, local-pref 100, MED 0, communities none)
-- base fresh 1 **C87**: oracle pass (baseline configuration provides it (see the check's comment block in netdryrun.yml and the counts above)); actual fail: 0/3 replies (need 2)
-- base fresh 1 **T01**: oracle fail (a1 sets MED 30; f1 strips a MED learned from another AS before eBGP (FRR), so j1 sees no MED or 30, never 0; the reference says a missing MED fails even med: 0); actual pass: best path: as-path '65005 65003 65003', next hop 10.1.1.2, local-pref 100, MED 0, communities 65003:100 65003:1:1 (held 15s, 1 samples)
-- base fresh 1 **T02**: oracle fail (j1 sets MED 10; at a1 it is absent (stripped by f1) or 10, never 0); actual pass: best path: as-path '65005 65001', next hop 10.1.7.2, local-pref 100, MED 0, communities 65001:100 65001:1:1 (held 15s, 1 samples)
-- base fresh 1 **T06**: oracle fail (10.1.7.2 is the non-best ECMP path (C77): bgp_route asserts the best path only); actual pass: best path: as-path '65005 65006', next hop 10.1.7.2, local-pref 100, MED 0, communities none (held 15s, 1 samples)
+- M07 reapply 1 **R02**: oracle pass (rejected by import policy: not in the local RIB); actual fail: unexpectedly in the BGP table (1 path(s); as-path '65005 65006', next hop 10.1.2.2, local-pref 100, MED not set, communities none)
+- M09 fresh 1 **C24**: oracle pass (unchanged from the baseline); actual fail: 205 ipv4-unicast prefixes accepted
+- M09 fresh 1 **C89**: oracle fail (no best path on s1 (unresolved next hop)); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none
+- M09 fresh 1 **C92**: oracle fail (no best path to read); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none (held 18s, 2 samples)
+- M09 reapply 1 **C24**: oracle pass (unchanged from the baseline); actual fail: 205 ipv4-unicast prefixes accepted
+- M09 reapply 1 **C89**: oracle fail (no best path on s1 (unresolved next hop)); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none
+- M09 reapply 1 **C92**: oracle fail (no best path to read); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none (held 17s, 2 samples)
+- M09 reapply 2 **C24**: oracle pass (unchanged from the baseline); actual fail: 205 ipv4-unicast prefixes accepted
+- M09 reapply 2 **C89**: oracle fail (no best path on s1 (unresolved next hop)); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none
+- M09 reapply 2 **C92**: oracle fail (no best path to read); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none (held 11s, 1 samples)
+- M09 reapply 3 **C24**: oracle pass (unchanged from the baseline); actual fail: 205 ipv4-unicast prefixes accepted
+- M09 reapply 3 **C89**: oracle fail (no best path on s1 (unresolved next hop)); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none
+- M09 reapply 3 **C92**: oracle fail (no best path to read); actual pass: best path: as-path '65005 65006', next hop 10.99.99.99, local-pref 100, MED not set, communities none (held 18s, 2 samples)
+- refuseT02 refusal 1 error: T02 a1 med0 on j1-lo (MED 10 at origin): med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED (check a non-zero MED, or check this route on another platform)
+- refuseC80 refusal 1 error: C80 a1 med0 on f1-lo: med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED (check a non-zero MED, or check this route on another platform)
 
 ## L1s8
 
 | Variant | Run | Status (expected) | Checks | Mismatches |
 |---|---|---|---|---|
-| base | not run | | | |
-| S8a | not run | | | |
-| S8b | not run | | | |
-| S8c | not run | | | |
-| S8d | not run | | | |
+| base | fresh 1 | passed | 12 | none |
+| S8a | fresh 1 | error | 0 | none |
+| S8b | fresh 1 | error | 12 | none |
+| S8c | fresh 1 | error | 12 | none |
+| S8d | fresh 1 | error | 0 | none |
 
 ### Mismatch details
 
-none
+- S8a fresh 1 error: containerlab deploy failed:
+08:48:40 INFO Containerlab started version=0.81.1
+08:48:40 INFO Parsing & checking topology file=topology.clab.yml
+08:48:40 INFO Removing directory path=/home/ndr/interop/build/L1s8/S8a/clab-ndr-interop-l1s8
+08:48:40 INFO Creating docker network name=clab IPv4 subnet=172.
+- S8b fresh 1 error: The NOS rejected configuration lines at boot, so the lab ran without them and the checks did not test the change as written: a1: line 33: neighbor 10.1.3.2 bogus-keyword 5 (Invalid input). Fix the config and run again.
+- S8c fresh 1 error: The NOS rejected configuration lines at boot, so the lab ran without them and the checks did not test the change as written: f2: line 231: neighbor 10.1.5.2 route-map TO-F1 outt (Unknown command). Fix the config and run again.
+- S8d fresh 1 error: setup on n1 failed: `vtysh -c "conf t" -c "ip prefix-list OWN seq 10 permit 192.168.4.1/32" -c "ip prefix-list OWN seq 20 permit 172.16.4.0/24" -c "route-map EXPORT permit 10" -c "match ip address prefix-list OWN" -c "set community 65004:100" -c "set metric 40" -c "exit" -c "route-map ACCEPT-ALL per
 
 ## L2
 
@@ -62,8 +101,9 @@ none
 | N06 | not run | | | |
 | N07 | not run | | | |
 | N08 | not run | | | |
+| refuseU02 | refusal 1 | error | 0 | none |
 
 ### Mismatch details
 
-none
+- refuseU02 refusal 1 error: U02 c1 med0 on r1-lo (no MED): med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED (check a non-zero MED, or check this route on another platform)
 

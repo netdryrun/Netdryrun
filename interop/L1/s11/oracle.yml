@@ -1,0 +1,8 @@
+# S11 oracle (written before the run): netdryrun verify, before = L1 base, after = L1 M01 (f1 leaks the default to
+# every spoke), intent: [], guards = guards.yml, the four non-FRR spokes --unobserved (verify 0.4 snapshots FRR only;
+# n1 is SONiC, refused unless unobserved).
+expect:
+  status: failed          # exit 1, UNDECLARED CHANGES: DO NOT APPLY; never matched / no_change (a false approval)
+  why: >-
+    f1 is observed: its running config changes (TO-SPOKE deny 10 removed) and it now advertises 0.0.0.0/0 to every
+    spoke, none of it declared; and the four guards fail on the after lab (each spoke receives the default).

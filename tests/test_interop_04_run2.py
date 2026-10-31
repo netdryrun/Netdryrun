@@ -55,3 +55,29 @@ def test_junos_count_keeps_a_received_route_with_an_unusable_next_hop():
     from netdryrun.drivers import junos
     n = junos.parse_bgp_neighbors(read("junos_bgp_neighbor_hidden_nexthop.txt"))["10.1.1.2"]
     assert n.prefixes["ipv4-unicast"] == 206
+
+
+# IOP-6 false-pass path (coordinator's question, run 2): `route ... active: false` accepts "in the table but not
+# selected". On the captured shape it passes on s1 for a route s1's import policy rejected; on FRR and EOS the same
+# config leaves no path and the check fails. A route rejected by import policy is not received (reference).
+
+def test_srl_route_rejected_by_import_policy_does_not_satisfy_active_false():
+    d = srlinux.SrlDriver(_SrlRejectedLab(), "s1")
+    ok, detail, _ = EVALUATORS["route"](d, {"node": "s1", "prefix": "192.168.6.0/24", "protocol": "bgp",
+                                             "active": False})
+    assert not ok, detail
+
+
+# IOP-7 false-pass path: with the Junos undercount, an upper bound passes where the reference count fails it.
+
+def test_junos_undercount_does_not_pass_an_upper_bound_the_reference_count_breaks():
+    from netdryrun.drivers import junos
+    from netdryrun.lab import ExecResult
+
+    class Lab:
+        def exec(self, node, cmd, timeout=60, input=None):
+            return ExecResult(cmd, 0, read("junos_bgp_neighbor_hidden_nexthop.txt"), "")
+
+    ok, detail, _ = EVALUATORS["bgp_prefixes"](junos.JunosDriver(Lab(), "j1"),
+                                               {"node": "j1", "neighbor": "10.1.1.2", "max": 205})
+    assert not ok, detail
