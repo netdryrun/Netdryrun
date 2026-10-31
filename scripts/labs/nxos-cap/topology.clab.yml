@@ -1,6 +1,7 @@
 # The lab the NX-OS fixtures (tests/fixtures/nxos_*.txt) were captured from: n1 (Nexus 9000v) with VRFs RED (an
 # FRR peer) and EMPTY (no BGP), an IPv6 session, a configured-but-idle neighbor, communities, MED and local-pref
-# on 192.168.20.0/24, a prefix denied by policy (192.168.66.0/24) and a leaked default under a static. Used by
+# on 192.168.20.0/24, a prefix denied by policy (192.168.66.0/24), a leaked default under a static, and a peer that
+# sends nothing (f3: a session up with zero prefixes). Used by
 # scripts/capture_fixtures.sh nxos.
 name: ndr-nxos-cap
 topology:
@@ -31,6 +32,16 @@ topology:
         - configs/f2.conf:/etc/frr/frr.conf
       exec:
         - ip addr add 10.0.2.2/30 dev eth1
+    f3:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds:
+        - configs/daemons:/etc/frr/daemons
+        - configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/f3.conf:/etc/frr/frr.conf
+      exec:
+        - ip addr add 10.0.3.2/30 dev eth1
   links:
     - endpoints: ["n1:eth1", "f1:eth1"]
     - endpoints: ["n1:eth2", "f2:eth1"]
+    - endpoints: ["n1:eth3", "f3:eth1"]

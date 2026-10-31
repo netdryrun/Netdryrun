@@ -13,12 +13,15 @@ checks:
   - {name: "MUST PASS: configured neighbor 10.0.9.9 is down", type: bgp_session, node: n1, neighbor: 10.0.9.9, state: down}
   - {name: "MUST FAIL: idle neighbor expected established", type: bgp_session, node: n1, neighbor: 10.0.9.9}
   - {name: "MUST FAIL: up session expected down", type: bgp_session, node: n1, neighbor: 10.0.1.2, state: down}
+  - {name: "MUST PASS: session to f3 established", type: bgp_session, node: n1, neighbor: 10.0.3.2}
 
   # ---- bgp_prefixes (f1 sends 4, n1's inbound policy denies 1: 3 accepted; 1 over IPv6)
   - {name: "MUST PASS: exactly 3 accepted", type: bgp_prefixes, node: n1, neighbor: 10.0.1.2, exact: 3}
   - {name: "MUST PASS: exactly 1 IPv6 accepted", type: bgp_prefixes, node: n1, neighbor: "2001:db8:1::2", afi: ipv6-unicast, exact: 1}
   - {name: "MUST FAIL: over max", type: bgp_prefixes, node: n1, neighbor: 10.0.1.2, max: 2}
   - {name: "MUST FAIL: under min", type: bgp_prefixes, node: n1, neighbor: 10.0.1.2, min: 4}
+  - {name: "MUST PASS: f3 sends nothing", type: bgp_prefixes, node: n1, neighbor: 10.0.3.2, exact: 0}
+  - {name: "MUST FAIL: session up, zero prefixes", type: bgp_prefixes, node: n1, neighbor: 10.0.3.2, min: 1}
   - {name: "MUST FAIL: IPv6 over max", type: bgp_prefixes, node: n1, neighbor: "2001:db8:1::2", afi: ipv6-unicast, max: 0}
 
   # ---- route

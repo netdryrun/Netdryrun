@@ -286,8 +286,13 @@ nxos_ping_badsrc|ping 10.0.1.2 count 2 source 10.9.9.9 vrf default
 nxos_summary_emptyvrf_ascii|show bgp ipv4 unicast summary vrf EMPTY
 nxos_summary_novrf_ascii|show bgp ipv4 unicast summary vrf NOPE
 TABLE
+  cap   nxos_vrf_all          nx "show vrf"
+  cap   nxos_version          nx "show version"
+  # the BGP config with defaults (the advertisement interval NX-OS applies), and vrnetlab's log of the startup
+  # config it typed (CONFIG:/RESULT: lines): the clean case for the startup-config check
+  cap   nxos_bgp_config_all   nxa "show running-config bgp all"
+  cap   nxos_boot_log_clean   bash -c "docker logs $n 2>&1"
   # volatile (uptimes, counters, serials) or not read by the driver: shapes only
-  shape nxos_version          nx "show version"
   shape nxos_nbr_detail       nx "show bgp ipv4 unicast neighbors 10.0.1.2 vrf default"
   shape nxos_bgp_process_emptyvrf nx "show bgp process vrf EMPTY"
   shape nxos_bgp_process_novrf nx "show bgp process vrf NOPE"

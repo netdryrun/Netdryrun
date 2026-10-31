@@ -24,6 +24,9 @@ from .frr import _canon_addr, parse_ping
 
 # Runs inside the vrnetlab container (python3 is there for launch.py). argv: method, command, timeout.
 # The credentials are the ones containerlab passed to launch.py (default admin/admin).
+# Readiness gate: nothing is asked until vrnetlab's health file says "0 running", which it writes only after
+# launch.py has typed the whole startup config. NX-API answers minutes earlier, while lines are still going in:
+# a check could pass twice on a half-configured switch (a route-map not applied yet).
 HELPER = r"""
 import base64, json, os, ssl, sys, urllib.error, urllib.request
 def creds():
@@ -37,6 +40,16 @@ def creds():
             return get("--username", "admin"), get("--password", "admin")
     return "admin", "admin"
 method, cmd, timeout = sys.argv[1], sys.argv[2], float(sys.argv[3])
+HEALTH = "/health"
+try:
+    health = open(HEALTH).read().strip()
+except OSError as e:
+    sys.stderr.write("NX-OS readiness unknown: vrnetlab health file %s unreadable: %s\n" % (HEALTH, e))
+    sys.exit(3)
+if health != "0 running":
+    sys.stderr.write("NX-OS is not ready (still booting, or still applying its startup config): vrnetlab health "
+                     "is %r\n" % health[:80])
+    sys.exit(3)
 u, p = creds()
 body = json.dumps({"jsonrpc": "2.0", "method": method, "params": {"cmd": cmd, "version": 1}, "id": 1}).encode()
 auth = base64.b64encode(("%s:%s" % (u, p)).encode()).decode()
@@ -66,6 +79,11 @@ ROUTE_CMD = "show ip route <prefix> vrf <vrf>"
 ALL_ROUTES_CMD = "show ip route vrf <vrf>"
 BGP_CMD = "show bgp <afi> unicast <prefix> vrf <vrf>"
 VRF_CMD = "show vrf <vrf>"
+VRFS_CMD = "show vrf"
+VERSION_CMD = "show version"
+# vrnetlab puts the VM's management (mgmt0, a default route to the container) in this VRF: its state is vrnetlab's,
+# not the lab's (Batfish lab-validation found the same artefacts), so `record` never reads it
+MGMT_VRF = "management"
 BGP_VRFS_CMD = "show bgp vrf all ipv4 unicast summary"
 PING_CMD = "ping <target> vrf <vrf>"
 
@@ -326,7 +344,10 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
             as_path=_as_path(p.get("aspath", "")),
             next_hop=_canon_addr(nh) if isinstance(nh, str) and nh else None,
             local_pref=as_int(BGP_CMD, p["localpref"]) if "localpref" in p else None,
-            med=as_int(BGP_CMD, p.get("metric", 0)),
+            # NX-OS prints "metric": 0 for a path received with no MED (live: FRR's network statement and
+            # default-originate) and no metric for its own: neither tells MED 0 from no MED, so 0 is unknown, and a
+            # `med: 0` check is refused before deploying (ambiguous_bgp_values), as on EOS (interop IOP-2)
+            med=as_int(BGP_CMD, p["metric"]) or None if "metric" in p else None,
             communities=_communities(p, "community"),
             large_communities=_communities(p, "largecommunity"),
             neighbor=_canon_addr(_peer(p)) if _learned(p) else None,
@@ -365,6 +386,31 @@ def parse_vrf_state(text: str, vrf: str) -> str | None:
     return None
 
 
+@parser(VRFS_CMD)
+def parse_vrfs(text: str) -> list[str]:
+    """`show vrf`: the VRFs that are up, other than default and vrnetlab's management VRF. Fail-safe: a VRF left
+    out only narrows what `netdryrun record` reads."""
+    body = _body(VRFS_CMD, text)
+    if body is None:
+        raise unexpected(VRFS_CMD, "no output")   # default and management always exist: nothing is not an answer
+    out = []
+    for row in _rows(VRFS_CMD, body, "vrf"):
+        name, state = row.get("vrf_name"), row.get("vrf_state")
+        if not isinstance(name, str) or not name or not isinstance(state, str):
+            raise unexpected(VRFS_CMD, str(row)[:150])
+        if state.lower() == "up" and name not in ("default", MGMT_VRF):
+            out.append(name)
+    return sorted(out)
+
+
+@parser(VERSION_CMD)
+def parse_version(text: str) -> str | None:
+    """`show version`: "NX-OS 10.4(8)" from nxos_ver_str, or None when the field isn't there."""
+    body = _body(VERSION_CMD, text)
+    v = body.get("nxos_ver_str") if body else None
+    return f"NX-OS {v}" if isinstance(v, str) and v else None
+
+
 def parse_ping_reply(text: str) -> tuple[int, int]:
     """(sent, received) from a `cli_ascii` ping reply. Fail-safe: (0, 0) when ping did not run (an error
     reply, unreadable output), which the ping check reports and never passes on."""
@@ -383,6 +429,8 @@ class NxosDriver(Driver):
     name = "nxos"
     # bgp_neighbors reads the IPv4 and IPv6 unicast summaries only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
+    ambiguous_bgp_values = {"med": {0: "NX-OS output cannot tell MED 0 from no MED (check a non-zero MED, or check "
+                                       "this route on another platform)"}}
 
     def _nxapi(self, command: str, evidence: list[dict], method: str = "cli", timeout: float = 60) -> str:
         """One NX-API request from inside the container. Not reaching NX-API is an error."""
@@ -445,6 +493,16 @@ class NxosDriver(Driver):
         if not paths:
             self._confirm_vrf(vrf, ev)
         return Observation(paths or [], ev)
+
+    def nos_version(self) -> str | None:
+        try:
+            return parse_version(self._nxapi(VERSION_CMD, []))
+        except DriverError:
+            return None
+
+    def vrfs(self) -> Observation:
+        ev: list[dict] = []
+        return Observation(parse_vrfs(self._nxapi(VRFS_CMD, ev)), ev)
 
     def all_routes(self, vrf: str = "default", family: int = 4) -> Observation:
         vrf = check_vrf_name(vrf)

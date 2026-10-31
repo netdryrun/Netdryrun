@@ -406,6 +406,11 @@ FAIL_SAFE = [
     # nxos.parse_vrf_state: None -> the driver raises "VRF ... does not exist"
     ("nxos.parse_vrf_state", lambda t: nxos.parse_vrf_state(t, "RED"), ["nxos_vrf_red.txt"],
      lambda r: r is None or isinstance(r, str)),
+    # nxos.parse_vrfs: a VRF left out only narrows what `netdryrun record` reads
+    ("nxos.parse_vrfs", nxos.parse_vrfs, ["nxos_vrf_red.txt", "nxos_vrf_default.txt"],
+     lambda r: isinstance(r, list) and all(isinstance(x, str) for x in r)),
+    # nxos.parse_version: None -> the version is reported as unknown
+    ("nxos.parse_version", nxos.parse_version, ["nxos_version.txt"], lambda r: r is None or isinstance(r, str)),
     # nxos.parse_ping_reply: (0, 0) -> "ping did not run"
     ("nxos.parse_ping_reply", nxos.parse_ping_reply, ["nxos_ping_ok.txt", "nxos_ping_fail.txt", "nxos_ping_novrf.txt"],
      _ping_ok),

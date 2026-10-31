@@ -224,7 +224,7 @@ def test_bgp_paths_on_live_output():
         (True, "65002", "10.0.1.2", 200, 50, "10.0.1.2")
     assert p.communities == ["65002:100", "65002:200"] and p.large_communities == ["65002:1:1"]
     [local] = nxos.parse_bgp_paths(read("nxos_bgp_local.txt"), "192.168.10.1/32")
-    assert (local.as_path, local.neighbor, local.med) == ("", None, 0)   # its neighborid is the router ID
+    assert (local.as_path, local.neighbor, local.med) == ("", None, None)   # its neighborid is the router ID
     [v6] = nxos.parse_bgp_paths(read("nxos_bgp_v6.txt"), "2001:db8:20::/48")
     assert (v6.next_hop, v6.neighbor) == ("2001:db8:1::2", "2001:db8:1::2")
     [red] = nxos.parse_bgp_paths(read("nxos_bgp_red.txt"), "172.16.2.0/24", "RED")
@@ -463,3 +463,69 @@ def test_both_live_shapes_of_an_empty_vrf_are_a_confirmed_absence(route, all_rou
     lab = live_lab([("show ip route 10.0.0.0/8 vrf EMPTY", read(route)), ("show ip route vrf EMPTY", read(all_routes))])
     d = NxosDriver(lab, "n1")
     assert d.routes("10.0.0.0/8", "EMPTY").value == [] and d.all_routes("EMPTY").value == []
+
+
+# ------------------------------------------------------------------------------------------- readiness gate
+
+def _helper_with_health(path) -> str:
+    assert nxos.HELPER.count('HEALTH = "/health"') == 1
+    return nxos.HELPER.replace('HEALTH = "/health"', f"HEALTH = {str(path)!r}")
+
+
+@pytest.mark.parametrize("content,why", [(None, "readiness unknown"), ("1 starting", "not ready"),
+                                         ("1 VM failed - restarting", "not ready"), ("", "not ready"),
+                                         ("0 running\n", "not reachable")])
+def test_the_helper_asks_nothing_until_vrnetlab_says_the_config_is_applied(tmp_path, content, why):
+    """vrnetlab writes "0 running" only after launch.py has typed the whole startup config; NX-API answers minutes
+    earlier. Before that, every request fails (rc 3: no usable state), so no check samples a half-configured
+    switch. With "0 running" the helper goes on to NX-API (not running here: "not reachable")."""
+    import subprocess
+    import sys
+    health = tmp_path / "health"
+    if content is not None:
+        health.write_text(content)
+    r = subprocess.run([sys.executable, "-c", _helper_with_health(health), "cli", "show version", "1"],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 3 and r.stdout == "" and why in r.stderr
+
+
+def test_med_zero_is_unknown_and_a_med_zero_check_is_refused(tmp_path):
+    """NX-OS prints "metric": 0 for a path received with no MED (live: 0.0.0.0/0 from FRR's default-originate,
+    172.16.2.0/24 from a network statement), so 0 can't be told from no MED: read as unknown, and `med: 0` is
+    refused before deploying instead of passing on a path that carries no MED."""
+    from netdryrun.config import _validate_check
+    from netdryrun.drivers import check_supported
+    from netdryrun.lab import Lab as RealLab
+    assert [p.med for p in nxos.parse_bgp_paths(read("nxos_bgp_default.txt"), "0.0.0.0/0")] == [None]
+    assert [p.med for p in nxos.parse_bgp_paths(read("nxos_bgp_red.txt"), "172.16.2.0/24", "RED")] == [None]
+    assert [p.med for p in nxos.parse_bgp_paths(read("nxos_bgp_20.txt"), "192.168.20.0/24")] == [50]
+    topo = tmp_path / "t.clab.yml"
+    topo.write_text("name: t\ntopology:\n  nodes:\n    n1: {kind: cisco_n9kv, image: x}\n")
+    lab = RealLab(topo)
+    with pytest.raises(DriverError, match="med: 0 can't be checked on nxos: NX-OS output cannot tell MED 0 from no MED"):
+        check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "n1", "prefix": "10.0.0.0/8", "med": 0}, 20))
+    check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "n1", "prefix": "10.0.0.0/8", "med": 50}, 20))
+
+
+def _vrf_rows(*rows):
+    return ok({"TABLE_vrf": {"ROW_vrf": [{"vrf_name": n, "vrf_id": i, "vrf_state": st, "vrf_reason": "--"}
+                                         for i, (n, st) in enumerate(rows, 1)]}})
+
+
+def test_vrfs_for_record_leave_out_default_and_vrnetlabs_management_vrf():
+    text = _vrf_rows(("RED", "Up"), ("default", "Up"), ("management", "Up"), ("EMPTY", "Up"), ("OLD", "Down"))
+    assert nxos.parse_vrfs(text) == ["EMPTY", "RED"]
+    lab = Lab([("show vrf", text)])
+    obs = NxosDriver(lab, "n1").vrfs()
+    assert obs.value == ["EMPTY", "RED"] and lab.commands() == ["show vrf"]
+    with pytest.raises(DriverError):
+        nxos.parse_vrfs(ok(None))
+    with pytest.raises(DriverError):
+        nxos.parse_vrfs(ok({"TABLE_vrf": {"ROW_vrf": {"vrf_name": "RED"}}}))
+
+
+def test_nos_version_comes_from_show_version():
+    assert nxos.parse_version(read("nxos_version.txt")) == "NX-OS 10.4(8)"
+    assert nxos.parse_version(ok({"x": 1})) is None
+    assert NxosDriver(Lab([("show version", read("nxos_version.txt"))]), "n1").nos_version() == "NX-OS 10.4(8)"
+    assert NxosDriver(Lab([("show version", (3, "", "not ready"))]), "n1").nos_version() is None
