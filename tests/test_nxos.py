@@ -603,3 +603,30 @@ def test_a_clean_load_needs_a_typed_config_and_a_completed_startup(text):
         return
     if result == []:
         assert "Startup complete in:" in text and "CONFIG:" in text
+
+
+def _log(*entries) -> str:
+    out = [f"2026-10-31 11:13:43,958: launch INFO {e}" if e.startswith(("CONFIG:", "RESULT:", "other")) else e
+           for e in entries]
+    return "\n".join([*out, "2026-10-31 11:13:44,164: launch INFO Startup complete in: 0:04:23"]) + "\n"
+
+
+def test_startup_log_messages_and_order():
+    with pytest.raises(DriverError) as e:
+        nxos.parse_startup_log("no completion here")
+    assert str(e.value) == ("vrnetlab's log shows no completed startup (no \"Startup complete\" line), so whether the "
+                            "startup config loaded is unknown")
+    with pytest.raises(DriverError) as e:
+        nxos.parse_startup_log(_log("other line"))
+    assert str(e.value) == "vrnetlab's log shows no startup config typed, so whether it loaded is unknown"
+    # an answer that doesn't follow its line: which line was rejected is unknown, never "nothing was"
+    for bad in (_log("RESULT:% Invalid command", "CONFIG:x"), _log("CONFIG:x", "RESULT:", "other line", "RESULT:% bad")):
+        with pytest.raises(DriverError) as e:
+            nxos.parse_startup_log(bad)
+        assert str(e.value) == ("vrnetlab's log has a RESULT line that doesn't follow its CONFIG line, so whether the "
+                                "startup config loaded is unknown")
+    two = _log("CONFIG:feature bgp\r", "RESULT:% Invalid command at '^' marker.\r", "ERROR: second line\r")
+    assert nxos.parse_startup_log(two) == ["feature bgp (% Invalid command at '^' marker.; ERROR: second line)"]
+    lab = Lab([("show vrf", read("nxos_vrf_all.txt"))])
+    obs = NxosDriver(lab, "n1").vrfs()
+    assert [e["cmd"] for e in obs.evidence] == ["nxapi cli: show vrf"]

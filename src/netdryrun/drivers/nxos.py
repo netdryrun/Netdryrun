@@ -428,8 +428,7 @@ def parse_startup_log(text: str) -> list[str]:
         raise DriverError("vrnetlab's log shows no completed startup (no \"Startup complete\" line), so whether the "
                           "startup config loaded is unknown")
     entries: list[list] = []          # [kind, first line, continuation lines]
-    for raw in text.splitlines():
-        line = raw.rstrip("\r")
+    for line in text.splitlines():
         if _LOG_LINE.match(line):
             m = _LOG_ENTRY.search(line)
             entries.append([m.group(1), m.group(2), []] if m else ["other", "", []])
@@ -440,8 +439,12 @@ def parse_startup_log(text: str) -> list[str]:
         raise DriverError("vrnetlab's log shows no startup config typed, so whether it loaded is unknown")
     rejected = []
     for i, e in enumerate(entries):
-        if e[0] != "RESULT" or i == 0 or entries[i - 1][0] != "CONFIG":
+        if e[0] != "RESULT":
             continue
+        if i == 0 or entries[i - 1][0] != "CONFIG":
+            # vrnetlab logs each answer right after its line: anything else can't say which line was rejected
+            raise DriverError("vrnetlab's log has a RESULT line that doesn't follow its CONFIG line, so whether the "
+                              "startup config loaded is unknown")
         why = [ln.strip() for ln in [e[1], *e[2]] if ln.strip().startswith(("% ", "ERROR:"))]
         if why:
             rejected.append(f"{entries[i - 1][1].strip()} ({'; '.join(why)})")
