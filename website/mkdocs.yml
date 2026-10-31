@@ -5,7 +5,7 @@ site_description: >-
   containerlab virtual lab before they reach production, with a pass/fail
   verdict and evidence.
 site_author: Netdryrun
-copyright: 'Netdryrun™ is open source under the Apache-2.0 license. Netdryrun and the Netdryrun logo are trademarks. <a href="/privacy/">Privacy</a> · <a href="/trust/">Trust</a> · <a href="/support/">Support</a> · <a href="/contact/">Contact</a>'
+copyright: 'Netdryrun™ is open source under the Apache-2.0 license. Netdryrun and the Netdryrun logo are trademarks. <a href="/privacy/">Privacy</a> · <a href="/trust/">Trust</a> · <a href="/support/">Support</a> · <a href="/contact/">Contact</a> · <a href="#__consent">Cookie settings</a>'
 
 repo_url: https://github.com/netdryrun/Netdryrun
 repo_name: netdryrun/Netdryrun
@@ -149,6 +149,22 @@ nav:
       - Privacy notice: privacy.md
 
 extra:
+  # GA4 loads only after a visitor accepts the consent banner (Material's built-in consent).
+  analytics:
+    provider: google
+    property: G-7PGM9Y4LL5
+  consent:
+    title: Cookies on netdryrun.com
+    description: >-
+      With your consent we use Google Analytics to count visits and see which
+      pages help. Nothing loads until you accept, and the Netdryrun tool itself
+      sends nothing. Details in the <a href="/privacy/">privacy notice</a>.
+    actions:
+      - accept
+      - reject
+      - manage
+    cookies:
+      analytics: Google Analytics
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/netdryrun/Netdryrun

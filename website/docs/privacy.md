@@ -5,7 +5,7 @@ description: What personal data netdryrun.com, the Netdryrun tool and our email 
 
 # Privacy notice
 
-*Last updated: 27 October 2026*
+*Last updated: 31 October 2026*
 
 ## Who is responsible
 
@@ -14,12 +14,16 @@ Netdryrun is operated by Victor Khen, Taiwan ("we"). Contact for anything about 
 ## The short version
 
 - **The Netdryrun tool** (CLI, GitHub Action, MCP server) has no telemetry. It sends us nothing. The GitHub Action has a `cloud` input reserved for Netdryrun Cloud, a hosted service that is not available yet; setting it today uploads nothing. Its own privacy terms will be published here before it launches.
-- **This website** sets no cookies, has no analytics and no forms, and serves its fonts itself.
+- **This website** uses Google Analytics only if you accept it in the cookie banner. Without your consent it sets no analytics cookies and loads nothing from Google. It has no forms and serves its fonts itself.
 - **We see your data only if you email us, interact with the project on GitHub, or send us configs as a design partner.**
 
 ## This website
 
-netdryrun.com is static documentation hosted on GitHub Pages. To deliver the pages, GitHub processes your IP address and request details (page, time, browser) under the [GitHub privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). We do not receive these logs. If you switch between light and dark mode, your browser remembers the choice in its local storage; that stays on your device. Search runs entirely in your browser.
+netdryrun.com is static documentation hosted on GitHub Pages. To deliver the pages, GitHub processes your IP address and request details (page, time, browser) under the [GitHub privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). We do not receive these logs.
+
+**Analytics, only with your consent.** If you click Accept in the cookie banner, the site loads Google Analytics 4 (Google LLC, provided in the EU by Google Ireland Limited). It sets first-party cookies (`_ga`, `_ga_7PGM9Y4LL5`) and records the pages you view, how you arrived (referrer, search terms where Google passes them), your approximate location derived from your IP address, and your device, browser and screen. We use this only to see which pages help people and where they come from. We don't use it for advertising, Google Signals or remarketing, and we don't combine it with anything else. Event data is kept for 2 months, the shortest retention Google Analytics offers. Lawful basis: your consent. If you click Reject, nothing is loaded. You can change your choice at any time with **Cookie settings** in the footer. Your choice is stored in your browser's local storage. Google's terms: [How Google uses information from sites that use its services](https://policies.google.com/technologies/partner-sites).
+
+If you switch between light and dark mode, your browser remembers the choice in its local storage; that stays on your device. Search runs entirely in your browser.
 
 ## Email
 
@@ -35,7 +39,7 @@ Issues, pull requests and discussions on [github.com/netdryrun](https://github.c
 
 ## Transfers
 
-GitHub, Cloudflare, Resend and Anthropic are based in the United States. Transfers of personal data from the EU or UK rely on the EU-US Data Privacy Framework (and its UK extension) where the company is certified, and on the European Commission's standard contractual clauses otherwise.
+GitHub, Cloudflare, Resend, Anthropic and Google are based in the United States. Transfers of personal data from the EU or UK rely on the EU-US Data Privacy Framework (and its UK extension) where the company is certified, and on the European Commission's standard contractual clauses otherwise.
 
 ## Your rights
 
