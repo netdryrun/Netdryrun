@@ -379,3 +379,31 @@ def test_junos_a_count_with_nothing_hidden_reads_no_hidden_routes():
     d = _junos_lab("junos_bgp_neighbor_ibgp.txt", "junos_rp_hidden.txt")
     d.bgp_neighbors()
     assert not any("receive-protocol" in c for c in d.lab.calls)
+
+
+def test_junos_a_neighbor_read_without_hidden_routes_keeps_its_evidence():
+    obs = _junos_lab(_nb(1, 1)).bgp_neighbors()
+    assert obs.evidence and "show bgp neighbor" in obs.evidence[0]["cmd"]
+
+
+def test_junos_an_unusable_peer_address_is_unread_not_a_moving_table(monkeypatch):
+    # a peer address that can't go back into a CLI string: the range stays and the check can't be judged, but the
+    # read itself is not retried as "changed between reads"
+    from netdryrun.drivers.base import BgpNeighbor
+    monkeypatch.setattr(junos, "parse_bgp_neighbors", lambda text, inst: {
+        "x": BgpNeighbor("peer-x", "established", {"ipv4-unicast": 1}, {"ipv4-unicast": 3})})
+    d = _junos_lab(NB, HD)
+    n = d.bgp_neighbors().value["x"]
+    assert "can't be used in a command" in n.prefixes_unread["ipv4-unicast"]
+    assert not any("receive-protocol" in c for c in d.lab.calls)
+
+
+@pytest.mark.parametrize("vrf, where", [("default", ""), ("RED", " in RED")])
+def test_junos_the_moving_table_error_names_the_vrf(monkeypatch, vrf, where):
+    d = _junos_lab([NB, _nb(4), NB, _nb(4)], HD)     # the counts move during both passes
+    monkeypatch.setattr(d, "_vrf", lambda v: v)
+    monkeypatch.setattr(junos, "_instance", lambda v: "master")
+    with pytest.raises(DriverError) as e:
+        d.bgp_neighbors(vrf)
+    assert str(e.value) == (f"the BGP neighbor counts{where} and the hidden routes behind them changed between reads, "
+                            "twice: no prefix count is read from a moving table")

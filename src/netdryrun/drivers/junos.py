@@ -525,7 +525,7 @@ class JunosDriver(Driver):
         accepted. Otherwise everything is read once more; a second disagreement is an error, never a count."""
         vrf = self._vrf(vrf)
         cmd = f"show bgp neighbor instance {_instance(vrf)}"
-        for attempt in (1, 2):
+        for _ in range(2):
             ev: list[dict] = []
             neighbors = parse_bgp_neighbors(self._cli(cmd, ev), _instance(vrf))
             if not neighbors and vrf != "default":

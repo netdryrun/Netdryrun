@@ -154,3 +154,22 @@ def test_collector_reads_the_best_path_sent_on_a_session_without_add_path():
 def test_must_fail_collector_refuses_multipath_without_ids_on_an_add_path_session():
     with pytest.raises(SnapshotError, match="several paths without addpathTxId"):
         _collect(_neighbors({"ipv4Unicast": {"txAdvertised": True}}))   # this node may send add-path
+
+
+def test_a_single_advertised_path_is_read_whether_or_not_it_is_flagged_best():
+    def single(paths):
+        paths.pop()
+        paths[0].pop("bestpath", None)
+    doc = json.loads(_doc(single))
+    doc["advertisedRoutes"][PFX]["pathCount"] = 1
+    out = vfrr.parse_adj(json.dumps(doc), CMD, "ipv4", "out", add_path_tx=False)
+    assert list(out) == [(PFX, 0)]
+
+
+def test_add_path_tx_skips_what_is_not_a_neighbor_and_reads_odd_capabilities_as_add_path():
+    doc = json.loads(fixture("neighbors.txt"))
+    doc["blue"] = 5                                             # not an instance object
+    doc["default"]["10.0.9.9"] = "x"                            # not a neighbor object
+    doc["default"]["10.0.2.2"]["neighborCapabilities"] = "x"   # capabilities not an object
+    assert vfrr.add_path_tx(json.dumps(doc)) == {("default", "10.0.2.2", "ipv4-unicast"),
+                                                ("default", "10.0.2.2", "ipv6-unicast")}

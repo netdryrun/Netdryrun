@@ -360,7 +360,7 @@ def add_path_tx(text: str) -> set[tuple[str, str, str]]:
     out = set()
     for vrf, inst in _json(NEIGHBORS_CMD, text).items():
         for key, nb in inst.items() if isinstance(inst, dict) else ():
-            if key in ("vrfId", "vrfName") or not isinstance(nb, dict):
+            if not isinstance(nb, dict):          # vrfId, vrfName
                 continue
             caps = nb.get("neighborCapabilities", {})
             ap = caps.get("addPath", {}) if isinstance(caps, dict) else None
