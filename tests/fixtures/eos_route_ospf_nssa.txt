@@ -1,0 +1,28 @@
+{
+    "vrfs": {
+        "default": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "172.31.7.0/24": {
+                    "hardwareProgrammed": true,
+                    "routeType": "ospfNssaExternalType2",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "preference": 110,
+                    "metric": 20,
+                    "routeAction": "forward",
+                    "directlyConnected": false,
+                    "vias": [
+                        {
+                            "nexthopAddr": "10.3.3.2",
+                            "interface": "Ethernet1"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

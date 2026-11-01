@@ -377,3 +377,73 @@ def test_the_example_leak_fails_the_recorded_file_through_the_real_driver():
         {"10.0.1.2": BgpNeighbor("10.0.1.2", "established", {"ipv4-unicast": 2}, external=True)}, [])
     ok, detail, _ = _bgp_prefixes(leak, c.params)
     assert ok is False and "203.0.113.128/25" in detail
+
+
+# --- Red team names and route types against live captures (FRR 10.4.1, cEOS 4.36.3M, tests/fixtures/SOURCES.yml) -----
+
+NO_BGP = '{"vrfs": {"default": {"vrf": "default", "routerId": "1.1.1.1", "asn": "65001", "bgpRouteEntries": {}}}}'
+
+
+def test_frr_well_known_names_read_as_their_numbers_live():
+    """RT-0022 on the live capture: bgpd prints 65535:2 and 65535:8 by name, and both read as their numbers."""
+    best = [p for p in frr.parse_bgp_paths(_fx("frr_bgp_paths_comm_names.txt"), "192.168.20.0/24") if p.best][0]
+    assert best.communities == ["65020:100", "65535:2", "65535:8"]
+    p = {"node": "r1", "prefix": "192.168.20.0/24"}
+    assert _bgp_route(Paths([best]), {**p, "without_communities": ["65535:8"]})[0] is False
+
+
+def test_frr_prints_0_0_as_a_number_live():
+    """RT-0027 is not reproduced on FRR 10.4.1: 0:0 is printed `0:0`, and without_communities 0:0 fails either way."""
+    best = [p for p in frr.parse_bgp_paths(_fx("frr_bgp_paths_comm_internet.txt"), "192.168.21.0/24") if p.best][0]
+    assert best.communities == ["0:0", "65020:100"]
+    assert _bgp_route(Paths([best]), {"node": "r1", "prefix": "192.168.21.0/24", "without_communities": ["0:0"]})[0] is False
+
+
+def test_frr_community_alias_never_passes_without_communities_live():
+    """A `bgp community alias` is printed in place of the number (live): its value can't be read back, so a
+    without_communities check fails rather than passing on a path that may carry the community."""
+    best = [p for p in frr.parse_bgp_paths(_fx("frr_bgp_paths_comm_alias.txt"), "192.168.22.0/24") if p.best][0]
+    assert best.communities == ["customer-routes", "65535:3", "65535:4", "65535:5"]
+    p = {"node": "r1", "prefix": "192.168.22.0/24"}
+    assert _bgp_route(Paths([best]), {**p, "without_communities": ["65020:777"]})[0] is False
+    assert _bgp_route(Paths([best]), {**p, "without_communities": ["65020:1"]})[0] is False
+
+
+@pytest.mark.parametrize("name,prefix,proto", [("eos_ipv6_route_ospf3_ext.txt", "2001:db8:77::/48", "ospf6"),
+                                               ("eos_ipv6_route_ospf3_intra.txt", "2001:db8:78::1/128", "ospf6"),
+                                               ("eos_route_ospf_nssa.txt", "172.31.7.0/24", "ospf")])
+def test_eos_ospf_route_types_live(name, prefix, proto):
+    """RT-0025 and the NSSA plausible case on live cEOS output: OSPFv3 routes print routeType `ospf` (the subtype
+    apart) and read as ospf6; an NSSA external prints ospfNssaExternalType2 and reads as ospf."""
+    assert eos.parse_routes(_fx(name), NO_BGP, prefix) == [Route(prefix, proto, True)]
+    assert _route(Routes([Route(prefix, proto, True)]), {"prefix": prefix, "protocol": proto, "present": False})[0] is False
+
+
+def test_eos_gshut_is_graceful_shutdown_live():
+    """EOS lists graceful-shutdown as GSHUT (live): it reads as 65535:0, so a must-carry check passes and a
+    must-not-carry check fails (it was an unknown name: a false block, and `record` wrote a name validate refuses)."""
+    best = [p for p in eos.parse_bgp_paths(_fx("eos_bgp_gshut.txt"), "192.168.30.0/24") if p.best][0]
+    assert best.communities == ["65040:1", "65535:0"]
+    p = {"node": "ceos1", "prefix": "192.168.30.0/24"}
+    assert _bgp_route(Paths([best]), {**p, "communities": [parse_community("graceful-shutdown")]})[0] is True
+    assert _bgp_route(Paths([best]), {**p, "without_communities": ["65535:0"]})[0] is False
+    assert parse_community("GSHUT") == "65535:0" and community_name("65535:0") == "graceful-shutdown"
+
+
+@pytest.mark.parametrize("flags,active", [({}, True), ({"kernelProgrammed": False}, False),
+                                          ({"hardwareProgrammed": False}, False),
+                                          ({"kernelProgrammed": True, "hardwareProgrammed": True}, True),
+                                          ({"kernelProgrammed": None, "hardwareProgrammed": None}, True)])
+def test_eos_route_not_programmed_is_not_active(flags, active):
+    """The live route with its programmed flags changed (hand-edited from eos_ipv6_route_ospf3_ext.txt): a route EOS
+    could not put in the kernel or the hardware does not forward, so it is present but never active."""
+    import json
+    data = json.loads(_fx("eos_ipv6_route_ospf3_ext.txt"))
+    route = data["vrfs"]["default"]["routes"]["2001:db8:77::/48"]
+    route.pop("kernelProgrammed"), route.pop("hardwareProgrammed")
+    route.update(flags)
+    text = json.dumps(data)
+    assert eos.parse_routes(text, NO_BGP, "2001:db8:77::/48") == [Route("2001:db8:77::/48", "ospf6", active)]
+    assert eos.parse_all_routes(text) == [Route("2001:db8:77::/48", "ospf6", active)]
+    ok, detail, _ = _route(Routes(eos.parse_routes(text, NO_BGP, "2001:db8:77::/48")), {"prefix": "2001:db8:77::/48"})
+    assert ok is active

@@ -3,7 +3,7 @@ title: "route protocol ospf6 present: false passes on EOS with an OSPFv3 route i
 found: "2026-11-01, weekly adversarial run"
 fixed_in: 0.4.1
 kind: driver
-# outputs: hand-written by the red team to the structure of cEOS 4.36.3M's `show ipv6 route | json`; the routeType names are checked against a live capture (tests/fixtures/eos_ipv6_route_ospf3_*.txt)
+# outputs: hand-written by the red team to the structure of cEOS 4.36.3M's `show ipv6 route | json`; routeType and routeSubtype are the ones a live capture prints for this route (tests/fixtures/eos_ipv6_route_ospf3_ext.txt)
 driver: eos
 check:
   type: route
@@ -24,7 +24,8 @@ outputs:
                   "routes": {
                       "2001:db8:77::/48": {
                           "hardwareProgrammed": true,
-                          "routeType": "ospfIntraArea",
+                          "routeType": "ospf",
+                          "routeSubtype": "External2",
                           "routeLeaked": false,
                           "kernelProgrammed": true,
                           "preference": 110,

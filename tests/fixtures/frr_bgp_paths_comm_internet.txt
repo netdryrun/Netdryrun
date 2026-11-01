@@ -1,0 +1,63 @@
+{
+  "prefix":"192.168.21.0/24",
+  "version":2,
+  "advertisedTo":{
+    "10.1.1.2":{
+      "hostname":"r2"
+    }
+  },
+  "pathCount":1,
+  "paths":[
+    {
+      "aspath":{
+        "string":"65020",
+        "segments":[
+          {
+            "type":"as-sequence",
+            "list":[
+              65020
+            ]
+          }
+        ],
+        "length":1
+      },
+      "origin":"IGP",
+      "metric":0,
+      "valid":true,
+      "version":2,
+      "bestpath":{
+        "bestpathFromAs":65020,
+        "overall":true,
+        "selectionReason":"First path received"
+      },
+      "community":{
+        "string":"0:0 65020:100",
+        "list":[
+          "0:0",
+          "65020:100"
+        ]
+      },
+      "lastUpdate":{
+        "epoch":1793544648,
+        "string":"Sun Nov  1 14:50:48 2026"
+      },
+      "nexthops":[
+        {
+          "ip":"10.1.1.2",
+          "hostname":"r2",
+          "afi":"ipv4",
+          "metric":0,
+          "accessible":true,
+          "used":true
+        }
+      ],
+      "peer":{
+        "peerId":"10.1.1.2",
+        "routerId":"10.1.1.2",
+        "hostname":"r2",
+        "domainname":"localdomain",
+        "type":"external"
+      }
+    }
+  ]
+}

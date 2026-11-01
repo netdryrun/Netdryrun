@@ -1,0 +1,29 @@
+{
+    "vrfs": {
+        "default": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "2001:db8:78::1/128": {
+                    "hardwareProgrammed": true,
+                    "routeType": "ospf",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "routeSubtype": "IntraArea",
+                    "preference": 110,
+                    "metric": 10,
+                    "vias": [
+                        {
+                            "nexthopAddr": "fe80::a8c1:abff:feb4:8435",
+                            "interface": "Ethernet1"
+                        }
+                    ],
+                    "routeAction": "forward",
+                    "directlyConnected": false
+                }
+            }
+        }
+    }
+}

@@ -70,8 +70,9 @@ WELL_KNOWN_COMMUNITIES = {
     "route-filter-v6": "65535:5", "llgr-stale": "65535:6", "no-llgr": "65535:7", "accept-own-nexthop": "65535:8",
     "blackhole": "65535:666", "no-export": "65535:65281", "no-advertise": "65535:65282",
     "no-export-subconfed": "65535:65283", "local-as": "65535:65283", "no-peer": "65535:65284",
+    "gshut": "65535:0",   # EOS lists graceful-shutdown as GSHUT in communityList (cEOS 4.36.3M capture)
 }
-_COMMUNITY_NAMES = {v: k for k, v in WELL_KNOWN_COMMUNITIES.items() if k != "local-as"}
+_COMMUNITY_NAMES = {v: k for k, v in WELL_KNOWN_COMMUNITIES.items() if k not in ("local-as", "gshut")}
 
 
 def parse_community(text: str) -> str:

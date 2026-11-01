@@ -37,6 +37,14 @@ def _protocol(rtype: str, prefix: str) -> str:
         return "aggregate"
     return PROTOCOLS.get(rtype, rtype)
 
+
+def _programmed(route: dict) -> bool:
+    """Whether a routing-table entry forwards: EOS flags one it could not put in the kernel or the hardware
+    (kernelProgrammed / hardwareProgrammed false, e.g. a full TCAM), and such a route is not active, never
+    a pass of `present` (red team plausible case, 2026-11-01). cEOS 4.36.3M prints both flags on every route."""
+    return route.get("kernelProgrammed") is not False and route.get("hardwareProgrammed") is not False
+
+
 SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "show ipv6 bgp summary | json"}
 ROUTE_CMD = "show ip route <prefix> | json"
 ALL_ROUTES_CMD = "show ip route | json"
@@ -145,7 +153,7 @@ def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "defaul
         if not isinstance(r, dict):
             raise unexpected(ROUTE_CMD, f"{key}: {str(r)[:150]}")
         if network(ROUTE_CMD, key) == want:
-            out.append(Route(prefix, _protocol(str(r.get("routeType", "")), prefix), True))
+            out.append(Route(prefix, _protocol(str(r.get("routeType", "")), prefix), _programmed(r)))
     # A BGP path can be "best" inside BGP and still not be installed (a static or connected route with
     # a better preference wins the routing table). Unless BGP is the installed route, every BGP path
     # learned from a neighbor, valid or not, is "present but not selected": a leak that must still fail
@@ -167,7 +175,7 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
         if not isinstance(r, dict):
             raise unexpected(ALL_ROUTES_CMD, f"{key}: {str(r)[:150]}")
         net = str(network(ALL_ROUTES_CMD, key))
-        out.append(Route(net, _protocol(str(r.get("routeType", "")), net), True))
+        out.append(Route(net, _protocol(str(r.get("routeType", "")), net), _programmed(r)))
     return out
 
 

@@ -3,7 +3,7 @@ title: "without_communities ['0:0'] passes on FRR while the best path carries 0:
 found: "2026-11-01, weekly adversarial run"
 fixed_in: 0.4.1
 kind: driver
-# outputs: hand-written by the red team to the structure of bgpd's `show bgp ... json`; the name matches a live FRR 10.4.1 capture (tests/fixtures/frr_bgp_paths_comm_internet.txt)
+# outputs: hand-written by the red team to the structure of bgpd's `show bgp ... json`. Not reproduced live: FRR 10.4.1 prints 0:0 as `0:0` (tests/fixtures/frr_bgp_paths_comm_internet.txt); `internet` is a name bgpd's community code knows, so it stays mapped
 driver: frr
 check:
   type: bgp_route
