@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from .config import BGP_ATTRIBUTES, Check, community_name
 from .drivers import Driver
+from .drivers.base import protocol_matches
 
 REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
 
@@ -76,30 +77,48 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
     afi = p.get("afi", "ipv4-unicast")
     count = n.prefixes.get(afi, 0)  # established but the family reports nothing: zero prefixes
     low, high = (p["exact"], p["exact"]) if "exact" in p else (p.get("min", 0), p.get("max"))
+    if "only" in p:
+        ok, detail, ev = _counted(n, afi, count, low, high, obs.evidence)
+        if isinstance(detail, Unready):
+            return ok, detail, ev
+        got = d.bgp_received(p["neighbor"], afi, p.get("vrf", "default"))
+        ev = ev + got.evidence
+        if count and not got.value:
+            # the counter says routes arrived but none is listed: the list can't be trusted to show a new one
+            return False, Unready(f"error: {count} {afi} prefixes counted from {p['neighbor']} but none listed"), ev
+        extra = sorted(got.value - set(p["only"]))
+        if extra:
+            shown = ", ".join(extra[:10]) + (f" and {len(extra) - 10} more" if len(extra) > 10 else "")
+            return False, f"{detail}; not in the allowed set: {shown}", ev
+        return ok, f"{detail}; all within the allowed set", ev
+    return _counted(n, afi, count, low, high, obs.evidence)
 
+
+def _counted(n, afi: str, count: int, low: int, high: int | None, evidence: list) -> tuple[bool, str, list]:
+    """The count bound of a bgp_prefixes check (no bound: low 0, high None)."""
     def within(c: int) -> bool:
         return low <= c and (high is None or c <= high)
 
     top = n.prefixes_upto.get(afi, count)
     if top == count:
-        return within(count), f"{count} {afi} prefixes accepted", obs.evidence
+        return within(count), f"{count} {afi} prefixes accepted", evidence
     # Some received routes are hidden for a reason the device doesn't give, so the count is somewhere from
     # `count` to `top`: judged only when every value in that range gives the same answer (interop IOP-7)
     span = (f"{count} to {top} {afi} prefixes accepted ({top - count} received route(s) hidden: rejected by "
             "import policy or with a next hop the node can't use, which its output doesn't tell apart)")
     if within(count) and within(top):
-        return True, span, obs.evidence
+        return True, span, evidence
     if top < low or (high is not None and count > high):
-        return False, span, obs.evidence
+        return False, span, evidence
     if afi in n.prefixes_unread:   # the hidden routes couldn't be read: no usable state, not a wrong network
-        return False, Unready(f"error: {span}: {n.prefixes_unread[afi]}"), obs.evidence
-    return False, f"{span}: can't tell whether the bound holds", obs.evidence
+        return False, Unready(f"error: {span}: {n.prefixes_unread[afi]}"), evidence
+    return False, f"{span}: can't tell whether the bound holds", evidence
 
 
 def _route(d: Driver, p: dict) -> tuple[bool, str, list]:
     obs = d.routes(p["prefix"], p.get("vrf", "default"))
     want_proto = str(p.get("protocol", "")).lower()
-    matching = [r for r in obs.value if not want_proto or r.protocol == want_proto]
+    matching = [r for r in obs.value if not want_proto or protocol_matches(r.protocol, want_proto)]
     active = [r for r in matching if r.active]
     # `is not False`, the same test is_post_convergence uses, so the evaluator and the scheduler can never
     # disagree on what a check means (config validation already insists on a real boolean)
@@ -140,7 +159,9 @@ def _ping(d: Driver, p: dict) -> tuple[bool, str, list]:
         err = obs.evidence[-1].get("stderr", "").strip() if obs.evidence else ""
         return False, f"error: ping did not run{': ' + err if err else ''}", obs.evidence
     if p.get("expect", "success") == "success":
-        need = int(p.get("min_replies", max(1, sent - 1)))  # tolerate one lost packet (first-packet ARP)
+        # tolerate one lost packet (first-packet ARP), counted from the packets asked for, as documented: from the
+        # packets sent, a ping that sent fewer would need fewer replies (red team 2026-11-01, plausible case)
+        need = int(p.get("min_replies", max(1, count - 1)))
         return received >= need, f"{received}/{sent} replies (need {need})", obs.evidence
     return received == 0, f"{received}/{sent} replies", obs.evidence
 
@@ -159,15 +180,19 @@ def _describe_path(path) -> str:
 def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
     """Attributes of the BGP best path for a prefix, read from the BGP table (not the routing table)."""
     obs = d.bgp_paths(p["prefix"], p.get("vrf", "default"))
-    paths = obs.value
+    # The router's own non-BGP routes that a NOS lists in the BGP table (SR Linux, whether exported or not)
+    # aren't BGP paths, for present: false and for a best-path check alike: SR Linux marks its own static best
+    # even when nothing exports it (red team RT-0026)
+    local = [x for x in obs.value if x.local_candidate]
+    paths = [x for x in obs.value if not x.local_candidate]
     if p.get("present", True) is False:
-        # Absent means no path at all in the BGP table, best or not. The router's own non-BGP routes
-        # that a NOS lists there (SR Linux, whether exported or not) aren't BGP paths.
-        paths = [x for x in paths if not x.local_candidate]
         if paths:
             return False, f"unexpectedly in the BGP table ({len(paths)} path(s); {_describe_path(paths[0])})", obs.evidence
         return True, "no BGP path", obs.evidence
     if not paths:
+        if local:
+            return False, ("no BGP path: only the router's own route, which the NOS lists in the BGP table whether "
+                           "it is advertised or not (check the route on a neighbor instead)"), obs.evidence
         return False, "no BGP path", obs.evidence
     best = next((x for x in paths if x.best), None)
     if best is None:
@@ -180,6 +205,11 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
     extra = [c for c in p.get("without_communities", []) if c in have]
     if extra:
         wrong.append(f"carries communities {' '.join(community_name(c) for c in extra)}")
+    unread = sorted(c for c in have if not c[:1].isdigit())   # a name the device printed that isn't a known value
+    if p.get("without_communities") and unread:
+        # an alias or a name Netdryrun doesn't know could be any of the communities the path must not carry
+        wrong.append(f"carries communities Netdryrun can't read as numbers ({' '.join(unread)}), so it can't tell "
+                     "whether they are ones the path must not carry")
     if "as_path" in p and best.as_path != p["as_path"]:
         wrong.append(f"as-path is '{best.as_path}', expected '{p['as_path']}'")
     if "as_path_regex" in p and not re.search(p["as_path_regex"], best.as_path or ""):
@@ -211,7 +241,7 @@ def is_post_convergence(check: Check) -> bool:
         or (check.type == "bgp_route" and any(k in p for k in BGP_ATTRIBUTES))
         or (check.type == "ping" and p.get("expect", "success") == "failure")
         or (check.type == "bgp_session" and p.get("state", "established") != "established")
-        or (check.type == "bgp_prefixes" and ("max" in p or "exact" in p))
+        or (check.type == "bgp_prefixes" and ("max" in p or "exact" in p or "only" in p))
     )
 
 

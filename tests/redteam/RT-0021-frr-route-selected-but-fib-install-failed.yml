@@ -1,8 +1,9 @@
 id: RT-0021
 title: "route present passes on FRR for a route zebra selected but failed to install (no `installed` key, `failed: true`): FRR omits `installed` when false and the driver defaults it to true"
 found: "2026-11-01, weekly adversarial run"
-fixed_in: open
+fixed_in: 0.4.1
 kind: driver
+# outputs: hand-written by the red team to the structure of zebra's `show ip route json` (tests/fixtures/frr_route.txt, FRR 10.4.1); a FIB install failure was not produced in a lab
 driver: frr
 check:
   type: route

@@ -51,16 +51,30 @@ def for_node(lab: Lab, node: str, override: str | None = None) -> Driver:
 
 def check_supported(lab: Lab, check, override: str | None = None) -> None:
     """Refuse, before deploying, a check the node's driver cannot read (never guess a value): a bgp_route key
-    the driver doesn't support, or an address family it has no prefix counts for."""
-    if check.type not in ("bgp_route", "bgp_prefixes") or check.node not in lab.nodes:
+    the driver doesn't support, an address family it has no prefix counts for, or a route protocol name it
+    never reports."""
+    if check.type not in ("bgp_route", "bgp_prefixes", "route") or check.node not in lab.nodes:
+        return
+    if check.type == "route" and "protocol" not in check.params:
         return
     name = override or detect(lab.nodes[check.node])
+    if check.type == "route":
+        proto = check.params["protocol"]
+        known = getattr(DRIVERS.get(name), "route_protocols", frozenset())
+        if proto not in known:
+            # a name the node never reports matches nothing, so present: false would always pass (red team RT-0024)
+            raise DriverError(f"{check.name}: protocol {proto} is never reported by {name}, so the check could "
+                              f"never match a route; use one of {', '.join(sorted(known)) or '(none)'}")
+        return
     if check.type == "bgp_prefixes":
         afi = check.params.get("afi", "ipv4-unicast")
         if afi in getattr(DRIVERS.get(name), "unsupported_afis", ()):
             # the count would read as 0, which passes max and exact: refuse instead
             raise DriverError(f"{check.name}: afi {afi} is not supported on {name} (the {name} driver reads "
                               "ipv4-unicast and ipv6-unicast prefix counts only)")
+        if "only" in check.params and not getattr(DRIVERS.get(name), "reads_received", False):
+            raise DriverError(f"{check.name}: only is not supported on {name} yet (it can't list the prefixes a "
+                              "neighbor sent); use exact, or route checks with present: false")
         return
     cls = DRIVERS.get(name)
     keys = sorted(set(check.params) & set(cls.unsupported_bgp_attributes)) if cls else []

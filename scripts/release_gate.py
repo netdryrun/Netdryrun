@@ -19,7 +19,9 @@ Layers (RELEASING.md explains each one):
                                                 release consistency (every public place names X)
   python scripts/release_gate.py consistency     release consistency alone, on main (the nightly; not a release layer)
   python scripts/release_gate.py all             static, unit, mutation and live, in that order
-  python scripts/release_gate.py report          rebuild GATE.md from the recorded layers
+  python scripts/release_gate.py report --stranger-status STATUS.json
+                                                rebuild GATE.md from the recorded layers; never CLEARED (nor
+                                                READY TO PUBLISH) without a fresh stranger status, no false pass
 
 Each layer writes releases/<version>/gate/<layer>.json, then GATE.md is rebuilt from every layer
 recorded for that version (layers run on different machines and at different times). GATE.md says
@@ -789,7 +791,7 @@ ACCEPT_CLASSES = ("message-text", "logging", "equivalent", "timing-only", "safet
 # ("argument" and "reviewed" in its accepted.json entry). The `tested` hashing (agent_result.py) is not in
 # the mutated modules; its behaviour is pinned by tests.
 VERDICT_FUNCTIONS = frozenset({
-    "checks._bgp_session", "checks._bgp_prefixes", "checks._route", "checks._ping", "checks._bgp_route",
+    "checks._bgp_session", "checks._bgp_prefixes", "checks._counted", "checks._route", "checks._ping", "checks._bgp_route",
     "checks._not_configured", "checks.is_post_convergence", "checks._evaluate", "checks._counts", "checks.run_check",
     "checks.hold_check", "checks.converge_then_hold", "checks.run_round_robin", "checks._reach_view",
     "checks.hold_together", "checks.never_ready_nodes", "checks.inconclusive_reason",
@@ -1576,13 +1578,55 @@ def cell(text: str) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
+# The synthetic stranger (HQ: stranger/stranger.py, nightly) follows the public README on a clean machine. Its
+# STATUS.json (HQ branch stranger-status) is read at report time: 0.3.3 and 0.4.0 shipped while it reported a false
+# pass that nothing here read (2026-11 advisory). Missing, unreadable, older than this, reporting a false pass, or
+# naming another version than the release under test: the release is not cleared.
+STRANGER_MAX_AGE = dt.timedelta(hours=36)
+
+
+def stranger_problems(path: str | None, version: str, now: dt.datetime | None = None) -> list[str]:
+    """Why the stranger status keeps the release from clearing; [] when it is fresh and has no false pass."""
+    if not path:
+        return ["no stranger status given (--stranger-status FILE, from `git show origin/stranger-status:STATUS.json` "
+                "in HQ): a missing status is red"]
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return [f"the stranger status {path} can't be read ({e}): red"]
+    if not isinstance(data, dict):
+        return [f"the stranger status {path} is not a JSON object: red"]
+    out = []
+    unseen = data.get("unseen") if isinstance(data.get("unseen"), dict) else {}
+    if data.get("false_pass") is not False:
+        out.append(f"the stranger reports a false pass (false_pass: {data.get('false_pass')!r}, run {data.get('run', '?')})")
+    if unseen and unseen.get("false_pass") is not False:
+        out.append(f"the stranger's unseen labs report a false pass (false_pass: {unseen.get('false_pass')!r})")
+    try:
+        when = dt.datetime.fromisoformat(str(data.get("date")))
+        if when.tzinfo is None:
+            raise ValueError("no time zone")
+    except ValueError as e:
+        out.append(f"the stranger status has no readable date ({data.get('date')!r}: {e})")
+    else:
+        age = (now or dt.datetime.now(dt.timezone.utc)) - when
+        if age > STRANGER_MAX_AGE or age < -dt.timedelta(hours=1):
+            out.append(f"the stranger status is from {data.get('date')}, more than {STRANGER_MAX_AGE.total_seconds() / 3600:.0f} "
+                       "hours from now: rerun the stranger")
+    for where, text in (("README run", data.get("netdryrun")), ("unseen labs", unseen.get("netdryrun"))):
+        m = re.search(r"\d+\.\d+\.\d+\S*", text) if isinstance(text, str) else None
+        if m and m.group(0) != version:
+            out.append(f"the stranger's {where} tested netdryrun {m.group(0)}, not {version}: run it on the candidate")
+    return out
+
+
 def ready_to_publish(blockers, skipped, majors, missing, notes) -> bool:
     """Everything is in except the proof that can only run after publishing."""
     return not (blockers or skipped or majors or notes) and missing == ["after-publish"]
 
 
-def render(args) -> tuple[str, bool]:
-    """GATE.md from every recorded layer, and whether the release is cleared."""
+def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
+    """GATE.md from every recorded layer and the stranger status, and whether the release is cleared."""
     folder = out_dir(args)
     records = {}
     for name in LAYERS:
@@ -1602,6 +1646,8 @@ def render(args) -> tuple[str, bool]:
                 skipped.append(f"{key}: {c['title']}")
             elif c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR:
                 majors.append(f"{key}: {c['title']}")
+    # fail closed: the stranger's false pass is a BLOCKER, like any layer's
+    blockers += [f"stranger: {p}" for p in stranger_problems(getattr(args, "stranger_status", None), args.version, now)]
     missing = [n for n in LAYERS if n not in records]
     differ = code_differs({name: rec["git"].get("sha") for name, rec in records.items()})
     if differ:
@@ -1748,6 +1794,8 @@ def main() -> int:
     ap.add_argument("publish_version", nargs="?", help="after-publish: the version just published")
     ap.add_argument("--version", help="the release under test (default: pyproject.toml's version)")
     ap.add_argument("--out", help="report folder (default releases/<version>)")
+    ap.add_argument("--stranger-status", metavar="STATUS_JSON",
+                    help="report: the synthetic stranger's STATUS.json (HQ branch stranger-status); required to clear")
     ap.add_argument("--strict", action="store_true", help="a skipped BLOCKER (missing tool, no Docker) is a failure")
     ap.add_argument("--candidate", action="store_true",
                     help="static: this is the release candidate (CHANGELOG cut, tag and PyPI version unused)")

@@ -369,7 +369,8 @@ def main(argv: list[str] | None = None) -> int:
     p_rec.add_argument("--wait", type=_seconds, default=45.0, help="with --deploy: seconds to let BGP converge (default 45)")
     counts = p_rec.add_mutually_exclusive_group()
     counts.add_argument("--exact-prefixes", action="store_true",
-                        help="pin prefix counts exactly (default: today's count as min, max with 20%% headroom)")
+                        help="pin prefix counts exactly (default: today's count as min, max with 20%% headroom, "
+                             "and on each eBGP neighbor the prefixes it sends today as the only ones allowed)")
     counts.add_argument("--min-prefixes", action="store_true", help="record prefix counts as minimums only")
     p_rec.add_argument("--no-guards", action="store_true",
                        help="don't add the standard guards (no default route and no link subnet via BGP on each BGP "

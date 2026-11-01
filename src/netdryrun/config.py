@@ -15,7 +15,7 @@ from .faults import parse_inject
 
 CHECK_TYPES = {
     "bgp_session": {"required": ("node", "neighbor"), "optional": ("state", "vrf")},
-    "bgp_prefixes": {"required": ("node", "neighbor"), "optional": ("min", "max", "exact", "afi", "vrf")},
+    "bgp_prefixes": {"required": ("node", "neighbor"), "optional": ("min", "max", "exact", "only", "afi", "vrf")},
     "route": {"required": ("node", "prefix"), "optional": ("present", "protocol", "vrf", "active")},
     "bgp_route": {"required": ("node", "prefix"), "optional": ("present", "vrf", "communities", "without_communities",
                                                               "as_path", "as_path_regex", "local_pref", "med", "next_hop")},
@@ -61,8 +61,13 @@ class ConfigError(ValueError):
 
 
 # Well-known communities (RFC 1997, 3765, 7611, 7999, 8326, 8642, 9494) by the name most CLIs print
+# Every name a NOS prints for a well-known community (FRR's bgpd prints all of these, RFC 1997 and the IANA
+# registry): a device name missing here was kept as an unknown name and never equalled its number, so
+# without_communities passed on a path that carried it (red team RT-0022, RT-0027)
 WELL_KNOWN_COMMUNITIES = {
-    "graceful-shutdown": "65535:0", "accept-own": "65535:1", "llgr-stale": "65535:6", "no-llgr": "65535:7",
+    "internet": "0:0", "graceful-shutdown": "65535:0", "accept-own": "65535:1",
+    "route-filter-translated-v4": "65535:2", "route-filter-v4": "65535:3", "route-filter-translated-v6": "65535:4",
+    "route-filter-v6": "65535:5", "llgr-stale": "65535:6", "no-llgr": "65535:7", "accept-own-nexthop": "65535:8",
     "blackhole": "65535:666", "no-export": "65535:65281", "no-advertise": "65535:65282",
     "no-export-subconfed": "65535:65283", "local-as": "65535:65283", "no-peer": "65535:65284",
 }
@@ -150,6 +155,26 @@ class Scenario:
     checks: list[Check]
 
 
+def _only(where: str, value: Any, afi: str) -> list[str]:
+    """bgp_prefixes `only`: the prefixes the neighbor may send, canonical and sorted. Any other accepted prefix
+    fails the check, so a leak that keeps the count in range (or replaces a prefix) still fails."""
+    if afi not in ("ipv4-unicast", "ipv6-unicast"):
+        raise ConfigError(f"{where}: only applies to afi ipv4-unicast or ipv6-unicast, not {afi}")
+    if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
+        raise ConfigError(f"{where}: only must be a list of prefixes written as strings, got {value!r}")
+    version = 4 if afi == "ipv4-unicast" else 6
+    out = set()
+    for x in value:
+        try:
+            net = ipaddress.ip_network(x, strict=False)
+        except ValueError as e:
+            raise ConfigError(f"{where}: only: {e}") from None
+        if net.version != version:
+            raise ConfigError(f"{where}: only: {x} is not an {afi} prefix")
+        out.add(net)
+    return [str(n) for n in sorted(out)]
+
+
 def _describe(ctype: str, p: dict[str, Any]) -> str:
     if ctype == "bgp_session":
         return f"{p['node']}: BGP session to {p['neighbor']} is {p.get('state', 'established')}"
@@ -161,6 +186,8 @@ def _describe(ctype: str, p: dict[str, Any]) -> str:
             rng.append(f">= {p['min']}")
         if "max" in p:
             rng.append(f"<= {p['max']}")
+        if "only" in p:
+            rng.append(f"only from {len(p['only'])} recorded prefix(es)")
         return f"{p['node']}: prefixes from {p['neighbor']} {' and '.join(rng) or 'counted'}"
     if ctype == "route":
         verb = "absent" if p.get("present", True) is False else "present"
@@ -315,9 +342,9 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
                               f"{_suggest(state, BGP_STATES)}")
         params["state"] = state.lower()
     if ctype == "bgp_prefixes":
-        bounds = {"min", "max", "exact"} & set(params)
+        bounds = {"min", "max", "exact", "only"} & set(params)
         if not bounds:
-            raise ConfigError(f"{where}: bgp_prefixes needs at least one of min, max or exact")
+            raise ConfigError(f"{where}: bgp_prefixes needs at least one of min, max, exact or only")
         if bounds == {"min"} and params["min"] == 0:
             raise ConfigError(f"{where}: min: 0 on its own always passes; use min: 1 or more, or add max")
         if "afi" in params:
@@ -326,6 +353,8 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
                 raise ConfigError(f"{where}: afi must be one of {', '.join(AFIS)}, got {afi!r}"
                                   f"{_suggest(afi, AFIS, AFI_HINTS)}")
             params["afi"] = afi.lower()
+        if "only" in params:
+            params["only"] = _only(where, params["only"], params.get("afi", "ipv4-unicast"))
     if ctype == "route":
         if "protocol" in params:
             proto = params["protocol"]

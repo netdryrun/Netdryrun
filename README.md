@@ -65,6 +65,7 @@ git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp          # 3 FRR routers, should pass
 netdryrun run examples/srl-frr          # SR Linux + FRR, should pass
 netdryrun run examples/frr-bgp-broken   # a bad change, should fail
+netdryrun run examples/frr-customer-leak   # a customer filter lets a foreign prefix in, should fail
 ```
 
 ### On your own containerlab topology (3 commands)
@@ -75,7 +76,7 @@ netdryrun record my-lab/topology.clab.yml --deploy   # snapshot today's behavior
 netdryrun run my-lab                                   # re-run the checks in my-lab/netdryrun.yml
 ```
 
-`record` writes checks for every established BGP session, its exact prefix count and up to 50 BGP routes per node. It has no leak guards until you add them, and a session that is down today isn't recorded. Review it (remove what is allowed to change, add negative checks such as `present: false`), commit it, and every future change runs against it, locally or in CI. A pass means those checks passed, nothing more.
+`record` writes checks for every established BGP session, its prefix count as a range (today's count up to 20% more) and up to 50 BGP routes per node, plus two guards per BGP node: no default route and no link subnet via BGP. On FRR and SONiC each eBGP neighbor's check also lists the prefixes it sends today (`only`), so a new prefix from it fails even within the range; on the other drivers the count is recorded exactly instead. 0.3.3 and 0.4.0 wrote the range without that list, and a leaked customer prefix passed ([advisory](advisories/)): re-record a baseline made with them. A session that is down today isn't recorded. Review it (remove what is allowed to change, add negative checks such as `present: false`), commit it, and every future change runs against it, locally or in CI. A pass means those checks passed, nothing more.
 
 ## netdryrun.yml
 

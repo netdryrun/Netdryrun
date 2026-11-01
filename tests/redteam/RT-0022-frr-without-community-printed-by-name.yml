@@ -1,8 +1,9 @@
 id: RT-0022
 title: "without_communities ['65535:8'] passes on FRR while the best path carries it: FRR prints 65535:8 as accept-own-nexthop, which canon_communities keeps as an unknown name"
 found: "2026-11-01, weekly adversarial run"
-fixed_in: open
+fixed_in: 0.4.1
 kind: driver
+# outputs: hand-written by the red team to the structure of bgpd's `show bgp ... json`; the names match a live FRR 10.4.1 capture of the same communities (tests/fixtures/frr_bgp_paths_comm_names.txt)
 driver: frr
 check:
   type: bgp_route

@@ -76,10 +76,11 @@ checks:
 
 ## 2. Review it
 
-A recorded baseline allows only modest growth: from 0.3.3 each prefix count is today's count as `min` and 20% more (at least 2) as `max` (0.3.2 and earlier recorded `exact`, which failed the day a site added a LAN). Decide what is allowed to change.
+A recorded baseline allows only modest growth: from 0.3.3 each prefix count is today's count as `min` and 20% more (at least 2) as `max` (0.3.2 and earlier recorded `exact`, which failed the day a site added a LAN). From 0.4.1 each eBGP neighbor's count also carries `only`, the prefixes it sends today: a prefix from it that isn't listed fails, even inside the range. 0.3.3 and 0.4.0 wrote the range alone, and a broken customer filter that let one foreign prefix through passed ([advisory](https://github.com/netdryrun/Netdryrun/tree/main/advisories), [example](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak)); re-record a baseline made with them. On drivers other than FRR and SONiC, `record` writes the exact count instead and says so in the file. Decide what is allowed to change.
 
 - **Keep** every `bgp_session` check.
-- **Set the prefix ranges to the growth you expect**, for example `max: 10` where sites are added often. `max` stays a cheap leak guard. `--exact-prefixes` pins exact counts; `--min-prefixes` records minimums only.
+- **Keep the `only` lists**, and add a prefix to one when a neighbor may start sending it (a customer's new block). Removing `only` brings back the 0.4.0 behavior: a small leak passes.
+- **Set the prefix ranges to the growth you expect**, for example `max: 10` where sites are added often. `max` stays a cheap leak guard. `--exact-prefixes` pins exact counts (no `only` lists); `--min-prefixes` records minimums only.
 - **Keep the standard guards** `record` adds: no default route and no link subnet via BGP on each BGP node. A prefix range has room for one leaked default route; the guard is what catches it.
 - **Keep the route checks you care about**, and drop the rest.
 

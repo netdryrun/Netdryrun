@@ -86,6 +86,8 @@ def _show_command(driver: str, check) -> str | None:
         in_vrf = "" if vrf == "default" else f" vrf {vrf}"
         if t == "bgp_session":
             return f"show bgp{in_vrf} summary"
+        if t == "bgp_prefixes" and "only" in p and addr is not None:   # which prefixes arrived, not how many
+            return f"show bgp{in_vrf} {bgp_afi} unicast neighbors {addr} routes"
         if t == "bgp_prefixes":
             return "show bgp l2vpn evpn summary" if afi == "evpn" else f"show bgp{in_vrf} {bgp_afi} unicast summary"
         if t in ("route", "ping"):

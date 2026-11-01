@@ -28,6 +28,7 @@ from netdryrun.drivers.base import BgpNeighbor, BgpPath, Observation, Route
 @dataclass
 class State:
     neighbors: dict[str, BgpNeighbor] = field(default_factory=dict)
+    received: dict[str, set[str]] = field(default_factory=dict)   # neighbor -> prefixes accepted from it
     routes: dict[str, list[Route]] = field(default_factory=dict)
     paths: dict[str, list[BgpPath]] = field(default_factory=dict)
     pings: dict = field(default_factory=dict)   # target or (target, source) -> (sent, received)
@@ -48,6 +49,9 @@ class TimedDriver:
 
     def routes(self, prefix, vrf="default"):
         return Observation(list(self._state(vrf).routes.get(prefix, [])), [])
+
+    def bgp_received(self, neighbor, afi="ipv4-unicast", vrf="default"):
+        return Observation(set(self._state(vrf).received.get(neighbor, set())), [])
 
     def bgp_paths(self, prefix, vrf="default"):
         return Observation(list(self._state(vrf).paths.get(prefix, [])), [])
@@ -116,6 +120,8 @@ FLIPS = {
     ("bgp_prefixes", "afi"): ({**PX, "max": 5, "afi": "ipv4-unicast"}, {"afi": "ipv6-unicast"},
                               {"r1": State(neighbors=up(5, **{"ipv6-unicast": 9}))}),
     ("bgp_prefixes", "vrf"): ({**PX, "min": 1, "vrf": "red"}, {"vrf": "default"}, {"r1": IN_RED}),
+    ("bgp_prefixes", "only"): ({**PX, "only": [P, P2]}, {"only": [P]},
+                               {"r1": State(neighbors=up(2), received={N: {P, P2}})}),
     ("route", "node"): (R, {"node": "r2"}, {"r1": ROUTE, "r2": EMPTY}),
     ("route", "prefix"): (R, {"prefix": P2}, {"r1": ROUTE}),
     ("route", "present"): (R, {"present": False}, {"r1": ROUTE}),

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import ipaddress
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
-                   check_vrf_name, load_json, network, parser, render_as_path, unexpected)
+from .base import (BGP_SUBTYPES, BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int,
+                   canon_communities, check_vrf_name, is_bgp, load_json, network, parser, render_as_path, unexpected)
 from .frr import _canon_addr, _keep_down, parse_ping
 from .stale import refuse_if_stale, strict_bool
 
@@ -19,8 +19,11 @@ PROTOCOLS = {"local": "connected", "host": "local", "ospfv2": "ospf", "ospfv3": 
 
 
 def _protocol(rtype: str) -> str:
-    """Every BGP route type (bgp, bgp-evpn, bgp-vpn, bgp-label, ...) was learned via BGP, so `protocol: bgp`
-    (and its guards) match it."""
+    """bgp-evpn and bgp-vpn keep their names, so `protocol: bgp-evpn` can match (it never did when every bgp*
+    type was folded into bgp, red team RT-0023); `protocol: bgp` still matches them (base.protocol_matches), so
+    BGP guards see every BGP-learned route. Other BGP route types (bgp-label, ...) are bgp."""
+    if rtype in BGP_SUBTYPES:
+        return rtype
     return "bgp" if rtype.startswith("bgp") else PROTOCOLS.get(rtype, rtype)
 
 NEIGHBORS_CMD = "info from state /network-instance <vrf> protocols bgp neighbor *"
@@ -140,7 +143,7 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
         rtype = str(r.get("route-type", "")).lower()
         out.append(Route(prefix, _protocol(rtype), bool(r.get("active"))))
     rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error
-    if bgp_rib_text is not None and not any(r.protocol == "bgp" and r.active for r in out):
+    if bgp_rib_text is not None and not any(is_bgp(r.protocol) and r.active for r in out):
         if any(_bgp_learned(r) for r in rib):
             out.append(Route(prefix, "bgp", False))
     return out
@@ -210,6 +213,8 @@ def unread_path(row: dict) -> BgpPath:
 
 class SrlDriver(Driver):
     name = "srlinux"
+    route_protocols = frozenset({"bgp", "bgp-evpn", "bgp-vpn", "connected", "local", "static", "aggregate", "ospf",
+                                 "ospf6", "isis", "dhcp", "arp-nd", "gribi"})
     # bgp_neighbors reads received-routes counters, which SR Linux has for IPv4 and IPv6 unicast but not for
     # evpn (skipped): an EVPN count would always read 0, which passes max and exact: 0
     unsupported_afis = frozenset({"evpn"})

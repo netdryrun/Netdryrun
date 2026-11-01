@@ -1,7 +1,8 @@
 """`netdryrun record`: snapshot a known-good running lab into a netdryrun.yml baseline.
 
 The recorded file asserts today's behavior: every established BGP session stays up, prefix
-counts stay the same, and every BGP-learned route stays present. Run it once on the network
+counts stay in range, no eBGP neighbor sends a prefix it doesn't send today, and every BGP-learned
+route stays present. Run it once on the network
 as it is (before a change), commit the file, then every future change is tested against it.
 """
 from __future__ import annotations
@@ -18,18 +19,21 @@ from . import __version__
 from .checks import Unready, _evaluate
 from .config import Check, community_name
 from .drivers import DriverError, detect, for_node
-from .drivers.base import NoSuchInstance
+from .drivers.base import NoSuchInstance, is_bgp
 from .lab import Lab, LabError
 
 MAX_ROUTES_PER_NODE = 50
 MAX_LINK_GUARDS_PER_NODE = 20
 GUARD_SAMPLES = 3   # a guard sample that errors is retried; only a real failing sample means "the lab fails it"
+MAX_ONLY_PREFIXES = 500   # a larger received set is recorded as an exact count instead of an `only` list
 
 
 def prefix_range(count: int) -> dict:
     """The default prefix-count check (0.3.3): today's count as the floor, and headroom for normal growth
     (20%, at least 2) as the ceiling, which still catches a leak that multiplies the count. A neighbor that
-    sends nothing stays at exactly 0 (min: 0 would be refused, and any prefix from it is new)."""
+    sends nothing stays at exactly 0 (min: 0 would be refused, and any prefix from it is new).
+    On its own the headroom lets a small leak pass (0.3.3 and 0.4.0 advisory): `record` adds the closed-world
+    `only` list to every eBGP neighbor's range (_closed_world), or pins the count where it can't."""
     if count == 0:
         return {"exact": 0}
     return {"min": count, "max": count + max(2, math.ceil(count / 5))}
@@ -89,12 +93,12 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
     except DriverError as e:
         warnings.append(f"{where}: could not read BGP state ({e}); skipped")
         return []
-    checks = _session_checks(name, neighbors, prefix_mode, warnings, vrf)
+    checks = _session_checks(name, neighbors, prefix_mode, warnings, vrf, drv)
     bgp_now: dict[int, set[str]] = {}   # every BGP route the node has today, received selected or not
     if include_routes or link_subnets is not None:
         for fam in (4, 6):
             try:
-                every = [r for r in drv.all_routes(vrf=vrf, family=fam).value if r.protocol == "bgp"]
+                every = [r for r in drv.all_routes(vrf=vrf, family=fam).value if is_bgp(r.protocol)]
             except DriverError as e:
                 warnings.append(f"{where}: could not read IPv{fam} routes ({e})")
                 continue
@@ -122,7 +126,7 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
 
 
 def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list[str],
-                    vrf: str = "default") -> list[dict]:
+                    vrf: str = "default", drv=None) -> list[dict]:
     at = {} if vrf == "default" else {"vrf": vrf}
     where = name if vrf == "default" else f"{name} (vrf {vrf})"
     checks: list[dict] = []
@@ -154,8 +158,39 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
                 c["min"] = count
             else:
                 c.update(prefix_range(count))
+                if count > 0 and n.external is not False:
+                    _closed_world(c, drv, where, addr, afi, count, warnings)
             checks.append(c)
     return checks
+
+
+def _closed_world(c: dict, drv, where: str, addr: str, afi: str, count: int, warnings: list[str]) -> None:
+    """The guard a range alone lacks, on an eBGP neighbor (or one whose kind the driver doesn't report): no
+    prefix outside today's accepted set may arrive (`only`). Where the set can't be read, the range becomes the
+    exact count, and a warning says what that still misses."""
+    why = None
+    if drv is None or not getattr(drv, "reads_received", False):
+        why = f"the {getattr(drv, 'name', '?')} driver can't list the prefixes a neighbor sends"
+    elif afi not in ("ipv4-unicast", "ipv6-unicast") or "%" in addr:
+        why = f"the prefixes of {afi} from {addr} can't be listed"
+    else:
+        try:
+            got = drv.bgp_received(addr, afi, c.get("vrf", "default")).value
+        except DriverError as e:
+            got, why = None, f"the prefixes it sends could not be read ({' '.join(str(e).split())})"
+        if got is not None and not got:
+            why = f"it counts {count} prefixes but lists none"
+        elif got is not None and len(got) > MAX_ONLY_PREFIXES:
+            why = f"it sends {len(got)} prefixes, more than the {MAX_ONLY_PREFIXES} an only list holds"
+        elif got is not None:
+            c["only"] = sorted(got, key=lambda p: ipaddress.ip_network(p))
+            return
+    for k in ("min", "max"):
+        c.pop(k, None)
+    c["exact"] = count
+    warnings.append(f"{where}: BGP neighbor {addr} {afi}: recorded as exactly {count} prefixes, not a range, because "
+                    f"{why}. A change that replaces one of its prefixes with another still passes: add route checks "
+                    "with present: false for prefixes that must never arrive")
 
 
 def _link_subnets(lab, warnings: list[str]) -> list[str]:

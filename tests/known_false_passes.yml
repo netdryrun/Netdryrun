@@ -43,6 +43,21 @@
     - tests/test_interop_04_fixes.py
     - tests/test_interop_04.py::test_eos_missing_med_never_reads_as_0
     - tests/test_drivers_audit_033.py::test_med_zero_never_passes_on_a_path_without_med
+- id: record-range-leak
+  what: A baseline from `netdryrun record` (0.3.3, 0.4.0) passed a leaked customer prefix that kept the prefix count
+    inside the recorded range
+  record: CHANGELOG.md (0.4.1); tests/redteam/RT-0028; the 2026-11 advisory
+  tests:
+    - tests/test_false_passes_041.py
+    - tests/test_record.py
+- id: redteam-20261101
+  what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
+    bgp-evpn folded into bgp; protocol names a driver never reports accepted; EOS ospf6 never matched; SR Linux's own
+    route taken as a BGP best path (RT-0021 to RT-0027)
+  record: tests/redteam/README.md (RT-0021 to RT-0027); CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_false_passes_041.py
+    - tests/test_redteam.py
 - id: driver-reads-error-as-nothing
   what: A driver read a failed command, an unknown VRF or unexpected output as "no routes" or "no sessions"
   record: tests/redteam/README.md (RT-0008 and later)

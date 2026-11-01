@@ -21,6 +21,7 @@ ALL_ROUTES_CMD = "show ip route json"
 BGP_PATHS_CMD = "show bgp <afi> unicast <prefix> json"
 BGP_TABLE_CMD = "show bgp ipv4 unicast <prefix> longer-prefixes json"
 VRF_CMD = "show vrf"
+RECEIVED_CMD = "show bgp <afi> unicast neighbors <neighbor> routes json"
 
 # bgpd's answers when the BGP instance itself is missing (no `router bgp` in that VRF)
 _NO_INSTANCE = re.compile(r"unknown|not found", re.I)
@@ -235,8 +236,9 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         # the advertisement interval bgpd applies to this neighbor (configured, or FRR's default)
         mrai = info.get("minBtwnAdvertisementRunsTimerMsecs")
         adv = as_int(NEIGHBORS_CMD, mrai) / 1000 if mrai is not None else None
+        external = True if info.get("nbrExternalLink") is True else False if info.get("nbrInternalLink") is True else None
         # "Idle (Admin)" -> "idle": the first word is the FSM state
-        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv))
+        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv, external=external))
     return out
 
 
@@ -259,7 +261,29 @@ def _route_table(command: str, text: str) -> dict[ipaddress._BaseNetwork, list[d
 
 
 def _route(prefix: str, e: dict) -> Route:
-    return Route(prefix, e["protocol"].lower(), bool(e.get("selected")) and bool(e.get("installed", True)))
+    # zebra prints `installed: true` on every route in the FIB and leaves the key out otherwise (a FIB install
+    # that failed prints `failed: true` instead): no key is not installed (red team RT-0021)
+    return Route(prefix, e["protocol"].lower(),
+                 e.get("selected") is True and e.get("installed") is True and not e.get("failed"))
+
+
+@parser(RECEIVED_CMD)
+def parse_received(text: str, family: int) -> set[str]:
+    """`show bgp [vrf X] <afi> unicast neighbors <addr> routes json`: the prefixes accepted from the neighbor
+    (after import policy), keyed by prefix under `routes`. No routes at all prints `{}`."""
+    data = _bgp_json(RECEIVED_CMD, text)
+    if not data:
+        return set()
+    routes = data.get("routes")
+    if not isinstance(routes, dict):
+        raise unexpected(RECEIVED_CMD, text)
+    out = set()
+    for key, paths in routes.items():
+        net = network(RECEIVED_CMD, key)
+        if net.version != family or not isinstance(paths, list) or not paths:
+            raise unexpected(RECEIVED_CMD, f"{key}: {str(paths)[:150]}")
+        out.add(str(net))
+    return out
 
 
 def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
@@ -380,6 +404,9 @@ def parse_ping(text: str) -> tuple[int, int]:
 
 class FrrDriver(Driver):
     name = "frr"
+    # zebra's route types; EVPN and VPN routes are bgp there, and a BGP aggregate is bgp too
+    route_protocols = frozenset({"bgp", "connected", "local", "static", "kernel", "ospf", "ospf6", "isis", "rip",
+                                 "ripng", "eigrp", "babel", "nhrp", "table", "sharp", "pbr", "openfabric"})
 
     def _vtysh(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["vtysh", "-c", command], evidence)
@@ -439,6 +466,21 @@ class FrrDriver(Driver):
         if not routes:
             self._confirm_vrf(vrf, ev)
         return Observation(routes, ev)
+
+    reads_received = True
+
+    def bgp_received(self, neighbor: str, afi: str = "ipv4-unicast", vrf: str = "default") -> Observation:
+        vrf = check_vrf_name(vrf)
+        if afi not in ("ipv4-unicast", "ipv6-unicast"):
+            raise DriverError(f"the prefixes received in {afi} can't be listed")
+        if "%" in neighbor:   # a scoped link-local can be several sessions (see BgpNeighbor.ambiguous)
+            raise DriverError(f"the prefixes received from {neighbor} can't be listed: use a global address")
+        addr = ipaddress.ip_address(neighbor)
+        ev: list[dict] = []
+        vrf_part = "" if vrf == "default" else f" vrf {vrf}"
+        fam = afi.split("-")[0]
+        text = self._vtysh(f"show bgp{vrf_part} {fam} unicast neighbors {addr} routes json", ev)
+        return Observation(parse_received(text, 6 if fam == "ipv6" else 4), ev)
 
     def bgp_paths(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

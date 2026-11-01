@@ -381,7 +381,11 @@ def test_frr_routes_commands():
 
 @pytest.mark.parametrize("entry,active", [
     ({"protocol": "bgp", "selected": True, "installed": True}, True),
-    ({"protocol": "bgp", "selected": True}, True),               # installed defaults to true
+    ({"protocol": "bgp", "selected": True}, False),              # zebra leaves installed out when it isn't (RT-0021)
+    ({"protocol": "bgp", "selected": True, "failed": True}, False),   # the FIB install failed
+    ({"protocol": "bgp", "selected": True, "installed": True, "failed": True}, False),
+    ({"protocol": "bgp", "selected": "yes", "installed": True}, False),   # only a real true counts
+    ({"protocol": "bgp", "selected": True, "installed": "yes"}, False),
     ({"protocol": "bgp", "selected": True, "installed": False}, False),
     ({"protocol": "bgp", "installed": True}, False),
     ({"protocol": "bgp", "selected": False, "installed": True}, False),
@@ -391,8 +395,8 @@ def test_frr_route_active(entry, active):
 
 
 def test_frr_routes_ignore_a_covering_prefix_and_keep_every_entry():
-    text = J({"10.0.0.0/8": [{"protocol": "static", "selected": True}],
-              "10.1.0.0/16": [{"protocol": "Connected", "selected": True}, {"protocol": "bgp"}]})
+    text = J({"10.0.0.0/8": [{"protocol": "static", "selected": True, "installed": True}],
+              "10.1.0.0/16": [{"protocol": "Connected", "selected": True, "installed": True}, {"protocol": "bgp"}]})
     assert frr.parse_routes(text, "10.1.0.0/16") == [Route("10.1.0.0/16", "connected", True),
                                                      Route("10.1.0.0/16", "bgp", False)]
     assert frr.parse_routes(text, "10.2.0.0/16") == []
@@ -440,7 +444,7 @@ def test_frr_received_path_rules():
     zebra_bgp = route_json("10.1.0.0/16", {"protocol": "bgp"})
     assert frr.parse_routes(zebra_bgp, "10.1.0.0/16", learned) == [Route("10.1.0.0/16", "bgp", False)]
     # zebra has only a static: the learned BGP path is added
-    zebra_static = route_json("10.1.0.0/16", {"protocol": "static", "selected": True})
+    zebra_static = route_json("10.1.0.0/16", {"protocol": "static", "selected": True, "installed": True})
     assert frr.parse_routes(zebra_static, "10.1.0.0/16", learned) == [Route("10.1.0.0/16", "static", True),
                                                                       Route("10.1.0.0/16", "bgp", False)]
     # one learned path among the router's own is enough
@@ -534,7 +538,8 @@ def test_frr_parse_vrfs():
 
 
 def test_frr_all_routes():
-    text = J({"10.1.0.0/16": [{"protocol": "BGP", "selected": True}], "10.2.0.0/16": [{"protocol": "static"}]})
+    text = J({"10.1.0.0/16": [{"protocol": "BGP", "selected": True, "installed": True}],
+              "10.2.0.0/16": [{"protocol": "static"}]})
     lab = Lab([("route", text)])
     obs = FrrDriver(lab, "r1").all_routes()
     assert lab.lines() == ["vtysh -c show ip route json"]

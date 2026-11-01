@@ -1,0 +1,11 @@
+id: RT-0028
+title: "A baseline from `netdryrun record` passed a leaked customer prefix: the recorded prefix range (today's count up to 20% more, at least 2) had room for the one prefix a broken customer filter let in"
+found: "2026-10-31, synthetic stranger (README path, fail-bogon); published in the 2026-11 advisory"
+fixed_in: 0.4.1
+kind: pinned
+# 0.3.3 and 0.4.0 shipped it. The live reproduction is examples/frr-customer-leak (must fail) and the stranger's
+# fail-bogon change; these tests reproduce it on recorded state.
+tests:
+  - tests/test_false_passes_041.py::test_the_stranger_leak_fails_the_recorded_check
+  - tests/test_false_passes_041.py::test_a_prefix_that_replaces_another_fails
+  - tests/test_false_passes_041.py::test_record_guards_ebgp_and_unknown_neighbors_not_ibgp

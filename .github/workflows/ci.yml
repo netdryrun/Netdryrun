@@ -67,6 +67,27 @@ jobs:
       - name: The agent result says the same, with the failures and the files tested
         run: python scripts/check_verdict.py netdryrun-verdict.json failed
 
+  # The leak a recorded range alone let through (0.3.3, 0.4.0): a customer filter lost its match line, and one
+  # foreign prefix arrives with the count still in range. netdryrun.yml was written by `record`: this run MUST fail.
+  catches-customer-leak:
+    needs: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - id: ndr
+        uses: ./
+        continue-on-error: true
+        with:
+          path: examples/frr-customer-leak
+          artifact-name: report-frr-customer-leak
+      - name: Expect failure
+        run: |
+          echo "status=${{ steps.ndr.outputs.status }} failed=${{ steps.ndr.outputs.failed }}"
+          test "${{ steps.ndr.outputs.status }}" = "failed"
+          test "${{ steps.ndr.outputs.failed }}" -ge 1
+      - name: The agent result says the same, with the failures and the files tested
+        run: python scripts/check_verdict.py netdryrun-verdict.json failed
+
   # The agent demo: Netdryrun MUST reject attempt 1 on the leak guards only (it opens the filters)
   # and accept attempt 2 (two prefix-list lines). demo.sh exits non-zero otherwise.
   agent-demo:

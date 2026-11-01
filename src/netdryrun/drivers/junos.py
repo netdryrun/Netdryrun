@@ -492,6 +492,7 @@ def _counts(neighbors: dict[str, BgpNeighbor]) -> dict:
 
 class JunosDriver(Driver):
     name = "junos"
+    route_protocols = frozenset(PROTOCOLS.values())
     # bgp_neighbors reads the inet.0 and inet6.0 RIB counts only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
 
