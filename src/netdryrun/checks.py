@@ -158,7 +158,10 @@ def _ping(d: Driver, p: dict) -> tuple[bool, str, list]:
         return False, f"error: ping did not run{': ' + err if err else ''}", obs.evidence
     if p.get("expect", "success") == "success":
         need = int(p.get("min_replies", max(1, sent - 1)))  # tolerate one lost packet (first-packet ARP)
-        return received >= need, f"{received}/{sent} replies (need {need})", obs.evidence
+        detail = f"{received}/{sent} replies (need {need})"
+        # no reply at all: a candidate for ending early, only where the node has no lab route to the target
+        # (Quiescence.routed); a partial answer never is
+        return received >= need, detail if received >= need or received else Missing(detail), obs.evidence
     return received == 0, f"{received}/{sent} replies", obs.evidence
 
 
@@ -423,8 +426,9 @@ class Quiescence:
         return self.run[-1][0] - self.run[0][0] if self.run else 0.0
 
     def routed(self, node: str, vrf: str, target: str) -> bool:
-        """Whether the node's latest routing table has any route to `target`. Unknown counts as routed, so a
-        ping to it never ends early."""
+        """Whether the node's latest routing table has any route to `target` other than a default route installed
+        outside the routing daemon (protocol kernel: containerlab's default via the management network, which
+        leads out of the lab). Unknown counts as routed, so a ping to it never ends early."""
         try:
             ip = ipaddress.ip_address(target)
         except ValueError:
@@ -432,7 +436,8 @@ class Quiescence:
         rib = self.ribs.get((node, vrf, ip.version))
         if rib is None:
             return True
-        return any(ip in ipaddress.ip_network(r.prefix, strict=False) for r in rib)
+        return any(ip in net for r in rib if (net := ipaddress.ip_network(r.prefix, strict=False)).prefixlen
+                   or r.protocol != "kernel")
 
     def _fingerprint(self, memo: RoundMemo):
         fp, ribs = [], {}
@@ -470,8 +475,8 @@ class Quiescence:
 
 def _ends_early(c: Check, st: dict, quiet: Quiescence, since: float) -> bool:
     """A failing positive check may end before its timeout only when it never passed, and every sample of it
-    since the lab became quiescent showed the thing missing; a ping only when its node has no route at all to
-    the target."""
+    since the lab became quiescent showed the thing missing; a ping only when its node has no lab route to the
+    target (Quiescence.routed)."""
     if st["passed"] or st["missing_from"] is None or st["missing_from"] > since:
         return False
     if c.type == "ping":

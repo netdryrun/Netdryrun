@@ -267,10 +267,36 @@ def test_a_ping_ends_early_only_when_its_node_has_no_route_to_the_target():
     assert "ended early" not in r.detail and r.duration >= 90
 
 
-def test_a_ping_that_got_no_reply_is_not_missing():
+NO_REPLY = lambda t: Observation((3, 0), [{"output": "3 packets transmitted, 0 received", "stderr": ""}])  # noqa: E731
+MGMT_DEFAULT = Route("0.0.0.0/0", "kernel", True)   # containerlab's default route via eth0, outside the lab
+
+
+def test_a_ping_with_no_reply_and_only_the_management_default_ends_early():
+    """containerlab gives Linux nodes a kernel default route through the management network: a ping to a lab address
+    that only it covers goes nowhere, so the ping counts as having no route."""
     c = Clock()
-    d = Net(c, ping=lambda t: Observation((3, 0), [{"output": "3 packets transmitted, 0 received", "stderr": ""}]))
+    d = Net(c, ping=NO_REPLY, rib=lambda t: [Route("10.0.0.0/30", "connected", True), MGMT_DEFAULT])
     [r] = rr([check("ping", target="192.168.3.1")], {"r1": d}, c, quiet_for({"r1": d}))
+    assert not r.passed and "ended early" in r.detail
+
+
+@pytest.mark.parametrize("rib", [
+    [Route("192.168.3.0/24", "bgp", True), MGMT_DEFAULT],      # a lab route to it: the dataplane decides
+    [Route("0.0.0.0/0", "bgp", True)],                           # a default the routing daemon learned
+    [Route("0.0.0.0/0", "static", True)],
+    [Route("192.168.0.0/16", "kernel", True)],                   # a kernel route that isn't a default
+])
+def test_a_ping_with_no_reply_and_a_real_route_keeps_waiting(rib):
+    c = Clock()
+    d = Net(c, ping=NO_REPLY, rib=lambda t: rib)
+    [r] = rr([check("ping", target="192.168.3.1")], {"r1": d}, c, quiet_for({"r1": d}))
+    assert "ended early" not in r.detail and r.duration >= 90
+
+
+def test_a_ping_with_some_replies_is_not_missing():
+    c = Clock()
+    d = Net(c, ping=lambda t: Observation((3, 1), [{"output": "3 packets transmitted, 1 received", "stderr": ""}]))
+    [r] = rr([check("ping", target="192.168.3.1", min_replies=3)], {"r1": d}, c, quiet_for({"r1": d}))
     assert "ended early" not in r.detail and r.duration >= 90
 
 
