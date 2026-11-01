@@ -146,8 +146,39 @@ def test_real_empty_answers():
     assert junos.parse_routes(read("junos_route_empty.txt"), "10.88.0.0/24") == []
     # without `all`, a prefix with only hidden routes answers with the table header and no rt
     assert junos.parse_routes(read("junos_route_hidden_only_summary.txt"), "10.30.0.0/24") == []
-    # another prefix in the answer (never with `exact`, but checked) is not this one
-    assert junos.parse_routes(read("junos_route_paths.txt"), "10.20.0.0/25") == []
+
+
+def test_a_route_for_another_prefix_is_unexpected_not_absent():
+    """The command asks `exact`, so the answer lists only that prefix: a route for another one is output the driver
+    doesn't know, never "not there" (read as absent, it made `present: false` pass; fuzz finding 2026-11-02)."""
+    msg = ("unexpected output from `show route <prefix> exact table <table> all extensive`: "
+           "a route for 10.20.0.0/24 in the answer for 10.20.0.0/25")
+    for parse in (junos.parse_routes, junos.parse_bgp_paths):
+        with pytest.raises(DriverError) as e:
+            parse(read("junos_route_paths.txt"), "10.20.0.0/25")
+        assert str(e.value) == msg
+    # the same capture answers for its own prefix
+    assert junos.parse_routes(read("junos_route_paths.txt"), "10.20.0.0/24")
+
+
+def test_present_false_never_passes_on_an_answer_for_another_prefix():
+    """Must-fail: the check errors (not passed) instead of reading the prefix as absent."""
+    from netdryrun.checks import _evaluate
+    from netdryrun.config import Check
+    from netdryrun.drivers.base import Observation
+
+    class Drv:
+        name = "junos"
+
+        def routes(self, prefix, vrf="default"):
+            return Observation(junos.parse_routes(read("junos_route_paths.txt"), prefix), [])
+
+        def bgp_paths(self, prefix, vrf="default"):
+            return Observation(junos.parse_bgp_paths(read("junos_route_paths.txt"), prefix), [])
+
+    for ctype in ("route", "bgp_route"):
+        ok, detail, _ = _evaluate(Check(ctype, {"node": "r1", "prefix": "10.20.0.0/25", "present": False}, "c", 30), Drv())
+        assert ok is False and "a route for 10.20.0.0/24 in the answer for 10.20.0.0/25" in str(detail)
 
 
 def test_no_such_table_is_not_empty():

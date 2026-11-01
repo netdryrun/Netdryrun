@@ -99,6 +99,31 @@ def routes_rules(prefix, rows, table="main"):
     return [("/routing/route?dst-address=" + prefix, body(exact(rows, prefix))), ("/routing/table", body(TABLES))]
 
 
+def test_a_row_for_another_prefix_or_table_is_unexpected_not_absent():
+    """The REST query filters on dst-address and routing-table, so every row is that prefix in that table: a row for
+    another one is an answer the driver doesn't know, never "not there" (dropped, it made `present: false` pass)."""
+    other = exact(MAIN, "10.21.0.0/24")
+    d, _ = driver([("/routing/route?dst-address=10.20.0.0/24", body(other)), ("/routing/table", body(TABLES)),
+                   ("/routing/bgp/session", body(SESSIONS))])
+    msg = ("unexpected output from `/routing/route`: a row for 10.21.0.0/24 in table main in the answer for "
+           "10.20.0.0/24 in table main")
+    for read in (d.routes, d.bgp_paths):
+        with pytest.raises(DriverError) as e:
+            read("10.20.0.0/24")
+        assert str(e.value) == msg
+    d, _ = driver([("/routing/route?dst-address=198.18.2.0/24&routing-table=RED", body(exact(MAIN, "10.20.0.0/24"))),
+                   ("/routing/table", body(TABLES))])
+    with pytest.raises(DriverError, match="a row for 10.20.0.0/24 in table main in the answer for 198.18.2.0/24 in table RED"):
+        d.routes("198.18.2.0/24", "RED")
+
+
+def test_pseudo_rows_without_a_prefix_name_no_other_prefix():
+    """A scoped link-local or interface row carries no prefix: it is neither this prefix nor another one."""
+    pseudo = [r for r in MAIN if "%" in r["dst-address"]][:1] + exact(MAIN, "10.20.0.0/24")
+    d, _ = driver([("/routing/route?dst-address=10.20.0.0/24", body(pseudo)), ("/routing/table", body(TABLES))])
+    assert {(r.protocol, r.active) for r in d.routes("10.20.0.0/24").value} == {("bgp", True), ("bgp", False)}
+
+
 def test_routes_report_protocol_and_installed_state():
     d, _ = driver(routes_rules("10.20.0.0/24", MAIN))
     got = {(r.protocol, r.active) for r in d.routes("10.20.0.0/24").value}

@@ -119,7 +119,9 @@ def _rib_rows(text: str, prefix: str) -> list[dict]:
     for r in rows:
         if "prefix" not in r:
             raise unexpected(RIB_CMD, str(r)[:150])
-    mine = [r for r in rows if network(RIB_CMD, r["prefix"]) == want and _received(r)]
+        if network(RIB_CMD, r["prefix"]) != want:   # the command names the prefix as a key: only it can be listed
+            raise unexpected(RIB_CMD, f"a route for {r['prefix']} in the answer for {want}")
+    mine = [r for r in rows if _received(r)]
     for r in mine:
         if "stale-route" in r:   # graceful restart: a stale path is neither present nor gone yet
             refuse_if_stale(prefix, r.get("neighbor"), strict_bool(RIB_CMD, r["stale-route"]))
@@ -141,8 +143,8 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
     for r in _list(ROUTE_CMD, _json(text, ROUTE_CMD), "route"):
         if key not in r:
             raise unexpected(ROUTE_CMD, str(r)[:150])
-        if network(ROUTE_CMD, r[key]) != want:
-            continue
+        if network(ROUTE_CMD, r[key]) != want:   # the command names the prefix as a key: only it can be listed
+            raise unexpected(ROUTE_CMD, f"a route for {r[key]} in the answer for {want}")
         rtype = str(r.get("route-type", "")).lower()
         out.append(Route(prefix, _protocol(rtype), bool(r.get("active"))))
     rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error

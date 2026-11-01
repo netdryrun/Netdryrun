@@ -310,7 +310,9 @@ def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
         raise unexpected(command, text)
     _path_count(command, data)
     if network(command, data["prefix"]) != ipaddress.ip_network(prefix):
-        return []  # bgpd answered for another (covering) prefix: nothing for this one
+        # bgpd answers for exactly the prefix asked, `{}` without it (FRR 10.4.1): an answer for another one is output
+        # this parser doesn't know, never "no path" (read as no path, it made `present: false` pass)
+        raise unexpected(command, f"paths for {data['prefix']} in the answer for {prefix}")
     for p in data["paths"]:
         if not isinstance(p, dict):
             raise unexpected(command, f"path: {str(p)[:150]}")
@@ -337,10 +339,14 @@ def _learned(p: dict) -> bool:
 def parse_routes(text: str, prefix: str, bgp_text: str | None = None) -> list[Route]:
     """Routing-table entries for `prefix`, plus a not-installed BGP route when the BGP table has a path
     learned from a neighbor that zebra doesn't hold (invalid next hop, not selected): it was received,
-    so it counts as present, as on EOS and SR Linux. zebra may answer with a covering prefix."""
+    so it counts as present, as on EOS and SR Linux. zebra answers for exactly the prefix asked, `{}` without it
+    (FRR 10.4.1): a route for another prefix is output this parser doesn't know, never "not there"."""
     want = ipaddress.ip_network(prefix)
-    out = [_route(prefix, e) for net, entries in _route_table(ROUTE_CMD, text).items() if net == want
-           for e in entries]
+    table = _route_table(ROUTE_CMD, text)
+    for net in table:
+        if net != want:
+            raise unexpected(ROUTE_CMD, f"a route for {net} in the answer for {want}")
+    out = [_route(prefix, e) for entries in table.values() for e in entries]
     if bgp_text is not None:
         paths = _bgp_paths_for_route_check(bgp_text, prefix)   # read even when zebra has it: a stale path is an error
         if not any(r.protocol == "bgp" for r in out) and any(_learned(p) for p in paths):

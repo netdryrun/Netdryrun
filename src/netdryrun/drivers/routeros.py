@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import ipaddress
 
-from .base import BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, canon_communities, check_vrf_name
+from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, canon_communities,
+                   check_vrf_name, unexpected)
 from .routeros_rest import HELPER, Reply, classify_reply
 from .routeros_state import (
     RoutingRoute,
@@ -85,7 +86,15 @@ class RouterosDriver(Driver):
 
     def _paths(self, table: str, evidence: list[dict], prefix: str | None = None) -> list[RoutingRoute]:
         query = f"routing-table={table}" if prefix is None else f"dst-address={prefix}&routing-table={table}"
-        return parse_routing_routes(self._rows(f"/routing/route?{query}", evidence))
+        paths = parse_routing_routes(self._rows(f"/routing/route?{query}", evidence))
+        # the query filters on both: a row for another prefix or table is an answer this driver doesn't know, never
+        # "that prefix isn't there" (dropped, it made `present: false` pass). Pseudo rows (an interface, a scoped
+        # link-local) carry no prefix and name no other one.
+        for p in paths if prefix is not None else []:
+            if p.table != table or (p.prefix is not None and p.prefix != prefix):
+                raise unexpected("/routing/route", f"a row for {p.prefix} in table {p.table} in the answer for {prefix} "
+                                                   f"in table {table}")
+        return paths
 
     @staticmethod
     def _v4_prefix(prefix: str) -> str:

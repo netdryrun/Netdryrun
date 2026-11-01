@@ -269,12 +269,20 @@ def _counted_paths(row: dict) -> list[dict]:
     return rows
 
 
+def _exact(command: str, net, want) -> None:
+    """`show ip route <prefix>` and `show bgp ... <prefix>` list exactly that prefix, nothing without it (NX-OS
+    10.4(8), probed 2026-11-02 with a /25 inside an installed /24): a row for another prefix is output this parser
+    doesn't know, never "not there" (skipped, it made `present: false` pass)."""
+    if net != want:
+        raise unexpected(command, f"a row for {net} in the answer for {want}")
+
+
 def _bgp_paths_raw(text: str, prefix: str, vrf: str) -> list[dict]:
     want = ipaddress.ip_network(prefix)
     paths = []
     for net, row in _bgp_prefix_rows(BGP_CMD, _body(BGP_CMD, text), vrf):
-        if net == want:
-            paths += _counted_paths(row)
+        _exact(BGP_CMD, net, want)
+        paths += _counted_paths(row)
     for p in paths:
         if "pathstaled" in p:   # graceful restart: a stale path is neither present nor gone yet
             refuse_if_stale(prefix, p.get("ipv6neighbor", p.get("neighbor")), _flag(BGP_CMD, p["pathstaled"]))
@@ -309,8 +317,10 @@ def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "defaul
     want = ipaddress.ip_network(prefix)
     rib = _body(ROUTE_CMD, route_text)
     bgp = _body(BGP_CMD, bgp_text)
-    out = [r for net, row in _prefix_rows(ROUTE_CMD, rib, vrf) if net == want
-           for r in _rib_routes(ROUTE_CMD, prefix, row)]
+    out = []
+    for net, row in _prefix_rows(ROUTE_CMD, rib, vrf):
+        _exact(ROUTE_CMD, net, want)
+        out += _rib_routes(ROUTE_CMD, prefix, row)
     paths = _bgp_paths_raw(bgp_text, prefix, vrf)   # read even when installed: a stale path is an error
     if not any(r.protocol == "bgp" for r in out) and any(_learned(p) for p in paths):
         out.append(Route(prefix, "bgp", False))

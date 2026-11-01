@@ -234,7 +234,21 @@ def test_bgp_paths_on_live_output():
     assert red.as_path == "65003 65003 65003"
     assert nxos.parse_bgp_paths(read("nxos_bgp_66.txt"), "192.168.66.0/24") == []
     assert nxos.parse_bgp_paths(read("nxos_bgp_novrf.txt"), "10.0.0.0/8", "NOPE") is None
-    assert nxos.parse_bgp_paths(read("nxos_bgp_20.txt"), "192.168.20.0/25") == []   # exact prefix only
+    # NX-OS answers exactly the prefix asked (10.4(8): no row for a /25 inside an installed /24), so a row for another
+    # prefix is unexpected output, never "no path"
+    with pytest.raises(DriverError) as e:
+        nxos.parse_bgp_paths(read("nxos_bgp_20.txt"), "192.168.20.0/25")
+    assert str(e.value) == ("unexpected output from `show bgp <afi> unicast <prefix> vrf <vrf>`: a row for "
+                            "192.168.20.0/24 in the answer for 192.168.20.0/25")
+
+
+def test_a_route_row_for_another_prefix_is_unexpected():
+    """The routing-table side too: a row for another prefix is never read as "not there" (it made `present: false`
+    pass), and a check on it errors instead of passing."""
+    with pytest.raises(DriverError) as e:
+        nxos.parse_routes(read("nxos_route_20.txt"), read("nxos_bgp_66.txt"), "192.168.20.0/25")
+    assert str(e.value) == ("unexpected output from `show ip route <prefix> vrf <vrf>`: a row for 192.168.20.0/24 in "
+                            "the answer for 192.168.20.0/25")
 
 
 def test_learned_needs_a_path_type_and_an_address():
