@@ -18,4 +18,4 @@ Our own end-to-end test found it on 31 October: deleting the `match` line of a c
 - **Workaround now:** `netdryrun record <topology> --exact-prefixes`, or set each `max:` to today's count, and add `present: false` route checks for prefixes that must never arrive. A pinned count still misses a leak that replaces a prefix at the same count.
 - **Fix in 0.4.1:** `record` adds a check that no new prefix arrives from each eBGP neighbor, and the release gate refuses a release while our end-to-end test reports a false pass. 0.3.3 and 0.4.0 will be yanked when it ships.
 
-[Full advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)
+[Full advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md) · [GHSA-cg9f-xjw5-38ph](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-cg9f-xjw5-38ph)

@@ -1,6 +1,6 @@
 # Advisory: Netdryrun 0.3.3 and 0.4.0, a baseline from `netdryrun record` can pass a leaked customer prefix
 
-**Affected:** netdryrun 0.3.3 and 0.4.0, and the `netdryrun/netdryrun@v0.3.3` and `@v0.4.0` Actions, when the checks were written by `netdryrun record` (or the `record_baseline` MCP tool) without `--exact-prefixes`. That is the README's "on your own containerlab topology" path. Hand-written checks and the examples are not affected by this default. **Fixed in:** 0.4.1 (not released yet); 0.3.3 and 0.4.0 will be yanked from PyPI when it ships. **Found by:** our own end-to-end test (the synthetic stranger), on 31 October 2026, before any outside user reported it.
+**Affected:** netdryrun 0.3.3 and 0.4.0, and the `netdryrun/netdryrun@v0.3.3` and `@v0.4.0` Actions, when the checks were written by `netdryrun record` (or the `record_baseline` MCP tool) without `--exact-prefixes`. That is the README's "on your own containerlab topology" path. Hand-written checks and the examples are not affected by this default. **Fixed in:** 0.4.1 (not released yet); 0.3.3 and 0.4.0 will be yanked from PyPI when it ships. **Found by:** our own end-to-end test (the synthetic stranger), on 31 October 2026, before any outside user reported it. **GitHub advisory:** [GHSA-cg9f-xjw5-38ph](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-cg9f-xjw5-38ph).
 
 ## What happened
 
