@@ -411,15 +411,13 @@ def _prove(executor: Executor, rep: ProveReport, kinds, maximum: int, log, clock
 def _one(executor: Executor, v: Variant, checks: list[Check], base: Snapshot, side: dict, fresh: _Fresh,
          clock) -> VariantResult:
     applied_at = clock()
-    problem = None
-    during: Snapshot | Inconclusive | None = None
-    results: list[Result] = []
+    problem: Exception | None = None   # what the apply raised: an exception, never its text (which can be empty)
     try:
         executor.apply(v)
         during = executor.snapshot()
         results = executor.run_checks(checks)
     except Exception as e:   # whatever happened, the revert below runs; the error is reported after it
-        problem = f"{type(e).__name__}: {e}" if not isinstance(e, ProveError) else str(e)
+        problem = e
     finally:
         try:
             executor.revert(v)
@@ -444,8 +442,9 @@ def _one(executor: Executor, v: Variant, checks: list[Check], base: Snapshot, si
         raise ProveError(f"after variant {v.id} was reverted, the snapshot matches the baseline but checks fail: "
                          f"{'; '.join(still[:5])}. A failure that outlives the variant can't be attributed to it",
                          "restore")
-    if problem:
-        raise ProveError(f"variant {v.id} could not be applied: {problem}", "apply")
+    if problem is not None:
+        why = str(problem) if isinstance(problem, ProveError) else f"{type(problem).__name__}: {problem}"
+        raise ProveError(f"variant {v.id} could not be applied: {why or type(problem).__name__}", "apply")
     if isinstance(during, Inconclusive):
         raise ProveError(f"variant {v.id}: the lab never settled with it applied ({during.reason}); a convergence "
                          "timeout is an error, not a result", "timeout")

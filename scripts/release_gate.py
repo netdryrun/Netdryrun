@@ -806,6 +806,13 @@ VERDICT_FUNCTIONS = frozenset({
     "runner.RunReport.passed", "runner.RunReport.failed", "runner.RunReport.status",
     "runner.RunReport.inconclusive_reason", "runner.RunReport.exit_code",
     "runner.config_load_by_node", "runner._startup_load", "runner.rejected_config_message",
+    # check strength (prove, 2026-11-02): a false "caught" is prove's false pass. What makes a failure catching, what
+    # the effect and the footprint are, whether a variant took effect, the restore verification, the result class
+    # and the exit code
+    "prove.core.classify", "prove.core.real_failure", "prove.core._fitted", "prove.core._Fresh.check",
+    "prove.core.footprint", "prove.core.count_changes", "prove.core.routing_effect", "prove.core.took_effect",
+    "prove.core.sessions_reset", "prove.core.canonical", "prove.core.same_state", "prove.core._one",
+    "prove.core._prove", "prove.core.ProveReport.exit_code",
 })
 
 

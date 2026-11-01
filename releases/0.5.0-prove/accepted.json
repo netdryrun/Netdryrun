@@ -1,17 +1,61 @@
 {
- "note": "Check strength (netdryrun prove), phase 1: the mutants of src/netdryrun/prove that no test can kill because no input makes them behave differently. Each names why. Gate run: scripts/release_gate.py mutation --version 0.5.0-prove --modules prove.variants,prove.core,prove.suggest,prove.report.",
+ "note": "Check strength (netdryrun prove), phase 1: the mutants of src/netdryrun/prove that no test can kill because no input makes them behave differently, each with its reason, argument and adversarial review. Gate run: scripts/release_gate.py mutation --version 0.5.0-prove --modules prove.variants,prove.core,prove.suggest,prove.report.",
  "mutants": {
-  "netdryrun.prove.variants.x_parse__mutmut_3": {"diff": "0aa309d9f2ccfa6c", "class": "equivalent", "reason": "in_bgp's initial value False -> None: only ever tested for truth, and both are false"},
-  "netdryrun.prove.variants.x_parse__mutmut_5": {"diff": "0a61d3418a5b7442", "class": "equivalent", "reason": "afi's initial value: read only inside `router bgp`, whose header line resets afi to ipv4 before any line of it is read"},
-  "netdryrun.prove.variants.x_parse__mutmut_6": {"diff": "60957ba0770b60de", "class": "equivalent", "reason": "afi's initial value: read only inside `router bgp`, whose header line resets afi to ipv4 before any line of it is read"},
-  "netdryrun.prove.variants.x_parse__mutmut_7": {"diff": "f0e96dc63a550326", "class": "equivalent", "reason": "afi's initial value: read only inside `router bgp`, whose header line resets afi to ipv4 before any line of it is read"},
-  "netdryrun.prove.variants.x_parse__mutmut_8": {"diff": "2055b9414f89d545", "class": "equivalent", "reason": "iface's initial value \"\" -> None: only ever tested for truth, and both are false"},
-  "netdryrun.prove.core.x__one__mutmut_2": {"diff": "b66dd3c7d6770793", "class": "equivalent", "reason": "problem's initial value None -> \"\": only tested for truth; it is set to a non-empty message whenever the apply raised"},
-  "netdryrun.prove.core.x__one__mutmut_3": {"diff": "290b23de4ba9233e", "class": "equivalent", "reason": "during's initial value: read only after the apply succeeded, which assigns it; if the apply raised, the run stops with an error before during is read"},
-  "netdryrun.prove.core.x__one__mutmut_4": {"diff": "0393b94037470f7e", "class": "equivalent", "reason": "results' initial value: read only after the apply succeeded, which assigns it; if the apply raised, the run stops with an error before results is read"},
-  "netdryrun.prove.variants.x__customer_leak__mutmut_31": {"diff": "2e4afc2203a5996d", "class": "equivalent", "reason": "`not sizes[n][0]` -> `not sizes[n][1]`: an entry with an empty description always has no range (1 and 2 by default), and an entry with a description and no range (an inner leak) is only ever replaced by an identical one or by an outer leak, which the third clause admits either way"},
-  "netdryrun.prove.variants.x__customer_leak__mutmut_44": {"diff": "39653ed036648543", "class": "equivalent", "reason": "continue -> break when the leak space has too few free /24s for n: sizes are visited in increasing order, so every later size needs more and is skipped too"},
-  "netdryrun.prove.variants.x__originate__mutmut_46": {"diff": "71fe24485740a30c", "class": "equivalent", "reason": "faults.config_lines(as_path=[] -> None): config_lines only tests as_path for truth, and both are false"},
-  "netdryrun.prove.variants.x__originate__mutmut_53": {"diff": "0cf5561ca5a4d367", "class": "equivalent", "reason": "faults.config_lines(as_path=[] -> None, remove=True): config_lines only tests as_path for truth, and both are false"}
+  "netdryrun.prove.variants.x_parse__mutmut_3": {
+   "diff": "0aa309d9f2ccfa6c",
+   "class": "equivalent",
+   "reason": "in_bgp's initial value False -> None: only ever tested for truth, and both are false",
+   "argument": "in_bgp is read only in `elif in_bgp:` (a truth test). Before the first top-level line no branch sets it, and every top-level line resets it to False or sets it True. None and False are both false, so every line takes the same branch.",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  },
+  "netdryrun.prove.variants.x_parse__mutmut_5": {
+   "diff": "0a61d3418a5b7442",
+   "class": "equivalent",
+   "reason": "afi's initial value: read only inside `router bgp`, whose header line resets afi to ipv4 before any line of it is read",
+   "argument": "afi is read only in the in_bgp branch (as the key of a route-map or prefix-list). in_bgp becomes True only on a top-level `router bgp N` line, and that same line's top-level reset sets afi to \"ipv4\" first. So the initial value is overwritten before any read.",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  },
+  "netdryrun.prove.variants.x_parse__mutmut_6": {
+   "diff": "60957ba0770b60de",
+   "class": "equivalent",
+   "reason": "afi's initial value: read only inside `router bgp`, whose header line resets afi to ipv4 before any line of it is read",
+   "argument": "as for mutmut_5: the initial afi is overwritten by the top-level reset on the `router bgp` line before the in_bgp branch reads it",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  },
+  "netdryrun.prove.variants.x_parse__mutmut_7": {
+   "diff": "f0e96dc63a550326",
+   "class": "equivalent",
+   "reason": "afi's initial value: read only inside `router bgp`, whose header line resets afi to ipv4 before any line of it is read",
+   "argument": "as for mutmut_5: the initial afi is overwritten by the top-level reset on the `router bgp` line before the in_bgp branch reads it",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  },
+  "netdryrun.prove.variants.x_parse__mutmut_8": {
+   "diff": "2055b9414f89d545",
+   "class": "equivalent",
+   "reason": "iface's initial value \"\" -> None: only ever tested for truth, and both are false",
+   "argument": "iface is read only as `elif iface and ...` (a truth test), and as a dict key after an `interface` line has set it to a non-empty name. \"\" and None are both false.",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  },
+  "netdryrun.prove.variants.x__customer_leak__mutmut_31": {
+   "diff": "2e4afc2203a5996d",
+   "class": "equivalent",
+   "reason": "`not sizes[n][0]` -> `not sizes[n][1]`: an entry with an empty description always has no range (1 and 2 by default), and an entry with a description and no range (an inner leak) is only ever replaced by an identical one or by an outer leak, which the third clause admits either way",
+   "argument": "Entries are (description, range). The defaults 1 and 2 are (\"\", None); an inner leak writes (non-empty, None); an outer leak writes (non-empty, tuple). A (\"\", tuple) entry never exists. So `not sizes[n][0]` and `not sizes[n][1]` differ only on (non-empty, None), an inner. There, a new inner writes the same description and None (no change); a new outer is admitted by the third clause in both versions.",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  },
+  "netdryrun.prove.variants.x__originate__mutmut_46": {
+   "diff": "71fe24485740a30c",
+   "class": "equivalent",
+   "reason": "faults.config_lines(as_path=[] -> None): config_lines only tests as_path for truth, and both are false",
+   "argument": "faults.config_lines reads as_path only as `if as_path and not remove` / `if as_path and remove` (truth tests), so [] and None give identical lines",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  },
+  "netdryrun.prove.variants.x__originate__mutmut_53": {
+   "diff": "0cf5561ca5a4d367",
+   "class": "equivalent",
+   "reason": "faults.config_lines(as_path=[] -> None, remove=True): config_lines only tests as_path for truth, and both are false",
+   "argument": "faults.config_lines reads as_path only as `if as_path and not remove` / `if as_path and remove` (truth tests), so [] and None give identical lines",
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+  }
  }
 }

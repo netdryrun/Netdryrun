@@ -460,3 +460,31 @@ def test_the_count_suggestion_lists_every_prefix_today():
     k = ItemKey("path", "edge", "default", "ipv4", "unicast", "100.64.0.0/24", neighbor="10.0.1.2")
     (s,) = suggest(Variant("v", "import_filter", "edge", "d"), base, [DiffItem(k, None, path(as_path="65010"))])
     assert s["reason"].endswith("Today it carries 10.10.0.0/24, 203.0.113.128/25") and s["check"]["exact"] == 2
+
+
+def test_an_apply_error_with_no_message_still_stops_the_run():
+    """An executor raising ProveError("") must not read as an applied variant (adversarial review, 2026-11-02)."""
+    base = h.custleak()
+    vs = variants(base)
+
+    class Silent(h.FakeExecutor):
+        def apply(self, v):
+            super().apply(v)
+            raise core.ProveError("")
+    rep = prove(Silent(base, {FILTER: h.applied(vs[FILTER], h.custleak(edge_filter=None))}), CHECKS,
+                kinds=["import_filter"], maximum=1)
+    assert rep.status == "error" and rep.error_kind == "apply" and rep.error.endswith("could not be applied: ProveError")
+
+    class Blank(h.FakeExecutor):
+        def apply(self, v):
+            raise ValueError()
+    rep = prove(Blank(base, {}), CHECKS, kinds=["import_filter"], maximum=1)
+    assert rep.error.endswith("could not be applied: ValueError: ")
+
+
+def test_customer_leak_takes_used_as_any_iterable():
+    cfg = V.parse("router bgp 65001\n neighbor 10.0.0.1 remote-as 65002\n")
+    every = (n for n in V.LEAK_SPACE.subnets(new_prefix=24))
+    assert V._customer_leak("cust", cfg, [], every) == []
+    one_free = [n for n in V.LEAK_SPACE.subnets(new_prefix=24)][1:]
+    assert [v.id for v in V._customer_leak("cust", cfg, [], iter(one_free))] == ["customer_leak:cust:1"]

@@ -463,13 +463,13 @@ def _customer_leak(node: str, cfg: FrrConfig, ranges: list[tuple[str, str, str, 
             if 0 < n <= MAX_LEAK and (n not in sizes or not sizes[n][0] or (outer and sizes[n][1] is None)):
                 sizes[n] = (f" ({where} the prefix-count range of a check on its session)", outer)
     out = []
+    used = list(used)   # read once per size below
     for n, (why, outer) in sorted(sizes.items()):
         prefixes = leak_prefixes(n, used)
-        if len(prefixes) < n:
-            continue
-        v = _originate("customer_leak", node, cfg, prefixes, f"{node} announces {n} extra prefix(es) from {LEAK_SPACE}{why}",
-                       f"customer_leak:{node}:{n}")
-        out.append(Variant(**{**v.__dict__, "range_top": outer}))
+        if len(prefixes) == n:   # the leak space has room for this many
+            v = _originate("customer_leak", node, cfg, prefixes,
+                           f"{node} announces {n} extra prefix(es) from {LEAK_SPACE}{why}", f"customer_leak:{node}:{n}")
+            out.append(Variant(**{**v.__dict__, "range_top": outer}))
     return out
 
 

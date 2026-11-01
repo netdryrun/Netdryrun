@@ -94,8 +94,8 @@ def test_the_verdict_functions_exist():
     import ast
     src = ROOT / "src" / "netdryrun"
     found = set()
-    for mod in ("checks", "runner"):
-        for node in ast.walk(ast.parse((src / f"{mod}.py").read_text(encoding="utf-8"))):
+    for mod in ("checks", "runner", "prove.core"):
+        for node in ast.walk(ast.parse((src / f"{mod.replace('.', '/')}.py").read_text(encoding="utf-8"))):
             if isinstance(node, ast.ClassDef):
                 found |= {f"{mod}.{node.name}.{f.name}" for f in node.body if isinstance(f, ast.FunctionDef)}
             elif isinstance(node, ast.FunctionDef):
