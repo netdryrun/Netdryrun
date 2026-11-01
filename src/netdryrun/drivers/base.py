@@ -238,6 +238,13 @@ class Driver:
         """The NOS version the node reports, or None where this driver doesn't read it (yet)."""
         return None
 
+    def quiescence_timer(self) -> float | None:
+        """For ending a failing check early (checks.Quiescence): the longest timer after which this node's state
+        can still change with nothing else in the lab changing first (0.0: none beyond the advertisement
+        intervals its sessions report), or None where the driver can't tell. None keeps every check in the lab
+        waiting out its timeout."""
+        return None
+
     def vrfs(self) -> Observation:
         """The node's active VRFs other than default (list[str], used by `netdryrun record`)."""
         raise DriverError(f"listing VRFs is not supported on {self.name} yet")

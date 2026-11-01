@@ -335,6 +335,10 @@ class Lab:
         r = _run(["docker", "logs", "--since", s.stdout.strip(), c], timeout=120, errors="replace")
         return ExecResult(r.cmd, r.rc, f"{r.stdout}\n{r.stderr}", r.stderr)
 
+    def exec_detached(self, node: str, cmd: list[str], timeout: float = 15) -> ExecResult:
+        """Start a command in the node's container and return at once (`docker exec -d`)."""
+        return _run(["docker", "exec", "-d", self.nodes[node].container, *cmd], timeout=timeout)
+
     def exec(self, node: str, cmd: list[str], timeout: float = 60, input: str | None = None) -> ExecResult:
         flags = ["-i"] if input is not None else []
         return _run(["docker", "exec", *flags, self.nodes[node].container, *cmd], timeout=timeout, input=input)

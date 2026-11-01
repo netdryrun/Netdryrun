@@ -207,7 +207,8 @@ def _cmd_verify(args) -> int:
         res = verify(args.topology, args.before, args.after, args.intent, guards=args.guards,
                      config_dir_name=args.config_dir, unobserved=args.unobserved or [], settle=args.settle,
                      timeout=args.timeout, hold=args.hold, allow_unhealthy_baseline=args.allow_unhealthy_baseline,
-                     keep=args.keep, log=lambda m: print(m, flush=True), intent_source=args.intent_source)
+                     keep=args.keep, log=lambda m: print(m, flush=True), intent_source=args.intent_source,
+                     parallel=False if args.serial else None, reuse_base_snapshot=args.reuse_base_snapshot)
     except KeyboardInterrupt as e:
         signum = getattr(e, "signum", signal.SIGINT)
         print(f"\nInterrupted: no verdict ({signal_name(signum)}). The labs were cleaned up unless --keep was set.",
@@ -338,6 +339,12 @@ def main(argv: list[str] | None = None) -> int:
     p_ver.add_argument("--allow-unhealthy-baseline", action="store_true",
                        help="compare even when BGP sessions are down in the before-lab")
     p_ver.add_argument("--keep", action="store_true", help="leave the after lab running (for the next_diagnostic commands)")
+    p_ver.add_argument("--serial", action="store_true",
+                       help="boot the before and after labs one after the other (default: at the same time, each under "
+                            "its own lab name)")
+    p_ver.add_argument("--reuse-base-snapshot", action="store_true",
+                       help="cache the before side's snapshot locally and let an earlier boot of the same before side "
+                            "stand for its rerun (one boot fewer per approving verify)")
 
     sub.add_parser("mcp", help="run the MCP server (stdio) so AI agents can dry-run changes")
 

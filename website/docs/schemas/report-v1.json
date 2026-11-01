@@ -46,6 +46,15 @@
         "total": {"type": "integer", "minimum": 0}
       }
     },
+    "timings": {
+      "type": "object",
+      "description": "Seconds per phase of the run (Netdryrun 0.4.1 and later; absent before). deploy: containerlab deploy. boot: until the checks start (containers running, setup commands). converge: the positive checks, then the BGP gate. ready: within converge, until every node with a positive check gave usable state (null if one never did). settle: the wait before the post-convergence checks. checks: the post-convergence checks, the scenarios and the config-load read. destroy: containerlab destroy. total: the whole run. ended_early: the names of the checks that failed before their timeout because the lab had stopped changing. A phase that didn't happen is absent.",
+      "properties": {
+        "ended_early": {"type": "array", "items": {"type": "string"}},
+        "ready": {"type": ["number", "null"]}
+      },
+      "additionalProperties": {"type": "number"}
+    },
     "checks": {
       "type": "array",
       "description": "One entry per check, in file order; a scenario's checks follow the main checks, with the scenario name in the check name.",

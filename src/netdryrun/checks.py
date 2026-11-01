@@ -6,7 +6,10 @@ after convergence and must hold for a whole window.
 """
 from __future__ import annotations
 
+import copy
+import ipaddress
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
@@ -14,8 +17,11 @@ from datetime import datetime, timezone
 
 from .config import BGP_ATTRIBUTES, Check, community_name
 from .drivers import Driver
+from .drivers.base import NoSuchInstance
 
 REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
+QUIET_SAMPLES = 3    # identical lab fingerprints, at least, before a lab counts as quiescent
+QUIET_MARGIN = 2.0   # seconds beyond the longest advertisement interval or timer, as in runner.ADV_MARGIN
 
 
 @dataclass
@@ -30,12 +36,21 @@ class Result:
     history: list[dict] = field(default_factory=list)   # every sample: time offset, pass/fail, detail
     samples_passed: int = 0    # passing samples over the whole check (history keeps only the last 50)
     samples_unready: int = 0   # failing samples where the node gave no usable state (see Unready)
+    first_ready: float | None = None   # seconds into the check of its first sample with usable state (timings)
 
 
 class Unready(str):
     """The detail of a failing sample that means "no usable state yet", not "the network is wrong": the
     state command failed or its output could not be read, or BGP had no neighbors at all on the node.
     It is how a lab that never came up (inconclusive) is told apart from a change that broke it (failed)."""
+
+
+class Missing(str):
+    """The detail of a failing sample of a positive check whose state was read and shows the thing missing: the
+    route isn't active, there is no BGP path (or none is best), an established session has fewer prefixes than
+    the minimum, a ping found no route at all. Only this kind of failure may end early, and only in a lab that
+    has stopped changing (Quiescence): a session that is down, or state that can't be read, waits out the
+    timeout as before (a connect-retry timer can bring a session up late)."""
 
 
 def _not_configured(neighbor: str, seen: dict) -> str:
@@ -82,6 +97,8 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
 
     top = n.prefixes_upto.get(afi, count)
     if top == count:
+        if not within(count) and count < low:   # established, and short of the minimum
+            return False, Missing(f"{count} {afi} prefixes accepted"), obs.evidence
         return within(count), f"{count} {afi} prefixes accepted", obs.evidence
     # Some received routes are hidden for a reason the device doesn't give, so the count is somewhere from
     # `count` to `top`: judged only when every value in that range gives the same answer (interop IOP-7)
@@ -110,7 +127,7 @@ def _route(d: Driver, p: dict) -> tuple[bool, str, list]:
             # present in the routing table, selected or not (e.g. a BGP default losing to a local one)
             return True, f"present via {matching[0].protocol} (not selected)", obs.evidence
         seen = ", ".join(f"{r.protocol}{'' if r.active else ' (inactive)'}" for r in obs.value) or "nothing"
-        return False, f"not active{' via ' + want_proto if want_proto else ''}; seen: {seen}", obs.evidence
+        return False, Missing(f"not active{' via ' + want_proto if want_proto else ''}; seen: {seen}"), obs.evidence
     # Absent means not in the routing table at all: a received-but-not-selected route
     # (e.g. a leaked default losing to a local one) is still a leak.
     if matching:
@@ -135,7 +152,7 @@ def _ping(d: Driver, p: dict) -> tuple[bool, str, list]:
             why = f"0/{count} replies (destination unreachable: {m.group(0)})"
             if p.get("expect", "success") == "failure":
                 return True, why, obs.evidence
-            return False, why, obs.evidence
+            return False, Missing(why), obs.evidence
     if sent == 0:  # ping never ran properly (bad source address, missing VRF, ...): not a result
         err = obs.evidence[-1].get("stderr", "").strip() if obs.evidence else ""
         return False, f"error: ping did not run{': ' + err if err else ''}", obs.evidence
@@ -168,10 +185,10 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
             return False, f"unexpectedly in the BGP table ({len(paths)} path(s); {_describe_path(paths[0])})", obs.evidence
         return True, "no BGP path", obs.evidence
     if not paths:
-        return False, "no BGP path", obs.evidence
+        return False, Missing("no BGP path"), obs.evidence
     best = next((x for x in paths if x.best), None)
     if best is None:
-        return False, f"{len(paths)} BGP path(s) but none is best (next hop unreachable?)", obs.evidence
+        return False, Missing(f"{len(paths)} BGP path(s) but none is best (next hop unreachable?)"), obs.evidence
     wrong = []
     have = set(best.all_communities())
     missing = [c for c in p.get("communities", []) if c not in have]
@@ -297,46 +314,239 @@ def converge_then_hold(check: Check, driver: Driver, hold: float = 10.0, interva
     return held
 
 
-def _evaluate_all(checks: list[Check], drivers: dict, workers: int = 8) -> list[tuple]:
-    """One sample of every check, run concurrently (each is a docker exec), results in input order."""
+class RoundMemo:
+    """One read per (node, query) per sampling round, shared by every check that asks it: three checks on one
+    router no longer send the same `show bgp neighbors` three times. Each caller gets its own copy of the
+    observation, all from the same instant. A read that fails fails the same way for every caller. Pings are
+    never shared: each ping check sends its own packets."""
+
+    SHARED = frozenset({"bgp_neighbors", "routes", "bgp_paths", "all_routes", "quiescence_timer"})
+
+    def __init__(self, drivers: dict):
+        self.drivers = drivers
+        self._lock = threading.Lock()
+        self._slots: dict[tuple, dict] = {}
+
+    def __getitem__(self, node: str):
+        return self.of(node, self.drivers[node])
+
+    def of(self, node: str, driver):
+        return _MemoDriver(self, node, driver)
+
+    def read(self, node: str, driver, method: str, args: tuple, kwargs: dict):
+        key = (node, method, args, tuple(sorted(kwargs.items())))
+        with self._lock:
+            slot = self._slots.get(key)
+            owner = slot is None
+            if owner:
+                slot = self._slots[key] = {"done": threading.Event()}
+        if owner:
+            try:
+                slot["value"] = getattr(driver, method)(*args, **kwargs)
+            except Exception as e:   # every caller of this read sees the same failure
+                slot["error"] = e
+            finally:
+                slot["done"].set()
+        else:
+            slot["done"].wait()
+        if "error" in slot:
+            raise slot["error"]
+        return copy.deepcopy(slot["value"])
+
+
+class _MemoDriver:
+    def __init__(self, memo: RoundMemo, node: str, driver):
+        self._memo, self._node, self._driver = memo, node, driver
+
+    def __getattr__(self, name: str):
+        attr = getattr(self._driver, name)
+        if name not in RoundMemo.SHARED or not callable(attr):
+            return attr
+        return lambda *args, **kwargs: self._memo.read(self._node, self._driver, name, args, kwargs)
+
+
+def _evaluate_all(checks: list[Check], drivers, workers: int = 8) -> list[tuple]:
+    """One sample of every check, run concurrently (each is a docker exec), results in input order. Checks that
+    read the same state on the same node share one read (RoundMemo)."""
+    if not isinstance(drivers, RoundMemo):
+        drivers = RoundMemo(drivers)
     if len(checks) <= 1:
         return [_evaluate(c, drivers[c.node]) for c in checks]
     with ThreadPoolExecutor(max_workers=min(workers, len(checks))) as pool:
         return list(pool.map(lambda c: _evaluate(c, drivers[c.node]), checks))
 
 
+class Quiescence:
+    """Whether the whole lab has stopped changing, for ending a failing positive check before its timeout.
+
+    Each sample is a fingerprint of every routing node: every BGP session (in the default VRF and every VRF a
+    check names) with its state and prefix counts, and the node's IPv4 and IPv6 routing tables. The lab is
+    quiescent when at least QUIET_SAMPLES fingerprints in a row are identical and they span the window: the
+    settle time, and at least the longest advertisement interval (MRAI) or timer any node reports, plus a margin.
+
+    Anything uncertain makes a sample unusable, which starts the count again (fail closed: the check then waits
+    out its timeout as before): a session that isn't established, a node with no BGP neighbors, a read that
+    fails, an advertisement interval the driver doesn't know, or a node whose driver can't tell what could still
+    change the state later on its own (Driver.quiescence_timer: None)."""
+
+    def __init__(self, drivers: dict, vrfs=(), settle: float = 10.0):
+        self.drivers = dict(drivers)   # every routing node of the lab
+        self.vrfs = sorted({"default"} | set(vrfs))
+        self.settle = settle
+        self.run: list[tuple[float, object]] = []   # the current run of identical fingerprints: (time, fingerprint)
+        self.window = settle
+        self.ribs: dict[tuple[str, str, int], list] = {}   # the latest routing tables, for the ping rule
+
+    def reset(self) -> None:
+        self.run = []
+
+    def sample(self, memo: RoundMemo, t: float) -> None:
+        try:
+            fp, window, ribs = self._fingerprint(memo)
+        except Exception:   # anything unexpected: not a usable sample
+            fp = None
+        if fp is None:
+            self.run, self.ribs = [], {}
+            return
+        if self.run and self.run[-1][1] != fp:
+            self.run = []
+        self.run.append((t, fp))
+        self.window, self.ribs = window, ribs
+
+    def quiet_since(self) -> float | None:
+        """When the current quiescent stretch began, if it already spans the window; else None."""
+        if len(self.run) < QUIET_SAMPLES or self.run[-1][0] - self.run[0][0] < self.window:
+            return None
+        return self.run[0][0]
+
+    def span(self) -> float:
+        return self.run[-1][0] - self.run[0][0] if self.run else 0.0
+
+    def routed(self, node: str, vrf: str, target: str) -> bool:
+        """Whether the node's latest routing table has any route to `target`. Unknown counts as routed, so a
+        ping to it never ends early."""
+        try:
+            ip = ipaddress.ip_address(target)
+        except ValueError:
+            return True
+        rib = self.ribs.get((node, vrf, ip.version))
+        if rib is None:
+            return True
+        return any(ip in ipaddress.ip_network(r.prefix, strict=False) for r in rib)
+
+    def _fingerprint(self, memo: RoundMemo):
+        fp, ribs = [], {}
+        longest = 0.0
+        for node in sorted(self.drivers):
+            d = memo.of(node, self.drivers[node])
+            timer = d.quiescence_timer()
+            if timer is None:
+                return None, None, None
+            longest = max(longest, timer)
+            for vrf in self.vrfs:
+                try:
+                    nbrs = d.bgp_neighbors(vrf).value
+                except NoSuchInstance:
+                    fp.append((node, vrf, "no such instance"))
+                    continue
+                if not nbrs or any(n.state != "established" or n.adv_interval is None for n in nbrs.values()):
+                    return None, None, None
+                longest = max([longest, *(n.adv_interval for n in nbrs.values())])
+                fp.append((node, vrf, tuple(sorted((a, n.state, tuple(sorted(n.prefixes.items())),
+                                                    tuple(sorted(n.prefixes_upto.items())))
+                                                   for a, n in nbrs.items()))))
+                for family in (4, 6):
+                    try:
+                        rib = d.all_routes(vrf, family).value
+                    except NoSuchInstance:
+                        fp.append((node, vrf, family, "no such instance"))
+                        continue
+                    ribs[(node, vrf, family)] = rib
+                    fp.append((node, vrf, family, tuple(sorted({(r.prefix, r.protocol, r.active) for r in rib}))))
+        if not fp:
+            return None, None, None
+        return tuple(fp), max(self.settle, longest + QUIET_MARGIN if longest > 0 else 0.0), ribs
+
+
+def _ends_early(c: Check, st: dict, quiet: Quiescence, since: float) -> bool:
+    """A failing positive check may end before its timeout only when it never passed, and every sample of it
+    since the lab became quiescent showed the thing missing; a ping only when its node has no route at all to
+    the target."""
+    if st["passed"] or st["missing_from"] is None or st["missing_from"] > since:
+        return False
+    if c.type == "ping":
+        return not quiet.routed(c.node, c.params.get("vrf", "default"), c.params["target"])
+    return True
+
+
 def run_round_robin(checks: list[Check], drivers: dict, interval: float = 3.0, confirm: int = 2,
-                    clock=time.monotonic, sleep=time.sleep, on_result=None) -> list[Result]:
+                    clock=time.monotonic, sleep=time.sleep, on_result=None,
+                    quiet: Quiescence | None = None) -> list[Result]:
     """Positive checks polled together, one concurrent round at a time, against one shared start time.
 
     A check passes after `confirm` consecutive passing samples. The timeout only ends a check on a
     *failing* sample, so a big list (or a slow round) can't fail a healthy check as "not stable".
+
+    With `quiet`, a check that has only ever failed with its state read and the thing missing (Missing) ends
+    before its timeout once the whole lab is quiescent (see Quiescence): an earlier fail, never a pass.
     """
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     t0 = clock()
-    state = {id(c): {"streak": 0, "history": []} for c in checks}
+    state = {id(c): {"streak": 0, "history": [], "passed": False, "missing_from": None, "first_ready": None}
+             for c in checks}
     done: dict[int, Result] = {}
+
+    def finish(c: Check, passed: bool, detail: str, evidence: list, elapsed: float) -> None:
+        st = state[id(c)]
+        done[id(c)] = Result(c, passed, detail, len(st["history"]), round(elapsed, 1), started, evidence,
+                             st["history"][-50:], **_counts(st["history"]), first_ready=st["first_ready"])
+        if on_result:
+            on_result(done[id(c)])
+
     while len(done) < len(checks):
         pending = [c for c in checks if id(c) not in done]
-        for c, (ok, detail, evidence) in zip(pending, _evaluate_all(pending, drivers), strict=True):
+        memo = RoundMemo(drivers)
+        last: dict[int, tuple] = {}
+        for c, (ok, detail, evidence) in zip(pending, _evaluate_all(pending, memo), strict=True):
             st = state[id(c)]
             elapsed = clock() - t0
             st["history"].append(_sample(elapsed, ok, detail))
             st["streak"] = st["streak"] + 1 if ok else 0
+            st["passed"] = st["passed"] or ok
+            if st["first_ready"] is None and (ok or not isinstance(detail, Unready)):
+                st["first_ready"] = round(elapsed, 1)
+            if isinstance(detail, Missing):
+                st["missing_from"] = elapsed if st["missing_from"] is None else st["missing_from"]
+            else:
+                st["missing_from"] = None
             # The timeout ends a check only on a failing sample. A passing check always gets its
             # confirming samples, however slow the round: it then passes, or fails on the next sample.
             finished = st["streak"] >= confirm or (not ok and elapsed >= c.timeout)
             if not finished:
+                last[id(c)] = (detail, evidence)
                 continue
             passed = st["streak"] >= confirm
             if not passed and ok:
                 detail = f"{detail}, but not stable ({st['streak']}/{confirm} consecutive passes)"
             elif not passed and any(h["passed"] for h in st["history"]):
                 detail = f"{detail} (flapping: passed {sum(h['passed'] for h in st['history'])} of {len(st['history'])} samples)"
-            done[id(c)] = Result(c, passed, detail, len(st["history"]), round(elapsed, 1), started, evidence,
-                                 st["history"][-50:], **_counts(st["history"]))
-            if on_result:
-                on_result(done[id(c)])
+            finish(c, passed, detail, evidence, elapsed)
+        if quiet is not None:
+            waiting = [c for c in checks if id(c) not in done and not state[id(c)]["passed"]
+                       and state[id(c)]["missing_from"] is not None]
+            if not waiting:
+                quiet.reset()
+            else:
+                quiet.sample(memo, clock() - t0)
+                since = quiet.quiet_since()
+                for c in waiting if since is not None else []:
+                    if not _ends_early(c, state[id(c)], quiet, since):
+                        continue
+                    elapsed = clock() - t0
+                    detail, evidence = last[id(c)]
+                    finish(c, False, f"{detail} (ended early at {elapsed:.0f}s of its {c.timeout:g}s timeout: the lab "
+                                     f"was quiescent for {quiet.span():.0f}s, every BGP session established and no "
+                                     "prefix count or routing table changing)", evidence, elapsed)
         if len(done) < len(checks):
             elapsed = clock() - t0
             # wake up in time for the nearest deadline among checks that are still failing

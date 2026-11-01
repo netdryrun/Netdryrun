@@ -21,6 +21,16 @@ ALL_ROUTES_CMD = "show ip route json"
 BGP_PATHS_CMD = "show bgp <afi> unicast <prefix> json"
 BGP_TABLE_CMD = "show bgp ipv4 unicast <prefix> longer-prefixes json"
 VRF_CMD = "show vrf"
+CONFIG_CMD = "show running-config"
+
+# Config that can change routing state later with nothing else in the lab changing first, which a quiescent
+# lab can't rule out (checks.Quiescence): another routing protocol converging on its own timers (OSPF's wait
+# timer, IS-IS, RIP, ...), route dampening, BGP update-delay, max-med on startup, graceful restart's deferral,
+# segment routing, LDP.
+_LATE_STATE = re.compile(r"^\s*(router\s+(ospf6?|isis|rip|ripng|eigrp|babel|openfabric|pim6?)\b|mpls\s+ldp\b"
+                         r"|segment-routing\b|(bgp\s+)?dampening\b|(bgp\s+)?update-delay\b|bgp\s+max-med\s+on-startup\b"
+                         r"|(bgp\s+|neighbor\s+\S+\s+)graceful-restart(?![\s-]+disable))", re.M)
+DEFAULT_COND_ADV_TIMER = 60.0   # FRR's `bgp conditional-advertisement timer` default (seconds)
 
 # bgpd's answers when the BGP instance itself is missing (no `router bgp` in that VRF)
 _NO_INSTANCE = re.compile(r"unknown|not found", re.I)
@@ -372,6 +382,22 @@ def parse_vrfs(text: str) -> dict[str, bool]:
     return out
 
 
+def quiescence_timer_of(config: str) -> float | None:
+    """From `show running-config`: the longest timer after which the node's state can change on its own, None when
+    its config has something whose timing isn't known (_LATE_STATE). An advertise-map is re-evaluated every
+    `bgp conditional-advertisement timer` seconds (60 by default), so a route it governs can appear that late."""
+    if not isinstance(config, str) or not config.strip():
+        raise unexpected(CONFIG_CMD, "no output")
+    lines = [ln for ln in config.splitlines() if not ln.strip().startswith("!")]
+    if _LATE_STATE.search("\n".join(lines)):
+        return None
+    if not any(" advertise-map " in f" {ln.strip()} " for ln in lines):
+        return 0.0
+    timers = [float(ln.split()[-1]) for ln in lines
+              if ln.strip().startswith("bgp conditional-advertisement timer ") and ln.split()[-1].isdigit()]
+    return max(timers, default=DEFAULT_COND_ADV_TIMER)
+
+
 def parse_ping(text: str) -> tuple[int, int]:
     """(sent, received). (0, 0) means ping did not run; the check reports that as an error."""
     m = re.search(r"(\d+) packets transmitted, (\d+) (?:packets )?received", text)
@@ -399,6 +425,12 @@ class FrrDriver(Driver):
     def nos_version(self) -> str | None:
         try:
             return parse_version(self._vtysh("show version", []))
+        except DriverError:
+            return None
+
+    def quiescence_timer(self) -> float | None:
+        try:
+            return quiescence_timer_of(self._vtysh(CONFIG_CMD, []))
         except DriverError:
             return None
 

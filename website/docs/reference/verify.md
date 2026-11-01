@@ -61,6 +61,8 @@ A lab that gives a different snapshot on a second boot approves nothing (INCONCL
 | `--hold` | `10` | The standing guards' hold window. |
 | `--allow-unhealthy-baseline` | | Compare even when sessions are down in the *before* lab. |
 | `--keep` | | Leave the *after* lab running, to run the `next_diagnostic` commands. |
+| `--serial` | | Boot the *before* and *after* labs one after the other. By default they boot at the same time, each under its own lab name (`<name>-b<run>`, `<name>-a<run>`), and so do the two reruns of an approval; the outcomes are judged in the same order either way. A topology that fixes a container `prefix`, a `mgmt` network or a node's `mgmt-ipv4`/`mgmt-ipv6`, and `--keep`, always boot one after the other. |
+| `--reuse-base-snapshot` | | Keep the *before* side's snapshot in a local cache (`~/.cache/netdryrun/snapshots`, never uploaded), keyed by the topology, every bound file, every image digest, the setup commands, `--settle` and the containerlab and Netdryrun versions. On an approval, an earlier boot with the same key stands for the rerun of the *before* side, so the change is still compared with two independent boots of the base. No key (an image without a digest): no cache. |
 
 ### Standing guards
 

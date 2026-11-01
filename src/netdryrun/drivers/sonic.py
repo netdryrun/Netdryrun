@@ -7,3 +7,7 @@ from .frr import FrrDriver
 
 class SonicDriver(FrrDriver):
     name = "sonic"
+
+    def quiescence_timer(self) -> float | None:
+        # SONiC's own daemons (bgpcfgd, orchagent) apply config to FRR from CONFIG_DB on their own schedule
+        return None

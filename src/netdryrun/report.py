@@ -37,6 +37,7 @@ def to_json(rep: RunReport) -> str:
         "inconclusive_reason": rep.inconclusive_reason,
         "environment": rep.environment,
         "summary": {"passed": rep.passed, "failed": rep.failed, "total": len(rep.results)},
+        "timings": rep.timings,
         "checks": [
             {
                 "name": r.check.name,

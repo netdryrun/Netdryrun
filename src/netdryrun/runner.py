@@ -19,8 +19,8 @@ from typing import Callable
 import yaml
 
 from . import __version__
-from .checks import (Result, Unready, _sample, hold_together, inconclusive_reason, is_post_convergence,
-                     never_ready_nodes, run_round_robin)
+from .checks import (Quiescence, Result, Unready, _sample, hold_together, inconclusive_reason,
+                     is_post_convergence, never_ready_nodes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
 from .drivers import DriverError, check_supported, detect, for_node
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
@@ -185,6 +185,8 @@ class RunReport:
     results: list[Result] = field(default_factory=list)
     error: str = ""
     environment: dict = field(default_factory=dict)
+    # seconds per phase (PHASES), "total", and "ended_early": the checks that failed before their timeout
+    timings: dict = field(default_factory=dict)
 
     @property
     def passed(self) -> int:
@@ -426,13 +428,52 @@ def rejected_config_message(by_node: dict[str, list[str]]) -> str:
             f"change as written: {' | '.join(found)}. Fix the config and run again.")
 
 
+# Phases of a run in its timings, in seconds. deploy: `containerlab deploy`. boot: until the checks start (the
+# containers running, setup commands). converge: the positive checks, then the BGP gate. ready: within converge,
+# until every node with a positive check gave usable state. settle: the wait before the post-convergence checks.
+# checks: the post-convergence checks, the scenarios and the config-load read. destroy: `containerlab destroy`.
+PHASES = ("deploy", "boot", "ready", "converge", "settle", "checks", "destroy")
+
+
+def _ready_after(results: list[Result]) -> float | None:
+    """Seconds until every node with a positive check gave usable state on one of them (None: a node never did)."""
+    first: dict[str, list] = {}
+    for r in results:
+        first.setdefault(r.check.node, []).append(r.first_ready)
+    seen = [min((t for t in ts if t is not None), default=None) for ts in first.values()]
+    return None if not seen or None in seen else max(seen)
+
+
+def _routing_drivers(lab, driver_for) -> dict | None:
+    """Every node of the lab with its driver, for Quiescence; None when a node (other than a bridge) has none: its
+    state can't be read, so the lab can never be shown to have stopped changing (a host may run a BGP speaker)."""
+    out = {}
+    for name, node in lab.nodes.items():
+        if node.kind in ("bridge", "ovs-bridge"):
+            continue
+        try:
+            out[name] = driver_for(name)
+        except DriverError:
+            return None
+    return out or None
+
+
 def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_failure: bool = False,
-        settle: float = 10.0, hold: float = 10.0,
+        settle: float = 10.0, hold: float = 10.0, fail_fast: bool = True,
         on_result: Callable[[Result], None] | None = None, log: Callable[[str], None] = lambda _: None) -> RunReport:
+    """`fail_fast`: a failing positive check may end before its timeout once the whole lab has stopped changing
+    (checks.Quiescence); that only makes a failing check fail sooner, never pass."""
     report = RunReport(config=config, started=_now())
     lab = None
     deployed = False      # this run started a deploy: only then is the lab its own to destroy
     interrupted = None    # the signal that ended the run, if any
+    t_run = _clock()
+    timings = report.timings
+
+    def lap(phase: str, since: float) -> float:
+        now = _clock()
+        timings[phase] = round(timings.get(phase, 0.0) + now - since, 1)
+        return now
     try:
         _check_duration("--settle", settle)
         _check_duration("--hold", hold)
@@ -463,7 +504,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             deployed = True
             if not keep:
                 _ACTIVE.add(lab)
+            t = _clock()
             lab.deploy()
+            lap("deploy", t)
+        t_boot = _clock()
         missing = {n.container for n in lab.nodes.values()} - lab.running_containers()
         if missing:
             raise LabError(f"lab containers not running: {', '.join(sorted(missing))}")
@@ -484,9 +528,19 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
 
         positives = [c for c in config.checks if not is_post_convergence(c)]
         negatives = [c for c in config.checks if is_post_convergence(c)]
-        report.results += run_round_robin(positives, drivers, on_result=on_result, clock=_clock, sleep=_sleep)
+        quiet = None
+        if fail_fast and positives:
+            nodes = _routing_drivers(lab, driver_for)
+            vrfs = {c.params["vrf"] for c in config.checks if c.params.get("vrf")}
+            quiet = Quiescence(nodes, vrfs, settle) if nodes else None
+        t_conv = lap("boot", t_boot)
+        report.results += run_round_robin(positives, drivers, on_result=on_result, clock=_clock, sleep=_sleep,
+                                          quiet=quiet)
+        timings["ready"] = _ready_after(report.results)
+        timings["ended_early"] = [r.check.name for r in report.results if "(ended early at " in str(r.detail)]
         if negatives or config.scenarios:
             settle, hold = _stretch_for_advertisement_intervals(lab, driver_for, config, settle, hold, log)
+        t_checks = None
         if negatives:
             gate_warnings: dict[int, str] = {}
             not_converged = _bgp_convergence_gate(negatives, config.checks, drivers, log=log,
@@ -495,7 +549,9 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
                 # nothing has proven convergence yet; give the control plane time to come up
                 settle = max(settle, 30.0)
             log(f"Convergence checks done; settling {settle:g}s before post-convergence checks...")
+            t = lap("converge", t_conv)
             _sleep(settle)
+            t_checks = lap("settle", t)
             ready = [c for c in negatives if id(c) not in not_converged]
             report.results += hold_together(ready, drivers, hold=hold, on_result=_with_warnings(gate_warnings, on_result),
                                             clock=_clock, sleep=_sleep)
@@ -503,6 +559,8 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
                 report.results.append(r)
                 if on_result:
                     on_result(r)
+        if t_checks is None:
+            t_checks = lap("converge", t_conv)
         # Keep the report in the order the user wrote the checks
         order = {id(c): i for i, c in enumerate(config.checks)}
         report.results.sort(key=lambda r: order[id(r.check)])
@@ -541,6 +599,7 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
                 break
         by_node = config_load_by_node(lab, _driver_of(config), deployed=deploy)
         _config_load(lab, driver_for, report, by_node)
+        lap("checks", t_checks)
         rejected = rejected_config_message(by_node)
         if rejected:
             report.error = rejected
@@ -563,17 +622,20 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             keep_now = keep or (keep_on_failure and interrupted is None and report.status != "passed")
             if lab is not None and deployed and not keep_now:
                 log("Destroying lab...")
+                t = _clock()
                 try:
                     d = lab.destroy()
                     if d.rc != 0:
                         log(f"warning: lab cleanup failed: {(d.stderr or d.stdout).strip()[-300:]}")
                 except Exception as e:  # cleanup trouble must never hide the test results
                     log(f"warning: lab cleanup failed: {e}")
+                lap("destroy", t)
             elif lab is not None and deployed:
                 log(f"Lab {lab.name} left running for debugging; destroy with: containerlab destroy -t {lab.topology} --cleanup")
             if lab is not None:
                 _ACTIVE.discard(lab)
                 lab.release_lock()
+            timings["total"] = round(_clock() - t_run, 1)
             report.finished = _now()
         if pending and interrupted is None:
             # a signal arrived during cleanup: the lab is gone, now honor it

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import os
 import posixpath
 import re
@@ -20,6 +21,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -28,6 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Callable
 
+from .. import __version__
 from ..config import ConfigError, load_yaml
 from ..drivers import DRIVERS, DriverError, detect
 from ..lab import Lab, LabError
@@ -38,6 +41,7 @@ from .intent import IntentError, check_nodes, load_intent, parse_intent_text
 from .report import ALLOW_WARNING, INTENT_EDITED_WARNING, NO_GUARDS_WARNING, VerifyResult
 from .snapshot import Snapshot, SnapshotError
 
+_tick = time.monotonic   # phase timings (time.monotonic itself is the side's wall time)
 BRIDGE_KINDS = ("bridge", "ovs-bridge")          # never observed: no routing stack
 HOST_KINDS = ("host", "ext-container", "k8s-kind")  # refused unless named in --unobserved
 
@@ -492,22 +496,38 @@ def collect(lab: Lab, nodes: dict[str, str], cmd_timeout: float = 60) -> Snapsho
         return r.rc, r.stdout, r.stderr
     # every lab interface's link-local addresses, so a link-local next hop is named by its owner (gauntlet R1);
     # a node whose addresses can't be read leaves its addresses as written
+    routers = [n for n, nd in sorted(lab.nodes.items()) if nd.kind not in BRIDGE_KINDS]
     per_node = {}
-    for n, nd in sorted(lab.nodes.items()):
-        if nd.kind in BRIDGE_KINDS:
-            continue
-        rc, out, _err = exec_fn(n, ["ip", "-6", "addr", "show", "scope", "link"])
+    for n, (rc, out, _err) in zip(routers, _each(lambda n: exec_fn(n, ["ip", "-6", "addr", "show", "scope", "link"]),
+                                                 routers), strict=True):
         if rc == 0:
             per_node[n] = parse_link_local(out, n)
     owners = link_local_names(per_node)
-    snaps = {n: FrrCollector(n, exec_fn, owners).collect() for n, drv in sorted(nodes.items()) if drv == "frr"}
+    frr = [n for n, drv in sorted(nodes.items()) if drv == "frr"]
+    snaps = dict(zip(frr, _each(lambda n: FrrCollector(n, exec_fn, owners).collect(), frr), strict=True))
     return Snapshot(snaps, unobserved_reasons(lab, nodes))
 
 
+def _each(fn, items: list, workers: int = 8) -> list:
+    """fn on every item, the items read at the same time (one docker exec each), results in input order. The first
+    item (in order) whose read failed raises its error, as a loop over them would."""
+    if len(items) <= 1:
+        return [fn(x) for x in items]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(workers, len(items))) as pool:
+        futures = [pool.submit(fn, x) for x in items]
+    return [f.result() for f in futures]
+
+
 @contextmanager
-def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Callable[[str], None]):
+def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Callable[[str], None],
+             phases: dict | None = None, active: set | None = None):
+    """`phases`: filled with the seconds of deploy, boot (setup) and destroy. `active`: holds the lab while it is up,
+    for whoever must destroy it when interrupted."""
     from ..runner import _ACTIVE, _signals_deferred
 
+    phases = {} if phases is None else phases
+    active = set() if active is None else active
     lab = Lab(topology)
     lab.check_tools()
     lab.acquire_lock()
@@ -520,24 +540,32 @@ def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Calla
         started = True
         if not keep:
             _ACTIVE.add(lab)
+            active.add(lab)
         log(f"Deploying lab {lab.name} ({len(lab.nodes)} nodes)...")
+        t = _tick()
         lab.deploy()
+        phases["deploy"] = round(_tick() - t, 1)
+        t = _tick()
         missing = {n.container for n in lab.nodes.values()} - lab.running_containers()
         if missing:
             raise LabError(f"lab containers not running: {', '.join(sorted(missing))}")
         for node, cmds in setup.items():
             lab.run_setup(node, cmds, log=log)
+        phases["boot"] = round(_tick() - t, 1)
         yield lab
     finally:
         with _signals_deferred():
             if started and not keep:
                 log("Destroying lab...")
+                t = _tick()
                 try:
                     lab.destroy()
                 except Exception as e:   # cleanup trouble must never hide the result
                     log(f"warning: lab cleanup failed: {e}")
+                phases["destroy"] = round(_tick() - t, 1)
             elif started:
                 log(f"Lab {lab.name} left running (--keep); destroy with: containerlab destroy -t {topology} --cleanup")
+            active.discard(lab)
             _ACTIVE.discard(lab)
             lab.release_lock()
 
@@ -583,18 +611,28 @@ def real_side(*, nodes: dict[str, str], setup: dict, settle: float, timeout: flo
     guards, on the after lab), destroy."""
     def side(label: str, topology: Path, on_up=None):
         t0 = time.monotonic()
-        with deployed(topology, setup, keep_after and label == "after", log) as lab:
+        ph = side.phases[label] = {}
+        with deployed(topology, setup, keep_after and label == "after", log, phases=ph, active=side.active) as lab:
             def exec_fn(node, argv):
                 r = lab.exec(node, argv, timeout=60)
                 return r.rc, r.stdout, r.stderr
+            t = _tick()
             bgp_nodes = {n for n, drv in nodes.items() if drv == "frr" and expects_bgp(exec_fn, n)}
             log(f"[{label}] waiting for a stable snapshot (settle {settle:g}s, timeout {timeout:g}s)...")
             snap = stable_snapshot(lambda: collect(lab, nodes, max(60.0, timeout)), settle=settle, timeout=timeout, log=log,
                                    bgp_nodes=bgp_nodes)
+            ph["converge"] = round(_tick() - t, 1)
             if isinstance(snap, Snapshot):
+                t = _tick()
                 check_config_loaded(lab, nodes, label)
+                ph["config_load"] = round(_tick() - t, 1)
+            t = _tick()
             extra = on_up(lab, topology) if on_up is not None and isinstance(snap, Snapshot) else None
+            if extra is not None:
+                ph["checks"] = round(_tick() - t, 1)
         return snap, round(time.monotonic() - t0, 1), extra
+    side.phases = {}      # label -> {phase: seconds}, see PHASES in runner.py
+    side.active = set()   # the labs up right now
     return side
 
 
@@ -649,14 +687,36 @@ NOT_DETERMINISTIC = ("a second boot of one side, with the same configs, gave a d
 
 
 def confirm_by_rerun(res: VerifyResult, side, before_topo: Path, snap_b: Snapshot, after_topo: Path,
-                     snap_a: Snapshot) -> None:
+                     snap_a: Snapshot, *, parallel: bool = False, cached_before: tuple[str, Snapshot] | None = None) -> None:
     """No approval from a single boot: boot each side again and require the same snapshot (a before boot that
     stably missed an item would hide a change that removes it; an after boot, one that adds it). The first
-    difference (or a rerun that never settles) is INCONCLUSIVE, naming every item that differed."""
+    difference (or a rerun that never settles) is INCONCLUSIVE, naming every item that differed.
+
+    `parallel`: the two reruns boot at the same time; their outcomes are still judged in the same order, before
+    first, so the verdict is the one the reruns in turn would give. `cached_before`: (key, snapshot) of an earlier
+    boot of the same before side (base_snapshot_key), which stands for the rerun of the before side: the snapshot
+    of this run's own before boot is still compared with an independent boot."""
     differing: list[str] = []
-    for label, topo, first in (("rerun-before", before_topo, snap_b), ("rerun-after", after_topo, snap_a)):
-        snap_r, tr, _ = side(label, topo)
-        res.timings[f"{label.replace('-', '_')}_s"] = tr
+    jobs = [("rerun-before", before_topo, snap_b), ("rerun-after", after_topo, snap_a)]
+    outcomes: dict[str, tuple] = {}
+    if cached_before is not None:
+        outcomes["rerun-before"] = (True, (cached_before[1], 0.0, None))
+        res.timings["rerun_before_cached"] = True
+    todo = [j for j in jobs if j[0] not in outcomes]
+    if parallel and len(todo) > 1:
+        for (label, _topo, _), out in zip(todo, in_parallel([lambda lb=lb, t=t: side(lb, t) for lb, t, _ in todo],
+                                                         getattr(side, "active", None)), strict=True):
+            outcomes[label] = out
+    for label, topo, first in jobs:
+        if label in outcomes:
+            ok, value = outcomes[label]
+            if not ok:
+                raise value
+            snap_r, tr, _ = value
+        else:
+            snap_r, tr, _ = side(label, topo)
+        if not (label == "rerun-before" and cached_before is not None):
+            res.timings[f"{label.replace('-', '_')}_s"] = tr
         if isinstance(snap_r, Inconclusive):
             res.status, res.inconclusive, res.inconclusive_side = "inconclusive", snap_r, "rerun"
             return
@@ -664,8 +724,108 @@ def confirm_by_rerun(res: VerifyResult, side, before_topo: Path, snap_b: Snapsho
         if differing:
             break
     res.determinism = {"reruns": ["before", "after"], "identical": not differing, "differing": differing}
+    if cached_before is not None:
+        res.determinism["before_from_cache"] = cached_before[0]
     if differing:
         res.status, res.inconclusive, res.inconclusive_side = "inconclusive", Inconclusive(NOT_DETERMINISTIC, differing), "rerun"
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Booting the sides at the same time
+# ---------------------------------------------------------------------------------------------------------
+
+def unique_topology(topology: Path, tag: str) -> Path | None:
+    """A copy of the topology, next to it (its binds resolve the same), whose lab is named `<name>-<tag>`, so two
+    labs of one topology can be up at once. None where two copies would still collide or the name can't be changed
+    exactly: a container prefix, or a management network or address fixed in the file."""
+    text = topology.read_text(encoding="utf-8")
+    if re.search(r"(?m)^\s*prefix\s*:", text) or re.search(r"(?<![\w-])mgmt(-ipv[46])?\s*:", text):
+        return None
+    names = list(re.finditer(r"(?m)^name:[ \t]*([A-Za-z0-9_.-]+)[ \t]*$", text))
+    old = Lab(topology).name
+    if len(names) != 1 or names[0].group(1) != old:
+        return None
+    out = topology.with_name(f".{tag}.{topology.name}")
+    out.write_text(text[:names[0].start(1)] + f"{old}-{tag}" + text[names[0].end(1):], encoding="utf-8")
+    if Lab(out).name != f"{old}-{tag}":
+        return None
+    return out
+
+
+def in_parallel(jobs: list[Callable[[], object]], active: set | None = None) -> list[tuple[bool, object]]:
+    """Each job in its own thread, all at once: [(True, value) or (False, the exception)], in order. An interrupt
+    (Ctrl-C, SIGTERM) reaches the main thread only: it destroys the labs that are up (`active`) before it goes on,
+    and the threads, left as daemons, end with the process."""
+    out: list = [None] * len(jobs)
+
+    def work(i: int, job) -> None:
+        try:
+            out[i] = (True, job())
+        except BaseException as e:   # handed to the caller, which raises it in turn
+            out[i] = (False, e)
+    threads = [threading.Thread(target=work, args=(i, j), daemon=True) for i, j in enumerate(jobs)]
+    for t in threads:
+        t.start()
+    try:
+        for t in threads:
+            while t.is_alive():
+                t.join(0.5)
+    except KeyboardInterrupt:
+        for lab in list(active or ()):
+            try:
+                lab.destroy()
+            except Exception:
+                pass
+        raise
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------------
+# The cached base snapshot (--reuse-base-snapshot)
+# ---------------------------------------------------------------------------------------------------------
+
+def snapshot_cache_dir() -> Path:
+    return Path(os.environ.get("NETDRYRUN_CACHE") or Path.home() / ".cache" / "netdryrun") / "snapshots"
+
+
+def base_snapshot_key(before: Side, lab: Lab, nodes: dict[str, str], setup: dict, settle: float) -> str | None:
+    """Everything that decides what the before lab boots into: the topology, every bound file, every node's image
+    by digest, the setup commands, the containerlab and Netdryrun versions, which nodes are observed, and settle.
+    None when a part can't be read (an image without a digest, an unknown containerlab version): no cache then."""
+    images = {}
+    for name, node in sorted(lab.nodes.items()):
+        if node.kind in BRIDGE_KINDS:
+            continue
+        digest = lab.image_digest(node.image)
+        if not digest:
+            return None
+        images[name] = digest
+    clab = lab.version()
+    if not clab or clab == "unknown":
+        return None
+    parts = {"netdryrun": __version__, "containerlab": clab, "topology": _sha256(before.topology.read_bytes()),
+             "bound": dict(sorted(before.bound.items())), "images": images, "nodes": dict(sorted(nodes.items())),
+             "setup": {k: list(v) for k, v in sorted(setup.items())}, "settle": settle}
+    return _sha256(json.dumps(parts, sort_keys=True).encode())
+
+
+def load_cached_snapshot(key: str) -> Snapshot | None:
+    path = snapshot_cache_dir() / f"{key}.json"
+    try:
+        return Snapshot.from_json(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError, SnapshotError):
+        return None   # none yet, or unreadable: the before side is booted again
+
+
+def save_cached_snapshot(key: str, snap: Snapshot) -> None:
+    d = snapshot_cache_dir()
+    try:
+        d.mkdir(parents=True, exist_ok=True, mode=0o700)
+        tmp = d / f".{key}.{uuid.uuid4().hex[:8]}.tmp"
+        tmp.write_text(json.dumps(snap.to_json()), encoding="utf-8")
+        os.replace(tmp, d / f"{key}.json")
+    except OSError:
+        pass   # a cache that can't be written only costs the next run a boot
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -676,14 +836,21 @@ def verify(topology: str, before: str, after: str, intent_path: str, *, guards: 
            config_dir_name: str | None = None, unobserved: list[str] = (), settle: float = 15.0,
            timeout: float = 300.0, hold: float = 10.0, allow_unhealthy_baseline: bool = False, keep: bool = False,
            log: Callable[[str], None] = lambda _: None, side_fn=None, intent_source: str = "cli",
-           intent_text: str | None = None) -> VerifyResult:
+           intent_text: str | None = None, parallel: bool | None = None,
+           reuse_base_snapshot: bool = False) -> VerifyResult:
     """`intent_source` says who supplied the intent (the CLI user, an MCP caller, the Action); the report
     echoes it next to the intent. `intent_text`, when given, is the intent itself (YAML or JSON) instead of
     the file at `intent_path`: an MCP caller passes the ticket's intent inline. Inline text is in neither
-    side's tree, so it can't be flagged as edited by the change."""
+    side's tree, so it can't be flagged as edited by the change.
+
+    `parallel` (default: on for real labs without --keep): the before and after labs boot at the same time, each
+    under its own lab name (unique_topology), and so do the two reruns; the outcomes are judged in the same order
+    as one boot after the other. `reuse_base_snapshot`: keep the before side's snapshot in a local cache, keyed by
+    everything that boots it (base_snapshot_key), and let an earlier one stand for the rerun of the before side."""
     res = VerifyResult(status="error", topology=str(topology), before_spec=before, after_spec=after,
                        run_id=uuid.uuid4().hex[:12], started=_now(), intent_supplied_by=intent_source)
     work = Path(tempfile.mkdtemp(prefix="netdryrun-verify-"))
+    side = None
     try:
         res.intent = (parse_intent_text(intent_text, "inline intent") if intent_text is not None
                       else load_intent(intent_path))
@@ -712,9 +879,39 @@ def verify(topology: str, before: str, after: str, intent_path: str, *, guards: 
         check_nodes(res.intent, nodes)
         side = side_fn or real_side(nodes=nodes, setup=gcfg.setup if gcfg else {}, settle=settle, timeout=timeout,
                                     keep_after=keep, log=log)
+        on_up = (lambda _lab, t: {**run_guards(gcfg, t, settle, hold, log), "source": gsource}) if gcfg else None
+        if parallel is None:
+            parallel = side_fn is None and not keep
+        tags = {"before": f"b{res.run_id[:6]}", "after": f"a{res.run_id[:6]}",
+                "rerun-before": f"rb{res.run_id[:6]}", "rerun-after": f"ra{res.run_id[:6]}"}
+        topos = {}
+        if parallel:
+            for label, tp in (("before", before_topo), ("after", after_topo), ("rerun-before", before_topo),
+                              ("rerun-after", after_topo)):
+                topos[label] = unique_topology(tp, tags[label])
+            if None in topos.values():
+                parallel = False
+                log("the topology fixes its lab name, container prefix or management addresses: booting the sides "
+                    "one after the other")
+        res.timings["parallel"] = bool(parallel)
+        cache_key = cached = None
+        if reuse_base_snapshot:
+            cache_key = base_snapshot_key(bside, lab, nodes, gcfg.setup if gcfg else {}, settle)
+            cached = load_cached_snapshot(cache_key) if cache_key else None
+            if cache_key is None:
+                log("the base snapshot can't be cached (an image digest or the containerlab version can't be read)")
 
-        snap_b, tb, _ = side("before", before_topo)
+        if parallel:
+            out_b, out_a = in_parallel([lambda: side("before", topos["before"]),
+                                        lambda: side("after", topos["after"], on_up)], getattr(side, "active", None))
+            if not out_b[0]:
+                raise out_b[1]
+            snap_b, tb, _ = out_b[1]
+        else:
+            snap_b, tb, _ = side("before", before_topo)
         res.timings["before_s"] = tb
+        if cache_key and isinstance(snap_b, Snapshot):
+            save_cached_snapshot(cache_key, snap_b)
         if isinstance(snap_b, Inconclusive):
             res.status, res.inconclusive, res.inconclusive_side = "inconclusive", snap_b, "before"
             return res
@@ -725,8 +922,12 @@ def verify(topology: str, before: str, after: str, intent_path: str, *, guards: 
             return res
         res.baseline_overridden = bool(res.baseline_problems)
 
-        on_up = (lambda _lab, t: {**run_guards(gcfg, t, settle, hold, log), "source": gsource}) if gcfg else None
-        snap_a, ta, gres = side("after", after_topo, on_up)
+        if parallel:
+            if not out_a[0]:
+                raise out_a[1]
+            snap_a, ta, gres = out_a[1]
+        else:
+            snap_a, ta, gres = side("after", after_topo, on_up)
         res.timings["after_s"] = ta
         if isinstance(snap_a, Inconclusive):
             res.status, res.inconclusive, res.inconclusive_side = "inconclusive", snap_a, "after"
@@ -749,7 +950,9 @@ def verify(topology: str, before: str, after: str, intent_path: str, *, guards: 
                 res.status = "inconclusive" if gres["status"] == "inconclusive" else "error"
                 res.error = f"the standing guards ended with {gres['status']}: {gres.get('error') or 'no verdict'}"
         if res.status in APPROVING:
-            confirm_by_rerun(res, side, before_topo, snap_b, after_topo, snap_a)
+            confirm_by_rerun(res, side, topos.get("rerun-before", before_topo), snap_b,
+                             topos.get("rerun-after", after_topo), snap_a, parallel=parallel,
+                             cached_before=(cache_key, cached) if cached is not None else None)
         return res
     except SnapshotError as e:
         res.status, res.error = "error", f"unreadable snapshot: {e}"
@@ -768,4 +971,6 @@ def verify(topology: str, before: str, after: str, intent_path: str, *, guards: 
         return res
     finally:
         res.finished = _now()
+        if side is not None and getattr(side, "phases", None):
+            res.timings["phases"] = dict(side.phases)
         shutil.rmtree(work, ignore_errors=True)

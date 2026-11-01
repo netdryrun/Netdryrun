@@ -25,8 +25,11 @@ inputs:
     description: "mode: run: let a PR that changes netdryrun.yml and the lab's configs together run. Set it only when branch protection requires a code-owner review on netdryrun.yml (CODEOWNERS lists it)"
     default: "false"
   containerlab-version:
-    description: containerlab version to install (pinned for reproducible runs; empty = latest)
+    description: "containerlab version to install (pinned for reproducible runs; empty = latest). A pinned version's package is cached between runs (actions/cache) and checked against the release's checksums"
     default: "0.81.1"
+  skip-destroy:
+    description: "mode: run: leave the lab up at the end instead of destroying it, to save the destroy time. It takes effect only on a GitHub-hosted runner, whose machine is discarded after the job, and only for a run that deployed its lab; set it only when no later step in the job needs the lab gone (another run of the same lab is refused while it is up). The reports and outputs are the same either way"
+    default: "false"
   json-report:
     description: Path for the JSON evidence report
     default: netdryrun-report.json
@@ -93,6 +96,49 @@ runs:
     - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
       with:
         python-version: "3.12"
+
+    - name: Start pulling the lab's images
+      shell: bash
+      env:
+        NDR_MODE: ${{ inputs.mode }}
+        NDR_PATH: ${{ inputs.path }}
+        NDR_TOPOLOGY: ${{ inputs.topology }}
+      run: |
+        # Best effort, and verdict-neutral: pull the images the topology names that Docker doesn't have yet, in the
+        # background, while containerlab and Netdryrun install. containerlab pulls whatever is still missing itself.
+        : > "$RUNNER_TEMP/netdryrun-pull.pids"
+        python - <<'EOF' > "$RUNNER_TEMP/netdryrun-images.txt" || true
+        import os, re
+        def first(pattern, path):
+            try:
+                text = open(path, encoding="utf-8").read()
+            except OSError:
+                return []
+            return re.findall(pattern, text, re.M)
+        if os.environ.get("NDR_MODE") == "verify":
+            topo = os.environ.get("NDR_TOPOLOGY", "")
+        else:
+            checks = os.environ.get("NDR_PATH") or "."
+            if not checks.endswith((".yml", ".yaml")):
+                checks = os.path.join(checks, "netdryrun.yml")
+            lab = first(r"^lab:\s*[\"']?([^\"'#\s]+)", checks)
+            topo = os.path.join(os.path.dirname(checks), lab[0]) if lab else ""
+        for image in sorted(set(first(r"^\s*image:\s*[\"']?([^\"'#\s]+)", topo))):
+            print(image)
+        EOF
+        while read -r image; do
+          docker image inspect "$image" >/dev/null 2>&1 && continue
+          nohup docker pull --quiet "$image" >> "$RUNNER_TEMP/netdryrun-pull.log" 2>&1 &
+          echo $! >> "$RUNNER_TEMP/netdryrun-pull.pids"
+        done < "$RUNNER_TEMP/netdryrun-images.txt"
+        echo "pulling $(wc -l < "$RUNNER_TEMP/netdryrun-pull.pids") image(s) in the background"
+
+    - name: Cache the containerlab package
+      if: inputs.containerlab-version != ''
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ~/.cache/netdryrun/containerlab
+        key: netdryrun-containerlab-${{ inputs.containerlab-version }}-${{ runner.os }}-${{ runner.arch }}
 
     - name: Check the intent file
       id: intent
@@ -246,7 +292,20 @@ runs:
             echo "::warning title=Netdryrun::containerlab $have is installed; requested $CLAB_VERSION"
           fi
         elif [ -n "$CLAB_VERSION" ]; then
-          bash -c "$(curl -sL https://get.containerlab.dev)" -- -v "$CLAB_VERSION"
+          # The release's own package, cached between runs, installed only if it matches the release's checksums
+          case "$(uname -m)" in aarch64|arm64) arch=arm64;; *) arch=amd64;; esac
+          dir="$HOME/.cache/netdryrun/containerlab"
+          pkg="containerlab_${CLAB_VERSION}_linux_${arch}.deb"
+          url="https://github.com/srl-labs/containerlab/releases/download/v${CLAB_VERSION}"
+          mkdir -p "$dir"
+          [ -s "$dir/$pkg" ] || curl -fsSL -o "$dir/$pkg" "$url/$pkg" || rm -f "$dir/$pkg"
+          if [ -s "$dir/$pkg" ] && curl -fsSL "$url/checksums.txt" | grep -F "  $pkg" > "$dir/$pkg.sha256" \
+             && (cd "$dir" && sha256sum --check --status "$pkg.sha256") && sudo dpkg -i "$dir/$pkg" >/dev/null; then
+            echo "containerlab $CLAB_VERSION installed from its release package"
+          else
+            rm -f "$dir/$pkg" "$dir/$pkg.sha256"
+            bash -c "$(curl -sL https://get.containerlab.dev)" -- -v "$CLAB_VERSION"
+          fi
         else
           bash -c "$(curl -sL https://get.containerlab.dev)"
         fi
@@ -257,6 +316,17 @@ runs:
       env:
         ACTION_PATH: ${{ github.action_path }}
       run: python -m pip install --quiet "$ACTION_PATH"
+
+    - name: Wait for the image pulls
+      shell: bash
+      run: |
+        # at most 10 minutes; a pull that fails or takes longer is left to containerlab, which reports it
+        deadline=$((SECONDS + 600))
+        while read -r pid; do
+          while kill -0 "$pid" 2>/dev/null && [ "$SECONDS" -lt "$deadline" ]; do sleep 1; done
+        done < "$RUNNER_TEMP/netdryrun-pull.pids"
+        [ -s "$RUNNER_TEMP/netdryrun-pull.log" ] && cat "$RUNNER_TEMP/netdryrun-pull.log"
+        exit 0
 
     - name: Run Netdryrun
       id: run
@@ -274,6 +344,7 @@ runs:
         NDR_INTENT: ${{ inputs.intent-file }}
         NDR_BASE: ${{ steps.intent.outputs.base }}
         NDR_HEAD: ${{ steps.intent.outputs.head }}
+        NDR_SKIP_DESTROY: ${{ inputs.skip-destroy }}
       run: |
         set +e
         # Reports left in the workspace (committed in the PR, or from an earlier run on a self-hosted
@@ -293,9 +364,15 @@ runs:
         # privileged containers, so run untrusted topologies only in jobs without secrets.
         case "$NDR_MODE" in
           run)
+            # skip-destroy only where the machine itself is thrown away after the job
+            keep=()
+            if [ "$NDR_SKIP_DESTROY" = true ] && [ "${RUNNER_ENVIRONMENT:-}" = github-hosted ]; then
+              keep=(--keep)
+            fi
             sudo env -i "PATH=$PATH" "HOME=/root" "GITHUB_STEP_SUMMARY=$GITHUB_STEP_SUMMARY" \
               netdryrun run "$NDR_PATH" \
-              --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown netdryrun-summary.md --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
+              --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown netdryrun-summary.md --settle "$NDR_SETTLE" --hold "$NDR_HOLD" \
+              "${keep[@]}"
             code=$?
             ;;
           verify)

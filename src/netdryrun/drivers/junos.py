@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+import threading
 
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
                    RepeatedKey, check_vrf_name, load_json, parser, render_as_path, unexpected)
@@ -31,6 +32,15 @@ from .frr import _canon_addr
 # The container's own SSH hop to the Junos VM (its `cli` wrapper uses the same key and address)
 VM_SSH = ["ssh", "-q", "-i", "/root/.ssh/sshkey", "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes",
           "root@176.1.1.1"]
+# One SSH connection to the VM per node, shared by every command: a new handshake per command costs up to a second
+# on a loaded host. A master connection is started detached once the VM has answered; each command goes through it
+# while it is up, and connects on its own when it isn't (ControlMaster=no never starts a master, so a command never
+# waits on one). Transport only: the command and its output are the same either way.
+MUX_PATH = "/tmp/.netdryrun-junos-mux"
+MUX_OPTS = ["-o", f"ControlPath={MUX_PATH}", "-o", "ControlMaster=no"]
+MUX_START = (f"ssh -q -o ControlPath={MUX_PATH} -O check root@176.1.1.1 2>/dev/null || exec ssh -q -i /root/.ssh/sshkey "
+             f"-o StrictHostKeyChecking=no -o BatchMode=yes -o ControlPath={MUX_PATH} -o ControlMaster=yes "
+             "-o ControlPersist=no -o ServerAliveInterval=10 -N root@176.1.1.1")
 
 # Junos protocol-name -> the shared vocabulary used in netdryrun.yml (FRR's names)
 PROTOCOLS = {"bgp": "bgp", "direct": "connected", "local": "local", "static": "static", "aggregate": "aggregate",
@@ -504,7 +514,23 @@ class JunosDriver(Driver):
     def _cli(self, command: str, evidence: list[dict], timeout: float = 60) -> str:
         if "'" in command:  # the command goes inside single quotes on the VM's shell
             raise DriverError(f"refusing a Junos command with a quote: {command[:80]!r}")
-        return self._exec([*VM_SSH, f"cli -c '{command} | display json | no-more'"], evidence, timeout=timeout)
+        out = self._exec([*VM_SSH[:-1], *MUX_OPTS, VM_SSH[-1], f"cli -c '{command} | display json | no-more'"], evidence,
+                         timeout=timeout)
+        self._start_mux()
+        return out
+
+    def _start_mux(self) -> None:
+        """Start the shared SSH connection once, after a command got through (the VM is up). Best effort: if it
+        can't start, every command keeps connecting on its own."""
+        lock = self.__dict__.setdefault("_mux_lock", threading.Lock())
+        with lock:
+            if self.__dict__.get("_mux_started"):
+                return
+            self._mux_started = True
+        try:
+            self.lab.exec_detached(self.node, ["sh", "-c", MUX_START])
+        except Exception:
+            pass
 
     def _confirm_instance(self, vrf: str, table: str | None, evidence: list[dict]) -> bool:
         """Before an empty answer is trusted. True when the instance has `table`, False when it exists without

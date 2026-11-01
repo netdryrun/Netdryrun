@@ -53,7 +53,8 @@
         {"type": "null"},
         {"type": "object", "required": ["reruns", "identical", "differing"], "additionalProperties": false,
          "properties": {"reruns": {"type": "array", "items": {"enum": ["before", "after"]}}, "identical": {"type": "boolean"},
-                        "differing": {"type": "array", "items": {"type": "string"}}}}
+                        "differing": {"type": "array", "items": {"type": "string"}},
+                        "before_from_cache": {"type": "string", "description": "the cache key of the earlier boot that stood for the before side's rerun (--reuse-base-snapshot)"}}}
       ]
     },
     "baseline": {"type": "object", "required": ["healthy", "problems", "overridden"], "additionalProperties": false,
@@ -99,7 +100,11 @@
     "guards_source": {"enum": ["before-ref", "explicit", "none"]},
     "timings": {"type": "object", "additionalProperties": false,
                 "properties": {"before_s": {"type": "number"}, "after_s": {"type": "number"},
-                               "rerun_before_s": {"type": "number"}, "rerun_after_s": {"type": "number"}}},
+                               "rerun_before_s": {"type": "number"}, "rerun_after_s": {"type": "number"},
+                               "rerun_before_cached": {"type": "boolean", "description": "the before side's rerun was an earlier boot's cached snapshot (--reuse-base-snapshot)"},
+                               "parallel": {"type": "boolean", "description": "the sides booted at the same time"},
+                               "phases": {"type": "object", "description": "seconds per phase of each lab boot (deploy, boot, converge, config_load, checks, destroy), by side",
+                                          "additionalProperties": {"type": "object", "additionalProperties": {"type": "number"}}}}},
     "evidence": {"type": "object", "required": ["before", "after"], "additionalProperties": false,
                  "properties": {"before": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/snapshot"}]},
                                 "after": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/snapshot"}]}}}
