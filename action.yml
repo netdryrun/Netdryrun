@@ -239,24 +239,29 @@ runs:
       shell: bash
       env:
         CLAB_VERSION: ${{ inputs.containerlab-version }}
+        ACTION_PATH: ${{ github.action_path }}
+      # From the containerlab release, checksum verified (scripts/install_containerlab.sh); no script piped into a shell
       run: |
         if command -v containerlab >/dev/null; then
           have="$(containerlab version | awk '/version:/ {print $2; exit}')"
           if [ -n "$CLAB_VERSION" ] && [ "$have" != "$CLAB_VERSION" ]; then
             echo "::warning title=Netdryrun::containerlab $have is installed; requested $CLAB_VERSION"
           fi
-        elif [ -n "$CLAB_VERSION" ]; then
-          bash -c "$(curl -sL https://get.containerlab.dev)" -- -v "$CLAB_VERSION"
+          containerlab version | grep -i version
         else
-          bash -c "$(curl -sL https://get.containerlab.dev)"
+          bash "$ACTION_PATH/scripts/install_containerlab.sh" "${CLAB_VERSION:-latest}"
         fi
-        containerlab version | grep -i version
 
     - name: Install Netdryrun
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
-      run: python -m pip install --quiet "$ACTION_PATH"
+      # Dependencies from the action's hash-locked requirements/runtime.txt, then Netdryrun itself as a wheel built
+      # from the action's own source (no build isolation: the build backend comes from the same lock)
+      run: |
+        python -m pip install --quiet --require-hashes -r "$ACTION_PATH/requirements/runtime.txt"
+        python -m pip wheel --quiet --no-deps --no-build-isolation -w "$RUNNER_TEMP/netdryrun-wheel" "$ACTION_PATH"
+        python -m pip install --quiet --no-deps "$RUNNER_TEMP"/netdryrun-wheel/netdryrun-*.whl
 
     - name: Run Netdryrun
       id: run

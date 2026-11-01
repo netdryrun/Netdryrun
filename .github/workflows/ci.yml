@@ -20,7 +20,10 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install -e ".[dev]"
+      - name: Install (hash-locked dependencies, then this checkout)
+        run: |
+          python -m pip install --quiet --require-hashes -r requirements/ci.txt
+          python -m pip install --quiet --no-deps --no-build-isolation -e .
       - run: pytest -q
       - name: Public facts match the source (version, platforms, corpus scores, llms-full.txt)
         run: python scripts/sync_facts.py --check
@@ -80,8 +83,10 @@ jobs:
           python-version: "3.12"
       - name: Install containerlab and Netdryrun
         run: |
-          bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
-          python -m pip install --quiet .
+          bash scripts/install_containerlab.sh 0.81.1
+          python -m pip install --quiet --require-hashes -r requirements/runtime.txt
+          python -m pip wheel --quiet --no-deps --no-build-isolation -w "$RUNNER_TEMP/wheel" .
+          python -m pip install --quiet --no-deps "$RUNNER_TEMP"/wheel/netdryrun-*.whl
       - name: Replay the agent demo
         run: sudo env -i "PATH=$PATH" "HOME=/root" "OUT=$RUNNER_TEMP/agent-demo" bash examples/agent-demo/demo.sh
       - name: Upload the reports

@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install MkDocs Material
-        run: python -m pip install --quiet "mkdocs-material==9.8.0"
+        run: python -m pip install --quiet --require-hashes -r requirements/docs.txt
       - name: Build llms-full.txt
         run: python website/build_llms_full.py
       - name: Build site

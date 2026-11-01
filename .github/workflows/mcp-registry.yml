@@ -21,6 +21,8 @@ jobs:
       id-token: write
     env:
       MCP_PUBLISHER_VERSION: v1.8.5
+      # sha256 of mcp-publisher_linux_amd64.tar.gz in that release (its checksums file); bump both together
+      MCP_PUBLISHER_SHA256: 2d151ac57275c9a6684d9d22b1cba81058bab195ea0a162e8fce3c6a5ec32812
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Wait until the PyPI package in server.json exists
@@ -57,7 +59,10 @@ jobs:
           cat "$GITHUB_OUTPUT"
       - name: Install mcp-publisher
         if: steps.listed.outputs.listed != 'true'
-        run: curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/mcp-publisher.tgz"             "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  $RUNNER_TEMP/mcp-publisher.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/mcp-publisher.tgz" mcp-publisher
       - name: Log in with GitHub Actions OIDC
         if: steps.listed.outputs.listed != 'true'
         run: ./mcp-publisher login github-oidc
