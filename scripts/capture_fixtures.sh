@@ -251,10 +251,7 @@ capture_routeros() {                # routeros.py: every read, the startup-confi
 import ftplib, io
 f = ftplib.FTP("172.31.255.30", timeout=60)
 f.login("admin", "admin")
-f.storbinary("STOR ndr-bad.auto.rsc", io.BytesIO(b"/system identity set name=r1
-/this-command-does-not-exist
-/log info message=\"never\"
-"))
+f.storbinary("STOR ndr-bad.auto.rsc", io.BytesIO(b"/system identity set name=r1\n/this-command-does-not-exist\n/log info message=\"never\"\n"))
 f.quit()'
   wait_for "r1 to log the failed import" 60 ros_import_failed
   cap   routeros_log_import_error ros GET /log
