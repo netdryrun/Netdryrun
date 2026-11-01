@@ -46,9 +46,11 @@
 - id: record-range-leak
   what: A baseline from `netdryrun record` (0.3.3, 0.4.0) passed a leaked customer prefix that kept the prefix count
     inside the recorded range
-  record: CHANGELOG.md (0.4.1); tests/redteam/RT-0028; the 2026-11 advisory
+  record: advisories/0.4.0-record-prefix-range/README.md
+  trust: "0.3.3 and 0.4.0"
   tests:
     - tests/test_false_passes_041.py
+    - tests/test_redteam.py
     - tests/test_record.py
 - id: redteam-20261101
   what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
