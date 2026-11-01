@@ -37,11 +37,11 @@
    "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
   },
   "netdryrun.prove.variants.x__customer_leak__mutmut_31": {
-   "diff": "2e4afc2203a5996d",
+   "diff": "c4ea2b8585f8bda6",
    "class": "equivalent",
    "reason": "`not sizes[n][0]` -> `not sizes[n][1]`: an entry with an empty description always has no range (1 and 2 by default), and an entry with a description and no range (an inner leak) is only ever replaced by an identical one or by an outer leak, which the third clause admits either way",
    "argument": "Entries are (description, range). The defaults 1 and 2 are (\"\", None); an inner leak writes (non-empty, None); an outer leak writes (non-empty, tuple). A (\"\", tuple) entry never exists. So `not sizes[n][0]` and `not sizes[n][1]` differ only on (non-empty, None), an inner. There, a new inner writes the same description and None (no change); a new outer is admitted by the third clause in both versions.",
-   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message)"
+   "reviewed": "adversarial: an independent subagent that saw only the code and the mutant diff (not this argument) tried to find a distinguishing input on 2026-11-02 and confirmed it equivalent; the same review turned 4 other candidates into kills (core._one 2-4 and variants._customer_leak 44, after fixing an apply error with an empty message); re-pinned after the loop below it was rewritten (only a context line of the diff changed, the mutation is the same one reviewed)"
   },
   "netdryrun.prove.variants.x__originate__mutmut_46": {
    "diff": "71fe24485740a30c",
