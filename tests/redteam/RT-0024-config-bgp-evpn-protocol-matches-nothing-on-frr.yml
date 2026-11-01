@@ -1,0 +1,21 @@
+id: RT-0024
+title: "validate accepts protocol: bgp-evpn on an FRR node: zebra never reports a bgp-evpn route type (EVPN routes are bgp), so present: false matches nothing and always passes"
+found: "2026-11-01, weekly adversarial run"
+fixed_in: open
+kind: config
+topology: |
+  name: t
+  topology:
+    nodes:
+      leaf1:
+        kind: linux
+        image: quay.io/frrouting/frr:10.4.1
+config: |
+  lab: topology.clab.yml
+  checks:
+    - type: route
+      node: leaf1
+      vrf: RED
+      prefix: 10.90.0.0/24
+      protocol: bgp-evpn
+      present: false

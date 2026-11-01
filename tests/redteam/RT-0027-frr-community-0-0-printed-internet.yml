@@ -1,0 +1,29 @@
+id: RT-0027
+title: "without_communities ['0:0'] passes on FRR while the best path carries 0:0: bgpd prints 0:0 as the well-known name internet, kept as an unknown name"
+found: "2026-11-01, weekly adversarial run"
+fixed_in: open
+kind: driver
+driver: frr
+check:
+  type: bgp_route
+  node: rs1
+  prefix: 192.168.20.0/24
+  without_communities: ["0:0"]
+outputs:
+  - needle: "show bgp"
+    output: |
+      {
+        "prefix":"192.168.20.0/24",
+        "paths":[
+          {
+            "aspath":{"string":"65020","segments":[{"type":"as-sequence","list":[65020]}],"length":1},
+            "origin":"IGP",
+            "locPrf":100,
+            "valid":true,
+            "bestpath":{"overall":true,"selectionReason":"First path received"},
+            "community":{"string":"internet 65020:100","list":["internet","65020:100"]},
+            "nexthops":[{"ip":"10.1.1.2","afi":"ipv4","accessible":true,"used":true}],
+            "peer":{"peerId":"10.1.1.2","routerId":"20.20.20.20","type":"external"}
+          }
+        ]
+      }
