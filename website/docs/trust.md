@@ -29,6 +29,18 @@ Advisories: every false pass we have found, in our own audits and games before a
 | 0.3.3 and earlier | A failed topology `exec:` command left the lab without that config | Fixed in 0.4.0. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.3-exec-not-checked/README.md) |
 | 0.3.3 and earlier | On Arista EOS, `med: 0` passed on a path received with no MED (cEOS prints MED 0 for both) | Fixed in 0.4.0: a `med: 0` check on EOS is refused. [Changelog](https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md) |
 
+## Make it lie: the hall of fame
+
+Find a change Netdryrun gets wrong (a broken change that passes, or a good one that fails) and you go here. Report it with the [wrong-verdict form](https://github.com/netdryrun/Netdryrun/issues/new?template=wrong-verdict.yml), with the topology, the configs, the `netdryrun.yml` and the JSON report.
+
+- **A report counts once we reproduce it** in a clean lab from what you attached. The reproduction log goes on the issue. A report we can't reproduce gets an answer saying what we saw, approved by the owner before it is posted.
+- **Each reproduced report** becomes a public advisory with your name or handle (or none, if you prefer), a must-fail corpus case named after you if you want, and a row below.
+- **No cash bounty.** Recognition only, for now.
+
+| Found by | Version | What it got wrong | Advisory |
+|---|---|---|---|
+| No outside report yet | | Every advisory above was found in our own audits | |
+
 ## What a lab cannot prove
 
 A Netdryrun pass means the change behaved correctly in a lab. The lab runs real routing software, so a pass is strong evidence for protocol logic and policy intent: sessions come up, the intended prefixes are accepted, routes land in the routing table, traffic gets through, and unwanted routes stay out. It does not prove:

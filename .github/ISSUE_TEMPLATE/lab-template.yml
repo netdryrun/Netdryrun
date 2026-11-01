@@ -1,0 +1,33 @@
+name: Lab template
+description: Offer a lab (topology, configs, checks) with its expected verdict and a broken variant that must fail.
+labels: [lab-template]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The format is in community/labs/README.md. A pull request is the usual way; open this issue first if you want
+        to agree on the design, or if the lab needs an image you can't share (bring-your-own-image).
+  - type: textarea
+    id: what
+    attributes:
+      label: What the lab shows
+      description: The design (eBGP triangle, route reflector, VRF hand-off...) and what its checks guard.
+    validations: {required: true}
+  - type: textarea
+    id: bad
+    attributes:
+      label: The broken variant
+      description: The change that must fail, and which check catches it.
+    validations: {required: true}
+  - type: input
+    id: images
+    attributes:
+      label: Images, pinned
+      placeholder: quay.io/frrouting/frr:10.4.1, ghcr.io/nokia/srlinux:26.7.2
+    validations: {required: true}
+  - type: dropdown
+    id: licence
+    attributes:
+      label: Can CI pull the images?
+      options: [free (public images), bring-your-own-image (I attach my reports)]
+    validations: {required: true}

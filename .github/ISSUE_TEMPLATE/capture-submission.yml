@@ -1,0 +1,40 @@
+name: Capture submission
+description: Share sanitised output from your own lab node so a driver can cover your NOS version (no image needed).
+labels: [capture]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Made with `netdryrun capture` and `netdryrun sanitize` (next release; see the capture kit page). We never ask
+        for an image or a licence file: only the command output you choose to share. A pull request that adds the
+        bundle under `captures/` works too, and its CI checks the bundle within minutes.
+  - type: input
+    id: nos
+    attributes:
+      label: NOS and version
+      placeholder: "frr 10.4.1 / cEOS 4.36.3M / cjunosevolved 26.2R1.7-EVO"
+    validations: {required: true}
+  - type: dropdown
+    id: scenario
+    attributes:
+      label: Scenario
+      options: [established, no-neighbor, route-present, route-absent, received-not-selected, community, med, no-med,
+                local-pref, as-path, ping-reply, ping-no-reply]
+    validations: {required: true}
+  - type: textarea
+    id: bundle
+    attributes:
+      label: The sanitised bundle
+      description: Attach the bundle folder as a .zip (manifest.json and outputs/). Never attach the sanitize-map file.
+    validations: {required: true}
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before you submit
+      options:
+        - label: The output comes from a lab node, not a production device.
+          required: true
+        - label: I ran `netdryrun sanitize --confirm` and its self-check passed, and I read the result.
+          required: true
+        - label: I'm allowed to share this output under Apache-2.0.
+          required: true

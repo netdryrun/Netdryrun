@@ -32,6 +32,7 @@ DRIVERS = {k: v for k, v in ALL_DRIVERS.items() if k not in UNRELEASED}
 CONFIG_MD = (ROOT / "website" / "docs" / "reference" / "config.md").read_text(encoding="utf-8")
 CLI_MD = (ROOT / "website" / "docs" / "reference" / "cli.md").read_text(encoding="utf-8")
 VERIFY_MD = (ROOT / "website" / "docs" / "reference" / "verify.md").read_text(encoding="utf-8")
+CAPTURE_MD = (ROOT / "website" / "docs" / "reference" / "capture.md").read_text(encoding="utf-8")
 CLI_PY = inspect.getsource(cli)
 
 ROW_KEY = re.compile(r"^\| `([^`]+)`", re.M)
@@ -188,8 +189,9 @@ def test_documented_defaults():
 # ------------------------------------------------------------------------------------------------- CLI
 
 def test_every_cli_option_is_documented_and_every_documented_option_exists():
-    """`netdryrun verify`'s options are documented on its own page (reference/verify.md), the rest in cli.md."""
-    documented = set(re.findall(r"^\| `(--[a-z-]+)", CLI_MD, re.M))
+    """`netdryrun verify`'s options are documented on its own page (reference/verify.md), capture and sanitize on
+    reference/capture.md, the rest in cli.md."""
+    documented = set(re.findall(r"^\| `(--[a-z-]+)", CLI_MD, re.M)) | set(re.findall(r"^\| `(--[a-z-]+)", CAPTURE_MD, re.M))
     for line in re.findall(r"^\| `--.*", VERIFY_MD, re.M):
         documented |= set(re.findall(r"`(--[a-z-]+)", line.split("|")[1]))
     code = set(re.findall(r'add_argument\("(--[a-z-]+)"', CLI_PY)) - {"--version"}

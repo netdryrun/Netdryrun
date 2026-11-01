@@ -126,6 +126,7 @@ nav:
       - Test an FRR change in CI: guides/frr-ci.md
       - Test a SONiC change in CI: guides/sonic-ci.md
       - "AI agents without Docker: the pull-request path": guides/agent-pr.md
+      - "Your first pull request, in a browser (Codespaces)": guides/first-pr.md
   - Reference:
       - netdryrun.yml: reference/config.md
       - CLI and reports: reference/cli.md
@@ -133,6 +134,7 @@ nav:
       - Juniper driver (beta): reference/junos.md
       - Compatibility matrix: reference/compatibility.md
       - "Network Change Verdict v1 (spec)": spec/verdict-v1.md
+      - "Capture kit (next release)": reference/capture.md
   - Evidence:
       - Verdict corpus: corpus.md
       - How it's built: how-its-built.md
@@ -143,6 +145,7 @@ nav:
       - "Ping and 'BGP up' passed. The route leak was still there.": posts/ping-missed-the-leak.md
   - Project:
       - Trust and security: trust.md
+      - How this project is run: how-its-run.md
       - Support and versioning: support.md
       - Design partners: design-partners.md
       - Contact: contact.md

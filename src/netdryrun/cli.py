@@ -232,6 +232,75 @@ def _cmd_verify(args) -> int:
     return res.exit_code
 
 
+def _cmd_capture(args) -> int:
+    from .capture import CaptureError, bundle, collect, guard
+    from .drivers import DriverError, detect
+
+    try:
+        params = collect.check_params(args.scenario, args.prefix, args.target, args.source)
+        lab, node = guard.lab_node(Path(args.topology), args.node)
+        nos = args.driver or detect(node)
+        recorded, reading, version = collect.capture(lab, node, nos, args.scenario, params, args.vrf)
+        manifest, files = bundle.build(node, nos, args.scenario, params, args.vrf, recorded, reading, version,
+                                       args.nos_version, lab.image_digest(node.image) if node.image else None)
+        bundle.write(Path(args.out), manifest, files)
+    except (CaptureError, DriverError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print(f"Captured {len(recorded)} command(s) from {node.name} ({nos}, scenario {args.scenario}) to {args.out}.")
+    if manifest["shows_scenario"] is False:
+        print(f"warning: the outputs don't show {args.scenario} ({collect.SCENARIOS[args.scenario].shows}); fix the "
+              "lab, or capture it as the scenario it does show", file=sys.stderr)
+        return 1
+    if manifest["shows_scenario"] is None:
+        print(f"note: the {nos} driver couldn't read every output; a maintainer will compare them with the scenario")
+    print(f"This bundle is not sanitised: keep it to yourself. Next: netdryrun sanitize {args.out}")
+    return 0
+
+
+def _cmd_sanitize(args) -> int:
+    from .capture import CaptureError, bundle
+
+    src = Path(args.bundle)
+    try:
+        manifest, files = bundle.load(src)
+        if manifest.get("sanitizer"):
+            raise CaptureError(f"{src} is already sanitised; sanitise the original capture")
+        new, new_files, mapping, problems = bundle.sanitize(manifest, files, args.hostname or [])
+    except CaptureError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print("Replaced: " + ", ".join(f"{n} {k}" for k, n in new["sanitizer"]["replaced"].items()))
+    shown = 0
+    for (rel, old), new_rel in zip(files.items(), new_files):
+        for a, b in zip(old.splitlines(), new_files[new_rel].splitlines()):
+            if a != b and shown < 20:
+                print(f"  {new_rel}\n    - {a.strip()[:110]}\n    + {b.strip()[:110]}")
+                shown += 1
+    if problems:
+        print("The self-check failed, so nothing was written:", file=sys.stderr)
+        for p in problems:
+            print(f"  {p}", file=sys.stderr)
+        return 1
+    out = Path(args.out) if args.out else src.with_name(src.name + "-sanitized")
+    map_path = Path(args.map) if args.map else src.with_name(src.name + ".sanitize-map.json")
+    if out.resolve() in map_path.resolve().parents or map_path.resolve() == out.resolve():
+        print("error: --map must be outside the sanitised bundle (the mapping never leaves your machine)", file=sys.stderr)
+        return 2
+    if not args.confirm:
+        print(f"Self-check passed. Review the changes above, then rerun with --confirm to write {out} "
+              f"(the mapping goes to {map_path} and stays on your machine).")
+        return 0
+    try:
+        bundle.write(out, new, new_files)
+        map_path.write_text(json.dumps(mapping, indent=2) + "\n", encoding="utf-8")
+    except (CaptureError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print(f"Wrote {out}. The mapping is in {map_path}: don't share it. Check what you share, then submit {out}.")
+    return 0
+
+
 FEEDBACK_URL = "https://github.com/netdryrun/netdryrun/issues/new"
 
 
@@ -339,6 +408,30 @@ def main(argv: list[str] | None = None) -> int:
                        help="compare even when BGP sessions are down in the before-lab")
     p_ver.add_argument("--keep", action="store_true", help="leave the after lab running (for the next_diagnostic commands)")
 
+    from .capture.collect import SCENARIOS
+
+    p_cap = sub.add_parser("capture", parents=[common],
+                           help="record a driver's read-only commands on one containerlab lab node, for a contribution")
+    p_cap.add_argument("topology", help="containerlab topology file of the running lab")
+    p_cap.add_argument("--node", required=True, help="the node, by its name in the topology")
+    p_cap.add_argument("--scenario", required=True, choices=list(SCENARIOS), help="what the lab shows right now")
+    p_cap.add_argument("--out", required=True, metavar="DIR", help="a new folder for the bundle")
+    p_cap.add_argument("--prefix", help="the prefix the route scenarios read")
+    p_cap.add_argument("--target", help="the address the ping scenarios ping")
+    p_cap.add_argument("--source", help="the source address of the ping")
+    p_cap.add_argument("--vrf", default="default", help="the VRF to read (default: default)")
+    p_cap.add_argument("--driver", help="the driver, when it can't be detected from the node's kind or image")
+    p_cap.add_argument("--nos-version", metavar="TEXT", help="the NOS version, as you know it (kept next to the one "
+                       "the node reports)")
+
+    p_san = sub.add_parser("sanitize", parents=[common],
+                           help="rewrite addresses, AS numbers, hostnames and secrets in a capture bundle")
+    p_san.add_argument("bundle", help="the folder `netdryrun capture` wrote")
+    p_san.add_argument("--out", metavar="DIR", help="where to write the sanitised bundle (default: BUNDLE-sanitized)")
+    p_san.add_argument("--map", metavar="FILE", help="where to keep the mapping (default: BUNDLE.sanitize-map.json)")
+    p_san.add_argument("--hostname", action="append", metavar="NAME", help="a name to replace; repeat for several")
+    p_san.add_argument("--confirm", action="store_true", help="write the sanitised bundle (without it: show only)")
+
     sub.add_parser("mcp", help="run the MCP server (stdio) so AI agents can dry-run changes")
 
     p_fb = sub.add_parser("feedback", help="open a short feedback form on GitHub (nothing is sent automatically)")
@@ -360,6 +453,10 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_feedback(args)
         if args.cmd == "verify":
             return _cmd_verify(args)
+        if args.cmd == "capture":
+            return _cmd_capture(args)
+        if args.cmd == "sanitize":
+            return _cmd_sanitize(args)
         return _cmd_run(args, deploy=args.cmd == "run")
     except KeyboardInterrupt as e:
         signum = getattr(e, "signum", signal.SIGINT)

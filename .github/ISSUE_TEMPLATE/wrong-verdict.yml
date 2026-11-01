@@ -1,0 +1,41 @@
+name: Make it lie (wrong verdict)
+description: Netdryrun passed a change that breaks the network, or failed one that doesn't. Reproduced reports go in the hall of fame.
+labels: [wrong-verdict]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A report counts once we reproduce it in a clean lab from what you attach here. Then it gets a public advisory,
+        a must-fail corpus case (named after you if you like), and your name or handle on the trust page.
+        No cash bounty. Found a security issue instead? Report it privately: security@netdryrun.com.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What went wrong
+      options: [False pass (a bad change passed), False fail (a good change failed), Inconclusive where it should have decided]
+    validations: {required: true}
+  - type: textarea
+    id: what
+    attributes:
+      label: The change, and why the verdict is wrong
+      description: What the change does to the network, and what Netdryrun should have said.
+    validations: {required: true}
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: >-
+        Attach (or link) the topology, the configs, the netdryrun.yml and the JSON report (--json report.json).
+        Use documentation prefixes and private ASNs, or run `netdryrun sanitize` first.
+    validations: {required: true}
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: netdryrun 0.4.0, containerlab 0.81.1, FRR 10.4.1
+    validations: {required: true}
+  - type: input
+    id: credit
+    attributes:
+      label: Credit as
+      description: The name or handle for the advisory and the trust page, or "none".
