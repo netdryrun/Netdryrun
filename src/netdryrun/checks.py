@@ -122,10 +122,10 @@ def _route(d: Driver, p: dict) -> tuple[bool, str, list]:
     active = [r for r in matching if r.active]
     # `is not False`, the same test is_post_convergence uses, so the evaluator and the scheduler can never
     # disagree on what a check means (config validation already insists on a real boolean)
-    if p.get("present", True) is not False:
+    if p.get("present") is not False:
         if active:
             return True, f"active via {active[0].protocol}", obs.evidence
-        if p.get("active", True) is False and matching:
+        if p.get("active") is False and matching:
             # present in the routing table, selected or not (e.g. a BGP default losing to a local one)
             return True, f"present via {matching[0].protocol} (not selected)", obs.evidence
         seen = ", ".join(f"{r.protocol}{'' if r.active else ' (inactive)'}" for r in obs.value) or "nothing"
@@ -188,7 +188,7 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
     # even when nothing exports it (red team RT-0026)
     local = [x for x in obs.value if x.local_candidate]
     paths = [x for x in obs.value if not x.local_candidate]
-    if p.get("present", True) is False:
+    if p.get("present") is False:
         if paths:
             return False, f"unexpectedly in the BGP table ({len(paths)} path(s); {_describe_path(paths[0])})", obs.evidence
         return True, "no BGP path", obs.evidence
@@ -240,11 +240,11 @@ def is_post_convergence(check: Check) -> bool:
     about a best path's attributes (the best path can change when a slower session comes up)."""
     p = check.params
     return (
-        (check.type in ("route", "bgp_route") and p.get("present", True) is False)
+        (check.type in ("route", "bgp_route") and p.get("present") is False)
         # A best-path attribute (next hop, AS path, local-pref, MED, communities, or "must not carry") can
         # pass on a transient best path before the real one arrives: judge it after convergence and hold it
         or (check.type == "bgp_route" and any(k in p for k in BGP_ATTRIBUTES))
-        or (check.type == "ping" and p.get("expect", "success") == "failure")
+        or (check.type == "ping" and p.get("expect") == "failure")
         or (check.type == "bgp_session" and p.get("state", "established") != "established")
         or (check.type == "bgp_prefixes" and ("max" in p or "exact" in p or "only" in p))
     )
