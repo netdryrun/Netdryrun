@@ -56,6 +56,7 @@ git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp          # 3 FRR routers, should pass
 netdryrun run examples/srl-frr          # SR Linux + FRR, should pass
 netdryrun run examples/frr-bgp-broken   # a bad change, should fail
+netdryrun run examples/frr-customer-leak   # a customer filter lets a foreign prefix in, should fail
 examples/agent-demo/demo.sh             # replay: a leaky change rejected, the fix accepted
 ```
 
@@ -80,6 +81,7 @@ The [examples page](examples.md) has every example, what it shows and how long i
 | `examples/srl-frr` | Nokia SR Linux (`srl1`) peering eBGP with FRR (`frr1`) | 2 sessions, a BGP route on each side, a ping in each direction, best-path attributes on `srl1` | `PASSED: 7 passed, 0 failed` | `0` |
 | `examples/sonic-frr` | SONiC VS (`sonic1`, configured by `setup` commands) peering eBGP with FRR (`frr1`) | a session, a BGP route on each side, a ping, a prefix count, best-path attributes, a port-down scenario | `PASSED` | `0` |
 | `examples/frr-bgp-broken` | Same triangle, but r2 adds `default-originate` toward r1 | The first 6 checks of `frr-bgp`, without the scenario | `FAILED: 5 passed, 1 failed`; the default route check fails | `1` |
+| `examples/frr-customer-leak` | A customer, an edge router and an upstream; edge's customer filter lost its `match` line | The 21 checks `netdryrun record` wrote on the good config | `FAILED: 19 passed, 2 failed`; the two `only` checks fail on 203.0.113.128/25 | `1` |
 
 The broken example is the one shown on the [home page](index.md#a-failing-run). r1 receives the leaked default route but does not select it, so the ping still works. The route check catches it because a received-but-not-selected route counts as present.
 

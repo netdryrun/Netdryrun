@@ -220,6 +220,7 @@ git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp          # 3 FRR routers, should pass
 netdryrun run examples/srl-frr          # SR Linux + FRR, should pass
 netdryrun run examples/frr-bgp-broken   # a bad change, should fail
+netdryrun run examples/frr-customer-leak   # a customer filter lets a foreign prefix in, should fail
 examples/agent-demo/demo.sh             # replay: a leaky change rejected, the fix accepted
 ```
 
@@ -244,6 +245,7 @@ The [examples page](examples.md) has every example, what it shows and how long i
 | `examples/srl-frr` | Nokia SR Linux (`srl1`) peering eBGP with FRR (`frr1`) | 2 sessions, a BGP route on each side, a ping in each direction, best-path attributes on `srl1` | `PASSED: 7 passed, 0 failed` | `0` |
 | `examples/sonic-frr` | SONiC VS (`sonic1`, configured by `setup` commands) peering eBGP with FRR (`frr1`) | a session, a BGP route on each side, a ping, a prefix count, best-path attributes, a port-down scenario | `PASSED` | `0` |
 | `examples/frr-bgp-broken` | Same triangle, but r2 adds `default-originate` toward r1 | The first 6 checks of `frr-bgp`, without the scenario | `FAILED: 5 passed, 1 failed`; the default route check fails | `1` |
+| `examples/frr-customer-leak` | A customer, an edge router and an upstream; edge's customer filter lost its `match` line | The 21 checks `netdryrun record` wrote on the good config | `FAILED: 19 passed, 2 failed`; the two `only` checks fail on 203.0.113.128/25 | `1` |
 
 The broken example is the one shown on the [home page](index.md#a-failing-run). r1 receives the leaked default route but does not select it, so the ping still works. The route check catches it because a received-but-not-selected route counts as present.
 
@@ -916,6 +918,7 @@ Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images a
 |---|---|---|---|---|---|
 | [frr-bgp](#frr-bgp) | FRR | Basic checks, best-path attributes, a leak guard, a link-failure scenario | `PASSED: 11 passed, 0 failed` | `0` | 99 s |
 | [frr-bgp-broken](#frr-bgp-broken) | FRR | A leaked default route caught | `FAILED: 5 passed, 1 failed` | `1` | 39 s |
+| [frr-customer-leak](#frr-customer-leak) | FRR | A customer's foreign prefix caught by a recorded baseline | `FAILED: 19 passed, 2 failed` | `1` | 78 s |
 | [srl-frr](#srl-frr) | Nokia SR Linux + FRR | Mixed vendors | `PASSED: 7 passed, 0 failed` | `0` | 59 s |
 | [srl-hidden-leak](#srl-hidden-leak) | Nokia SR Linux + FRR | A leaked default that ping, sessions and the routing table miss, on both NOSes | `PASSED: 9 passed, 0 failed`; each leak `FAILED: 8 passed, 1 failed` | `0`; `1` | 59 to 60 s |
 | [sonic-frr](#sonic-frr) | SONiC VS + FRR | Configuring a NOS after boot, a port-down scenario | `PASSED: 8 passed, 0 failed` | `0` | 92 s |
@@ -950,6 +953,21 @@ To run it on every pull request, see [Test an FRR change in CI](guides/frr-ci.md
 ```
 
 CI runs this example on every push and expects it to fail.
+
+## frr-customer-leak
+
+[`examples/frr-customer-leak`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak): a customer (`cust`), an edge router (`edge`) and an upstream (`up`). The customer may announce only its own 10.10.0.0/24, and edge's inbound filter enforces it. The bad change (`edge-bad.conf`) deletes the filter's `match` line, so the customer's 203.0.113.128/25, which it doesn't own, is accepted and passed upstream.
+
+**Shows:** the leak a recorded baseline must catch. `netdryrun.yml` was written by `netdryrun record` on the good config, unedited. Each prefix count stays within its recorded range (1 to 3), so a range alone passes, which is what 0.3.3 and 0.4.0 recorded. The `only` lists that `record` writes from 0.4.1 on every eBGP neighbor fail it: a prefix from the customer that it didn't send when the baseline was recorded.
+
+**Expected:** `FAILED: 19 passed, 2 failed (21 checks)`, exit code `1`. The failing checks:
+
+```text
+  [FAIL] edge: prefixes from 10.0.1.2 >= 1 and <= 3 and only from 1 recorded prefix(es) -- 2 ipv4-unicast prefixes accepted; not in the allowed set: 203.0.113.128/25
+  [FAIL] up: prefixes from 10.0.2.1 >= 1 and <= 3 and only from 1 recorded prefix(es) -- 2 ipv4-unicast prefixes accepted; not in the allowed set: 203.0.113.128/25
+```
+
+With `configs/edge.conf` bound instead, all 21 checks pass. CI runs this example on every push and expects it to fail. The time (78 s) was measured on 2026-11-01 on a development build of 0.4.1, not by a release's live layer.
 
 ## srl-frr
 
@@ -3639,7 +3657,7 @@ Every command and its raw output is kept in the [JSON report](cli.md#json).
 
 `protocol` must be one of these names (case-insensitive): `bgp`, `connected`, `local`, `static`, `kernel`, `ospf`, `ospf6`, `isis`, `rip`, `ripng`, `aggregate`, `eigrp`, `babel`, `nhrp`, `table`, `sharp`, `pbr`, `openfabric`, `bgp-evpn`, `bgp-vpn`, `dhcp`, `arp-nd`, `gribi`. Any other name is a config error with a suggestion where one is close (`direct` → `connected`, `ospfv3` → `ospf6`); `ebgp` and `ibgp` are refused because drivers report both as `bgp`. Before 0.3.1 an unknown name was passed through, matched nothing, and silently passed `present: false`. The failure detail lists the protocols that were seen.
 
-From 0.4.1 a name must also be one the node's driver can report, or the check is refused before the lab deploys (exit code `2`): it could never match a route there, so `present: false` would always pass. FRR and SONiC report zebra's names (`bgp`, `connected`, `local`, `static`, `kernel`, `ospf`, `ospf6`, `isis`, `rip`, `ripng`, `eigrp`, `babel`, `nhrp`, `table`, `sharp`, `pbr`, `openfabric`); EVPN, VPN and aggregate routes are `bgp` there, so `bgp-evpn`, `bgp-vpn` and `aggregate` are refused on FRR. SR Linux reports `bgp`, `bgp-evpn`, `bgp-vpn`, `connected`, `local`, `static`, `aggregate`, `ospf`, `ospf6`, `isis`, `dhcp`, `arp-nd` and `gribi`; Arista EOS `bgp`, `connected`, `static`, `ospf`, `ospf6` (every OSPF route in an IPv6 table), `isis` and `aggregate`. `protocol: bgp` matches SR Linux's `bgp-evpn` and `bgp-vpn` routes too, so a guard against BGP sees every BGP-learned route; `protocol: bgp-evpn` matches only EVPN routes (0.4.0 and earlier read every SR Linux BGP route type as `bgp`, so `bgp-evpn` never matched).
+From 0.4.1 a name must also be one the node's driver can report, or the check is refused before the lab deploys (exit code `2`): it could never match a route there, so `present: false` would always pass. FRR and SONiC report zebra's names (`bgp`, `connected`, `local`, `static`, `kernel`, `ospf`, `ospf6`, `isis`, `rip`, `ripng`, `eigrp`, `babel`, `nhrp`, `table`, `sharp`, `pbr`, `openfabric`); EVPN, VPN and aggregate routes are `bgp` there, so `bgp-evpn`, `bgp-vpn` and `aggregate` are refused on FRR. SR Linux reports `bgp`, `bgp-evpn`, `bgp-vpn`, `connected`, `local`, `static`, `aggregate`, `ospf`, `ospf6`, `isis`, `dhcp`, `arp-nd` and `gribi`; Arista EOS `bgp`, `connected`, `static`, `ospf`, `ospf6` (every OSPF route in an IPv6 table), `isis` and `aggregate`. `protocol: bgp` matches SR Linux's `bgp-evpn` and `bgp-vpn` routes too, so a guard against BGP sees every BGP-learned route; `protocol: bgp-evpn` matches only EVPN routes (0.4.0 and earlier read every SR Linux BGP route type as `bgp`, so `bgp-evpn` never matched). The name must also fit the prefix's address family: `ospf` and `rip` on an IPv6 prefix, and `ospf6` and `ripng` on an IPv4 prefix, are config errors (exit code `2`) from 0.4.1, since such a route is reported under the other name.
 
 
 ---
@@ -4787,6 +4805,7 @@ Every push to `main` and every pull request runs [`ci.yml`](https://github.com/n
 
 - **`e2e`** runs the GitHub Action on [`examples/frr-bgp`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp) and [`examples/srl-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-frr) (FRR and Nokia SR Linux). Both must pass.
 - **`catches-bad-change`** runs [`examples/frr-bgp-broken`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp-broken), a change that leaks a default route. The job succeeds only if Netdryrun rejects it.
+- **`catches-customer-leak`** runs [`examples/frr-customer-leak`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak) (from 0.4.1): a customer filter that lost its `match` line, against a baseline written by `netdryrun record`. The job succeeds only if Netdryrun rejects it.
 - **`agent-demo`** replays [`examples/agent-demo`](https://github.com/netdryrun/Netdryrun/tree/main/examples/agent-demo): a route-leaking change must fail on exactly the leak guards, and the proper fix must pass.
 
 A second workflow, [`published-action.yml`](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/published-action.yml), tests what users install rather than the code on `main`: the released Action by its tag (it must pass a good change and reject a bad one), and `pip install` and `uvx` from PyPI on every supported Python version, including an MCP handshake.

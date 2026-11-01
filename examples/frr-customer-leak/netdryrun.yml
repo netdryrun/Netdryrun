@@ -1,0 +1,116 @@
+# The bad change in edge-bad.conf lets the customer's 203.0.113.128/25 in. Expected result: FAIL (2 checks).
+# Written by `netdryrun record` on the good config (configs/edge.conf), unedited below this header: the prefix counts
+# stay in range (1 to 3), and the `only` lists, today's prefixes per eBGP neighbor, catch the new one.
+# Run: netdryrun run examples/frr-customer-leak
+# Recorded by netdryrun 0.4.0 record on 2026-11-01T07:36:22+00:00.
+# This is a baseline of the network's behavior when it was recorded. Review it before committing:
+# remove anything that is allowed to change, and add negative checks (route present: false,
+# ping expect: failure) for things that must never happen. Docs: https://netdryrun.com/reference/config/
+lab: topology.clab.yml
+timeout: 120
+checks:
+- type: bgp_session
+  node: edge
+  neighbor: 10.0.1.2
+- type: bgp_prefixes
+  node: edge
+  neighbor: 10.0.1.2
+  afi: ipv4-unicast
+  min: 1
+  max: 3
+  only:
+  - 10.10.0.0/24
+- type: bgp_session
+  node: edge
+  neighbor: 10.0.2.2
+- type: bgp_prefixes
+  node: edge
+  neighbor: 10.0.2.2
+  afi: ipv4-unicast
+  min: 1
+  max: 3
+  only:
+  - 198.51.100.0/24
+- type: route
+  node: edge
+  prefix: 10.10.0.0/24
+  protocol: bgp
+- type: route
+  node: edge
+  prefix: 198.51.100.0/24
+  protocol: bgp
+- type: route
+  node: edge
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+- type: route
+  node: edge
+  prefix: 10.0.1.0/30
+  protocol: bgp
+  present: false
+- type: route
+  node: edge
+  prefix: 10.0.2.0/30
+  protocol: bgp
+  present: false
+- type: bgp_session
+  node: cust
+  neighbor: 10.0.1.1
+- type: bgp_prefixes
+  node: cust
+  neighbor: 10.0.1.1
+  afi: ipv4-unicast
+  min: 1
+  max: 3
+  only:
+  - 198.51.100.0/24
+- type: route
+  node: cust
+  prefix: 198.51.100.0/24
+  protocol: bgp
+- type: route
+  node: cust
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+- type: route
+  node: cust
+  prefix: 10.0.1.0/30
+  protocol: bgp
+  present: false
+- type: route
+  node: cust
+  prefix: 10.0.2.0/30
+  protocol: bgp
+  present: false
+- type: bgp_session
+  node: up
+  neighbor: 10.0.2.1
+- type: bgp_prefixes
+  node: up
+  neighbor: 10.0.2.1
+  afi: ipv4-unicast
+  min: 1
+  max: 3
+  only:
+  - 10.10.0.0/24
+- type: route
+  node: up
+  prefix: 10.10.0.0/24
+  protocol: bgp
+- type: route
+  node: up
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+- type: route
+  node: up
+  prefix: 10.0.1.0/30
+  protocol: bgp
+  present: false
+- type: route
+  node: up
+  prefix: 10.0.2.0/30
+  protocol: bgp
+  present: false

@@ -159,7 +159,8 @@ CASES = [
     Case("frr.parse_bgp_paths[v6]", lambda t: frr.parse_bgp_paths(t, "2001:db8:20::/48"),
          ["frr_bgp_paths_v6.txt"], frr_bgp_empty),
     # a set: sorted into a list, so an empty answer goes through the empty check
-    Case("frr.parse_received", lambda t: sorted(frr.parse_received(t, 4)), ["frr_received_routes.txt"],
+    Case("frr.parse_received", lambda t: sorted(frr.parse_received(t, 4)), ["frr_received_routes.txt", "frr_received_cust.txt",
+                                                                     "frr_received_cust_leak.txt"],
          frr_received_empty),
     Case("eos.parse_bgp_summary", eos.parse_bgp_summary, ["eos_bgp_summary.txt"], eos_table_empty("peers")),
     Case("eos.parse_routes[route table]", lambda t: eos.parse_routes(t, EOS_NO_BGP, "192.168.20.0/24"),

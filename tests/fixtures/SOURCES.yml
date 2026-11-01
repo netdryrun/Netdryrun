@@ -144,3 +144,11 @@
   source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git) in lab ndr-fpcap, 2026-11-01, on r1 with
     `vtysh -c "show bgp ipv4 unicast neighbors 10.1.1.2 routes json"` (three routes from an eBGP neighbor)
   added: ndr/fix-false-passes-0.4.1
+- files: [frr_received_cust.txt, frr_received_cust_leak.txt, frr_received_empty.txt, frr_received_no_neighbor.txt,
+          frr_received_no_afi.txt, frr_received_no_vrf.txt, frr_custleak_neighbors.txt]
+  kind: live-capture
+  source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git), examples/frr-customer-leak with configs/edge.conf, 2026-11-01,
+    on edge with vtysh -c "show bgp [vrf nope] ipv4|ipv6 unicast neighbors <addr> routes json" and "show bgp neighbors
+    json"; _empty after the customer withdrew both networks, _cust_leak after `no match ip address prefix-list CUST-IN`
+    and a soft clear (the example's bad change, applied live)
+  added: ndr/fix-false-passes-0.4.1

@@ -63,6 +63,7 @@ Every push to `main` and every pull request runs [`ci.yml`](https://github.com/n
 
 - **`e2e`** runs the GitHub Action on [`examples/frr-bgp`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp) and [`examples/srl-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-frr) (FRR and Nokia SR Linux). Both must pass.
 - **`catches-bad-change`** runs [`examples/frr-bgp-broken`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp-broken), a change that leaks a default route. The job succeeds only if Netdryrun rejects it.
+- **`catches-customer-leak`** runs [`examples/frr-customer-leak`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak) (from 0.4.1): a customer filter that lost its `match` line, against a baseline written by `netdryrun record`. The job succeeds only if Netdryrun rejects it.
 - **`agent-demo`** replays [`examples/agent-demo`](https://github.com/netdryrun/Netdryrun/tree/main/examples/agent-demo): a route-leaking change must fail on exactly the leak guards, and the proper fix must pass.
 
 A second workflow, [`published-action.yml`](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/published-action.yml), tests what users install rather than the code on `main`: the released Action by its tag (it must pass a good change and reject a bad one), and `pip install` and `uvx` from PyPI on every supported Python version, including an MCP handshake.

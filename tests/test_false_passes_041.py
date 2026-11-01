@@ -312,3 +312,68 @@ def test_srlinux_and_eos_say_which_neighbors_are_ebgp():
         peer["asn"] = data["vrfs"]["default"]["asn"]
     [n] = eos.parse_bgp_summary(json.dumps(data)).values()
     assert n.external is False
+
+
+# --- FRR received routes, on live FRR 10.4.1 captures (examples/frr-customer-leak, tests/fixtures/SOURCES.yml) ------
+
+def _fx(name):
+    from pathlib import Path
+    return (Path(__file__).parent / "fixtures" / name).read_text(encoding="utf-8")
+
+
+def test_frr_received_routes_from_live_captures():
+    assert frr.parse_received(_fx("frr_received_cust.txt"), 4) == {"10.10.0.0/24"}
+    assert frr.parse_received(_fx("frr_received_cust_leak.txt"), 4) == {"10.10.0.0/24", "203.0.113.128/25"}
+    assert frr.parse_received(_fx("frr_received_empty.txt"), 4) == set()   # routes {} and totalRoutes 0
+    assert frr.parse_received(_fx("frr_received_routes.txt"), 4) == {"192.168.20.0/24", "192.168.21.0/24",
+                                                                     "192.168.22.0/24"}
+    for name in ("frr_received_no_neighbor.txt", "frr_received_no_afi.txt", "frr_received_no_vrf.txt"):
+        with pytest.raises(DriverError):
+            frr.parse_received(_fx(name), 4)
+    with pytest.raises(DriverError):   # the wrong family for the request
+        frr.parse_received(_fx("frr_received_cust.txt"), 6)
+
+
+def test_frr_received_routes_never_trusts_a_listing_its_total_disagrees_with():
+    import json
+    data = json.loads(_fx("frr_received_cust_leak.txt"))
+    del data["routes"]["203.0.113.128/25"]   # a leaked prefix missing from a cut listing
+    with pytest.raises(DriverError):
+        frr.parse_received(json.dumps(data), 4)
+    data = json.loads(_fx("frr_received_empty.txt"))
+    del data["totalRoutes"]
+    with pytest.raises(DriverError):
+        frr.parse_received(json.dumps(data), 4)
+
+
+def test_frr_reports_which_neighbors_are_ebgp_live():
+    n = frr.parse_bgp_neighbors(_fx("frr_custleak_neighbors.txt"))
+    assert {a: x.external for a, x in n.items()} == {"10.0.1.2": True, "10.0.2.2": True}
+
+
+def test_the_example_leak_fails_the_recorded_file_through_the_real_driver():
+    """examples/frr-customer-leak: the recorded check on edge, evaluated by the FRR driver on the live leak capture."""
+    import yaml
+
+    from netdryrun.config import load
+    from pathlib import Path
+    ex = Path(__file__).parent.parent / "examples" / "frr-customer-leak" / "netdryrun.yml"
+    [c] = [c for c in load(ex).checks if c.type == "bgp_prefixes" and c.node == "edge" and c.params["neighbor"] == "10.0.1.2"]
+    assert c.params["only"] == ["10.10.0.0/24"] and yaml.safe_load(ex.read_text())["lab"] == "topology.clab.yml"
+
+    class Edge(frr.FrrDriver):
+        def __init__(self, routes):
+            self.routes_text = routes
+
+        def bgp_neighbors(self, vrf="default"):
+            return Observation(frr.parse_bgp_neighbors(_fx("frr_custleak_neighbors.txt")), [])
+
+        def _vtysh(self, command, evidence):
+            return self.routes_text
+    good = Edge(_fx("frr_received_cust.txt"))
+    assert _bgp_prefixes(good, c.params)[0] is True
+    leak = Edge(_fx("frr_received_cust_leak.txt"))
+    leak.bgp_neighbors = lambda vrf="default": Observation(
+        {"10.0.1.2": BgpNeighbor("10.0.1.2", "established", {"ipv4-unicast": 2}, external=True)}, [])
+    ok, detail, _ = _bgp_prefixes(leak, c.params)
+    assert ok is False and "203.0.113.128/25" in detail
