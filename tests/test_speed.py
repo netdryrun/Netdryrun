@@ -674,3 +674,46 @@ def test_the_action_skips_destroy_only_on_a_hosted_runner_when_asked():
             '              keep=(--keep)') in ACTION
     verify = ACTION[ACTION.index("          verify)"):ACTION.index("          *)")]
     assert "--keep" not in verify   # verify keeps its own rules
+
+
+def test_routed_is_unknown_and_so_true_without_a_table_or_a_readable_target():
+    q = Quiescence({}, (), 10.0)
+    assert q.routed("r1", "default", "not-an-address") and q.routed("r1", "default", "10.0.0.1")
+    q.ribs[("r1", "default", 4)] = [Route("10.0.0.0/8", "bgp", True)]
+    assert q.routed("r1", "default", "10.1.2.3") and not q.routed("r1", "default", "192.0.2.1")
+    assert q.routed("r1", "red", "192.0.2.1")   # no table read for that VRF: unknown
+
+
+def test_a_vrf_without_a_routing_table_counts_as_nothing_there():
+    c = Clock()
+
+    class NoTable(Net):
+        def all_routes(self, vrf="default", family=4):
+            if family == 6:
+                raise NoSuchInstance("no IPv6 table")
+            return super().all_routes(vrf, family)
+    d = NoTable(c)
+    [r] = rr([check("route", **ROUTE)], {"r1": d}, c, quiet_for({"r1": d}))
+    assert "ended early" in r.detail
+
+
+def test_a_lab_with_no_routing_node_is_never_quiescent():
+    q = Quiescence({}, (), 10.0)
+    for t in (0.0, 3.0, 6.0, 9.0, 12.0, 15.0):
+        q.sample(RoundMemo({}), t)
+    assert q.quiet_since() is None
+
+
+def test_samples_that_could_not_read_the_route_never_count_towards_ending_early():
+    """Its route reads failed at first (unready), then showed the route missing: the quiescent stretch starts with
+    the first sample that read it missing, so it ends no sooner than a full window after that."""
+    c = Clock()
+
+    class LateRead(Net):
+        def routes(self, prefix, vrf="default"):
+            if self.clock.t < 15:
+                raise DriverError("zebra is still starting")
+            return super().routes(prefix, vrf)
+    d = LateRead(c)
+    [r] = rr([check("route", **ROUTE)], {"r1": d}, c, quiet_for({"r1": d}))
+    assert not r.passed and "ended early" in r.detail and r.duration >= 15 + 10
