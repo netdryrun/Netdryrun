@@ -75,7 +75,10 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         # SR Linux's minimum-advertisement-interval, 5 s by default where the state doesn't list it
         timers = n.get("timers") if isinstance(n.get("timers"), dict) else {}
         adv = float(as_int(NEIGHBORS_CMD, timers.get("minimum-advertisement-interval", SRL_DEFAULT_ADV_INTERVAL)))
-        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state.lower(), prefixes, adv_interval=adv))
+        kind = str(n.get("peer-type", "")).lower()
+        external = True if kind == "ebgp" else False if kind == "ibgp" else None
+        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state.lower(), prefixes, adv_interval=adv,
+                                                       external=external))
     return out
 
 

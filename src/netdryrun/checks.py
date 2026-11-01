@@ -177,6 +177,9 @@ def _describe_path(path) -> str:
             f"MED {_opt(path.med)}, communities {comms}")
 
 
+_COMMUNITY_VALUE = re.compile(r"\d+:\d+(:\d+)?")   # canonical standard and large communities (config.parse_community)
+
+
 def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
     """Attributes of the BGP best path for a prefix, read from the BGP table (not the routing table)."""
     obs = d.bgp_paths(p["prefix"], p.get("vrf", "default"))
@@ -196,7 +199,8 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
         return False, "no BGP path", obs.evidence
     best = next((x for x in paths if x.best), None)
     if best is None:
-        return False, f"{len(paths)} BGP path(s) but none is best (next hop unreachable?)", obs.evidence
+        why = "the router's own route is best" if any(x.best for x in local) else "next hop unreachable?"
+        return False, f"{len(paths)} BGP path(s) but none is best ({why})", obs.evidence
     wrong = []
     have = set(best.all_communities())
     missing = [c for c in p.get("communities", []) if c not in have]
@@ -205,7 +209,8 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
     extra = [c for c in p.get("without_communities", []) if c in have]
     if extra:
         wrong.append(f"carries communities {' '.join(community_name(c) for c in extra)}")
-    unread = sorted(c for c in have if not c[:1].isdigit())   # a name the device printed that isn't a known value
+    # a token the device printed that isn't a community value: an alias, an unknown name, a plain number
+    unread = sorted(c for c in have if not _COMMUNITY_VALUE.fullmatch(c))
     if p.get("without_communities") and unread:
         # an alias or a name Netdryrun doesn't know could be any of the communities the path must not carry
         wrong.append(f"carries communities Netdryrun can't read as numbers ({' '.join(unread)}), so it can't tell "

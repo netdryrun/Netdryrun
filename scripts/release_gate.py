@@ -1602,6 +1602,14 @@ def stranger_problems(path: str | None, version: str, now: dt.datetime | None = 
         out.append(f"the stranger reports a false pass (false_pass: {data.get('false_pass')!r}, run {data.get('run', '?')})")
     if unseen and unseen.get("false_pass") is not False:
         out.append(f"the stranger's unseen labs report a false pass (false_pass: {unseen.get('false_pass')!r})")
+    if data.get("green") is not True:
+        out.append(f"the stranger is not green (green: {data.get('green')!r}, readme: {data.get('readme')!r}): a run "
+                   "that failed before its must-fail change ran says nothing")
+    results = data.get("results") if isinstance(data.get("results"), list) else []
+    if not any(isinstance(r, dict) and str(r.get("step", "")).startswith("own topology, ") and r.get("want") == 1
+               and r.get("got") == 1 and r.get("ok") is True for r in results):
+        out.append("the stranger status has no must-fail change on the README's own-topology path that failed as it "
+                   "must: nothing shows `record` catches a bad change")
     try:
         when = dt.datetime.fromisoformat(str(data.get("date")))
         if when.tzinfo is None:
@@ -1613,9 +1621,12 @@ def stranger_problems(path: str | None, version: str, now: dt.datetime | None = 
         if age > STRANGER_MAX_AGE or age < -dt.timedelta(hours=1):
             out.append(f"the stranger status is from {data.get('date')}, more than {STRANGER_MAX_AGE.total_seconds() / 3600:.0f} "
                        "hours from now: rerun the stranger")
-    for where, text in (("README run", data.get("netdryrun")), ("unseen labs", unseen.get("netdryrun"))):
+    for where, text, required in (("README run", data.get("netdryrun"), True),
+                                  ("unseen labs", unseen.get("netdryrun"), False)):
         m = re.search(r"\d+\.\d+\.\d+\S*", text) if isinstance(text, str) else None
-        if m and m.group(0) != version:
+        if m is None and required:
+            out.append(f"the stranger's {where} doesn't say which netdryrun it tested (netdryrun: {text!r})")
+        elif m and m.group(0) != version:
             out.append(f"the stranger's {where} tested netdryrun {m.group(0)}, not {version}: run it on the candidate")
     return out
 

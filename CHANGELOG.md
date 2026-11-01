@@ -27,7 +27,7 @@ Eight false passes are fixed: one in `record` (0.3.3 and 0.4.0, the [advisory](a
 
 ### Changed
 
-- **The release gate refuses CLEARED without a fresh synthetic-stranger status.** `release_gate.py report --stranger-status STATUS.json` adds a BLOCKER when the status is missing or unreadable, reports a false pass, is older than 36 hours, or names another netdryrun version than the release. 0.3.3 and 0.4.0 shipped while it reported the `record` false pass above.
+- **The release gate refuses CLEARED without a fresh synthetic-stranger status.** `release_gate.py report --stranger-status STATUS.json` adds a BLOCKER when the status is missing or unreadable, reports a false pass, isn't green, shows no must-fail change that failed as it must, is older than 36 hours, or doesn't name the release as the version it tested. 0.3.3 and 0.4.0 shipped while it reported the `record` false pass above.
 - **The GitHub Action uses `actions/setup-python` v7 and `actions/upload-artifact` v7** (Dependabot, 11 Action bumps across the workflows). Both run on Node.js 24, which needs GitHub Actions runner 2.327.1 or later: GitHub-hosted runners have it; a self-hosted runner must be updated before it runs `netdryrun/Netdryrun@v0.4.1`.
 - **The site keeps `/.well-known/security.txt`:** `actions/upload-pages-artifact` v4 and later leave dotfiles out of the Pages artifact, so the Pages workflow sets `include-hidden-files` and checks the file is in the artifact.
 - **A push to a release branch dry-runs the release workflow** (build, the artifact hand-off, `twine check`); only a `v*` tag publishes. CI runs on release branches too.

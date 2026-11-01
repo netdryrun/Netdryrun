@@ -138,7 +138,8 @@ def _lab(tmp_path, kind, image):
 def test_route_protocols_refused_where_the_driver_never_reports_them(tmp_path, kind, image, name):
     lab = _lab(tmp_path, kind, image)
     for proto in ("bgp-evpn", "aggregate", "ospf6", "dhcp", "kernel", "bgp"):
-        c = check(type="route", node="r1", prefix="10.0.0.0/24", protocol=proto, present=False)
+        prefix = "2001:db8::/48" if proto == "ospf6" else "10.0.0.0/24"
+        c = check(type="route", node="r1", prefix=prefix, protocol=proto, present=False)
         if proto in DRIVERS[name].route_protocols:
             check_supported(lab, c)
         else:
@@ -233,7 +234,7 @@ def test_protocol_bgp_matches_evpn_and_vpn_routes_and_bgp_evpn_only_its_own():
     ("ospfIntraArea", "2001:db8::/48", "ospf6"), ("ospfExternalType2", "2001:db8::/48", "ospf6"),
     ("ospfIntraArea", "10.0.0.0/24", "ospf"), ("ospfNssaExternalType2", "10.0.0.0/24", "ospf"),
     ("ospfv3IntraArea", "10.0.0.0/24", "ospf6"), ("isisLevel2", "10.0.0.0/24", "isis"),
-    ("eBGP", "10.0.0.0/24", "bgp"), ("dropRoute", "10.0.0.0/24", "static")])
+    ("eBGP", "10.0.0.0/24", "bgp"), ("dropRoute", "10.0.0.0/24", "static"), ("bgpAggregate", "10.0.0.0/24", "aggregate")])
 def test_eos_route_types(rtype, prefix, proto):
     assert eos._protocol(rtype, prefix) == proto
 
@@ -267,3 +268,47 @@ def test_a_ping_that_sent_fewer_packets_needs_as_many_replies():
     assert _ping(Pinger(2, 2), p)[0] is True
     assert _ping(Pinger(1, 1), {**p, "min_replies": 1})[0] is True
     assert _ping(Pinger(1, 1), {"target": "10.0.0.1"})[0] is False   # count defaults to 3
+
+
+def test_a_protocol_of_the_other_address_family_is_refused():
+    """EOS reported OSPFv3 routes as ospf before 0.4.1 and ospf6 after: `protocol: ospf` on an IPv6 prefix would
+    never match again (cold review). Such a name can't fit the family on any driver."""
+    for proto, prefix in (("ospf", "2001:db8::/48"), ("rip", "2001:db8::/48"), ("ospf6", "10.0.0.0/24"),
+                          ("ripng", "10.0.0.0/24")):
+        with pytest.raises(ConfigError, match="never carries"):
+            check(type="route", node="r1", prefix=prefix, protocol=proto, present=False)
+    for proto, prefix in (("ospf6", "2001:db8::/48"), ("ripng", "2001:db8::/48"), ("ospf", "10.0.0.0/24"),
+                          ("rip", "10.0.0.0/24"), ("bgp", "2001:db8::/48")):
+        check(type="route", node="r1", prefix=prefix, protocol=proto, present=False)
+
+
+def test_a_community_printed_as_one_number_is_never_read_as_absent():
+    p = {"node": "r1", "prefix": "10.0.0.0/24", "without_communities": ["65535:65281"]}
+    assert _bgp_route(Paths([_path(communities=["4294967041"])]), p)[0] is False   # no-export as one decimal
+
+
+def test_junos_extended_communities_are_not_standard_ones():
+    from netdryrun.drivers import junos
+    e = {"communities": [{"community": [{"data": "65000:1"}, {"data": "target:65000:100"}, {"data": "origin:1:2"},
+                                        {"data": "large:65000:1:2"}, {"data": "no-export"}]}]}
+    std, large = junos._communities("show route", e)
+    assert std == ["65000:1", "65535:65281"] and large == ["65000:1:2"]
+
+
+def test_srlinux_and_eos_say_which_neighbors_are_ebgp():
+    """record keeps a range on iBGP neighbors and pins or guards eBGP ones: drivers that can't tell left every neighbor
+    unknown, so every count became exact on SR Linux and EOS (cold review)."""
+    from pathlib import Path
+
+    from netdryrun.drivers import srlinux
+    fx = Path(__file__).parent / "fixtures"
+    [n] = srlinux.parse_bgp_neighbors((fx / "srl_bgp_neighbors.txt").read_text(encoding="utf-8")).values()
+    assert n.external is True
+    [n] = eos.parse_bgp_summary((fx / "eos_bgp_summary.txt").read_text(encoding="utf-8")).values()
+    assert n.external is True   # live: peer AS 65020, local 65030
+    import json
+    data = json.loads((fx / "eos_bgp_summary.txt").read_text(encoding="utf-8"))
+    for peer in data["vrfs"]["default"]["peers"].values():
+        peer["asn"] = data["vrfs"]["default"]["asn"]
+    [n] = eos.parse_bgp_summary(json.dumps(data)).values()
+    assert n.external is False

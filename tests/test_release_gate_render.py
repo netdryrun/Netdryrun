@@ -23,7 +23,11 @@ def record(name, checks):
 
 
 NOW = dt.datetime(2026, 11, 3, 12, 0, tzinfo=dt.timezone.utc)
-FRESH = {"date": "2026-11-03T08:00+00:00", "run": "r", "false_pass": False, "green": True,
+FRESH = {"date": "2026-11-03T08:00+00:00", "run": "r", "false_pass": False, "green": True, "readme": "success",
+         "netdryrun": "netdryrun 9.9.9",
+         "results": [{"step": "own topology", "want": 0, "got": 0, "ok": True},
+                     {"step": "own topology, fail-bogon", "want": 1, "got": 1, "ok": True},
+                     {"step": "own topology, pass-description", "want": 0, "got": 0, "ok": True}],
          "unseen": {"netdryrun": "netdryrun 9.9.9", "false_pass": False}}
 
 
@@ -121,6 +125,14 @@ def test_cleared_with_a_fresh_stranger_status(tmp_path):
     ({k: v for k, v in FRESH.items() if k != "date"}, "no readable date"),
     ({**FRESH, "netdryrun": "netdryrun 9.9.8"}, "tested netdryrun 9.9.8, not 9.9.9"),
     ({**FRESH, "unseen": {"netdryrun": "netdryrun 9.9.8", "false_pass": False}}, "tested netdryrun 9.9.8"),
+    ({**FRESH, "netdryrun": None}, "doesn't say which netdryrun"),
+    ({k: v for k, v in FRESH.items() if k != "netdryrun"}, "doesn't say which netdryrun"),
+    ({**FRESH, "green": False, "readme": "failure"}, "not green"),
+    ({k: v for k, v in FRESH.items() if k != "green"}, "not green"),
+    # record failed, so no must-fail change ran: false_pass false, and it says nothing (cold review 2026-11-01)
+    ({**FRESH, "results": [{"step": "own topology", "want": 0, "got": 2, "ok": False}]}, "no must-fail change"),
+    ({**FRESH, "results": [{"step": "own machine", "want": 1, "got": 1, "ok": True}]}, "no must-fail change"),
+    ({**FRESH, "results": "x"}, "no must-fail change"),
 ])
 def test_the_stranger_keeps_the_release_from_clearing(tmp_path, stranger, why):
     text, cleared = gate.render(write(tmp_path, ALL, stranger=stranger))

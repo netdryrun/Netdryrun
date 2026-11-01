@@ -38,8 +38,9 @@ python scripts/release_gate.py report --stranger-status STATUS.json   # rebuild 
 
 `report` never says CLEARED (or READY TO PUBLISH) without the synthetic stranger's status: the maintainers'
 nightly run that follows this README on a clean machine, including `record` on a lab that is not one of the
-examples and a change that must fail. A status that is missing, unreadable, older than 36 hours, names another
-netdryrun version than the release, or reports a false pass is a BLOCKER. 0.3.3 and 0.4.0 shipped while it
+examples and a change that must fail. A status that is missing, unreadable, older than 36 hours, not green, without a must-fail change that
+failed as it must, without the netdryrun version it tested or with another one, or reporting a false pass is
+a BLOCKER. 0.3.3 and 0.4.0 shipped while it
 reported one ([advisory](advisories/)); this rule is why that can't happen again.
 
 Each layer records its results in `releases/<version>/gate/<layer>.json` along with the commit,

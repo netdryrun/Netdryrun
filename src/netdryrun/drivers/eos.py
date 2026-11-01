@@ -33,6 +33,8 @@ def _protocol(rtype: str, prefix: str) -> str:
         return "ospf6" if ":" in prefix or rtype.startswith(("ospfv3", "ospf3")) else "ospf"
     if rtype.startswith("isis"):
         return "isis"
+    if "aggregate" in rtype:   # aggregate, bgpAggregate: a name that never matched would pass present: false
+        return "aggregate"
     return PROTOCOLS.get(rtype, rtype)
 
 SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "show ipv6 bgp summary | json"}
@@ -88,6 +90,8 @@ def _summary(text: str, vrf: str, afi: str, into: dict[str, BgpNeighbor] | None)
         # EOS sends updates without delay unless `neighbor ... out-delay` is set, which the summary doesn't show:
         # its platform default (0) is used
         n = out.get(key) or BgpNeighbor(str(addr), state, adv_interval=0.0)
+        if "asn" in p and "asn" in entry:   # eBGP when the peer's AS isn't the VRF's own (record's closed-world guard)
+            n.external = str(p["asn"]) != str(entry["asn"])
         if n.address != str(addr):
             # scoped link-locals sharing a key (one peer is also listed once per address family): ambiguous, and a
             # down session is never hidden by an up one

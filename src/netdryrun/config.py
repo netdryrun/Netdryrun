@@ -365,6 +365,13 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
                                   f"{_suggest(proto, PROTOCOLS, PROTOCOL_HINTS)}{why}; "
                                   f"use one of {', '.join(PROTOCOLS)}")
             params["protocol"] = proto.lower()
+            # OSPFv2 and RIP carry IPv4 only, OSPFv3 and RIPng IPv6 only (as the drivers report them): the other
+            # family's name never matches, so present: false would always pass (cold review, 2026-11-01)
+            version = ipaddress.ip_network(params["prefix"]).version
+            other = {4: {"ospf6": "ospf", "ripng": "rip"}, 6: {"ospf": "ospf6", "rip": "ripng"}}[version]
+            if params["protocol"] in other:
+                raise ConfigError(f"{where}: protocol {params['protocol']} never carries an IPv{version} prefix "
+                                  f"({params['prefix']}); use {other[params['protocol']]}")
         if params.get("present", True) is False and "active" in params:
             raise ConfigError(f"{where}: active only applies to present: true (present: false already "
                               "means no matching route at all, selected or not)")

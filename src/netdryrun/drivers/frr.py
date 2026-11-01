@@ -475,7 +475,10 @@ class FrrDriver(Driver):
             raise DriverError(f"the prefixes received in {afi} can't be listed")
         if "%" in neighbor:   # a scoped link-local can be several sessions (see BgpNeighbor.ambiguous)
             raise DriverError(f"the prefixes received from {neighbor} can't be listed: use a global address")
-        addr = ipaddress.ip_address(neighbor)
+        try:
+            addr = ipaddress.ip_address(neighbor)
+        except ValueError:
+            raise DriverError(f"the prefixes received from {neighbor!r} can't be listed: not an address") from None
         ev: list[dict] = []
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         fam = afi.split("-")[0]
