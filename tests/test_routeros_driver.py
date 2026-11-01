@@ -1,6 +1,6 @@
 """The RouterOS driver itself: what each method returns for a router's answers, and every way it refuses to guess.
 
-Answers are the hand-written fixtures in tests/fixtures/routeros_*.txt (the structure of a live CHR 7.23.8 capture).
+Answers are the live CHR 7.23.8 captures in tests/fixtures/routeros_*.txt (scripts/labs/routeros-cap, 2026-11-01).
 The matrix (test_driver_matrix.py) proves verdicts; this file proves the facts under them.
 """
 from __future__ import annotations
@@ -182,6 +182,20 @@ def test_a_bgp_path_in_a_vrf_is_read_from_that_table():
     assert any("routing-table=RED" in line for line in lab.lines())
 
 
+def test_a_vrf_next_hop_is_the_address_without_routeros_vrf_suffix():
+    """Live CHR 7.23.8: a path in VRF RED has gateway "203.0.113.2@RED", so `next_hop: 203.0.113.2` failed on a correct
+    path. The suffix naming the path's own table is dropped; one naming another table (a leak) stays, and differs."""
+    rows = exact(RED, "198.18.2.0/24")
+    assert rows[0]["gateway"] == "203.0.113.2@RED"
+    d, _ = driver([("/routing/route?dst-address=198.18.2.0/24&routing-table=RED", body(rows)),
+                   ("/routing/table", body(TABLES)), ("/routing/bgp/session", body(SESSIONS))])
+    assert d.bgp_paths("198.18.2.0/24", "RED").value[0].next_hop == "203.0.113.2"
+    leaked = [{**rows[0], "gateway": "203.0.113.2@main"}]
+    d, _ = driver([("/routing/route?dst-address=198.18.2.0/24&routing-table=RED", body(leaked)),
+                   ("/routing/table", body(TABLES)), ("/routing/bgp/session", body(SESSIONS))])
+    assert d.bgp_paths("198.18.2.0/24", "RED").value[0].next_hop == "203.0.113.2@main"
+
+
 # ---- ping -----------------------------------------------------------------------------------------------------
 def test_ping_counts_and_request_body():
     d, lab = driver([("/ping", body(load("routeros_ping.txt")))])
@@ -326,11 +340,11 @@ def test_med_zero_is_unknown_and_a_med_zero_check_is_refused(tmp_path):
 
 # ---- startup config: RouterOS's own log of the uploaded config's run -------------------------------------------
 def test_a_rejected_startup_line_is_read_from_routeros_log():
-    """Live CHR 7.23.8 (hand-written to the same wording): a bad line stops the import there."""
+    """Live CHR 7.23.8: a bad line stops the import there."""
     from netdryrun.drivers.routeros_state import parse_import_log
     assert parse_import_log(load("routeros_log_import_error.txt")) == [
         "executing script failed, please check it manually",
-        "(ftp-auto-run:admin@::) Script Error: bad command name this-command-does-not-exist (line 4 column 2) (:import; line 1)"]
+        "(ftp-auto-run:admin@::) Script Error: bad command name this-command-does-not-exist (line 2 column 2) (:import; line 1)"]
     assert parse_import_log(load("routeros_log_import_clean.txt")) == []
 
 

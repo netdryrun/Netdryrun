@@ -225,7 +225,12 @@ def test_a_source_entry_must_say_what_kind_and_where(tmp_path):
     assert "kind must be one of" in gate.provenance(tmp_path)[0]
 
 
-def test_a_new_hand_written_fixture_fails_and_the_frozen_ones_need_a_reason(tmp_path):
+def test_no_fixture_is_hand_written_any_more():
+    assert gate.HAND_WRITTEN == frozenset()
+
+
+def test_a_new_hand_written_fixture_fails_and_the_frozen_ones_need_a_reason(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "HAND_WRITTEN", frozenset({"routeros_ping.txt"}))
     fx = tmp_path / "tests" / "fixtures"
     fx.mkdir(parents=True)
     (fx / "my_parser.txt").write_text("{}")

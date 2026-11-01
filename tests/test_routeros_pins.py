@@ -192,6 +192,13 @@ def test_bgp_paths_without_an_as_path_and_their_evidence():
     assert paths_asked(lab)[1] == ["GET", "/routing/bgp/session"]
 
 
+def test_a_bgp_path_without_a_gateway_has_no_next_hop():
+    """No gateway on the row: next hop unknown (a next_hop check then fails), never a crash on the VRF suffix."""
+    row = {k: v for k, v in exact(MAIN, "10.21.0.0/24")[0].items() if k != "gateway"}
+    d, _ = driver([("/routing/route?dst-address=10.21.0.0/24", body([row])), ("/routing/bgp/session", body(SESSIONS))])
+    assert [p.next_hop for p in d.bgp_paths("10.21.0.0/24").value] == [None]
+
+
 def test_nos_version_asks_system_resource():
     d, lab = driver([("/system/resource", body(load("routeros_resource.txt")))])
     assert d.nos_version() == "RouterOS 7.23.8 (long-term)"

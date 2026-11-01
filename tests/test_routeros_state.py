@@ -1,7 +1,7 @@
 """RouterOS 7 state: sessions, connections, routing tables and the routing route table, read strictly.
 
-The synthetic rows below have the structure of a live CHR 7.23.8 capture (2026-10-30; the captures are unpublished
-until MikroTik answers a terms question); the content is invented. Facts under test:
+The synthetic rows below have the structure of a live CHR 7.23.8 capture; the content is invented. The live capture
+itself is in tests/fixtures/routeros_*.txt (tested at the end of this file). Facts under test:
 
 - `prefix-count` on a session is the RECEIVED count (it includes prefixes a filter rejected); accepted prefixes come from
   the routing route table: BGP paths of that session whose contribution is not `filtered`.
@@ -11,7 +11,6 @@ until MikroTik answers a terms question); the content is invented. Facts under t
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -307,55 +306,43 @@ def test_ping_without_counters_raises():
             parse_ping(rows)
 
 
-# ---- local only: the real live capture (unpublished; skipped where it is not present) -------------------------
-def _real_dir():
-    env = os.environ.get("NDR_ROUTEROS_CAPTURES")
-    p = Path(env) if env else Path(__file__).resolve().parents[3] / "research" / "mikrotik-capture" / "out" / "live-20261030"
-    return p if p.is_dir() else None
-
-
-REAL = _real_dir()
-real_only = pytest.mark.skipif(REAL is None, reason="no real CHR capture on this machine (unpublished)")
-
-
+# ---- the live capture (CHR 7.23.8, 2026-11-01, scripts/labs/routeros-cap; tests/fixtures/SOURCES.yml) ----------------
 def _rows(name):
     import json
-    return json.loads((REAL / f"mikrotik_{name}.txt").read_text(encoding="utf-8"))
+    return json.loads((Path(__file__).parent / "fixtures" / f"routeros_{name}.txt").read_text(encoding="utf-8"))
 
 
-@real_only
-def test_real_sessions_connections_tables():
+def test_live_sessions_connections_tables():
     sessions = parse_sessions(_rows("bgp_session"))
-    assert {s.name for s in sessions} == {"f1-1", "f3-1", "red-f2-1"} and all(s.established for s in sessions)
+    assert {s.name for s in sessions} == {"peer1-1", "peer2-1", "quiet-1", "red1-1"} and all(s.established for s in sessions)
+    assert {s.name: s.vrf for s in sessions}["red1-1"] == "RED"
     conns = {c.name: c for c in parse_connections(_rows("bgp_connection"))}
-    assert conns["idle"].inactive and conns["idle"].about and not any(s.remote_address == "10.0.9.9" for s in sessions)
-    assert parse_tables(_rows("rtable_list")) == {"main": True, "RED": True}
+    assert conns["idle"].inactive and conns["idle"].about and not any(s.remote_address == "192.0.2.99" for s in sessions)
+    assert parse_tables(_rows("rtable")) == {"main": True, "RED": True}
 
 
-@real_only
-def test_real_received_count_includes_the_filtered_prefix_and_accepted_does_not():
+def test_live_received_count_includes_the_filtered_prefix_and_accepted_does_not():
     sessions = {s.name: s for s in parse_sessions(_rows("bgp_session"))}
-    paths = parse_routing_routes(_rows("rrt_all"))
-    acc = accepted_prefixes(paths, "f1-1")
-    assert "192.168.66.0/24" not in acc and "192.168.20.0/24" in acc
-    assert sessions["f1-1"].received_count == len(acc) + 1
+    paths = parse_routing_routes(_rows("routes_main"))
+    acc = accepted_prefixes(paths, "peer1-1")
+    assert "10.66.0.0/24" not in acc and "10.20.0.0/24" in acc
+    assert sessions["peer1-1"].received_count == len(acc) + 1
+    # up and sent nothing: a real 0, not a missing counter
+    assert sessions["quiet-1"].received_count == 0 and accepted_prefixes(paths, "quiet-1") == set()
 
 
-@real_only
-@pytest.mark.parametrize("name", ["rrt_all", "rrt_20", "rrt_66", "rrt_default", "rrt_red"])
-def test_real_routing_routes_parse(name):
+@pytest.mark.parametrize("name", ["routes_main", "routes_red"])
+def test_live_routing_routes_parse(name):
     assert parse_routing_routes(_rows(name))
 
 
-@real_only
-def test_real_default_is_best_candidate_under_the_static():
-    paths = parse_routing_routes(_rows("rrt_default"))
+def test_live_default_is_best_candidate_under_the_static():
+    paths = [p for p in parse_routing_routes(_rows("routes_main")) if p.prefix == "0.0.0.0/0"]
     bgp = [p for p in paths if p.kind == "bgp"][0]
     assert bgp.contribution == "best-candidate" and not bgp.active
     assert [p for p in paths if p.active][0].kind == "static"
 
 
-@real_only
-def test_real_ping():
-    assert parse_ping(_rows("ping_ok")) == (3, 3)
+def test_live_ping():
+    assert parse_ping(_rows("ping")) == (3, 3)
     assert parse_ping(_rows("ping_fail")) == (2, 0)

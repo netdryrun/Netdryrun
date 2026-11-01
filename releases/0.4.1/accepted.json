@@ -5609,6 +5609,11 @@
       "reason": "equivalent: the getattr default only feeds `not`, and not None == not False; every Driver subclass inherits reads_received from base, and an unknown name (DRIVERS.get -> None) takes the default either way",
       "diff": "36bcf3e7175e0cb7",
       "class": "equivalent"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_74": {
+      "class": "equivalent",
+      "reason": "a BGP path always has a session (parse_routing_routes requires bgp.session for every bgp row), so the fallback is never used",
+      "diff": "c46faff0a380c48e"
     }
   },
   "checks": {

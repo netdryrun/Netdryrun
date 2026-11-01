@@ -30,11 +30,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_KINDS = {"live-capture", "lab-input", "report", "hand-written"}
 # Fixtures written to a live capture's structure because the capture itself is unpublished. Frozen: no new file may
-# be hand-written (CONTRIBUTING: real device output only); these wait to be replaced by published live captures.
-HAND_WRITTEN = frozenset({
-    "routeros_bgp_connection.txt", "routeros_bgp_session.txt", "routeros_health_running.txt",
-    "routeros_log_import_clean.txt", "routeros_log_import_error.txt", "routeros_ping.txt", "routeros_ping_fail.txt",
-    "routeros_resource.txt", "routeros_routes_main.txt", "routeros_routes_red.txt", "routeros_rtable.txt"})
+# be hand-written (CONTRIBUTING: real device output only). Empty since the RouterOS ones were replaced by live captures.
+HAND_WRITTEN: frozenset[str] = frozenset()
 # Code a verdict depends on: a change here needs a test that fails on the base branch's code
 VERDICT_PATHS = ("src/netdryrun/drivers/", "src/netdryrun/checks.py", "src/netdryrun/runner.py",
                  "src/netdryrun/config.py", "src/netdryrun/faults.py", "src/netdryrun/lab.py",

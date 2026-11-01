@@ -56,8 +56,7 @@ case $DRIVER in
   eos)     EXAMPLE=examples/arista-frr; HEAVY=1;
            NOT_CAPTURED="eos_bgp_paths_empty eos_bgp_paths_local eos_bgp_paths_noexport (need a missing, a local and a no-export prefix)" ;;
   sonic)   EXAMPLE=examples/sonic-frr; HEAVY=1; NOT_CAPTURED="" ;;
-  routeros) EXAMPLE=examples/mikrotik; HEAVY=1;
-           NOT_CAPTURED="routeros_routes_red routeros_ping_fail (need a VRF and an unreachable target)" ;;
+  routeros) EXAMPLE=scripts/labs/routeros-cap; HEAVY=1; NOT_CAPTURED="" ;;
   nxos)    EXAMPLE=scripts/labs/nxos-cap; HEAVY=1; NOT_CAPTURED="" ;;
   # every junos fixture comes from richer labs (ndr-junos-cap, ndr-junos-ibgp: a VRF, an IPv6 session, an idle
   # peer, hidden routes, iBGP): the example reproduces none of them exactly, so every capture is a shape capture
@@ -225,20 +224,37 @@ capture_eos() {                     # eos.py: bgp_neighbors, routes, bgp_paths, 
 
 # RouterOS runs in a VM inside the container, and the host cannot reach its management address: every request goes through the
 # driver's own helper inside the container (routeros_rest.HELPER), exactly as the driver sends it. One CHR node per lab.
-capture_routeros() {                # routeros.py: sessions, connections, routing tables, the routing route table, ping
+capture_routeros() {                # routeros.py: every read, the startup-config import log (clean and failed), readiness
   local n=$P-r1 helper
   helper=$(PYTHONPATH=src python3 -c 'from netdryrun.drivers.routeros_rest import HELPER; print(HELPER)')
   ros() { docker exec "$n" python3 -c "$helper" "$1" "$2" admin:admin "${3:-}" | tail -n +2; }
   ros_imported() { ros GET /log | grep -q "NDR r1.rsc imported to the last line"; }
-  ros_established() { ros GET /routing/bgp/session | grep -q '"established":"true"'; }
+  ros_all_up() { [ "$(ros GET /routing/bgp/session | grep -o '"established":"true"' | wc -l)" -ge 4 ]; }
+  ros_import_failed() { ros GET /log | grep -q "Script Error"; }
+  ros_learned() { ros GET "/routing/route?dst-address=198.18.2.0/24&routing-table=RED" | grep -q '"active":"true"'; }
   wait_for "the startup config to be imported on r1 (the VM boots in about a minute, then the import runs)" 600 ros_imported
-  wait_for "r1 BGP established with frr1" 180 ros_established
+  wait_for "r1's four BGP sessions established" 300 ros_all_up
+  wait_for "r1 to learn 198.18.2.0/24 in RED" 120 ros_learned
   sleep 10
+  cap   routeros_health_running  docker exec "$n" cat /health
+  cap   routeros_resource        ros GET /system/resource
   cap   routeros_bgp_session     ros GET /routing/bgp/session
   cap   routeros_bgp_connection  ros GET /routing/bgp/connection
   cap   routeros_rtable          ros GET /routing/table
   cap   routeros_routes_main     ros GET "/routing/route?routing-table=main"
-  cap   routeros_ping            ros POST /ping '{"address":"10.0.100.2","count":"3"}'
+  cap   routeros_routes_red      ros GET "/routing/route?routing-table=RED"
+  cap   routeros_ping            ros POST /ping '{"address":"10.20.0.1","count":"3","src-address":"10.10.10.1"}'
+  cap   routeros_ping_fail       ros POST /ping '{"address":"198.18.99.1","count":"2"}'   # the static blackhole default
+  cap   routeros_log_import_clean ros GET /log
+  # a failed import, the way vrnetlab runs one: upload a *.auto.rsc over FTP and RouterOS runs it before the session ends
+  docker exec "$n" python3 -c '
+import ftplib, io
+f = ftplib.FTP("172.31.255.30", timeout=60)
+f.login("admin", "admin")
+f.storbinary("STOR ndr-bad.auto.rsc", io.BytesIO(b"/system identity set name=r1\n/this-command-does-not-exist\n/log info message=\"never\"\n"))
+f.quit()'
+  wait_for "r1 to log the failed import" 60 ros_import_failed
+  cap   routeros_log_import_error ros GET /log
 }
 
 # NX-OS runs in a VM inside the container: every command goes through the driver's own NX-API helper
