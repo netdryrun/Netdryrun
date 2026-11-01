@@ -1343,7 +1343,8 @@ It needs a Linux runner with Docker. GitHub-hosted `ubuntu-latest` runners work.
 | `intent-file` | `netdryrun-intent.yml` | The intent file (`mode: verify`): what the change is meant to do |
 | `allow-intent-edit` | `false` | `mode: verify`: let a PR that adds or edits the intent file run. Set it only when branch protection requires a code-owner review of that file |
 | `allow-check-edit` | `false` | `mode: run` on a pull request: let a PR that changes `netdryrun.yml` and the lab's configs together run (with a warning). Without it such a PR fails before any lab boots: it would grade its own change. Set it only where branch protection requires a code-owner review of `netdryrun.yml` |
-| `containerlab-version` | `0.81.1` | containerlab version to install, pinned for reproducible runs. Empty means latest. If containerlab is already installed, it is used as is, with a warning if the version differs. |
+| `containerlab-version` | `0.81.1` | containerlab version to install, pinned for reproducible runs. Empty means latest. If containerlab is already installed, it is used as is, with a warning if the version differs. A pinned version is installed from its release package, cached between runs (`actions/cache`) and checked against the release's checksums. |
+| `skip-destroy` | `false` | `mode: run`: leave the lab up at the end instead of destroying it, to save the destroy time. It takes effect only on a GitHub-hosted runner, whose machine is discarded after the job. Set it only when no later step in the job needs the lab gone: another run of the same lab is refused while it is up. The reports and outputs are the same either way. |
 | `json-report` | `netdryrun-report.json` | Path for the JSON evidence report |
 | `junit-report` | `netdryrun-junit.xml` | Path for the JUnit XML report |
 | `verdict-report` | `netdryrun-verdict.json` | Path for the agent result: status, verdict, failures and the sha256 of every file tested, in the shape the MCP tools return ([schema](https://netdryrun.com/schemas/mcp-result-v1.json)). Uploaded with the reports (from 0.3.3) |
@@ -3810,6 +3811,8 @@ A lab that gives a different snapshot on a second boot approves nothing (INCONCL
 | `--hold` | `10` | The standing guards' hold window. |
 | `--allow-unhealthy-baseline` | | Compare even when sessions are down in the *before* lab. |
 | `--keep` | | Leave the *after* lab running, to run the `next_diagnostic` commands. |
+| `--serial` | | Boot the *before* and *after* labs one after the other. By default they boot at the same time, each under its own lab name (`<name>-b<run>`, `<name>-a<run>`), and so do the two reruns of an approval; the outcomes are judged in the same order either way. A topology that fixes a container `prefix`, a `mgmt` network or a node's `mgmt-ipv4`/`mgmt-ipv6`, and `--keep`, always boot one after the other. |
+| `--reuse-base-snapshot` | | Keep the *before* side's snapshot in a local cache (`~/.cache/netdryrun/snapshots`, never uploaded), keyed by the topology, every bound file, every image digest, the setup commands, `--settle` and the containerlab and Netdryrun versions. On an approval, an earlier boot with the same key stands for the rerun of the *before* side, so the change is still compared with two independent boots of the base. No key (an image without a digest): no cache. |
 
 ### Standing guards
 
