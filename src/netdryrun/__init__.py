@@ -1,3 +1,3 @@
 """Netdryrun: test network changes in a real virtual lab before they touch production."""
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"

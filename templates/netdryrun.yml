@@ -22,7 +22,7 @@ spec:
       default: "0.81.1"
     netdryrun-package:
       description: What pip installs (a pinned release by default; a path or a git URL also work)
-      default: netdryrun==0.4.0
+      default: netdryrun==0.4.1
     json-report:
       description: Path for the JSON evidence report
       default: netdryrun-report.json

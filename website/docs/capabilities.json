@@ -2,7 +2,7 @@
   "schema": "netdryrun.capabilities/v1",
   "url": "https://netdryrun.com/capabilities.json",
   "name": "Netdryrun",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "summary": "Netdryrun dry-runs a network change in a real containerlab lab before it reaches production, and returns a verdict with evidence. verify_change (0.4, FRR): declare what you intend to change; anything else that changes in the routing state fails the run.",
   "use_cases": [
     {
@@ -17,7 +17,7 @@
       },
       "cli": "netdryrun run /path/to/lab --json report.json",
       "github_action": {
-        "uses": "netdryrun/Netdryrun@v0.4.0",
+        "uses": "netdryrun/Netdryrun@v0.4.1",
         "with": {
           "path": "lab"
         }
@@ -42,7 +42,7 @@
       },
       "cli": "netdryrun verify topology.clab.yml --before main --after HEAD --intent netdryrun-intent.yml --json report.json",
       "github_action": {
-        "uses": "netdryrun/Netdryrun@v0.4.0",
+        "uses": "netdryrun/Netdryrun@v0.4.1",
         "with": {
           "mode": "verify",
           "topology": "lab/topology.clab.yml",

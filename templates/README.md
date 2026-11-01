@@ -69,7 +69,7 @@ report:
 | `image` | `ghcr.io/srl-labs/containerlab/devcontainer-dind-slim:0.81.1` | Job image on docker executors: containerlab's own Docker-in-Docker image (Debian, Python 3.11, containerlab preinstalled). Shell runners ignore it |
 | `path` | `.` | `netdryrun.yml` or the folder containing it |
 | `containerlab-version` | `0.81.1` | containerlab version to install when the runner has none. Empty means latest. An installed containerlab is used as is, with a warning if the version differs |
-| `netdryrun-package` | `netdryrun==0.4.0` | What `pip` installs: a pinned release by default; a path or a git URL also work |
+| `netdryrun-package` | `netdryrun==0.4.1` | What `pip` installs: a pinned release by default; a path or a git URL also work |
 | `json-report` | `netdryrun-report.json` | Path for the JSON evidence report |
 | `junit-report` | `netdryrun-junit.xml` | Path for the JUnit XML report, published as the pipeline's test report |
 | `markdown-report` | `netdryrun-summary.md` | Path for the Markdown summary, also printed in the job log |
