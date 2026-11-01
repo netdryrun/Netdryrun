@@ -5546,87 +5546,87 @@
       "diff": "8d34902a0f404ac5"
     },
     "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_19": {
-      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "reason": "Quiescence._fingerprint: the placeholder for a VRF (or a VRF's IPv4/IPv6 table) the node doesn't have becomes None. Every other entry carries its own (node, vrf[, family]) label and the slots are appended in a fixed order (sorted nodes, sorted VRFs, then family 4, 6), so the position of an unlabelled placeholder is still decoded uniquely from its labelled neighbours: two samples are equal under the mutant exactly when they are equal under the original. Fingerprints are only compared with each other, never read, and ribs is unchanged, so quiescence, the early end and every verdict are the same",
       "diff": "c89e882dc3b7e6f8",
       "class": "equivalent"
     },
     "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_20": {
-      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "reason": "Quiescence._fingerprint: the placeholder for a VRF (or a VRF's IPv4/IPv6 table) the node doesn't have becomes other constant text. Every other entry carries its own (node, vrf[, family]) label and the slots are appended in a fixed order (sorted nodes, sorted VRFs, then family 4, 6), so the position of an unlabelled placeholder is still decoded uniquely from its labelled neighbours: two samples are equal under the mutant exactly when they are equal under the original. Fingerprints are only compared with each other, never read, and ribs is unchanged, so quiescence, the early end and every verdict are the same",
       "diff": "b42f12c34d2fe265",
       "class": "equivalent"
     },
     "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_21": {
-      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "reason": "Quiescence._fingerprint: the placeholder for a VRF (or a VRF's IPv4/IPv6 table) the node doesn't have becomes other constant text. Every other entry carries its own (node, vrf[, family]) label and the slots are appended in a fixed order (sorted nodes, sorted VRFs, then family 4, 6), so the position of an unlabelled placeholder is still decoded uniquely from its labelled neighbours: two samples are equal under the mutant exactly when they are equal under the original. Fingerprints are only compared with each other, never read, and ribs is unchanged, so quiescence, the early end and every verdict are the same",
       "diff": "9176f4dd3ad95db3",
       "class": "equivalent"
     },
     "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_47": {
-      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "reason": "Quiescence._fingerprint: the placeholder for a VRF (or a VRF's IPv4/IPv6 table) the node doesn't have becomes None. Every other entry carries its own (node, vrf[, family]) label and the slots are appended in a fixed order (sorted nodes, sorted VRFs, then family 4, 6), so the position of an unlabelled placeholder is still decoded uniquely from its labelled neighbours: two samples are equal under the mutant exactly when they are equal under the original. Fingerprints are only compared with each other, never read, and ribs is unchanged, so quiescence, the early end and every verdict are the same",
       "diff": "4d42a15f306b5143",
       "class": "equivalent"
     },
     "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_48": {
-      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "reason": "Quiescence._fingerprint: the placeholder for a VRF (or a VRF's IPv4/IPv6 table) the node doesn't have becomes other constant text. Every other entry carries its own (node, vrf[, family]) label and the slots are appended in a fixed order (sorted nodes, sorted VRFs, then family 4, 6), so the position of an unlabelled placeholder is still decoded uniquely from its labelled neighbours: two samples are equal under the mutant exactly when they are equal under the original. Fingerprints are only compared with each other, never read, and ribs is unchanged, so quiescence, the early end and every verdict are the same",
       "diff": "c0620b8e0edf52ee",
       "class": "equivalent"
     },
     "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_49": {
-      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "reason": "Quiescence._fingerprint: the placeholder for a VRF (or a VRF's IPv4/IPv6 table) the node doesn't have becomes other constant text. Every other entry carries its own (node, vrf[, family]) label and the slots are appended in a fixed order (sorted nodes, sorted VRFs, then family 4, 6), so the position of an unlabelled placeholder is still decoded uniquely from its labelled neighbours: two samples are equal under the mutant exactly when they are equal under the original. Fingerprints are only compared with each other, never read, and ribs is unchanged, so quiescence, the early end and every verdict are the same",
       "diff": "49632f1c37495cce",
       "class": "equivalent"
     },
     "netdryrun.checks.xǁQuiescenceǁrouted__mutmut_12": {
-      "reason": "equivalent: ip_network's strict is only tested for truth; None and False both accept host bits",
+      "reason": "Quiescence.routed: ipaddress.ip_network(strict=None) instead of strict=False. ip_network only tests strict for truth (raise on host bits if strict), and None and False are both false: the same network for every prefix, so the same answer to whether a ping may end early",
       "diff": "c917af374ca04cd7",
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_collect__mutmut_15": {
-      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "reason": "verify.run.collect: zip's strict True becomes None. _each returns exactly one result per item, in order (a list comprehension over the items or over one future per item), and re-raises the first failure, so the two sequences always have equal length and strict never fires: the same pairs, the same snapshots, the same errors",
       "diff": "5df75fb25b08bccc",
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_collect__mutmut_18": {
-      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "reason": "verify.run.collect: zip's strict argument is dropped (default False). _each returns exactly one result per item, in order (a list comprehension over the items or over one future per item), and re-raises the first failure, so the two sequences always have equal length and strict never fires: the same pairs, the same snapshots, the same errors",
       "diff": "a5ee94caedb4d3d9",
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_collect__mutmut_39": {
-      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "reason": "verify.run.collect: zip's strict True becomes False. _each returns exactly one result per item, in order (a list comprehension over the items or over one future per item), and re-raises the first failure, so the two sequences always have equal length and strict never fires: the same pairs, the same snapshots, the same errors",
       "diff": "9e9d561ce947a1ab",
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_collect__mutmut_58": {
-      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "reason": "verify.run.collect: zip's strict True becomes None. _each returns exactly one result per item, in order (a list comprehension over the items or over one future per item), and re-raises the first failure, so the two sequences always have equal length and strict never fires: the same pairs, the same snapshots, the same errors",
       "diff": "e5a0b74d0a80bcc0",
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_collect__mutmut_61": {
-      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "reason": "verify.run.collect: zip's strict argument is dropped (default False). _each returns exactly one result per item, in order (a list comprehension over the items or over one future per item), and re-raises the first failure, so the two sequences always have equal length and strict never fires: the same pairs, the same snapshots, the same errors",
       "diff": "e0cbe6c57049f9e4",
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_collect__mutmut_73": {
-      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "reason": "verify.run.collect: zip's strict True becomes False. _each returns exactly one result per item, in order (a list comprehension over the items or over one future per item), and re-raises the first failure, so the two sequences always have equal length and strict never fires: the same pairs, the same snapshots, the same errors",
       "diff": "c78e2b2616fa0cac",
       "class": "equivalent"
     },
     "netdryrun.drivers.junos.xǁJunosDriverǁ_start_mux__mutmut_2": {
-      "reason": "equivalent: the name of the per-driver lock in the instance dict; nothing else reads it, and every call uses the same name, so one lock still guards the start",
+      "reason": "JunosDriver._start_mux: the instance-dict key of the per-driver start lock becomes None. Nothing else reads that key, every call of the same driver uses the same key, and dict.setdefault is atomic under the GIL, so one lock still guards the start; the multiplexer is best effort and no command or verdict depends on it",
       "diff": "ad730c0c14d3a9ca",
       "class": "equivalent"
     },
     "netdryrun.drivers.junos.xǁJunosDriverǁ_start_mux__mutmut_6": {
-      "reason": "equivalent: the name of the per-driver lock in the instance dict; nothing else reads it, and every call uses the same name, so one lock still guards the start",
+      "reason": "JunosDriver._start_mux: the instance-dict key of the per-driver start lock becomes 'XX_mux_lockXX'. Nothing else reads that key, every call of the same driver uses the same key, and dict.setdefault is atomic under the GIL, so one lock still guards the start; the multiplexer is best effort and no command or verdict depends on it",
       "diff": "bbebaa526ee56c89",
       "class": "equivalent"
     },
     "netdryrun.drivers.junos.xǁJunosDriverǁ_start_mux__mutmut_7": {
-      "reason": "equivalent: the name of the per-driver lock in the instance dict; nothing else reads it, and every call uses the same name, so one lock still guards the start",
+      "reason": "JunosDriver._start_mux: the instance-dict key of the per-driver start lock becomes '_MUX_LOCK'. Nothing else reads that key, every call of the same driver uses the same key, and dict.setdefault is atomic under the GIL, so one lock still guards the start; the multiplexer is best effort and no command or verdict depends on it",
       "diff": "35cbdd5eddda79a7",
       "class": "equivalent"
     },
     "netdryrun.runner.x_run__mutmut_141": {
-      "reason": "equivalent: the positive round-robin is the first thing written to report.results, which a new RunReport starts empty, so += and = give the same list",
+      "reason": "runner.run: report.results = run_round_robin(...) instead of +=. A RunReport starts with results empty and nothing writes to it before this line (it is the first write in run()), so both give the same list; every later write still appends",
       "diff": "22b318c4739897fa",
       "class": "equivalent"
     },
