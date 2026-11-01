@@ -5,7 +5,6 @@ Shapes captured live on 2026-10-31 in the L1 mixed-5 lab (SR Linux 26.7.2), lab 
 import json
 from pathlib import Path
 
-import pytest
 
 from netdryrun.checks import EVALUATORS
 from netdryrun.drivers import srlinux
