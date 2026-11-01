@@ -180,3 +180,29 @@ def test_nxos_count_missing_is_an_error():
     del row["totalpaths"]
     raises(lambda: nxos.parse_bgp_paths(_obj(d), "0.0.0.0/0"),
            NX + _snip(f"0.0.0.0/0: no totalpaths: {str({k: v for k, v in row.items() if k != 'TABLE_path'})[:150]}"))
+
+
+# ------------------------------------------------------------------------------------------------- exact messages
+
+def test_missing_count_messages_cut_the_details_at_150_characters():
+    long = "x" * 300
+    d = json.loads(read("frr_bgp_paths.txt"))
+    del d["pathCount"]
+    d["zz"] = long
+    detail = str({k: v for k, v in d.items() if k != "paths"})[:150]
+    raises(lambda: frr.parse_bgp_paths(_obj(d), "192.168.20.0/24"), FRR + _snip(f"no pathCount: {detail}"))
+    d = json.loads(read("eos_bgp_paths.txt"))
+    e = _eos_entry(d)
+    del e["totalPaths"]
+    e["zz"] = long
+    detail = str({k: v for k, v in e.items() if k != "bgpRoutePaths"})[:150]
+    raises(lambda: eos.parse_bgp_paths(_obj(d), "192.168.20.0/24"), EOS + _snip(f"192.168.20.0/24: no totalPaths: {detail}"))
+    row = {"ipprefix": "10.0.0.0/8", "zz": long, "TABLE_path": {"ROW_path": {"neighbor": "10.0.0.2"}}}
+    raises(lambda: nxos._counted_paths(row), NX + _snip(f"10.0.0.0/8: no totalpaths: {str({'ipprefix': '10.0.0.0/8', 'zz': long})[:150]}"))
+
+
+def test_nxos_missing_count_message_leaves_the_paths_out_and_names_an_ipv6_prefix():
+    row = {"TABLE_path": {"ROW_path": {"neighbor": "10.0.0.2"}}, "ipprefix": "10.0.0.0/8"}
+    raises(lambda: nxos._counted_paths(row), NX + "10.0.0.0/8: no totalpaths: {'ipprefix': '10.0.0.0/8'}")
+    v6 = {"TABLE_path": {"ROW_path": {"neighbor": "2001:db8::2"}}, "ipv6prefix": "2001:db8::/32", "totalpaths": "2"}
+    raises(lambda: nxos._counted_paths(v6), NX + "2001:db8::/32: totalpaths 2, but 1 paths listed")
