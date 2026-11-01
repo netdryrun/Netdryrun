@@ -267,7 +267,7 @@ def test_footprint_uses_sessions_from_either_snapshot():
     base.nodes["cust"].items[kc] = session(None, state="idle", remote_as=65000, local_as=65010)
     v = Variant("customer_leak:cust:1", "customer_leak", "cust", "d", originates=("100.64.0.0/24",))
     during = h.custleak()
-    own = core.footprint(v, base, during)
+    own = core.footprint(v, during)
     pre = ItemKey("adj_in", "edge", "default", "ipv4", "unicast", "100.64.0.0/24", neighbor="10.0.1.2")
     assert own(DiffItem(pre, None, attrs()))
 
@@ -453,3 +453,10 @@ def test_fresh_refuses_out_of_order_results():
         raise AssertionError("out of order must be refused")
     except core.ProveError as e:
         assert "out of order" in str(e)
+
+
+def test_the_count_suggestion_lists_every_prefix_today():
+    base = h.custleak(edge_filter=None)
+    k = ItemKey("path", "edge", "default", "ipv4", "unicast", "100.64.0.0/24", neighbor="10.0.1.2")
+    (s,) = suggest(Variant("v", "import_filter", "edge", "d"), base, [DiffItem(k, None, path(as_path="65010"))])
+    assert s["reason"].endswith("Today it carries 10.10.0.0/24, 203.0.113.128/25") and s["check"]["exact"] == 2

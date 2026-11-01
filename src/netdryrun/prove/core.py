@@ -129,7 +129,7 @@ def now() -> str:
 # Classification
 # ---------------------------------------------------------------------------------------------------------
 
-def footprint(variant: Variant, base: Snapshot, during: Snapshot) -> Callable[[DiffItem], bool]:
+def footprint(variant: Variant, during: Snapshot) -> Callable[[DiffItem], bool]:
     """Whether a diff item is the variant's own mechanism rather than what the network did with it: for each prefix
     the variant announces, the announcing node's own entries (its discard static, its local BGP path), its
     advertisements of the prefix, and the copies a receiver holds before policy (Adj-RIB-In) from it. The effect is
@@ -160,7 +160,7 @@ def count_changes(base: Snapshot, during: Snapshot) -> list[DiffItem]:
 def routing_effect(variant: Variant, base: Snapshot, during: Snapshot) -> list[DiffItem]:
     """What changed in the routing state: every difference except running configs and the variant's footprint, plus
     prefix-count changes."""
-    own = footprint(variant, base, during)
+    own = footprint(variant, during)
     return [d for d in diff(base, during) if d.key.kind != "config" and not own(d)] + count_changes(base, during)
 
 
@@ -221,7 +221,7 @@ def _fitted(check: Check, variant: Variant) -> bool:
     if "prefix" not in check.params:
         return False
     try:
-        net = ipaddress.ip_network(str(check.params["prefix"]), False)   # not strict: host bits allowed
+        net = ipaddress.ip_interface(str(check.params["prefix"])).network   # host bits allowed
     except ValueError:
         return False
     for part in variant.parts():

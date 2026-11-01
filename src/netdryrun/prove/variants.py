@@ -434,7 +434,7 @@ def used_networks(configs: dict[str, FrrConfig], checks=()) -> list:
     out = []
     for t in texts:
         try:
-            out.append(ipaddress.ip_network(t, False))   # not strict: host bits allowed
+            out.append(ipaddress.ip_interface(t).network)   # host bits allowed
         except ValueError:
             continue
     return out

@@ -354,7 +354,7 @@ def test_the_footprint_is_the_originators_entries_advertisements_and_pre_policy_
     vs = variants([], base)
     v = vs["customer_leak:cust:1"]
     during = h.applied(v, h.custleak(cust_extra=leak_prefixes(1), edge_filter=None))
-    own = core.footprint(v, base, during)
+    own = core.footprint(v, during)
     kinds = {(d.key.node, d.key.kind): own(d) for d in core.diff(base, during) if d.key.kind != "config"}
     assert kinds[("cust", "rib")] and kinds[("cust", "path")] and kinds[("cust", "adj_out")]
     assert not kinds[("edge", "path")] and not kinds[("edge", "rib")] and not kinds[("up", "path")]
@@ -373,7 +373,7 @@ def test_the_footprint_is_the_originators_entries_advertisements_and_pre_policy_
     other = ItemKey("adj_out", "cust", "default", "ipv4", "unicast", "10.10.0.0/24", neighbor="10.0.1.1")
     assert not own(DiffItem(other, None, attrs()))   # a prefix it doesn't announce for the variant
     sd = vs["session_down:cust:10.0.1.1"]
-    assert not any(core.footprint(sd, base, during)(d) for d in core.diff(base, during))
+    assert not any(core.footprint(sd, during)(d) for d in core.diff(base, during))
 
 
 def test_prefix_count_changes_are_an_effect():
