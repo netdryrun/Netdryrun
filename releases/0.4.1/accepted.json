@@ -5509,6 +5509,41 @@
       "class": "equivalent",
       "reason": "only family == 6 selects IPv6; any other default reads IPv4, as 4 does",
       "diff": "d4e205a51bd142ad"
+    },
+    "netdryrun.drivers.routeros_state.x_best_paths__mutmut_4": {
+      "class": "equivalent",
+      "reason": "None is falsy: ip_network(strict=None) reads a prefix exactly as strict=False",
+      "diff": "39287f9cc260ce40"
+    },
+    "netdryrun.drivers.routeros_rest.x_classify_reply__mutmut_25": {
+      "class": "equivalent",
+      "reason": "an empty detail falls back to `HTTP <status>` through `detail or ...`: None and \"\" read the same",
+      "diff": "77e29bedf9df3e39"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁ_v4_prefix__mutmut_3": {
+      "class": "equivalent",
+      "reason": "None is falsy: ip_network(strict=None) reads a prefix exactly as strict=False",
+      "diff": "dccbe645c1772a59"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁall_routes__mutmut_3": {
+      "class": "equivalent",
+      "reason": "only family == 6 selects IPv6; any other default reads IPv4, as 4 does",
+      "diff": "3009ad9aa8349219"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_27": {
+      "class": "equivalent",
+      "reason": "the initial value is never read: addresses is read only for received paths, and when there are any it is rebuilt from /routing/bgp/session first",
+      "diff": "d8393f13b606a398"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_70": {
+      "class": "equivalent",
+      "reason": "a BGP path always has a session (parse_routing_routes requires bgp.session for every bgp row), so the fallback is never used",
+      "diff": "146838fbce67a2fc"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁnos_version__mutmut_13": {
+      "class": "equivalent",
+      "reason": "parse_version returns None for anything but an object (a dict), so the guard and the parser give the same answer",
+      "diff": "8d34902a0f404ac5"
     }
   },
   "checks": {
