@@ -3,12 +3,13 @@ pinned exactly enough that a changed condition, key or number is noticed."""
 import pytest
 
 from netdryrun import runner
-from netdryrun.checks import Missing, Quiescence, Result, RoundMemo, _evaluate_all, run_round_robin
+from netdryrun.checks import Missing, Quiescence, Result, RoundMemo, _ends_early, _evaluate_all, run_round_robin
 from netdryrun.drivers.base import BgpNeighbor, DriverError, NoSuchInstance, Observation, Route
 from netdryrun.drivers.frr import quiescence_timer_of
 from netdryrun.drivers.junos import MUX_OPTS, MUX_START, VM_SSH, JunosDriver
 from netdryrun.lab import ExecResult, Node
-from test_runner_robustness import FakeLab, World, cfg, chk, install
+from netdryrun.config import Fault, Scenario
+from test_runner_robustness import ALWAYS, FakeDriver, FakeLab, World, cfg, chk, install
 from test_speed import FRR_PLAIN, NO_REPLY, ROUTE, Clock, JLab, Net, check, rr
 
 
@@ -239,3 +240,80 @@ def test_phase_timings_are_rounded_to_a_tenth_from_any_start(tmp_path, monkeypat
     rep = runner.run(cfg(tmp_path, [chk("route", "plain", node="r1", prefix="10.1.0.0/24")]))
     assert rep.timings["deploy"] == 1.2 and rep.timings["total"] == round(w.t - 500.0, 1)
     assert all(isinstance(v, float) for k, v in rep.timings.items() if k not in ("ended_early", "ready"))
+
+
+# ------------------------------------------------------------------------- second mutation round (a0da1d2)
+
+def test_the_window_is_the_settle_time_until_a_timer_or_interval_is_longer():
+    assert Quiescence({}).settle == 10.0 and Quiescence({}, (), 7.0).window == 7.0
+    for adv, settle, window in ((0.0, 1.0, 1.0), (0.0, 0.0, 0.0), (1.0, 0.0, 3.0), (1.0, 1.0, 3.0)):
+        d = Net(Clock(), adv=adv)
+        q = Quiescence({"r1": d}, (), settle)
+        q.sample(RoundMemo({"r1": d}), 0.0)
+        assert q.window == window, (adv, settle)
+
+
+def test_span_is_first_to_last_sample_and_zero_before_any():
+    q = Quiescence({})
+    assert q.span() == 0.0
+    q.run = [(1000.0, "fp"), (1003.0, "fp"), (1006.5, "fp")]
+    assert q.span() == 6.5
+
+
+def test_a_check_with_nothing_missing_yet_never_ends_early():
+    st = {"passed": False, "missing_from": None}
+    assert _ends_early(check("route", **ROUTE), st, Quiescence({}), 0.0) is False
+
+
+def test_a_late_missing_read_keeps_waiting_on_a_clock_that_does_not_start_at_zero():
+    c = Clock()
+    c.t = 1000.0
+
+    class Late(Net):
+        def routes(self, prefix, vrf="default"):
+            if prefix == "192.168.4.0/24" and self.clock.t < 1003:
+                raise DriverError("zebra is still starting")
+            return super().routes(prefix, vrf)
+    d = Late(c)
+    a, b = run_round_robin([check("route", prefix="192.168.3.0/24"), check("route", prefix="192.168.4.0/24")],
+                           {"r1": d}, clock=c, sleep=c.sleep, quiet=Quiescence({"r1": d}, (), 10.0))
+    assert "ended early" in a.detail
+    assert "ended early" not in b.detail and b.duration >= 90
+
+
+def test_a_ping_with_no_reply_says_so_and_one_that_needs_none_is_not_missing():
+    d = Net(Clock(), ping=NO_REPLY)
+    [(ok, detail, _)] = _evaluate_all([check("ping", target="192.168.3.1")], {"r1": d})
+    assert not ok and isinstance(detail, Missing) and str(detail) == "0/3 replies (need 2)"
+    [(ok, detail, _)] = _evaluate_all([check("ping", target="192.168.3.1", min_replies=0)], {"r1": d})
+    assert ok and not isinstance(detail, Missing) and detail == "0/3 replies (need 0)"
+
+
+def test_frr_with_no_running_config_says_which_command():
+    for empty in ("", "  \n"):
+        with pytest.raises(DriverError) as e:
+            quiescence_timer_of(empty)
+        assert str(e.value) == "unexpected output from `show running-config`: no output"
+
+
+def test_a_node_first_reached_in_a_scenario_still_gets_its_configured_driver(tmp_path, monkeypatch):
+    """test_run_hands_its_driver_overrides_to_the_scenarios with fail-fast on: r1 fails both reads before the
+    scenarios (the fail-fast node list and the advertisement-interval stretch), so the scenario is the first to reach
+    it, and must do so with the driver the config names."""
+    w = World()
+    drivers = {n: FakeDriver(w) for n in ("r1", "r2", "r3")}
+    install(monkeypatch, w, FakeLab(w), drivers)
+    calls = []
+
+    def for_node(lab_, node, override=None):
+        calls.append((node, override))
+        if node == "r1" and calls.count((node, override)) <= 2:
+            raise DriverError("not up yet")
+        return drivers[node]
+    monkeypatch.setattr(runner, "for_node", for_node)
+    config = cfg(tmp_path, [ALWAYS], [Scenario(name="r1-r2 fails", faults=[Fault("link_down", "r1", "eth1")],
+                                               checks=[chk("route", "r3 keeps it", timeout=30, node="r3",
+                                                           prefix="10.1.0.0/24")])])
+    config.drivers = {"r1": "frr"}
+    runner.run(config, deploy=False)
+    assert calls.count(("r1", "frr")) >= 3 and ("r1", None) not in calls

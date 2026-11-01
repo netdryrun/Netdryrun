@@ -5544,6 +5544,290 @@
       "class": "equivalent",
       "reason": "parse_version returns None for anything but an object (a dict), so the guard and the parser give the same answer",
       "diff": "8d34902a0f404ac5"
+    },
+    "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_19": {
+      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "diff": "c89e882dc3b7e6f8",
+      "class": "equivalent"
+    },
+    "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_20": {
+      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "diff": "b42f12c34d2fe265",
+      "class": "equivalent"
+    },
+    "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_21": {
+      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "diff": "9176f4dd3ad95db3",
+      "class": "equivalent"
+    },
+    "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_47": {
+      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "diff": "4d42a15f306b5143",
+      "class": "equivalent"
+    },
+    "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_48": {
+      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "diff": "c0620b8e0edf52ee",
+      "class": "equivalent"
+    },
+    "netdryrun.checks.xǁQuiescenceǁ_fingerprint__mutmut_49": {
+      "reason": "equivalent: the placeholder for a VRF or table the node doesn't have is a constant; the fingerprint is only compared with the same lab's next sample, built in the same sorted node, VRF and family order, so any constant (None or other text) compares the same way",
+      "diff": "49632f1c37495cce",
+      "class": "equivalent"
+    },
+    "netdryrun.checks.xǁQuiescenceǁrouted__mutmut_12": {
+      "reason": "equivalent: ip_network's strict is only tested for truth; None and False both accept host bits",
+      "diff": "c917af374ca04cd7",
+      "class": "equivalent"
+    },
+    "netdryrun.verify.run.x_collect__mutmut_15": {
+      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "diff": "5df75fb25b08bccc",
+      "class": "equivalent"
+    },
+    "netdryrun.verify.run.x_collect__mutmut_18": {
+      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "diff": "a5ee94caedb4d3d9",
+      "class": "equivalent"
+    },
+    "netdryrun.verify.run.x_collect__mutmut_39": {
+      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "diff": "9e9d561ce947a1ab",
+      "class": "equivalent"
+    },
+    "netdryrun.verify.run.x_collect__mutmut_58": {
+      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "diff": "e5a0b74d0a80bcc0",
+      "class": "equivalent"
+    },
+    "netdryrun.verify.run.x_collect__mutmut_61": {
+      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "diff": "e0cbe6c57049f9e4",
+      "class": "equivalent"
+    },
+    "netdryrun.verify.run.x_collect__mutmut_73": {
+      "reason": "equivalent: _each returns exactly one result per input, in order, so zip never sees lists of different lengths and strict=True, False or None give the same pairs",
+      "diff": "c78e2b2616fa0cac",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁ_start_mux__mutmut_2": {
+      "reason": "equivalent: the name of the per-driver lock in the instance dict; nothing else reads it, and every call uses the same name, so one lock still guards the start",
+      "diff": "ad730c0c14d3a9ca",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁ_start_mux__mutmut_6": {
+      "reason": "equivalent: the name of the per-driver lock in the instance dict; nothing else reads it, and every call uses the same name, so one lock still guards the start",
+      "diff": "bbebaa526ee56c89",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁ_start_mux__mutmut_7": {
+      "reason": "equivalent: the name of the per-driver lock in the instance dict; nothing else reads it, and every call uses the same name, so one lock still guards the start",
+      "diff": "35cbdd5eddda79a7",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run__mutmut_141": {
+      "reason": "equivalent: the positive round-robin is the first thing written to report.results, which a new RunReport starts empty, so += and = give the same list",
+      "diff": "22b318c4739897fa",
+      "class": "equivalent"
+    },
+    "netdryrun.checks.x__ping__mutmut_74": {
+      "reason": "message text only: the stderr quoted in the 'ping did not run' detail",
+      "diff": "764dd816827c2c92",
+      "class": "message-text",
+      "argument": "Changes only text: the stderr quoted in the 'ping did not run' detail. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__ping__mutmut_73"
+    },
+    "netdryrun.checks.x__ping__mutmut_76": {
+      "reason": "message text only: the stderr quoted in the 'ping did not run' detail",
+      "diff": "321a4d1d3149bdd4",
+      "class": "message-text",
+      "argument": "Changes only text: the stderr quoted in the 'ping did not run' detail. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__ping__mutmut_75"
+    },
+    "netdryrun.checks.x__ping__mutmut_85": {
+      "reason": "message text only: the stderr quoted in the 'ping did not run' detail",
+      "diff": "7c7df7733dee7641",
+      "class": "message-text",
+      "argument": "Changes only text: the stderr quoted in the 'ping did not run' detail. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__ping__mutmut_84"
+    },
+    "netdryrun.checks.x__ping__mutmut_88": {
+      "reason": "message text only: the detail text of a check result, same verdict and evidence",
+      "diff": "b162cddf45aa00da",
+      "class": "message-text",
+      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__ping__mutmut_87"
+    },
+    "netdryrun.checks.x__ping__mutmut_91": {
+      "reason": "message text only: the detail text of a check result, same verdict and evidence",
+      "diff": "424f5067cccaba10",
+      "class": "message-text",
+      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__ping__mutmut_90"
+    },
+    "netdryrun.runner.x_run__mutmut_13": {
+      "reason": "equivalent: `deployed` is only tested for truth; None and False are both false",
+      "diff": "538fdba08b57e5a3",
+      "class": "equivalent",
+      "carried_from": "netdryrun.runner.x_run__mutmut_12"
+    },
+    "netdryrun.runner.x_run__mutmut_356": {
+      "reason": "traceback.print_exc(file=None) prints to sys.stderr, the same stream as file=sys.stderr (the traceback module resolves None to the current sys.stderr)",
+      "diff": "f5b3237d3ed266e7",
+      "class": "equivalent",
+      "argument": "only under --debug, after report.error is already set to the internal error (status error, exit 2); the traceback goes to the same stream either way and nothing in the report, status or exit code reads it",
+      "carried_from": "netdryrun.runner.x_run__mutmut_260"
+    },
+    "netdryrun.runner.x_run__mutmut_36": {
+      "reason": "message text only: the option name in the RunError text for a bad --settle/--hold (RunError, exit 2, either way)",
+      "diff": "48cc7ef2b11d94c0",
+      "class": "message-text",
+      "carried_from": "netdryrun.runner.x_run__mutmut_19"
+    },
+    "netdryrun.runner.x_run__mutmut_38": {
+      "reason": "message text only: the option name in the RunError text for a bad --settle/--hold (RunError, exit 2, either way)",
+      "diff": "3a20ba193e9df6bf",
+      "class": "message-text",
+      "carried_from": "netdryrun.runner.x_run__mutmut_21"
+    },
+    "netdryrun.runner.x_run__mutmut_42": {
+      "reason": "message text only: the option name in the RunError text for a bad --settle/--hold (RunError, exit 2, either way)",
+      "diff": "bbb5d7d3a1862e35",
+      "class": "message-text",
+      "carried_from": "netdryrun.runner.x_run__mutmut_25"
+    },
+    "netdryrun.runner.x_run__mutmut_43": {
+      "reason": "message text only: the option name in the RunError text for a bad --settle/--hold (RunError, exit 2, either way)",
+      "diff": "e7d111d027097793",
+      "class": "message-text",
+      "carried_from": "netdryrun.runner.x_run__mutmut_26"
+    },
+    "netdryrun.runner.x_run__mutmut_85": {
+      "reason": "message text only: the text of the 'containers not running' LabError (status error, exit 2)",
+      "diff": "26a5be7c47676e18",
+      "class": "message-text",
+      "carried_from": "netdryrun.runner.x_run__mutmut_60"
+    },
+    "netdryrun.runner.x_run__mutmut_86": {
+      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
+      "diff": "ea78651b9846fd94",
+      "class": "message-text",
+      "carried_from": "netdryrun.runner.x_run__mutmut_61"
+    },
+    "netdryrun.runner.x_run__mutmut_88": {
+      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
+      "diff": "8f4084bcfe86af12",
+      "class": "message-text",
+      "carried_from": "netdryrun.runner.x_run__mutmut_63"
+    },
+    "netdryrun.runner.x_run__mutmut_89": {
+      "reason": "message text only: a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
+      "diff": "42c4251a7e2598b6",
+      "class": "logging",
+      "carried_from": "netdryrun.runner.x_run__mutmut_64"
+    },
+    "netdryrun.checks.x__route__mutmut_76": {
+      "reason": "message text only: the detail text of a check result, same verdict and evidence",
+      "diff": "ff5d738644c2799d",
+      "class": "message-text",
+      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__route__mutmut_75"
+    },
+    "netdryrun.checks.x__route__mutmut_79": {
+      "reason": "message text only: the detail text of a check result, same verdict and evidence",
+      "diff": "8d6dcb9d24d3b622",
+      "class": "message-text",
+      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__route__mutmut_78"
+    },
+    "netdryrun.checks.x__route__mutmut_83": {
+      "reason": "message text only: the detail text of a check result, same verdict and evidence",
+      "diff": "b93338ed7666ff60",
+      "class": "message-text",
+      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__route__mutmut_82"
+    },
+    "netdryrun.checks.x__bgp_route__mutmut_131": {
+      "reason": "message text only: the text of a failure detail, the verdict is unchanged",
+      "diff": "7ccab15db0c61b0f",
+      "class": "message-text",
+      "argument": "Changes only text: the text of a failure detail, the verdict is unchanged. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__bgp_route__mutmut_129"
+    },
+    "netdryrun.checks.x__bgp_route__mutmut_136": {
+      "reason": "message text only: the detail text of a check result, same verdict and evidence",
+      "diff": "8630072f7740ee7c",
+      "class": "message-text",
+      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__bgp_route__mutmut_134"
+    },
+    "netdryrun.checks.x__bgp_route__mutmut_61": {
+      "reason": "message text only: the text of a failure detail, the verdict is unchanged",
+      "diff": "0caf259935f09c88",
+      "class": "message-text",
+      "argument": "Changes only text: the text of a failure detail, the verdict is unchanged. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__bgp_route__mutmut_59"
+    },
+    "netdryrun.checks.x__bgp_route__mutmut_73": {
+      "reason": "message text only: the text of a failure detail, the verdict is unchanged",
+      "diff": "c65441e5164a93ab",
+      "class": "message-text",
+      "argument": "Changes only text: the text of a failure detail, the verdict is unchanged. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x__bgp_route__mutmut_71"
+    },
+    "netdryrun.checks.x__evaluate_all__mutmut_11": {
+      "reason": "equivalent: thread pool size; every check is still evaluated once and results keep input order",
+      "diff": "6c114f993fcb038e",
+      "class": "equivalent",
+      "carried_from": "netdryrun.checks.x__evaluate_all__mutmut_8"
+    },
+    "netdryrun.checks.x__evaluate_all__mutmut_5": {
+      "reason": "equivalent: one check evaluated through the pool instead of inline; same result",
+      "diff": "072c08528b360320",
+      "class": "equivalent",
+      "carried_from": "netdryrun.checks.x__evaluate_all__mutmut_2"
+    },
+    "netdryrun.checks.x__evaluate_all__mutmut_6": {
+      "reason": "equivalent: two checks evaluated inline instead of through the pool; same results, same order",
+      "diff": "075da6ed140e01b8",
+      "class": "equivalent",
+      "carried_from": "netdryrun.checks.x__evaluate_all__mutmut_3"
+    },
+    "netdryrun.checks.x_run_round_robin__mutmut_155": {
+      "reason": "equivalent: unreachable branch: the round-robin timeout only ends a check on a failing sample, so a finished check is never 'not passed but ok'",
+      "diff": "af692c16bf785488",
+      "class": "equivalent",
+      "argument": "Same behaviour on every input the function can receive: unreachable branch: the round-robin timeout only ends a check on a failing sample, so a finished check is never 'not passed but ok'. So the verdict can't change.",
+      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)",
+      "carried_from": "netdryrun.checks.x_run_round_robin__mutmut_71"
+    },
+    "netdryrun.checks.x_run_round_robin__mutmut_156": {
+      "reason": "equivalent: unreachable branch: the round-robin timeout only ends a check on a failing sample, so a finished check is never 'not passed but ok'",
+      "diff": "496807bb8f5b7666",
+      "class": "equivalent",
+      "argument": "Same behaviour on every input the function can receive: unreachable branch: the round-robin timeout only ends a check on a failing sample, so a finished check is never 'not passed but ok'. So the verdict can't change.",
+      "reviewed": "adversarial (ChatGPT), round 3: confirmed after the code trace (research/model-reviews/release-0.3.3/adversarial-round3)",
+      "carried_from": "netdryrun.checks.x_run_round_robin__mutmut_72"
+    },
+    "netdryrun.checks.x_run_round_robin__mutmut_157": {
+      "reason": "equivalent: unreachable branch: the round-robin timeout only ends a check on a failing sample, so a finished check is never 'not passed but ok'",
+      "diff": "ae9fd3f07fe6b8be",
+      "class": "equivalent",
+      "argument": "Same behaviour on every input the function can receive: unreachable branch: the round-robin timeout only ends a check on a failing sample, so a finished check is never 'not passed but ok'. So the verdict can't change.",
+      "reviewed": "adversarial (ChatGPT), round 3: confirmed after the code trace (research/model-reviews/release-0.3.3/adversarial-round3)",
+      "carried_from": "netdryrun.checks.x_run_round_robin__mutmut_73"
     }
   },
   "checks": {
