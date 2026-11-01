@@ -25,7 +25,6 @@ import os
 import platform
 import re
 import shutil
-import statistics
 import subprocess
 import sys
 import tempfile
