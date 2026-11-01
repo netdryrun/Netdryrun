@@ -38,4 +38,13 @@ def test_report_flags_a_status_that_differs_between_labels(tmp_path, capsys):
     assert "| after | frr-bgp | good | 1 | passed 1 | 50 | 50 | 50 | 5/5 |" in capsys.readouterr().out
     f.write_text(f.read_text() + json.dumps(row("after", "failed", 40)) + "\n")
     assert bench.main(["report", str(f)]) == 1
-    assert "frr-bgp good: DIFFERENT" in capsys.readouterr().out
+    assert "run frr-bgp good: DIFFERENT" in capsys.readouterr().out
+
+
+def test_the_verify_change_applies_and_declares_what_it_changes(tmp_path):
+    d = tmp_path / "frr-bgp"
+    shutil.copytree(ROOT / "examples" / "frr-bgp", d)
+    edit, intent = bench.VERIFY_CHANGES["frr-bgp"]["announce"]
+    edit(d)
+    conf = (d / "configs" / "r3.conf").read_text()
+    assert "network 192.168.33.0/24" in conf and "192.168.33.1/24" in conf and "192.168.33.0/24" in intent

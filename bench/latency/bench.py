@@ -65,6 +65,23 @@ CHANGES = {
         "missing": lambda d: _drop_line(d / "configs" / "frr1.conf", "  network 192.168.20.0/24"),
     },
 }
+
+
+# verify (FRR only): the change and the intent that declares it. The after side announces one more prefix from r3.
+def _frr_bgp_announce(d: Path) -> None:
+    conf = d / "configs" / "r3.conf"
+    text = conf.read_text(encoding="utf-8")
+    for old, new in ((" ip address 192.168.3.1/24\n", " ip address 192.168.3.1/24\n ip address 192.168.33.1/24\n"),
+                     ("  network 192.168.3.0/24\n", "  network 192.168.3.0/24\n  network 192.168.33.0/24\n")):
+        if old not in text:
+            raise SystemExit(f"{conf}: no line {old.strip()!r} (the example changed?)")
+        text = text.replace(old, new, 1)
+    conf.write_text(text, encoding="utf-8")
+
+
+VERIFY_CHANGES = {
+    "frr-bgp": {"announce": (_frr_bgp_announce, "intent:\n  - prefix: 192.168.33.0/24\n    appears_on: [r1, r2, r3]\n")},
+}
 NEVER_PUBLISH = ("arista-frr",)   # cEOS: Arista's EULA forbids publishing benchmark results
 
 
@@ -124,13 +141,41 @@ def trial(lab: str, change: str, netdryrun: str, work: Path) -> dict:
     return row
 
 
+def verify_trial(lab: str, change: str, netdryrun: str, work: Path, extra: list[str]) -> dict:
+    """One `netdryrun verify` of the example (before) against the example with the change (after)."""
+    for side in ("before", "after"):
+        d = work / side
+        if d.exists():
+            shutil.rmtree(d)
+        shutil.copytree(EXAMPLES / lab, d)
+    edit, intent = VERIFY_CHANGES[lab][change]
+    edit(work / "after")
+    (work / "intent.yml").write_text(intent, encoding="utf-8")
+    report = work / f"{lab}-{change}-verify.json"
+    report.unlink(missing_ok=True)
+    topo = work / "before" / "topology.clab.yml"
+    t0 = time.monotonic()
+    p = subprocess.run([netdryrun, "verify", str(topo), "--before", str(work / "before"), "--after", str(work / "after"),
+                        "--intent", str(work / "intent.yml"), "--json", str(report), *extra], capture_output=True, text=True)
+    wall = round(time.monotonic() - t0, 1)
+    row = {"wall_s": wall, "exit_code": p.returncode, "status": None, "timings": {}, "failed": []}
+    try:
+        rep = json.loads(report.read_text(encoding="utf-8"))
+        row["status"], row["timings"], row["error"] = rep["status"], rep.get("timings") or {}, rep.get("error")
+        row["failed"] = [u.get("summary", "") for u in rep.get("undeclared", [])]
+    except (OSError, ValueError, KeyError) as e:
+        row["error"] = f"no report: {e}; stderr: {p.stderr[-500:]}"
+    return row
+
+
 def cmd_run(args) -> int:
+    table = VERIFY_CHANGES if args.mode == "verify" else CHANGES
     for lab in args.lab:
-        if lab not in CHANGES:
-            raise SystemExit(f"unknown lab {lab!r}; known: {', '.join(CHANGES)}")
+        if lab not in table:
+            raise SystemExit(f"unknown lab {lab!r} for {args.mode}; known: {', '.join(table)}")
         for change in args.change:
-            if change not in CHANGES[lab]:
-                raise SystemExit(f"{lab}: unknown change {change!r}; known: {', '.join(CHANGES[lab])}")
+            if change not in table[lab]:
+                raise SystemExit(f"{lab}: unknown change {change!r}; known: {', '.join(table[lab])}")
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="ndr-bench-", dir=args.work))
@@ -139,9 +184,11 @@ def cmd_run(args) -> int:
         for i in range(args.n):
             for lab in args.lab:
                 for change in args.change:
-                    row = {"label": args.label, "lab": lab, "change": change, "trial": i,
+                    one = (verify_trial(lab, change, args.netdryrun, work, args.extra or []) if args.mode == "verify"
+                           else trial(lab, change, args.netdryrun, work))
+                    row = {"label": args.label, "mode": args.mode, "lab": lab, "change": change, "trial": i,
                            "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                           **trial(lab, change, args.netdryrun, work), "env": {**env, "loadavg": os.getloadavg()[0]}}
+                           **one, "env": {**env, "loadavg": os.getloadavg()[0]}}
                     with out.open("a", encoding="utf-8") as f:
                         f.write(json.dumps(row) + "\n")
                     print(f"{args.label} {lab} {change} #{i}: {row['status']} (exit {row['exit_code']}) in "
@@ -174,36 +221,46 @@ def cmd_report(args) -> int:
         print("<!-- contains cEOS rows: internal only, never publish -->")
     groups: dict[tuple, list] = {}
     for r in rows:
-        groups.setdefault((r["label"], r["lab"], r["change"]), []).append(r)
+        groups.setdefault((r.get("mode", "run"), r["label"], r["lab"], r["change"]), []).append(r)
+    for mode, phases in (("run", PHASES), ("verify", VERIFY_PHASES)):
+        mine = {k[1:]: v for k, v in groups.items() if k[0] == mode}
+        if mine:
+            _table(mine, phases)
+            print()
+    print("Verdict agreement across labels (every trial of a lab and change must end with the same status):")
+    print()
+    by_case: dict[tuple, dict] = {}
+    for r in rows:
+        by_case.setdefault((r.get("mode", "run"), r["lab"], r["change"]), {}).setdefault(r["label"], set()).add(r["status"])
+    bad = 0
+    for (mode, lab, change), labels in sorted(by_case.items()):
+        seen = set().union(*labels.values())
+        ok = len(seen) == 1
+        bad += not ok
+        print(f"- {mode} {lab} {change}: {'same' if ok else 'DIFFERENT'} ("
+              + "; ".join(f"{lb}: {', '.join(sorted(map(str, s)))}" for lb, s in sorted(labels.items())) + ")")
+    return 1 if bad else 0
+
+
+VERIFY_PHASES = ("before_s", "after_s", "rerun_before_s", "rerun_after_s")
+
+
+def _table(groups: dict, phases) -> None:
     print("| label | lab | change | n | statuses | wall p50 | wall p95 | wall max | "
-          + " | ".join(f"{ph} p50/p95" for ph in PHASES) + " |")
-    print("|" + "---|" * (8 + len(PHASES)))
+          + " | ".join(f"{ph} p50/p95" for ph in phases) + " |")
+    print("|" + "---|" * (8 + len(phases)))
     for (label, lab, change), rs in sorted(groups.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][0])):
         statuses = {}
         for r in rs:
             statuses[r["status"]] = statuses.get(r["status"], 0) + 1
         walls = [r["wall_s"] for r in rs]
         cells = []
-        for ph in PHASES:
+        for ph in phases:
             vals = [r["timings"].get(ph) for r in rs if isinstance(r["timings"].get(ph), (int, float))]
             cells.append(f"{_fmt(pct(vals, .5))}/{_fmt(pct(vals, .95))}" if vals else "")
         st = ", ".join(f"{k} {v}" for k, v in sorted(statuses.items(), key=lambda kv: str(kv[0])))
         print(f"| {label} | {lab} | {change} | {len(rs)} | {st} | {_fmt(pct(walls, .5))} | {_fmt(pct(walls, .95))} | "
               f"{_fmt(max(walls))} | " + " | ".join(cells) + " |")
-    print()
-    print("Verdict agreement across labels (every trial of a lab and change must end with the same status):")
-    print()
-    by_case: dict[tuple, dict] = {}
-    for r in rows:
-        by_case.setdefault((r["lab"], r["change"]), {}).setdefault(r["label"], set()).add(r["status"])
-    bad = 0
-    for (lab, change), labels in sorted(by_case.items()):
-        seen = set().union(*labels.values())
-        ok = len(seen) == 1
-        bad += not ok
-        print(f"- {lab} {change}: {'same' if ok else 'DIFFERENT'} ("
-              + "; ".join(f"{lb}: {', '.join(sorted(map(str, s)))}" for lb, s in sorted(labels.items())) + ")")
-    return 1 if bad else 0
 
 
 def main(argv=None) -> int:
@@ -217,6 +274,8 @@ def main(argv=None) -> int:
     r.add_argument("--label", required=True, help="a name for this set of trials (before, after, a commit)")
     r.add_argument("--out", required=True, help="JSONL file to append to")
     r.add_argument("--work", default=None, help="scratch folder (default: the system temp folder)")
+    r.add_argument("--mode", choices=("run", "verify"), default="run", help="time `netdryrun run` (default) or `verify`")
+    r.add_argument("--extra", action="append", help="an extra argument for netdryrun (e.g. --extra=--serial); repeatable")
     rep = sub.add_parser("report", help="p50/p95 per phase from JSONL files")
     rep.add_argument("files", nargs="+")
     args = ap.parse_args(argv)
