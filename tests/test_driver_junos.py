@@ -645,3 +645,66 @@ def test_a_path_without_any_next_hop_reads_as_unknown():
     e.pop("protocol-nh", None)
     best = junos.parse_bgp_paths(_obj(d), "10.20.0.0/24")[0]
     assert best.best and best.next_hop is None
+
+
+# ---------------------------------------------------------------- a count that disagrees with the list (0.4.1)
+# Fuzz finding 2026-11-01 (fuzz/findings/junos-bgp-paths-entry-dropped.bin): the live leak capture with its BGP
+# entry removed still says `rt-entry-count` 2 and read as "no BGP path", so `present: false` passed on output
+# that contradicts itself. Wherever Junos prints a count next to the list it counts, they must agree.
+
+def _rt(name: str, i: int = 0) -> tuple[dict, dict]:
+    d = json.loads(read(name))
+    return d, d["route-information"][0]["route-table"][0]["rt"][i]
+
+
+def test_leak_with_its_bgp_entry_dropped_is_an_error_not_no_path():
+    d, rt = _rt("junos_route_leak.txt")
+    rt["rt-entry"] = [e for e in rt["rt-entry"] if e["protocol-name"][0]["data"] != "BGP"]
+    for parse in (junos.parse_bgp_paths, junos.parse_routes):
+        with pytest.raises(DriverError, match="rt-entry-count"):
+            parse(_obj(d), "0.0.0.0/0")
+
+
+@pytest.mark.parametrize("edit", [
+    lambda rt: rt.update({"rt-entry-count": [{"data": "3", "attributes": {"junos:format": "3 entries"}}]}),
+    lambda rt: rt["rt-entry"].append(rt["rt-entry"][0]),         # one more listed than counted
+    lambda rt: rt.pop("rt-entry-count"),                         # the extensive answer always counts
+    lambda rt: rt.update({"rt-entry-count": [{"data": "two"}]}),
+], ids=["count-higher", "count-lower", "count-missing", "count-not-a-number"])
+def test_entry_count_must_match_in_an_exact_answer(edit):
+    d, rt = _rt("junos_route_paths.txt")
+    edit(rt)
+    for parse in (junos.parse_bgp_paths, junos.parse_routes):
+        with pytest.raises(DriverError, match="unexpected output"):
+            parse(_obj(d), "10.20.0.0/24")
+
+
+def test_hidden_received_count_must_match():
+    d = json.loads(read("junos_rp_hidden.txt"))
+    rt = d["route-information"][0]["route-table"][0]["rt"][0]
+    rt["rt-entry"] = []
+    with pytest.raises(DriverError):
+        junos.parse_hidden_received(_obj(d), "inet.0")
+
+
+@pytest.mark.parametrize("edit", [
+    lambda t: t["rt"][0]["rt-entry"].pop(),                                  # an entry dropped
+    lambda t: t["rt"].pop(),                                                 # a whole route dropped
+    lambda t: t["rt"][0]["rt-entry"].append(t["rt"][0]["rt-entry"][0]),      # an entry added
+    lambda t: t.pop("total-route-count"),
+], ids=["entry-dropped", "route-dropped", "entry-added", "total-missing"])
+def test_whole_table_counts_must_match_the_routes_listed(edit):
+    """`show route table T` lists every route except hidden ones: total minus hidden is what is listed
+    (true of all four live table captures)."""
+    d = json.loads(read("junos_route_table.txt"))
+    edit(d["route-information"][0]["route-table"][0])
+    with pytest.raises(DriverError, match="unexpected output"):
+        junos.parse_all_routes(_obj(d))
+
+
+def test_real_answers_still_agree_with_their_counts():
+    for name, table in (("junos_route_table.txt", "inet.0"), ("junos_route_table_idle.txt", "inet.0"),
+                        ("junos_route_table_red.txt", "RED.inet.0"), ("junos_route_table_v6.txt", "inet6.0")):
+        assert junos.parse_all_routes(read(name), table), name
+    assert junos.parse_bgp_paths(read("junos_route_static.txt"), "10.99.0.0/24") == []      # static only: no BGP
+    assert junos.parse_bgp_paths(read("junos_route_connected.txt"), "10.0.1.0/30") == []

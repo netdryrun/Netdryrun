@@ -67,6 +67,18 @@ def junos_session_down(text: str) -> str:
     return out
 
 
+def junos_bgp_entry_dropped(text: str) -> str:
+    """The same Junos capture with its BGP rt-entry removed and rt-entry-count left as it was (fuzz finding
+    2026-11-01): output that contradicts itself must error, never read as no BGP path."""
+    import json
+    d = json.loads(text)
+    rt = d["route-information"][0]["route-table"][0]["rt"][0]
+    before = len(rt["rt-entry"])
+    rt["rt-entry"] = [e for e in rt["rt-entry"] if e["protocol-name"][0]["data"] != "BGP"]
+    assert len(rt["rt-entry"]) < before, "no BGP entry to drop"
+    return json.dumps(d)
+
+
 def junos_no_replies(text: str) -> str:
     out, n = re.subn(r'("responses-received"\s*:\s*\[\s*\{\s*"data"\s*:\s*")\d+"', r'\g<1>0"', text)
     assert n, "no responses-received to edit"
@@ -507,6 +519,11 @@ def _cells() -> list[Cell]:
                                                "without_communities": ["no-export"]}, paths(fx("junos_route_ibgp_noexport.txt")))
     add("junos", "fail", "iBGP next hop is the protocol next hop, not the forwarding one",
         {"type": "bgp_route", "prefix": "10.50.0.0/24", "next_hop": "10.0.1.2"}, paths(fx("junos_route_ibgp.txt")))
+    add("junos", "fail", "BGP entry dropped under its count",
+        {"type": "bgp_route", "prefix": "0.0.0.0/0", "present": False}, paths(junos_bgp_entry_dropped(fx("junos_route_leak.txt"))))
+    add("junos", "fail", "route entry dropped under its count",
+        {"type": "route", "prefix": "0.0.0.0/0", "present": False, "protocol": "bgp"},
+        routes(junos_bgp_entry_dropped(fx("junos_route_leak.txt"))))
     add("junos", "fail", "leaked default in the BGP table", {"type": "bgp_route", "prefix": "0.0.0.0/0", "present": False},
         paths(fx("junos_route_leak.txt")))
     p = {"type": "ping", "target": "10.20.0.1"}
