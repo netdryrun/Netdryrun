@@ -148,7 +148,8 @@ class RouterosDriver(Driver):
             out.append(BgpPath(
                 best=p.contribution in ("active", "best-candidate"),
                 as_path=None if p.as_path is None else " ".join(str(a) for a in p.as_path),
-                next_hop=p.gateway,
+                # a VRF's gateway reads "203.0.113.2@RED" (live CHR 7.23.8); only the path's own table is dropped
+                next_hop=p.gateway.removesuffix(f"@{table}") if p.gateway else p.gateway,
                 local_pref=p.local_pref,          # None when the path carries none: the default is not read, so a check fails
                 med=p.med or None,     # 0 is unknown: see ambiguous_bgp_values
                 communities=canon_communities(p.communities),
