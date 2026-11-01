@@ -164,7 +164,8 @@ def test_a_reset_under_a_policy_variant_is_inconclusive():
     vid = "attribute_drift:edge:CUST-IN permit 10:+set local-preference 50"
     ex = h.FakeExecutor(base, {vid: h.applied(vs[vid], h.custleak(down=("ce",)))})
     res = core._one(ex, vs[vid], cks, base, ex.side_state(), core._Fresh(), core.now)
-    assert res.result == INCONCLUSIVE and "may have reset them" in res.note and res.failed and res.effect
+    # failures under a reset are non-catching: survived, with the note (disclosure, class table row 3)
+    assert res.result == SURVIVED and "may have reset them" in res.note and res.failed and res.effect
 
 
 def test_fitted_needs_a_prefix():
@@ -210,11 +211,73 @@ def test_same_state_and_counts():
 def test_summary_wording():
     rep = core.ProveReport(status="passed")
     rep.variants = [core.VariantResult(V, CAUGHT), core.VariantResult(V, NO_EFFECT)]
-    assert rep.summary == ("caught 1 of 1 known-bad variants with an effect (0 survived, 0 inconclusive; 1 more had "
-                           "no effect on routing). A finite set of variants: this does not show that the checks are "
+    assert rep.summary == ("caught 1 of 1 known-bad variants (0 survived, 1 no effect, 0 inconclusive, kinds not "
+                           "generated: none). A finite set of variants: this does not show that the checks are "
                            "complete.")
+    rep.not_generated = ["link_down", "default_leak"]
+    assert "kinds not generated: link_down, default_leak)" in rep.summary
     rep.not_run = [V, V]
     assert "; 2 generated variant(s) not run (budget). A finite" in rep.summary
     assert core.ProveReport(status="error", error="x").summary == "no strength result: x"
     assert [core.ProveReport(status=s).exit_code for s in ("passed", "failed", "inconclusive", "error", "?")] == \
         [0, 1, 3, 2, 2]
+
+
+def test_the_class_table_is_exhaustive():
+    """Disclosure, step 5: every (effect, checks) cell has one class."""
+    from netdryrun.checks import Unready
+    from netdryrun.config import load
+    cks = load(h.FIXTURE / "netdryrun.yml").checks
+    leak = Variant("l", "customer_leak", "cust", "d", originates=("100.64.0.0/24",))
+    eff = diff(h.custleak(), h.custleak(down=("ce",)))
+    real = Result(cks[0], False, "state is idle", 1, 0.0, core.now(), [{"cmd": "x"}], [])
+    ok = replace(real, passed=True)
+    no_ev = replace(real, evidence=[])
+    unready = replace(real, detail=Unready("error: bgpd is not running"))
+    fitted = replace(real, check=replace(cks[-1], params={"node": "edge", "prefix": "100.64.0.0/24", "protocol": "bgp",
+                                                          "present": False}))
+    cells = [
+        (eff, [real, ok], [], CAUGHT, ""),
+        (eff, [real, unready, fitted], [], CAUGHT, ""),            # one catching failure is enough
+        (eff, [ok], [], SURVIVED, ""),
+        (eff, [no_ev, ok], [], SURVIVED, "without usable state or evidence"),
+        (eff, [unready], [], SURVIVED, "without usable state or evidence"),
+        (eff, [fitted], [], SURVIVED, "fitted to this variant"),
+        (eff, [real], ["edge session 10.0.1.2"], SURVIVED, "may have reset them"),
+        ([], [ok], [], NO_EFFECT, ""),
+        ([], [], [], NO_EFFECT, ""),
+        ([], [real], [], INCONCLUSIVE, "routing state did not change"),
+        ([], [unready, ok], [], INCONCLUSIVE, "routing state did not change"),
+    ]
+    for effect, results, reset, want, note in cells:
+        got = core.classify(leak, effect, results, reset)
+        assert got.result == want, (want, results)
+        assert note in got.note
+        if want == CAUGHT:
+            assert got.failed == [r for r in results if core.real_failure(r) and r is not fitted]
+        if want == SURVIVED and note:
+            assert got.note.endswith("Counted as survived") and got.failed == [r for r in results if not r.passed]
+        if want == SURVIVED and not note:
+            assert got.failed == [] and got.note == ""
+        if want in (CAUGHT, SURVIVED):
+            assert got.effect == effect
+
+
+def test_canonical_path_ids():
+    """Add-path IDs are the router's: the same paths under other IDs are the same state."""
+    from netdryrun.verify.snapshot import ItemKey
+    a, b = h.custleak(), h.custleak()
+    k = ItemKey("path", "edge", "default", "ipv4", "unicast", "10.9.0.0/24", neighbor="10.0.1.2")
+    p1, p2 = path(as_path="65010", local_pref=100), path(best=False, as_path="65010 65010")
+    a.nodes["edge"].items.update({replace(k, path_id=3): p1, replace(k, path_id=7): p2})
+    b.nodes["edge"].items.update({replace(k, path_id=9): p2, replace(k, path_id=4): p1})
+    assert core.same_state(a, b) != [] and core.same_state(core.canonical(a), core.canonical(b)) == []
+    ca = core.canonical(a).nodes["edge"].items
+    assert ca[replace(k, path_id=0)] in (p1, p2) and ca[replace(k, path_id=1)] in (p1, p2) and replace(k, path_id=3) not in ca
+    lone = h.custleak()
+    lone.nodes["edge"].items[replace(k, path_id=5)] = p1
+    assert core.canonical(lone).nodes["edge"].items[k] == p1
+    c = core.canonical(h.custleak())
+    assert core.same_state(c, h.custleak()) == [] and c.nodes["edge"].config == h.custleak().nodes["edge"].config
+    b.nodes["edge"].items[replace(k, path_id=4)] = path(as_path="65010", local_pref=200)   # a real change stays one
+    assert core.same_state(core.canonical(a), core.canonical(b)) != []

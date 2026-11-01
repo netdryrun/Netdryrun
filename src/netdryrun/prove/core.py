@@ -20,9 +20,10 @@ Fail-closed rules, each with a red test (tests/test_prove_guardrails.py):
   was applied): otherwise an internal error, never "caught";
 - a failing check whose last sample had no usable state (Unready) or no evidence doesn't catch anything;
 - failing checks with no routing effect are inconclusive (a flaky check, or state the snapshot doesn't see), never
-  "caught" and never "no effect";
-- a customer_leak caught only by checks that name the leaked prefixes is not caught (the checks are fitted to the
-  variant, not to the fault): survived;
+  "caught" and never "no effect"; an effect with only non-catching failures is survived, with a note (classify());
+- a leak caught only by checks that name the leaked prefixes is not caught (the checks are fitted to the variant,
+  not to the fault): survived;
+- a snapshot that never settles (apply, revert or baseline) is a timeout error, never a result;
 - no variant at all, or none with an effect: no strength result (error and inconclusive), never "caught 0 of 0".
 """
 from __future__ import annotations
@@ -38,14 +39,15 @@ from ..verify.converge import Inconclusive
 from ..verify.engine import DiffItem, diff, far_ends
 from ..verify.frr import qualified
 from ..verify.snapshot import Snapshot
-from .variants import DEFAULT_MAX, LEAK_SPACE, Variant, generate, select
+from .variants import DEFAULT_MAX, KINDS, LEAK_SPACE, Variant, generate, select
 
 CAUGHT, SURVIVED, NO_EFFECT, INCONCLUSIVE = "caught", "survived", "no_effect", "inconclusive"
 
 
 class ProveError(RuntimeError):
     """No strength result (exit 2). `kind`: setup (the lab or its checks aren't ready to be proven), apply (a
-    variant didn't take effect as written), restore (the lab isn't its baseline any more: discard it), internal."""
+    variant didn't take effect as written), timeout (the lab never settled: convergence is an error, not a result),
+    restore (the lab isn't its baseline any more: discard it), internal."""
 
     def __init__(self, message: str, kind: str = "setup"):
         super().__init__(message)
@@ -57,7 +59,9 @@ class Executor(Protocol):
 
     def run_checks(self, checks: list[Check]) -> list[Result]: ...
 
-    def snapshot(self) -> Snapshot | Inconclusive: ...
+    def snapshot(self) -> Snapshot | Inconclusive:
+        """A convergence-stable snapshot: N identical samples (3 by default) at least one MRAI apart, within a timeout;
+        Inconclusive when the timeout passes (prove makes that an error, never a result)."""
 
     def links(self) -> list[tuple[tuple[str, str], tuple[str, str]]]: ...
 
@@ -87,7 +91,8 @@ class VariantResult:
 class ProveReport:
     status: str = "error"            # passed (nothing survived), failed (survivors), inconclusive, error
     error: str = ""
-    error_kind: str = ""             # with status error: setup, apply, restore (discard the lab) or internal
+    error_kind: str = ""             # with status error: setup, apply, timeout, restore (discard the lab), internal
+    not_generated: list[str] = field(default_factory=list)   # selected kinds the lab gave no eligible variant
     checks: list[Check] = field(default_factory=list)
     variants: list[VariantResult] = field(default_factory=list)
     not_run: list[Variant] = field(default_factory=list)
@@ -108,9 +113,9 @@ class ProveReport:
         if self.status == "error":
             return f"no strength result: {self.error}"
         effective = len(self.variants) - self.count(NO_EFFECT)
-        text = (f"caught {self.count(CAUGHT)} of {effective} known-bad variants with an effect "
-                f"({self.count(SURVIVED)} survived, {self.count(INCONCLUSIVE)} inconclusive; "
-                f"{self.count(NO_EFFECT)} more had no effect on routing)")
+        text = (f"caught {self.count(CAUGHT)} of {effective} known-bad variants ({self.count(SURVIVED)} survived, "
+                f"{self.count(NO_EFFECT)} no effect, {self.count(INCONCLUSIVE)} inconclusive, kinds not generated: "
+                f"{', '.join(self.not_generated) or 'none'})")
         if self.not_run:
             text += f"; {len(self.not_run)} generated variant(s) not run (budget)"
         return text + ". A finite set of variants: this does not show that the checks are complete."
@@ -125,31 +130,33 @@ def now() -> str:
 # ---------------------------------------------------------------------------------------------------------
 
 def footprint(variant: Variant, base: Snapshot, during: Snapshot) -> Callable[[DiffItem], bool]:
-    """Whether a diff item is the variant's own mechanism rather than what the network did with it: for a variant
-    that announces prefixes, the announcing node's own routes and paths for them, its advertisements of them to
-    the other observed nodes, and what those nodes received from it before inbound policy. A leak to a neighbor
-    outside the lab stays an effect (nothing in the lab would see it otherwise)."""
+    """Whether a diff item is the variant's own mechanism rather than what the network did with it: the locally
+    originated entry of each prefix the variant announces, on the announcing node only (its discard static in the RIB
+    and its local BGP path). The same prefix learned anywhere, the node's own advertisements of it, a neighbour's
+    pre-policy copy and a neighbour's prefix count are effects, so a leak always shows one (disclosure, step 2)."""
     mine = {(p.node, x) for p in variant.parts() for x in p.originates}
-    if not mine:
-        return lambda d: False
-    ends = far_ends(base, during)
 
     def own(d: DiffItem) -> bool:
         k = d.key
-        if (k.node, k.prefix) in mine:
-            if k.kind == "rib" or (k.kind == "path" and k.neighbor == "local"):
-                return True
-            if k.kind == "adj_out" and (k.node, k.vrf, k.neighbor) in ends:
-                return True
-        far = ends.get((k.node, k.vrf, k.neighbor), ("",))[0]
-        return k.kind == "adj_in" and (far, k.prefix) in mine
+        if (k.node, k.prefix) not in mine:
+            return False
+        return (k.kind == "rib" and k.protocol == "static") or (k.kind == "path" and k.neighbor == "local")
     return own
 
 
+def count_changes(base: Snapshot, during: Snapshot) -> list[DiffItem]:
+    """Sessions whose prefix counts changed: an effect even where the paths behind them aren't snapshotted (verify's
+    diff leaves counts out; prove counts them)."""
+    a, b = base.sessions(), during.sessions()
+    return [DiffItem(k, a[k], b[k]) for k in sorted(set(a) & set(b))
+            if a[k] == b[k] and a[k].prefix_counts != b[k].prefix_counts]
+
+
 def routing_effect(variant: Variant, base: Snapshot, during: Snapshot) -> list[DiffItem]:
-    """What changed in the routing state: every difference except running configs and the variant's footprint."""
+    """What changed in the routing state: every difference except running configs and the variant's footprint, plus
+    prefix-count changes."""
     own = footprint(variant, base, during)
-    return [d for d in diff(base, during) if d.key.kind != "config" and not own(d)]
+    return [d for d in diff(base, during) if d.key.kind != "config" and not own(d)] + count_changes(base, during)
 
 
 def took_effect(variant: Variant, base: Snapshot, during: Snapshot) -> str | None:
@@ -226,31 +233,46 @@ def real_failure(r: Result) -> bool:
     return not r.passed and not isinstance(r.detail, Unready) and bool(r.evidence)
 
 
-def classify(variant: Variant, effect: list[DiffItem], results: list[Result]) -> VariantResult:
+def classify(variant: Variant, effect: list[DiffItem], results: list[Result], reset: list[str] = ()) -> VariantResult:
+    """The classes are exhaustive (disclosure, step 5):
+
+    | effect | checks                                   | class                      |
+    |--------|------------------------------------------|----------------------------|
+    | yes    | at least one catching failure            | caught                     |
+    | yes    | all pass                                 | survived                   |
+    | yes    | only non-catching failures               | survived, with a note      |
+    | no     | all pass                                 | no effect                  |
+    | no     | any failure                              | inconclusive               |
+
+    A catching failure is a real failure (usable state, evidence) by a check not fitted to the variant's own prefixes,
+    under a variant that reset no session it doesn't shut (`reset`: an apply that reset sessions can't be credited)."""
     failing = [r for r in results if not r.passed]
+    if not effect:
+        if failing:
+            return VariantResult(variant, INCONCLUSIVE, failed=failing, note=(
+                "checks failed, but the routing state did not change: a flaky check, a lab problem, or state the "
+                "snapshot doesn't see (the data plane). Not counted as caught"))
+        return VariantResult(variant, NO_EFFECT, note="nothing changed in the routing state outside the variant's own "
+                                                      "originated entries: an equivalent variant")
     real = [r for r in failing if real_failure(r)]
     fitted = [r for r in real if _fitted(r.check, variant)]
-    catching = [r for r in real if r not in fitted]
-    if catching and effect:
+    catching = [] if reset else [r for r in real if r not in fitted]
+    if catching:
         return VariantResult(variant, CAUGHT, failed=catching, effect=effect)
-    if real and not effect:
-        return VariantResult(variant, INCONCLUSIVE, failed=real, note=(
-            "checks failed, but the routing state did not change: a flaky check, or state the snapshot doesn't see "
-            "(the data plane). Not counted as caught"))
-    if failing and not real:
-        return VariantResult(variant, INCONCLUSIVE, failed=failing, note=(
-            "the only failing checks had no usable state (or no evidence) on their last sample: a lab problem, not "
-            "a catch"))
-    if not effect:
-        return VariantResult(variant, NO_EFFECT, note="nothing changed in the routing state outside the variant's own "
-                                                      "announcement: an equivalent variant, or a fault the network "
-                                                      "contained")
-    note = ""
+    notes = []
+    if reset:
+        notes.append(f"session(s) went down under a variant that doesn't shut one ({'; '.join(reset[:3])}): applying "
+                     "it may have reset them, so no failing check is credited to the variant")
     if fitted:
-        note = (f"only {', '.join(r.check.name for r in fitted)} failed, and those name the variant's own announced "
-                "prefixes (the leak space, or the announcing node's own announcement): checks fitted to this variant, "
-                "not to the fault. Counted as survived")
-    return VariantResult(variant, SURVIVED, effect=effect, note=note)
+        notes.append(f"{', '.join(r.check.name for r in fitted)} failed, but name the variant's own announced prefixes "
+                     "(the leak space, or the announcing node's own announcement): checks fitted to this variant, not to "
+                     "the fault")
+    unusable = [r for r in failing if not real_failure(r)]
+    if unusable:
+        notes.append(f"{', '.join(r.check.name for r in unusable)} failed without usable state or evidence: a lab "
+                     "problem, not a catch")
+    note = "; ".join(notes) + ". Counted as survived" if notes else ""
+    return VariantResult(variant, SURVIVED, failed=failing if notes else [], effect=effect, note=note)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -275,12 +297,51 @@ class _Fresh:
         return results
 
 
+def canonical(snap: Snapshot) -> Snapshot:
+    """The snapshot with path identifiers replaced by their rank among the paths of the same prefix and source (by
+    value): add-path IDs are allocated by the router and can change after a session flaps, which is no routing
+    change. Uptimes, timers, ages and counters are already outside the snapshot (verify.snapshot)."""
+    from dataclasses import replace as _replace
+
+    from ..verify.snapshot import NodeSnapshot, sort_key
+
+    nodes = {}
+    for n, ns in snap.nodes.items():
+        groups: dict = {}
+        for k, v in ns.items.items():
+            groups.setdefault(_replace(k, path_id=0), []).append((k, v))
+        items = {}
+        for k0, members in groups.items():
+            if len(members) == 1:
+                items[k0] = members[0][1]
+                continue
+            for i, (_k, v) in enumerate(sorted(members, key=lambda kv: (sort_key(kv[1]), kv[0].path_id))):
+                items[_replace(k0, path_id=i)] = v
+        nodes[n] = NodeSnapshot(ns.node, ns.driver, ns.vrfs, items, ns.raw, ns.adv_interval, ns.config, ns.cond_adv_timer)
+    return Snapshot(nodes, dict(snap.unobserved))
+
+
 def same_state(a: Snapshot, b: Snapshot) -> list[str]:
     """Where two snapshots differ, as diff item places, including prefix counts (empty when the same)."""
     if set(a.nodes) != set(b.nodes) or a.unobserved != b.unobserved:
         return [f"the observed nodes differ: {sorted(a.nodes)} vs {sorted(b.nodes)}"]
     va, vb = a.stability_view(), b.stability_view()
     return [k.where() for k in sorted(set(va) | set(vb)) if va.get(k) != vb.get(k)]
+
+
+def blocked(snap: Snapshot) -> dict[tuple[str, str], bool]:
+    """(node, neighbor) -> whether the neighbor, a lab node, sends today a prefix the node doesn't accept from it: a
+    filter edit on that session acts on its own then; else it needs a leak to act on."""
+    ends = far_ends(snap)
+    items = snap.items()
+    out = {}
+    for (node, vrf, nbr), (far, far_vrf, me) in ends.items():
+        if vrf != "default":
+            continue
+        sent = {k.prefix for k in items if k.kind == "adj_out" and k.node == far and k.vrf == far_vrf and k.neighbor == me}
+        took = {k.prefix for k in items if k.kind == "path" and k.node == node and k.vrf == vrf and k.neighbor == nbr}
+        out[(node, nbr)] = bool(sent - took)
+    return out
 
 
 def _counts(snap: Snapshot) -> dict[tuple[str, str, str], int]:
@@ -316,16 +377,18 @@ def _prove(executor: Executor, rep: ProveReport, kinds, maximum: int, log, clock
                          + "; ".join(failing[:5]))
     base = executor.snapshot()
     if isinstance(base, Inconclusive):
-        raise ProveError(f"the baseline snapshot never settled: {base.reason}")
+        raise ProveError(f"the baseline snapshot never settled: {base.reason}", "timeout")
+    base = canonical(base)
     rep.baseline_items = len(base.items())
     side = executor.side_state()
     configs = {n: ns.config for n, ns in base.nodes.items()}
-    variants = generate(configs, executor.links(), checks, _counts(base))
+    variants = generate(configs, executor.links(), checks, _counts(base), blocked(base))
     rep.generated = len(variants)
     try:
         run, rep.not_run = select(variants, kinds, maximum)
     except ValueError as e:
         raise ProveError(str(e)) from None
+    rep.not_generated = [k for k in KINDS if (not kinds or k in kinds) and not any(v.kind == k for v in variants)]
     if not run:
         raise ProveError("no variant could be generated for this lab (no FRR BGP speaker with sessions, route-maps "
                          "or links matched the selected kinds)")
@@ -361,9 +424,10 @@ def _one(executor: Executor, v: Variant, checks: list[Check], base: Snapshot, si
                              "later variant can run", "restore") from None
     restored_at = clock()
     after = executor.snapshot()
+    after = after if isinstance(after, Inconclusive) else canonical(after)
     if isinstance(after, Inconclusive):
         raise ProveError(f"after variant {v.id} was reverted, the lab never settled ({after.reason}); no strength "
-                         "result", "restore")
+                         "result", "timeout")
     drift = same_state(base, after)
     now_side = executor.side_state()
     drift += [f"{k} (outside the snapshot)" for k in sorted(set(side) | set(now_side)) if side.get(k) != now_side.get(k)]
@@ -379,8 +443,10 @@ def _one(executor: Executor, v: Variant, checks: list[Check], base: Snapshot, si
     if problem:
         raise ProveError(f"variant {v.id} could not be applied: {problem}", "apply")
     if isinstance(during, Inconclusive):
-        return VariantResult(v, INCONCLUSIVE, note=f"the lab never settled with the variant applied: {during.reason}")
+        raise ProveError(f"variant {v.id}: the lab never settled with it applied ({during.reason}); a convergence "
+                         "timeout is an error, not a result", "timeout")
     results = fresh.check(results, checks, applied_at, f"run of {v.id}")
+    during = canonical(during)
     why = took_effect(v, base, during)
     if why:
         raise ProveError(f"variant {v.id}: {why}", "apply")
@@ -388,12 +454,7 @@ def _one(executor: Executor, v: Variant, checks: list[Check], base: Snapshot, si
     if v.kind == "link_down" and not effect:
         raise ProveError(f"variant {v.id}: the link went down but nothing changed in the routing state, not even its "
                          "connected route: the link did not go down", "apply")
-    reset = sessions_reset(v, base, during)
-    if reset:
-        return VariantResult(v, INCONCLUSIVE, failed=[r for r in results if not r.passed], effect=effect, note=(
-            f"session(s) went down under a variant that doesn't shut one ({'; '.join(reset[:3])}): applying it may "
-            "have reset them, so a failing check can't be credited to the variant"))
-    out = classify(v, effect, results)
+    out = classify(v, effect, results, sessions_reset(v, base, during))
     if out.result == SURVIVED:
         from .suggest import suggest
         out.suggested = suggest(v, base, effect)

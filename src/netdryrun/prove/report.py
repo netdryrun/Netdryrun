@@ -84,6 +84,7 @@ def to_dict(rep: ProveReport) -> dict:
                    "inconclusive": sum(v.result == INCONCLUSIVE for v in done), "run": len(done),
                    "generated": rep.generated, "not_run": len(rep.not_run)},
         "by_kind": _by_kind(rep) if done else {},
+        "not_generated": list(rep.not_generated),
         "checks": [c.name for c in rep.checks],
         "variants": [variant_json(v) for v in done],
         "partial": [variant_json(v) for v in rep.variants] if rep.status == "error" else [],

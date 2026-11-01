@@ -142,13 +142,18 @@ def ids(vs):
 
 
 def test_the_lab_gets_these_variants_in_this_order():
+    """Without a lab's state (--plan) each filter edit is listed alone and composed with a leak."""
+    F = "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN"
+    P = "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
     assert ids(V.generate(CONFIGS, h.LINKS)) == [
         "customer_leak:cust:1", "customer_leak:cust:2", "customer_leak:edge:1", "customer_leak:edge:2",
         "customer_leak:up:1", "customer_leak:up:2",
-        "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN:+leak:cust",
-        "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN",
-        "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24:+leak:cust",
-        "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+        f"{F}:+leak:cust", F, f"{P}:+leak:cust", P,
+        "import_filter:cust:ALLOW-ALL permit 10:swapped:+leak:edge", "import_filter:cust:ALLOW-ALL permit 10:swapped",
+        "import_filter:edge:ALLOW-ALL permit 10:swapped:+leak:up", "import_filter:edge:ALLOW-ALL permit 10:swapped",
+        "import_filter:edge:CUST-IN permit 10:swapped:+leak:cust", "import_filter:edge:CUST-IN permit 10:swapped",
+        f"{P}:swapped:+leak:cust", f"{P}:swapped",
+        "import_filter:up:ALLOW-ALL permit 10:swapped:+leak:edge", "import_filter:up:ALLOW-ALL permit 10:swapped",
         "session_down:cust:10.0.1.1", "session_down:edge:10.0.2.2",
         "link_down:cust:eth1--edge:eth1", "link_down:edge:eth2--up:eth1",
         "attribute_drift:cust:ALLOW-ALL permit 10:+set local-preference 50",
@@ -161,11 +166,25 @@ def test_the_lab_gets_these_variants_in_this_order():
     ]
 
 
+def test_the_state_decides_whether_a_filter_edit_needs_a_leak():
+    F = "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN"
+    # cust sends a prefix edge drops today: the edit acts alone
+    vs = ids(V.generate(CONFIGS, h.LINKS, blocked={("edge", "10.0.1.2"): True}))
+    assert F in vs and f"{F}:+leak:cust" not in vs
+    # nothing blocked today: only the composed edit
+    vs = ids(V.generate(CONFIGS, h.LINKS, blocked={("edge", "10.0.1.2"): False}))
+    assert F not in vs and f"{F}:+leak:cust" in vs
+    # a session the state doesn't cover: both
+    vs = ids(V.generate(CONFIGS, h.LINKS, blocked={("edge", "10.0.2.2"): False}))
+    assert F in vs and f"{F}:+leak:cust" in vs
+
+
 def test_the_default_budget_takes_one_of_each_kind_first():
-    run, rest = V.select(V.generate(CONFIGS, h.LINKS))
+    vs = V.generate(CONFIGS, h.LINKS)
+    run, rest = V.select(vs)
     assert [v.kind for v in run] == [*V.KINDS, "customer_leak"]
-    assert run[1].id.endswith(":+leak:cust")   # the stranger's case, composed with a leak, is in the default run
-    assert len(run) == V.DEFAULT_MAX and len(rest) == 25 - V.DEFAULT_MAX
+    assert run[1].id.endswith("match ip address prefix-list CUST-IN:+leak:cust")   # the stranger's case is in it
+    assert len(run) == V.DEFAULT_MAX and len(rest) == len(vs) - V.DEFAULT_MAX
 
 
 def test_select_round_robin_and_filters():
@@ -237,9 +256,13 @@ def test_rich_config_variants():
     # inbound route-map match lines and the prefix-lists they (or `neighbor X prefix-list P in`) use
     assert sorted(i for i in vs if i.startswith("import_filter")) == [
         "import_filter:r1:IN-A permit 10:match ip address prefix-list FROM-A",
+        "import_filter:r1:IN-A permit 10:swapped", "import_filter:r1:IN-G permit 10:swapped",
         "import_filter:r1:ip prefix-list BOGONS seq 5 permit 100.64.0.0/24",
+        "import_filter:r1:ip prefix-list BOGONS seq 5 permit 100.64.0.0/24:swapped",
         "import_filter:r1:ip prefix-list FROM-A seq 10 permit 10.50.0.0/24",
-        "import_filter:r1:ip prefix-list FROM-A seq 5 deny 10.99.0.0/16 le 32"]
+        "import_filter:r1:ip prefix-list FROM-A seq 10 permit 10.50.0.0/24:swapped",
+        "import_filter:r1:ip prefix-list FROM-A seq 5 deny 10.99.0.0/16 le 32",
+        "import_filter:r1:ip prefix-list FROM-A seq 5 deny 10.99.0.0/16 le 32:swapped"]
     # no lab FRR node owns the neighbors: no companion leak
     assert not any(v.companion for v in vs.values())
     drift = {i: v for i, v in vs.items() if i.startswith("attribute_drift")}
@@ -329,26 +352,89 @@ def test_link_down_needs_an_frr_end():
     assert [(v.id, v.link, v.node) for v in vs] == [("link_down:a:eth2--b:eth1", ("a", "eth2"), "a")]
 
 
-def test_headroom_sizes_the_leak_inside_the_range():
+def test_headroom_gives_the_range_pair():
     checks = [SimpleNamespace(type="bgp_prefixes", params={"node": "edge", "neighbor": "10.0.1.2", "min": 1, "max": 6}),
               SimpleNamespace(type="bgp_prefixes", params={"node": "edge", "neighbor": "10.0.2.2", "exact": 1}),
               SimpleNamespace(type="bgp_prefixes", params={"node": "edge", "neighbor": "10.0.2.2", "max": 9,
                                                            "vrf": "RED"}),
+              SimpleNamespace(type="bgp_prefixes", params={"node": "edge", "neighbor": "10.0.2.2", "min": 1}),
               SimpleNamespace(type="route", params={"node": "edge", "prefix": "10.0.0.0/8"})]
     counts = {("edge", "10.0.1.2", "ipv4-unicast"): 1, ("edge", "10.0.2.2", "ipv4-unicast"): 1}
-    assert V.headroom(checks, counts) == {"edge": {"10.0.1.2": 5}}
+    assert V.headroom(checks, counts) == {"edge": {"10.0.1.2": 5, "10.0.2.2": 0}}
     assert V.headroom(checks, {}) == {}
-    assert V.headroom(checks, {("edge", "10.0.1.2", "ipv4-unicast"): 6}) == {}   # no room left
-    vs = ids(V.generate(CONFIGS, h.LINKS, checks, counts))
-    assert "customer_leak:cust:5" in vs and "customer_leak:up:5" not in vs     # cust owns 10.0.1.2
-    v = next(v for v in V.generate(CONFIGS, h.LINKS, checks, counts) if v.id == "customer_leak:cust:5")
-    assert "just inside the prefix-count range" in v.description and len(v.originates) == 5
-    counts[("edge", "10.0.1.2", "ipv4-unicast")] = 4      # room for 2: the 1 and 2 variants already sit inside it
-    assert not [i for i in ids(V.generate(CONFIGS, h.LINKS, checks, counts)) if i.startswith("customer_leak:cust:")
-                and i not in ("customer_leak:cust:1", "customer_leak:cust:2")]
+    assert V.headroom(checks, {("edge", "10.0.1.2", "ipv4-unicast"): 7}) == {}   # already above the top
+    assert V.headroom(checks, {("edge", "10.0.1.2", "ipv4-unicast"): 6}) == {"edge": {"10.0.1.2": 0}}
+    gen = {v.id: v for v in V.generate(CONFIGS, h.LINKS, checks, counts)}
+    # U-C = 5 inside the range and U-C+1 = 6 just outside it, from cust (which owns 10.0.1.2); up's exact count: 1
+    assert [i for i in gen if i.startswith("customer_leak:cust:")] == [
+        "customer_leak:cust:1", "customer_leak:cust:2", "customer_leak:cust:5", "customer_leak:cust:6"]
+    assert [i for i in gen if i.startswith("customer_leak:up:")] == ["customer_leak:up:1", "customer_leak:up:2"]
+    assert "just inside the prefix-count range" in gen["customer_leak:cust:5"].description
+    assert "just outside the prefix-count range" in gen["customer_leak:cust:6"].description
+    assert len(gen["customer_leak:cust:6"].originates) == 6
+    assert gen["customer_leak:cust:1"].description.endswith("100.64.0.0/10")
+    counts[("edge", "10.0.1.2", "ipv4-unicast")] = 5      # U-C = 1, U-C+1 = 2: the pair is the 1 and 2 variants
+    assert [i for i in ids(V.generate(CONFIGS, h.LINKS, checks, counts)) if i.startswith("customer_leak:cust:")] == [
+        "customer_leak:cust:1", "customer_leak:cust:2"]
     big = [SimpleNamespace(type="bgp_prefixes", params={"node": "edge", "neighbor": "10.0.1.2", "min": 1,
-                                                        "max": 1000})]
-    assert f"customer_leak:cust:{V.MAX_LEAK}" in ids(V.generate(CONFIGS, h.LINKS, big, counts))
+                                                        "max": V.MAX_LEAK})]
+    got = ids(V.generate(CONFIGS, h.LINKS, big, {("edge", "10.0.1.2", "ipv4-unicast"): 1}))
+    assert f"customer_leak:cust:{V.MAX_LEAK - 1}" in got and f"customer_leak:cust:{V.MAX_LEAK}" in got
+    big[0].params["max"] = V.MAX_LEAK + 1   # the pair's outer leak is past the cap: left out
+    got = ids(V.generate(CONFIGS, h.LINKS, big, {("edge", "10.0.1.2", "ipv4-unicast"): 1}))
+    assert f"customer_leak:cust:{V.MAX_LEAK}" in got and f"customer_leak:cust:{V.MAX_LEAK + 1}" not in got
+
+
+def test_deny_clause_deleted_and_swaps():
+    c = ("ip prefix-list P seq 5 permit 10.0.0.0/8 le 24\n"
+         "route-map M deny 5\n match ip address prefix-list P\n match community C\nexit\n"
+         "route-map M permit 10\nexit\n"
+         "router bgp 1\n neighbor 10.0.0.2 remote-as 2\n address-family ipv4 unicast\n"
+         "  neighbor 10.0.0.2 route-map M in\n")
+    vs = {v.id: v for v in V.generate({"r": c})}
+    d = vs["import_filter:r:M deny 5:deleted"]
+    assert d.apply == ("no route-map M deny 5",)
+    assert d.revert == ("route-map M deny 5", " match ip address prefix-list P", " match community C", "exit")
+    assert d.removes == ("route-map M deny 5", "route-map M deny 5 > match ip address prefix-list P",
+                         "route-map M deny 5 > match community C") and d.adds == ()
+    assert "import_filter:r:M permit 10:deleted" not in vs   # only deny clauses are deleted
+    sw = vs["import_filter:r:M deny 5:swapped"]
+    assert sw.apply == ("no route-map M deny 5", "route-map M permit 5", " match ip address prefix-list P",
+                        " match community C", "exit")
+    assert sw.revert == ("no route-map M permit 5", "route-map M deny 5", " match ip address prefix-list P",
+                         " match community C", "exit")
+    assert sw.adds == ("route-map M permit 5", "route-map M permit 5 > match ip address prefix-list P",
+                       "route-map M permit 5 > match community C")
+    assert "turned into permit" in sw.description
+    p = vs["import_filter:r:ip prefix-list P seq 5 permit 10.0.0.0/8 le 24:swapped"]
+    assert p.apply == ("no ip prefix-list P seq 5 permit 10.0.0.0/8 le 24", "ip prefix-list P seq 5 deny 10.0.0.0/8 le 24")
+    assert p.revert == ("no ip prefix-list P seq 5 deny 10.0.0.0/8 le 24", "ip prefix-list P seq 5 permit 10.0.0.0/8 le 24")
+    assert p.removes == ("ip prefix-list P seq 5 permit 10.0.0.0/8 le 24",)
+    assert p.adds == ("ip prefix-list P seq 5 deny 10.0.0.0/8 le 24",)
+    # the order within the kind: match deletions, prefix-list deletions, deny clauses, swaps
+    assert [i for i in vs if i.startswith("import_filter")] == [
+        "import_filter:r:M deny 5:match ip address prefix-list P", "import_filter:r:M deny 5:match community C",
+        "import_filter:r:ip prefix-list P seq 5 permit 10.0.0.0/8 le 24", "import_filter:r:M deny 5:deleted",
+        "import_filter:r:M deny 5:swapped", "import_filter:r:M permit 10:swapped",
+        "import_filter:r:ip prefix-list P seq 5 permit 10.0.0.0/8 le 24:swapped"]
+    for v in vs.values():   # each one's lines are exactly the running config's qualified diff
+        if v.kind == "import_filter":
+            before = parse_running_config(c)
+            after = h.edit_config(before, v.removes, v.adds)
+            qb, qa = set(qualified(before)), set(qualified(after))
+            assert sorted(qb - qa) == sorted(v.removes) and sorted(qa - qb) == sorted(v.adds), v.id
+
+
+def test_outbound_local_preference_counts_toward_confederation_peers():
+    c = ("route-map O permit 10\n set local-preference 300\n"
+         "router bgp 65001\n bgp confederation identifier 100\n bgp confederation peers 65002\n"
+         " neighbor 10.0.0.2 remote-as 65002\n neighbor 10.0.0.6 remote-as 65100\n address-family ipv4 unicast\n"
+         "  neighbor 10.0.0.6 route-map O out\n")
+    assert not [v for v in V.generate({"r": c}) if v.kind == "attribute_drift"]   # plain eBGP: no LP sent
+    confed = c.replace("neighbor 10.0.0.6 route-map O out", "neighbor 10.0.0.2 route-map O out")
+    (v,) = [v for v in V.generate({"r": confed}) if v.kind == "attribute_drift"]
+    assert v.apply == ("route-map O permit 10", " set local-preference 100", "exit")
+    assert V.parse(confed).confed("10.0.0.2") and not V.parse(confed).confed("10.0.0.6")
 
 
 def test_leak_prefixes_step_around_what_the_lab_uses():

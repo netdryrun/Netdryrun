@@ -19,8 +19,10 @@ from netdryrun.prove.variants import generate, leak_prefixes
 
 import prove_helpers as h
 
-PLAIN = "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN"
-FILTER = PLAIN + ":+leak:cust"   # the same, while cust announces one more prefix: the first import_filter variant
+# The stranger's case: edge's customer filter loses its match line. cust sends 203.0.113.128/25 today and the filter
+# blocks it, so the edit acts on its own (no companion leak): the first import_filter variant of a run on this lab.
+FILTER = "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN"
+COMPOSED = FILTER + ":+leak:cust"   # the same with a one-prefix leak from cust: where nothing is blocked today
 LEAK1 = ["100.64.0.0/24"]
 
 
@@ -43,15 +45,15 @@ def checks_from(tmp_path, edit):
 
 
 def variants(checks, base=None):
+    """The variants a run on `base` generates (with today's counts and what each filter blocks today)."""
     base = base or h.custleak()
     return {v.id: v for v in generate({n: ns.config for n, ns in base.nodes.items()}, h.LINKS, checks,
-                                      core._counts(base))}
+                                      core._counts(base), core.blocked(base))}
 
 
 def filter_removed(vs):
-    """The stranger's case: edge's customer filter lost its match line, so whatever cust sends is accepted: its
-    203.0.113.128/25 and the prefix the variant has it announce."""
-    return h.applied(vs[FILTER], h.custleak(cust_extra=LEAK1, edge_filter=None))
+    """The stranger's case: edge's customer filter lost its match line, so cust's 203.0.113.128/25 is accepted."""
+    return h.applied(vs[FILTER], h.custleak(edge_filter=None))
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -70,21 +72,21 @@ def test_old_record_checks_let_the_import_filter_variant_survive(old_checks):
     assert "edge 203.0.113.128/25 path from 10.0.1.2" in unnoticed and "up 203.0.113.128/25 [bgp]" in unnoticed
     assert {"type": "bgp_prefixes", "node": "edge", "neighbor": "10.0.1.2", "afi": "ipv4-unicast", "exact": 1} in \
         [s["check"] for s in v.suggested]
-    assert "edge 100.64.0.0/24 path from 10.0.1.2" in unnoticed
-    assert not any(d.key.node == "cust" for d in v.effect)   # cust's own announcement is the variant's footprint
+    assert COMPOSED not in vs   # the filter blocks something today: the edit acts alone
     assert "caught 0 of 1" in rep.summary and "does not show that the checks are complete" in rep.summary
 
 
-def test_the_plain_filter_variant_survives_on_what_the_customer_sends_today(old_checks):
-    """Without the companion leak: cust's own 203.0.113.128/25, which it doesn't own, gets in (the stranger's run)."""
-    from netdryrun.prove.core import _Fresh, _one
-
-    vs = variants(old_checks)
-    base = h.custleak()
-    ex = h.FakeExecutor(base, {PLAIN: h.applied(vs[PLAIN], h.custleak(edge_filter=None))})
-    res = _one(ex, vs[PLAIN], old_checks, base, ex.side_state(), _Fresh(), core.now)
-    assert res.result == SURVIVED
-    assert "edge 203.0.113.128/25 path from 10.0.1.2" in {d.key.where() for d in res.effect}
+def test_where_nothing_is_blocked_today_the_filter_edit_gets_a_leak(old_checks):
+    """cust sends only what edge permits: deleting the match line alone changes nothing, so the run composes it with a
+    one-prefix leak from cust, and the old checks let that leak through too."""
+    base = h.custleak(foreign=False)
+    vs = variants(old_checks, base)
+    assert COMPOSED in vs and FILTER not in vs
+    during = h.applied(vs[COMPOSED], h.custleak(foreign=False, cust_extra=LEAK1, edge_filter=None))
+    rep = prove(h.FakeExecutor(base, {COMPOSED: during}), old_checks, kinds=["import_filter"], maximum=1)
+    (v,) = rep.variants
+    assert v.variant.id == COMPOSED and v.result == SURVIVED
+    assert "edge 100.64.0.0/24 path from 10.0.1.2" in {d.key.where() for d in v.effect}
 
 
 def test_a_run_that_reports_the_old_checks_as_strong_fails(old_checks):
@@ -94,14 +96,15 @@ def test_a_run_that_reports_the_old_checks_as_strong_fails(old_checks):
     run = {v.variant.id: v.result for v in prove(h.FakeExecutor(base, default_states(vs)), old_checks).variants}
     assert run[FILTER] == SURVIVED
     assert run["session_down:cust:10.0.1.1"] == CAUGHT
-    assert run["customer_leak:cust:1"] == NO_EFFECT   # edge's filter works on the good config: contained
+    # edge's filter holds the leak; with the disclosure's footprint cust's advertisement of it is still an effect
+    assert run["customer_leak:cust:1"] == SURVIVED
 
 
 def default_states(vs):
     leak = lambda n: h.custleak(cust_extra=leak_prefixes(n))  # noqa: E731
     states = {
         "customer_leak:cust:1": leak(1), "customer_leak:cust:2": leak(2),
-        FILTER: h.custleak(cust_extra=LEAK1, edge_filter=None),
+        FILTER: h.custleak(edge_filter=None),
         "session_down:cust:10.0.1.1": h.custleak(down=("ce",)),
         "link_down:cust:eth1--edge:eth1": h.custleak(link_down=("ce",)),
         "attribute_drift:cust:ALLOW-ALL permit 10:+set local-preference 50": h.custleak(lp_at={"cust": 50}),
@@ -168,10 +171,11 @@ def test_caught_needs_results_from_the_variants_own_run(old_checks):
 
 def test_a_result_object_reused_from_an_earlier_call_is_refused(old_checks):
     vs = variants(old_checks)
+    second = "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
     failing = h.evaluate(old_checks, h.custleak(down=("ce",)))
     ex = h.FakeExecutor(h.custleak(), {FILTER: filter_removed(vs),
-                                       PLAIN: h.applied(vs[PLAIN], h.custleak(edge_filter=None))},
-                        results={FILTER: stale_results(failing), PLAIN: stale_results(failing)})
+                                       second: h.applied(vs[second], h.custleak(edge_filter=()))},
+                        results={FILTER: stale_results(failing), second: stale_results(failing)})
     rep = prove(ex, old_checks, kinds=["import_filter"], maximum=2)
     assert rep.status == "error" and "earlier run" in rep.error
 
@@ -190,11 +194,13 @@ def unready(results):
 
 
 def test_failures_with_no_usable_state_are_never_a_catch(old_checks):
+    """An effect with only unusable failures: survived, with a note (disclosure, class table row 3)."""
     vs = variants(old_checks)
     ex = h.FakeExecutor(h.custleak(), {FILTER: filter_removed(vs)},
                         results={FILTER: lambda checks: unready(h.evaluate(checks, filter_removed(vs)))})
     (v,) = prove(ex, old_checks, kinds=["import_filter"], maximum=1).variants
-    assert v.result == INCONCLUSIVE and "no usable state" in v.note
+    assert v.result == SURVIVED and "without usable state or evidence" in v.note and "Counted as survived" in v.note
+    assert v.failed and all(not core.real_failure(r) for r in v.failed if r.check.type == "bgp_session")
 
 
 def test_a_failure_without_evidence_is_not_a_catch():
@@ -209,7 +215,7 @@ def test_a_failure_without_evidence_is_not_a_catch():
 def test_failing_checks_without_a_routing_effect_are_inconclusive(old_checks):
     """A check that fails while the routing state is the baseline (a flake, or the data plane) is not a catch."""
     vs = variants(old_checks)
-    v = vs[PLAIN]
+    v = vs[FILTER]
     unchanged = h.applied(v, h.custleak())   # the line is gone, but nothing it filtered is accepted
     flaky = lambda checks: [replace(r, passed=False, detail="state is idle") if i == 0 else r  # noqa: E731
                             for i, r in enumerate(h.evaluate(checks, unchanged))]
@@ -298,13 +304,16 @@ def test_a_link_down_with_no_effect_did_not_happen(old_checks):
     assert rep.status == "error" and "did not go down" in rep.error
 
 
-def test_a_contained_leak_is_no_effect_not_survived(old_checks):
-    """cust announces 100.64.0.0/24 and edge filters it: only cust's own announcement changed (the footprint)."""
+def test_a_contained_leak_still_shows_its_advertisement(old_checks):
+    """cust announces 100.64.0.0/24 and edge filters it. The footprint is only cust's locally originated entry, so its
+    advertisement of the prefix to edge is an effect: survived (no check reads advertisements)."""
     vid = "customer_leak:cust:1"
     vs = variants(old_checks)
     (v,) = prove(h.FakeExecutor(h.custleak(), {vid: h.applied(vs[vid], h.custleak(cust_extra=leak_prefixes(1)))}),
                  old_checks, kinds=["customer_leak"], maximum=1).variants
-    assert v.result == NO_EFFECT
+    assert v.result == SURVIVED
+    assert [d.key.where() for d in v.effect] == ["cust 100.64.0.0/24 advertised to 10.0.1.1"]
+    assert v.suggested[0]["check"] is None   # nothing in netdryrun.yml can see it: the report says so
 
 
 def test_a_leak_that_gets_through_is_an_effect(old_checks):
@@ -314,42 +323,55 @@ def test_a_leak_that_gets_through_is_an_effect(old_checks):
     leaky = h.applied(vs[vid], h.custleak(cust_extra=leak_prefixes(1), edge_filter=None))
     (v,) = prove(h.FakeExecutor(base, {vid: leaky}), old_checks, kinds=["customer_leak"], maximum=1).variants
     assert v.result == SURVIVED   # one more prefix sits inside every recorded range
-    assert {d.key.node for d in v.effect} == {"edge", "up"}
+    where = {d.key.where() for d in v.effect}
+    assert {"edge 100.64.0.0/24 path from 10.0.1.2", "up 100.64.0.0/24 [bgp]",
+            "cust 100.64.0.0/24 advertised to 10.0.1.1", "edge session 10.0.1.2", "up session 10.0.2.1"} <= where
+    assert not any(w.startswith("cust 100.64.0.0/24 [static]") or w == "cust 100.64.0.0/24 path from local"
+                   for w in where)
 
 
-def test_the_footprint_is_only_the_announcing_node_and_what_its_lab_neighbors_received():
+def test_the_footprint_is_only_the_locally_originated_entry():
+    """Disclosure, step 2: the locally originated entry on the originating node only."""
+    from netdryrun.verify.engine import DiffItem
+    from netdryrun.verify.snapshot import ItemKey
+    from verify_helpers import attrs, path, rib
+
     base = h.custleak()
     vs = variants([], base)
     v = vs["customer_leak:cust:1"]
     during = h.applied(v, h.custleak(cust_extra=leak_prefixes(1), edge_filter=None))
     own = core.footprint(v, base, during)
     kinds = {(d.key.node, d.key.kind): own(d) for d in core.diff(base, during) if d.key.kind != "config"}
-    assert kinds[("cust", "rib")] and kinds[("cust", "path")] and kinds[("cust", "adj_out")]
-    assert not kinds[("edge", "path")] and not kinds[("edge", "rib")] and not kinds[("up", "path")]
-    assert not kinds[("edge", "adj_out")]
+    assert kinds[("cust", "rib")] and kinds[("cust", "path")]
+    assert not kinds[("cust", "adj_out")] and not kinds[("edge", "path")] and not kinds[("edge", "rib")]
+    assert not kinds[("up", "path")] and not kinds[("edge", "adj_out")]
+    p = "100.64.0.0/24"
+    k = lambda kind, node, **kw: ItemKey(kind, node, "default", "ipv4", "unicast", p, **kw)  # noqa: E731
+    # the same prefix learned on the originating node, or received on a neighbor before policy, is an effect
+    assert not own(DiffItem(k("path", "cust", neighbor="10.0.1.1"), None, path(as_path="65000")))
+    assert not own(DiffItem(k("rib", "cust", protocol="bgp"), None, rib()))
+    assert not own(DiffItem(k("adj_in", "edge", neighbor="10.0.1.2"), None, attrs()))
+    assert own(DiffItem(k("rib", "cust", protocol="static"), None, rib("static", hops=())))
+    assert not own(DiffItem(k("rib", "edge", protocol="static"), None, rib("static", hops=())))
     # a variant that announces nothing has no footprint
     sd = vs["session_down:cust:10.0.1.1"]
     assert not any(core.footprint(sd, base, during)(d) for d in core.diff(base, during))
 
 
-def test_a_leak_to_a_neighbor_outside_the_lab_stays_an_effect():
-    """cust's advertisement to a neighbor no lab node stands for is the only place the leak shows: not footprint."""
-    from netdryrun.verify.snapshot import ItemKey
-    from verify_helpers import attrs
-
+def test_prefix_count_changes_are_an_effect():
+    """Counts are outside verify's diff; prove adds them, so a count that moved is never 'no effect'."""
     base = h.custleak()
-    vs = variants([], base)
-    v = vs["customer_leak:cust:1"]
-    during = h.applied(v, h.custleak(cust_extra=leak_prefixes(1)))
-    key = ItemKey("adj_out", "cust", "default", "ipv4", "unicast", "100.64.0.0/24", neighbor="192.0.2.99")
-    during.nodes["cust"].items[key] = attrs(next_hop="10.0.1.2")
-    assert [d.key for d in core.routing_effect(v, base, during)] == [key]
-    # and adj_in on a lab node is footprint only when it came from the announcing node
-    ki = ItemKey("adj_in", "edge", "default", "ipv4", "unicast", "100.64.0.0/24", neighbor="10.0.1.2")
-    ko = ItemKey("adj_in", "edge", "default", "ipv4", "unicast", "100.64.0.0/24", neighbor="10.0.2.2")
-    during.nodes["edge"].items[ki] = attrs(next_hop="10.0.1.2")
-    during.nodes["edge"].items[ko] = attrs(next_hop="10.0.2.2")
-    assert {d.key for d in core.routing_effect(v, base, during)} == {key, ko}
+    during = h.custleak()
+    k = next(k for k in during.nodes["edge"].items if k.kind == "session" and k.neighbor == "10.0.1.2")
+    during.nodes["edge"].items[k] = replace(during.nodes["edge"].items[k], prefix_counts=(("ipv4-unicast", 2),))
+    assert not core.diff(base, during)
+    v = variants([], base)["session_down:cust:10.0.1.1"]
+    (d,) = core.routing_effect(v, base, during)
+    assert d.key == k and d.change == "changed"
+    assert core.count_changes(base, base) == []
+    # cust-edge down: those sessions changed state (in the diff already, not twice); up's count from edge dropped
+    gone = h.custleak(down=("ce",))
+    assert [x.key.where() for x in core.count_changes(base, gone)] == ["up session 10.0.2.1"]
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -422,16 +444,15 @@ def test_a_lab_that_never_settles_after_a_revert_stops_the_run(old_checks):
     vs = variants(old_checks)
     ex = h.FakeExecutor(h.custleak(), {FILTER: filter_removed(vs)}, after={FILTER: Inconclusive("kept moving", [])})
     rep = prove(ex, old_checks, kinds=["import_filter"], maximum=1)
-    assert rep.status == "error" and "never settled" in rep.error
+    assert rep.status == "error" and "never settled" in rep.error and rep.error_kind == "timeout"
 
 
-def test_a_variant_that_never_settles_is_inconclusive(old_checks):
+def test_a_variant_that_never_settles_is_a_timeout_error(old_checks):
     from netdryrun.verify.converge import Inconclusive
     ex = h.FakeExecutor(h.custleak(), {FILTER: Inconclusive("kept moving", ["edge x"])})
     rep = prove(ex, old_checks, kinds=["import_filter"], maximum=1)
-    (v,) = rep.variants
-    assert v.result == INCONCLUSIVE and "kept moving" in v.note
-    assert rep.status == "inconclusive" and rep.exit_code == 3
+    assert rep.status == "error" and rep.exit_code == 2 and rep.error_kind == "timeout" and "kept moving" in rep.error
+    assert ex.reverted == [FILTER] and not rep.variants
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -452,7 +473,7 @@ def test_an_unsettled_baseline_gives_no_strength_result(old_checks):
         def snapshot(self):
             return Inconclusive("kept moving", [])
     rep = prove(Unsettled(h.custleak()), old_checks)
-    assert rep.status == "error" and "never settled" in rep.error
+    assert rep.status == "error" and "never settled" in rep.error and rep.error_kind == "timeout"
 
 
 def test_no_checks_no_result():
@@ -468,10 +489,13 @@ def test_no_variant_no_result(old_checks):
 
 
 def test_only_no_effect_variants_are_inconclusive_not_passed(old_checks):
+    """An edit that changes nothing in the routing state (an equivalent variant): no effect, and a run of only those
+    has no strength result."""
     vs = variants(old_checks)
-    vid = "customer_leak:cust:1"
-    rep = prove(h.FakeExecutor(h.custleak(), {vid: h.applied(vs[vid], h.custleak(cust_extra=leak_prefixes(1)))}),
-                old_checks, kinds=["customer_leak"], maximum=1)
+    vid = "attribute_drift:cust:ALLOW-ALL permit 10:+set local-preference 50"
+    rep = prove(h.FakeExecutor(h.custleak(), {vid: h.applied(vs[vid], h.custleak())}), old_checks,
+                kinds=["attribute_drift"], maximum=1)
+    assert [v.result for v in rep.variants] == [NO_EFFECT]
     assert rep.status == "inconclusive" and rep.exit_code == 3
     assert "caught 0 of 0" in rep.summary
 

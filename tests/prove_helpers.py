@@ -170,11 +170,12 @@ def edit_config(lines: tuple[str, ...], removes=(), adds=()) -> tuple[str, ...]:
 
 
 def custleak(cust_extra=(), edge_filter=("10.10.0.0/24",), originate=None, down=(), lp_at=None, link_down=(),
-             configs=None) -> Snapshot:
+             configs=None, foreign=True) -> Snapshot:
     """The lab's state. `cust_extra`: more prefixes cust announces; `edge_filter`: what edge's CUST-IN permits (None:
     everything); `originate`: {node: [prefix]} announced by edge or up (a leaked default, a link subnet); `down`:
     sessions shut ("ce": cust-edge, "eu": edge-up); `link_down`: the same, with the link (and its connected routes)
-    gone; `lp_at`: {node: the local preference it sets on every route it learns}."""
+    gone; `lp_at`: {node: the local preference it sets on every route it learns}; `foreign`: whether cust announces
+    203.0.113.128/25 (which edge's filter blocks today)."""
     originate, lp_at = originate or {}, lp_at or {}
     down = (*down, *link_down)
     lab = SnapLab.__new__(SnapLab)
@@ -192,7 +193,7 @@ def custleak(cust_extra=(), edge_filter=("10.10.0.0/24",), originate=None, down=
         for p in prefixes:
             if p not in [link_net[x] for x in link_down]:
                 lab.rib(n, p, rib("connected", hops=(), distance=0))
-    own = {"cust": ["10.10.0.0/24", "203.0.113.128/25", *cust_extra], "up": ["198.51.100.0/24", *originate.get("up", [])],
+    own = {"cust": ["10.10.0.0/24", *(["203.0.113.128/25"] if foreign else []), *cust_extra], "up": ["198.51.100.0/24", *originate.get("up", [])],
            "edge": list(originate.get("edge", []))}
     for n, prefixes in own.items():
         for p in prefixes:

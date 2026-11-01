@@ -4,7 +4,7 @@
   "title": "Netdryrun check-strength report (netdryrun.prove/v1)",
   "description": "What `netdryrun prove --json` and the MCP tool prove_checks return: which known-bad variants of the lab the checks caught, which survived (blind spots, with the state nobody noticed) and which had no effect. A finite set of generated variants: no survivor does not show that the checks are complete.",
   "type": "object",
-  "required": ["schema", "netdryrun", "status", "verdict", "exit_code", "summary", "error", "error_kind", "counts", "by_kind",
+  "required": ["schema", "netdryrun", "status", "verdict", "exit_code", "summary", "error", "error_kind", "counts", "by_kind", "not_generated",
                "checks", "variants", "partial", "not_run", "limits", "started", "finished"],
   "additionalProperties": false,
   "$defs": {
@@ -62,8 +62,10 @@
     "exit_code": {"enum": [0, 1, 2, 3]},
     "summary": {"type": "string"},
     "error": {"type": ["string", "null"]},
-    "error_kind": {"enum": ["setup", "apply", "restore", "internal", null],
-                   "description": "With status error: why there is no strength result. restore: the lab is not its baseline any more; destroy it."},
+    "error_kind": {"enum": ["setup", "apply", "timeout", "restore", "internal", null],
+                   "description": "With status error: why there is no strength result. timeout: the lab never settled (convergence is an error, not a result). restore: the lab is not its baseline any more; destroy it."},
+    "not_generated": {"type": "array", "items": {"type": "string"},
+                      "description": "Selected variant kinds for which the lab had no eligible variant."},
     "counts": {
       "type": "object",
       "required": ["caught", "survived", "no_effect", "inconclusive", "run", "generated", "not_run"],

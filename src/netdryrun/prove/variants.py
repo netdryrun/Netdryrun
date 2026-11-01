@@ -9,17 +9,21 @@ change under test.
 Kinds, in the order the budget takes them (round robin, first variant of each kind first):
 
 - customer_leak: a BGP speaker announces 1, 2 or N extra /24s from 100.64.0.0/10 (shared address space), none of
-  them overlapping anything the lab's configs or checks name; N sized to sit just inside the prefix-count range of a
-  check on that session
-- import_filter: a `match` line deleted from a route-map used inbound, or an entry of a prefix-list used inbound
-  (by such a route-map or by `neighbor X prefix-list P in`). Where the neighbor is a lab FRR node, the variant comes
-  first composed with a one-prefix leak from that neighbor: deleting a filter line changes nothing until someone
-  sends what it blocked (design review, Grok B1)
+  them overlapping anything the lab's configs or checks name; for every prefix-count check with a range up to U on
+  its session, today's count C: a paired variant of U-C prefixes (inside the range) and U-C+1 (just outside)
+- import_filter: on a route-map or prefix-list used inbound (by `neighbor X route-map M in` or `neighbor X
+  prefix-list P in`, or a prefix-list such a route-map matches): a `match` line deleted (same-type matches in a
+  clause are ORed, different types ANDed: it can widen or narrow), a deny clause deleted, a prefix-list entry
+  deleted, a clause or entry swapped between permit and deny. Each is a candidate whose effect the snapshot judges.
+  Where the neighbor is a lab FRR node and today's state shows nothing the filter blocks on that session, the edit
+  is composed with a one-prefix leak from the neighbor so it has something to act on (design review, Grok B1);
+  where it blocks something already, the edit acts alone. With no state (--plan), both are listed
 - session_down: one BGP neighbor shut down (`neighbor X shutdown`), one per session, sessions that carry prefixes
 - link_down: one link of the topology down, one per link
-- attribute_drift: a `set local-preference` on an inbound route-map changed (local preference is never sent over
-  eBGP, so an outbound one has no effect: Grok B6), a `set community` or `set as-path prepend` on a session's
-  route-map deleted, or a `set local-preference 50` added to an inbound permit entry that sets none
+- attribute_drift: a `set local-preference` changed on an inbound route-map, or on an outbound one toward a
+  confederation peer (local preference is never sent to a plain eBGP neighbor: Grok B6), a `set community` or `set
+  as-path prepend` on a session's route-map deleted, or a `set local-preference 50` added to an inbound permit
+  entry that sets none
 - default_leak: 0.0.0.0/0 (::/0 for IPv6 sessions) originated into BGP
 - link_subnet_leak: a link subnet originated into BGP by a node on that link
 """
@@ -33,7 +37,7 @@ KINDS = ("customer_leak", "import_filter", "session_down", "link_down", "attribu
          "link_subnet_leak")
 LEAK_SPACE = ipaddress.ip_network("100.64.0.0/10")    # RFC 6598: customer_leak prefixes are /24s from it
 DEFAULT_MAX = 8
-MAX_LEAK = 64     # the most prefixes one customer_leak variant announces (the headroom variant is capped there)
+MAX_LEAK = 1024   # the most prefixes one customer_leak variant announces (a range pair above it is left out)
 DRIFT_LOCAL_PREF = 50
 
 
@@ -109,6 +113,7 @@ class FrrConfig:
     statics: set[str] = field(default_factory=set)
     route_maps: dict[str, list[RouteMapEntry]] = field(default_factory=dict)
     prefix_lists: dict[str, list[str]] = field(default_factory=dict)  # name -> its lines, as written
+    confed_peers: set[str] = field(default_factory=set)               # `bgp confederation peers` ASNs
     interfaces: dict[str, list[ipaddress.IPv4Interface | ipaddress.IPv6Interface]] = field(default_factory=dict)
 
     def _inherited(self, address: str, attr: str) -> dict:
@@ -132,6 +137,9 @@ class FrrConfig:
         n = self.neighbors.get(address)
         group = self.neighbors.get(n.peer_group) if n and n.peer_group else None
         return bool(n and (n.max_prefix or (group and group.max_prefix)))
+
+    def confed(self, address: str) -> bool:
+        return self.remote_as_of(address) in self.confed_peers
 
     def ebgp(self, address: str) -> bool:
         ras = self.remote_as_of(address)
@@ -198,6 +206,8 @@ def parse(lines) -> FrrConfig:
         elif in_bgp:
             if w[0] == "address-family" and len(w) >= 2:
                 afi = w[1]
+            elif w[:3] == ["bgp", "confederation", "peers"]:
+                cfg.confed_peers.update(w[3:])
             elif w[0] == "network" and len(w) >= 2:
                 cfg.networks.add(w[1])
             elif w[0] == "neighbor" and len(w) >= 3:
@@ -243,24 +253,46 @@ def _owner(address: str, configs: dict[str, FrrConfig]) -> str | None:
     return owners[0] if len(owners) == 1 else None
 
 
-def _import_filter(node: str, cfg: FrrConfig, configs: dict[str, FrrConfig], leak: list[str]) -> list[Variant]:
+def _entry_lines(entry: RouteMapEntry, header: str) -> tuple[str, ...]:
+    return (header, *[f" {b}" for b in entry.lines], "exit")
+
+
+def _import_filter(node: str, cfg: FrrConfig, configs: dict[str, FrrConfig], leak: list[str],
+                   blocked: dict[tuple[str, str], bool] | None) -> list[Variant]:
     plain: list[Variant] = []
     plists: dict[str, list[str]] = {}
     for name, users in sorted(_maps_used(cfg, "in").items()):
+        on = f"(inbound from {', '.join(users)})"
         for entry in cfg.route_maps.get(name, []):
+            what = entry.header[len("route-map "):]
             for line in entry.lines:
                 if not line.startswith("match "):
                     continue
                 plain.append(Variant(
-                    id=f"import_filter:{node}:{entry.header[len('route-map '):]}:{line}", kind="import_filter",
-                    node=node, description=f"{node}: `{line}` deleted from {entry.header} (inbound from "
-                                           f"{', '.join(users)})",
+                    id=f"import_filter:{node}:{what}:{line}", kind="import_filter",
+                    node=node, description=f"{node}: `{line}` deleted from {entry.header} {on}",
                     apply=(entry.header, f" no {line}", "exit"), revert=(entry.header, f" {line}", "exit"),
                     removes=(_q(entry.header, line),), soft_in=tuple(users)))
                 m = re.fullmatch(r"match ip(?:v6)? address prefix-list (\S+)", line)
                 if m:
                     plists.setdefault(m.group(1), [])
                     plists[m.group(1)] += [u for u in users if u not in plists[m.group(1)]]
+            body = tuple(_q(entry.header, b) for b in entry.lines)
+            if entry.action == "deny":
+                plain.append(Variant(
+                    id=f"import_filter:{node}:{what}:deleted", kind="import_filter", node=node,
+                    description=f"{node}: {entry.header} deleted {on}",
+                    apply=(f"no {entry.header}",), revert=_entry_lines(entry, entry.header),
+                    removes=(_q(entry.header), *body), soft_in=tuple(users)))
+            other = "deny" if entry.action == "permit" else "permit"
+            swapped = f"route-map {entry.name} {other} {entry.seq}"
+            plain.append(Variant(
+                id=f"import_filter:{node}:{what}:swapped", kind="import_filter", node=node,
+                description=f"{node}: {entry.header} turned into {other} {on}",
+                apply=(f"no {entry.header}", *_entry_lines(entry, swapped)),
+                revert=(f"no {swapped}", *_entry_lines(entry, entry.header)),
+                removes=(_q(entry.header), *body),
+                adds=(_q(swapped), *(_q(swapped, b) for b in entry.lines)), soft_in=tuple(users)))
     for addr in cfg.ip_neighbors():
         for (_afi, d), name in sorted(cfg.lists_of(addr).items()):
             if d == "in":
@@ -269,20 +301,42 @@ def _import_filter(node: str, cfg: FrrConfig, configs: dict[str, FrrConfig], lea
                     plists[name].append(addr)
     for plist, users in plists.items():
         for line in cfg.prefix_lists.get(plist, []):
+            on = f"(inbound from {', '.join(users)})"
             plain.append(Variant(
                 id=f"import_filter:{node}:{line}", kind="import_filter", node=node,
-                description=f"{node}: prefix-list entry `{line}` deleted (inbound from {', '.join(users)})",
+                description=f"{node}: prefix-list entry `{line}` deleted {on}",
                 apply=(f"no {line}",), revert=(line,), removes=(_q(line),), soft_in=tuple(users)))
+            w = line.split()
+            act = next((i for i, x in enumerate(w) if x in ("permit", "deny")), None)
+            if act is not None:
+                new = " ".join([*w[:act], "deny" if w[act] == "permit" else "permit", *w[act + 1:]])
+                plain.append(Variant(
+                    id=f"import_filter:{node}:{line}:swapped", kind="import_filter", node=node,
+                    description=f"{node}: prefix-list entry `{line}` turned into `{new}` {on}",
+                    apply=(f"no {line}", new), revert=(f"no {new}", line), removes=(_q(line),), adds=(_q(new),),
+                    soft_in=tuple(users)))
     out = []
-    for v in plain:   # each one composed with a leak first, where its neighbor is a lab FRR node, then alone
+    for v in plain:
         far = sorted({o for u in v.soft_in for o in [_owner(u, configs)] if o and o != node and configs[o].asn})
-        if far and leak:
+        known = blocked is not None and all((node, u) in blocked for u in v.soft_in)
+        blocks = known and any(blocked[(node, u)] for u in v.soft_in)
+        if far and leak and not blocks:   # nothing blocked today (or no state to tell): give the edit a leak
             leaker = _originate("customer_leak", far[0], configs[far[0]], leak[:1],
                                 f"{far[0]} announces {leak[0]}", f"customer_leak:{far[0]}:with:{v.id}")
             out.append(Variant(**{**v.__dict__, "id": f"{v.id}:+leak:{far[0]}", "companion": leaker,
                                   "description": f"{v.description}, while {far[0]} announces {leak[0]}"}))
-        out.append(v)
+        if not (far and leak and known and not blocks):
+            out.append(v)
     return out
+
+
+def _filter_rank(v: Variant) -> int:
+    base = v.id.split(":+leak:")[0]
+    if base.endswith(":swapped"):
+        return 3
+    if base.endswith(":deleted"):
+        return 2
+    return 1 if ":ip prefix-list " in base or ":ipv6 prefix-list " in base else 0
 
 
 def _attribute_drift(node: str, cfg: FrrConfig) -> list[Variant]:
@@ -293,7 +347,8 @@ def _attribute_drift(node: str, cfg: FrrConfig) -> list[Variant]:
             sets = [b for b in entry.lines if b.startswith("set ")]
             for line in sets:
                 w = line.split()
-                if w[1] == "local-preference" and len(w) == 3 and w[2].isdigit() and name in inbound:
+                if w[1] == "local-preference" and len(w) == 3 and w[2].isdigit() and (
+                        name in inbound or any(cfg.confed(u) for u in users)):
                     new = f"set local-preference {100 if int(w[2]) != 100 else 200}"
                     apply, adds, what = (entry.header, f" {new}", "exit"), (_q(entry.header, new),), f"`{line}` changed to `{new}`"
                 elif w[1] == "community" or w[1:3] == ["as-path", "prepend"]:
@@ -396,16 +451,16 @@ def leak_prefixes(count: int, used=()) -> list[str]:
 def _customer_leak(node: str, cfg: FrrConfig, headroom: dict[str, int], used) -> list[Variant]:
     if not cfg.asn or not any(cfg.ebgp(a) for a in cfg.ip_neighbors()):
         return []
-    sizes = [1, 2]
-    extra = max(headroom.values(), default=0)
-    if extra > 2:
-        sizes.append(min(extra, MAX_LEAK))
+    sizes = {1: "", 2: ""}
+    for extra in sorted(headroom.values()):   # the range pair: U-C inside the range, U-C+1 just outside it
+        for n, where in ((extra, "just inside"), (extra + 1, "just outside")):
+            if 0 < n <= MAX_LEAK:
+                sizes.setdefault(n, f" ({where} the prefix-count range of a check on its session)")
     out = []
-    for n in sizes:
+    for n, why in sorted(sizes.items()):
         prefixes = leak_prefixes(n, used)
         if len(prefixes) < n:
             continue
-        why = " (just inside the prefix-count range of a check on its session)" if n > 2 else ""
         out.append(_originate("customer_leak", node, cfg, prefixes,
                               f"{node} announces {n} extra prefix(es) from {LEAK_SPACE}{why}",
                               f"customer_leak:{node}:{n}"))
@@ -445,25 +500,30 @@ def _link_down(links, frr_nodes: set[str]) -> list[Variant]:
 
 
 def headroom(checks, base_counts: dict[tuple[str, str, str], int]) -> dict[str, dict[str, int]]:
-    """node -> {neighbor: prefixes a check's range still accepts above today's count} for every bgp_prefixes
-    check with a max: the far end of that session is the node whose leak can hide inside the range.
+    """node -> {neighbor: prefixes a check's range still accepts above today's count (U-C)} for every bgp_prefixes
+    check with a max (or an exact count, U = C): the far end of that session is the node whose leak can hide inside
+    the range, or just pass its top.
     `base_counts`: (node, neighbor, afi) -> today's count."""
     out: dict[str, dict[str, int]] = {}
     for c in checks:
         p = c.params
-        if c.type != "bgp_prefixes" or "max" not in p or p.get("vrf", "default") != "default":
+        top = p.get("max", p.get("exact"))
+        if c.type != "bgp_prefixes" or top is None or p.get("vrf", "default") != "default":
             continue
         now = base_counts.get((p["node"], p["neighbor"], p.get("afi", "ipv4-unicast")))
-        if now is not None and p["max"] > now:
-            out.setdefault(p["node"], {})[p["neighbor"]] = p["max"] - now
+        if now is not None and top >= now:
+            out.setdefault(p["node"], {})[p["neighbor"]] = top - now
     return out
 
 
 def generate(configs: dict[str, tuple[str, ...] | str], links=(), checks=(),
-             base_counts: dict[tuple[str, str, str], int] | None = None) -> list[Variant]:
+             base_counts: dict[tuple[str, str, str], int] | None = None,
+             blocked: dict[tuple[str, str], bool] | None = None) -> list[Variant]:
     """Every variant for a lab: `configs` maps each FRR node to its config, `links` lists the topology's links as
     ((node, iface), (node, iface)), `checks` and `base_counts` (today's prefix counts; None without a lab) size the
-    customer leak inside prefix-count ranges and leave out sessions that carry nothing."""
+    customer leak pairs on prefix-count ranges and leave out sessions that carry nothing; `blocked` ((node, neighbor)
+    -> whether that session's inbound filter drops something today; None without a lab) decides whether a filter
+    variant needs a leak to act on."""
     parsed = {n: parse(c) for n, c in sorted(configs.items())}
     links = [tuple(sorted(link)) for link in links]
     used = used_networks(parsed, checks)
@@ -479,8 +539,9 @@ def generate(configs: dict[str, tuple[str, ...] | str], links=(), checks=(),
     out: list[Variant] = []
     for node, cfg in parsed.items():
         out += _customer_leak(node, cfg, by_far.get(node, {}), used)
-    for node, cfg in parsed.items():
-        out += _import_filter(node, cfg, parsed, leak)
+    # every node's match deletions first (the incident class), then prefix-list deletions, deny clauses, swaps
+    filters = [v for node, cfg in parsed.items() for v in _import_filter(node, cfg, parsed, leak, blocked)]
+    out += sorted(filters, key=_filter_rank)
     out += _session_down(parsed, base_counts)
     out += _link_down(links, set(parsed))
     for node, cfg in parsed.items():

@@ -19,7 +19,8 @@ import prove_helpers as h
 jsonschema = pytest.importorskip("jsonschema")
 SCHEMA = json.loads((Path(__file__).parents[1] / "website" / "docs" / "schemas" / "prove-v1.json").read_text(
     encoding="utf-8"))
-FILTER = "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN:+leak:cust"
+FILTER = "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN"
+DRIFT = "attribute_drift:cust:ALLOW-ALL permit 10:+set local-preference 50"
 
 
 def valid(data: dict) -> dict:
@@ -40,10 +41,11 @@ def executor_for(cfg, which="survivor"):
 
     base = h.custleak()
     vs = {v.id: v for v in generate({n: ns.config for n, ns in base.nodes.items()}, h.LINKS, cfg.checks,
-                                    core._counts(base))}
-    states = {FILTER: h.applied(vs[FILTER], h.custleak(cust_extra=["100.64.0.0/24"], edge_filter=None)),
+                                    core._counts(base), core.blocked(base))}
+    states = {FILTER: h.applied(vs[FILTER], h.custleak(edge_filter=None)),
               "session_down:cust:10.0.1.1": h.applied(vs["session_down:cust:10.0.1.1"], h.custleak(down=("ce",))),
-              "customer_leak:cust:1": h.applied(vs["customer_leak:cust:1"], h.custleak(cust_extra=leak_prefixes(1)))}
+              DRIFT: h.applied(vs[DRIFT], h.custleak()),
+              "customer_leak:cust:1": h.applied(vs["customer_leak:cust:1"], h.custleak(cust_extra=leak_prefixes(1)))}   # an edit that changes no routing state: no effect
     return h.FakeExecutor(base, states if which == "survivor" else {})
 
 
@@ -54,7 +56,7 @@ def executor_for(cfg, which="survivor"):
 def test_plan_lists_variants_and_starts_no_lab(lab, capsys):
     assert cli.main(["prove", str(lab), "--plan", "--max", "3"]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("3 variant(s) would run, 22 more generated (raise --max):")
+    assert out.startswith("3 variant(s) would run, 32 more generated (raise --max):")
     assert "customer_leak:cust:1" in out and FILTER in out and "No lab was started" in out
 
 
@@ -121,8 +123,8 @@ def test_cli_with_an_executor(lab, capsys, monkeypatch, tmp_path):
     assert "BLIND SPOTS FOUND" in text and "[SURVIVED]" in text and "suggested (review it)" in text
     assert "prove never edits netdryrun.yml" in text
     data = valid(json.loads(out.read_text(encoding="utf-8")))
-    assert data["counts"] == {"caught": 0, "survived": 1, "no_effect": 0, "inconclusive": 0, "run": 1, "generated": 25,
-                              "not_run": 3}
+    assert data["counts"] == {"caught": 0, "survived": 1, "no_effect": 0, "inconclusive": 0, "run": 1, "generated": 31,
+                              "not_run": 6}
     assert data["by_kind"] == {"import_filter": {"caught": 0, "survived": 1, "no_effect": 0, "inconclusive": 0}}
     (lab / "netdryrun.yml").chmod(0o444)   # never written
     assert cli.main(["prove", str(lab), "--variants", "import_filter", "--max", "1", "--json", str(lab)]) == 2
@@ -144,7 +146,7 @@ def test_reports_of_every_status_match_the_schema(lab):
     cfg = load_config(lab)
     survivor = prove_config(cfg, executor=executor_for(cfg), kinds=["import_filter"], maximum=1)
     caught = prove_config(cfg, executor=executor_for(cfg), kinds=["session_down"], maximum=1)
-    no_effect = prove_config(cfg, executor=executor_for(cfg), kinds=["customer_leak"], maximum=1)
+    no_effect = prove_config(cfg, executor=executor_for(cfg), kinds=["attribute_drift"], maximum=1)
     error = prove_config(cfg, executor=executor_for(cfg, "none"), kinds=["import_filter"], maximum=1)
     for rep, status, code in ((survivor, "failed", 1), (caught, "passed", 0), (no_effect, "inconclusive", 3),
                               (error, "error", 2)):
@@ -176,18 +178,18 @@ def test_an_error_after_variants_ran_keeps_them_out_of_the_results(lab):
 
 def test_console_text(lab):
     cfg = load_config(lab)
-    rep = prove_config(cfg, executor=executor_for(cfg), kinds=["import_filter", "session_down", "customer_leak"],
+    rep = prove_config(cfg, executor=executor_for(cfg), kinds=["import_filter", "session_down", "attribute_drift"],
                        maximum=3)
     text = preport.console(rep)
     lines = text.splitlines()
     assert lines[0] == preport.VERDICTS["failed"]
-    assert lines[1].startswith("caught 1 of 2 known-bad variants with an effect (1 survived, 0 inconclusive; 1 more "
-                               "had no effect on routing)")
-    assert "By kind: customer_leak 0 caught, 0 survived, 1 no effect; import_filter 0 caught, 1 survived, 0 no " \
-           "effect; session_down 1 caught, 0 survived, 0 no effect" in text
+    assert lines[1].startswith("caught 1 of 2 known-bad variants (1 survived, 1 no effect, 0 inconclusive, kinds not "
+                               "generated: none)")
+    assert "By kind: import_filter 0 caught, 1 survived, 0 no effect; session_down 1 caught, 0 survived, 0 no " \
+           "effect; attribute_drift 0 caught, 0 survived, 1 no effect" in text
     assert "  [caught] cust: BGP session to 10.0.1.1 (edge) shut down" in text
-    assert "      failed: " in text and "      unnoticed: edge 100.64.0.0/24 path from 10.0.1.2 added" in text
-    assert "  [no effect] cust announces 1 extra prefix(es)" in text
+    assert "      failed: " in text and "      unnoticed: edge 203.0.113.128/25 path from 10.0.1.2 added" in text
+    assert "  [no effect] cust: `set local-preference 50` added to route-map ALLOW-ALL permit 10" in text
     assert "not run (budget, raise --max)" in text and "Add a check that catches each survivor" in text
 
 
