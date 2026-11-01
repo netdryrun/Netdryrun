@@ -366,7 +366,7 @@ def test_used_networks():
     checks = [SimpleNamespace(params={"node": "a", "prefix": "100.64.0.0/24"}),
               SimpleNamespace(params={"node": "a", "target": "100.64.1.9", "source": "bad source"})]
     nets = {str(n) for n in V.used_networks({"r": V.parse(RICH)}, checks)}
-    assert {"100.64.0.0/24", "100.64.1.9/32", "10.1.0.0/30", "192.0.2.128/25", "100.64.0.0/24", "10.99.0.0/16",
+    assert {"100.64.0.0/24", "100.64.1.9/32", "10.1.0.0/30", "192.0.2.128/25", "10.99.0.0/16",
             "2001:db8:1::/64"} <= nets
     assert "bad source" not in nets
 

@@ -75,6 +75,18 @@ Opens a short feedback form on GitHub in your browser, prefilled with your Netdr
 |---|---|
 | `--print-only` | Print the form's URL instead of opening a browser |
 
+### prove (in development)
+
+Not in a release yet. `netdryrun prove [path]` measures how strong the checks in `netdryrun.yml` are: it runs them against known-bad variants of the lab, generated from its FRR configs (a customer leak, an import filter line deleted, a session or link down, an attribute changed, a default route or link subnet leaked), and reports each as caught, survived (a blind spot) or no effect. Exit codes: `0` no variant survived, `1` at least one survived, `2` no strength result (an error), `3` inconclusive. The variants are a finite set: no survivor does not show that the checks are complete. This build has no live runs yet (they answer exit 2); `--plan` lists the variants without starting a lab. FRR labs only. Report schema: [prove-v1.json](https://netdryrun.com/schemas/prove-v1.json).
+
+| Option | Meaning |
+|---|---|
+| `--variants KIND,...` | Variant kinds to run (default: all): `customer_leak`, `import_filter`, `session_down`, `link_down`, `attribute_drift`, `default_leak`, `link_subnet_leak` |
+| `--max N` | Most variants to run (default 8), taken one kind at a time |
+| `--plan` | List the variants a run would try, from the config files; starts no lab |
+
+`--json FILE` writes the `netdryrun.prove/v1` report.
+
 ### capture and sanitize (next release)
 
 Not in 0.4.0. `capture` records a driver's read-only commands on one node of a running containerlab lab, and `sanitize` rewrites the addresses, AS numbers, hostnames and secrets in what it recorded, so you can contribute output from an image we can't get. Their options are on the [capture kit](capture.md) page.

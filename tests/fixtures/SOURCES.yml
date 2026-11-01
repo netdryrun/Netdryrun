@@ -98,6 +98,12 @@
   kind: lab-input
   source: the lab the verify fixtures were captured from
   added: e047547
+- files: [prove-custleak/topology.clab.yml, prove-custleak/netdryrun.yml, prove-custleak/configs/*]
+  kind: lab-input
+  source: the configs of examples/frr-customer-leak (0.4.1 fix branch, the good side) and its recorded netdryrun.yml
+    without the `only:` lists (the 0.3.3/0.4.0 record default); never deployed by the tests, which model its state
+    as snapshots (tests/prove_helpers.py)
+  added: 09da140
 - files: [verify-corpus/*.json]
   kind: live-capture
   source: verify snapshots of corpus v1 cases 06, 18 and 23, captured live

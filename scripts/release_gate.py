@@ -121,7 +121,10 @@ def gated(module: str, name: str, status: str) -> bool:
 
 # verify.* raised or set on 2026-10-30 (0.4 release gate) to the coverage measured then, rounded down, minus one
 COVERAGE_FLOORS = {"checks": 99, "config": 99, "runner": 98, "drivers": 99, "verify.engine": 98, "verify.intent": 97,
-                   "verify.frr": 88, "verify.snapshot": 90, "verify.converge": 96, "verify.run": 83, "verify.report": 88}
+                   "verify.frr": 88, "verify.snapshot": 90, "verify.converge": 96, "verify.run": 83, "verify.report": 88,
+                   # prove (check strength, phase 1) set on 2026-11-01 the same way: core 100, suggest 100, variants 99,
+                   # report 97 measured (Python 3.12, line and branch)
+                   "prove.variants": 98, "prove.core": 99, "prove.suggest": 99, "prove.report": 96}
 
 # Files that are evidence of past runs, and advisories about past versions (which name those versions on
 # purpose; tests/test_advisory_fixtures.py keeps their fixtures honest): never rewritten, so never linted or

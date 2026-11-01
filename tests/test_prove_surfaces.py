@@ -214,8 +214,9 @@ def test_prove_checks_without_a_live_executor_is_an_error(lab):
 
 
 def test_prove_checks_config_error(tmp_path):
-    data = json.loads(mcp_server.prove_checks(str(tmp_path / "nope")))
+    data = valid(json.loads(mcp_server.prove_checks(str(tmp_path / "nope"))))
     assert data["status"] == "error" and data["verdict"] == preport.VERDICTS["error"] and data["schema"] == preport.SCHEMA
+    assert data["error_kind"] == "setup" and "not found" in data["error"] and data["checks"] == []
 
 
 def test_prove_checks_and_the_cli_agree(lab, monkeypatch, tmp_path):

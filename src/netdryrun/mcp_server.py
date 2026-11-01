@@ -452,11 +452,14 @@ def prove_checks(path: str, variants: str | None = None, max_variants: int = 8) 
     from .prove import prove_config
     from .prove import report as preport
 
+    from .prove.core import ProveReport, now
+
     try:
         cfg = _load(path)
     except ConfigError as e:
-        return json.dumps({"schema": preport.SCHEMA, "status": "error", "verdict": preport.VERDICTS["error"],
-                           "error": str(e)})
+        stamp = now()
+        return preport.to_json(ProveReport(status="error", error=str(e), error_kind="setup", started=stamp,
+                                           finished=stamp))
     kinds = [k.strip() for k in variants.split(",") if k.strip()] if variants else None
     executor = PROVE_EXECUTOR(cfg) if PROVE_EXECUTOR else None
     return preport.to_json(prove_config(cfg, executor=executor, kinds=kinds, maximum=max_variants))

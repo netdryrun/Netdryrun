@@ -181,13 +181,14 @@ async def _call(calls: list[tuple[str, dict]]) -> tuple[dict, list[str]]:
 
 def test_tools_over_stdio_return_the_contract(tmp_path):
     example = str(ROOT / "examples" / "frr-bgp")
-    tools, (dry, checks, valid, invalid, types, baseline) = asyncio.run(_call([
+    tools, (dry, checks, valid, invalid, types, baseline, prove) = asyncio.run(_call([
         ("dry_run", {"path": str(tmp_path / "missing")}),        # setup errors: no lab is started
         ("run_checks", {"path": str(tmp_path / "missing")}),
         ("validate", {"path": example}),
         ("validate", {"path": str(tmp_path / "missing")}),
         ("check_types", {}),
         ("record_baseline", {"topology": str(tmp_path / "missing.clab.yml"), "deploy": False}),
+        ("prove_checks", {"path": str(tmp_path / "missing")}),
     ]))
     for text in (dry, checks):
         data = json.loads(text)
@@ -197,9 +198,13 @@ def test_tools_over_stdio_return_the_contract(tmp_path):
     _validate(json.loads(invalid), "validate_result")
     _validate(json.loads(types), "check_types_result")
     _validate(json.loads(baseline), "tool_error")
+    # prove_checks answers with its own report (netdryrun.prove/v1), a setup error here
+    prove_schema = json.loads((ROOT / "website" / "docs" / "schemas" / "prove-v1.json").read_text(encoding="utf-8"))
+    jsonschema.Draft202012Validator(prove_schema).validate(json.loads(prove))
+    assert json.loads(prove)["status"] == "error" and json.loads(prove)["error_kind"] == "setup"
     # every tool carries the rules, so an agent that reads one tool still gets them
     assert set(tools) == {"dry_run", "start_run", "get_result", "run_checks", "record_baseline", "validate", "check_types",
-                          "verify_change"}
+                          "verify_change", "prove_checks"}
     for name, text in tools.items():
         for phrase in ("before proposing or applying any routing or policy change", "Ping is not a test",
                        "60–120 s", "Linux or WSL2", "root-equivalent", "macOS", "Docker-in-Docker",
