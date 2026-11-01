@@ -138,4 +138,4 @@
   source: RouterOS 7.23.8 (long-term) CHR, 2026-11-01, scripts/labs/routeros-cap captured by scripts/capture_fixtures.sh
     routeros (the import error log from a bad *.auto.rsc uploaded over FTP, the way vrnetlab loads a startup config);
     they replace hand-written files of the same names
-  added: ndr/mikrotik-live
+  added: 2b17993
