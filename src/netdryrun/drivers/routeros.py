@@ -24,10 +24,12 @@ from .routeros_state import (
     RoutingRoute,
     accepted_prefixes,
     parse_connections,
+    parse_import_log,
     parse_ping,
     parse_routing_routes,
     parse_sessions,
     parse_tables,
+    parse_version,
 )
 
 # containerlab's mikrotik_ros kind sets admin:admin (kind docs); the lab is throwaway and never reachable from outside
@@ -42,6 +44,10 @@ def _table(vrf: str) -> str:
 class RouterosDriver(Driver):
     name = "routeros"
     unsupported_afis = frozenset({"ipv6-unicast", "evpn"})
+    # RouterOS lists `bgp.med: "0"` for a path received with no MED (FRR's network statements, live CHR 7.23.8), and none
+    # for its own: 0 can't be told from no MED, so it is unknown and a `med: 0` check is refused before deploying
+    ambiguous_bgp_values = {"med": {0: "RouterOS output cannot tell MED 0 from no MED (check a non-zero MED, or check "
+                                       "this route on another platform)"}}
 
     def _rest(self, method: str, path: str, evidence: list[dict], body: str = "", timeout: float = 90) -> Reply:
         """One REST request inside the container. Evidence never carries the credentials."""
@@ -144,12 +150,29 @@ class RouterosDriver(Driver):
                 as_path=None if p.as_path is None else " ".join(str(a) for a in p.as_path),
                 next_hop=p.gateway,
                 local_pref=p.local_pref,          # None when the path carries none: the default is not read, so a check fails
-                med=p.med,
+                med=p.med or None,     # 0 is unknown: see ambiguous_bgp_values
                 communities=canon_communities(p.communities),
                 large_communities=canon_communities(p.large_communities),
                 neighbor=addresses.get(p.session or ""),
             ))
         return Observation(out, ev)
+
+    def nos_version(self) -> str | None:
+        try:
+            reply = self._rest("GET", "/system/resource", [])
+        except DriverError:
+            return None
+        return parse_version(reply.obj) if reply.kind == "object" else None
+
+    def startup_errors(self) -> list[str]:
+        """The startup config's load on this router ([]: every line ran), from RouterOS's own log (see parse_import_log)."""
+        return parse_import_log(self._rows("/log", []))
+
+    def vrfs(self) -> Observation:
+        """The node's VRFs other than default: every valid routing table but `main` (used by `netdryrun record`)."""
+        ev: list[dict] = []
+        tables = parse_tables(self._rows("/routing/table", ev))
+        return Observation(sorted(t for t, valid in tables.items() if valid and t != "main"), ev)
 
     def ping(self, target: str, source: str | None, count: int, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

@@ -357,6 +357,13 @@ def _cells() -> list[Cell]:
     add("routeros", "fail", "received count is not the accepted count", {**px, "exact": 4}, ros_neighbors())
     add("routeros", "fail", "prefixes under min", {**px, "min": 4}, ros_neighbors())
     add("routeros", "fail", "prefixes on a session that is down", {**px, "min": 1}, ros_neighbors(sessions=ros_down(ros_sessions)))
+    # a session that is up and receives nothing: a real count of 0, which `min` must not pass (the structure of peer1-1's
+    # live row, renamed; no path in the routing table belongs to it)
+    quiet = [*ros_sessions, {**next(r for r in ros_sessions if r["name"] == "peer1-1"), ".id": "*2800009",
+                             "name": "quiet1-1", "remote.address": "192.0.2.6", "prefix-count": "0"}]
+    add("routeros", "pass", "session up with zero prefixes, exact 0", {**px, "neighbor": "192.0.2.6", "exact": 0},
+        ros_neighbors(sessions=quiet))
+    add("routeros", "fail", "session up, zero prefixes", {**px, "neighbor": "192.0.2.6", "min": 1}, ros_neighbors(sessions=quiet))
 
     r = {"type": "route", "prefix": "10.20.0.0/24"}
     add("routeros", "pass", "route present", r, ros_routes("10.20.0.0/24", ros_main))

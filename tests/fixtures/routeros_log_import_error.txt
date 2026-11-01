@@ -1,0 +1,26 @@
+[
+ {
+  ".id": "*1",
+  "time": "2026-11-01 01:19:14",
+  "topics": "system,info,account",
+  "message": "user admin logged in from 172.31.255.29 via ftp"
+ },
+ {
+  ".id": "*2",
+  "time": "2026-11-01 01:19:14",
+  "topics": "script,error",
+  "message": "executing script failed, please check it manually"
+ },
+ {
+  ".id": "*3",
+  "time": "2026-11-01 01:19:14",
+  "topics": "script,error,debug",
+  "message": "(ftp-auto-run:admin@::) Script Error: bad command name this-command-does-not-exist (line 4 column 2) (:import; line 1)"
+ },
+ {
+  ".id": "*4",
+  "time": "2026-11-01 01:19:14",
+  "topics": "system,info,account",
+  "message": "user admin logged out from 172.31.255.29 via ftp"
+ }
+]

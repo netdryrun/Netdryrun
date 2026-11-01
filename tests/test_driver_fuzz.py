@@ -88,6 +88,11 @@ def _ros_rows(text):
     return list(reply.rows)
 
 
+def ros_upload_seen(d) -> bool:
+    msgs = [str(r.get("message", "")) for r in d if isinstance(r, dict)] if isinstance(d, list) else []
+    return any(m.endswith(" via ftp") and " logged in " in m for m in msgs) and         any(m.endswith(" via ftp") and " logged out " in m for m in msgs)
+
+
 def ros_empty(d) -> bool:
     return d == []
 def nxos_body_empty(d) -> bool:
@@ -224,6 +229,9 @@ CASES += [
     Case("routeros_state.parse_tables", lambda t: routeros_state.parse_tables(_ros_rows(t)), ["routeros_rtable.txt"], ros_empty),
     Case("routeros_state.parse_routing_routes", lambda t: routeros_state.parse_routing_routes(_ros_rows(t)),
          ["routeros_routes_main.txt", "routeros_routes_red.txt"], ros_empty),
+    # [] means "the startup config ran clean": only from a log that shows the upload's FTP session start and end
+    Case("routeros_state.parse_import_log", lambda t: routeros_state.parse_import_log(_ros_rows(t)),
+         ["routeros_log_import_error.txt"], ros_upload_seen),
     Case("routeros_state.parse_ping", lambda t: routeros_state.parse_ping(_ros_rows(t)),
          ["routeros_ping.txt", "routeros_ping_fail.txt"], lambda d: False),
 ]
@@ -413,6 +421,9 @@ def _ping_ok(r) -> bool:
 
 
 FAIL_SAFE = [
+    # routeros_state.parse_version: None -> the version is reported as unknown
+    ("routeros_state.parse_version", lambda t: routeros_state.parse_version(classify_reply("GET /x", 200, t).obj),
+     ["routeros_resource.txt"], lambda r: r is None or isinstance(r, str)),
     ("frr.parse_vrfs", lambda t: frr.parse_vrfs(t), ["frr_route.txt"],
      lambda r: isinstance(r, dict) and all(isinstance(k, str) and isinstance(v, bool) for k, v in r.items())),
     ("frr.parse_ping", frr.parse_ping, ["frr_ping.txt", "srl_ping.txt", "eos_ping.txt"], _ping_ok),

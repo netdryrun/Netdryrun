@@ -92,6 +92,16 @@ import urllib.error
 import urllib.request
 
 method, path, cred = sys.argv[1], sys.argv[2], sys.argv[3]
+HEALTH = os.environ.get("MT_HEALTH", "/health")
+try:
+    health = open(HEALTH).read().strip()
+except OSError as e:
+    sys.stderr.write("RouterOS readiness unknown: vrnetlab health file %s unreadable: %r" % (HEALTH, e) + chr(10))
+    sys.exit(3)
+if health != "0 running":
+    sys.stderr.write("RouterOS is not ready (still booting, or its config not uploaded yet): vrnetlab health is %r"
+                     % health[:80] + chr(10))
+    sys.exit(3)
 body = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None
 target = os.environ.get("MT_TARGET", "http://172.31.255.30")
 headers = {"Accept": "application/json", "Authorization": "Basic " + base64.b64encode(cred.encode()).decode()}

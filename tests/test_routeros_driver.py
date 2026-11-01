@@ -257,8 +257,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     do_GET = do_POST = _do
 
 
-def _run_helper(port, *args):
-    env = {"MT_TARGET": f"http://127.0.0.1:{port}", "SYSTEMROOT": "C:\\Windows", "PATH": ""}
+_HEALTH_OK = Path(__file__).parent / "fixtures" / "routeros_health_running.txt"
+
+
+def _run_helper(port, *args, health=_HEALTH_OK):
+    env = {"MT_TARGET": f"http://127.0.0.1:{port}", "MT_HEALTH": str(health), "SYSTEMROOT": "C:\\Windows", "PATH": ""}
     return subprocess.run([sys.executable, "-I", "-c", HELPER, *args], capture_output=True, text=True, env=env, timeout=30)
 
 
@@ -281,3 +284,109 @@ def test_the_helper_prints_status_then_body_and_sends_auth_and_body():
 def test_the_helper_reports_000_when_nothing_answers():
     r = _run_helper(1, "GET", "/x", "admin:admin", "")
     assert r.stdout.split("\n", 1)[0] == "000"
+
+
+# ---- readiness gate ------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("content,why", [(None, "readiness unknown"), ("1 starting", "not ready"),
+                                         ("1 VM failed - restarting", "not ready"), ("", "not ready")])
+def test_the_helper_asks_nothing_until_vrnetlab_says_the_router_is_up(tmp_path, content, why):
+    """vrnetlab writes "0 running" once the VM has booted and the config is uploaded; before that every request fails
+    (rc 3: no usable state), so nothing is read from a router that isn't up."""
+    health = tmp_path / "health"
+    if content is not None:
+        health.write_text(content)
+    r = _run_helper(1, "GET", "/routing/table", "admin:admin", health=health)
+    assert r.returncode == 3 and r.stdout == "" and why in r.stderr
+
+
+def test_vrfs_for_record_are_the_valid_tables_but_main():
+    rows = [*TABLES, {".id": "*2", "dynamic": "false", "fib": "", "invalid": "true", "name": "BROKEN"}]
+    d, lab = driver([("/routing/table", body(rows))])
+    obs = d.vrfs()
+    assert obs.value == ["RED"] and [e["cmd"] for e in obs.evidence] == ["REST GET /routing/table"]
+
+
+def test_med_zero_is_unknown_and_a_med_zero_check_is_refused(tmp_path):
+    """RouterOS lists bgp.med "0" for a path received with no MED (live CHR 7.23.8): 0 reads as unknown, and `med: 0`
+    is refused before deploying instead of passing on a path that carries no MED."""
+    from netdryrun.config import _validate_check
+    from netdryrun.drivers import check_supported
+    from netdryrun.lab import Lab as RealLab
+    d, _ = driver([*STATE[:3], ("/routing/route?dst-address=10.21.0.0/24", body(exact(MAIN, "10.21.0.0/24"))),
+                   ("/routing/route?dst-address=10.20.0.0/24", body(exact(MAIN, "10.20.0.0/24")))])
+    assert [p.med for p in d.bgp_paths("10.21.0.0/24").value] == [None]
+    assert sorted(p.med for p in d.bgp_paths("10.20.0.0/24").value if p.med) == [50]
+    topo = tmp_path / "t.clab.yml"
+    topo.write_text("name: t\ntopology:\n  nodes:\n    r1: {kind: mikrotik_ros, image: x}\n")
+    lab = RealLab(topo)
+    with pytest.raises(DriverError, match="med: 0 can't be checked on routeros: RouterOS output cannot tell MED 0"):
+        check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8", "med": 0}, 20))
+    check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8", "med": 50}, 20))
+
+
+# ---- startup config: RouterOS's own log of the uploaded config's run -------------------------------------------
+def test_a_rejected_startup_line_is_read_from_routeros_log():
+    """Live CHR 7.23.8 (hand-written to the same wording): a bad line stops the import there."""
+    from netdryrun.drivers.routeros_state import parse_import_log
+    assert parse_import_log(load("routeros_log_import_error.txt")) == [
+        "executing script failed, please check it manually",
+        "(ftp-auto-run:admin@::) Script Error: bad command name this-command-does-not-exist (line 4 column 2) (:import; line 1)"]
+    assert parse_import_log(load("routeros_log_import_clean.txt")) == []
+
+
+@pytest.mark.parametrize("rows", [[], [{"topics": "system,info", "message": "router rebooted"}],
+                                  [{"topics": "system,info,account", "message": "user admin logged in from 1.2.3.4 via ftp"}]])
+def test_a_log_without_the_upload_session_is_never_clean(rows):
+    from netdryrun.drivers.routeros_state import parse_import_log
+    with pytest.raises(DriverError, match="whether the config loaded is unknown"):
+        parse_import_log(rows)
+
+
+class _BootLab:
+    """A lab whose vrnetlab log is `boot` and whose router answers `/log` with `log` (status 200)."""
+
+    def __init__(self, boot, log=None, rc=0):
+        self.boot, self.log, self.rc, self.calls = boot, log, rc, []
+
+    def boot_log(self, name):
+        from netdryrun.lab import ExecResult
+        return ExecResult(["docker", "logs"], self.rc, self.boot, "")
+
+    def exec(self, node, cmd, timeout=60, input=None):
+        from netdryrun.lab import ExecResult
+        self.calls.append(cmd[4])
+        return ExecResult(cmd, 0, body(self.log), "")
+
+
+VRNETLAB_OK = "Pushing config via FTP\nconfig pushed via FTP\nStartup complete in: 0:00:43\n"
+
+
+def test_the_runner_reads_the_startup_load_on_routeros():
+    from netdryrun.runner import _startup_load
+    lab = _BootLab(VRNETLAB_OK, load("routeros_log_import_error.txt"))
+    assert _startup_load(lab, "r1", "routeros", lambda n: []) == load_errors()
+    assert lab.calls == ["/log"]
+    assert _startup_load(_BootLab(VRNETLAB_OK, load("routeros_log_import_clean.txt")), "r1", "routeros", lambda n: []) == []
+    # no config to upload: nothing to load, and RouterOS isn't asked
+    nocfg = _BootLab("Startup complete in: 0:00:43\n", None)
+    assert _startup_load(nocfg, "r1", "routeros", lambda n: []) == [] and nocfg.calls == []
+    gave_up = _BootLab("Pushing config via FTP\nGiving up after 5\nconfig pushed via FTP\nStartup complete in: 0:01:43\n")
+    assert "gave up" in _startup_load(gave_up, "r1", "routeros", lambda n: [])[0]
+    for lab in (_BootLab("", None), _BootLab(VRNETLAB_OK, [], rc=1), _BootLab(VRNETLAB_OK, [])):
+        found = _startup_load(lab, "r1", "routeros", lambda n: [])
+        assert len(found) == 1 and "unknown" in found[0]
+
+
+def load_errors():
+    from netdryrun.drivers.routeros_state import parse_import_log
+    return parse_import_log(load("routeros_log_import_error.txt"))
+
+
+def test_nos_version_comes_from_system_resource():
+    from netdryrun.drivers.routeros_state import parse_version
+    assert parse_version(load("routeros_resource.txt")) == "RouterOS 7.23.8 (long-term)"
+    assert parse_version({"x": 1}) is None and parse_version([]) is None
+    d, _ = driver([("/system/resource", "200\n" + json.dumps(load("routeros_resource.txt")))])
+    assert d.nos_version() == "RouterOS 7.23.8 (long-term)"
+    d, _ = driver([("/system/resource", "500\n{}")])
+    assert d.nos_version() is None

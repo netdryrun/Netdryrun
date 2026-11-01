@@ -1,0 +1,32 @@
+[
+ {
+  ".id": "*1",
+  "time": "2026-11-01 01:18:13",
+  "topics": "system,info,account",
+  "message": "user admin logged in from 172.31.255.29 via ftp"
+ },
+ {
+  ".id": "*2",
+  "time": "2026-11-01 01:18:13",
+  "topics": "system,info",
+  "message": "system identity changed by ftp-auto-run:admin@:: (/system identity set name=r1)"
+ },
+ {
+  ".id": "*3",
+  "time": "2026-11-01 01:18:13",
+  "topics": "system,info",
+  "message": "frr1 added by ftp-auto-run:admin@:: (*1 = /routing bgp connection add instance=bgp1 name=frr1)"
+ },
+ {
+  ".id": "*4",
+  "time": "2026-11-01 01:18:16",
+  "topics": "script,info",
+  "message": "NDR r1.rsc imported to the last line"
+ },
+ {
+  ".id": "*5",
+  "time": "2026-11-01 01:18:16",
+  "topics": "system,info,account",
+  "message": "user admin logged out from 172.31.255.29 via ftp"
+ }
+]

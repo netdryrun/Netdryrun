@@ -1,0 +1,6 @@
+{
+ "architecture-name": "x86_64",
+ "board-name": "CHR",
+ "platform": "MikroTik",
+ "version": "7.23.8 (long-term)"
+}

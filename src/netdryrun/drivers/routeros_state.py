@@ -18,7 +18,7 @@ import ipaddress
 import re
 from dataclasses import dataclass, field
 
-from .base import parser, unexpected
+from .base import DriverError, parser, unexpected
 from .routeros_rest import as_bool, as_int
 
 
@@ -222,3 +222,34 @@ def parse_ping(rows) -> tuple[int, int]:
     if received > sent:
         raise unexpected(req, f"received {received} > sent {sent}")
     return sent, received
+
+
+@parser("/log")
+def parse_import_log(rows) -> list[str]:
+    """Each error RouterOS logged while it ran the uploaded startup config; [] when it ran clean. vrnetlab uploads the
+    config over FTP as config.auto.rsc and RouterOS runs it before the FTP session ends (live CHR 7.23.8). A line it
+    rejects stops the import there ("script,error executing script failed", "Script Error: <why> (line N column M)"),
+    so the router runs without that line and every line after it. A log that doesn't show the upload's FTP session
+    starting and ending can't say whether the import ran: an error, never clean."""
+    req = "/log"
+    login = logout = False
+    errors = []
+    for r in rows:
+        _need(req, r, "topics", "message")
+        topics, msg = str(r["topics"]).split(","), str(r["message"])
+        if msg.endswith(" via ftp"):
+            login |= " logged in " in msg
+            logout |= " logged out " in msg
+        if "error" in topics and ("ftp-auto-run" in msg or "executing script failed" in msg):
+            errors.append(" ".join(msg.split()))
+    if not (login and logout):
+        raise DriverError("RouterOS's log doesn't show the startup config upload (an FTP session that started and ended), "
+                          "so whether the config loaded is unknown")
+    return errors
+
+
+@parser("/system/resource")
+def parse_version(obj) -> str | None:
+    """`/system/resource`: "RouterOS 7.23.8 (long-term)", or None when the field isn't there."""
+    v = obj.get("version") if isinstance(obj, dict) else None
+    return f"RouterOS {v}" if isinstance(v, str) and v else None

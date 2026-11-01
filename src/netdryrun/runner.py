@@ -316,6 +316,21 @@ def _startup_load(lab, name: str, driver: str, bound, deployed: bool = True) -> 
             return parse_startup_config_errors(r.stdout)
         except DriverError as e:
             return [f"{e}; so whether its config loaded is unknown"]
+    if driver == "routeros":
+        # vrnetlab uploads the startup config over FTP and RouterOS runs it, stopping at the first line it rejects (live,
+        # CHR 7.23.8). vrnetlab's own log says whether there was a config to upload and whether the upload worked
+        r = lab.boot_log(name)
+        if r.rc != 0 or "Startup complete in:" not in r.stdout:
+            return ["its vrnetlab log doesn't show a completed startup, so whether its config loaded is unknown"]
+        if "Pushing config via FTP" not in r.stdout:
+            return []   # no startup config: nothing to load
+        if "Giving up after" in r.stdout:
+            return ["vrnetlab could not upload its startup config over FTP (it gave up), so the router runs without it"]
+        from .drivers.routeros import RouterosDriver
+        try:
+            return RouterosDriver(lab, name).startup_errors()
+        except DriverError as e:
+            return [f"{e}; so whether its config loaded is unknown" if "unknown" not in str(e) else str(e)]
     if driver == "nxos":
         # vrnetlab types the startup config into the NX-OS VM after boot and logs NX-OS's answer to each line (live,
         # 10.4(8)): a rejected line is skipped and the rest loads, as on FRR and EOS
