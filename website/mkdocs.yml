@@ -133,6 +133,7 @@ nav:
       - Juniper driver (beta): reference/junos.md
       - Compatibility matrix: reference/compatibility.md
       - "Network Change Verdict v1 (spec)": spec/verdict-v1.md
+      - "Check strength (defensive publication)": disclosures/check-strength.md
   - Evidence:
       - Verdict corpus: corpus.md
       - How it's built: how-its-built.md
@@ -142,6 +143,7 @@ nav:
   - Write-ups:
       - "Ping and 'BGP up' passed. The route leak was still there.": posts/ping-missed-the-leak.md
   - Project:
+      - Roadmap: roadmap.md
       - Trust and security: trust.md
       - Support and versioning: support.md
       - Design partners: design-partners.md

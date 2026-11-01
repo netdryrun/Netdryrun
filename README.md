@@ -227,9 +227,12 @@ How results are checked and released, with evidence for each claim: [How it's bu
 
 ## Roadmap
 
-- **Outage replays:** famous real-world outages (route leaks, mass withdrawals) rebuilt as runnable labs and check packs. Would your change have caused one?
-- More failure scenarios, more check types (OSPF/IS-IS, traceroute) and drivers
-- PR comments with diffs, and signed evidence for change tickets
+Direction, not a commitment: a version ships when its release gate is green, never on a date.
+
+- **0.4.1 (current):** the fix for [GHSA-cg9f-xjw5-38ph](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-cg9f-xjw5-38ph), Cisco NX-OS and MikroTik betas, supply-chain hardening
+- **Later:** a router-state contract across drivers, Cumulus beta, [check strength](https://netdryrun.com/disclosures/check-strength/) and signed verdict receipts, hosted verification beta, then OSPF/IS-IS, paths, EVPN and MPLS by demand
+
+Full roadmap: [netdryrun.com/roadmap](https://netdryrun.com/roadmap/).
 
 If Netdryrun caught something for you, a ⭐ helps other engineers and agents find it.
 
