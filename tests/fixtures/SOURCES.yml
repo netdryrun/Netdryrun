@@ -162,7 +162,7 @@
 - files: [eos_ipv6_route_ospf3_ext.txt, eos_ipv6_route_ospf3_intra.txt, eos_route_ospf_nssa.txt, eos_bgp_gshut.txt]
   kind: live-capture
   source: cEOS 4.36.3M (cEOSLab) in lab ndr-fpcap, 2026-11-01, peered with FRR 10.4.1 over OSPFv2 (area 0.0.0.1 NSSA),
-    OSPFv3 and eBGP, with `show ipv6 route <prefix> | json` (an OSPFv3 external and intra-area route: routeType
-    `ospf`, routeSubtype External2 / IntraArea), `show ip route 172.31.7.0/24 | json` (routeType ospfNssaExternalType2)
+    OSPFv3 and eBGP, with `show ipv6 route <prefix> | json` (an OSPFv3 external and intra-area route, routeType
+    `ospf` with routeSubtype External2 / IntraArea), `show ip route 172.31.7.0/24 | json` (routeType ospfNssaExternalType2)
     and `show ip bgp 192.168.30.0/24 | json` (FRR set graceful-shutdown 65040:1; communityList prints GSHUT)
   added: ndr/fix-false-passes-0.4.1
