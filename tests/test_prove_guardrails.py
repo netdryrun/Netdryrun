@@ -504,3 +504,16 @@ def test_bad_kinds_or_budget_are_errors(old_checks):
     for kw in ({"kinds": ["nope"]}, {"maximum": 0}, {"maximum": True}):
         rep = prove(h.FakeExecutor(h.custleak()), old_checks, **kw)
         assert rep.status == "error" and rep.exit_code == 2, kw
+
+
+def test_a_session_down_whose_session_stays_up_did_not_happen(old_checks):
+    vs = variants(old_checks)
+    vid = "session_down:cust:10.0.1.1"
+    rep = prove(h.FakeExecutor(h.custleak(), {vid: h.applied(vs[vid], h.custleak())}), old_checks,
+                kinds=["session_down"], maximum=1)
+    assert rep.status == "error" and rep.error_kind == "apply" and "its session is not down" in rep.error
+    gone = h.applied(vs[vid], h.custleak())
+    k = next(k for k in gone.nodes["cust"].items if k.kind == "session")
+    del gone.nodes["cust"].items[k]
+    rep = prove(h.FakeExecutor(h.custleak(), {vid: gone}), old_checks, kinds=["session_down"], maximum=1)
+    assert rep.status == "error" and "its session is not down" in rep.error

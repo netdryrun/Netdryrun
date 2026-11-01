@@ -452,6 +452,10 @@ def _one(executor: Executor, v: Variant, checks: list[Check], base: Snapshot, si
     if why:
         raise ProveError(f"variant {v.id}: {why}", "apply")
     effect = routing_effect(v, base, during)
+    if v.kind == "session_down":
+        shut = {k: x for k, x in during.sessions().items() if k.node == v.node and k.neighbor == v.id.rsplit(":", 1)[1]}
+        if not shut or any(x.established for x in shut.values()):
+            raise ProveError(f"variant {v.id}: the neighbor is shut in the config but its session is not down", "apply")
     if v.kind == "link_down" and not effect:
         raise ProveError(f"variant {v.id}: the link went down but nothing changed in the routing state, not even its "
                          "connected route: the link did not go down", "apply")
