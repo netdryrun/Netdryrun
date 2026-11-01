@@ -142,7 +142,8 @@ def entry(**over) -> dict:
 
 
 def rt(*entries, dest="10.20.0.0", length="24", **over) -> dict:
-    r = {"rt-destination": [{"data": dest}], "rt-entry": list(entries)}
+    # every route Junos lists carries rt-entry-count, equal to the entries listed (checked since 0.4.1)
+    r = {"rt-destination": [{"data": dest}], "rt-entry-count": [{"data": str(len(entries))}], "rt-entry": list(entries)}
     if length is not None:
         r["rt-prefix-length"] = [{"data": length}]
     r.update(over)
@@ -150,7 +151,11 @@ def rt(*entries, dest="10.20.0.0", length="24", **over) -> dict:
 
 
 def answer(*rts, table="inet.0") -> str:
-    return _obj({"route-information": [{"route-table": [{"table-name": [{"data": table}], "rt": list(rts)}]}]})
+    # the table's totals agree with what is listed, as on the device (a whole-table answer is checked against them)
+    shown = sum(len(r["rt-entry"]) for r in rts if isinstance(r, dict) and isinstance(r.get("rt-entry"), list))
+    return _obj({"route-information": [{"route-table": [{"table-name": [{"data": table}],
+                                                         "total-route-count": [{"data": str(shown)}],
+                                                         "hidden-route-count": [{"data": "0"}], "rt": list(rts)}]}]})
 
 
 def routes(text, prefix="10.20.0.0/24"):
@@ -208,7 +213,7 @@ def test_rt_entry_errors_name_the_command():
 def test_destination_errors_name_the_command():
     r = rt(entry(), length=None, pad="d" * 10)
     del r["rt-destination"]
-    raises(lambda: junos.parse_all_routes(answer(r)), AR + f"no 'rt-destination': {r}")
+    raises(lambda: junos.parse_all_routes(answer(r)), AR + f"no 'rt-destination': {str(r)[:150]}")
     raises(lambda: routes(answer(rt(entry(), **{"rt-prefix-length": [{"data": "24"}, {"data": "24"}]}))),
            RC + "rt-prefix-length more than once: [{'data': '24'}, {'data': '24'}]")
     no_slash = "a" * 100
@@ -393,3 +398,37 @@ def test_missing_table_paths_keep_their_evidence_and_name_the_instance():
                     ("RED.inet.0", read("junos_route_no_table.txt"))])
     raises(lambda: JunosDriver(lab, "j1").routes("10.88.0.0/24", "RED"),
            "`show route` says table RED.inet.0 doesn't exist, but routing-instance 'RED' lists it")
+
+
+# ---- 0.4.1: a count that disagrees with the list it counts (exact messages: the command and what disagreed) ----
+
+def _snip(detail: str) -> str:
+    """What `unexpected()` keeps of a detail: whitespace collapsed, at most 200 characters."""
+    return " ".join(detail.split())[:200]
+
+
+def test_entry_count_errors_name_the_command_and_the_route():
+    r = rt(entry(), pad="c" * 200)
+    r["rt-entry-count"] = [{"data": "2"}]
+    raises(lambda: routes(answer(r)), RC + _snip(f"rt-entry-count says 2, 1 listed: {str(r)[:120]}"))
+    r = rt(entry())
+    del r["rt-entry-count"]
+    raises(lambda: routes(answer(r)), RC + _snip(f"no 'rt-entry-count': {str(r)[:150]}"))
+    r = rt(entry(), **{"rt-entry-count": [{"data": "two"}]})
+    raises(lambda: routes(answer(r)), RC + "not a number: 'two'")
+
+
+def test_table_count_errors_name_the_command_and_the_counts():
+    one = rt(entry(), dest="10.0.1.1/30", length=None)
+    t = json.loads(answer(one))
+    t["route-information"][0]["route-table"][0]["total-route-count"] = [{"data": "3"}]
+    t["route-information"][0]["route-table"][0]["hidden-route-count"] = [{"data": "1"}]
+    raises(lambda: junos.parse_all_routes(_obj(t)), AR + "table inet.0: 3 routes, 1 hidden, but 1 listed")
+    for key in ("total-route-count", "hidden-route-count"):
+        bad = json.loads(answer(one))
+        bad["route-information"][0]["route-table"][0][key] = [{"data": "many"}]
+        raises(lambda bad=bad: junos.parse_all_routes(_obj(bad)), AR + "not a number: 'many'")
+        gone = json.loads(answer(one))
+        table = gone["route-information"][0]["route-table"][0]
+        del table[key]
+        raises(lambda gone=gone: junos.parse_all_routes(_obj(gone)), AR + _snip(f"no {key!r}: {str(table)[:150]}"))

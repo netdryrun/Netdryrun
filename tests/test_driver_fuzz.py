@@ -134,6 +134,51 @@ def junos_route_empty(d) -> bool:
         return False
 
 
+def _junos_counted_rts(d):
+    """Every listed route of a Junos route answer, if each one's rt-entry-count equals its entries; else None."""
+    try:
+        (info,) = d["route-information"]
+        rts = [rt for t in info.get("route-table", []) for rt in t.get("rt", [])]
+        for rt in rts:
+            entries, (count,) = rt["rt-entry"], rt["rt-entry-count"]
+            if not isinstance(entries, list) or str(count["data"]) != str(len(entries)):
+                return None
+        return rts
+    except (TypeError, KeyError, ValueError, AttributeError):
+        return None
+
+
+def _junos_counts(e) -> bool:
+    """A BGP entry that a route or bgp_route check sees: anything but a hidden route import policy rejected."""
+    reason = str((e.get("hidden-reason") or [{}])[0].get("data", "")).strip().lower()
+    return str(e["protocol-name"][0]["data"]).lower() == "bgp" and reason != junos.REJECTED
+
+
+def junos_bgp_paths_empty(d) -> bool:
+    """No BGP path: no route listed, or routes whose entry counts agree with what is listed and none of
+    which is a BGP entry that counts (a static-only or connected-only answer is real; an entry dropped from
+    under its count is not)."""
+    if junos_route_empty(d):
+        return True
+    rts = _junos_counted_rts(d)
+    try:
+        return rts is not None and not any(_junos_counts(e) for rt in rts for e in rt["rt-entry"])
+    except (TypeError, KeyError, IndexError, AttributeError):
+        return False
+
+
+def junos_routes_empty(d) -> bool:
+    """No route: none listed, or only BGP routes import policy rejected, under agreeing counts."""
+    if junos_route_empty(d):
+        return True
+    rts = _junos_counted_rts(d)
+    try:
+        return rts is not None and all(str(e["protocol-name"][0]["data"]).lower() == "bgp" and not _junos_counts(e)
+                                       for rt in rts for e in rt["rt-entry"])
+    except (TypeError, KeyError, IndexError, AttributeError):
+        return False
+
+
 @dataclass
 class Case:
     id: str
@@ -209,24 +254,24 @@ CASES = [
     Case("junos.parse_bgp_neighbors[instance]", lambda t: junos.parse_bgp_neighbors(t, "RED"),
          ["junos_bgp_neighbor_red.txt"], junos_neighbors_empty),
     Case("junos.parse_routes", lambda t: junos.parse_routes(t, "10.20.0.0/24"), ["junos_route_paths.txt"],
-         junos_route_empty),
+         junos_routes_empty),
     Case("junos.parse_routes[leak]", lambda t: junos.parse_routes(t, "0.0.0.0/0"), ["junos_route_leak.txt"],
-         junos_route_empty),
+         junos_routes_empty),
     Case("junos.parse_routes[hidden next hop]", lambda t: junos.parse_routes(t, "10.31.0.0/24"),
-         ["junos_route_hidden_nexthop.txt"], junos_route_empty),
+         ["junos_route_hidden_nexthop.txt"], junos_routes_empty),
     Case("junos.parse_routes[v6]", lambda t: junos.parse_routes(t, "2001:db8:20::/48", "inet6.0"),
-         ["junos_route_v6.txt"], junos_route_empty),
+         ["junos_route_v6.txt"], junos_routes_empty),
     Case("junos.parse_routes[instance]", lambda t: junos.parse_routes(t, "10.40.0.0/24", "RED.inet.0"),
-         ["junos_route_red.txt"], junos_route_empty),
+         ["junos_route_red.txt"], junos_routes_empty),
     Case("junos.parse_all_routes", lambda t: junos.parse_all_routes(t), ["junos_route_table.txt"], junos_route_empty),
     Case("junos.parse_bgp_paths", lambda t: junos.parse_bgp_paths(t, "10.20.0.0/24"), ["junos_route_paths.txt"],
-         junos_route_empty),
+         junos_bgp_paths_empty),
     Case("junos.parse_bgp_paths[leak]", lambda t: junos.parse_bgp_paths(t, "0.0.0.0/0"), ["junos_route_leak.txt"],
-         junos_route_empty),
+         junos_bgp_paths_empty),
     Case("junos.parse_bgp_paths[ibgp]", lambda t: junos.parse_bgp_paths(t, "10.50.0.0/24"),
-         ["junos_route_ibgp.txt"], junos_route_empty),
+         ["junos_route_ibgp.txt"], junos_bgp_paths_empty),
     Case("junos.parse_bgp_paths[hidden next hop]", lambda t: junos.parse_bgp_paths(t, "10.31.0.0/24"),
-         ["junos_route_hidden_nexthop.txt"], junos_route_empty),
+         ["junos_route_hidden_nexthop.txt"], junos_bgp_paths_empty),
     Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, SRL_ROW),
          ["srl_attr_set_best.txt", "srl_attr_set_backup.txt"], lambda d: False),
 ]
@@ -563,3 +608,17 @@ def test_every_driver_and_parser_is_fuzzed():
     assert not missing, f"parsers without fuzz coverage (add a Case or FAIL_SAFE entry): {missing}"
     stale = sorted(fuzzed - parsers)
     assert not stale, f"fuzz cases for parsers that no longer exist: {stale}"
+
+
+def test_junos_oracle_accepts_real_static_only_answers_and_flags_a_dropped_entry():
+    """The oracle's side of fuzz finding 2026-11-01: real answers with no BGP path are empty for real; the
+    leak capture with its BGP entry dropped (count 2, one entry listed) is not."""
+    for name in ("junos_route_static.txt", "junos_route_connected.txt", "junos_route_empty.txt"):
+        assert junos_bgp_paths_empty(json.loads(read(name))), name
+    assert junos_routes_empty(json.loads(read("junos_route_hidden_policy.txt")))
+    dropped = json.loads(read("junos_route_leak.txt"))
+    rt = dropped["route-information"][0]["route-table"][0]["rt"][0]
+    rt["rt-entry"] = [e for e in rt["rt-entry"] if e["protocol-name"][0]["data"] != "BGP"]
+    assert not junos_bgp_paths_empty(dropped)
+    assert not junos_bgp_paths_empty(json.loads(read("junos_route_leak.txt")))
+

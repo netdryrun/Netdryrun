@@ -256,12 +256,25 @@ def _bgp_prefix_rows(command: str, body: dict | None, vrf: str) -> list[tuple[ip
     return out
 
 
+def _counted_paths(row: dict) -> list[dict]:
+    """A BGP prefix row's paths; `totalpaths` must equal the paths listed: a path dropped from under its count
+    must never read as one path less, or as no path (0.4.1, the shape of the Junos fuzz finding of 2026-11-01)."""
+    rows = _rows(BGP_CMD, row, "path")
+    key = row.get("ipprefix", row.get("ipv6prefix"))
+    if "totalpaths" not in row:
+        raise unexpected(BGP_CMD, f"{key}: no totalpaths: {str({k: v for k, v in row.items() if k != 'TABLE_path'})[:150]}")
+    count = as_int(BGP_CMD, row["totalpaths"])
+    if count != len(rows):
+        raise unexpected(BGP_CMD, f"{key}: totalpaths {count}, but {len(rows)} paths listed")
+    return rows
+
+
 def _bgp_paths_raw(text: str, prefix: str, vrf: str) -> list[dict]:
     want = ipaddress.ip_network(prefix)
     paths = []
     for net, row in _bgp_prefix_rows(BGP_CMD, _body(BGP_CMD, text), vrf):
         if net == want:
-            paths += _rows(BGP_CMD, row, "path")
+            paths += _counted_paths(row)
     for p in paths:
         if "pathstaled" in p:   # graceful restart: a stale path is neither present nor gone yet
             refuse_if_stale(prefix, p.get("ipv6neighbor", p.get("neighbor")), _flag(BGP_CMD, p["pathstaled"]))

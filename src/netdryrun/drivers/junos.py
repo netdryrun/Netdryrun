@@ -231,7 +231,9 @@ def parse_hidden_received(text: str, table: str) -> tuple[int, int] | None:
     REJECTED nor in NEXT_HOP_UNUSABLE."""
     hidden = rejected = 0
     for rt in _tables(HIDDEN_CMD, text, table):
-        for e in _items(HIDDEN_CMD, rt, "rt-entry"):
+        entries = _items(HIDDEN_CMD, rt, "rt-entry")
+        _counted(HIDDEN_CMD, rt, entries, required=True)
+        for e in entries:
             reason = (_leaf(HIDDEN_CMD, e, "hidden-reason", required=False) or "").strip().lower()
             if reason != REJECTED and reason not in NEXT_HOP_UNUSABLE:
                 return None
@@ -290,8 +292,12 @@ def parse_instance(text: str, instance: str) -> list[str] | None:
 
 # --------------------------------------------------------------------------------------------- routes
 
-def _tables(command: str, text: str, table: str) -> list[dict]:
-    """The `rt` elements of `table`; NoSuchTable when the table doesn't exist (`route-table-error`)."""
+def _tables(command: str, text: str, table: str, whole: bool = False) -> list[dict]:
+    """The `rt` elements of `table`; NoSuchTable when the table doesn't exist (`route-table-error`).
+
+    `whole`: the answer lists the whole table (`show route table T`, without `all`), so its counts must agree
+    with what it lists: total-route-count minus hidden-route-count is the number of entries shown (hidden
+    routes aren't). An exact-prefix answer carries the whole table's counts, so they say nothing about it."""
     data = _json(command, text)
     if "route-table-error" in data:
         err = _one(command, _root(command, data, "route-table-error"), "route-table-error-str")
@@ -306,7 +312,14 @@ def _tables(command: str, text: str, table: str) -> list[dict]:
         name = _leaf(command, t, "table-name")
         if name != table:  # an answer for another table must never read as this table's (empty) answer
             raise unexpected(command, f"table {name!r} in the answer for {table!r}")
-        rts += _items(command, t, "rt")
+        listed = _items(command, t, "rt")
+        if whole:
+            shown = sum(len(_items(command, rt, "rt-entry")) for rt in listed)
+            total = as_int(command, _leaf(command, t, "total-route-count"))
+            hidden = as_int(command, _leaf(command, t, "hidden-route-count"))
+            if shown != total - hidden:
+                raise unexpected(command, f"table {table}: {total} routes, {hidden} hidden, but {shown} listed")
+        rts += listed
     return rts
 
 
@@ -323,10 +336,19 @@ def _destination(command: str, rt: dict):
         raise unexpected(command, f"not a prefix: {text[:80]!r}") from None
 
 
-def _entries(command: str, rt: dict) -> list[dict]:
+def _counted(command: str, rt: dict, entries: list[dict], required: bool) -> None:
+    """`rt-entry-count` (every route of an extensive answer has it) must equal the entries listed: a dropped
+    entry must never read as a route that isn't there (fuzz finding 2026-11-01)."""
+    count = _leaf(command, rt, "rt-entry-count", required=required)
+    if count is not None and as_int(command, count) != len(entries):
+        raise unexpected(command, f"rt-entry-count says {count}, {len(entries)} listed: {str(rt)[:120]}")
+
+
+def _entries(command: str, rt: dict, counted: bool = True) -> list[dict]:
     entries = _items(command, rt, "rt-entry")
     if not entries:
         raise unexpected(command, f"route without rt-entry: {str(rt)[:150]}")
+    _counted(command, rt, entries, required=counted)
     for e in entries:
         if not _leaf(command, e, "protocol-name"):
             raise unexpected(command, f"rt-entry without protocol-name: {str(e)[:150]}")
@@ -370,9 +392,10 @@ def parse_routes(text: str, prefix: str, table: str = "inet.0") -> list[Route]:
 
 @parser(ALL_ROUTES_CMD)
 def parse_all_routes(text: str, table: str = "inet.0") -> list[Route]:
-    rts = _tables(ALL_ROUTES_CMD, text, table)
+    rts = _tables(ALL_ROUTES_CMD, text, table, whole=True)
+    # the terse listing has no per-route count; the table's totals are checked instead
     return [Route(str(_destination(ALL_ROUTES_CMD, rt)), _protocol(ALL_ROUTES_CMD, e), _active(ALL_ROUTES_CMD, e))
-            for rt in rts for e in _entries(ALL_ROUTES_CMD, rt)]
+            for rt in rts for e in _entries(ALL_ROUTES_CMD, rt, counted=False)]
 
 
 # --------------------------------------------------------------------------------------------- BGP paths

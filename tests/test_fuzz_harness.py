@@ -83,9 +83,7 @@ def test_the_config_oracle_catches_a_dropped_key(fuzzers, monkeypatch):
 FINDINGS = FUZZ / "findings"
 
 
-@pytest.mark.xfail(strict=True, reason="open fuzz finding 2026-11-01 (reported to the coordinator): the live "
-                   "junos_route_leak capture with its BGP rt-entry removed (rt-entry-count still 2, one Static entry "
-                   "left) reads as no BGP path, so `present: false` on that path would pass. The oracle also rejects "
-                   "real static-only answers (junos_route_static), so the oracle or the parser needs a decision")
 def test_finding_junos_bgp_paths_entry_dropped(fuzzers):
+    """Fixed in 0.4.1: rt-entry-count 2 with one Static entry listed is a parse error (the check errors),
+    never "no BGP path"."""
     fuzzers["fuzz_parsers"].TestOneInput((FINDINGS / "junos-bgp-paths-entry-dropped.bin").read_bytes())

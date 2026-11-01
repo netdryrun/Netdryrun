@@ -114,5 +114,5 @@ only_mutate = [
 pytest_add_cli_args_test_selection = ["tests/"]
 also_copy = [
   "examples/", "website/", "scripts/", "corpus/", "advisories/", ".github/", "action.yml", "server.json",
-  "README.md", "AGENTS.md", "CHANGELOG.md", "skills/", "templates/",
+  "README.md", "AGENTS.md", "CHANGELOG.md", "skills/", "templates/", "fuzz/",
 ]
