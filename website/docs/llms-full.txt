@@ -4390,7 +4390,7 @@ Variants come only from the lab's configuration and its checks: never from the c
 - the configuration lines that prove it took effect;
 - its **footprint**.
 
-The footprint is the variant's own mechanism: the locally originated route entry for each prefix the variant originates, **on the originating node only**. The same prefix learned on any other node is an effect, not footprint. So is the prefix-count change at a neighbour, and so is the route on the originating node itself when it was learned, not originated. A leak that propagates therefore always shows an effect.
+The footprint is the variant's own mechanism: the locally originated route entry for each prefix the variant originates, **on the originating node only**. The same prefix learned on any other node is an effect, not footprint. So is an accepted prefix-count change at a neighbour, and so is the route on the originating node itself when it was learned, not originated. The node's advertisements of its own footprint, and copies a receiver holds but its policy rejected (pre-policy, received-only), are not effects. Effects are read from post-policy state. So a leak that is accepted anywhere always shows an effect, and a leak the receiving policy rejects is **no effect**: the policy did its job, and that is not a blind spot.
 
 Variant kinds, with concrete operators:
 
