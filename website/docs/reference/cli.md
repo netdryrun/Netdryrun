@@ -75,6 +75,10 @@ Opens a short feedback form on GitHub in your browser, prefilled with your Netdr
 |---|---|
 | `--print-only` | Print the form's URL instead of opening a browser |
 
+### capture and sanitize (next release)
+
+Not in 0.4.0. `capture` records a driver's read-only commands on one node of a running containerlab lab, and `sanitize` rewrites the addresses, AS numbers, hostnames and secrets in what it recorded, so you can contribute output from an image we can't get. Their options are on the [capture kit](capture.md) page.
+
 ## Options
 
 `run` and `check`:
