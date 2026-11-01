@@ -2591,6 +2591,26 @@
       "diff": "9f2c29f2cb29e7e1",
       "class": "message-text"
     },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_1": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "910edf08fffcf6df",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_2": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "5df389db2138022b",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_3": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "11384693d13dc621",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_4": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "172fc909aef05db9",
+      "class": "equivalent"
+    },
     "netdryrun.drivers.base.xǁDriverǁall_routes__mutmut_1": {
       "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
       "diff": "ad9ef2abf022df26",

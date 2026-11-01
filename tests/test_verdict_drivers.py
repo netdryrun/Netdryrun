@@ -77,7 +77,8 @@ def test_exec_any_nonzero_rc_raises(answer):
 def test_base_driver_methods_are_abstract():
     d = Driver(Lab([]), "r1")
     for call in (lambda: d.bgp_neighbors(), lambda: d.routes("10.0.0.0/8"), lambda: d.ping("1.1.1.1", None, 1),
-                 lambda: d.bgp_paths("10.0.0.0/8"), lambda: d.all_routes()):
+                 lambda: d.bgp_paths("10.0.0.0/8"), lambda: d.all_routes(),
+                 lambda: d.bgp_received("10.0.0.1")):
         with pytest.raises(NotImplementedError):
             call()
     assert Driver.unsupported_bgp_attributes == frozenset()
