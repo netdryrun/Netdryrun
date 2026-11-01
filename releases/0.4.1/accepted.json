@@ -1646,19 +1646,9 @@
       "diff": "86175ceb2cd9dd7d",
       "class": "message-text"
     },
-    "netdryrun.config.x__describe__mutmut_167": {
-      "reason": "message text only: the default check name shown in reports",
-      "diff": "a97bf2c99fc07dcd",
-      "class": "message-text"
-    },
     "netdryrun.config.x__describe__mutmut_168": {
       "reason": "message text only: the default check name shown in reports",
       "diff": "1b58a31b4c56b5ba",
-      "class": "message-text"
-    },
-    "netdryrun.config.x__describe__mutmut_169": {
-      "reason": "message text only: the default check name shown in reports",
-      "diff": "7d3f338a853998fb",
       "class": "message-text"
     },
     "netdryrun.config.x__describe__mutmut_17": {
@@ -1812,9 +1802,9 @@
       "class": "message-text"
     },
     "netdryrun.config.x__describe__mutmut_61": {
-      "reason": "message text only: the default check name shown in reports",
-      "diff": "a81da37cea9f311e",
-      "class": "message-text"
+      "reason": "equivalent: p.get('present', None) is False vs p.get('present', True) is False: both defaults are not False, so a check without present reads 'present' either way, and validation only lets a real boolean through",
+      "diff": "2be0c8c4d98ef968",
+      "class": "equivalent"
     },
     "netdryrun.config.x__describe__mutmut_62": {
       "reason": "message text only: the default check name shown in reports",
@@ -1822,9 +1812,9 @@
       "class": "message-text"
     },
     "netdryrun.config.x__describe__mutmut_63": {
-      "reason": "message text only: the default check name shown in reports",
-      "diff": "640b4419a93b6287",
-      "class": "message-text"
+      "reason": "equivalent: p.get('present') is False vs p.get('present', True) is False: a missing key gives None, which is not False, so the text is 'present' either way, and validation only lets a real boolean through",
+      "diff": "21031a0e04fcdc46",
+      "class": "equivalent"
     },
     "netdryrun.config.x__describe__mutmut_64": {
       "reason": "message text only: the default check name shown in reports",

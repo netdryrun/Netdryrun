@@ -16,6 +16,8 @@ netdryrun run examples/frr-bgp
 
 Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images already pulled, measured on 2026-10-27 with containerlab 0.81.1 and Netdryrun™ 0.3.1, by the live layer of the 0.3.1 release check, which ran every example once on the built package ([`releases/0.3.1/gate/live.json`](https://github.com/netdryrun/Netdryrun/blob/main/releases/0.3.1/gate/live.json) in the repository). `agent-demo` is the whole `demo.sh`, both attempts. They include deploying and destroying the lab. The first run of each example also pulls its images.
 
+The mikrotik and nxos-frr times come from single live runs on the same host with their beta drivers (RouterOS 7.23.8 CHR on 2026-11-01; NX-OS 10.4(8) on 2026-10-31); the NX-OS VM's boot is most of its time.
+
 | Example | Network OS | Shows | Expected | Exit | Time |
 |---|---|---|---|---|---|
 | [frr-bgp](#frr-bgp) | FRR | Basic checks, best-path attributes, a leak guard, a link-failure scenario | `PASSED: 11 passed, 0 failed` | `0` | 99 s |
@@ -26,6 +28,8 @@ Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images a
 | [sonic-frr](#sonic-frr) | SONiC VS + FRR | Configuring a NOS after boot, a port-down scenario | `PASSED: 8 passed, 0 failed` | `0` | 92 s |
 | [arista-frr](#arista-frr) | Arista cEOS + FRR (your image) | A bring-your-own vendor image | `PASSED: 10 passed, 0 failed` | `0` | 97 s |
 | [junos-frr](#junos-frr) | Juniper cJunosEvolved (beta) + FRR (your image) | The hidden leak on Junos, with the beta driver | `PASSED: 13 passed, 0 failed`; each leak `FAILED: 12 passed, 1 failed` | `0`; `1` | 398 s |
+| [mikrotik](#mikrotik) | MikroTik RouterOS 7 (CHR, beta, your image) + FRR | A leaked default RouterOS receives but never installs, under its own static | `PASSED: 10 passed, 0 failed`; the leak `FAILED: 8 passed, 2 failed` | `0`; `1` | 115 to 119 s |
+| [nxos-frr](#nxos-frr) | Cisco Nexus 9000v (beta, your image) + FRR | The same hidden leak on NX-OS, under its own static | `PASSED: 10 passed, 0 failed`; the leak `FAILED: 8 passed, 2 failed` | `0`; `1` | 358 to 377 s |
 | [agent-demo](#agent-demo) `demo.sh` | FRR | An agent's leaky change rejected, the fix accepted | `Demo OK` | `0` | 70 s |
 | [batfish-pipeline](#batfish-pipeline) | FRR | Batfish first, then the lab; three bad changes | `PASSED: 10 passed, 0 failed` | `0` | 100 s |
 | [leak-pattern](#leak-pattern) | FRR | Transit-provider routes leaked to a peer (RFC 7908 Type 3), and the same change with RFC 9234 BGP roles | `PASSED: 8 passed, 0 failed`; the leak `FAILED: 6 passed, 2 failed`; with roles `PASSED: 8 passed, 0 failed` | `0`; `1`; `0` | 42 to 43 s |
@@ -114,6 +118,28 @@ The image comes from the SONiC build server, not a registry. To get it and run t
 ## junos-frr
 
 The [hidden-leak lab](#srl-hidden-leak) on **Juniper cJunosEvolved** (beta driver, your own image) instead of SR Linux: a peer starts sending a default route it shouldn't, the session stays up, ping works, and the leaked route sits in Junos's table as an inactive BGP route. The good configs pass all 13 checks; each of the two one-line leaks fails exactly the guard on the router that receives it. cJunosEvolved boots a VM that installs Junos on every deploy: about 4 minutes to a CLI on a quiet host (the 398 s above), up to 19 minutes with a CPU-heavy job beside it, so give its checks a `timeout` that covers the boot. It needs a host with KVM and about 10 GB of free memory. Everything else is in the example's [README](https://github.com/netdryrun/Netdryrun/tree/main/examples/junos-frr) and the [driver reference](reference/junos.md).
+
+## mikrotik
+
+[`examples/mikrotik`](https://github.com/netdryrun/Netdryrun/tree/main/examples/mikrotik): the [hidden-leak lab](#srl-hidden-leak) on **MikroTik RouterOS 7** (CHR, beta driver, your own image) peering eBGP with FRR. FRR starts sending a default route it shouldn't. On `r1` the session stays up and the ping works. The leaked default is received and is BGP's best path, but it loses the routing table to `r1`'s own static (distance 1 against eBGP's 20). Copy [`leaks/frr1.conf`](https://github.com/netdryrun/Netdryrun/tree/main/examples/mikrotik/leaks) over `configs/` to see it caught.
+
+**Expected:**
+
+- Good configs: `PASSED: 10 passed, 0 failed (10 checks)`, exit code `0`.
+- The leak: `FAILED: 8 passed, 2 failed (10 checks)`, exit code `1`. Only the two guards on `r1` fail: the default via BGP, and the default in the BGP table.
+
+The CHR image can't be redistributed. Download the CHR VMDK from mikrotik.com yourself and build the vrnetlab image; the [README](https://github.com/netdryrun/Netdryrun/blob/main/examples/mikrotik/README.md) shows how. The host needs KVM, and the VM uses 256 MB of RAM. The REST API answers before the startup config is imported, so the checks wait up to `timeout: 600`. A line RouterOS rejects at boot ends the run with exit code `2` instead of a verdict.
+
+## nxos-frr
+
+[`examples/nxos-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/nxos-frr): the [hidden-leak lab](#srl-hidden-leak) on a **Cisco Nexus 9000v** (NX-OS 10.4(8), beta driver, your own image) peering eBGP with FRR. On `n1` the leaked default is received and is BGP's best path, but `n1`'s own static to Null0 keeps the routing table. Sessions, ping and the default route all look unchanged.
+
+**Expected:**
+
+- Good configs: `PASSED: 10 passed, 0 failed (10 checks)`, exit code `0`.
+- The leak: `FAILED: 8 passed, 2 failed (10 checks)`, exit code `1`. Only the two guards on `n1` fail.
+
+The Nexus 9000v can't be redistributed. Download it from Cisco and build the vrnetlab image; see the [README](https://github.com/netdryrun/Netdryrun/blob/main/examples/nxos-frr/README.md). It needs KVM, about 10 GB of free RAM and 4 vCPUs. The VM takes several minutes to boot, which is most of the 358 to 377 s above, hence `timeout: 900`. NX-OS's eBGP advertisement interval is 30 s, so Netdryrun extends the settle and hold before the post-convergence checks to at least 32 s.
 
 ## agent-demo
 
