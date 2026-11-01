@@ -1,0 +1,41 @@
+id: RT-0025
+title: "route protocol ospf6 present: false passes on EOS with an OSPFv3 route installed: the EOS protocol map has no entry that yields ospf6, so the accepted name never matches an EOS route"
+found: "2026-11-01, weekly adversarial run"
+fixed_in: open
+kind: driver
+driver: eos
+check:
+  type: route
+  node: r1
+  prefix: 2001:db8:77::/48
+  protocol: ospf6
+  present: false
+outputs:
+  - needle: "show ipv6 route"
+    output: |
+      {
+          "vrfs": {
+              "default": {
+                  "routingDisabled": false,
+                  "allRoutesProgrammedHardware": true,
+                  "allRoutesProgrammedKernel": true,
+                  "defaultRouteState": "notSet",
+                  "routes": {
+                      "2001:db8:77::/48": {
+                          "hardwareProgrammed": true,
+                          "routeType": "ospfIntraArea",
+                          "routeLeaked": false,
+                          "kernelProgrammed": true,
+                          "preference": 110,
+                          "metric": 20,
+                          "routeAction": "forward",
+                          "directlyConnected": false,
+                          "vias": [{"nexthopAddr": "fe80::2", "interface": "Ethernet1"}]
+                      }
+                  }
+              }
+          }
+      }
+  - needle: "show ipv6 bgp"
+    output: |
+      {"vrfs": {"default": {"vrf": "default", "routerId": "1.1.1.1", "asn": "65001", "bgpRouteEntries": {}}}}

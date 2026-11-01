@@ -1,0 +1,41 @@
+id: RT-0023
+title: "route protocol bgp-evpn present: false passes on SR Linux with a bgp-evpn route installed: the driver folds every bgp* route-type into bgp, so the accepted name bgp-evpn never matches"
+found: "2026-11-01, weekly adversarial run"
+fixed_in: open
+kind: driver
+driver: srlinux
+check:
+  type: route
+  node: leaf1
+  vrf: ipvrf1
+  prefix: 10.90.0.0/24
+  protocol: bgp-evpn
+  present: false
+outputs:
+  - needle: "route-table"
+    output: |
+      {
+        "route": [
+          {
+            "ipv4-prefix": "10.90.0.0/24",
+            "id": 0,
+            "route-type": "bgp-evpn",
+            "route-owner": "bgp_evpn_mgr",
+            "origin-network-instance": "ipvrf1",
+            "leakable": false,
+            "leaked": false,
+            "metric": 0,
+            "preference": 170,
+            "active": true,
+            "route-limit-exceeded": false,
+            "next-hop-group": "44970399",
+            "next-hop-group-network-instance": "ipvrf1",
+            "resilient-hash": false,
+            "fib-programming": {"suppressed": false, "last-successful-operation-type": "add", "pending-operation-type": "none", "last-failed-operation-type": "none"}
+          }
+        ]
+      }
+  - needle: "bgp-rib"
+    output: "{}"
+  - needle: "oper-state"
+    output: '{"oper-state": "up"}'
