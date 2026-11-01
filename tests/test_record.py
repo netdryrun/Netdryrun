@@ -51,6 +51,14 @@ class FakeLab:
 
 class FakeDrv:
     name = "frr"
+    reads_received = True
+
+    def bgp_received(self, neighbor, afi="ipv4-unicast", vrf="default"):
+        """`count` prefixes from each neighbor, distinct per neighbor (the closed-world list record adds)."""
+        n = self.counts[neighbor].get(afi, 0)
+        host = int(ipaddress.ip_address(neighbor)) % 256
+        return Observation({f"10.{host}.{i}.0/24" if afi == "ipv4-unicast" else f"2001:db8:{host}:{i}::/64"
+                            for i in range(n)}, [])
 
     def __init__(self, counts, routes4=(), routes6=(), received=()):
         self.counts, self.table, self.received = counts, {4: list(routes4), 6: list(routes6)}, set(received)
@@ -90,6 +98,11 @@ def test_prefix_counts_are_ranges_by_default(monkeypatch):
     assert got == {("10.0.12.2", "ipv4-unicast"): {"min": 4, "max": 6},     # +max(2, 20%)
                    ("10.0.13.2", "ipv4-unicast"): {"min": 20, "max": 24},
                    ("10.0.13.2", "ipv6-unicast"): {"exact": 0}}               # min: 0 is refused; nothing stays nothing
+    # 0.4.1: each range carries today's accepted set, so a new prefix within the range still fails
+    only = {(c["neighbor"], c["afi"]): c.get("only") for c in prefixes(data)}
+    assert only == {("10.0.12.2", "ipv4-unicast"): [f"10.2.{i}.0/24" for i in range(4)],
+                    ("10.0.13.2", "ipv4-unicast"): [f"10.2.{i}.0/24" for i in range(20)],   # in address order
+                    ("10.0.13.2", "ipv6-unicast"): None}
 
 
 @pytest.mark.parametrize("mode,want", [("exact", {"exact": 4}), ("min", {"min": 4})])

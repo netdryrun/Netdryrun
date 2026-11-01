@@ -1,0 +1,63 @@
+id: RT-0021
+title: "route present passes on FRR for a route zebra selected but failed to install (no `installed` key, `failed: true`): FRR omits `installed` when false and the driver defaults it to true"
+found: "2026-11-01, weekly adversarial run"
+fixed_in: 0.4.1
+kind: driver
+# outputs: hand-written by the red team to the structure of zebra's `show ip route json` (tests/fixtures/frr_route.txt, FRR 10.4.1); a FIB install failure was not produced in a lab
+driver: frr
+check:
+  type: route
+  node: r1
+  prefix: 192.168.3.0/24
+  protocol: bgp
+outputs:
+  - needle: "show ip route"
+    output: |
+      {
+        "192.168.3.0/24":[
+          {
+            "prefix":"192.168.3.0/24",
+            "prefixLen":24,
+            "protocol":"bgp",
+            "vrfId":0,
+            "vrfName":"default",
+            "selected":true,
+            "destSelected":true,
+            "distance":20,
+            "metric":0,
+            "failed":true,
+            "table":254,
+            "internalStatus":32,
+            "internalFlags":8,
+            "internalNextHopNum":1,
+            "internalNextHopActiveNum":1,
+            "uptime":"00:00:42",
+            "nexthops":[
+              {
+                "flags":1,
+                "ip":"10.0.13.2",
+                "afi":"ipv4",
+                "interfaceIndex":47,
+                "interfaceName":"eth2",
+                "active":true,
+                "weight":1
+              }
+            ]
+          }
+        ]
+      }
+  - needle: "show bgp"
+    output: |
+      {
+        "prefix":"192.168.3.0/24",
+        "paths":[
+          {
+            "aspath":{"string":"65003","segments":[{"type":"as-sequence","list":[65003]}],"length":1},
+            "origin":"IGP",
+            "valid":true,
+            "bestpath":{"overall":true,"selectionReason":"First path received"},
+            "nexthops":[{"ip":"10.0.13.2","afi":"ipv4","accessible":true,"used":true}],
+            "peer":{"peerId":"10.0.13.2","routerId":"3.3.3.3","type":"external"}
+          }
+        ]
+      }

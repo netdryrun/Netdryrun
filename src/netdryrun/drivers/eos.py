@@ -23,6 +23,28 @@ PROTOCOLS = {"ebgp": "bgp", "ibgp": "bgp", "bgp": "bgp", "connected": "connected
              "ospfexternaltype2": "ospf", "isis": "isis", "isislevel1": "isis", "isislevel2": "isis",
              "aggregate": "aggregate", "droproute": "static", "dropped": "static"}  # static discard (Null0)
 
+
+def _protocol(rtype: str, prefix: str) -> str:
+    """An EOS routeType as a netdryrun protocol name. Every OSPF route type (intra, inter, external, NSSA, and
+    any later one) is ospf, and in an IPv6 table it is OSPFv3, ospf6: the map once had no name that gave ospf6, so
+    `protocol: ospf6 present: false` never matched an EOS route (red team RT-0025)."""
+    rtype = rtype.lower().replace(" ", "")
+    if rtype.startswith("ospf"):
+        return "ospf6" if ":" in prefix or rtype.startswith(("ospfv3", "ospf3")) else "ospf"
+    if rtype.startswith("isis"):
+        return "isis"
+    if "aggregate" in rtype:   # aggregate, bgpAggregate: a name that never matched would pass present: false
+        return "aggregate"
+    return PROTOCOLS.get(rtype, rtype)
+
+
+def _programmed(route: dict) -> bool:
+    """Whether a routing-table entry forwards: EOS flags one it could not put in the kernel or the hardware
+    (kernelProgrammed / hardwareProgrammed false, e.g. a full TCAM), and such a route is not active, never
+    a pass of `present` (red team plausible case, 2026-11-01). cEOS 4.36.3M prints both flags on every route."""
+    return route.get("kernelProgrammed") is not False and route.get("hardwareProgrammed") is not False
+
+
 SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "show ipv6 bgp summary | json"}
 ROUTE_CMD = "show ip route <prefix> | json"
 ALL_ROUTES_CMD = "show ip route | json"
@@ -76,6 +98,8 @@ def _summary(text: str, vrf: str, afi: str, into: dict[str, BgpNeighbor] | None)
         # EOS sends updates without delay unless `neighbor ... out-delay` is set, which the summary doesn't show:
         # its platform default (0) is used
         n = out.get(key) or BgpNeighbor(str(addr), state, adv_interval=0.0)
+        if "asn" in p and "asn" in entry:   # eBGP when the peer's AS isn't the VRF's own (record's closed-world guard)
+            n.external = str(p["asn"]) != str(entry["asn"])
         if n.address != str(addr):
             # scoped link-locals sharing a key (one peer is also listed once per address family): ambiguous, and a
             # down session is never hidden by an up one
@@ -129,8 +153,7 @@ def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "defaul
         if not isinstance(r, dict):
             raise unexpected(ROUTE_CMD, f"{key}: {str(r)[:150]}")
         if network(ROUTE_CMD, key) == want:
-            rtype = str(r.get("routeType", "")).lower().replace(" ", "")
-            out.append(Route(prefix, PROTOCOLS.get(rtype, rtype), True))
+            out.append(Route(prefix, _protocol(str(r.get("routeType", "")), prefix), _programmed(r)))
     # A BGP path can be "best" inside BGP and still not be installed (a static or connected route with
     # a better preference wins the routing table). Unless BGP is the installed route, every BGP path
     # learned from a neighbor, valid or not, is "present but not selected": a leak that must still fail
@@ -151,8 +174,8 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
     for key, r in _table(ALL_ROUTES_CMD, _vrf(ALL_ROUTES_CMD, _json(ALL_ROUTES_CMD, text), vrf), "routes").items():
         if not isinstance(r, dict):
             raise unexpected(ALL_ROUTES_CMD, f"{key}: {str(r)[:150]}")
-        rtype = str(r.get("routeType", "")).lower().replace(" ", "")
-        out.append(Route(str(network(ALL_ROUTES_CMD, key)), PROTOCOLS.get(rtype, rtype), True))
+        net = str(network(ALL_ROUTES_CMD, key))
+        out.append(Route(net, _protocol(str(r.get("routeType", "")), net), _programmed(r)))
     return out
 
 
@@ -230,6 +253,7 @@ def parse_startup_config_errors(text: str) -> list[str]:
 
 class EosDriver(Driver):
     name = "eos"
+    route_protocols = frozenset({"bgp", "connected", "static", "ospf", "ospf6", "isis", "aggregate"})
     # bgp_neighbors reads the IPv4 and IPv6 unicast summaries only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
     # cEOS 4.36.3M prints "med": 0 for a path received with no MED (interop IOP-2): no output field tells them apart

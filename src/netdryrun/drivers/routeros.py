@@ -43,6 +43,7 @@ def _table(vrf: str) -> str:
 
 class RouterosDriver(Driver):
     name = "routeros"
+    route_protocols = frozenset({"bgp", "connected", "static"})
     unsupported_afis = frozenset({"ipv6-unicast", "evpn"})
     # RouterOS lists `bgp.med: "0"` for a path received with no MED (FRR's network statements, live CHR 7.23.8), and none
     # for its own: 0 can't be told from no MED, so it is unknown and a `med: 0` check is refused before deploying

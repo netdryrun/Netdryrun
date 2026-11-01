@@ -480,6 +480,7 @@ def parse_ping_reply(text: str) -> tuple[int, int]:
 
 class NxosDriver(Driver):
     name = "nxos"
+    route_protocols = frozenset(PROTOCOLS.values()) - {"hsrp"}   # hsrp is no netdryrun.yml protocol name
     # bgp_neighbors reads the IPv4 and IPv6 unicast summaries only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
     ambiguous_bgp_values = {"med": {0: "NX-OS output cannot tell MED 0 from no MED (check a non-zero MED, or check "

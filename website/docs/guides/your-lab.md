@@ -76,10 +76,11 @@ checks:
 
 ## 2. Review it
 
-A recorded baseline allows only modest growth: from 0.3.3 each prefix count is today's count as `min` and 20% more (at least 2) as `max` (0.3.2 and earlier recorded `exact`, which failed the day a site added a LAN). Decide what is allowed to change.
+A recorded baseline allows only modest growth: from 0.3.3 each prefix count is today's count as `min` and 20% more (at least 2) as `max` (0.3.2 and earlier recorded `exact`, which failed the day a site added a LAN). From 0.4.1 each eBGP neighbor's count also carries `only`, the prefixes it sends today: a prefix from it that isn't listed fails, even inside the range. 0.3.3 and 0.4.0 wrote the range alone, and a broken customer filter that let one foreign prefix through passed ([advisory](https://github.com/netdryrun/Netdryrun/tree/main/advisories), [example](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak)); re-record a baseline made with them. On drivers other than FRR and SONiC, `record` writes the exact count instead and says so in the file. Decide what is allowed to change.
 
 - **Keep** every `bgp_session` check.
-- **Set the prefix ranges to the growth you expect**, for example `max: 10` where sites are added often. `max` stays a cheap leak guard. `--exact-prefixes` pins exact counts; `--min-prefixes` records minimums only.
+- **Keep the `only` lists**, and add a prefix to one when a neighbor may start sending it (a customer's new block). Removing `only` brings back the 0.4.0 behavior: a small leak passes.
+- **Set the prefix ranges to the growth you expect**, for example `max: 10` where sites are added often. `max` stays a cheap leak guard. `--exact-prefixes` pins exact counts (no `only` lists); `--min-prefixes` records minimums only.
 - **Keep the standard guards** `record` adds: no default route and no link subnet via BGP on each BGP node. A prefix range has room for one leaked default route; the guard is what catches it.
 - **Keep the route checks you care about**, and drop the rest.
 
@@ -158,6 +159,11 @@ Every pull request that touches `network/` now deploys the lab on the runner, ru
 ## What a pass means
 
 A pass says every check in the file held in the lab. It says nothing about behavior no check looks at, and a container lab isn't your production hardware or scale ([what a lab cannot prove](../trust.md#what-a-lab-cannot-prove)). The baseline and the guards are what make a pass worth something; review them like code.
+
+Two kinds of breakage pass a recorded baseline, because `record` reads routing state, not traffic or failure behavior:
+
+- **Reachability.** A route can stay active via BGP and still forward nowhere. In our [verdict corpus](../corpus.md), removing `next-hop-self` on an iBGP session cut the customer off from the peer network while every recorded route stayed active, and the recorded baseline passed. Add a `ping` check for each pair of networks that must reach each other (`type: ping`, `node:` the customer router, `target:` an address in the peer network).
+- **Safety limits that change nothing today.** Removing a `maximum-prefix` limit or replacing an import filter with permit-all passes while the neighbor sends what it sent when you recorded. Only a failure scenario, a neighbor that misbehaves, shows it: add one where that neighbor announces extra routes ([`inject_routes`](../reference/config.md#failure-scenarios)) and check they stay out, with `bgp_prefixes` `max` on the neighbors behind it or `route` `present: false` for a prefix it must not get through.
 
 ## Next
 

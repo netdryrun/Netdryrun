@@ -51,7 +51,7 @@ BASE = {
         {"type": "ping", "node": "r1", "target": "10.0.0.9", "source": "10.0.0.1", "count": 3, "min_replies": 2,
          "expect": "success", "vrf": "blue"},
         {"type": "ping", "node": "r1", "target": "10.0.0.8", "expect": "failure", "hold": 15},
-        {"type": "bgp_prefixes", "node": "r1", "neighbor": "10.0.0.2", "exact": 2},
+        {"type": "bgp_prefixes", "node": "r1", "neighbor": "10.0.0.2", "exact": 2, "only": ["10.66.0.0/16"]},
     ],
     "scenarios": [
         {"name": "uplink", "link_down": {"node": "r1", "interface": "eth1"}, "node_isolated": {"node": "r2"},
@@ -213,6 +213,8 @@ BAD = {
     "inject_routes": ["r1", 1, {"node": "r1"}, *EMPTY],
     "from": [1, True, "x", *EMPTY],
     "prefixes": [1, [1], "x", ["x"], *EMPTY],
+    # [] is a valid `only` (nothing may arrive); an IPv6 prefix is the wrong family for the default afi
+    "only": ["10.0.0.0/24", ["x"], [1], ["10.0.0.0/33"], ["2001:db8::/48"], [None], 1, True, None, "", {}],
 }
 # as_path "" is the valid empty AS path; {} and [] are not paths
 BAD["as_path"] = ["x", "65002 abc", True, 1.5, None, [], {}]

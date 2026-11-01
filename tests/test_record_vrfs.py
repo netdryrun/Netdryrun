@@ -31,6 +31,11 @@ def test_frr_lists_its_active_vrfs(cls):
 
 class Drv:
     name = "frr"
+    reads_received = True
+
+    def bgp_received(self, neighbor, afi="ipv4-unicast", vrf="default"):
+        return Observation({"default": {"203.0.113.0/25", "203.0.113.128/25"},
+                            "cust": {"10.201.0.0/25", "10.201.0.128/25"}}[vrf], [])
 
     def __init__(self, vrfs=None):
         self._vrfs = vrfs
@@ -73,7 +78,8 @@ def test_record_covers_every_vrf_the_driver_lists(monkeypatch):
     assert {"type": "bgp_session", "node": "edge1", "neighbor": "10.10.1.2", "vrf": "cust"} in checks
     assert {"type": "route", "node": "edge1", "prefix": "10.201.0.0/24", "protocol": "bgp", "vrf": "cust"} in checks
     assert {"type": "route", "node": "edge1", "prefix": "203.0.113.0/24", "protocol": "bgp"} in checks
-    assert any(c["type"] == "bgp_prefixes" and c.get("vrf") == "cust" for c in checks)
+    assert {"type": "bgp_prefixes", "node": "edge1", "neighbor": "10.10.1.2", "afi": "ipv4-unicast", "vrf": "cust",
+            "min": 2, "max": 4, "only": ["10.201.0.0/25", "10.201.0.128/25"]} in checks
     assert not warnings
 
 

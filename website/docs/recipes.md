@@ -52,7 +52,17 @@ One check per neighbor that catches a leak of *any* prefix, including ones nobod
   max: 10
 ```
 
-The count is of *accepted* prefixes (received minus rejected by import policy), so this also shows a filter that suddenly drops everything (`min`). From 0.3.3, `netdryrun record` writes both sides for every neighbor: today's count as `min` and `max` with 20% headroom; adjust `max` to the growth you expect. `record` also writes the no-default-route and link-subnet guards below for every BGP node (`--no-guards` leaves them out).
+The count is of *accepted* prefixes (received minus rejected by import policy), so this also shows a filter that suddenly drops everything (`min`). From 0.3.3, `netdryrun record` writes both sides for every neighbor: today's count as `min` and `max` with 20% headroom; adjust `max` to the growth you expect. A range alone lets a small leak through (one foreign prefix from a customer stays in range), so from 0.4.1 `record` adds [`only`](reference/config.md#bgp_prefixes) on every eBGP neighbor: the prefixes it sends today, and nothing else. Hand-written, for a customer that may announce only its own block:
+
+```yaml
+- type: bgp_prefixes
+  node: edge
+  neighbor: 10.0.1.2
+  min: 1
+  only: [10.10.0.0/24]
+```
+
+`record` also writes the no-default-route and link-subnet guards below for every BGP node (`--no-guards` leaves them out).
 
 **Tested:** passes on `frr-bgp` (2 prefixes); fails on r2 announcing 12 extra static /24s with `redistribute static`, exit 1:
 

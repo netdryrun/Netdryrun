@@ -132,6 +132,8 @@ def test_schema_rejects_a_wrong_result():
     ("frr", "bgp_session", {"node": "r1", "neighbor": "10.0.12.2", "vrf": "blue"}, "vtysh -c 'show bgp vrf blue summary'"),
     ("frr", "bgp_prefixes", {"node": "r1", "neighbor": "fd00::2", "afi": "ipv6-unicast"},
      "vtysh -c 'show bgp ipv6 unicast summary'"),
+    ("frr", "bgp_prefixes", {"node": "r1", "neighbor": "10.0.12.2", "vrf": "blue", "only": ["10.1.0.0/24"]},
+     "vtysh -c 'show bgp vrf blue ipv4 unicast neighbors 10.0.12.2 routes'"),
     ("sonic", "bgp_route", {"node": "r1", "prefix": "10.1.0.0/16"}, "vtysh -c 'show bgp ipv4 unicast 10.1.0.0/16'"),
     ("frr", "ping", {"node": "r1", "target": "2001:db8::1"}, "vtysh -c 'show ipv6 route 2001:db8::1'"),
     ("eos", "route", {"node": "r1", "prefix": "10.1.0.0/16"}, "Cli -p 15 -c 'show ip route vrf default 10.1.0.0/16'"),

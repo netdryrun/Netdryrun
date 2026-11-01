@@ -20,6 +20,7 @@ Times are wall-clock for `netdryrun run` on WSL2 (20 cores, 16 GB) with images a
 |---|---|---|---|---|---|
 | [frr-bgp](#frr-bgp) | FRR | Basic checks, best-path attributes, a leak guard, a link-failure scenario | `PASSED: 11 passed, 0 failed` | `0` | 99 s |
 | [frr-bgp-broken](#frr-bgp-broken) | FRR | A leaked default route caught | `FAILED: 5 passed, 1 failed` | `1` | 39 s |
+| [frr-customer-leak](#frr-customer-leak) | FRR | A customer's foreign prefix caught by a recorded baseline | `FAILED: 19 passed, 2 failed` | `1` | 78 s |
 | [srl-frr](#srl-frr) | Nokia SR Linux + FRR | Mixed vendors | `PASSED: 7 passed, 0 failed` | `0` | 59 s |
 | [srl-hidden-leak](#srl-hidden-leak) | Nokia SR Linux + FRR | A leaked default that ping, sessions and the routing table miss, on both NOSes | `PASSED: 9 passed, 0 failed`; each leak `FAILED: 8 passed, 1 failed` | `0`; `1` | 59 to 60 s |
 | [sonic-frr](#sonic-frr) | SONiC VS + FRR | Configuring a NOS after boot, a port-down scenario | `PASSED: 8 passed, 0 failed` | `0` | 92 s |
@@ -54,6 +55,21 @@ To run it on every pull request, see [Test an FRR change in CI](guides/frr-ci.md
 ```
 
 CI runs this example on every push and expects it to fail.
+
+## frr-customer-leak
+
+[`examples/frr-customer-leak`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak): a customer (`cust`), an edge router (`edge`) and an upstream (`up`). The customer may announce only its own 10.10.0.0/24, and edge's inbound filter enforces it. The bad change (`edge-bad.conf`) deletes the filter's `match` line, so the customer's 203.0.113.128/25, which it doesn't own, is accepted and passed upstream.
+
+**Shows:** the leak a recorded baseline must catch. `netdryrun.yml` was written by `netdryrun record` on the good config, unedited. Each prefix count stays within its recorded range (1 to 3), so a range alone passes, which is what 0.3.3 and 0.4.0 recorded. The `only` lists that `record` writes from 0.4.1 on every eBGP neighbor fail it: a prefix from the customer that it didn't send when the baseline was recorded.
+
+**Expected:** `FAILED: 19 passed, 2 failed (21 checks)`, exit code `1`. The failing checks:
+
+```text
+  [FAIL] edge: prefixes from 10.0.1.2 >= 1 and <= 3 and only from 1 recorded prefix(es) -- 2 ipv4-unicast prefixes accepted; not in the allowed set: 203.0.113.128/25
+  [FAIL] up: prefixes from 10.0.2.1 >= 1 and <= 3 and only from 1 recorded prefix(es) -- 2 ipv4-unicast prefixes accepted; not in the allowed set: 203.0.113.128/25
+```
+
+With `configs/edge.conf` bound instead, all 21 checks pass. CI runs this example on every push and expects it to fail. The time (78 s) was measured on 2026-11-01 on a development build of 0.4.1, not by a release's live layer.
 
 ## srl-frr
 

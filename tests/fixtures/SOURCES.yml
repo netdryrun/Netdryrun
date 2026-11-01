@@ -139,3 +139,30 @@
     which are not published (tests/test_routeros_driver.py and tests/test_routeros_state.py say so)
   why: the live CHR captures were kept off the repository; replacing these with published live captures is open
   added: f88c23e (health, import logs and resource 03de68d)
+- files: [frr_received_routes.txt]
+  kind: live-capture
+  source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git) in lab ndr-fpcap, 2026-11-01, on r1 with
+    `vtysh -c "show bgp ipv4 unicast neighbors 10.1.1.2 routes json"` (three routes from an eBGP neighbor)
+  added: ndr/fix-false-passes-0.4.1
+- files: [frr_received_cust.txt, frr_received_cust_leak.txt, frr_received_empty.txt, frr_received_no_neighbor.txt,
+          frr_received_no_afi.txt, frr_received_no_vrf.txt, frr_custleak_neighbors.txt]
+  kind: live-capture
+  source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git), examples/frr-customer-leak with configs/edge.conf, 2026-11-01,
+    on edge with vtysh -c "show bgp [vrf nope] ipv4|ipv6 unicast neighbors <addr> routes json" and "show bgp neighbors
+    json"; _empty after the customer withdrew both networks, _cust_leak after `no match ip address prefix-list CUST-IN`
+    and a soft clear (the example's bad change, applied live)
+  added: ndr/fix-false-passes-0.4.1
+- files: [frr_bgp_paths_comm_names.txt, frr_bgp_paths_comm_internet.txt, frr_bgp_paths_comm_alias.txt]
+  kind: live-capture
+  source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git) in lab ndr-fpcap, 2026-11-01, on r1 with
+    `vtysh -c "show bgp ipv4 unicast <prefix> json"` for routes r2 tagged with 65020:100 65535:2 65535:8 (_names),
+    0:0 65020:100 (_internet) and 65020:777 65535:3 65535:4 65535:5 (_alias, r1 has `bgp community alias 65020:777
+    customer-routes`); bgpd 10.4.1 prints 0:0 as `0:0`, not `internet`
+  added: ndr/fix-false-passes-0.4.1
+- files: [eos_ipv6_route_ospf3_ext.txt, eos_ipv6_route_ospf3_intra.txt, eos_route_ospf_nssa.txt, eos_bgp_gshut.txt]
+  kind: live-capture
+  source: cEOS 4.36.3M (cEOSLab) in lab ndr-fpcap, 2026-11-01, peered with FRR 10.4.1 over OSPFv2 (area 0.0.0.1 NSSA),
+    OSPFv3 and eBGP, with `show ipv6 route <prefix> | json` (an OSPFv3 external and intra-area route, routeType
+    `ospf` with routeSubtype External2 / IntraArea), `show ip route 172.31.7.0/24 | json` (routeType ospfNssaExternalType2)
+    and `show ip bgp 192.168.30.0/24 | json` (FRR set graceful-shutdown 65040:1; communityList prints GSHUT)
+  added: ndr/fix-false-passes-0.4.1

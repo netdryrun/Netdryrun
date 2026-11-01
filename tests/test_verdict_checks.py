@@ -332,7 +332,7 @@ def test_bgp_route_absent_ignores_only_local_candidates():
     assert ok(_bgp_route, Fake(paths={"default": [P(best=False)]}), {"prefix": "p", "present": False}) is False
     assert ok(_bgp_route, Fake(paths={"default": [P(local_candidate=True), P(best=False)]}),
               {"prefix": "p", "present": False}) is False
-    assert ok(_bgp_route, Fake(paths={"default": [P(local_candidate=True)]}), {"prefix": "p"}) is True
+    assert ok(_bgp_route, Fake(paths={"default": [P(local_candidate=True)]}), {"prefix": "p"}) is False   # RT-0026
 
 
 def test_bgp_route_needs_a_best_path():
@@ -397,8 +397,11 @@ def ping(result, vrf="default", **params):
                                                     (1, 1, True), (1, 0, False), (2, 1, True), (5, 3, False),
                                                     (5, 4, True)])
 def test_ping_success_tolerates_one_lost_packet(sent, received, expected):
-    (passed, _, _), _ = ping((sent, received, ping_ev()))
+    (passed, _, _), _ = ping((sent, received, ping_ev()), count=sent)
     assert passed is expected
+    if sent < 3:   # 0.4.1: the default need counts from count (3), not from the packets sent
+        (passed, _, _), _ = ping((sent, received, ping_ev()))
+        assert passed is False
 
 
 @pytest.mark.parametrize("sent,received,expected", [(3, 0, True), (3, 1, False), (3, 3, False), (1, 0, True)])

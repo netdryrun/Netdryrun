@@ -1,0 +1,29 @@
+# A customer (cust), our edge router (edge) and an upstream (up). edge runs a "bad change": its customer filter
+# lost its match line, so the customer's 203.0.113.128/25, which it doesn't own, is accepted and passed upstream.
+# Netdryrun should FAIL this change. netdryrun.yml was recorded with `netdryrun record` on the good config
+# (configs/edge.conf): the prefix counts stay in range, and the recorded set of prefixes per eBGP neighbor catches it.
+name: ndr-frr-custleak
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    edge:
+      binds:
+        - ../frr-bgp/configs/daemons:/etc/frr/daemons
+        - ../frr-bgp/configs/vtysh.conf:/etc/frr/vtysh.conf
+        - edge-bad.conf:/etc/frr/frr.conf
+    cust:
+      binds:
+        - ../frr-bgp/configs/daemons:/etc/frr/daemons
+        - ../frr-bgp/configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/cust.conf:/etc/frr/frr.conf
+    up:
+      binds:
+        - ../frr-bgp/configs/daemons:/etc/frr/daemons
+        - ../frr-bgp/configs/vtysh.conf:/etc/frr/vtysh.conf
+        - configs/up.conf:/etc/frr/frr.conf
+  links:
+    - endpoints: ["edge:eth1", "cust:eth1"]
+    - endpoints: ["edge:eth2", "up:eth1"]

@@ -389,7 +389,8 @@ def run_checks(path: str) -> str:
 
 @mcp.tool(description=_describe("""
     Snapshot a known-good lab (containerlab topology file) as netdryrun.yml check text: every established
-    BGP session, prefix count (today's count as min, max with 20% headroom) and BGP route. Call it when no
+    BGP session, prefix count (today's count as min, max with 20% headroom; on each eBGP neighbor, only the
+    prefixes it sends today, or an exact count where the driver can't list them) and BGP route. Call it when no
     checks exist, before changing the configs, then dry-run the change against this baseline. With
     attributes=true, also pin each BGP route's AS path, local preference and communities. By default it also
     adds the standard guards (no default route and no link subnet via BGP on each BGP node); guards=false

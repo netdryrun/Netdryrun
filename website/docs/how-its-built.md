@@ -11,7 +11,7 @@ A tool that approves network changes has to earn trust with evidence, not claims
 
 | | Evidence |
 |---|---|
-| Accuracy on realistic BGP changes | <!-- facts:built_accuracy -->Verdict Corpus v1: **24/30** (ping only 20/30, sessions up 15/30). v2: **16 of 17** deterministic cases (ping only 9/17, sessions up 7/17); case 18 is nondeterministic in this lab and not scored. Both ran on Netdryrun 0.3.1 (the release gate reruns them for every release)<!-- /facts:built_accuracy -->. [Results](corpus.md) |
+| Accuracy on realistic BGP changes | <!-- facts:built_accuracy -->Verdict Corpus v1: **24/30** (ping only 20/30, sessions up 15/30). v2: **16 of 17** deterministic cases (ping only 9/17, sessions up 7/17); case 18 is nondeterministic in this lab and not scored. Both ran on Netdryrun 0.3.1 (v1) and Netdryrun 0.4.0 (v2) (the release gate reruns them for every release)<!-- /facts:built_accuracy -->. [Results](corpus.md) |
 | Expected verdicts fixed before any run | Committed first, never edited: [`b4df0b0`](https://github.com/netdryrun/Netdryrun/commit/b4df0b0) (v1), [`322cc4e`](https://github.com/netdryrun/Netdryrun/commit/322cc4e) (v2) |
 | Results you can rerun | One command locally (`python corpus/run.py`, `--corpus v2` for v2). The [Reproduce corpus](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/reproduce-corpus.yml) workflow reruns v1 from your own fork; it has not been run on GitHub yet |
 | Real labs on every change | FRR and Nokia SR Linux labs boot in CI on every push and pull request ([runs](https://github.com/netdryrun/Netdryrun/actions/workflows/ci.yml)) |
@@ -63,6 +63,7 @@ Every push to `main` and every pull request runs [`ci.yml`](https://github.com/n
 
 - **`e2e`** runs the GitHub Action on [`examples/frr-bgp`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp) and [`examples/srl-frr`](https://github.com/netdryrun/Netdryrun/tree/main/examples/srl-frr) (FRR and Nokia SR Linux). Both must pass.
 - **`catches-bad-change`** runs [`examples/frr-bgp-broken`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-bgp-broken), a change that leaks a default route. The job succeeds only if Netdryrun rejects it.
+- **`catches-customer-leak`** runs [`examples/frr-customer-leak`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak) (from 0.4.1): a customer filter that lost its `match` line, against a baseline written by `netdryrun record`. The job succeeds only if Netdryrun rejects it.
 - **`agent-demo`** replays [`examples/agent-demo`](https://github.com/netdryrun/Netdryrun/tree/main/examples/agent-demo): a route-leaking change must fail on exactly the leak guards, and the proper fix must pass.
 
 A second workflow, [`published-action.yml`](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/published-action.yml), tests what users install rather than the code on `main`: the released Action by its tag (it must pass a good change and reject a bad one), and `pip install` and `uvx` from PyPI on every supported Python version, including an MCP handshake.

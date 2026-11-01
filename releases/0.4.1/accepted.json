@@ -2591,6 +2591,26 @@
       "diff": "9f2c29f2cb29e7e1",
       "class": "message-text"
     },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_1": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "0c7235a86376252f",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_2": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "5d554455b074c8b2",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_3": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "29e9605fbfed45c7",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁbgp_received__mutmut_4": {
+      "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
+      "diff": "d9e921244876df37",
+      "class": "equivalent"
+    },
     "netdryrun.drivers.base.xǁDriverǁall_routes__mutmut_1": {
       "reason": "equivalent: default argument of an abstract base-class method that only raises NotImplementedError",
       "diff": "ad9ef2abf022df26",
@@ -5544,6 +5564,51 @@
       "class": "equivalent",
       "reason": "parse_version returns None for anything but an object (a dict), so the guard and the parser give the same answer",
       "diff": "8d34902a0f404ac5"
+    },
+    "netdryrun.config.x__describe__mutmut_88": {
+      "reason": "equivalent: p.get('present', None) is False vs p.get('present', True) is False; the default is used only when present is absent, and neither None nor True is False, so the result is identical for every params dict",
+      "diff": "041fb097306c99f8",
+      "class": "equivalent"
+    },
+    "netdryrun.config.x__describe__mutmut_90": {
+      "reason": "equivalent: p.get('present') is False vs p.get('present', True) is False; the implicit default None and True are both not False, so the result is identical for every params dict",
+      "diff": "124ee8e321b22772",
+      "class": "equivalent"
+    },
+    "netdryrun.config.x__validate_check__mutmut_433": {
+      "reason": "equivalent: params.get('present', None) is False vs params.get('present', True) is False; the default only applies when present is absent, and neither None nor True is False, so the condition is identical for every input",
+      "diff": "0045f40c73050f22",
+      "class": "equivalent"
+    },
+    "netdryrun.config.x__validate_check__mutmut_435": {
+      "reason": "equivalent: params.get('present') is False vs params.get('present', True) is False; the implicit default None and True are both not False, so the condition is identical for every input",
+      "diff": "e0c1dfccda6f0484",
+      "class": "equivalent"
+    },
+    "netdryrun.config.x__validate_check__mutmut_458": {
+      "reason": "equivalent: the default expect 'SUCCESS' vs 'success' is only used when expect is absent; it is a str whose .lower() is 'success', so it passes the same membership test and params['expect'] is stored as 'success' either way; the error branch that would print it is unreachable for the default",
+      "diff": "2fd9f818ff90be55",
+      "class": "equivalent"
+    },
+    "netdryrun.config.x__only__mutmut_23": {
+      "reason": "equivalent: ipaddress.ip_network(x, strict=None) vs strict=False; ipaddress only tests `if strict:` (IPv4Network and IPv6Network), and None is falsy like False, so every input gives the same network or the same ValueError",
+      "diff": "912bd434519a2068",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.eos.x__summary__mutmut_100": {
+      "reason": "equivalent: state is lowercased (re.split(...)[0].lower()), so it is never 'XXestablishedXX' and the guard becomes n.state == 'established'; when state is 'established' the assignment sets n.state to the value it already has",
+      "diff": "d66bdd21c5a33d61",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.eos.x__summary__mutmut_101": {
+      "reason": "equivalent: state is lowercased (re.split(...)[0].lower()), so it is never 'ESTABLISHED' and the guard becomes n.state == 'established'; when state is 'established' the assignment sets n.state to the value it already has",
+      "diff": "a6d86d93d710bbb8",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.x_check_supported__mutmut_76": {
+      "reason": "equivalent: the getattr default only feeds `not`, and not None == not False; every Driver subclass inherits reads_received from base, and an unknown name (DRIVERS.get -> None) takes the default either way",
+      "diff": "36bcf3e7175e0cb7",
+      "class": "equivalent"
     }
   },
   "checks": {

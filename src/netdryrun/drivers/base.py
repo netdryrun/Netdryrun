@@ -127,6 +127,9 @@ class BgpNeighbor:
     # here and no session or prefix check is evaluated on the key: either session's state or count would answer
     # for the other one.
     ambiguous: list[str] = field(default_factory=list)
+    # an eBGP session (True), iBGP (False), or not known (None); `record` puts its closed-world guard on eBGP
+    # neighbors and on every neighbor whose kind it doesn't know
+    external: bool | None = field(default=None, compare=False)
 
 
 @dataclass
@@ -134,6 +137,20 @@ class Route:
     prefix: str
     protocol: str   # lower-case, e.g. "bgp", "connected", "static"
     active: bool
+
+
+# BGP route types a driver keeps apart from plain bgp (SR Linux): `protocol: bgp` matches them too, so a guard
+# against BGP still sees an EVPN- or VPN-learned route, and `protocol: bgp-evpn` matches only its own
+BGP_SUBTYPES = ("bgp-evpn", "bgp-vpn")
+
+
+def is_bgp(protocol: str) -> bool:
+    return protocol == "bgp" or protocol in BGP_SUBTYPES
+
+
+def protocol_matches(have: str, want: str) -> bool:
+    """Does a route the driver reports as `have` match a check's `protocol: want`?"""
+    return have == want or (want == "bgp" and have in BGP_SUBTYPES)
 
 
 @dataclass
@@ -225,6 +242,17 @@ class Driver:
     ambiguous_bgp_values: dict[str, dict] = {}
     # bgp_prefixes address families this driver has no prefix counts for (refused before deploying)
     unsupported_afis: frozenset[str] = frozenset()
+    # the route protocol names (config.PROTOCOLS) this driver can report after normalization. A route check on
+    # any other name could never match, so present: false would always pass: refused before deploying. A driver
+    # that declares none supports no protocol: key at all (fail closed)
+    route_protocols: frozenset[str] = frozenset()
+
+    # bgp_received is implemented (bgp_prefixes `only`); a driver without it refuses `only` before deploying
+    reads_received = False
+
+    def bgp_received(self, neighbor: str, afi: str = "ipv4-unicast", vrf: str = "default") -> Observation:
+        """Every prefix accepted from `neighbor` in `afi` (after import policy), as a set of canonical prefixes."""
+        raise NotImplementedError
 
     def bgp_paths(self, prefix: str, vrf: str = "default") -> Observation:
         """Every path for exactly `prefix` in the BGP table (list[BgpPath]), best path flagged."""

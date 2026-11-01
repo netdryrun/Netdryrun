@@ -429,7 +429,9 @@ def _communities(command: str, e: dict) -> tuple[list[str], list[str]]:
             raise unexpected(command, f"community {str(c)[:80]}")
         values.append(v)
     large = [v[len("large:"):] for v in values if v.lower().startswith("large:")]
-    std = [v for v in values if not v.lower().startswith("large:")]
+    # extended communities (target:65000:1, origin:..., and the other `type:value` forms) are neither standard nor
+    # large: without_communities can't name one, and kept as standard they would fail every such check
+    std = [v for v in values if not re.match(r"[a-z][a-z0-9-]*:", v.lower())]
     return canon_communities(std), canon_communities(large)
 
 
@@ -492,6 +494,7 @@ def _counts(neighbors: dict[str, BgpNeighbor]) -> dict:
 
 class JunosDriver(Driver):
     name = "junos"
+    route_protocols = frozenset(PROTOCOLS.values())
     # bgp_neighbors reads the inet.0 and inet6.0 RIB counts only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
 

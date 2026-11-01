@@ -1,0 +1,40 @@
+id: RT-0026
+title: "bgp_route 10.2.0.0/24 (a BGP best path exists) passes on SR Linux when no BGP path was received and nothing is advertised: the router's own static route, listed in the local RIB as origin-protocol static, is taken as the BGP best path"
+found: "2026-11-01, weekly adversarial run"
+fixed_in: 0.4.1
+# Fixed, not documented: a best-path check on a route SR Linux marks best whether it is advertised or not can't say
+# anything about BGP, and FRR already failed it. Check the route on the neighbor that should receive it.
+kind: driver
+# outputs: hand-written by the red team to the structure of SR Linux 26.7.2's local RIB and attr-set answers (tests/fixtures/srl_bgp_rib_paths.txt, srl_attr_set_*.txt)
+driver: srlinux
+check:
+  type: bgp_route
+  node: leaf1
+  prefix: 10.2.0.0/24
+outputs:
+  - needle: "attr-set 4"
+    output: |
+      {"index": "4", "origin": "igp", "atomic-aggregate": false, "next-hop": "0.0.0.0", "as-path": {}}
+  - needle: "bgp-rib"
+    output: |
+      {
+        "route": [
+          {
+            "prefix": "10.2.0.0/24",
+            "neighbor": "0.0.0.0",
+            "origin-protocol": "static",
+            "path-id": 0,
+            "used-route": true,
+            "unused-weight-only": false,
+            "valid-route": true,
+            "best-route": true,
+            "backup-route": false,
+            "stale-route": false,
+            "fib-disabled": false,
+            "pending-delete": false,
+            "group-best": true,
+            "tie-break-reason": "none",
+            "attr-id": "4"
+          }
+        ]
+      }

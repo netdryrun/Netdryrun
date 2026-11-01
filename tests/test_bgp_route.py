@@ -125,8 +125,12 @@ def test_present_false_means_no_path_at_all():
     assert ev([local], present=False)[0]
     ok, _, _ = ev([local, path(best=False)], present=False)
     assert not ok
-    # ...but a best-path check on the router's own route still reads it
-    assert ev([local], as_path="", next_hop="0.0.0.0")[0]
+    # ...nor for a best-path check: SR Linux lists it, best, whether it is advertised or not (red team RT-0026)
+    ok, detail, _ = ev([local], as_path="", next_hop="0.0.0.0")
+    assert not ok and "only the router's own route" in detail
+    assert not ev([local])[0]
+    # a received path beside it is read, the router's own one never chosen as best
+    assert ev([local, path(as_path="65002")], as_path="65002")[0]
 
 
 def test_post_convergence_rules():

@@ -83,19 +83,20 @@ The check fails if the neighbor is not configured. A `state` other than `establi
 
 ### bgp_prefixes
 
-The number of prefixes accepted from a neighbor is within a range. Accepted means received minus rejected by import policy.
+The number of prefixes accepted from a neighbor is within a range, and (with `only`) every one of them is in a set you list. Accepted means received minus rejected by import policy.
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
 | `neighbor` | yes | | Neighbor IP address (a link-local address several sessions share is ambiguous, as for `bgp_session`) |
-| `min` | one of `min`, `max`, `exact` | | Lower bound, inclusive |
-| `max` | one of `min`, `max`, `exact` | | Upper bound, inclusive |
-| `exact` | one of `min`, `max`, `exact` | | Exact count |
+| `min` | one of `min`, `max`, `exact`, `only` | | Lower bound, inclusive |
+| `max` | one of `min`, `max`, `exact`, `only` | | Upper bound, inclusive |
+| `exact` | one of `min`, `max`, `exact`, `only` | | Exact count |
+| `only` | one of `min`, `max`, `exact`, `only` | | 0.4.1: the prefixes this neighbor may send, a list of prefixes in the check's `afi` (`ipv4-unicast` or `ipv6-unicast`). Any other accepted prefix fails the check, even when the count is in range, and so does one that replaces a listed prefix. `[]` means nothing may arrive. FRR and SONiC only: on other drivers it is refused before the lab deploys (exit code `2`). `netdryrun record` writes it on every eBGP neighbor |
 | `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS or Juniper (beta) |
 
 Rules:
 
-- At least one of `min`, `max` or `exact` is required.
+- At least one of `min`, `max`, `exact` or `only` is required.
 - `exact` cannot be combined with `min` or `max`.
 - `min` must not be greater than `max`.
 - All three are non-negative integers.
@@ -104,7 +105,8 @@ Rules:
 - `afi: evpn` on an SR Linux or Arista EOS node is refused before the lab deploys (exit code `2`): those drivers read only the IPv4 and IPv6 unicast counts (SR Linux has no received-routes counter for EVPN), so an EVPN count would always read 0. SR Linux refuses it from 0.3.1; before, the count read 0 and passed `max`.
 - The session must be `established`. Counters reset to 0 when a session drops, so a count from a down session would satisfy `max` by accident; Netdryrun fails the check instead.
 - If the session is established but the address family reports nothing, the count is 0.
-- A check with `max` or `exact` is a post-convergence check. A check with only `min` is a positive check.
+- A check with `max`, `exact` or `only` is a post-convergence check. A check with only `min` is a positive check.
+- With `only`, the prefixes come from the neighbor's accepted routes (FRR: `show bgp <afi> unicast neighbors <address> routes json`). A count above 0 with no route listed is no answer (the check fails as not ready), never "nothing new".
 
 ```yaml
 - type: bgp_prefixes
@@ -112,6 +114,17 @@ Rules:
   neighbor: 10.0.12.2
   min: 1
   max: 10          # guards against a route leak flooding r1
+```
+
+A customer that may announce only its own block. A range alone (`min: 1`, `max: 3`) passes when a broken inbound filter lets one prefix it doesn't own through; `only` fails it ([`examples/frr-customer-leak`](https://github.com/netdryrun/Netdryrun/tree/main/examples/frr-customer-leak)):
+
+```yaml
+- type: bgp_prefixes
+  node: edge
+  neighbor: 10.0.1.2
+  min: 1
+  max: 3
+  only: [10.10.0.0/24]   # anything else from the customer fails
 ```
 
 ### route
@@ -145,8 +158,8 @@ Attributes of the BGP **best path** for a prefix: communities, AS path, local pr
 | Key | Required | Default | Meaning |
 |---|---|---|---|
 | `prefix` | yes | | IPv4 or IPv6 prefix, matched exactly |
-| `communities` | no | | The best path must carry **all** of these. Standard (`'65000:100'`), large (`'65000:1:2'`) or well-known names (`no-export`, `no-advertise`, `no-peer`, `blackhole`, `graceful-shutdown`, `accept-own`, `llgr-stale`, `no-llgr`, `no-export-subconfed`) |
-| `without_communities` | no | | The best path must carry **none** of these. Same forms as `communities` |
+| `communities` | no | | The best path must carry **all** of these. Standard (`'65000:100'`), large (`'65000:1:2'`) or well-known names (`no-export`, `no-advertise`, `no-peer`, `blackhole`, `graceful-shutdown`, `accept-own`, `llgr-stale`, `no-llgr`, `no-export-subconfed`, and from 0.4.1 `internet` (0:0), `accept-own-nexthop`, `route-filter-translated-v4`, `route-filter-v4`, `route-filter-translated-v6`, `route-filter-v6`) |
+| `without_communities` | no | | The best path must carry **none** of these. Same forms as `communities`. From 0.4.1 a path carrying a community the device prints by a name Netdryrun can't turn into a number (a `bgp community alias`, a name it doesn't know) fails the check: it could be one of these. 0.4.0 and earlier kept such names as text, so FRR's `internet`, `accept-own-nexthop` and `route-filter-translated-v4` never matched `0:0`, `65535:8` and `65535:2`, and the check passed |
 | `as_path` | no | | Exact AS path, ASNs separated by spaces: `"65002 65003"`. `""` is the empty path of a locally originated route. AS sets are written `{65004,65005}` |
 | `as_path_regex` | no | | Python regular expression searched in the AS path string, for example `"^65002 "` (learned from 65002) or `"(^| )65666( |$)"` (passes through 65666). It runs with no time limit, so avoid nested repeats such as `(\d+ ?)+$` that can backtrack for minutes |
 | `local_pref` | no | | Exact local preference |
@@ -157,7 +170,7 @@ Attributes of the BGP **best path** for a prefix: communities, AS path, local pr
 
 Rules:
 
-- Without attribute keys, the check passes when a best path exists.
+- Without attribute keys, the check passes when a best path exists. The router's own routes that SR Linux lists in its BGP RIB (static and interface routes, marked best whether they are advertised or not) are not BGP paths: from 0.4.1 a check whose only path is one of them fails (0.4.0 passed it; FRR, which lists only BGP paths, always failed it). Check such a route on the neighbor that should receive it.
 - **Quote communities.** YAML reads some unquoted values as numbers (`65000:10` is a base-60 number to YAML 1.1), so an unquoted community that YAML turns into a number is a config error.
 - A community can't be in both `communities` and `without_communities`.
 - `present: false` can't be combined with attribute keys. To forbid a community on the best path, use `without_communities`.
@@ -361,7 +374,7 @@ A driver turns device state into a common shape. Netdryrun detects it from the t
 | SONiC | the FRR commands, through `vtysh` inside the container |
 | Juniper cJunosEvolved (beta) | `cli -c "show ... \| display json"` over the container's SSH hop to the Junos VM; accepted prefixes = `received-prefix-count` minus the hidden routes rejected by import policy; `route` and `bgp_route` from `show route <prefix> exact table <table> all extensive` (hidden routes included) |
 
-If a driver can't read what a check asks for, the run stops before deploying (exit code `2`) instead of guessing: "`<key>` is not supported on `<driver>`" for a `bgp_route` attribute (today every driver reads every attribute), and "afi evpn is not supported on eos" (or `srlinux`, `junos`) for an EVPN prefix count on Arista EOS, SR Linux or Juniper, and "med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED" for `med: 0` on Arista EOS.
+If a driver can't read what a check asks for, the run stops before deploying (exit code `2`) instead of guessing: "`<key>` is not supported on `<driver>`" for a `bgp_route` attribute (today every driver reads every attribute), and "afi evpn is not supported on eos" (or `srlinux`, `junos`) for an EVPN prefix count on Arista EOS, SR Linux or Juniper, and "med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED" for `med: 0` on Arista EOS. From 0.4.1 also "only is not supported on `<driver>` yet" for a `bgp_prefixes` `only` list outside FRR and SONiC, and "protocol `<name>` is never reported by `<driver>`" for a [protocol name](#protocol-names) the node's driver can't report.
 
 Every command and its raw output is kept in the [JSON report](cli.md#json).
 
@@ -380,3 +393,5 @@ Every command and its raw output is kept in the [JSON report](cli.md#json).
 | `isis` | `isis` | `isis` |
 
 `protocol` must be one of these names (case-insensitive): `bgp`, `connected`, `local`, `static`, `kernel`, `ospf`, `ospf6`, `isis`, `rip`, `ripng`, `aggregate`, `eigrp`, `babel`, `nhrp`, `table`, `sharp`, `pbr`, `openfabric`, `bgp-evpn`, `bgp-vpn`, `dhcp`, `arp-nd`, `gribi`. Any other name is a config error with a suggestion where one is close (`direct` → `connected`, `ospfv3` → `ospf6`); `ebgp` and `ibgp` are refused because drivers report both as `bgp`. Before 0.3.1 an unknown name was passed through, matched nothing, and silently passed `present: false`. The failure detail lists the protocols that were seen.
+
+From 0.4.1 a name must also be one the node's driver can report, or the check is refused before the lab deploys (exit code `2`): it could never match a route there, so `present: false` would always pass. FRR and SONiC report zebra's names (`bgp`, `connected`, `local`, `static`, `kernel`, `ospf`, `ospf6`, `isis`, `rip`, `ripng`, `eigrp`, `babel`, `nhrp`, `table`, `sharp`, `pbr`, `openfabric`); EVPN, VPN and aggregate routes are `bgp` there, so `bgp-evpn`, `bgp-vpn` and `aggregate` are refused on FRR. SR Linux reports `bgp`, `bgp-evpn`, `bgp-vpn`, `connected`, `local`, `static`, `aggregate`, `ospf`, `ospf6`, `isis`, `dhcp`, `arp-nd` and `gribi`; Arista EOS `bgp`, `connected`, `static`, `ospf`, `ospf6` (every OSPF route in an IPv6 table), `isis` and `aggregate`. `protocol: bgp` matches SR Linux's `bgp-evpn` and `bgp-vpn` routes too, so a guard against BGP sees every BGP-learned route; `protocol: bgp-evpn` matches only EVPN routes (0.4.0 and earlier read every SR Linux BGP route type as `bgp`, so `bgp-evpn` never matched). The name must also fit the prefix's address family: `ospf` and `rip` on an IPv6 prefix, and `ospf6` and `ripng` on an IPv4 prefix, are config errors (exit code `2`) from 0.4.1, since such a route is reported under the other name.

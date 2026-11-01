@@ -58,11 +58,15 @@ def test_eos_admin_idle_reads_as_idle():
 
 # --- #7: an SR Linux route learned through EVPN is a BGP route for `protocol: bgp` -----------------------------------
 
-def test_srl_bgp_evpn_route_type_is_bgp():
+def test_srl_bgp_evpn_route_matches_protocol_bgp():
+    # 0.4.1 (red team RT-0023): bgp-evpn keeps its name, and protocol: bgp still matches it
+    from netdryrun.drivers.base import protocol_matches
     row = json.loads(read("srl_leak_route.txt"))
     row["route"][0]["route-type"] = "bgp-evpn"
     routes = srlinux.parse_routes(json.dumps(row), "0.0.0.0/0")
-    assert routes and routes[0].protocol == "bgp" and routes[0].active
+    assert routes and routes[0].protocol == "bgp-evpn" and routes[0].active
+    assert protocol_matches(routes[0].protocol, "bgp") and protocol_matches(routes[0].protocol, "bgp-evpn")
+    assert not protocol_matches("bgp", "bgp-evpn") and not protocol_matches("bgp-vpn", "bgp-evpn")
 
 
 # --- #5: FRR marks a graceful-restart stale path ("stale": true); a check never passes on one -------------------------
@@ -352,11 +356,13 @@ def test_an_ambiguous_neighbor_is_not_recorded_and_says_so():
 
 # D4: every SR Linux BGP route type is a BGP route for `protocol: bgp`.
 
-def test_srl_every_bgp_route_type_is_bgp():
+def test_srl_every_bgp_route_type_matches_protocol_bgp():
+    from netdryrun.drivers.base import is_bgp
     row = json.loads(read("srl_leak_route.txt"))
-    for rtype in ("bgp", "bgp-evpn", "bgp-vpn", "bgp-label"):
+    for rtype, proto in (("bgp", "bgp"), ("bgp-evpn", "bgp-evpn"), ("bgp-vpn", "bgp-vpn"), ("bgp-label", "bgp")):
         row["route"][0]["route-type"] = rtype
-        assert srlinux.parse_routes(json.dumps(row), "0.0.0.0/0")[0].protocol == "bgp", rtype
+        got = srlinux.parse_routes(json.dumps(row), "0.0.0.0/0")[0].protocol
+        assert got == proto and is_bgp(got), rtype
 
 
 # R3 (delta review round 2): a link-local next hop names no interface, and two sessions can share it (fe80::1 on

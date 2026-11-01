@@ -1,0 +1,68 @@
+{
+    "vrfs": {
+        "default": {
+            "vrf": "default",
+            "routerId": "10.3.3.1",
+            "asn": "65030",
+            "bgpRouteEntries": {
+                "192.168.30.0/24": {
+                    "address": "192.168.30.0",
+                    "maskLength": 24,
+                    "bgpRoutePaths": [
+                        {
+                            "nextHop": "10.3.3.2",
+                            "reasonNotBestpath": "noReason",
+                            "localPreference": 0,
+                            "weight": 0,
+                            "tag": 0,
+                            "med": 0,
+                            "routeType": {
+                                "stale": false,
+                                "valid": true,
+                                "suppressed": false,
+                                "active": true,
+                                "backup": false,
+                                "ecmpHead": false,
+                                "ecmp": false,
+                                "ecmpContributor": false,
+                                "atomicAggregator": false,
+                                "queued": false,
+                                "luRoute": false,
+                                "sixPeRoute": false,
+                                "ucmp": false,
+                                "implicitEcmpFast": false,
+                                "origin": "Igp"
+                            },
+                            "peerEntry": {
+                                "peerAddr": "10.3.3.2",
+                                "peerRouterId": "10.3.3.2"
+                            },
+                            "asPathEntry": {
+                                "asPathType": "External",
+                                "asPath": "65040"
+                            },
+                            "routeDetail": {
+                                "nextHopVrfName": "",
+                                "communityList": [
+                                    "65040:1",
+                                    "GSHUT"
+                                ],
+                                "extCommunityList": [],
+                                "extCommunityListRaw": [],
+                                "largeCommunityList": [],
+                                "rxSafi": "Unicast",
+                                "origin": "Igp",
+                                "recvdFromRRClient": false,
+                                "recmpEligible": false,
+                                "tunnelRibEligible": false,
+                                "igpMetric": 0
+                            },
+                            "timestamp": 1793544728
+                        }
+                    ],
+                    "totalPaths": 1
+                }
+            }
+        }
+    }
+}
