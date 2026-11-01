@@ -6,7 +6,7 @@
 #            lab-input      a topology or config fed to a lab, not output
 #            report         a report Netdryrun wrote on a real run
 #            hand-written   written to a live capture's structure, the capture itself unpublished; only the files
-#                           frozen in scripts/contrib_gate.py (HAND_WRITTEN) may have it, and the entry says why
+#                           frozen in scripts/contrib_gate.py (HAND_WRITTEN, now empty) may have it, and the entry says why
 #   source   the lab, NOS version and how it was captured, as far as it was recorded when the file was added
 #   added    the commit that added it, or last re-captured it
 #
@@ -134,8 +134,8 @@
 - files: [routeros_bgp_connection.txt, routeros_bgp_session.txt, routeros_health_running.txt,
           routeros_log_import_clean.txt, routeros_log_import_error.txt, routeros_ping.txt, routeros_ping_fail.txt,
           routeros_resource.txt, routeros_routes_main.txt, routeros_routes_red.txt, routeros_rtable.txt]
-  kind: hand-written
-  source: written to the structure and wording of live RouterOS 7.23.8 (CHR) captures of 2026-10-30 and 2026-11-01,
-    which are not published (tests/test_routeros_driver.py and tests/test_routeros_state.py say so)
-  why: the live CHR captures were kept off the repository; replacing these with published live captures is open
-  added: f88c23e (health, import logs and resource 03de68d)
+  kind: live-capture
+  source: RouterOS 7.23.8 (long-term) CHR, 2026-11-01, scripts/labs/routeros-cap captured by scripts/capture_fixtures.sh
+    routeros (the import error log from a bad *.auto.rsc uploaded over FTP, the way vrnetlab loads a startup config);
+    they replace hand-written files of the same names
+  added: ndr/mikrotik-live

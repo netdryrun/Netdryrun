@@ -305,8 +305,8 @@ def _cells() -> list[Cell]:
     add("srlinux", "fail", "no replies", p, ping(no_replies(fx("srl_ping.txt"))))
     add("srlinux", "fail", "must fail but replies", {**p, "expect": "failure"}, ping(fx("srl_ping.txt")))
 
-    # ---- MikroTik RouterOS 7 (REST inside the container; fixtures are hand-written with the structure of a live CHR 7.23.8
-    # capture: the captures themselves are unpublished until MikroTik answers a terms question) -----------------------
+    # ---- MikroTik RouterOS 7 (REST inside the container; fixtures are live CHR 7.23.8 captures from
+    # scripts/labs/routeros-cap) ---------------------------------------------------------------------------------------
     ros_sessions = json.loads(fx("routeros_bgp_session.txt"))
     ros_conns = json.loads(fx("routeros_bgp_connection.txt"))
     ros_main = json.loads(fx("routeros_routes_main.txt"))
@@ -357,13 +357,12 @@ def _cells() -> list[Cell]:
     add("routeros", "fail", "received count is not the accepted count", {**px, "exact": 4}, ros_neighbors())
     add("routeros", "fail", "prefixes under min", {**px, "min": 4}, ros_neighbors())
     add("routeros", "fail", "prefixes on a session that is down", {**px, "min": 1}, ros_neighbors(sessions=ros_down(ros_sessions)))
-    # a session that is up and receives nothing: a real count of 0, which `min` must not pass (the structure of peer1-1's
-    # live row, renamed; no path in the routing table belongs to it)
-    quiet = [*ros_sessions, {**next(r for r in ros_sessions if r["name"] == "peer1-1"), ".id": "*2800009",
-                             "name": "quiet1-1", "remote.address": "192.0.2.6", "prefix-count": "0"}]
+    # a session that is up and receives nothing (the live quiet-1, whose peer sends nothing): a real count of 0, which
+    # `min` must not pass
+    assert any(r["name"] == "quiet-1" and r["prefix-count"] == "0" for r in ros_sessions)
     add("routeros", "pass", "session up with zero prefixes, exact 0", {**px, "neighbor": "192.0.2.6", "exact": 0},
-        ros_neighbors(sessions=quiet))
-    add("routeros", "fail", "session up, zero prefixes", {**px, "neighbor": "192.0.2.6", "min": 1}, ros_neighbors(sessions=quiet))
+        ros_neighbors())
+    add("routeros", "fail", "session up, zero prefixes", {**px, "neighbor": "192.0.2.6", "min": 1}, ros_neighbors())
 
     r = {"type": "route", "prefix": "10.20.0.0/24"}
     add("routeros", "pass", "route present", r, ros_routes("10.20.0.0/24", ros_main))

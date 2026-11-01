@@ -34,12 +34,15 @@ checks:
   - {name: "MUST PASS: best path attributes", type: bgp_route, node: r1, prefix: 10.20.0.0/24, as_path: "65002",
      local_pref: 200, med: 50, next_hop: 192.0.2.2, communities: ["65002:100", "65002:1:1"], without_communities: [no-export]}
   - {name: "MUST PASS: prepended path in VRF RED", type: bgp_route, node: r1, prefix: 198.18.2.0/24, vrf: RED, as_path: "65003 65003 65003"}
+  # RouterOS writes a VRF gateway as "203.0.113.2@RED": the next hop is the address
+  - {name: "MUST PASS: next hop in VRF RED", type: bgp_route, node: r1, prefix: 198.18.2.0/24, vrf: RED, next_hop: 203.0.113.2}
   - {name: "MUST FAIL: leaked default in the BGP table", type: bgp_route, node: r1, prefix: 0.0.0.0/0, present: false}
   - {name: "MUST FAIL: wrong local-pref", type: bgp_route, node: r1, prefix: 10.20.0.0/24, local_pref: 100}
   - {name: "MUST FAIL: wrong MED", type: bgp_route, node: r1, prefix: 10.20.0.0/24, med: 60}
   - {name: "MUST FAIL: missing community", type: bgp_route, node: r1, prefix: 10.20.0.0/24, communities: ["65002:999"]}
   - {name: "MUST FAIL: forbidden large community", type: bgp_route, node: r1, prefix: 10.20.0.0/24, without_communities: ["65002:1:1"]}
   - {name: "MUST FAIL: wrong AS path in VRF RED", type: bgp_route, node: r1, prefix: 198.18.2.0/24, vrf: RED, as_path: "65003"}
+  - {name: "MUST FAIL: wrong next hop in VRF RED", type: bgp_route, node: r1, prefix: 198.18.2.0/24, vrf: RED, next_hop: 203.0.113.9}
 
   # ---- ping
   - {name: "MUST PASS: ping f1 from the loopback", type: ping, node: r1, target: 10.20.0.1, source: 10.10.10.1, count: 3}
