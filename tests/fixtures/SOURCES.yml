@@ -139,3 +139,8 @@
     which are not published (tests/test_routeros_driver.py and tests/test_routeros_state.py say so)
   why: the live CHR captures were kept off the repository; replacing these with published live captures is open
   added: f88c23e (health, import logs and resource 03de68d)
+- files: [frr_received_routes.txt]
+  kind: live-capture
+  source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git) in lab ndr-fpcap, 2026-11-01, on r1 with
+    `vtysh -c "show bgp ipv4 unicast neighbors 10.1.1.2 routes json"` (three routes from an eBGP neighbor)
+  added: ndr/fix-false-passes-0.4.1

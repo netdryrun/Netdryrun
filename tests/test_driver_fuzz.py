@@ -64,6 +64,11 @@ def frr_neighbors_empty(d) -> bool:
     return d == {}
 
 
+def frr_received_empty(d) -> bool:
+    """No routes from the neighbor: `{}`, or the listing's header with no routes and a total of 0."""
+    return d == {} or (isinstance(d, dict) and d.get("routes") == {} and d.get("totalRoutes") == 0)
+
+
 def eos_table_empty(key):
     def check(d) -> bool:
         try:
@@ -153,6 +158,9 @@ CASES = [
          ["frr_bgp_paths_local.txt"], frr_bgp_empty),
     Case("frr.parse_bgp_paths[v6]", lambda t: frr.parse_bgp_paths(t, "2001:db8:20::/48"),
          ["frr_bgp_paths_v6.txt"], frr_bgp_empty),
+    # a set: sorted into a list, so an empty answer goes through the empty check
+    Case("frr.parse_received", lambda t: sorted(frr.parse_received(t, 4)), ["frr_received_routes.txt"],
+         frr_received_empty),
     Case("eos.parse_bgp_summary", eos.parse_bgp_summary, ["eos_bgp_summary.txt"], eos_table_empty("peers")),
     Case("eos.parse_routes[route table]", lambda t: eos.parse_routes(t, EOS_NO_BGP, "192.168.20.0/24"),
          ["eos_route.txt"], eos_table_empty("routes")),
@@ -316,7 +324,7 @@ KEYS = ["vrfs", "default", "routes", "route", "peers", "neighbor", "paths", "pre
         "probe-results-summary", "route-table-error", "instance-core",
         "jsonrpc", "result", "body", "error", "msg", "TABLE_vrf", "ROW_vrf", "vrf-name-out", "TABLE_prefix",
         "ROW_prefix", "ipprefix", "TABLE_path", "ROW_path", "clientname", "ubest", "neighborid", "state",
-        "pathtype", "pathbest", "TABLE_neighbor", "ROW_neighbor", "prefixreceived"]
+        "pathtype", "pathbest", "TABLE_neighbor", "ROW_neighbor", "prefixreceived", "totalRoutes"]
 scalars = st.none() | st.booleans() | st.integers() | st.floats(allow_nan=False) | st.text(max_size=12) | \
     st.sampled_from(KEYS)
 json_values = st.recursive(

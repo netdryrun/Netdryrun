@@ -283,6 +283,11 @@ def parse_received(text: str, family: int) -> set[str]:
         if net.version != family or not isinstance(paths, list) or not paths:
             raise unexpected(RECEIVED_CMD, f"{key}: {str(paths)[:150]}")
         out.add(str(net))
+    # bgpd closes the listing with its own route total (FRR 10.4.1; its totalPaths counts every path of those
+    # prefixes, from any neighbor): a listing that disagrees was cut or misread, and a prefix missing from it would
+    # never fail `only`
+    if data.get("totalRoutes") != len(routes):
+        raise unexpected(RECEIVED_CMD, f"{len(routes)} routes listed, totalRoutes {data.get('totalRoutes')!r}")
     return out
 
 
