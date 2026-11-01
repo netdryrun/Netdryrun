@@ -5,6 +5,8 @@
 /ip address add address=198.51.100.1/30 interface=ether3
 /ip address add address=192.0.2.5/30 interface=ether5
 /ip vrf add name=RED interfaces=ether4
+# the VRF's routing table appears a moment later; a connection naming it before then is rejected (live, CHR 7.23.8)
+:delay 5s
 /ip address add address=203.0.113.1/30 interface=ether4
 /ip route add dst-address=0.0.0.0/0 blackhole comment="static default"
 /ip firewall address-list add list=bgp-nets address=10.10.10.1/32
