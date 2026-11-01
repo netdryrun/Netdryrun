@@ -1,4 +1,4 @@
-"""Command-line interface: netdryrun run | check | validate | record | verify | mcp | feedback."""
+"""Command-line interface: netdryrun run | check | validate | record | verify | prove | mcp | feedback."""
 from __future__ import annotations
 
 import argparse
@@ -232,6 +232,48 @@ def _cmd_verify(args) -> int:
     return res.exit_code
 
 
+PROVE_EXIT_CODES = """exit codes:
+  0  no variant survived (only the variants run: a finite set, not proof the checks are complete); --plan listed
+  1  at least one variant survived: a blind spot, listed with the state nobody noticed
+  2  error: no strength result (the checks fail on the lab as it is, a variant didn't take effect or couldn't be
+     reverted, the lab differs from its baseline after a revert, a bad option, an unwritable report)
+  3  inconclusive: no strength result (no variant had an effect, or one was unclear)"""
+
+
+def _cmd_prove(args) -> int:
+    from .prove import ProveError, plan, prove_config
+    from .prove import report as preport
+
+    kinds = [k.strip() for k in args.variants.split(",") if k.strip()] if args.variants else None
+    try:
+        cfg = load_config(args.path)
+    except ConfigError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if args.plan:
+        try:
+            run, rest = plan(cfg, kinds, args.max)
+        except ProveError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        print(f"{len(run)} variant(s) would run, {len(rest)} more generated (raise --max):")
+        for v in run:
+            print(f"  {v.id}: {v.description}")
+        print("No lab was started. The customer leak sized to a prefix-count range needs today's counts: a run adds it.")
+        return 0
+    install_signal_handlers()
+    rep = prove_config(cfg, kinds=kinds, maximum=args.max, log=lambda m: print(m, flush=True))
+    print(preport.console(rep))
+    if args.json:
+        try:
+            Path(args.json).write_text(preport.to_json(rep), encoding="utf-8")
+        except OSError as e:
+            print(f"could not write {args.json}: {e.strerror or e}; the result was {rep.status}", file=sys.stderr)
+            return 2
+        print(f"  wrote JSON report: {args.json}")
+    return rep.exit_code
+
+
 def _cmd_capture(args) -> int:
     from .capture import CaptureError, bundle, collect, guard
     from .drivers import DriverError, detect
@@ -408,6 +450,19 @@ def main(argv: list[str] | None = None) -> int:
                        help="compare even when BGP sessions are down in the before-lab")
     p_ver.add_argument("--keep", action="store_true", help="leave the after lab running (for the next_diagnostic commands)")
 
+    from .prove import DEFAULT_MAX, KINDS
+
+    p_pro = sub.add_parser("prove", parents=[common], epilog=PROVE_EXIT_CODES,
+                           formatter_class=argparse.RawDescriptionHelpFormatter,
+                           help="measure the checks against known-bad variants of the lab (check strength; FRR only)")
+    p_pro.add_argument("path", nargs="?", default=".", help="netdryrun.yml, or the folder holding it")
+    p_pro.add_argument("--variants", metavar="KIND,...", help=f"variant kinds to run (default: all): {', '.join(KINDS)}")
+    p_pro.add_argument("--max", type=int, default=DEFAULT_MAX, help=f"most variants to run (default {DEFAULT_MAX}), "
+                       "taken round robin over the kinds")
+    p_pro.add_argument("--plan", action="store_true", help="list the variants a run would try, from the config "
+                       "files; starts no lab")
+    p_pro.add_argument("--json", metavar="FILE", help="write the netdryrun.prove/v1 report as JSON")
+
     from .capture.collect import SCENARIOS
 
     p_cap = sub.add_parser("capture", parents=[common],
@@ -455,6 +510,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_verify(args)
         if args.cmd == "capture":
             return _cmd_capture(args)
+        if args.cmd == "prove":
+            return _cmd_prove(args)
         if args.cmd == "sanitize":
             return _cmd_sanitize(args)
         return _cmd_run(args, deploy=args.cmd == "run")

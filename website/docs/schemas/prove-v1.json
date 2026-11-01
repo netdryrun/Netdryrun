@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://netdryrun.com/schemas/prove-v1.json",
+  "title": "Netdryrun check-strength report (netdryrun.prove/v1)",
+  "description": "What `netdryrun prove --json` and the MCP tool prove_checks return: which known-bad variants of the lab the checks caught, which survived (blind spots, with the state nobody noticed) and which had no effect. A finite set of generated variants: no survivor does not show that the checks are complete.",
+  "type": "object",
+  "required": ["schema", "netdryrun", "status", "verdict", "exit_code", "summary", "error", "error_kind", "counts", "by_kind",
+               "checks", "variants", "partial", "not_run", "limits", "started", "finished"],
+  "additionalProperties": false,
+  "$defs": {
+    "variant": {
+      "type": "object",
+      "required": ["id", "kind", "node", "description"],
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"enum": ["customer_leak", "import_filter", "session_down", "link_down", "attribute_drift",
+                          "default_leak", "link_subnet_leak"]},
+        "node": {"type": "string"},
+        "description": {"type": "string"},
+        "apply": {"type": "array", "items": {"type": "string"}},
+        "originates": {"type": "array", "items": {"type": "string"}},
+        "link": {"type": "string"},
+        "with": {"$ref": "#/$defs/variant",
+                 "description": "A variant applied together with this one, first: the leak a filter variant needs."}
+      }
+    },
+    "result": {
+      "allOf": [{"$ref": "#/$defs/variant"}],
+      "required": ["result"],
+      "properties": {
+        "result": {"enum": ["caught", "survived", "no_effect", "inconclusive"]},
+        "failed_checks": {
+          "type": "array",
+          "items": {"type": "object", "required": ["name", "type", "node", "detail", "evidence"],
+                    "properties": {"name": {"type": "string"}, "type": {"type": "string"}, "node": {"type": "string"},
+                                   "detail": {"type": "string"}, "evidence": {"type": "array"}}}
+        },
+        "effect": {
+          "type": "array",
+          "items": {"type": "object", "required": ["where", "change", "before", "after"],
+                    "properties": {"where": {"type": "string"}, "change": {"enum": ["added", "removed", "changed"]},
+                                   "before": {"type": ["string", "null"]}, "after": {"type": ["string", "null"]}}}
+        },
+        "effect_items": {"type": "integer", "minimum": 1},
+        "suggested_checks": {
+          "type": "array",
+          "description": "Checks written from the baseline state for a human or agent to review; prove never edits netdryrun.yml. check is null when no check type can see the effect.",
+          "items": {"type": "object", "required": ["check", "reason"], "additionalProperties": false,
+                    "properties": {"check": {"type": ["object", "null"]}, "reason": {"type": "string"}}}
+        },
+        "note": {"type": "string"}
+      }
+    }
+  },
+  "properties": {
+    "schema": {"const": "netdryrun.prove/v1"},
+    "netdryrun": {"type": "string"},
+    "status": {"enum": ["passed", "failed", "inconclusive", "error"],
+               "description": "passed (exit 0): no variant survived and at least one was caught; failed (exit 1): at least one survived; inconclusive (exit 3): no variant was caught, or one was unclear; error (exit 2): a setup, apply or restore failure, no strength result."},
+    "verdict": {"enum": ["NO VARIANT SURVIVED (only these variants)", "BLIND SPOTS FOUND: DO NOT RELY ON THESE CHECKS FOR THEM",
+                         "INCONCLUSIVE: NO STRENGTH RESULT", "ERROR: NO STRENGTH RESULT"]},
+    "exit_code": {"enum": [0, 1, 2, 3]},
+    "summary": {"type": "string"},
+    "error": {"type": ["string", "null"]},
+    "error_kind": {"enum": ["setup", "apply", "restore", "internal", null],
+                   "description": "With status error: why there is no strength result. restore: the lab is not its baseline any more; destroy it."},
+    "counts": {
+      "type": "object",
+      "required": ["caught", "survived", "no_effect", "inconclusive", "run", "generated", "not_run"],
+      "additionalProperties": false,
+      "properties": {
+        "caught": {"type": "integer", "minimum": 0}, "survived": {"type": "integer", "minimum": 0},
+        "no_effect": {"type": "integer", "minimum": 0}, "inconclusive": {"type": "integer", "minimum": 0},
+        "run": {"type": "integer", "minimum": 0}, "generated": {"type": "integer", "minimum": 0},
+        "not_run": {"type": "integer", "minimum": 0}
+      }
+    },
+    "by_kind": {"type": "object",
+                "description": "Per variant kind run: how many were caught, survived, had no effect or were inconclusive.",
+                "additionalProperties": {"type": "object", "required": ["caught", "survived", "no_effect", "inconclusive"],
+                                         "additionalProperties": {"type": "integer", "minimum": 0}}},
+    "checks": {"type": "array", "items": {"type": "string"}},
+    "variants": {"type": "array", "items": {"$ref": "#/$defs/result"},
+                 "description": "Every variant run, with its result. Empty when status is error."},
+    "partial": {"type": "array", "items": {"$ref": "#/$defs/result"},
+                "description": "With status error only: the variants that ran before it. Not results: a later restore failure may mean they ran on a polluted lab."},
+    "not_run": {"type": "array", "items": {"$ref": "#/$defs/variant"}},
+    "limits": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "started": {"type": "string"},
+    "finished": {"type": "string"}
+  }
+}

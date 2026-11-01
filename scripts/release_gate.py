@@ -79,6 +79,11 @@ VERDICT_MODULES = {
     "verify.converge": "src/netdryrun/verify/converge.py",
     "verify.run": "src/netdryrun/verify/run.py",
     "verify.report": "src/netdryrun/verify/report.py",
+    # check strength (0.5, phase 1): what prove generates, how it classifies a variant and when it refuses a result
+    "prove.variants": "src/netdryrun/prove/variants.py",
+    "prove.core": "src/netdryrun/prove/core.py",
+    "prove.suggest": "src/netdryrun/prove/suggest.py",
+    "prove.report": "src/netdryrun/prove/report.py",
 }
 
 # Coverage floors (percent of lines and branches). A ratchet: raise a floor when coverage rises,

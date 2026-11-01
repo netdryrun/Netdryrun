@@ -6,7 +6,7 @@
 
 Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.4.0). Source: https://github.com/netdryrun/Netdryrun
 
-Facts (generated from the source): version 0.4.0; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
+Facts (generated from the source): version 0.4.0; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `prove_checks`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
 
 Docs: https://netdryrun.com/ · Short index: https://netdryrun.com/llms.txt
 
@@ -1766,7 +1766,7 @@ The PR comment lists failures first with their evidence, so the reviewer sees wh
 
 ## Tools
 
-The server has these tools: `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`.
+The server has these tools: `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `prove_checks`, `validate` and `check_types`.
 
 
 | Tool | Arguments | What it does |
@@ -2312,7 +2312,7 @@ On GitHub, add the Netdryrun action to a workflow on `pull_request`: `uses: netd
 
 ## Is there an MCP server for testing network changes?
 
-Yes. `netdryrun mcp` starts Netdryrun's built-in MCP server over stdio (`uvx netdryrun mcp` runs it without installing; in Claude Code, `claude mcp add netdryrun -- netdryrun mcp`). An AI agent calls `dry_run` with the path to a lab folder; Netdryrun deploys the lab, runs every check, destroys the lab and returns a `verdict` field: `CHECKS PASSED (only what the checks cover)`, `DO NOT APPLY THIS CHANGE` or `INCONCLUSIVE` (decide on `status`, not on the text). The tools are `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`. It only builds labs on the machine where it runs and cannot connect to real devices. It is listed in the official MCP Registry as `io.github.netdryrun/netdryrun`. See [AI agents (MCP)](ai-agents.md).
+Yes. `netdryrun mcp` starts Netdryrun's built-in MCP server over stdio (`uvx netdryrun mcp` runs it without installing; in Claude Code, `claude mcp add netdryrun -- netdryrun mcp`). An AI agent calls `dry_run` with the path to a lab folder; Netdryrun deploys the lab, runs every check, destroys the lab and returns a `verdict` field: `CHECKS PASSED (only what the checks cover)`, `DO NOT APPLY THIS CHANGE` or `INCONCLUSIVE` (decide on `status`, not on the text). The tools are `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `prove_checks`, `validate` and `check_types`. It only builds labs on the machine where it runs and cannot connect to real devices. It is listed in the official MCP Registry as `io.github.netdryrun/netdryrun`. See [AI agents (MCP)](ai-agents.md).
 
 ## Does Netdryrun touch my production network?
 

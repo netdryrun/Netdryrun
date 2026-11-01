@@ -260,7 +260,7 @@ The PR comment lists failures first with their evidence, so the reviewer sees wh
 
 ## Tools
 
-The server has these tools: <!-- facts:mcp_tools -->`dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`<!-- /facts:mcp_tools -->.
+The server has these tools: <!-- facts:mcp_tools -->`dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `prove_checks`, `validate` and `check_types`<!-- /facts:mcp_tools -->.
 
 
 | Tool | Arguments | What it does |

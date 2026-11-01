@@ -1,0 +1,15 @@
+# prove fixture (no lab is started from it): the customer-leak case. A customer (cust), our edge router (edge) and
+# an upstream (up); edge's customer filter permits only the customer's 10.10.0.0/24. Configs from
+# examples/frr-customer-leak (0.4.1), the good side.
+name: ndr-prove-custleak
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    edge: {binds: [configs/edge.conf:/etc/frr/frr.conf]}
+    cust: {binds: [configs/cust.conf:/etc/frr/frr.conf]}
+    up: {binds: [configs/up.conf:/etc/frr/frr.conf]}
+  links:
+    - endpoints: ["edge:eth1", "cust:eth1"]
+    - endpoints: ["edge:eth2", "up:eth1"]

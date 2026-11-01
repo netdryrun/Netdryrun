@@ -7,7 +7,7 @@
 
 Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.4.0). Source: https://github.com/netdryrun/Netdryrun
 
-Facts (generated from the source): version 0.4.0; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
+Facts (generated from the source): version 0.4.0; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `prove_checks`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
 <!-- /facts:llms_summary -->
 
 ## Docs

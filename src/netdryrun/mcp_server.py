@@ -429,6 +429,39 @@ def record_baseline(topology: str, deploy: bool = True, wait_seconds: float = 45
     return render(data, warnings)
 
 
+# prove_checks: the executor that runs variants on a live lab arrives in phase 2; tests set this to a factory
+# taking the loaded config. Without one, prove_checks answers with status error and no strength result.
+PROVE_EXECUTOR = None
+
+
+@mcp.tool(description=_describe("""
+    Measure how strong the checks in netdryrun.yml at `path` are: runs them against known-bad variants of the
+    lab (a customer leak of 1, 2 or N prefixes, an import filter line deleted, a session or link down, an
+    attribute changed, a default route or link subnet leaked), generated from the lab's own FRR configs, and
+    reports each as caught (named checks failed, with evidence), survived (the routing state changed and every
+    check passed: a blind spot, with the state nobody noticed and a suggested check) or no_effect. Call it after
+    writing or recording checks, before relying on them. If any variant survived, add a check that catches it,
+    or tell the human which blind spot remains. Never describe the checks as covering more than the caught list:
+    the variants are a finite set, so no survivor does not mean the checks are complete. Never fit a check to a
+    variant's own leaked prefixes (100.64.0.0/10): such a catch is not counted. It never edits netdryrun.yml.
+    `variants` limits the kinds (comma-separated), `max_variants` the number (default 8). `status` is passed (no
+    survivor), failed (survivors), inconclusive or error (no strength result); decide on `status`. FRR labs
+    only. This build has no live executor yet: it answers status error until phase 2 ships.
+    """))
+def prove_checks(path: str, variants: str | None = None, max_variants: int = 8) -> str:
+    from .prove import prove_config
+    from .prove import report as preport
+
+    try:
+        cfg = _load(path)
+    except ConfigError as e:
+        return json.dumps({"schema": preport.SCHEMA, "status": "error", "verdict": preport.VERDICTS["error"],
+                           "error": str(e)})
+    kinds = [k.strip() for k in variants.split(",") if k.strip()] if variants else None
+    executor = PROVE_EXECUTOR(cfg) if PROVE_EXECUTOR else None
+    return preport.to_json(prove_config(cfg, executor=executor, kinds=kinds, maximum=max_variants))
+
+
 @mcp.tool(description=_describe("""
     Validate netdryrun.yml at `path` without starting a lab (takes seconds): node names, drivers and
     supported keys, as dry_run checks them before deploying. Returns the check names or the error. It is not

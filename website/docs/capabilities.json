@@ -143,6 +143,7 @@
       "get_result",
       "run_checks",
       "record_baseline",
+      "prove_checks",
       "validate",
       "check_types"
     ],
