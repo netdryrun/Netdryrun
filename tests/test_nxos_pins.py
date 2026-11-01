@@ -124,6 +124,11 @@ def test_unknown_client_names_keep_their_own_name():
 
 
 def _bgp(prefix_rows, rd=True, afi=True) -> str:
+    # NX-OS counts the paths of a prefix row (totalpaths); rows without paths, or with their own count, stay as given
+    for r in prefix_rows:
+        rows = (r.get("TABLE_path") or {}).get("ROW_path") if isinstance(r, dict) else None
+        if rows is not None and "totalpaths" not in r:
+            r["totalpaths"] = str(len(rows) if isinstance(rows, list) else 1)
     safi = {"safi": 1}
     if rd:
         safi["TABLE_rd"] = {"ROW_rd": [{"TABLE_prefix": {"ROW_prefix": r}} for r in prefix_rows]}

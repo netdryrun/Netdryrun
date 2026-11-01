@@ -106,12 +106,23 @@ def _learned(p: dict) -> bool:
     return bool(peer["peerAddr"])
 
 
+def _path_count(command: str, key: str, e: dict) -> None:
+    """`totalPaths` must equal the paths listed: a path dropped from under its count must never read as one path
+    less, or as no path (0.4.1, the shape of the Junos fuzz finding of 2026-11-01)."""
+    if "totalPaths" not in e:
+        raise unexpected(command, f"{key}: no totalPaths: {str({k: v for k, v in e.items() if k != 'bgpRoutePaths'})[:150]}")
+    count = as_int(command, e["totalPaths"])
+    if count != len(e["bgpRoutePaths"]):
+        raise unexpected(command, f"{key}: totalPaths {count}, but {len(e['bgpRoutePaths'])} paths listed")
+
+
 def _bgp_entries(command: str, text: str, vrf: str) -> dict:
     entry = _vrf(command, _json(command, text), vrf)
     entries = _table(command, entry, "bgpRouteEntries")
     for key, e in entries.items():
         if not isinstance(e, dict) or not isinstance(e.get("bgpRoutePaths"), list):
             raise unexpected(command, f"{key}: {str(e)[:150]}")
+        _path_count(command, key, e)
         for p in e["bgpRoutePaths"]:
             if not isinstance(p, dict):
                 raise unexpected(command, f"{key} path: {str(p)[:150]}")

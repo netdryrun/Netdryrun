@@ -262,6 +262,16 @@ def _route(prefix: str, e: dict) -> Route:
     return Route(prefix, e["protocol"].lower(), bool(e.get("selected")) and bool(e.get("installed", True)))
 
 
+def _path_count(command: str, data: dict) -> None:
+    """`pathCount` must equal the paths listed: a path dropped from under its count must never read as one path
+    less, or as no path (0.4.1, the shape of the Junos fuzz finding of 2026-11-01)."""
+    if "pathCount" not in data:
+        raise unexpected(command, f"no pathCount: {str({k: v for k, v in data.items() if k != 'paths'})[:150]}")
+    count = as_int(command, data["pathCount"])
+    if count != len(data["paths"]):
+        raise unexpected(command, f"pathCount {count}, but {len(data['paths'])} paths listed")
+
+
 def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
     """Path objects for exactly `prefix` from `show bgp ... <prefix> json`. `{}` means no path."""
     data = _bgp_json(command, text)
@@ -269,6 +279,7 @@ def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
         return []
     if not isinstance(data.get("paths"), list) or "prefix" not in data:
         raise unexpected(command, text)
+    _path_count(command, data)
     if network(command, data["prefix"]) != ipaddress.ip_network(prefix):
         return []  # bgpd answered for another (covering) prefix: nothing for this one
     for p in data["paths"]:

@@ -350,7 +350,7 @@ def route_json(prefix, *entries):
     return J({prefix: list(entries)})
 
 
-FRR_PATHS = J({"prefix": "10.1.0.0/16", "paths": [
+FRR_PATHS = J({"prefix": "10.1.0.0/16", "pathCount": 2, "paths": [
     {"bestpath": {"overall": True}, "aspath": {"segments": [{"type": "as-sequence", "list": [65002, 65003]}]},
      "nexthops": [{"ip": "fe80::1", "scope": "link-local"}, {"ip": "10.0.0.2", "scope": "global"}],
      "locPrf": 200, "metric": 7, "community": {"string": "65000:1 no-export"},
@@ -416,7 +416,7 @@ def _path(**kw):
 
 
 def bgp_text(prefix, *paths):
-    return J({"prefix": prefix, "paths": list(paths)})
+    return J({"prefix": prefix, "pathCount": len(paths), "paths": list(paths)})   # bgpd counts what it lists
 
 
 @pytest.mark.parametrize("path,learned", [
@@ -502,7 +502,7 @@ def test_frr_bgp_paths_commands_and_default_local_pref():
     assert lab.lines() == ["vtysh -c show bgp ipv4 unicast 10.1.0.0/16 json",
                            "vtysh -c show bgp ipv4 unicast 255.255.255.255/32 longer-prefixes json"]
     assert [p.local_pref for p in obs.value] == [200, 150] and len(obs.evidence) == 2
-    v6 = J({"prefix": "2001:db8::/32", "paths": [_path(locPrf=100, bestpath={"overall": True})]})
+    v6 = J({"prefix": "2001:db8::/32", "pathCount": 1, "paths": [_path(locPrf=100, bestpath={"overall": True})]})
     lab = Lab([("show bgp", v6)])
     obs = FrrDriver(lab, "r1").bgp_paths("2001:db8::/32", "red")
     assert lab.lines() == ["vtysh -c show bgp vrf red ipv6 unicast 2001:db8::/32 json"]   # every path has locPrf
@@ -958,6 +958,10 @@ def eos_routes(vrf="default", **routes):
 
 
 def eos_bgp(vrf="default", entries=None):
+    # EOS counts the paths it lists (totalPaths); an entry that sets its own count, or has no list, is left as given
+    for e in (entries or {}).values():
+        if isinstance(e, dict) and isinstance(e.get("bgpRoutePaths"), list):
+            e.setdefault("totalPaths", len(e["bgpRoutePaths"]))
     return J({"vrfs": {vrf: {"bgpRouteEntries": entries or {}}}})
 
 
@@ -998,8 +1002,8 @@ def test_eos_routes_rules():
     assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True), Route(pfx, "bgp", False)]
     installed = eos_routes(**{pfx: {"routeType": "eBGP"}})
     assert eos.parse_routes(installed, learned, pfx) == [Route(pfx, "bgp", True)]
-    two = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"bgpRoutePaths": [eos_path()]},
-                                                      "10.1.0.0/16 ": {"bgpRoutePaths": [eos_path()]}}}}})
+    two = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"totalPaths": 1, "bgpRoutePaths": [eos_path()]},
+                                                      "10.1.0.0/16 ": {"totalPaths": 1, "bgpRoutePaths": [eos_path()]}}}}})
     assert eos.parse_routes(eos_routes(), two, pfx) == [Route(pfx, "bgp", False)]   # added once
     assert eos.parse_routes(eos_routes("red"), eos_bgp("red"), pfx, "red") == []
     for rt, bgp in ((eos_routes(**{pfx: "x"}), eos_bgp()), (eos_routes(**{"x": {}}), eos_bgp()),
