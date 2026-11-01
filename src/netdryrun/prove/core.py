@@ -24,7 +24,8 @@ Fail-closed rules, each with a red test (tests/test_prove_guardrails.py):
 - a leak caught only by checks that name the leaked prefixes is not caught (the checks are fitted to the variant,
   not to the fault): survived;
 - a snapshot that never settles (apply, revert or baseline) is a timeout error, never a result;
-- no variant at all, or none with an effect: no strength result (error and inconclusive), never "caught 0 of 0".
+- no variant at all (error), or none with an effect (inconclusive): no strength result, exit 2, never "caught 0
+  of 0".
 """
 from __future__ import annotations
 
@@ -89,7 +90,8 @@ class VariantResult:
 
 @dataclass
 class ProveReport:
-    status: str = "error"            # passed (nothing survived), failed (survivors), inconclusive, error
+    status: str = "error"            # passed (an effect, nothing survived), failed (survivors), inconclusive (no
+                                     # variant had an effect: no strength result), error
     error: str = ""
     error_kind: str = ""             # with status error: setup, apply, timeout, restore (discard the lab), internal
     not_generated: list[str] = field(default_factory=list)   # selected kinds the lab gave no eligible variant
@@ -106,16 +108,15 @@ class ProveReport:
 
     @property
     def exit_code(self) -> int:
-        return {"passed": 0, "failed": 1, "inconclusive": 3}.get(self.status, 2)
+        return {"passed": 0, "failed": 1}.get(self.status, 2)   # disclosure: no effect anywhere exits 2
 
     @property
     def summary(self) -> str:
         if self.status == "error":
             return f"no strength result: {self.error}"
-        effective = len(self.variants) - self.count(NO_EFFECT)
-        text = (f"caught {self.count(CAUGHT)} of {effective} known-bad variants ({self.count(SURVIVED)} survived, "
-                f"{self.count(NO_EFFECT)} no effect, {self.count(INCONCLUSIVE)} inconclusive, kinds not generated: "
-                f"{', '.join(self.not_generated) or 'none'})")
+        effective = self.count(CAUGHT) + self.count(SURVIVED)   # the variants with an effect
+        text = (f"caught {self.count(CAUGHT)} of {effective} known-bad variants ({self.count(NO_EFFECT)} no effect, "
+                f"{self.count(INCONCLUSIVE)} inconclusive, kinds not generated: {', '.join(self.not_generated) or 'none'})")
         if self.not_run:
             text += f"; {len(self.not_run)} generated variant(s) not run (budget)"
         return text + ". A finite set of variants: this does not show that the checks are complete."
@@ -398,8 +399,8 @@ def _prove(executor: Executor, rep: ProveReport, kinds, maximum: int, log, clock
         log(f"  {rep.variants[-1].result} (provisional: final once every variant ran and the lab was restored)")
     if rep.count(SURVIVED):
         rep.status = "failed"
-    elif rep.count(INCONCLUSIVE) or not rep.count(CAUGHT):
-        rep.status = "inconclusive"   # nothing measured, or something unclear: never a strength result
+    elif not rep.count(CAUGHT):
+        rep.status = "inconclusive"   # no variant had an effect: nothing measured, no strength result (exit 2)
     else:
         rep.status = "passed"
 

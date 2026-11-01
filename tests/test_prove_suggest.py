@@ -211,16 +211,18 @@ def test_same_state_and_counts():
 def test_summary_wording():
     rep = core.ProveReport(status="passed")
     rep.variants = [core.VariantResult(V, CAUGHT), core.VariantResult(V, NO_EFFECT)]
-    assert rep.summary == ("caught 1 of 1 known-bad variants (0 survived, 1 no effect, 0 inconclusive, kinds not "
-                           "generated: none). A finite set of variants: this does not show that the checks are "
-                           "complete.")
+    assert rep.summary == ("caught 1 of 1 known-bad variants (1 no effect, 0 inconclusive, kinds not generated: none). "
+                           "A finite set of variants: this does not show that the checks are complete.")
+    rep.variants.append(core.VariantResult(V, SURVIVED))
+    rep.variants.append(core.VariantResult(V, INCONCLUSIVE))
+    assert rep.summary.startswith("caught 1 of 2 known-bad variants (1 no effect, 1 inconclusive")
     rep.not_generated = ["link_down", "default_leak"]
     assert "kinds not generated: link_down, default_leak)" in rep.summary
     rep.not_run = [V, V]
     assert "; 2 generated variant(s) not run (budget). A finite" in rep.summary
     assert core.ProveReport(status="error", error="x").summary == "no strength result: x"
     assert [core.ProveReport(status=s).exit_code for s in ("passed", "failed", "inconclusive", "error", "?")] == \
-        [0, 1, 3, 2, 2]
+        [0, 1, 2, 2, 2]
 
 
 def test_the_class_table_is_exhaustive():

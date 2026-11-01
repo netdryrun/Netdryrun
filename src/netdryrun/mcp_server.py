@@ -444,8 +444,9 @@ PROVE_EXECUTOR = None
     or tell the human which blind spot remains. Never describe the checks as covering more than the caught list:
     the variants are a finite set, so no survivor does not mean the checks are complete. Never fit a check to a
     variant's own leaked prefixes (100.64.0.0/10): such a catch is not counted. It never edits netdryrun.yml.
-    `variants` limits the kinds (comma-separated), `max_variants` the number (default 8). `status` is passed (no
-    survivor), failed (survivors), inconclusive or error (no strength result); decide on `status`. FRR labs
+    `variants` limits the kinds (comma-separated), `max_variants` the number (default 8). `status` is passed (an
+    effect and no survivor), failed (survivors), inconclusive (no variant had an effect) or error; the last two are
+    no strength result. Decide on `status`. FRR labs
     only. This build has no live executor yet: it answers status error until phase 2 ships.
     """))
 def prove_checks(path: str, variants: str | None = None, max_variants: int = 8) -> str:

@@ -233,11 +233,12 @@ def _cmd_verify(args) -> int:
 
 
 PROVE_EXIT_CODES = """exit codes:
-  0  no variant survived (only the variants run: a finite set, not proof the checks are complete); --plan listed
+  0  at least one variant had an effect and none survived (only the variants run: a finite set, not proof the
+     checks are complete); --plan listed the variants
   1  at least one variant survived: a blind spot, listed with the state nobody noticed
-  2  error: no strength result (the checks fail on the lab as it is, a variant didn't take effect or couldn't be
-     reverted, the lab differs from its baseline after a revert, a bad option, an unwritable report)
-  3  inconclusive: no strength result (no variant had an effect, or one was unclear)"""
+  2  no strength result: no variant had an effect, or an error (the checks fail on the lab as it is, a variant
+     didn't take effect, the lab never settled, a revert failed or left the lab unlike its baseline, a bad option,
+     an unwritable report)"""
 
 
 def _cmd_prove(args) -> int:

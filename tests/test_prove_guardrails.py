@@ -496,8 +496,8 @@ def test_only_no_effect_variants_are_inconclusive_not_passed(old_checks):
     rep = prove(h.FakeExecutor(h.custleak(), {vid: h.applied(vs[vid], h.custleak())}), old_checks,
                 kinds=["attribute_drift"], maximum=1)
     assert [v.result for v in rep.variants] == [NO_EFFECT]
-    assert rep.status == "inconclusive" and rep.exit_code == 3
-    assert "caught 0 of 0" in rep.summary
+    assert rep.status == "inconclusive" and rep.exit_code == 2
+    assert rep.summary.startswith("caught 0 of 0 known-bad variants (1 no effect, 0 inconclusive")
 
 
 def test_bad_kinds_or_budget_are_errors(old_checks):

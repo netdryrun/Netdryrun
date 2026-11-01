@@ -15,7 +15,7 @@ MAX_VALUE = 300        # characters of each value in an effect item
 VERDICTS = {
     "passed": "NO VARIANT SURVIVED (only these variants)",
     "failed": "BLIND SPOTS FOUND: DO NOT RELY ON THESE CHECKS FOR THEM",
-    "inconclusive": "INCONCLUSIVE: NO STRENGTH RESULT",
+    "inconclusive": "NO VARIANT HAD AN EFFECT: NO STRENGTH RESULT",
     "error": "ERROR: NO STRENGTH RESULT",
 }
 LIMITS = (

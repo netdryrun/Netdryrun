@@ -148,7 +148,7 @@ def test_reports_of_every_status_match_the_schema(lab):
     caught = prove_config(cfg, executor=executor_for(cfg), kinds=["session_down"], maximum=1)
     no_effect = prove_config(cfg, executor=executor_for(cfg), kinds=["attribute_drift"], maximum=1)
     error = prove_config(cfg, executor=executor_for(cfg, "none"), kinds=["import_filter"], maximum=1)
-    for rep, status, code in ((survivor, "failed", 1), (caught, "passed", 0), (no_effect, "inconclusive", 3),
+    for rep, status, code in ((survivor, "failed", 1), (caught, "passed", 0), (no_effect, "inconclusive", 2),
                               (error, "error", 2)):
         data = valid(preport.to_dict(rep))
         assert (data["status"], data["exit_code"], rep.exit_code) == (status, code, code)
@@ -183,8 +183,8 @@ def test_console_text(lab):
     text = preport.console(rep)
     lines = text.splitlines()
     assert lines[0] == preport.VERDICTS["failed"]
-    assert lines[1].startswith("caught 1 of 2 known-bad variants (1 survived, 1 no effect, 0 inconclusive, kinds not "
-                               "generated: none)")
+    assert lines[1].startswith("caught 1 of 2 known-bad variants (1 no effect, 0 inconclusive, kinds not generated: "
+                               "none)")
     assert "By kind: import_filter 0 caught, 1 survived, 0 no effect; session_down 1 caught, 0 survived, 0 no " \
            "effect; attribute_drift 0 caught, 0 survived, 1 no effect" in text
     assert "  [caught] cust: BGP session to 10.0.1.1 (edge) shut down" in text
@@ -257,7 +257,7 @@ def test_the_tool_description_claims_no_more_than_the_tool_does():
                  "Never describe the checks as covering more than the caught list",
                  "no survivor does not mean the checks are complete", "It never edits netdryrun.yml",
                  "FRR labs only", "This build has no live executor yet: it answers status error until phase 2 ships",
-                 "decide on `status`"):
+                 "Decide on `status`", "inconclusive (no variant had an effect)"):
         assert must in d, must
     for never in ("safe to apply", "proves the checks", "complete coverage", "guarantee"):
         assert never not in d.lower()
