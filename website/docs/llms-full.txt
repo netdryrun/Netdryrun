@@ -69,7 +69,7 @@ For an AI agent, the same steps run as one `dry_run` tool call before it applies
 </div>
 
 !!! info "Before you start"
-    Linux or WSL2, Docker and containerlab. A small FRR lab takes about a minute once images are pulled. A pass covers only the checks in your file, in the lab. Apache-2.0, first released in October 2026: we're looking for the first outside engineers to try it on a real change ([free help](design-partners.md)). Known limit through 0.3.3: keep routing config out of topology `exec:` lines ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.3-exec-not-checked/README.md)).
+    Linux or WSL2, Docker and containerlab. A small FRR lab takes about a minute once images are pulled. A pass covers only the checks in your file, in the lab. Apache-2.0, first released in October 2026: we're looking for the first outside engineers to try it on a real change ([free help](design-partners.md)). Known limit in 0.3.3 and 0.4.0: a baseline from `netdryrun record` lets a leak of one or two extra prefixes pass; record with `--exact-prefixes` until 0.4.1 ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)).
 
 ## What Netdryrun is
 
@@ -252,6 +252,9 @@ SR Linux takes longer to boot, so `examples/srl-frr` sets `timeout: 120`.
 ## Record a baseline of your own lab (fastest start)
 
 Point `record` at any containerlab topology you already have:
+
+!!! warning "Advisory for 0.3.3 and 0.4.0"
+    The prefix-count range `record` writes lets a leak of one or two extra prefixes from a neighbor pass. Until 0.4.1, add `--exact-prefixes` to `netdryrun record`, and add `present: false` checks for prefixes that must never arrive. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md).
 
 ```bash
 netdryrun record my-lab/topology.clab.yml --deploy
@@ -472,6 +475,9 @@ The lab name (`name:` in the topology) must be unique on the machine. See [name 
 ## 2. Record a baseline
 
 `netdryrun record` deploys the lab, waits for BGP to converge, writes down what it sees, and destroys the lab.
+
+!!! warning "Advisory for 0.3.3 and 0.4.0"
+    The prefix-count range `record` writes lets a leak of one or two extra prefixes from a neighbor pass. Until 0.4.1, add `--exact-prefixes` to `netdryrun record`, and add `present: false` checks for prefixes that must never arrive. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md).
 
 ```text
 $ netdryrun record my-lab/topology.clab.yml --deploy
@@ -2512,6 +2518,9 @@ The recording below is a real run on Netdryrun™ 0.3.3 (from PyPI, 2026-10-30),
 The ten minutes assume the images are already pulled. Recording took 50 seconds here, and each run about 40.
 
 ## 1. Record the steady state
+
+!!! warning "Advisory for 0.3.3 and 0.4.0"
+    The prefix-count range `record` writes lets a leak of one or two extra prefixes from a neighbor pass. Until 0.4.1, add `--exact-prefixes` to `netdryrun record`, and add `present: false` checks for prefixes that must never arrive. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md).
 
 ```text
 $ netdryrun record my-lab/topology.clab.yml --deploy
@@ -5010,6 +5019,7 @@ Advisories: every false pass we have found, in our own audits and games before a
 | 0.3.0 | A check could pass without testing what the file said | Fixed in 0.3.1; 0.3.0 is yanked on PyPI. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.0-false-pass/README.md) |
 | 0.3.2 and earlier | An FRR config line the router rejected at boot was skipped silently | Fixed in 0.3.3. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.2-rejected-config/README.md) |
 | 0.3.3 and earlier | A failed topology `exec:` command left the lab without that config | Fixed in 0.4.0. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.3.3-exec-not-checked/README.md) |
+| 0.3.3 and 0.4.0 | A baseline from `netdryrun record` allowed 20% more prefixes per neighbor, so a leak of one or two prefixes could pass | Fix in 0.4.1; until then use `record --exact-prefixes`. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md) |
 | 0.3.3 and earlier | On Arista EOS, `med: 0` passed on a path received with no MED (cEOS prints MED 0 for both) | Fixed in 0.4.0: a `med: 0` check on EOS is refused. [Changelog](https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md) |
 
 ## What a lab cannot prove

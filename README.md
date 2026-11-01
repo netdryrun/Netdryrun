@@ -75,7 +75,9 @@ netdryrun record my-lab/topology.clab.yml --deploy   # snapshot today's behavior
 netdryrun run my-lab                                   # re-run the checks in my-lab/netdryrun.yml
 ```
 
-`record` writes checks for every established BGP session, its exact prefix count and up to 50 BGP routes per node. It has no leak guards until you add them, and a session that is down today isn't recorded. Review it (remove what is allowed to change, add negative checks such as `present: false`), commit it, and every future change runs against it, locally or in CI. A pass means those checks passed, nothing more.
+`record` writes checks for every established BGP session, a prefix-count range for each (today's count up to 20% more, at least 2), guards against a default route or a link subnet arriving via BGP, and up to 50 BGP routes per node. A session that is down today isn't recorded.
+
+> **Advisory (0.3.3 and 0.4.0):** that range lets a leak of one or two extra prefixes from a neighbor pass. Until 0.4.1, record with `--exact-prefixes` and add `present: false` checks for prefixes that must never arrive. [Advisory](advisories/0.4.0-record-prefix-range/README.md). Review it (remove what is allowed to change, add negative checks such as `present: false`), commit it, and every future change runs against it, locally or in CI. A pass means those checks passed, nothing more.
 
 ## netdryrun.yml
 
