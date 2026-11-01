@@ -135,6 +135,7 @@ nav:
       - Compatibility matrix: reference/compatibility.md
       - "Network Change Verdict v1 (spec)": spec/verdict-v1.md
       - "Capture kit (next release)": reference/capture.md
+      - "Check strength (defensive publication)": disclosures/check-strength.md
   - Evidence:
       - Verdict corpus: corpus.md
       - How it's built: how-its-built.md
@@ -144,6 +145,7 @@ nav:
   - Write-ups:
       - "Ping and 'BGP up' passed. The route leak was still there.": posts/ping-missed-the-leak.md
   - Project:
+      - Roadmap: roadmap.md
       - Trust and security: trust.md
       - How this project is run: how-its-run.md
       - Support and versioning: support.md

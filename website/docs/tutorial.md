@@ -46,6 +46,9 @@ The lab name (`name:` in the topology) must be unique on the machine. See [name 
 
 `netdryrun record` deploys the lab, waits for BGP to converge, writes down what it sees, and destroys the lab.
 
+!!! warning "Advisory for 0.3.3 and 0.4.0"
+    The prefix-count range `record` writes lets a leak of one or two extra prefixes from a neighbor pass. Until 0.4.1, add `--exact-prefixes` to `netdryrun record`, and add `present: false` checks for prefixes that must never arrive. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md).
+
 ```text
 $ netdryrun record my-lab/topology.clab.yml --deploy
 Deploying lab ndr-my-lab, then waiting 45s for the network to converge...

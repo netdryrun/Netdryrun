@@ -91,6 +91,9 @@ SR Linux takes longer to boot, so `examples/srl-frr` sets `timeout: 120`.
 
 Point `record` at any containerlab topology you already have:
 
+!!! warning "Advisory for 0.3.3 and 0.4.0"
+    The prefix-count range `record` writes lets a leak of one or two extra prefixes from a neighbor pass. Until 0.4.1, add `--exact-prefixes` to `netdryrun record`, and add `present: false` checks for prefixes that must never arrive. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md).
+
 ```bash
 netdryrun record my-lab/topology.clab.yml --deploy
 ```
