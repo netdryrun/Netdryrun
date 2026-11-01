@@ -13,9 +13,10 @@ permissions:
   contents: read
 
 env:
-  # The release under test. Pinned by tag on purpose: this must be exactly what the docs tell
-  # users to write. Bump it together with the `uses:` refs below after each release; the
-  # `install` job fails when PyPI has a newer release than this.
+  # The release under test: exactly what the docs tell users to write. Bump it together with the `uses:` pins below
+  # (the commit the new tag points to) after each release; the `install` job fails when PyPI has a newer release.
+  # The `pip install netdryrun...` lines in this file are the docs' lines, from PyPI and not hash-locked, on purpose:
+  # they test what users type. Tools this workflow needs come from requirements/tools.txt with hashes.
   RELEASE: "0.4.0"
 
 jobs:
@@ -23,11 +24,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      # Pinned by tag on purpose (not by SHA, not ./): this is the line from the docs.
-      - uses: netdryrun/Netdryrun@v0.4.0
+      # The release the docs give (`@v0.4.0`), pinned by the commit that tag points to; the next step fails if the
+      # tag ever points elsewhere, so this still tests exactly what users get. Not ./: never this checkout's code.
+      - uses: netdryrun/Netdryrun@c236045689fcaee0e43f09478a47f7665fb971a7  # v0.4.0
         id: ndr
         with:
           path: examples/frr-bgp
+      - name: The tag the docs give still points at the pinned commit
+        env:
+          PINNED: c236045689fcaee0e43f09478a47f7665fb971a7
+        run: |
+          got="$(git ls-remote https://github.com/netdryrun/Netdryrun "refs/tags/v$RELEASE^{}" | cut -f1)"
+          test "$got" = "$PINNED" || { echo "::error::v$RELEASE points at ${got:-nothing}, the uses: lines pin $PINNED"; exit 1; }
           artifact-name: published-frr-bgp
       - name: Check the outputs
         env:
@@ -45,8 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      # Pinned by tag on purpose (not by SHA, not ./): this is the line from the docs.
-      - uses: netdryrun/Netdryrun@v0.4.0
+      # The release the docs give (`@v0.4.0`), pinned by the commit that tag points to; the next step fails if the
+      # tag ever points elsewhere, so this still tests exactly what users get. Not ./: never this checkout's code.
+      - uses: netdryrun/Netdryrun@c236045689fcaee0e43f09478a47f7665fb971a7  # v0.4.0
         id: ndr
         continue-on-error: true
         with:
@@ -109,7 +118,7 @@ jobs:
           UV_TOOL_BIN_DIR: ${{ runner.temp }}/uv-bin
           UV_PYTHON: ${{ matrix.python }}
         run: |
-          python -m pip install --quiet pipx uv
+          python -m pip install --quiet --require-hashes -r requirements/tools.txt
           python -m pipx install --python "$(command -v python)" "netdryrun==$RELEASE"
           test "$("$PIPX_BIN_DIR/netdryrun" --version)" = "netdryrun $RELEASE"
           uv tool install "netdryrun==$RELEASE"
@@ -124,7 +133,7 @@ jobs:
         env:
           UV_PYTHON: ${{ matrix.python }}
         run: |
-          python -m pip install --quiet uv
+          python -m pip install --quiet --require-hashes -r requirements/tools.txt
           test "$(uvx --refresh "netdryrun@$RELEASE" --version)" = "netdryrun $RELEASE"
           uvx netdryrun --version
           python scripts/mcp_handshake.py uvx netdryrun mcp

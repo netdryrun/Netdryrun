@@ -1,4 +1,6 @@
-# Keeps the SHA-pinned GitHub Actions current (Scorecard's Dependency-Update-Tool check).
+# Keeps every pinned dependency current (Scorecard's Dependency-Update-Tool and Pinned-Dependencies checks):
+# GitHub Actions pinned by commit SHA (workflows and the composite action.yml), the hash-locked requirements/*.txt,
+# and the ClusterFuzzLite base image pinned by digest. A lock Dependabot can't regenerate: bash scripts/lock_requirements.sh.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -8,3 +10,14 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  - package-ecosystem: pip
+    directories: ["/requirements"]
+    schedule:
+      interval: monthly
+    groups:
+      python:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directories: ["/.clusterfuzzlite"]
+    schedule:
+      interval: monthly

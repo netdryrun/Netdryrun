@@ -4,7 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-pip install --no-cache-dir -e .
+# dependencies from the hash lock (requirements/README.md), then this checkout, editable
+pip install --no-cache-dir --require-hashes -r requirements/runtime.txt
+pip install --no-cache-dir --no-deps --no-build-isolation -e .
 netdryrun --version
 
 # The Docker-in-Docker daemon starts with the container; give it a moment.

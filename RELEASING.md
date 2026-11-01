@@ -198,7 +198,10 @@ A release is never "probably fine".
 6. **Tag and push:** `git tag vX.Y.Z && git push origin vX.Y.Z`. The release workflow publishes
    to PyPI and creates the GitHub release. The MCP Registry workflow publishes `server.json`.
 7. **Merge** the release branch into `main` (a merge commit), then bump `RELEASE` and the `uses:`
-   refs in `published-action.yml` on `main`. The website deploys from `main`.
+   pins in `published-action.yml` on `main` (the commit `git ls-remote origin 'refs/tags/vX.Y.Z^{}'` prints, with a
+   `# vX.Y.Z` comment; the workflow fails if the tag and the pin differ). The website deploys from `main`. The
+   release on GitHub carries the wheel, the sdist, the Sigstore bundle (`netdryrun-vX.Y.Z.sigstore.json`) and the
+   same SLSA provenance as in-toto JSON Lines (`netdryrun-vX.Y.Z.intoto.jsonl`).
 8. **Paste the release notes** into the GitHub release and mark it **latest**, before CLEARED: the
    after-publish consistency check fails until the GitHub latest release is `vX.Y.Z`.
 9. **Prove it:** run `python scripts/release_gate.py after-publish X.Y.Z` and commit the updated

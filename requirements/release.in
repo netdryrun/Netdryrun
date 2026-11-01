@@ -1,0 +1,3 @@
+build
+twine
+hatchling>=1.25

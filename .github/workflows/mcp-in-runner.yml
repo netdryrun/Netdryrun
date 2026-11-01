@@ -25,8 +25,11 @@ jobs:
           python-version: "3.12"
       - name: Install containerlab and Netdryrun with the MCP extra
         run: |
-          bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
-          python -m pip install --quiet ".[mcp]" jsonschema
+          bash scripts/install_containerlab.sh 0.81.1
+          # ci.txt holds the runtime dependencies and jsonschema
+          python -m pip install --quiet --require-hashes -r requirements/ci.txt
+          python -m pip wheel --quiet --no-deps --no-build-isolation -w "$RUNNER_TEMP/wheel" .
+          python -m pip install --quiet --no-deps "$RUNNER_TEMP"/wheel/netdryrun-*.whl
       - name: Drive the MCP server with a scripted client
         run: python scripts/mcp_in_runner.py --out "$RUNNER_TEMP/mcp-in-runner.json"
       - name: Upload the spike result

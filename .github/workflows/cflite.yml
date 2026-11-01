@@ -1,0 +1,46 @@
+name: ClusterFuzzLite
+
+# Coverage-guided fuzzing (Atheris) of the device-output parsers and the netdryrun.yml loader (fuzz/). A pull
+# request that touches them is fuzzed for 5 minutes; every week each fuzzer runs for 30 minutes from the corpus.
+# A finding is a possible false pass or crash: it fails the job, and is reported, never silenced.
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "fuzz/**"
+      - "tests/test_driver_fuzz.py"
+      - "tests/fixtures/**"
+      - "requirements/**"
+      - ".clusterfuzzlite/**"
+      - ".github/workflows/cflite.yml"
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cflite-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Build the fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+        with:
+          language: python
+          sanitizer: address
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run the fuzzers
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          mode: ${{ github.event_name == 'pull_request' && 'code-change' || 'batch' }}
+          fuzz-seconds: ${{ github.event_name == 'pull_request' && 300 || 1800 }}
+          sanitizer: address
+          language: python
