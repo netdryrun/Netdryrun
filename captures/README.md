@@ -4,6 +4,8 @@ Sanitised command output from contributors' own lab nodes, made with `netdryrun 
 (next release; see the [capture kit](https://netdryrun.com/reference/capture/)). We never hold the images: only
 the output contributors chose to share.
 
+Captures are shared under Apache-2.0, like the rest of the repository, and are free for anyone to use.
+
 Layout: `captures/<nos>/<version>/<scenario>/` holds one bundle (`manifest.json` and `outputs/`). Nothing else goes
 in this folder.
 

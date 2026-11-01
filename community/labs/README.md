@@ -4,6 +4,8 @@ A lab template is a containerlab lab that someone can copy to test their own cha
 and a broken variant that must fail. Templates are inputs, not verdict logic: they can't make a check pass that
 should fail, which makes them the safest first contribution. The format is new after 0.4.0 (next release).
 
+Templates are free recipes under Apache-2.0, like the rest of the repository: anyone may copy and change them.
+
 Labs you'd rather keep in your own repository: give that repository the GitHub topic `netdryrun-lab`.
 
 ## The format
