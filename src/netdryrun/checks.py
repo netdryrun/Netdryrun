@@ -97,7 +97,7 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
 
     top = n.prefixes_upto.get(afi, count)
     if top == count:
-        if not within(count) and count < low:   # established, and short of the minimum
+        if count < low:   # established, and short of the minimum
             return False, Missing(f"{count} {afi} prefixes accepted"), obs.evidence
         return within(count), f"{count} {afi} prefixes accepted", obs.evidence
     # Some received routes are hidden for a reason the device doesn't give, so the count is somewhere from
