@@ -173,6 +173,36 @@ def test_hostnames_domains_and_secrets():
     assert san.leaks(out, s.mapping()) == [] and san.leaks(cfg, s.mapping()) == []
 
 
+@pytest.mark.parametrize("name", ["nxos_boot_log_clean.txt", "nxos_boot_log_rejected.txt"])
+def test_secret_syntax_is_removed_and_english_about_passwords_is_kept(name):
+    # NX-OS boot logs (live n9kv captures) ask for the admin password in prose, and vrnetlab prints the default one
+    text = (FIXTURES / name).read_text(encoding="utf-8")
+    _, (out,) = run(text)
+    prose = [ln for ln in text.splitlines() if re.search(r"(?i)the password for|secure password standard", ln)]
+    assert prose and all(ln in out.splitlines() for ln in prose)
+    assert "<removed> \"admin\"" not in out and "password <removed>" not in out.lower()
+    if "PASSWORD: admin" in text:
+        assert "PASSWORD: admin" not in out and "PASSWORD: <removed>" in out
+
+
+@pytest.mark.parametrize("line,secret", [
+    ("neighbor 192.0.2.1 password 7 0822455D0A16", "0822455D0A16"),
+    ("username admin password 5 $1$abc$xyz", "$1$abc$xyz"),
+    ('authentication-key "$9$dkfj"; ## SECRET-DATA', '"$9$dkfj"'),
+    ("snmp key-string s3cr3t", "s3cr3t"),
+])
+def test_config_secrets_are_removed(line, secret):
+    _, (out,) = run(line)
+    assert secret not in out and "<removed>" in out
+
+
+@pytest.mark.parametrize("line", ["Enter the password for \"admin\":", "Please set a new password now",
+                                  "Do you want to enforce secure password standard (yes/no) [y]:", "Password:"])
+def test_prose_is_not_a_secret(line):
+    _, (out,) = run(line)
+    assert out == line
+
+
 def test_versions_and_times_are_not_addresses():
     text = "FRRouting 10.4.1 uptime 00:00:03 mac aa:bb:cc:dd:ee:ff version 4.32.2F build 1.2.3.4a"
     _, (out,) = run(text)

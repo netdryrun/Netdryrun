@@ -5,6 +5,8 @@
 #   kind     live-capture   output a NOS printed in a running lab (the only kind a parser test may be built on)
 #            lab-input      a topology or config fed to a lab, not output
 #            report         a report Netdryrun wrote on a real run
+#            hand-written   written to a live capture's structure, the capture itself unpublished; only the files
+#                           frozen in scripts/contrib_gate.py (HAND_WRITTEN) may have it, and the entry says why
 #   source   the lab, NOS version and how it was captured, as far as it was recorded when the file was added
 #   added    the commit that added it, or last re-captured it
 #
@@ -100,3 +102,40 @@
   kind: live-capture
   source: verify snapshots of corpus v1 cases 06, 18 and 23, captured live
   added: a3dd510
+- files: [nxos_all_routes.txt, nxos_all_routes_emptyvrf.txt, nxos_all_routes_novrf.txt, nxos_all_routes_v6.txt,
+          nxos_bgp_20.txt, nxos_bgp_66.txt, nxos_bgp_absent_red.txt, nxos_bgp_default.txt, nxos_bgp_emptyvrf.txt,
+          nxos_bgp_local.txt, nxos_bgp_novrf.txt, nxos_bgp_process_emptyvrf.txt, nxos_bgp_process_novrf.txt,
+          nxos_bgp_red.txt, nxos_bgp_v6.txt, nxos_bgp_vrf_list.txt, nxos_invalid.txt, nxos_nbr_detail.txt,
+          nxos_ping6_ok.txt, nxos_ping_badsrc.txt, nxos_ping_fail.txt, nxos_ping_lo.txt, nxos_ping_novrf.txt,
+          nxos_ping_ok.txt, nxos_ping_red.txt, nxos_route_20.txt, nxos_route_66.txt, nxos_route_absent_red.txt,
+          nxos_route_default.txt, nxos_route_emptyvrf.txt, nxos_route_local.txt, nxos_route_novrf.txt,
+          nxos_route_red.txt, nxos_route_v6.txt, nxos_summary_emptyvrf.txt, nxos_summary_emptyvrf_ascii.txt,
+          nxos_summary_novrf.txt, nxos_summary_novrf_ascii.txt, nxos_summary_red.txt, nxos_summary_red_v6.txt,
+          nxos_summary_v4.txt, nxos_summary_v6.txt, nxos_summary_v6_novrf.txt, nxos_version.txt,
+          nxos_vrf_default.txt, nxos_vrf_empty.txt, nxos_vrf_nope.txt, nxos_vrf_red.txt]
+  kind: live-capture
+  source: vrnetlab/cisco_n9kv:9300-10.4.8.M (NX-OS 10.4(8)), NX-API from inside the vrnetlab container, lab window of
+    2026-10-28; nxos_captures.tsv lists the command, rc, image and date of each. 19 of them were re-captured on the same
+    image on 2026-10-31 with a peer that sends nothing (49a39cb); the tsv still shows the first date
+  added: 306a0ed
+- files: [nxos_captures.tsv]
+  kind: lab-input
+  source: the capture log for the n9kv 10.4(8) fixtures (file, command, rc, image, date)
+  added: 306a0ed
+- files: [nxos_all_routes_emptyvrf_null.txt, nxos_route_emptyvrf_null.txt]
+  kind: live-capture
+  source: n9kv 10.4(8) re-capture during the NX-OS must-fail gate, 2026-10-30, a boot where an empty VRF answered null
+  added: 45b2d8d
+- files: [nxos_bgp_config_all.txt, nxos_boot_log_clean.txt, nxos_boot_log_rejected.txt, nxos_vrf_all.txt]
+  kind: live-capture
+  source: n9kv 10.4(8), 2026-10-31 (BGP config defaults, show vrf, and vrnetlab's boot log with and without two
+    rejected startup-config lines); not in nxos_captures.tsv
+  added: 49a39cb
+- files: [routeros_bgp_connection.txt, routeros_bgp_session.txt, routeros_health_running.txt,
+          routeros_log_import_clean.txt, routeros_log_import_error.txt, routeros_ping.txt, routeros_ping_fail.txt,
+          routeros_resource.txt, routeros_routes_main.txt, routeros_routes_red.txt, routeros_rtable.txt]
+  kind: hand-written
+  source: written to the structure and wording of live RouterOS 7.23.8 (CHR) captures of 2026-10-30 and 2026-11-01,
+    which are not published (tests/test_routeros_driver.py and tests/test_routeros_state.py say so)
+  why: the live CHR captures were kept off the repository; replacing these with published live captures is open
+  added: f88c23e (health, import logs and resource 03de68d)

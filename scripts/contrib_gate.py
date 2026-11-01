@@ -28,7 +28,13 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE_KINDS = {"live-capture", "lab-input", "report"}
+SOURCE_KINDS = {"live-capture", "lab-input", "report", "hand-written"}
+# Fixtures written to a live capture's structure because the capture itself is unpublished. Frozen: no new file may
+# be hand-written (CONTRIBUTING: real device output only); these wait to be replaced by published live captures.
+HAND_WRITTEN = frozenset({
+    "routeros_bgp_connection.txt", "routeros_bgp_session.txt", "routeros_health_running.txt",
+    "routeros_log_import_clean.txt", "routeros_log_import_error.txt", "routeros_ping.txt", "routeros_ping_fail.txt",
+    "routeros_resource.txt", "routeros_routes_main.txt", "routeros_routes_red.txt", "routeros_rtable.txt"})
 # Code a verdict depends on: a change here needs a test that fails on the base branch's code
 VERDICT_PATHS = ("src/netdryrun/drivers/", "src/netdryrun/checks.py", "src/netdryrun/runner.py",
                  "src/netdryrun/config.py", "src/netdryrun/faults.py", "src/netdryrun/lab.py",
@@ -58,10 +64,15 @@ def provenance(root: Path | None = None) -> list[str]:
             continue
         if e.get("kind") not in SOURCE_KINDS:
             problems.append(f"{where}: kind must be one of {sorted(SOURCE_KINDS)}")
+        if e.get("kind") == "hand-written" and not str(e.get("why") or "").strip():
+            problems.append(f"{where}: a hand-written entry must say why (why:)")
         for pattern in e["files"]:
             hits = fnmatch.filter(files, pattern)
             if not hits:
                 problems.append(f"{where}: {pattern} matches no file")
+            if e.get("kind") == "hand-written":
+                problems += [f"tests/fixtures/{h}: hand-written; parser fixtures must be real device output"
+                             for h in hits if h not in HAND_WRITTEN]
             covered.update(hits)
     problems += [f"tests/fixtures/{f}: no recorded source in tests/fixtures/SOURCES.yml" for f in files if f not in covered]
 

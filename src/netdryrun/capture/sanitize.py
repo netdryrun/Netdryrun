@@ -48,8 +48,12 @@ _SECRET_KEY = re.compile(r"(?i)(password|passwd|secret|auth[-_]?key|authenticati
 # `AS 65001` only in capitals: "as" in a sentence is not an AS number
 _TEXT_ASN = re.compile(r"((?i:\b(?:router bgp|remote-as|local-as|peer-as|neighbor-as|autonomous-system)\s+)|"
                        r"\bAS[ :]?|\bASN\s*[:=]?\s*)(\d+)\b")
-_TEXT_SECRET = re.compile(r"(?i)(\b(?:password|secret|authentication-key|auth-key|pre-shared-key|key-string|md5)"
-                          r"(?:\s+\d)?\s+)(\S+)")
+# A secret as config or a log prints it: the keyword, an optional encryption type, then the value as the line's last
+# token (`neighbor 192.0.2.1 password 7 0822455D0A16`, `authentication-key "$9$x";`, `PASSWORD: admin`). English
+# around the word ("Enter the password for "admin":", "secure password standard (yes/no)") is not a secret.
+_TEXT_SECRET = re.compile(r"(?im)((?<!\bthe )(?<!\byour )(?<!\bsecure )(?<!\bnew )"
+                          r"\b(?:password|passwd|secret|authentication-key|auth-key|pre-shared-key|key-string|md5)\b"
+                          r"(?:[ \t]+\d)?[ \t]*[:=]?[ \t]*)(\"[^\"\n]*\"|[^\s\":=][^\s\"]*?)([ \t]*;?[ \t]*(?:##.*)?)$")
 _TEXT_HOSTNAME = re.compile(r"(?im)^\s*(?:hostname|host-name)\s+(\S+)")
 _COMMUNITY_TOKEN = re.compile(r"(?:(?<=large:)|(?<![\w.:]))(\d+)(:\d+(?::\d+)?)(?![\w.:])")
 _DIGITS = re.compile(r"(?<![\w.:{,])(\d+)(?![\w.:])|(?<=[{,])(\d+)(?=[,}])")
@@ -240,12 +244,13 @@ class Sanitizer:
         return out
 
     def names_only(self, text: str) -> str:
-        """Only the names rewritten: what a text's shape is compared on (a name is not structure)."""
-        return self._name_re.sub(self._sub_name, text) if self._name_re is not None else text
+        """Only the names and text secrets rewritten: what a text's shape is compared on (neither is structure)."""
+        text = self._name_re.sub(self._sub_name, text) if self._name_re is not None else text
+        return text if _is_json(text) else _TEXT_SECRET.sub(lambda m: m.group(1) + "<removed>" + m.group(3), text)
 
     def _secret(self, m) -> str:
         self.counts["secrets"] += 1
-        return m.group(1) + "<removed>"
+        return m.group(1) + "<removed>" + m.group(3)
 
     def _plain(self, s: str) -> str:
         """Addresses and names in a string (no AS context)."""

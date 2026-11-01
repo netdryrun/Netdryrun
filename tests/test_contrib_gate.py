@@ -220,9 +220,23 @@ def test_a_source_entry_must_say_what_kind_and_where(tmp_path):
     fx = tmp_path / "tests" / "fixtures"
     fx.mkdir(parents=True)
     (fx / "a.txt").write_text("{}")
-    (fx / "SOURCES.yml").write_text(yaml.safe_dump([{"files": ["a.txt"], "kind": "hand-written", "source": "me",
+    (fx / "SOURCES.yml").write_text(yaml.safe_dump([{"files": ["a.txt"], "kind": "made-up", "source": "me",
                                                      "added": "abc"}]))
     assert "kind must be one of" in gate.provenance(tmp_path)[0]
+
+
+def test_a_new_hand_written_fixture_fails_and_the_frozen_ones_need_a_reason(tmp_path):
+    fx = tmp_path / "tests" / "fixtures"
+    fx.mkdir(parents=True)
+    (fx / "my_parser.txt").write_text("{}")
+    (fx / "routeros_ping.txt").write_text("[]")
+    entry = {"files": ["my_parser.txt", "routeros_ping.txt"], "kind": "hand-written", "source": "typed in",
+             "added": "abc"}
+    (fx / "SOURCES.yml").write_text(yaml.safe_dump([entry]))
+    found = gate.provenance(tmp_path)
+    assert any("my_parser.txt: hand-written" in p for p in found)
+    assert not any("routeros_ping.txt: hand-written" in p for p in found)
+    assert any("must say why" in p for p in found)
 
 
 def test_a_stray_file_in_captures_fails(tmp_path):
