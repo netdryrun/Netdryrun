@@ -1,0 +1,64 @@
+# Checks for the Juniper lab (cJunosEvolved, beta driver). Run: netdryrun run examples/junos-frr
+# The good configs pass. leaks/frr1.conf fails exactly one check: the "no BGP default" guard on j1,
+# which receives the leak and keeps it inactive behind its own static default. See README.md.
+lab: topology.clab.yml
+timeout: 1800   # cJunosEvolved boots a VM: 10 to 20 minutes before Junos answers (first boot installs Junos)
+
+checks:
+  # What monitoring usually watches. All of these pass with or without a leak.
+  - type: bgp_session
+    node: j1
+    neighbor: 10.0.100.2
+  - type: bgp_session
+    node: j1
+    neighbor: 2001:db8:100::2
+  - type: bgp_session
+    node: frr1
+    neighbor: 10.0.100.1
+  - type: bgp_prefixes
+    node: j1
+    neighbor: 2001:db8:100::2
+    afi: ipv6-unicast
+    max: 10
+  - type: route
+    node: j1
+    prefix: 192.168.20.0/24
+    protocol: bgp
+  - type: route
+    node: j1
+    prefix: 2001:db8:20::/48
+    protocol: bgp
+  - type: route
+    node: frr1
+    prefix: 192.168.10.1/32
+    protocol: bgp
+  - type: bgp_route    # frr1's LAN arrives with the attributes its export policy sets
+    node: j1
+    prefix: 192.168.20.0/24
+    as_path: "65020"
+    next_hop: 10.0.100.2
+    med: 50
+    local_pref: 100
+    communities: ["65020:100", "65020:1:1"]
+  - type: ping
+    node: j1
+    source: 192.168.10.1
+    target: 192.168.20.1
+  - type: route        # each router's own default route is in place and selected
+    node: j1
+    prefix: 0.0.0.0/0
+    protocol: static
+  - type: route
+    node: frr1
+    prefix: 0.0.0.0/0
+    protocol: static
+
+  # The leak guards: no BGP path for 0.0.0.0/0 at all, selected or not.
+  - type: bgp_route
+    node: j1
+    prefix: 0.0.0.0/0
+    present: false
+  - type: bgp_route
+    node: frr1
+    prefix: 0.0.0.0/0
+    present: false

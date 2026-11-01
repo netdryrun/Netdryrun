@@ -58,6 +58,8 @@ class BootLogLab(FakeLab):
     conf: dict = {}
 
     def exec(self, node, cmd, timeout=60, input=None):
+        if cmd[:1] == ["Cli"]:   # a cEOS node's startup-config errors (tests/test_startup_config_load.py): none
+            return ExecResult(cmd, 0, "No errors were found in startup-config.", "")
         if cmd == ["cat", "/etc/frr/frr.conf"]:
             r = self.conf.get(node, "")
         else:   # one daemon's own running config: vtysh -d <daemon>
@@ -221,7 +223,7 @@ def test_the_error_names_every_node_and_every_line_exactly(tmp_path, monkeypatch
     lab = BootLogLab(World(), {"r1": REJECTED, "r2": ExecResult([], 1, "", noise), "r3": no_load})
     rep = _run(tmp_path, monkeypatch, lab)
     assert rep.error == (
-        "FRR rejected configuration lines at boot, so the lab ran without them and the checks did not test the "
+        "The NOS rejected configuration lines at boot, so the lab ran without them and the checks did not test the "
         "change as written: r1: line 21: neighbor 10.0.12.2 default-orignate (Unknown command); line 22: neighbor "
         "10.0.12.2 maximum-prefix (Command incomplete); line 23: neighbor 10.9.9.9 route-map ALLOW-ALL in (rejected "
         f"by bgpd) | r2: its boot log could not be read ({'y' * 200}), so whether its config loaded is unknown | r3: "

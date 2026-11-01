@@ -1,0 +1,70 @@
+{
+    "ping-results" : [
+    {
+        "target-host" : [
+        {
+            "data" : "10.77.0.1"
+        }
+        ], 
+        "target-ip" : [
+        {
+            "data" : "10.77.0.1"
+        }
+        ], 
+        "packet-size" : [
+        {
+            "data" : "56"
+        }
+        ], 
+        "source" : [
+        {
+            "data" : "10.77.0.1"
+        }
+        ], 
+        "probe-results-summary" : [
+        {
+            "probes-sent" : [
+            {
+                "data" : "3"
+            }
+            ], 
+            "responses-received" : [
+            {
+                "data" : "3"
+            }
+            ], 
+            "packet-loss" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "rtt-minimum" : [
+            {
+                "data" : "121"
+            }
+            ], 
+            "rtt-maximum" : [
+            {
+                "data" : "2572"
+            }
+            ], 
+            "rtt-average" : [
+            {
+                "data" : "961"
+            }
+            ], 
+            "rtt-stddev" : [
+            {
+                "data" : "1139"
+            }
+            ]
+        }
+        ], 
+        "ping-failure" : [
+        {
+            "data" : "no response"
+        }
+        ]
+    }
+    ]
+}

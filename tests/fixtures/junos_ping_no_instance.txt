@@ -1,0 +1,11 @@
+{
+    "ping-results" : [
+    {
+        "ping-failure" : [
+        {
+            "data" : "no response"
+        }
+        ]
+    }
+    ]
+}

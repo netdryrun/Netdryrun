@@ -1,0 +1,9 @@
+{
+    "instance-information" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/junos/26.2R0/junos-routing", 
+                        "junos:style" : "terse"
+                       }
+    }
+    ]
+}

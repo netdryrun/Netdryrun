@@ -1,0 +1,447 @@
+{
+    "route-information" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/junos/26.2R0/junos-routing"}, 
+        "route-table" : [
+        {
+            "table-name" : [
+            {
+                "data" : "inet.0"
+            }
+            ], 
+            "destination-count" : [
+            {
+                "data" : "6"
+            }
+            ], 
+            "total-route-count" : [
+            {
+                "data" : "6"
+            }
+            ], 
+            "active-route-count" : [
+            {
+                "data" : "6"
+            }
+            ], 
+            "holddown-route-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "hidden-route-count" : [
+            {
+                "data" : "0"
+            }
+            ], 
+            "rt" : [
+            {
+                "attributes" : {"junos:style" : "detail"}, 
+                "rt-destination" : [
+                {
+                    "data" : "10.51.0.0"
+                }
+                ], 
+                "rt-prefix-length" : [
+                {
+                    "data" : "24"
+                }
+                ], 
+                "rt-entry-count" : [
+                {
+                    "data" : "1", 
+                    "attributes" : {"junos:format" : "1 entry"}
+                }
+                ], 
+                "rt-announced-count" : [
+                {
+                    "data" : "1"
+                }
+                ], 
+                "rt-state" : [
+                {
+                }
+                ], 
+                "tsi" : [
+                {
+                    "data" : "KRT in-kernel 10.51.0.0/24 -> {indirect(8035)}", 
+                    "attributes" : {"junos:indent" : "0"}
+                }, 
+                {
+                    "attributes" : {"junos:indent" : "0"}
+                }, 
+                {
+                    "data" : "PLATFORM-LAYER\n   Input  Nexthop 0x55731841f958, type Indirect, subtype None, ngw 1\n   Output Nexthop 0x55731841f958, type Indirect, subtype None, ngw 1\n   Plfm Layer Config 0x5573183e32a0[Via CLI], Label-Based, Max-Chain 2, Merge-Label-Penultimate-Chain, Egress-Chain\n   Parent List 1\n     Parent 0x557322b785d8 Type 1 Child-Count 1", 
+                    "attributes" : {"junos:indent" : "0"}
+                }
+                ], 
+                "rt-entry" : [
+                {
+                    "active-tag" : [
+                    {
+                        "data" : "*"
+                    }
+                    ], 
+                    "current-active" : [
+                    {
+                        "data" : [null]
+                    }
+                    ], 
+                    "last-active" : [
+                    {
+                        "data" : [null]
+                    }
+                    ], 
+                    "protocol-name" : [
+                    {
+                        "data" : "BGP"
+                    }
+                    ], 
+                    "preference" : [
+                    {
+                        "data" : "170"
+                    }
+                    ], 
+                    "preference2" : [
+                    {
+                        "data" : "-201"
+                    }
+                    ], 
+                    "nhh" : [
+                    {
+                        "attributes" : {"junos:indent" : "16"}, 
+                        "nh-type" : [
+                        {
+                            "data" : "Indirect"
+                        }
+                        ], 
+                        "nh-index" : [
+                        {
+                            "data" : "0"
+                        }
+                        ], 
+                        "nh-address" : [
+                        {
+                            "data" : "0x55731841f958"
+                        }
+                        ], 
+                        "nh-reference-count" : [
+                        {
+                            "data" : "4"
+                        }
+                        ], 
+                        "nh-kernel-id" : [
+                        {
+                            "data" : "0"
+                        }
+                        ]
+                    }
+                    ], 
+                    "gateway" : [
+                    {
+                        "data" : "10.0.1.2"
+                    }
+                    ], 
+                    "nh-type" : [
+                    {
+                        "data" : "Router"
+                    }
+                    ], 
+                    "nh-index" : [
+                    {
+                        "data" : "8033"
+                    }
+                    ], 
+                    "nh" : [
+                    {
+                        "attributes" : {"junos:indent" : "16"}, 
+                        "nh-string" : [
+                        {
+                            "data" : "Next hop"
+                        }
+                        ], 
+                        "to" : [
+                        {
+                            "data" : "10.0.1.2"
+                        }
+                        ], 
+                        "via" : [
+                        {
+                            "data" : "et-0/0/0.0"
+                        }
+                        ], 
+                        "selected-next-hop" : [
+                        {
+                            "data" : [null]
+                        }
+                        ], 
+                        "session" : [
+                        {
+                            "data" : "1"
+                        }
+                        ]
+                    }
+                    ], 
+                    "protocol-nh" : [
+                    {
+                        "attributes" : {"junos:indent" : "16"}, 
+                        "to" : [
+                        {
+                            "data" : "10.0.1.2"
+                        }
+                        ], 
+                        "indirect-nh" : [
+                        {
+                            "data" : "0x55731de03a90 8035 INH Session ID: 3, INH non-key opaque: 0x557327d61620, INH key opaque: (nil)"
+                        }
+                        ]
+                    }
+                    ], 
+                    "rt-entry-state" : [
+                    {
+                        "data" : "Active Int Ext OpaqueData"
+                    }
+                    ], 
+                    "local-as" : [
+                    {
+                        "data" : "65001"
+                    }
+                    ], 
+                    "peer-as" : [
+                    {
+                        "data" : "65001"
+                    }
+                    ], 
+                    "age" : [
+                    {
+                        "data" : "23", 
+                        "attributes" : {"junos:seconds" : "23"}
+                    }
+                    ], 
+                    "metric" : [
+                    {
+                        "data" : "0"
+                    }
+                    ], 
+                    "metric2" : [
+                    {
+                        "data" : "0"
+                    }
+                    ], 
+                    "validation-state" : [
+                    {
+                        "data" : "unverified"
+                    }
+                    ], 
+                    "task-name" : [
+                    {
+                        "data" : "BGP_65001.10.0.1.2"
+                    }
+                    ], 
+                    "announce-bits" : [
+                    {
+                        "data" : "3"
+                    }
+                    ], 
+                    "announce-tasks" : [
+                    {
+                        "data" : "0-KRT 3-Resolve tree 1 5-PLFM-LAYER "
+                    }
+                    ], 
+                    "as-path" : [
+                    {
+                        "data" : "AS path: I"
+                    }
+                    ], 
+                    "bgp-path-attributes" : [
+                    {
+                        "attr-as-path-effective" : [
+                        {
+                            "aspath-effective-string" : [
+                            {
+                                "data" : "AS path: "
+                            }
+                            ], 
+                            "attr-value" : [
+                            {
+                                "data" : "I"
+                            }
+                            ]
+                        }
+                        ]
+                    }
+                    ], 
+                    "communities" : [
+                    {
+                        "community" : [
+                        {
+                            "data" : "65001:51"
+                        }, 
+                        {
+                            "data" : "no-export"
+                        }
+                        ]
+                    }
+                    ], 
+                    "bgp-rt-flag" : [
+                    {
+                        "data" : "Accepted"
+                    }
+                    ], 
+                    "local-preference" : [
+                    {
+                        "data" : "200"
+                    }
+                    ], 
+                    "peer-id" : [
+                    {
+                        "data" : "10.0.1.2"
+                    }
+                    ], 
+                    "thread-name" : [
+                    {
+                        "data" : "junos-main"
+                    }
+                    ], 
+                    "indirect-nh-count" : [
+                    {
+                        "data" : "1"
+                    }
+                    ], 
+                    "protocol-nh" : [
+                    {
+                        "attributes" : {"junos:indent" : "24"}, 
+                        "to" : [
+                        {
+                            "data" : "10.0.1.2"
+                        }
+                        ], 
+                        "res-state" : [
+                        {
+                            "data" : "Resolved"
+                        }
+                        ], 
+                        "res-tsp-idx" : [
+                        {
+                            "data" : "1"
+                        }
+                        ], 
+                        "indirect-nh" : [
+                        {
+                            "data" : "0x55731de03a90 8035 INH Session ID: 3, INH non-key opaque: 0x557327d61620, INH key opaque: (nil)"
+                        }
+                        ], 
+                        "protocol-nh" : [
+                        {
+                            "attributes" : {"junos:indent" : "32"}, 
+                            "forwarding-nh-count" : [
+                            {
+                                "data" : "1"
+                            }
+                            ], 
+                            "nh-type" : [
+                            {
+                                "data" : "Router"
+                            }
+                            ], 
+                            "nh-index" : [
+                            {
+                                "data" : "8033"
+                            }
+                            ], 
+                            "nh" : [
+                            {
+                                "attributes" : {"junos:indent" : "8"}, 
+                                "nh-string" : [
+                                {
+                                    "data" : "Next hop"
+                                }
+                                ], 
+                                "to" : [
+                                {
+                                    "data" : "10.0.1.2"
+                                }
+                                ], 
+                                "via" : [
+                                {
+                                    "data" : "et-0/0/0.0"
+                                }
+                                ], 
+                                "session" : [
+                                {
+                                    "data" : "1"
+                                }
+                                ]
+                            }
+                            ]
+                        }, 
+                        {
+                            "attributes" : {"junos:indent" : "32"}, 
+                            "node-prefix" : [
+                            {
+                                "data" : "10.0.1.0"
+                            }
+                            ], 
+                            "node-prefix-length" : [
+                            {
+                                "data" : "30"
+                            }
+                            ], 
+                            "originating-rib" : [
+                            {
+                                "data" : "inet.3"
+                            }
+                            ], 
+                            "node-path-count" : [
+                            {
+                                "data" : "1"
+                            }
+                            ], 
+                            "node-address" : [
+                            {
+                                "data" : "0x5573244a5780"
+                            }
+                            ], 
+                            "node-forwarding-nh-count" : [
+                            {
+                                "data" : "1"
+                            }
+                            ], 
+                            "nh-type" : [
+                            {
+                                "data" : "Interface"
+                            }
+                            ], 
+                            "nh-index" : [
+                            {
+                                "data" : "0"
+                            }
+                            ], 
+                            "nh" : [
+                            {
+                                "attributes" : {"junos:indent" : "8"}, 
+                                "nh-string" : [
+                                {
+                                    "data" : "Next hop"
+                                }
+                                ], 
+                                "via" : [
+                                {
+                                    "data" : "et-0/0/0.0"
+                                }
+                                ]
+                            }
+                            ]
+                        }
+                        ]
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }
+        ]
+    }
+    ]
+}

@@ -13,7 +13,7 @@ ce1 starts announcing 8.8.8.0/24. pe1's customer filter rejects it, so nothing l
 
 ## The config change
 
-Against the FRR configs of the [base lab](https://github.com/netdryrun/netdryrun/tree/main/corpus/base/configs):
+Against the FRR configs of the [base lab](https://github.com/netdryrun/Netdryrun/tree/main/corpus/base/configs):
 
 ```diff
 --- a/ce1.conf
@@ -42,7 +42,7 @@ The expected verdict was committed to git before any run. All three strategies t
 
 ## What Netdryrun flagged
 
-Nothing: every check in the [intent spec](https://github.com/netdryrun/netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
+Nothing: every check in the [intent spec](https://github.com/netdryrun/Netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
 
 ## Reproduce it
 
@@ -52,4 +52,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 22
 ```
 
-Case file: [`corpus/cases/22-customer-leaks-third-party.yml`](https://github.com/netdryrun/netdryrun/blob/main/corpus/cases/22-customer-leaks-third-party.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.
+Case file: [`corpus/cases/22-customer-leaks-third-party.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/22-customer-leaks-third-party.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.

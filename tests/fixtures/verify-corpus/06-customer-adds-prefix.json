@@ -1,0 +1,12644 @@
+{
+"after": {
+"nodes": {
+"ce1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.100.0.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.100.0.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": false,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.0.1.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.0.1.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "static",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 1,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": null,
+"ip": null,
+"kind": "blackhole",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "static",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.1.2",
+"local_as": 65100,
+"prefix_counts": [
+[
+"ipv4-unicast",
+4
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"pe1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "203.0.113.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.100.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.100.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.2",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "203.0.113.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": false,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": "10.0.2.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.1.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.1.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.2.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.2.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.3.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.3.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.255.0.1/32",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.255.0.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "static",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 1,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": null,
+"ip": null,
+"kind": "blackhole",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "static",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": "10.0.3.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": "10.0.2.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.1.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+2
+]
+],
+"remote_as": 65100,
+"soft_reconfig_in": [],
+"state": "established"
+}
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.2.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+2
+]
+],
+"remote_as": 65200,
+"soft_reconfig_in": [],
+"state": "established"
+}
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.3.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+1
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"pe2": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.4.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "198.51.100.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": false,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.3.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.3.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.4.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.4.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.255.0.2/32",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.255.0.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": "10.0.4.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.3.2",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+5
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.4.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+1
+]
+],
+"remote_as": 65300,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"peer1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.4.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.2",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.4.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.2",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.4.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.2",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "198.51.100.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.0.4.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.0.4.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.4.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.4.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.4.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.4.2",
+"local_as": 65300,
+"prefix_counts": [
+[
+"ipv4-unicast",
+3
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"up1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [
+[
+"default-originate",
+"true"
+]
+],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "203.0.113.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.0.2.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.0.2.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.2.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.1.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.2.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.2.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.2.2",
+"local_as": 65200,
+"prefix_counts": [
+[
+"ipv4-unicast",
+3
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+}
+},
+"schema": "netdryrun.snapshot/v1",
+"unobserved": {}
+},
+"before": {
+"nodes": {
+"ce1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.100.0.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": false,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.0.1.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.0.1.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "10.100.0.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "ce1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.1.1",
+"node": "ce1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.1.2",
+"local_as": 65100,
+"prefix_counts": [
+[
+"ipv4-unicast",
+4
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"pe1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "203.0.113.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.1.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.100.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.2",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "203.0.113.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": false,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": "10.0.2.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.1.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.1.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.2.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.2.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.3.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.0.3.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.1.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.255.0.1/32",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "10.255.0.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "static",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 1,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": null,
+"ip": null,
+"kind": "blackhole",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "static",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": "10.0.3.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": "10.0.2.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth3",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.1.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.1.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+1
+]
+],
+"remote_as": 65100,
+"soft_reconfig_in": [],
+"state": "established"
+}
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.2.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.2.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+2
+]
+],
+"remote_as": 65200,
+"soft_reconfig_in": [],
+"state": "established"
+}
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.3.2",
+"node": "pe1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.3.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+1
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"pe2": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 300,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65300
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:300"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 200,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.4.2",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "198.51.100.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65200
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:200"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": 100,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.3.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "internal",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": false,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.3.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.3.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.4.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.0.4.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.255.0.2/32",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "10.255.0.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": "10.0.4.2",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 200,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.3.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "pe2",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth2",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.3.1",
+"node": "pe2",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.3.2",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+4
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.4.2",
+"node": "pe2",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.4.1",
+"local_as": 65000,
+"prefix_counts": [
+[
+"ipv4-unicast",
+1
+]
+],
+"remote_as": 65300,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"peer1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.4.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.2",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.4.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.2",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "198.51.100.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.0.4.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.0.4.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.4.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.4.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "198.51.100.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "peer1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.4.1",
+"node": "peer1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.4.2",
+"local_as": 65300,
+"prefix_counts": [
+[
+"ipv4-unicast",
+2
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+},
+"up1": {
+"driver": "frr",
+"items": [
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [
+[
+"default-originate",
+"true"
+]
+],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "adj_out",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000,
+65100
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [
+"65000:100"
+],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": null,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": [
+[
+"seq",
+[
+65000
+]
+]
+]
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "10.0.2.1",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": null
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "10.255.0.1",
+"peer_type": "external",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "path",
+"neighbor": "local",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": {
+"attrs": {
+"aggregator": null,
+"as_path": {
+"segments": []
+},
+"atomic_aggregate": false,
+"cluster_list": [],
+"communities": [],
+"ext_communities": [],
+"extra": [],
+"large_communities": [],
+"local_pref": null,
+"med": 0,
+"next_hops": [
+{
+"accessible": true,
+"igp_metric": 0,
+"interface": null,
+"ip": "0.0.0.0",
+"scope": "global",
+"used": true
+}
+],
+"origin": "igp",
+"originator_id": null,
+"weight": 32768
+},
+"best": true,
+"flags": [],
+"multipath": false,
+"peer_router_id": "203.0.113.1",
+"peer_type": "local",
+"valid": true
+}
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "0.0.0.0/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "172.20.20.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.0.2.0/30",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.0.2.2/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "10.100.0.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.2.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "172.20.20.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "192.0.2.0/24",
+"protocol": "bgp",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 20,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": "10.0.2.1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "bgp",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.0/24",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv4",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "203.0.113.1/32",
+"protocol": "local",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "lo",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "local",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "3fff:172:20:20::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "::/0",
+"protocol": "kernel",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 1024,
+"nexthops": [
+{
+"active": true,
+"directly_connected": false,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": "3fff:172:20:20::1",
+"kind": "gateway",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "kernel",
+"selected": true,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "ipv6",
+"kind": "rib",
+"neighbor": "",
+"node": "up1",
+"path_id": 0,
+"prefix": "fe80::/64",
+"protocol": "connected",
+"safi": "unicast",
+"vrf": "default"
+},
+"value": [
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth0",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+},
+{
+"distance": 0,
+"failed": false,
+"fib": true,
+"instance": null,
+"metric": 0,
+"nexthops": [
+{
+"active": true,
+"directly_connected": true,
+"duplicate": false,
+"fib": true,
+"interface": "eth1",
+"ip": null,
+"kind": "interface",
+"labels": [],
+"on_link": false,
+"recursive": false,
+"resolved_via": [],
+"src": null,
+"vrf": null,
+"weight": 1
+}
+],
+"protocol": "connected",
+"selected": false,
+"table": 254,
+"tag": null
+}
+]
+},
+{
+"key": {
+"afi": "",
+"kind": "session",
+"neighbor": "10.0.2.1",
+"node": "up1",
+"path_id": 0,
+"prefix": "",
+"protocol": "",
+"safi": "",
+"vrf": "default"
+},
+"value": {
+"afis": [
+"ipv4-unicast"
+],
+"established": true,
+"local_address": "10.0.2.2",
+"local_as": 65200,
+"prefix_counts": [
+[
+"ipv4-unicast",
+2
+]
+],
+"remote_as": 65000,
+"soft_reconfig_in": [],
+"state": "established"
+}
+}
+],
+"vrfs": [
+"default"
+]
+}
+},
+"schema": "netdryrun.snapshot/v1",
+"unobserved": {}
+},
+"captured": "live, FRR 10.4.1, netdryrun verify on corpus/base vs the case's edits, 2026-10-28",
+"case": "06-customer-adds-prefix",
+"intent": "intent:\n  - prefix: 10.100.1.0/24\n    appears_on: [ce1, pe1, pe2, up1, peer1]\n",
+"verdict": "INTENT MATCHED"
+}

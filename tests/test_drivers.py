@@ -234,3 +234,25 @@ def test_srl_leak_behind_own_static_is_described():
     assert [(p.local_candidate, p.as_path, p.next_hop) for p in paths] == [
         (True, "", "0.0.0.0"), (False, "65020", "10.0.100.2")]
     assert paths[1].local_pref == 100
+
+
+# --- advertisement intervals (MRAI): what each driver reads, or its platform's default --------------------------
+
+def test_frr_and_sonic_read_the_advertisement_interval_each_neighbor_reports():
+    text = read("frr_bgp_neighbors.txt")
+    assert {n.adv_interval for n in frr.parse_bgp_neighbors(text).values()} == {0.0}
+    slow = text.replace('"minBtwnAdvertisementRunsTimerMsecs":0', '"minBtwnAdvertisementRunsTimerMsecs":30000')
+    assert {n.adv_interval for n in frr.parse_bgp_neighbors(slow).values()} == {30.0}
+    assert {n.adv_interval for n in frr.parse_bgp_neighbors(read("sonic_bgp_neighbors.txt")).values()} == {0.0}
+
+
+def test_srlinux_reads_its_minimum_advertisement_interval():
+    text = read("srl_bgp_neighbors.txt")
+    assert {n.adv_interval for n in srlinux.parse_bgp_neighbors(text).values()} == {5.0}
+    assert {n.adv_interval for n in srlinux.parse_bgp_neighbors(
+        text.replace('"minimum-advertisement-interval": 5', '"minimum-advertisement-interval": 60')).values()} == {60.0}
+
+
+def test_eos_uses_its_platform_default_out_delay():
+    """EOS's summary carries no interval; EOS sends without delay unless `out-delay` is configured (not read)."""
+    assert {n.adv_interval for n in eos.parse_bgp_summary(read("eos_bgp_summary.txt")).values()} == {0.0}

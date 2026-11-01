@@ -1,0 +1,36 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	[{
+						"vrf_name":	"EMPTY",
+						"vrf_id":	5,
+						"vrf_state":	"Up",
+						"vrf_reason":	"--"
+					}, {
+						"vrf_name":	"RED",
+						"vrf_id":	4,
+						"vrf_state":	"Up",
+						"vrf_reason":	"--"
+					}, {
+						"vrf_name":	"default",
+						"vrf_id":	1,
+						"vrf_state":	"Up",
+						"vrf_reason":	"--"
+					}, {
+						"vrf_name":	"egress-loadbalance-resolution-",
+						"vrf_id":	3,
+						"vrf_state":	"Up",
+						"vrf_reason":	"--"
+					}, {
+						"vrf_name":	"management",
+						"vrf_id":	2,
+						"vrf_state":	"Up",
+						"vrf_reason":	"--"
+					}]
+			}
+		}
+	},
+	"id":	1
+}

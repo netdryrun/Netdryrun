@@ -22,6 +22,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="{{ 'assets/favicon-32.png' | url }}">
   <link rel="apple-touch-icon" href="{{ 'assets/netdryrun-mark-180.png' | url }}">
   <meta name="theme-color" content="#041334">
+  <link rel="alternate" type="application/rss+xml" title="Netdryrun news" href="{{ 'news/feed.xml' | url }}">
   {% if page and page.is_homepage %}
   <!-- The landing page is not a docs page: no heading permalinks, no "edit this page" button -->
   <style>.md-content__button, .md-typeset .headerlink { display: none; }</style>
@@ -34,7 +35,7 @@
         "@type": "SoftwareApplication",
         "@id": "https://netdryrun.com/#software",
         "name": "Netdryrun",
-        "description": "Netdryrun is an open-source tool that tests network changes in a real virtual lab before they reach production. It boots the topology with containerlab, waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network operating systems: FRR, Nokia SR Linux, SONiC (docker-sonic-vs) and Arista EOS (cEOS, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.",
+        "description": "Netdryrun is an open-source tool that tests network changes in a real virtual lab before they reach production. It boots the topology with containerlab, waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network operating systems: FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.",
         "url": "https://netdryrun.com/",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Network change testing",
@@ -51,12 +52,12 @@
         ],
         "keywords": "network change testing, BGP testing, containerlab CI, network CI/CD, NetDevOps, MCP server, network automation",
         "isAccessibleForFree": true,
-        "softwareVersion": "0.3.3",
+        "softwareVersion": "0.4.0",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "downloadUrl": "https://pypi.org/project/netdryrun/",
-        "codeRepository": "https://github.com/netdryrun/netdryrun",
+        "codeRepository": "https://github.com/netdryrun/Netdryrun",
         "sameAs": [
-          "https://github.com/netdryrun/netdryrun",
+          "https://github.com/netdryrun/Netdryrun",
           "https://pypi.org/project/netdryrun/"
         ],
         "offers": {

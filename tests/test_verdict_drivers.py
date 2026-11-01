@@ -16,8 +16,10 @@ from netdryrun import drivers as drv
 from netdryrun.drivers import base, eos, frr, srlinux
 from netdryrun.drivers.base import BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Route
 from netdryrun.drivers.eos import EosDriver
+from netdryrun.drivers.junos import JunosDriver
 from netdryrun.drivers.frr import FrrDriver
 from netdryrun.drivers.routeros import RouterosDriver
+from netdryrun.drivers.nxos import NxosDriver
 from netdryrun.drivers.sonic import SonicDriver
 from netdryrun.drivers.srlinux import SrlDriver
 from netdryrun.lab import ExecResult, Node
@@ -183,6 +185,9 @@ def N(name, kind="linux", image="x"):
     ("linux", "quay.io/frrouting/FRR:10.4", "frr"),
     ("mikrotik_ros", "vrnetlab/mikrotik_routeros:7.23.8", "routeros"), ("vr-ros", "x", "routeros"), ("vr-mikrotik_ros", "x", "routeros"),
     ("linux", "mikrotik/chr:7", "routeros"), ("mikrotik_ros", "frr-lookalike", "routeros"),   # the kind decides before any image-name guess
+    ("cisco_n9kv", "vrnetlab/cisco_n9kv:9300-10.4.8.M", "nxos"), ("vr-n9kv", "x", "nxos"), ("vr-cisco_n9kv", "x", "nxos"),
+    ("cisco_n9kv", "frr-lookalike", "nxos"),   # the kind decides before any image-name guess
+    ("juniper_cjunosevolved", "cjunosevolved:26.2R1.7-EVO", "junos"), ("cjunosevolved", "x", "junos"),
 ])
 def test_detect(kind, image, expected):
     assert drv.detect(N("r1", kind, image)) == expected
@@ -202,13 +207,15 @@ def test_for_node():
     assert type(drv.for_node(lab, "r3", "sonic")) is SonicDriver
     with pytest.raises(DriverError):
         drv.for_node(lab, "r9")
+    assert type(drv.for_node(lab, "r2", "junos")) is JunosDriver
     with pytest.raises(DriverError):
-        drv.for_node(lab, "r2", "junos")
+        drv.for_node(lab, "r2", "iosxr")
     with pytest.raises(DriverError):
         drv.for_node(lab, "r3")
     assert type(drv.for_node(lab, "r3", "routeros")) is RouterosDriver
+    assert type(drv.for_node(lab, "r3", "nxos")) is NxosDriver
     assert drv.DRIVERS == {"frr": FrrDriver, "srlinux": SrlDriver, "eos": EosDriver, "sonic": SonicDriver,
-                           "routeros": RouterosDriver}
+                           "junos": JunosDriver, "nxos": NxosDriver, "routeros": RouterosDriver}
 
 
 def test_check_supported(monkeypatch):

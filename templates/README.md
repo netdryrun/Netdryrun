@@ -8,11 +8,11 @@ The Netdryrun™ CI/CD component is the GitLab counterpart of the [GitHub Action
 
 ## Usage
 
-The component is the file [`templates/netdryrun.yml`](https://github.com/netdryrun/netdryrun/blob/main/templates/netdryrun.yml) in the Netdryrun repository. It is not listed in the GitLab CI/CD Catalog yet, so include it as a remote file. Replace `main` with a commit SHA or a release tag so a change upstream can't change your pipeline:
+The component is the file [`templates/netdryrun.yml`](https://github.com/netdryrun/Netdryrun/blob/main/templates/netdryrun.yml) in the Netdryrun repository. It is not listed in the GitLab CI/CD Catalog yet, so include it as a remote file. Replace `main` with a commit SHA or a release tag so a change upstream can't change your pipeline:
 
 ```yaml title=".gitlab-ci.yml"
 include:
-  - remote: https://raw.githubusercontent.com/netdryrun/netdryrun/main/templates/netdryrun.yml
+  - remote: https://raw.githubusercontent.com/netdryrun/Netdryrun/main/templates/netdryrun.yml
     inputs:
       path: network/        # folder containing netdryrun.yml
 ```
@@ -25,7 +25,7 @@ The included job is an ordinary job named `netdryrun` (or the `job-name` input).
 
 ```yaml
 include:
-  - remote: https://raw.githubusercontent.com/netdryrun/netdryrun/main/templates/netdryrun.yml
+  - remote: https://raw.githubusercontent.com/netdryrun/Netdryrun/main/templates/netdryrun.yml
     inputs:
       path: network/
 
@@ -42,9 +42,9 @@ Include the component once per lab, each with its own `job-name`:
 
 ```yaml
 include:
-  - remote: https://raw.githubusercontent.com/netdryrun/netdryrun/main/templates/netdryrun.yml
+  - remote: https://raw.githubusercontent.com/netdryrun/Netdryrun/main/templates/netdryrun.yml
     inputs: {job-name: netdryrun-core, path: network/core}
-  - remote: https://raw.githubusercontent.com/netdryrun/netdryrun/main/templates/netdryrun.yml
+  - remote: https://raw.githubusercontent.com/netdryrun/Netdryrun/main/templates/netdryrun.yml
     inputs: {job-name: netdryrun-edge, path: network/edge}
 ```
 
@@ -69,7 +69,7 @@ report:
 | `image` | `ghcr.io/srl-labs/containerlab/devcontainer-dind-slim:0.81.1` | Job image on docker executors: containerlab's own Docker-in-Docker image (Debian, Python 3.11, containerlab preinstalled). Shell runners ignore it |
 | `path` | `.` | `netdryrun.yml` or the folder containing it |
 | `containerlab-version` | `0.81.1` | containerlab version to install when the runner has none. Empty means latest. An installed containerlab is used as is, with a warning if the version differs |
-| `netdryrun-package` | `netdryrun==0.3.3` | What `pip` installs: a pinned release by default; a path or a git URL also work |
+| `netdryrun-package` | `netdryrun==0.4.0` | What `pip` installs: a pinned release by default; a path or a git URL also work |
 | `json-report` | `netdryrun-report.json` | Path for the JSON evidence report |
 | `junit-report` | `netdryrun-junit.xml` | Path for the JUnit XML report, published as the pipeline's test report |
 | `markdown-report` | `netdryrun-summary.md` | Path for the Markdown summary, also printed in the job log |

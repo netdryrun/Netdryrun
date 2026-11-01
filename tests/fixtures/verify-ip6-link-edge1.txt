@@ -1,0 +1,23 @@
+# live capture: node edge1 of tests/fixtures/verify-lab, `ip -6 addr show scope link`, 2026-10-30
+2: eth0@if218: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP 
+    inet6 fe80::ec30:cff:fe18:9544/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+225: eth1@if226: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9500 state UP 
+    inet6 fe80::a8c1:abff:fed0:6702/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+229: eth3@if230: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9500 state UP 
+    inet6 fe80::a8c1:abff:feda:3479/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+231: eth4@if232: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9500 state UP 
+    inet6 fe80::a8c1:abff:fec4:9427/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+233: eth2@if234: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9500 state UP 
+    inet6 fe80::a8c1:abff:fe7c:b58/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+235: eth6@if236: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9500 state UP 
+    inet6 fe80::a8c1:abff:fee4:af88/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+237: eth5@if238: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9500 state UP 
+    inet6 fe80::a8c1:abff:fe33:baf1/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+# rc=0

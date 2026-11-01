@@ -15,7 +15,9 @@ Layers (RELEASING.md explains each one):
   python scripts/release_gate.py unit            tests on Python 3.10-3.14 and in a plain container, coverage
   python scripts/release_gate.py mutation        mutmut on the verdict modules; survivors block
   python scripts/release_gate.py live            the built wheel on the lab machine: examples, corpora, chaos
-  python scripts/release_gate.py after-publish X pip and uvx from PyPI, MCP handshake, one live example
+  python scripts/release_gate.py after-publish X pip and uvx from PyPI, MCP handshake, one live example,
+                                                release consistency (every public place names X)
+  python scripts/release_gate.py consistency     release consistency alone, on main (the nightly; not a release layer)
   python scripts/release_gate.py all             static, unit, mutation and live, in that order
   python scripts/release_gate.py report          rebuild GATE.md from the recorded layers
 
@@ -65,6 +67,18 @@ VERDICT_MODULES = {
     "config": "src/netdryrun/config.py",
     "runner": "src/netdryrun/runner.py",
     "drivers": "src/netdryrun/drivers/",
+    # verify (0.4): the diff and the match against the intent decide its verdict; the intent parser decides
+    # what a declaration may explain
+    "verify.engine": "src/netdryrun/verify/engine.py",
+    "verify.intent": "src/netdryrun/verify/intent.py",
+    # the rest of verify (0.4 release gate): what is collected and normalised (frr, snapshot), when a snapshot is
+    # taken (converge), what may be compared at all (run: sides, binds, nodes, config load) and what the report
+    # and the PR header say (report)
+    "verify.frr": "src/netdryrun/verify/frr.py",
+    "verify.snapshot": "src/netdryrun/verify/snapshot.py",
+    "verify.converge": "src/netdryrun/verify/converge.py",
+    "verify.run": "src/netdryrun/verify/run.py",
+    "verify.report": "src/netdryrun/verify/report.py",
 }
 
 # Coverage floors (percent of lines and branches). A ratchet: raise a floor when coverage rises,
@@ -72,7 +86,37 @@ VERDICT_MODULES = {
 # coverage measured then (Python 3.12, rounded down; drivers measured 100, floored at 99 so that one
 # platform-specific branch does not fail the gate): checks 99.5, config 99.2, runner 98.3, drivers 100.
 # The runner's deploy, scenario and gate paths run on a fake lab and a fake clock (tests/test_verdict_runner.py).
-COVERAGE_FLOORS = {"checks": 99, "config": 99, "runner": 98, "drivers": 99}
+# verify.engine and verify.intent joined in 0.4 at the coverage measured then (Python 3.10, rounded down):
+# engine 95.9, intent 93.3.
+# Verdict modules gated on the functions that decide what verify compares, refuses or reports (coordinator, 0.4):
+# a survivor there, or a mutant in code no test runs anywhere in the module, is a BLOCKER; the other survivors
+# (parsers that fail closed, rendering) are counted and named, and their full zero is a 0.4.1 gate item. A function
+# found on that path joins the list (a floor, not a ceiling).
+SCOPED_FUNCTIONS = {
+    "verify.frr": {"_boot_free", "parse_link_local", "link_local_names", "configured_link_locals",
+                   "link_local_owners", "parse_running_config", "qualified", "cond_adv_timer"},
+    "verify.run": {"check_sides", "check_changed_binds", "bind_reach", "is_router_config", "classify_nodes",
+                   "check_config_loaded", "collect", "unobserved_reasons"},
+    "verify.converge": {"stable_snapshot", "_not_ready"},
+    "verify.snapshot": {"ItemKey.__post_init__", "NodeSnapshot.__post_init__", "value_matches_kind",
+                        "Snapshot.stability_view", "Snapshot.items"},
+    "verify.report": {"to_dict", "VerifyResult.verdict", "VerifyResult.exit_code"},
+}
+SCOPED_KNOWN_LABEL = "parsers that fail closed and rendering; their full zero is a 0.4.1 gate item"
+
+
+def gated(module: str, name: str, status: str) -> bool:
+    """Whether a surviving mutant blocks the release: always in a fully gated module; in a scoped one, when its
+    function is on the verdict path or no test runs its code (no untested code in a verdict module ships)."""
+    if module not in SCOPED_FUNCTIONS or status == "no tests":
+        return True
+    fn = mutant_function(name).removeprefix(f"{module}.")
+    return fn in SCOPED_FUNCTIONS[module]
+
+
+# verify.* raised or set on 2026-10-30 (0.4 release gate) to the coverage measured then, rounded down, minus one
+COVERAGE_FLOORS = {"checks": 99, "config": 99, "runner": 98, "drivers": 99, "verify.engine": 98, "verify.intent": 97,
+                   "verify.frr": 88, "verify.snapshot": 90, "verify.converge": 96, "verify.run": 83, "verify.report": 88}
 
 # Files that are evidence of past runs, and advisories about past versions (which name those versions on
 # purpose; tests/test_advisory_fixtures.py keeps their fixtures honest): never rewritten, so never linted or
@@ -91,6 +135,8 @@ LAYERS = {  # name -> title, in report order
     "live": "Layer 5: live matrix on the built package",
     "after-publish": "Layer 7: after-publish proof",
 }
+# Run by the nightly gate on main, outside the release record (GATE.md never waits for it).
+CHECK_LAYERS = {"consistency": "Release consistency: every public place names the release"}
 BLOCKER, MAJOR, INFO = "BLOCKER", "MAJOR", "INFO"
 PASS, FAIL, SKIP, ACCEPTED = "PASS", "FAIL", "SKIP", "ACCEPTED"
 
@@ -179,7 +225,7 @@ class Layer:
         return version
 
     def record(self) -> dict:
-        return {"layer": self.name, "title": LAYERS[self.name], "version": self.args.version,
+        return {"layer": self.name, "title": {**LAYERS, **CHECK_LAYERS}[self.name], "version": self.args.version,
                 "started": self.started, "seconds": round(time.monotonic() - self.t0, 1),
                 "git": git_state(), "host": f"{platform.system()} {platform.release()} ({platform.machine()})",
                 "python": platform.python_version(), "strict": bool(self.args.strict),
@@ -410,7 +456,7 @@ def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
     m = re.search(r"^## (\d+\.\d+\.\d+)\b", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.M)
     found.append(("CHANGELOG.md newest release heading", m.group(1) if m else "missing"))
 
-    # `uses: netdryrun/netdryrun@vX.Y.Z` in docs, examples and workflows; `netdryrun==X.Y.Z` and
+    # `uses: netdryrun/Netdryrun@vX.Y.Z` in docs, examples and workflows; `netdryrun==X.Y.Z` and
     # `netdryrun@X.Y.Z` (uvx) in the docs. Other projects' tags are not ours to check.
     docs = tracked_files(("README.md", "AGENTS.md", "action.yml", "website/docs/*", "examples/*", ".github/*"))
     for f in docs:
@@ -420,7 +466,7 @@ def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
             continue
         text = f.read_text(encoding="utf-8", errors="replace")
         rel = f.relative_to(ROOT).as_posix()
-        patterns = [r"netdryrun/netdryrun@v(\d+\.\d+\.\d+)"]
+        patterns = [r"(?i:netdryrun/netdryrun)@v(\d+\.\d+\.\d+)"]
         if not rel.startswith("examples/"):   # an example may name the version it was recorded with
             patterns.append(r"\bnetdryrun(?:\[mcp\])?(?:==|@)(\d+\.\d+\.\d+)")
         for pat in patterns:
@@ -647,7 +693,9 @@ def layer_mutation(args) -> Layer:
         mine = {n: s for n, s in status.items() if n.startswith(prefix)}
         checked = {n: s for n, s in mine.items() if s != "not checked"}
         survived = sorted(n for n, s in checked.items() if s not in CAUGHT)
-        open_ = [n for n in survived if not accepted_now(accepted, n, diffs)]
+        unaccepted = [n for n in survived if not accepted_now(accepted, n, diffs)]
+        open_ = [n for n in unaccepted if gated(module, n, checked[n])]
+        known = [n for n in unaccepted if n not in open_]
         stale = [n for n in survived if n in accepted and not accepted_now(accepted, n, diffs)]
         survivors_all[module] = survived
         caught = len(checked) - len(survived)
@@ -656,11 +704,19 @@ def layer_mutation(args) -> Layer:
         by_class = accepted_by_class(accepted, survived, diffs)
         summary = (f"{len(mine)} generated, {caught}/{len(checked)} caught ({score:.1f}%); not caught: "
                    f"{len(survived) - untested} survived the tests, {untested} in code no test runs"
-                   + (f", {len(survived) - len(open_)} accepted ("
+                   + (f", {sum(by_class.values())} accepted ("
                       + ", ".join(f"{v} {k}" for k, v in sorted(by_class.items())) + ")"
-                      if len(survived) != len(open_) else "")
+                      if by_class else "")
                    + (f"; {len(stale)} accepted entries don't accept their mutant (diff moved, no class, or no reviewed argument): see the notes"
-                      if stale else ""))
+                      if stale else "")
+                   + (f"; {len(known)} outside the gated functions ({SCOPED_KNOWN_LABEL})" if known else ""))
+        if known:
+            by_fn: dict[str, int] = {}
+            for n in known:
+                by_fn[mutant_function(n)] = by_fn.get(mutant_function(n), 0) + 1
+            layer.sections.append(f"**{VERDICT_MODULES[module]}: {len(known)} survivors outside the gated functions** "
+                                  f"({SCOPED_KNOWN_LABEL}): " + ", ".join(f"`{f}` {c}" for f, c in
+                                                                         sorted(by_fn.items(), key=lambda x: -x[1])))
         if not checked:
             layer.add(f"mutants-{module}", f"no surviving mutants in {VERDICT_MODULES[module]}", BLOCKER, False,
                       "no mutants were checked", tail(out), p.seconds)
@@ -670,6 +726,9 @@ def layer_mutation(args) -> Layer:
                                                                    else f"  [NOT accepted: {acceptance_problem(accepted[n], n, diffs)}]" if n in accepted else "")
                                           for n in survived), 40), p.seconds if module == modules[0] else 0.0,
                   cmdline(["mutmut", *cmd[3:]]))
+    if args.carry_mutation:
+        carry_mutation(layer, args.carry_mutation, modules)
+    require_every_module(layer, [*modules, *(c.id.removeprefix("mutants-") for c in layer.checks)])
     gone = sorted(n for n in accepted if n not in survived_names
                   and any(n.startswith(f"netdryrun.{m}.") for m in modules))
     if gone:
@@ -677,6 +736,36 @@ def layer_mutation(args) -> Layer:
                               "accepted.json): " + ", ".join(f"`{n}`" for n in gone[:40]) + (" ..." if len(gone) > 40 else ""))
     layer.sections.append(mutant_section(survivors_all, status, accepted, diffs, args))
     return layer
+
+
+def carry_mutation(layer: Layer, path: str, modules: list[str]) -> None:
+    """--carry-mutation: keep an earlier mutation record for each verdict module not mutated in this run, only
+    when its source is byte-identical at this commit (0.4.0: the interop fixes changed drivers only). A module
+    whose source changed since, or that git can't compare, fails: it must be mutated at this commit."""
+    prev = json.loads(Path(path).read_text(encoding="utf-8"))
+    sha = prev["git"]["sha"]
+    for c in prev["checks"]:
+        module = c["id"].removeprefix("mutants-")
+        if module not in VERDICT_MODULES or module in modules:
+            continue
+        src = VERDICT_MODULES[module]
+        changed = git("diff", "--name-only", sha, "HEAD", "--", src)
+        if changed == "":
+            layer.add(c["id"], c["title"], c["severity"], {PASS: True, FAIL: False}.get(c["status"]),
+                      f"carried over from {sha[:7]}: {src} is byte-identical at this commit. {c['summary']}",
+                      c["output"], 0.0, c["command"])
+            layer.sections += [s for s in prev.get("sections", []) if s.startswith(f"**{src}:")]
+        else:
+            why = f"{changed.replace(chr(10), ', ')} changed since {sha[:7]}" if changed else                 f"git can't compare {src} with {sha[:7]}"
+            layer.add(c["id"], c["title"], c["severity"], False, f"not carried over: {why}: mutate it at this commit")
+
+
+def require_every_module(layer: Layer, covered: list[str]) -> None:
+    """Every verdict module is mutated in this run or carried over: a partial run never reads as a full layer."""
+    for module, src in VERDICT_MODULES.items():
+        if module not in covered:
+            layer.add(f"mutants-{module}", f"no surviving mutants in {src}", BLOCKER, False,
+                      "not mutated at this commit (run it, or --carry-mutation a record whose file is unchanged)")
 
 
 def mutant_fingerprint(diff: str) -> str:
@@ -707,7 +796,8 @@ VERDICT_FUNCTIONS = frozenset({
     "runner._bgp_convergence_gate", "runner._wait_fault_visible", "runner._link_sessions",
     "runner._sessions_over_links", "runner._reach_then_hold", "runner.run_scenario",
     "runner.RunReport.passed", "runner.RunReport.failed", "runner.RunReport.status",
-    "runner.RunReport.inconclusive_reason", "runner.RunReport.exit_code", "runner.rejected_config",
+    "runner.RunReport.inconclusive_reason", "runner.RunReport.exit_code",
+    "runner.config_load_by_node", "runner._startup_load", "runner.rejected_config_message",
 })
 
 
@@ -1240,7 +1330,7 @@ def layer_after_publish(args) -> Layer:
         after_publish_live(layer, work, args)
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    registry_check(layer, v)
+    release_consistency(layer, v)
     if shutil.which("gh"):
         p = run(["gh", "run", "list", "--workflow", "published-action.yml", "--limit", "1",
                  "--json", "conclusion,headSha,url"], timeout=120)
@@ -1276,29 +1366,187 @@ def after_publish_live(layer: Layer, work: Path, args) -> None:
               BLOCKER, ok, f"exit {p.code}" + (f"; left running: {', '.join(left)}" if left else ""), tail(p.out), p.seconds)
 
 
-def registry_check(layer: Layer, v: str) -> None:
-    name = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["name"]
-    url = f"https://registry.modelcontextprotocol.io/v0/servers?search={name}"
-    try:
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.load(r)
-    except (urllib.error.URLError, OSError, ValueError) as e:
-        layer.add("mcp-registry", f"the MCP Registry lists {name} {v}", MAJOR, None, f"registry unreachable: {e}")
-        return
-    versions = set()
+# --------------------------------------------------------------------------------------------
+# Release consistency: every public place names the released version (after-publish, and nightly on main)
+# --------------------------------------------------------------------------------------------
 
-    def walk(x) -> None:
-        if isinstance(x, dict):
-            if x.get("name") == name and "version" in x:
-                versions.add(x["version"])
-            for y in x.values():
-                walk(y)
-        elif isinstance(x, list):
-            for y in x:
-                walk(y)
-    walk(data)
-    layer.add("mcp-registry", f"the MCP Registry lists {name} {v}", MAJOR, v in versions,
-              f"listed versions: {', '.join(sorted(versions)) or 'none'}")
+SITE_PAGES = ("https://netdryrun.com/", "https://netdryrun.com/llms.txt")
+PUBLISHED_ACTION = ".github/workflows/published-action.yml"
+ACTION_REF = re.compile(r"(?i:netdryrun/netdryrun)@v(\d+\.\d+\.\d+)")   # either case: GitHub repo names are case-insensitive
+README_STATUS = re.compile(r"^> Status: \*\*v(\d+\.\d+\.\d+)\.\*\*", re.M)
+RELEASE_PIN = re.compile(r'^\s*RELEASE:\s*"?(\d+\.\d+\.\d+)"?\s*$', re.M)
+# What the site says about the current version: its structured data, the Action ref, and "version X.Y.Z" (the
+# phrase sync_facts writes). Past releases named as history ("ran on Netdryrun 0.3.1") match none of these.
+SITE_VERSION = re.compile(r'"softwareVersion":\s*"(\d+\.\d+\.\d+)"|(?i:netdryrun/netdryrun)@v(\d+\.\d+\.\d+)'
+                          r"|(?i:\bversion) (\d+\.\d+\.\d+)")
+
+
+def fetch(url: str) -> tuple[int | None, str]:
+    """One GET, 30 s, no retry: (HTTP status, body), or (None, why) when unreachable."""
+    req = urllib.request.Request(url, headers={"User-Agent": "netdryrun-release-gate"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, r.read(5_000_000).decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        return e.code, ""
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        return None, str(e)
+
+
+def main_texts() -> dict[str, str] | None:
+    """README.md, published-action.yml and every file naming the Action, as origin/main has them after one fetch."""
+    if run(["git", "-C", ROOT, "fetch", "--quiet", "origin", "main"], timeout=120).code != 0:
+        return None
+    p = run(["git", "-C", ROOT, "grep", "-l", "-i", "-F", "netdryrun/netdryrun@v", "origin/main"], timeout=60)
+    if p.code not in (0, 1):   # 1: no match
+        return None
+    paths = {ln.split(":", 1)[1] for ln in p.out.splitlines() if ln.startswith("origin/main:")}
+    texts = {}
+    for path in sorted(paths | {"README.md", PUBLISHED_ACTION}):
+        q = subprocess.run(["git", "-C", str(ROOT), "show", f"origin/main:{path}"], capture_output=True, timeout=60)
+        if q.returncode == 0:
+            texts[path] = q.stdout.decode("utf-8", "replace")
+    return texts
+
+
+def line_of(text: str, m: re.Match) -> int:
+    return text.count("\n", 0, m.start()) + 1
+
+
+def main_version_problems(version: str, texts: dict[str, str]) -> tuple[list[str], list[str]]:
+    """(what main says, each place that says another version): the README status line, published-action.yml's
+    RELEASE, and every Action ref outside the recorded history."""
+    found, problems = [], []
+    readme = texts.get("README.md", "")
+    m = README_STATUS.search(readme)
+    if m:
+        found.append((f"README.md:{line_of(readme, m)} status line v{m.group(1)}", m.group(1)))
+    else:
+        problems.append("README.md: no status line (> Status: **vX.Y.Z.**)")
+    action = texts.get(PUBLISHED_ACTION, "")
+    m = RELEASE_PIN.search(action)
+    if m:
+        found.append((f"{PUBLISHED_ACTION}:{line_of(action, m)} RELEASE {m.group(1)}", m.group(1)))
+    else:
+        problems.append(f"{PUBLISHED_ACTION}: no RELEASE pin")
+    for path, text in sorted(texts.items()):
+        # tests/ holds old refs on purpose (this check's own fixtures); users never read them
+        if not path.startswith(RETIRED_HISTORY_PATHS + ("tests/",)):
+            found += [(f"{path}:{line_of(text, m)} {m.group(0)}", m.group(1)) for m in ACTION_REF.finditer(text)]
+    problems += [where for where, v in found if v != version]
+    return [where for where, _ in found], problems
+
+
+def site_version_problems(version: str, url: str, body: str) -> tuple[list[str], list[str]]:
+    found = [(f"{url} {m.group(0)}", next(g for g in m.groups() if g)) for m in SITE_VERSION.finditer(body)]
+    problems = [where for where, v in found if v != version] or ([] if found else [f"{url}: names no version"])
+    return [where for where, _ in found], problems
+
+
+# What `gh release create --generate-notes` (release.yml) writes on its own: anything else means notes were pasted.
+GENERATED_NOTES = re.compile(r"## What's Changed|## New Contributors|\*\*Full Changelog\*\*: \S+"
+                             r"|\* .* in https://github\.com/\S+/pull/\d+")
+
+
+def release_notes_pasted(body) -> bool:
+    return any(ln.strip() and not GENERATED_NOTES.fullmatch(ln.strip()) for ln in str(body or "").splitlines())
+
+
+def registry_latest(data, name: str) -> tuple[str | None, list[str]]:
+    """(the version the MCP Registry marks latest, every version it lists) for one server."""
+    latest, listed = None, []
+    for item in data.get("servers", []) if isinstance(data, dict) else []:
+        server = item.get("server", item)
+        if server.get("name") != name or "version" not in server:
+            continue
+        listed.append(server["version"])
+        meta = item.get("_meta") or server.get("_meta") or {}
+        if meta.get("io.modelcontextprotocol.registry/official", {}).get("isLatest"):
+            latest = server["version"]
+    return latest, sorted(listed)
+
+
+def release_consistency(layer: Layer, version: str, get=fetch, main=main_texts) -> None:
+    """Every public place names `version`: PyPI's latest, the GitHub latest release, main (README status line,
+    Action refs, published-action.yml RELEASE), the website, the MCP Registry's latest. One request per source,
+    no retry; a source that can't be read is SKIP, never PASS."""
+    server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))
+    name = server["name"]
+    repo = server["repository"]["url"].removeprefix("https://github.com/")
+
+    def report(id_: str, title: str, ok: bool | None, summary: str, found=(), problems=()) -> None:
+        if problems:
+            summary = "; ".join(problems)[:300]
+        output = "\n".join([*(f"WRONG {p}" for p in problems), *(f"ok    {f}" for f in found if f not in problems)])
+        layer.add(id_, title, BLOCKER, ok, summary, output)
+
+    def get_json(url: str):
+        status, body = get(url) or (None, "")
+        if status is None:
+            return None, f"unreachable: {body}".strip()
+        try:
+            return status, json.loads(body)
+        except ValueError:
+            return status, None
+
+    title = f"PyPI's latest netdryrun is {version}"
+    status, data = get_json("https://pypi.org/pypi/netdryrun/json")
+    if status is None:
+        report("latest-pypi", title, None, data)
+    else:
+        got = data.get("info", {}).get("version") if isinstance(data, dict) else None
+        report("latest-pypi", title, got == version, f"PyPI latest: {got or f'unreadable (HTTP {status})'}")
+
+    title = f"the GitHub latest release is v{version} (notes pasted, marked latest)"
+    status, data = get_json(f"https://api.github.com/repos/{repo}/releases/latest")
+    if status is None:
+        report("latest-github", title, None, data)
+    elif status == 404:
+        report("latest-github", title, False, "no release is marked latest")
+    else:
+        got = data.get("tag_name") if isinstance(data, dict) else None
+        pasted = got and release_notes_pasted(data.get("body"))
+        report("latest-github", title, bool(got == f"v{version}" and pasted),
+               f"latest release: {got or f'unreadable (HTTP {status})'}"
+               + ("" if pasted or not got else "; its notes are only what GitHub generates (paste the release notes)"))
+
+    title = f"main names {version}: README status line, every netdryrun/Netdryrun@v ref, published-action.yml RELEASE"
+    texts = main()
+    if texts is None:
+        report("main-version", title, None, "could not fetch and read origin/main")
+    else:
+        found, problems = main_version_problems(version, texts)
+        report("main-version", title, not problems, f"{len(found)} places say {version}", found, problems)
+
+    title = f"netdryrun.com names {version} (home page, llms.txt)"
+    found, problems, unreachable = [], [], []
+    for url in SITE_PAGES:
+        status, body = get(url) or (None, "")
+        if status != 200:
+            (unreachable if status is None else problems).append(f"{url}: " + (body or f"HTTP {status}"))
+            continue
+        f, p = site_version_problems(version, url, body)
+        found, problems = found + f, problems + p
+    if unreachable and not problems:
+        report("site-version", title, None, "; ".join(unreachable))
+    else:
+        report("site-version", title, not problems, f"{len(found)} mentions say {version}", found, problems)
+
+    title = f"the MCP Registry's latest {name} is {version}"
+    status, data = get_json(f"https://registry.modelcontextprotocol.io/v0/servers?search={name}")
+    if status is None:
+        report("mcp-registry", title, None, data)
+    else:
+        latest, listed = registry_latest(data, name)
+        report("mcp-registry", title, latest == version,
+               f"latest: {latest or 'none'}; listed: {', '.join(listed) or 'none'}")
+
+
+def layer_consistency(args) -> Layer:
+    """The nightly's check on main between releases: the same release_consistency as after-publish."""
+    layer = Layer("consistency", args)
+    release_consistency(layer, args.version)
+    return layer
 
 
 # --------------------------------------------------------------------------------------------
@@ -1489,7 +1737,7 @@ def layer_failed(layer: Layer) -> bool:
 # --------------------------------------------------------------------------------------------
 
 RUNNERS = {"static": layer_static, "unit": layer_unit, "mutation": layer_mutation, "live": layer_live,
-           "after-publish": layer_after_publish}
+           "after-publish": layer_after_publish, "consistency": layer_consistency}
 
 
 def main() -> int:
@@ -1505,6 +1753,9 @@ def main() -> int:
                     help="static: this is the release candidate (CHANGELOG cut, tag and PyPI version unused)")
     ap.add_argument("--pythons", default=",".join(PYTHONS), help=f"unit/after-publish: versions (default {','.join(PYTHONS)})")
     ap.add_argument("--modules", default=",".join(VERDICT_MODULES), help="mutation: modules to mutate (default all)")
+    ap.add_argument("--carry-mutation", metavar="MUTATION_JSON",
+                    help="mutation: keep this earlier record for every module not in --modules whose source is "
+                         "byte-identical at this commit")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2, help="mutation: parallel workers")
     ap.add_argument("--mutation-timeout", type=float, default=4 * 3600, help="mutation: seconds (default 4 h)")
     ap.add_argument("--examples", help="live: only these examples (comma-separated)")
@@ -1538,7 +1789,7 @@ def main() -> int:
     names = ["static", "unit", "mutation", "live"] if args.layer == "all" else [args.layer]
     failed = []
     for name in names:
-        print(f"== {LAYERS[name]} (Netdryrun {args.version})", flush=True)
+        print(f"== {({**LAYERS, **CHECK_LAYERS})[name]} (Netdryrun {args.version})", flush=True)
         layer = RUNNERS[name](args)
         save(layer)
         if layer_failed(layer):

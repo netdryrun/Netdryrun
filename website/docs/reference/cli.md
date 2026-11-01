@@ -10,6 +10,7 @@ netdryrun run      [path] [options]   deploy the lab, run checks, destroy the la
 netdryrun check    [path] [options]   run checks against an already running lab
 netdryrun validate [path]             validate netdryrun.yml without running anything
 netdryrun record   topology.clab.yml  snapshot a known-good lab into a netdryrun.yml baseline
+netdryrun verify   topology.clab.yml  compare the lab before and after a change against a declared intent (0.4, FRR only)
 netdryrun mcp                         start the MCP server for AI agents (stdio)
 netdryrun feedback                    open a short feedback form on GitHub
 netdryrun --version
@@ -18,6 +19,8 @@ netdryrun --version
 `--debug` (before or after the command: `netdryrun --debug run` or `netdryrun run --debug`) prints the Python traceback of an internal error. Setting `NETDRYRUN_DEBUG=1` does the same.
 
 `path` is `netdryrun.yml` or the folder containing it. Default: the current folder.
+
+`verify` has its own page: [verify](verify.md).
 
 ## Commands
 
@@ -35,7 +38,7 @@ Runs the checks against a lab that is already up, for example one left running w
 
 Loads and validates `netdryrun.yml` and prints the parsed checks. It does not need Docker or containerlab.
 
-From 0.3.1 it also reads the topology (strictly: malformed YAML and duplicate keys are errors) and checks what `run` checks before deploying: every node a check, fault or `setup` names exists; the driver can read every key the checks use (for example no `afi: evpn` on SR Linux or Arista EOS); and `inject_routes` names an FRR node. It also checks two things `run` finds out only after deploying: every node a check reads has a driver (detected from its kind and image, or set with `nodes.<node>.driver`), and no `link_down` or `node_isolated` fault targets an SR Linux node. Any of these is an error with exit code `2`. What it can't check without containerlab: whether containerlab accepts the topology itself (a misspelled `kind:`, a missing image).
+From 0.3.1 it also reads the topology (strictly: malformed YAML and duplicate keys are errors) and checks what `run` checks before deploying: every node a check, fault or `setup` names exists; the driver can read every key the checks use (for example no `afi: evpn` on SR Linux, Arista EOS or Juniper); and `inject_routes` names an FRR node. It also checks two things `run` finds out only after deploying: every node a check reads has a driver (detected from its kind and image, or set with `nodes.<node>.driver`), and no `link_down` or `node_isolated` fault targets an SR Linux or cJunosEvolved node. Any of these is an error with exit code `2`. What it can't check without containerlab: whether containerlab accepts the topology itself (a misspelled `kind:`, a missing image).
 
 ```text
 $ netdryrun validate examples/frr-bgp
@@ -50,7 +53,7 @@ OK: examples/frr-bgp/netdryrun.yml (7 checks, lab .../examples/frr-bgp/topology.
 netdryrun record path/to/topology.clab.yml --deploy
 ```
 
-Snapshots a known-good lab into a `netdryrun.yml` baseline (the default VRF only, a known limit: add checks for other VRFs by hand; fix scheduled: 0.4): every established BGP session, every prefix count and up to 50 BGP routes per node and address family. From 0.3.3 a prefix count is a range: today's count as `min`, and `max` with 20% headroom (at least 2) for normal growth, which still catches a leak that multiplies the count; a neighbor that sends nothing stays `exact: 0`. When a node has more BGP routes than are recorded, the file starts with an `# INCOMPLETE BASELINE` line naming the node and the count, and the same line is printed on stderr: a change to an unrecorded route goes unnoticed, so add checks for the routes that matter. Commit it, and every later change is tested against today's behavior. Review the file before committing: remove what is allowed to change, and add negative checks for what must never happen.
+Snapshots a known-good lab into a `netdryrun.yml` baseline: every established BGP session, every prefix count and up to 50 BGP routes per node and address family. From 0.3.3 a prefix count is a range: today's count as `min`, and `max` with 20% headroom (at least 2) for normal growth, which still catches a leak that multiplies the count; a neighbor that sends nothing stays `exact: 0`. When a node has more BGP routes than are recorded, the file starts with an `# INCOMPLETE BASELINE` line naming the node and the count, and the same line is printed on stderr: a change to an unrecorded route goes unnoticed, so add checks for the routes that matter. From 0.4 it covers every active VRF on FRR and SONiC, each check with its `vrf:`; on SR Linux and Arista EOS it records the default VRF only and says so in a warning (add checks for other VRFs by hand). Commit it, and every later change is tested against today's behavior. Review the file before committing: remove what is allowed to change, and add negative checks for what must never happen.
 
 | Option | Meaning |
 |---|---|
@@ -82,8 +85,8 @@ Opens a short feedback form on GitHub in your browser, prefilled with your Netdr
 | `--markdown FILE` | | Write a Markdown summary (for PR comments) |
 | `--junit FILE` | | Write JUnit XML (for CI test reporting) |
 | `--verdict FILE` | | Write the agent result as JSON: status, verdict, failures and the sha256 of every file tested, the shape the MCP tools return (from 0.3.3) |
-| `--settle SECONDS` | `10` | Wait before post-convergence checks, and in a scenario after the fault took effect |
-| `--hold SECONDS` | `10` | How long a post-convergence check must hold (a check's own `hold` key overrides it). In a scenario, positive checks must hold this long too |
+| `--settle SECONDS` | `10` | Wait before post-convergence checks, and in a scenario after the fault took effect. Stretched automatically to the longest BGP advertisement interval any session in the lab reports, plus 2 s (the run log says so) |
+| `--hold SECONDS` | `10` | How long a post-convergence check must hold (a check's own `hold` key overrides it). In a scenario, positive checks must hold this long too. Stretched like `--settle` |
 | `--debug` | | Print the traceback of an internal error |
 | `--no-step-summary` | | Do not append the Markdown summary to `$GITHUB_STEP_SUMMARY` |
 
@@ -94,7 +97,7 @@ Opens a short feedback form on GitHub in your browser, prefilled with your Netdr
 | `--keep` | Leave the lab running afterwards, for debugging |
 | `--keep-on-failure` | Leave the lab running only if the run did not pass |
 
-When a lab is kept, Netdryrun prints the command to destroy it. See [convergence semantics](config.md#convergence-semantics) for what `--settle` and `--hold` control.
+When a lab is kept, Netdryrun prints the command to destroy it. See [convergence semantics](config.md#convergence-semantics) for what `--settle` and `--hold` control. **Advertisement intervals:** a BGP peer sends updates at most once per advertisement interval (MRAI), so a route, a leak included, can arrive that long after the sessions look settled. Netdryrun reads each session's interval (FRR and SONiC: what bgpd reports for the neighbor; SR Linux: `minimum-advertisement-interval`, 5 s by default; EOS: its default of 0, since a configured `out-delay` isn't read) and stretches `--settle` and `--hold` to the longest one plus 2 s. A route that crosses several such peers can take one interval per hop: raise `--settle` for that.
 
 ## Exit codes
 

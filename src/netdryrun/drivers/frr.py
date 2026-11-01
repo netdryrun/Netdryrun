@@ -208,6 +208,12 @@ def _bgp_json(command: str, text: str) -> dict:
     return data
 
 
+def parse_version(text: str) -> str | None:
+    """`show version`: "FRRouting 10.4.1_git (r1) on Linux(...)" -> "FRRouting 10.4.1_git"."""
+    m = re.search(r"^(FRRouting \S+)", text, re.M)
+    return m.group(1) if m else None
+
+
 @parser(NEIGHBORS_CMD)
 def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
     """`show bgp [vrf X] neighbors json`: one object per neighbor, keyed by address (or interface)."""
@@ -226,8 +232,11 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
             if not isinstance(af, dict) or "acceptedPrefixCounter" not in af:
                 raise unexpected(NEIGHBORS_CMD, f"{addr} {afi}: no acceptedPrefixCounter")
             prefixes[AFI_NAMES.get(afi, afi)] = as_int(NEIGHBORS_CMD, af["acceptedPrefixCounter"])
+        # the advertisement interval bgpd applies to this neighbor (configured, or FRR's default)
+        mrai = info.get("minBtwnAdvertisementRunsTimerMsecs")
+        adv = as_int(NEIGHBORS_CMD, mrai) / 1000 if mrai is not None else None
         # "Idle (Admin)" -> "idle": the first word is the FSM state
-        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes))
+        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv))
     return out
 
 
@@ -387,6 +396,12 @@ class FrrDriver(Driver):
         if not vrfs[vrf]:
             raise NoSuchInstance(f"VRF {vrf!r} is configured on {self.node} but inactive (no kernel VRF device)")
 
+    def nos_version(self) -> str | None:
+        try:
+            return parse_version(self._vtysh("show version", []))
+        except DriverError:
+            return None
+
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []
@@ -408,6 +423,12 @@ class FrrDriver(Driver):
         if not routes:
             self._confirm_vrf(vrf, ev)
         return Observation(routes, ev)
+
+    def vrfs(self) -> Observation:
+        """Active VRFs from zebra's `show vrf` (an inactive one has no kernel device, so no state to record)."""
+        ev: list[dict] = []
+        found = parse_vrfs(self._vtysh(VRF_CMD, ev))
+        return Observation(sorted(v for v, active in found.items() if active and v != "default"), ev)
 
     def all_routes(self, vrf: str = "default", family: int = 4) -> Observation:
         vrf = check_vrf_name(vrf)

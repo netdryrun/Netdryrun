@@ -27,7 +27,7 @@ The expected verdict was committed to git before any run. All three strategies t
 
 ## What Netdryrun flagged
 
-Nothing: every check in the [intent spec](https://github.com/netdryrun/netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
+Nothing: every check in the [intent spec](https://github.com/netdryrun/Netdryrun/blob/main/corpus/specs/intent.yml) passed, so Netdryrun called the change safe.
 
 ## Reproduce it
 
@@ -37,4 +37,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 01
 ```
 
-Case file: [`corpus/cases/01-no-change.yml`](https://github.com/netdryrun/netdryrun/blob/main/corpus/cases/01-no-change.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.
+Case file: [`corpus/cases/01-no-change.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/01-no-change.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.

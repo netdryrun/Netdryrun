@@ -153,6 +153,6 @@ Netdryrun's test suite validates reports from real lab runs against the schema.
 
 ## Implementations
 
-- [Netdryrun](https://github.com/netdryrun/netdryrun) writes it with `netdryrun run --json FILE`, in the GitHub Action, and next to `netdryrun.yml` from the MCP tools. Its MCP tool results are summarized separately in [`mcp-result-v1.json`](https://netdryrun.com/schemas/mcp-result-v1.json) (see [AI agents](../ai-agents.md#result-and-verdict)).
+- [Netdryrun](https://github.com/netdryrun/Netdryrun) writes it with `netdryrun run --json FILE`, in the GitHub Action, and next to `netdryrun.yml` from the MCP tools. Its MCP tool results are summarized separately in [`mcp-result-v1.json`](https://netdryrun.com/schemas/mcp-result-v1.json) (see [AI agents](../ai-agents.md#result-and-verdict)).
 
 If your tool emits this format, open an issue or a pull request to be listed here.

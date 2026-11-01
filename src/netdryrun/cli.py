@@ -1,4 +1,4 @@
-"""Command-line interface: netdryrun run | check | validate | record | mcp | feedback."""
+"""Command-line interface: netdryrun run | check | validate | record | verify | mcp | feedback."""
 from __future__ import annotations
 
 import argparse
@@ -189,6 +189,49 @@ def _cmd_record(args) -> int:
     return 0
 
 
+VERIFY_EXIT_CODES = """exit codes:
+  0  INTENT MATCHED, or NO BEHAVIOR CHANGE (empty diff, empty intent)
+  1  UNDECLARED CHANGES: DO NOT APPLY (an undeclared difference, a declared change that didn't happen,
+     or a standing guard that failed)
+  2  error: bad intent, a different topology, a side that can't be read, an unreadable snapshot, a lab
+     problem: no verdict
+  3  INCONCLUSIVE: a lab never reached a stable state, or the before-lab is an unhealthy baseline: no verdict"""
+
+
+def _cmd_verify(args) -> int:
+    from .verify import report as vreport
+    from .verify.run import verify
+
+    install_signal_handlers()
+    try:
+        res = verify(args.topology, args.before, args.after, args.intent, guards=args.guards,
+                     config_dir_name=args.config_dir, unobserved=args.unobserved or [], settle=args.settle,
+                     timeout=args.timeout, hold=args.hold, allow_unhealthy_baseline=args.allow_unhealthy_baseline,
+                     keep=args.keep, log=lambda m: print(m, flush=True), intent_source=args.intent_source)
+    except KeyboardInterrupt as e:
+        signum = getattr(e, "signum", signal.SIGINT)
+        print(f"\nInterrupted: no verdict ({signal_name(signum)}). The labs were cleaned up unless --keep was set.",
+              file=sys.stderr)
+        return signal_exit_code(signum)
+    print(vreport.console(res))
+    if args.json:
+        try:
+            Path(args.json).write_text(vreport.to_json(res), encoding="utf-8")
+        except (OSError, ValueError, TypeError) as e:   # unwritable, or a report that can't be rendered
+            reason = (e.strerror if isinstance(e, OSError) else None) or e
+            print(f"could not write {args.json}: {reason}; the verdict was {res.verdict}", file=sys.stderr)
+            return 2
+        print(f"  wrote JSON report: {args.json}")
+    if args.markdown:
+        try:
+            Path(args.markdown).write_text(vreport.markdown(res), encoding="utf-8")
+        except (OSError, ValueError, TypeError) as e:
+            reason = (e.strerror if isinstance(e, OSError) else None) or e
+            print(f"could not write {args.markdown}: {reason}; the verdict was {res.verdict}", file=sys.stderr)
+            return 2
+    return res.exit_code
+
+
 FEEDBACK_URL = "https://github.com/netdryrun/netdryrun/issues/new"
 
 
@@ -267,6 +310,35 @@ def main(argv: list[str] | None = None) -> int:
                        help="also pin each BGP route's AS path, local preference and communities (bgp_route checks)")
     p_rec.add_argument("--force", action="store_true", help="overwrite an existing output file")
 
+    p_ver = sub.add_parser("verify", parents=[common], epilog=VERIFY_EXIT_CODES,
+                           formatter_class=argparse.RawDescriptionHelpFormatter,
+                           help="compare the lab before and after a change against a declared intent (0.4, FRR only)")
+    p_ver.add_argument("topology", help="containerlab topology file (the same on both sides)")
+    p_ver.add_argument("--before", required=True, metavar="DIR|REF", help="git ref, or a directory holding the lab's tree, before "
+                       "the change")
+    p_ver.add_argument("--after", required=True, metavar="DIR|REF", help="git ref, or a directory holding the lab's tree, after "
+                       "the change")
+    p_ver.add_argument("--intent", required=True, metavar="FILE", help="the intent file (what the change is meant to do)")
+    p_ver.add_argument("--json", metavar="FILE", help="write the netdryrun.verify/v1 report as JSON")
+    p_ver.add_argument("--markdown", metavar="FILE", help="write a Markdown summary (for PR comments)")
+    p_ver.add_argument("--intent-source", choices=("cli", "action"), default="cli",
+                       help="who supplied the intent, echoed next to it in the report (the GitHub Action passes action)")
+    p_ver.add_argument("--guards", metavar="FILE", help="standing guards (netdryrun.yml) run on the after lab; read "
+                       "from the --before ref when it is a git ref (default there: the netdryrun.yml next to the "
+                       "topology); with a directory --before, only this path")
+    p_ver.add_argument("--config-dir", metavar="DIR", help="with directory sides: the folder each directory stands "
+                       "for, relative to the topology (default: the folder holding the topology and every file it "
+                       "binds); every bind must resolve inside it")
+    p_ver.add_argument("--unobserved", action="append", metavar="NODE", help="a node without a routing stack (a host); "
+                       "repeat for several")
+    p_ver.add_argument("--settle", type=_seconds, default=15.0, help="seconds between the two snapshots that must match; must "
+                       "exceed the slowest MRAI or update-delay in the lab (default 15)")
+    p_ver.add_argument("--timeout", type=_seconds, default=300.0, help="seconds to reach a stable snapshot (default 300)")
+    p_ver.add_argument("--hold", type=_seconds, default=10.0, help="hold window of the standing guards (default 10)")
+    p_ver.add_argument("--allow-unhealthy-baseline", action="store_true",
+                       help="compare even when BGP sessions are down in the before-lab")
+    p_ver.add_argument("--keep", action="store_true", help="leave the after lab running (for the next_diagnostic commands)")
+
     sub.add_parser("mcp", help="run the MCP server (stdio) so AI agents can dry-run changes")
 
     p_fb = sub.add_parser("feedback", help="open a short feedback form on GitHub (nothing is sent automatically)")
@@ -286,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_record(args)
         if args.cmd == "feedback":
             return _cmd_feedback(args)
+        if args.cmd == "verify":
+            return _cmd_verify(args)
         return _cmd_run(args, deploy=args.cmd == "run")
     except KeyboardInterrupt as e:
         signum = getattr(e, "signum", signal.SIGINT)

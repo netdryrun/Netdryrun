@@ -1,0 +1,572 @@
+{
+ "layer": "live",
+ "title": "Layer 5: live matrix on the built package",
+ "version": "0.4.0",
+ "started": "2026-10-31 07:15:26 UTC",
+ "seconds": 9786.1,
+ "git": {
+  "sha": "8e9a376832a2bc8d1f4ca19b3340d3a22a453358",
+  "dirty": false,
+  "branch": "HEAD"
+ },
+ "host": "Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64)",
+ "python": "3.10.12",
+ "strict": true,
+ "tools": {
+  "containerlab": "⣴⡾⠛⠛⠖ ⢠⣶⠟⠛⢷⣦ ⢸⣿⣧ ⣿ ⠘⠛⢻⡟⠛⠛ ⣾⣿⡀ ⣿⡇ ⣿⣿⡄ ⢸⡇ ⣿⡟⠛⠛⠃⢸⣿⠛⠛⣷⡄ \u001b[38;2;0;201;255m⣿⡇\u001b[0m ",
+  "docker": "29.9.2"
+ },
+ "checks": [
+  {
+   "id": "build",
+   "title": "build the wheel",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.5,
+   "summary": "netdryrun-0.4.0-py3-none-any.whl",
+   "output": "Building wheel...\nSuccessfully built /tmp/ndr-gate-live-ikt_pw0_/dist/netdryrun-0.4.0-py3-none-any.whl",
+   "command": "/home/ndr/.local/bin/uv build --wheel --out-dir /tmp/ndr-gate-live-ikt_pw0_/dist"
+  },
+  {
+   "id": "install",
+   "title": "install netdryrun-0.4.0-py3-none-any.whl in a fresh venv",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.4,
+   "summary": "",
+   "output": "",
+   "command": "pip install netdryrun-0.4.0-py3-none-any.whl"
+  },
+  {
+   "id": "installed-not-source",
+   "title": "runs the installed package, not the source tree",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "/tmp/ndr-gate-live-ikt_pw0_/venv/lib/python3.12/site-packages/netdryrun/__init__.py",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "installed-version",
+   "title": "netdryrun --version says 0.4.0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "netdryrun 0.4.0",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-agent-demo",
+   "title": "example agent-demo: `Demo OK`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 87.1,
+   "summary": "exit 0: Demo OK: attempt 1 rejected by 5 leak guards with every other check passing; attempt 2 passed every check.",
+   "output": "\n=== Attempt 1: the prefix lists block the new block, so remove the filters\n- match ip address prefix-list CUSTOMER-IN\n- match ip address prefix-list OUR-ROUTES\n- match ip address prefix-list OUR-ROUTES\n\nNetdryrun 0.4.0: 14 checks from /tmp/tmp.hZzDT9gHco/netdryrun.yml\nDeploying lab ndr-agent-demo (4 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] TICKET up1 receives the customer's new 10.101.0.0/24 -- active via bgp (14.1s)\n  [PASS] TICKET peer1 receives the customer's new 10.101.0.0/24 -- active via bgp (14.1s)\n  [PASS] TICKET the new block reaches the peer -- 3/3 replies (need 2) (14.1s)\n  [PASS] GUARD session to cust1 up -- state is established (14.1s)\n  [PASS] GUARD session to up1 up -- state is established (14.1s)\n  [PASS] GUARD session to peer1 up -- state is established (14.1s)\n  [PASS] GUARD up1 receives our block -- active via bgp (14.1s)\n  [PASS] GUARD peer1 receives the customer's 10.100.0.0/24 -- active via bgp (14.1s)\n  [PASS] GUARD customer reaches the internet via up1 -- 3/3 replies (need 2) (14.1s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [FAIL] LEAK GUARD peer1 must not get upstream routes -- unexpectedly present via bgp (0.4s)\n  [FAIL] LEAK GUARD peer1 must not get the upstream's default route -- unexpectedly present via bgp (not selected) (0.4s)\n  [FAIL] LEAK GUARD up1 must not get peer routes -- unexpectedly present via bgp (0.4s)\n  [FAIL] LEAK GUARD peer1 gets at most our 3 prefixes -- 6 ipv4-unicast prefixes accepted (0.4s)\n  [FAIL] LEAK GUARD edge1 rejects prefixes the customer doesn't own -- unexpectedly present via bgp (0.4s)\nDestroying lab...\nFAILED: 9 passed, 5 failed (14 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/demo/attempt-1.report.json\n\n=== Attempt 2: add the new block to the two prefix lists instead\n+ip prefix-list CUSTOMER-IN seq 20 permit 10.101.0.0/24\n+ip prefix-list OUR-ROUTES seq 30 permit 10.101.0.0/24\n\nNetdryrun 0.4.0: 14 checks from /tmp/tmp.hZzDT9gHco/netdryrun.yml\nDeploying lab ndr-agent-demo (4 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] TICKET up1 receives the customer's new 10.101.0.0/24 -- active via bgp (14.2s)\n  [PASS] TICKET peer1 receives the customer's new 10.101.0.0/24 -- active via bgp (14.2s)\n  [PASS] TICKET the new block reaches the peer -- 3/3 replies (need 2) (14.2s)\n  [PASS] GUARD session to cust1 up -- state is established (14.2s)\n  [PASS] GUARD session to up1 up -- state is established (14.2s)\n  [PASS] GUARD session to peer1 up -- state is established (14.2s)\n  [PASS] GUARD up1 receives our block -- active via bgp (14.2s)\n  [PASS] GUARD peer1 receives the customer's 10.100.0.0/24 -- active via bgp (14.2s)\n  [PASS] GUARD customer reaches the internet via up1 -- 3/3 replies (need 2) (14.2s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] LEAK GUARD peer1 must not get upstream routes -- absent (held 10s, 4 samples) (10.5s)\n  [PASS] LEAK GUARD peer1 must not get the upstream's default route -- absent (held 10s, 4 samples) (10.5s)\n  [PASS] LEAK GUARD up1 must not get peer routes -- absent (held 10s, 4 samples) (10.5s)\n  [PASS] LEAK GUARD peer1 gets at most our 3 prefixes -- 3 ipv4-unicast prefixes accepted (held 10s, 4 samples) (10.5s)\n  [PASS] LEAK GUARD edge1 rejects prefixes the customer doesn't own -- absent (held 10s, 4 samples) (10.5s)\nDestroying lab...\nPASSED: 14 passed, 0 failed (14 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/demo/attempt-2.report.json\n\nDemo OK: attempt 1 rejected by 5 leak guards with every other check passing; attempt 2 passed every check.",
+   "command": ""
+  },
+  {
+   "id": "example-agent-demo-clean",
+   "title": "example agent-demo: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-arista-frr",
+   "title": "example arista-frr: `PASSED: 10 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 123.2,
+   "summary": "exit 0: PASSED: 10 passed, 0 failed (10 checks)",
+   "output": "Netdryrun 0.4.0: 8 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/arista-frr/netdryrun.yml\nDeploying lab ndr-arista-frr (2 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] ceos1: BGP session to 10.0.200.2 is established -- state is established (6.2s)\n  [PASS] frr1: BGP session to 10.0.200.1 is established -- state is established (9.9s)\n  [PASS] ceos1: route 192.168.20.0/24 via bgp is present -- active via bgp (9.9s)\n  [PASS] frr1: route 192.168.30.1/32 via bgp is present -- active via bgp (9.9s)\n  [PASS] ceos1: ping 192.168.20.1 from 192.168.30.1 expects success -- 3/3 replies (need 2) (9.9s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] ceos1: prefixes from 10.0.200.2 >= 1 and <= 5 -- 1 ipv4-unicast prefixes accepted (held 11s, 4 samples) (10.6s)\n  [PASS] ceos1: route 0.0.0.0/0 via bgp is absent -- absent (held 11s, 4 samples) (10.6s)\n  [PASS] ceos1: BGP best path for 192.168.20.0/24 has as-path '65020', local-pref 100, next hop 10.0.200.2 -- best path: as-path '65020', next hop 10.0.200.2, local-pref 100, MED not set, communities none (held 11s, 4 samples) (10.6s)\nScenario: link to the Arista fails\n  the fault took effect after 1s (2 BGP session(s) over the downed links are down)\n  settling 10s before the scenario's checks\n  [PASS] [link to the Arista fails] ceos1: BGP session to 10.0.200.2 is down -- state is idle (held 13s, 4 samples) (13.3s)\n  [PASS] [link to the Arista fails] ceos1: route 192.168.20.0/24 via bgp is absent -- absent (held 13s, 4 samples) (13.3s)\nRestored 1 link(s) and 0 route injection(s); settling 10s\nDestroying lab...\nPASSED: 10 passed, 0 failed (10 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/arista-frr.json",
+   "command": ""
+  },
+  {
+   "id": "example-arista-frr-clean",
+   "title": "example arista-frr: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-batfish-pipeline",
+   "title": "example batfish-pipeline: `PASSED: 10 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 110.7,
+   "summary": "exit 0: PASSED: 10 passed, 0 failed (10 checks)",
+   "output": "Netdryrun 0.4.0: 8 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/batfish-pipeline/netdryrun.yml\nDeploying lab ndr-bf-pipeline (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (13.7s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (13.7s)\n  [PASS] r1: route 192.168.2.0/24 via bgp is present -- active via bgp (13.7s)\n  [PASS] r1: ping 192.168.2.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (13.7s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] r1: prefixes from 10.0.12.2 >= 1 and <= 10 -- 2 ipv4-unicast prefixes accepted (held 10s, 4 samples) (10.5s)\n  [PASS] r1: BGP best path for 192.168.2.0/24 has as-path '65002', next hop 10.0.12.2 -- best path: as-path '65002', next hop 10.0.12.2, local-pref 100, MED 0, communities none (held 10s, 4 samples) (10.5s)\n  [PASS] r1: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 4 samples) (10.5s)\n  [PASS] r3: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 4 samples) (10.5s)\nScenario: r1-r2 link fails\n  the fault took effect after 1s (2 BGP session(s) over the downed links are down)\n  settling 10s before the scenario's checks\n  [PASS] [r1-r2 link fails] r1: ping 192.168.2.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (held 12s, 3 samples) (20.0s)\n  [PASS] [r1-r2 link fails] r1: BGP best path for 192.168.2.0/24 has as-path '65003 65002', next hop 10.0.13.2 -- best path: as-path '65003 65002', next hop 10.0.13.2, local-pref 100, MED not set, communities none (held 11s, 4 samples) (10.7s)\nRestored 1 link(s) and 0 route injection(s); settling 10s\nDestroying lab...\nPASSED: 10 passed, 0 failed (10 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/batfish-pipeline.json",
+   "command": ""
+  },
+  {
+   "id": "example-batfish-pipeline-clean",
+   "title": "example batfish-pipeline: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-frr-bgp",
+   "title": "example frr-bgp: `PASSED: 11 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 107.7,
+   "summary": "exit 0: PASSED: 11 passed, 0 failed (11 checks)",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (13.6s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (13.6s)\n  [PASS] r1: route 192.168.3.0/24 via bgp is present -- active via bgp (13.6s)\n  [PASS] r1: ping 192.168.3.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (13.6s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] r1: prefixes from 10.0.12.2 >= 1 and <= 10 -- 2 ipv4-unicast prefixes accepted (held 10s, 4 samples) (10.4s)\n  [PASS] r1: BGP best path for 192.168.2.0/24 has as-path '65002', next hop 10.0.12.2 -- best path: as-path '65002', next hop 10.0.12.2, local-pref 100, MED 0, communities none (held 10s, 4 samples) (10.4s)\n  [PASS] r1: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 4 samples) (10.4s)\nScenario: r1-r2 link fails\n  the fault took effect after 1s (2 BGP session(s) over the downed links are down)\n  settling 10s before the scenario's checks\n  [PASS] [r1-r2 link fails] r1: route 192.168.2.0/24 via bgp is present -- active via bgp (held 12s, 3 samples) (19.5s)\n  [PASS] [r1-r2 link fails] r1: ping 192.168.2.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (held 12s, 3 samples) (19.5s)\n  [PASS] [r1-r2 link fails] r1: BGP best path for 192.168.2.0/24 has as-path '65003 65002', next hop 10.0.13.2 -- best path: as-path '65003 65002', next hop 10.0.13.2, local-pref 100, MED not set, communities none (held 10s, 4 samples) (10.4s)\n  [PASS] [r1-r2 link fails] r1: BGP session to 10.0.12.2 is down -- state is active (held 10s, 4 samples) (10.4s)\nRestored 1 link(s) and 0 route injection(s); settling 10s\nDestroying lab...\nPASSED: 11 passed, 0 failed (11 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp.json",
+   "command": ""
+  },
+  {
+   "id": "example-frr-bgp-clean",
+   "title": "example frr-bgp: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-frr-bgp-broken",
+   "title": "example frr-bgp-broken: `FAILED: 5 passed, 1 failed`, exit 1",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 45.4,
+   "summary": "exit 1: FAILED: 5 passed, 1 failed (6 checks)",
+   "output": "Netdryrun 0.4.0: 6 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-broken/netdryrun.yml\nDeploying lab ndr-frr-broken (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (13.6s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (13.6s)\n  [PASS] r1: route 192.168.3.0/24 via bgp is present -- active via bgp (13.6s)\n  [PASS] r1: ping 192.168.3.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (13.6s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] r1: prefixes from 10.0.12.2 >= 1 and <= 10 -- 3 ipv4-unicast prefixes accepted (held 10s, 4 samples) (10.3s)\n  [FAIL] r1: route 0.0.0.0/0 via bgp is absent -- unexpectedly present via bgp (not selected) (0.4s)\nDestroying lab...\nFAILED: 5 passed, 1 failed (6 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp-broken.json",
+   "command": ""
+  },
+  {
+   "id": "example-frr-bgp-broken-clean",
+   "title": "example frr-bgp-broken: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-junos-frr",
+   "title": "example junos-frr: `PASSED: 13 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 584.4,
+   "summary": "exit 0: PASSED: 13 passed, 0 failed (13 checks)",
+   "output": "Netdryrun 0.4.0: 13 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/junos-frr/netdryrun.yml\nDeploying lab ndr-junos-frr (2 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] frr1: route 0.0.0.0/0 via static is present -- active via static (64.4s)\n  [PASS] j1: route 0.0.0.0/0 via static is present -- active via static (479.5s)\n  [PASS] j1: BGP session to 10.0.100.2 is established -- state is established (536.9s)\n  [PASS] j1: ping 192.168.20.1 from 192.168.10.1 expects success -- 3/3 replies (need 2) (536.9s)\n  [PASS] frr1: BGP session to 10.0.100.1 is established -- state is established (540.7s)\n  [PASS] j1: route 192.168.20.0/24 via bgp is present -- active via bgp (540.7s)\n  [PASS] frr1: route 192.168.10.1/32 via bgp is present -- active via bgp (540.7s)\n  [PASS] j1: BGP session to 2001:db8:100::2 is established -- state is established (547.9s)\n  [PASS] j1: route 2001:db8:20::/48 via bgp is present -- active via bgp (547.9s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] j1: prefixes from 2001:db8:100::2 <= 10 -- 1 ipv6-unicast prefixes accepted (held 10s, 3 samples) (10.3s)\n  [PASS] j1: BGP best path for 192.168.20.0/24 has communities 65020:100 65020:1:1, as-path '65020', local-pref 100, MED 50, next hop 10.0.100.2 -- best path: as-path '65020', next hop 10.0.100.2, local-pref 100, MED 50, communities 65020:100 65020:1:1 (held 10s, 3 samples) (10.3s)\n  [PASS] j1: no BGP path for 0.0.0.0/0 -- no BGP path (held 10s, 3 samples) (10.3s)\n  [PASS] frr1: no BGP path for 0.0.0.0/0 -- no BGP path (held 10s, 3 samples) (10.3s)\nDestroying lab...\nPASSED: 13 passed, 0 failed (13 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/junos-frr.json",
+   "command": ""
+  },
+  {
+   "id": "example-junos-frr-clean",
+   "title": "example junos-frr: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-leak-pattern",
+   "title": "example leak-pattern: `PASSED: 8 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 49.4,
+   "summary": "exit 0: PASSED: 8 passed, 0 failed (8 checks)",
+   "output": "Netdryrun 0.4.0: 8 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/leak-pattern/netdryrun.yml\nDeploying lab ndr-leak-pattern (4 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] net: BGP session to 10.0.1.2 is established -- state is established (13.7s)\n  [PASS] net: BGP session to 10.0.2.2 is established -- state is established (13.7s)\n  [PASS] net: BGP session to 10.0.3.2 is established -- state is established (13.7s)\n  [PASS] peer: route 192.0.2.0/24 via bgp is present -- active via bgp (13.7s)\n  [PASS] peer: ping 192.0.2.1 from 198.51.100.1 expects success -- 3/3 replies (need 2) (13.7s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] peer: BGP best path for 192.0.2.0/24 has as-path '65001 65010', next hop 10.0.3.1 -- best path: as-path '65001 65010', next hop 10.0.3.1, local-pref 100, MED not set, communities 65001:300 (held 10s, 4 samples) (10.3s)\n  [PASS] peer: prefixes from 10.0.3.1 >= 2 and <= 2 -- 2 ipv4-unicast prefixes accepted (held 10s, 4 samples) (10.3s)\n  [PASS] peer: route 203.0.113.0/24 via bgp is absent -- absent (held 10s, 4 samples) (10.3s)\nDestroying lab...\nPASSED: 8 passed, 0 failed (8 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/leak-pattern.json",
+   "command": ""
+  },
+  {
+   "id": "example-leak-pattern-clean",
+   "title": "example leak-pattern: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-sonic-frr",
+   "title": "example sonic-frr: `PASSED: 8 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 108.5,
+   "summary": "exit 0: PASSED: 8 passed, 0 failed (8 checks)",
+   "output": "Netdryrun 0.4.0: 6 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/sonic-frr/netdryrun.yml\nDeploying lab ndr-sonic-frr (2 nodes); this usually takes 30-90 s, longer the first time images are pulled...\nRunning setup on sonic1...\nsetup done on sonic1 (4 commands)\n  [PASS] sonic1: BGP session to 10.0.40.2 is established -- state is established (13.9s)\n  [PASS] sonic1: route 192.168.20.0/24 via bgp is present -- active via bgp (13.9s)\n  [PASS] frr1: route 192.168.40.1/32 via bgp is present -- active via bgp (13.9s)\n  [PASS] sonic1: ping 192.168.20.1 from 192.168.40.1 expects success -- 3/3 replies (need 2) (13.9s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] frr1: prefixes from 10.0.40.1 >= 1 and <= 5 -- 1 ipv4-unicast prefixes accepted (held 11s, 4 samples) (10.6s)\n  [PASS] sonic1: BGP best path for 192.168.20.0/24 has as-path '65020', local-pref 100, next hop 10.0.40.2 -- best path: as-path '65020', next hop 10.0.40.2, local-pref 100, MED 0, communities none (held 11s, 4 samples) (10.6s)\nScenario: SONiC port Ethernet0 goes down\n  the fault took effect after 0s (1 BGP session(s) over the downed links are down)\n  settling 10s before the scenario's checks\n  [PASS] [SONiC port Ethernet0 goes down] frr1: BGP session to 10.0.40.1 is down -- state is connect (held 11s, 4 samples) (10.6s)\n  [PASS] [SONiC port Ethernet0 goes down] frr1: route 192.168.40.1/32 via bgp is absent -- absent (held 11s, 4 samples) (10.6s)\nRestored 1 link(s) and 0 route injection(s); settling 10s\nDestroying lab...\nPASSED: 8 passed, 0 failed (8 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/sonic-frr.json",
+   "command": ""
+  },
+  {
+   "id": "example-sonic-frr-clean",
+   "title": "example sonic-frr: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-srl-frr",
+   "title": "example srl-frr: `PASSED: 7 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 90.7,
+   "summary": "exit 0: PASSED: 7 passed, 0 failed (7 checks)",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/srl-frr/netdryrun.yml\nDeploying lab ndr-srl-frr (2 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] srl1: BGP session to 10.0.100.2 is established -- state is established (28.8s)\n  [PASS] frr1: BGP session to 10.0.100.1 is established -- state is established (28.8s)\n  [PASS] srl1: route 192.168.20.0/24 via bgp is present -- active via bgp (28.8s)\n  [PASS] srl1: ping 192.168.20.1 from 192.168.10.1 expects success -- 3/3 replies (need 2) (28.8s)\n  [PASS] frr1: ping 192.168.10.1 from 192.168.20.1 expects success -- 3/3 replies (need 2) (28.8s)\n  [PASS] frr1: route 192.168.10.1/32 via bgp is present -- active via bgp (32.3s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] srl1: BGP best path for 192.168.20.0/24 has as-path '65020', local-pref 100, next hop 10.0.100.2 -- best path: as-path '65020', next hop 10.0.100.2, local-pref 100, MED 0, communities none (held 13s, 3 samples) (13.2s)\nDestroying lab...\nPASSED: 7 passed, 0 failed (7 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/srl-frr.json",
+   "command": ""
+  },
+  {
+   "id": "example-srl-frr-clean",
+   "title": "example srl-frr: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-srl-hidden-leak",
+   "title": "example srl-hidden-leak: `PASSED: 9 passed, 0 failed`, exit 0",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 87.4,
+   "summary": "exit 0: PASSED: 9 passed, 0 failed (9 checks)",
+   "output": "Netdryrun 0.4.0: 9 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/srl-hidden-leak/netdryrun.yml\nDeploying lab ndr-hidden-leak (2 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] srl1: route 0.0.0.0/0 via static is present -- active via static (9.9s)\n  [PASS] frr1: route 0.0.0.0/0 via static is present -- active via static (9.9s)\n  [PASS] srl1: BGP session to 10.0.100.2 is established -- state is established (28.4s)\n  [PASS] frr1: BGP session to 10.0.100.1 is established -- state is established (28.4s)\n  [PASS] srl1: route 192.168.20.0/24 via bgp is present -- active via bgp (28.4s)\n  [PASS] frr1: route 192.168.10.1/32 via bgp is present -- active via bgp (33.8s)\n  [PASS] srl1: ping 192.168.20.1 from 192.168.10.1 expects success -- 3/3 replies (need 2) (33.8s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] srl1: no BGP path for 0.0.0.0/0 -- no BGP path (held 11s, 3 samples) (10.5s)\n  [PASS] frr1: no BGP path for 0.0.0.0/0 -- no BGP path (held 11s, 3 samples) (10.5s)\nDestroying lab...\nPASSED: 9 passed, 0 failed (9 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/srl-hidden-leak.json",
+   "command": ""
+  },
+  {
+   "id": "example-srl-hidden-leak-clean",
+   "title": "example srl-hidden-leak: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-srl-hidden-leak-frr1",
+   "title": "example srl-hidden-leak with leaks/frr1.conf: `FAILED: 8 passed, 1 failed`, exit 1",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 86.8,
+   "summary": "exit 1: FAILED: 8 passed, 1 failed (9 checks)",
+   "output": "Netdryrun 0.4.0: 9 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/srl-hidden-leak-frr1/netdryrun.yml\nDeploying lab ndr-hidden-leak (2 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] srl1: route 0.0.0.0/0 via static is present -- active via static (10.0s)\n  [PASS] frr1: route 0.0.0.0/0 via static is present -- active via static (10.0s)\n  [PASS] srl1: BGP session to 10.0.100.2 is established -- state is established (28.4s)\n  [PASS] frr1: BGP session to 10.0.100.1 is established -- state is established (28.4s)\n  [PASS] srl1: route 192.168.20.0/24 via bgp is present -- active via bgp (28.4s)\n  [PASS] frr1: route 192.168.10.1/32 via bgp is present -- active via bgp (33.8s)\n  [PASS] srl1: ping 192.168.20.1 from 192.168.10.1 expects success -- 3/3 replies (need 2) (33.8s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [FAIL] srl1: no BGP path for 0.0.0.0/0 -- unexpectedly in the BGP table (1 path(s); as-path '65020', next hop 10.0.100.2, local-pref 100, MED 0, communities none) (4.6s)\n  [PASS] frr1: no BGP path for 0.0.0.0/0 -- no BGP path (held 10s, 3 samples) (10.3s)\nDestroying lab...\nFAILED: 8 passed, 1 failed (9 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/srl-hidden-leak-frr1.json",
+   "command": ""
+  },
+  {
+   "id": "example-srl-hidden-leak-frr1-clean",
+   "title": "example srl-hidden-leak with leaks/frr1.conf: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-srl-hidden-leak-srl1",
+   "title": "example srl-hidden-leak with leaks/srl1.cli: `FAILED: 8 passed, 1 failed`, exit 1",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 88.7,
+   "summary": "exit 1: FAILED: 8 passed, 1 failed (9 checks)",
+   "output": "Netdryrun 0.4.0: 9 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/srl-hidden-leak-srl1/netdryrun.yml\nDeploying lab ndr-hidden-leak (2 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] srl1: route 0.0.0.0/0 via static is present -- active via static (9.9s)\n  [PASS] frr1: route 0.0.0.0/0 via static is present -- active via static (9.9s)\n  [PASS] srl1: BGP session to 10.0.100.2 is established -- state is established (28.2s)\n  [PASS] frr1: BGP session to 10.0.100.1 is established -- state is established (28.2s)\n  [PASS] srl1: route 192.168.20.0/24 via bgp is present -- active via bgp (28.2s)\n  [PASS] srl1: ping 192.168.20.1 from 192.168.10.1 expects success -- 3/3 replies (need 2) (28.2s)\n  [PASS] frr1: route 192.168.10.1/32 via bgp is present -- active via bgp (31.8s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] srl1: no BGP path for 0.0.0.0/0 -- no BGP path (held 12s, 3 samples) (11.9s)\n  [FAIL] frr1: no BGP path for 0.0.0.0/0 -- unexpectedly in the BGP table (1 path(s); as-path '65010', next hop 10.0.100.1, local-pref 100, MED not set, communities none) (2.3s)\nDestroying lab...\nFAILED: 8 passed, 1 failed (9 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/srl-hidden-leak-srl1.json",
+   "command": ""
+  },
+  {
+   "id": "example-srl-hidden-leak-srl1-clean",
+   "title": "example srl-hidden-leak with leaks/srl1.cli: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "example-times",
+   "title": "example times match the docs (within 2x)",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "all within 2x",
+   "output": "agent-demo: 87 s (documented 70 s)\narista-frr: 123 s (documented 97 s)\nbatfish-pipeline: 111 s (documented 100 s)\nfrr-bgp: 108 s (documented 99 s)\nfrr-bgp-broken: 45 s (documented 39 s)\njunos-frr: 584 s (documented 398 s)\nleak-pattern: 49 s (documented 42-43 s)\nsonic-frr: 108 s (documented 92 s)\nsrl-frr: 91 s (documented 59 s)\nsrl-hidden-leak: 87 s (documented 59-60 s)",
+   "command": ""
+  },
+  {
+   "id": "corpus-v1",
+   "title": "Verdict Corpus v1: every verdict matches the committed results.json",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 4102.8,
+   "summary": "all verdicts match",
+   "output": "[... 1 earlier lines]\n   ping=safe  sessions=safe  netdryrun=safe  (70s)\n== 02-med-to-upstream: Set MED on routes sent to the upstream (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (74s)\n== 03-prepend-to-peer: Prepend our AS twice toward the peer (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (67s)\n== 04-tag-community-upstream: Tag our aggregate with an informational community toward the upstream (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (61s)\n== 05-description-only: Change an interface description (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (63s)\n== 06-customer-adds-prefix: Customer announces a second allowed /24 (expected safe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (61s)\n== 07-tighten-max-prefix: Lower the customer maximum-prefix from 100 to 50 (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (60s)\n== 08-upstream-timers: Shorten BGP timers toward the upstream (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (60s)\n== 09-customer-localpref: Lower customer local-preference from 300 to 250 (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (60s)\n== 10-transit-export-filter-removed: Upstream export filter replaced with permit-all (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (59s)\n== 11-peer-export-filter-removed: Peer export filter replaced with permit-all (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (58s)\n== 12-ibgp-send-community-dropped: send-community removed on the pe1 to pe2 iBGP session (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=safe  (58s)\n== 13-upstream-asn-typo: Typo in the upstream's ASN (65020 instead of 65200) (expected unsafe)\n   ping=unsafe  sessions=unsafe  netdryrun=unsafe  (399s)\n== 14-peer-session-shutdown: Peer session administratively shut down (expected unsafe)\n   ping=unsafe  sessions=unsafe  netdryrun=unsafe  (394s)\n== 15-customer-filter-too-strict: Customer prefix-list typo rejects the customer's /24 (expected unsafe)\n   ping=unsafe  sessions=safe  netdryrun=unsafe  (251s)\n== 16-mass-withdrawal: Upstream export policy denies everything (expected unsafe)\n   ping=unsafe  sessions=safe  netdryrun=unsafe  (251s)\n== 17-default-leaked-to-peer: default-originate configured toward the peer (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (59s)\n== 18-redistribute-connected: redistribute connected added on pe1 (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=safe  (56s)\n== 19-nexthop-self-removed: next-hop-self removed on pe2 toward pe1 (expected unsafe)\n   ping=unsafe  sessions=safe  netdryrun=unsafe  (221s)\n== 20-ibgp-shutdown: iBGP session between pe1 and pe2 shut down (expected unsafe)\n   ping=unsafe  sessions=unsafe  netdryrun=unsafe  (335s)\n== 21-customer-max-prefix-removed: Customer maximum-prefix safety limit removed (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=safe  (56s)\n== 22-customer-leaks-third-party: Customer announces someone else's prefix; our filter blocks it (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (57s)\n== 23-fat-finger-third-party-origin: pe1 accidentally originates 8.8.8.0/24 (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=safe  (60s)\n== 24-customer-blackholed: Static discard route for the customer prefix on pe1 (expected unsafe)\n   ping=unsafe  sessions=safe  netdryrun=unsafe  (224s)\n== 25-aggregate-typo: Aggregate network statement typo (192.0.3.0/24) (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (170s)\n== 26-route-map-order-bug: A permit-everything clause inserted before the peer export filter (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (56s)\n== 27-local-asn-typo: pe2 configured with the wrong local ASN (expected unsafe)\n   ping=unsafe  sessions=unsafe  netdryrun=unsafe  (402s)\n== 28-customer-import-policy-removed: Customer inbound route-map removed (expected unsafe)\n   ping=unsafe  sessions=safe  netdryrun=unsafe  (252s)\n== 29-graceful-restart: Enable BGP graceful restart on pe1 (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (56s)\n== 30-peer-import-filter-removed: Peer inbound filter replaced with permit-all (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=safe  (55s)\nwrote corpus/RESULTS.md and results/results.json",
+   "command": "python corpus/run.py --corpus v1"
+  },
+  {
+   "id": "corpus-v1-harmful-approved",
+   "title": "Verdict Corpus v1: no harmful change approved beyond the published known misses",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "harmful changes approved: 5 (12-ibgp-send-community-dropped, 18-redistribute-connected, 21-customer-max-prefix-removed, 23-fat-finger-third-party-origin, 30-peer-import-filter-removed); published known misses: 12-ibgp-send-community-dropped, 18-redistribute-connected, 21-customer-max-prefix-removed, 23-fat-finger-third-party-origin, 30-peer-import-filter-removed",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "corpus-v1-clean",
+   "title": "Verdict Corpus v1: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "corpus-v2",
+   "title": "Verdict Corpus v2: every verdict matches the committed results.json",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 3957.2,
+   "summary": "all verdicts match",
+   "output": "== 01-no-change: No change (control) (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (182s)\n== 02-redistribute-connected-pe2: redistribute connected added on pe2 (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (185s)\n== 03-test-prefix-left-in-config: pe1 originates 1.1.1.0/24 left over from a lab test (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (181s)\n== 04-redundant-aggregate-typo: Aggregate added on pe2 for redundancy, mistyped as 192.0.12.0/24 (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=safe  (184s)\n== 05-customer-max-prefix-removed: Customer maximum-prefix safety limit removed (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (143s)\n== 06-peer-import-filter-permit-all: Peer inbound filter replaced with permit-all (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (162s)\n== 07-customer-adds-prefixes: Customer announces two more /24s from its /16 (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (181s)\n== 08-customer-announces-aggregate: Customer also announces its covering /16 (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (181s)\n== 09-ibgp-send-community-line-removed: Explicit send-community line removed on the pe1 to pe2 iBGP session (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (182s)\n== 10-ibgp-standard-communities-disabled: Standard communities explicitly disabled on the pe1 to pe2 iBGP session (expected unsafe)\n   ping=unsafe  sessions=safe  netdryrun=unsafe  (372s)\n== 11-customer-max-prefix-warning-only: Customer maximum-prefix changed to warning-only (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (142s)\n== 12-customer-max-prefix-raised: Customer maximum-prefix raised from 50 to 100 (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (180s)\n== 13-upstream-routes-tagged-as-customer: Upstream import policy tags routes with the customer community (copy-paste error) (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (180s)\n== 14-customer-gets-default-only: Customer export policy restricted to the default route (expected unsafe)\n   ping=unsafe  sessions=safe  netdryrun=unsafe  (336s)\n== 15-upstream-default-filtered: Default route from the upstream filtered on import (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=unsafe  (262s)\n== 16-customer-session-peer-group: Customer session moved into a CUSTOMERS peer-group (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (180s)\n== 17-customer-region-community: Add an informational region community to customer routes (expected safe)\n   ping=safe  sessions=safe  netdryrun=safe  (180s)\n== 18-aggregate-discard-route-removed: Discard route for our aggregate deleted as unused (expected unsafe)\n   ping=safe  sessions=safe  netdryrun=safe  (180s)  nondeterministic, runs: [{'ping': 'safe', 'sessions': 'safe', 'netdryrun': 'safe'}, {'ping': 'safe', 'sessions': 'safe', 'netdryrun': 'safe'}, {'ping': 'safe', 'sessions': 'safe', 'netdryrun': 'safe'}]\nwrote corpus/v2/RESULTS.md and results/results.json",
+   "command": "python corpus/run.py --corpus v2"
+  },
+  {
+   "id": "corpus-v2-nondeterministic-held",
+   "title": "Verdict Corpus v2: the nondeterministic exemption holds (pinned list, repeats ran, no error)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "18-aggregate-discard-route-removed",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "corpus-v2-nondeterministic",
+   "title": "Verdict Corpus v2: nondeterministic cases recorded (known, not scored, never a blocker)",
+   "severity": "INFO",
+   "status": "FAIL",
+   "seconds": 0.0,
+   "summary": "Netdryrun verdicts per run: 18-aggregate-discard-route-removed: safe, safe, safe; every run approved the harmful change: 18-aggregate-discard-route-removed",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "corpus-v2-harmful-approved",
+   "title": "Verdict Corpus v2: no harmful change approved beyond the published known misses",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "harmful changes approved: 1 (04-redundant-aggregate-typo); published known misses: 04-redundant-aggregate-typo",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "corpus-v2-clean",
+   "title": "Verdict Corpus v2: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "mcp-handshake",
+   "title": "MCP handshake against the installed wheel",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 1.1,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.0', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "/tmp/ndr-gate-live-ikt_pw0_/venv/bin/python /home/ndr/work/rel04/scripts/mcp_handshake.py /tmp/ndr-gate-live-ikt_pw0_/venv/bin/netdryrun mcp"
+  },
+  {
+   "id": "pack",
+   "title": "check pack verification",
+   "severity": "MAJOR",
+   "status": "SKIP",
+   "seconds": 0.0,
+   "summary": "no --pack script given",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "scale",
+   "title": "20-node scale test",
+   "severity": "MAJOR",
+   "status": "SKIP",
+   "seconds": 0.0,
+   "summary": "not scripted in the repository yet: run it by hand",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigint-deploy",
+   "title": "SIGINT during deploy: exit 130, a clear message",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 4.6,
+   "summary": "exit 130",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-chaos-sigint-deploy/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\nDestroying lab...\n\nInterrupted: no verdict (SIGINT). The lab was cleaned up unless --keep was set.",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigint-deploy-clean",
+   "title": "SIGINT during deploy: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigint-checks",
+   "title": "SIGINT during checks: exit 130, a clear message",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 16.9,
+   "summary": "exit 130",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-chaos-sigint-checks/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (13.4s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (13.4s)\n  [PASS] r1: route 192.168.3.0/24 via bgp is present -- active via bgp (13.4s)\n  [PASS] r1: ping 192.168.3.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (13.4s)\nDestroying lab...\n\nInterrupted: no verdict (SIGINT). The lab was cleaned up unless --keep was set.",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigint-checks-clean",
+   "title": "SIGINT during checks: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigterm-deploy",
+   "title": "SIGTERM during deploy: exit 143, a clear message",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 5.5,
+   "summary": "exit 143",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-chaos-sigterm-deploy/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\nDestroying lab...\n\nInterrupted: no verdict (SIGTERM). The lab was cleaned up unless --keep was set.",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigterm-deploy-clean",
+   "title": "SIGTERM during deploy: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigterm-checks",
+   "title": "SIGTERM during checks: exit 143, a clear message",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 16.8,
+   "summary": "exit 143",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-chaos-sigterm-checks/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (13.3s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (13.3s)\n  [PASS] r1: route 192.168.3.0/24 via bgp is present -- active via bgp (13.3s)\n  [PASS] r1: ping 192.168.3.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (13.3s)\nDestroying lab...\n\nInterrupted: no verdict (SIGTERM). The lab was cleaned up unless --keep was set.",
+   "command": ""
+  },
+  {
+   "id": "chaos-sigterm-checks-clean",
+   "title": "SIGTERM during checks: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-missing-image",
+   "title": "a node's image does not exist: exit 2 with a clear error",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.5,
+   "summary": "exit 2:   wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp-missing-image.json",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-missing-image/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\nDestroying lab...\nERROR: containerlab deploy failed:\n17:04:01 INFO Containerlab started version=0.81.1\n17:04:01 INFO Parsing & checking topology file=topology.clab.yml\n17:04:01 INFO Removing directory path=/tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-missing-image/clab-ndr-frr-bgp\n17:04:01 INFO Creating docker network name=clab IPv4 subnet=172.20.20.0/24 IPv6 subnet=3fff:172:20:20::/64 MTU=0\n17:04:01 INFO Pulling image image=netdryrun-gate.invalid/missing:never\n17:04:01 ERRO Failed to pull image image=netdryrun-gate.invalid/missing:never err=\"Error response from daemon: failed to resolve reference \\\"netdryrun-gate.invalid/missing:never\\\": failed to do request: Head \\\"https://netdryrun-gate.invalid/v2/missing/manifests/never\\\": dial tcp: lookup netdryrun-gate.invalid on 10.255.255.254:53: no such host\"\n          \n   ERROR  \n          \n  Error response from daemon: failed to resolve reference \"netdryrun-gate.invalid/missing:never\": failed to do        \n  request: Head \"https://netdryrun-gate.invalid/v2/missing/manifests/never\": dial tcp: lookup netdryrun-gate.invalid  \n  on 10.255.255.254:53: no such host.                                                                                 \n\n\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp-missing-image.json",
+   "command": ""
+  },
+  {
+   "id": "chaos-missing-image-clean",
+   "title": "a node's image does not exist: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-deploy-fails",
+   "title": "a node cannot be created (a bind source does not exist): exit 2 with a clear error",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.2,
+   "summary": "exit 2:   wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp-deploy-fails.json",
+   "output": "Netdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-deploy-fails/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\nDestroying lab...\nERROR: containerlab deploy failed:\n17:04:01 INFO Containerlab started version=0.81.1\n17:04:01 INFO Parsing & checking topology file=topology.clab.yml\n          \n   ERROR  \n          \n  Failed to verify bind path: stat /nonexistent/netdryrun-gate: no such file or directory.                            \n\n\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp-deploy-fails.json",
+   "command": ""
+  },
+  {
+   "id": "chaos-deploy-fails-clean",
+   "title": "a node cannot be created (a bind source does not exist): no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-concurrent",
+   "title": "two runs of the same lab at once: no false verdict, no crash",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 100.2,
+   "summary": "exit codes 0 and 2",
+   "output": "--- run A (exit 0)\nNetdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-twin-a/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (13.3s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (13.3s)\n  [PASS] r1: route 192.168.3.0/24 via bgp is present -- active via bgp (13.3s)\n  [PASS] r1: ping 192.168.3.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (13.3s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] r1: prefixes from 10.0.12.2 >= 1 and <= 10 -- 2 ipv4-unicast prefixes accepted (held 10s, 5 samples) (10.2s)\n  [PASS] r1: BGP best path for 192.168.2.0/24 has as-path '65002', next hop 10.0.12.2 -- best path: as-path '65002', next hop 10.0.12.2, local-pref 100, MED 0, communities none (held 10s, 5 samples) (10.2s)\n  [PASS] r1: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 5 samples) (10.2s)\nScenario: r1-r2 link fails\n  the fault took effect after 0s (2 BGP session(s) over the downed links are down)\n  settling 10s before the scenario's checks\n  [PASS] [r1-r2 link fails] r1: route 192.168.2.0/24 via bgp is present -- active via bgp (held 12s, 3 samples) (19.2s)\n  [PASS] [r1-r2 link fails] r1: ping 192.168.2.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (held 12s, 3 samples) (19.2s)\n  [PASS] [r1-r2 link fails] r1: BGP best path for 192.168.2.0/24 has as-path '65003 65002', next hop 10.0.13.2 -- best path: as-path '65003 65002', next hop 10.0.13.2, local-pref 100, MED not set, communities none (held 10s, 5 samples) (10.2s)\n  [PASS] [r1-r2 link fails] r1: BGP session to 10.0.12.2 is down -- state is active (held 10s, 5 samples) (10.2s)\nRestored 1 link(s) and 0 route injection(s); settling 10s\nDestroying lab...\nPASSED: 11 passed, 0 failed (11 checks)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp-twin-a.json\n--- run B (exit 2)\nNetdryrun 0.4.0: 7 checks from /tmp/ndr-gate-live-ikt_pw0_/examples/frr-bgp-twin-b/netdryrun.yml\nERROR: another Netdryrun run is already using lab 'ndr-frr-bgp' on this host; wait for it to finish (two runs of the same lab would collide)\n  wrote json report: /tmp/ndr-gate-live-ikt_pw0_/reports/frr-bgp-twin-b.json",
+   "command": ""
+  },
+  {
+   "id": "chaos-concurrent-clean",
+   "title": "two runs at once: no lab left running",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none left",
+   "output": "",
+   "command": ""
+  },
+  {
+   "id": "chaos-docker-restart",
+   "title": "Docker restarts mid-run",
+   "severity": "MAJOR",
+   "status": "SKIP",
+   "seconds": 0.0,
+   "summary": "off by default (restarts every container on the machine): pass --chaos-docker-restart",
+   "output": "",
+   "command": ""
+  }
+ ],
+ "sections": []
+}

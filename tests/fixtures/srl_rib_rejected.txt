@@ -1,0 +1,26 @@
+{
+  "route": [
+    {
+      "prefix": "192.168.6.0/24",
+      "neighbor": "10.1.2.2",
+      "origin-protocol": "bgp",
+      "path-id": 0,
+      "last-modified": "2026-10-30T21:31:30.100Z (29 minutes ago)",
+      "used-route": false,
+      "unused-weight-only": false,
+      "valid-route": false,
+      "best-route": false,
+      "backup-route": false,
+      "stale-route": false,
+      "fib-disabled": false,
+      "pending-delete": false,
+      "neighbor-as": 65005,
+      "group-best": false,
+      "tie-break-reason": "none",
+      "attr-id": "12",
+      "invalid-reason": {
+        "rejected-route": true
+      }
+    }
+  ]
+}

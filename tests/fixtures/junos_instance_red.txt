@@ -1,0 +1,47 @@
+{
+    "instance-information" : [
+    {
+        "attributes" : {"xmlns" : "http://xml.juniper.net/junos/26.2R0/junos-routing", 
+                        "junos:style" : "terse"
+                       }, 
+        "instance-core" : [
+        {
+            "instance-name" : [
+            {
+                "data" : "RED"
+            }
+            ], 
+            "instance-type" : [
+            {
+                "data" : "vrf"
+            }
+            ], 
+            "instance-rib" : [
+            {
+                "irib-name" : [
+                {
+                    "data" : "RED.inet.0"
+                }
+                ], 
+                "irib-active-count" : [
+                {
+                    "data" : "4"
+                }
+                ], 
+                "irib-holddown-count" : [
+                {
+                    "data" : "0"
+                }
+                ], 
+                "irib-hidden-count" : [
+                {
+                    "data" : "0"
+                }
+                ]
+            }
+            ]
+        }
+        ]
+    }
+    ]
+}

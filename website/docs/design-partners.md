@@ -5,7 +5,7 @@ description: Free help testing one of your real network changes with Netdryrun, 
 
 # Design partners
 
-We want Netdryrun shaped by real changes, not guesses. If you have a routing change coming up, we'll help you test it in a lab, for free, in exchange for honest feedback.
+Netdryrun was first released in October 2026, and we're looking for the first outside engineers to try it on a real change. We want it shaped by real changes, not guesses. If you have a routing change coming up, we'll help you test it in a lab, for free, in exchange for honest feedback.
 
 ## What you get
 
@@ -42,6 +42,6 @@ If it was useful and you want it on more of your network, we offer a fixed-scope
 
 ## Apply
 
-**Quickest:** open a [Test my change](https://github.com/netdryrun/netdryrun/issues/new?template=test-my-change.yml) issue with a sanitized change. We reply there with the verdict and evidence, usually within two working days, and you tell us whether it was right.
+**Quickest:** open a [Test my change](https://github.com/netdryrun/Netdryrun/issues/new?template=test-my-change.yml) issue with a sanitized change. We reply there with the verdict and evidence, usually within two working days, and you tell us whether it was right.
 
 Or run `netdryrun feedback` and tick "Design partner", or email [hello@netdryrun.com](mailto:hello@netdryrun.com) with one line about the change you want to test.

@@ -2,11 +2,7 @@
 
 Written by `scripts/release_gate.py` (see [RELEASING.md](../../RELEASING.md)). Do not edit by hand: rerun a layer, or record a decision in `accepted.json` or `review.md`.
 
-**READY TO PUBLISH**: every layer before publishing ran on the same clean commit; no BLOCKER failed or was skipped; every MAJOR passed or was accepted. Tag it, then run `after-publish` to clear it.
-
-**Layers not run yet:**
-
-- Layer 7: after-publish proof
+**CLEARED**: every layer ran on the same clean commit; no BLOCKER failed or was skipped; every MAJOR passed or was accepted.
 
 | Layer | Commit | Ran | Time | Result |
 |---|---|---|---|---|
@@ -14,7 +10,7 @@ Written by `scripts/release_gate.py` (see [RELEASING.md](../../RELEASING.md)). D
 | [Layer 2: unit tests on every supported Python](#layer-2-unit-tests-on-every-supported-python) | `878ac81b42` | 2026-10-30 00:35:51 UTC | 4.0 min | 7 PASS |
 | [Layer 4: mutation testing](#layer-4-mutation-testing) | `878ac81b42` | 2026-10-30 00:45:03 UTC | 22.8 min | 4 PASS |
 | [Layer 5: live matrix on the built package](#layer-5-live-matrix-on-the-built-package) | `878ac81b42` | 2026-10-30 01:08:40 UTC | 156.9 min | 2 ACCEPTED, 50 PASS |
-| Layer 7: after-publish proof | | not run | | |
+| [Layer 7: after-publish proof](#layer-7-after-publish-proof) | `91b4820a78` | 2026-10-30 06:06:12 UTC | 2.5 min | 1 ACCEPTED, 13 PASS |
 
 ## Layer 1: static
 
@@ -212,6 +208,29 @@ Tools: containerlab ⣴⡾⠛⠛⠖ ⢠⣶⠟⠛⢷⣦ ⢸⣿⣧ ⣿ ⠘⠛⢻�
 | two runs at once: no lab left running | BLOCKER | **PASS** | 0.0 s | none left |
 | Docker restarts mid-run: never passed, a clear message | BLOCKER | **PASS** | 3.9 min | exit 2 |
 | Docker restart: no lab left running | BLOCKER | **PASS** | 0.0 s | none left |
+
+## Layer 7: after-publish proof
+
+Commit `91b4820a7857e8b8af25a7be7e6ac66601011838` on `HEAD`; 2026-10-30 06:06:12 UTC; 2.5 min; Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64); Python 3.10.12.
+
+Tools: uv 0.13.6 (x86_64-unknown-linux-gnu).
+
+| Check | Severity | Result | Time | Notes |
+|---|---|---|---|---|
+| PyPI serves netdryrun 0.3.3 | BLOCKER | **PASS** | 0.0 s | HTTP 200 |
+| pip install netdryrun==0.3.3 on Python 3.10: --version, validate, MCP handshake | BLOCKER | **PASS** | 8.0 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.10: --version, MCP handshake | BLOCKER | **PASS** | 1.7 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.11: --version, validate, MCP handshake | BLOCKER | **PASS** | 7.6 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.11: --version, MCP handshake | BLOCKER | **PASS** | 1.6 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.12: --version, validate, MCP handshake | BLOCKER | **PASS** | 8.5 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.12: --version, MCP handshake | BLOCKER | **PASS** | 1.7 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.13: --version, validate, MCP handshake | BLOCKER | **PASS** | 7.8 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.13: --version, MCP handshake | BLOCKER | **PASS** | 1.6 s | MCP handshake OK |
+| pip install netdryrun==0.3.3 on Python 3.14: --version, validate, MCP handshake | BLOCKER | **PASS** | 8.1 s | MCP handshake OK |
+| uvx netdryrun@0.3.3 on Python 3.14: --version, MCP handshake | BLOCKER | **PASS** | 1.9 s | MCP handshake OK |
+| frr-bgp from PyPI: `PASSED: 11 passed, 0 failed`, exit 0, no lab left | BLOCKER | **PASS** | 1.7 min | exit 0 |
+| the MCP Registry lists io.github.netdryrun/netdryrun 0.3.3 | MAJOR | **PASS** | 0.0 s | listed versions: 0.3.0, 0.3.1, 0.3.2, 0.3.3 |
+| latest published-action.yml run | MAJOR | **ACCEPTED** | 0.0 s | gh is not installed (accepted: Checked by hand on the public Actions page (the gate reads it with the gh CLI, which the release machine doesn't use): Run 54 of Published release (commit 298bcf6 on main, RELEASE 0.3.3) completed successfully; runs 55 and 56 on later main commits (8a046cc, 43acd5b) also succeeded.) |
 
 ## Layer 6: independent review
 

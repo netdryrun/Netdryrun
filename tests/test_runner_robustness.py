@@ -59,6 +59,7 @@ class FakeLab:
     def __init__(self, world, nodes=("r1", "r2", "r3"), existing=(), deploy_error=None):
         self.world, self.name, self.topology = world, "t", Path("t.clab.yml")
         self.nodes = {n: Node(n, f"clab-t-{n}", "linux", "quay.io/frrouting/frr:10.4.1") for n in nodes}
+        self.image_digest = lambda image: None
         self.links = [(("r1", "eth1"), ("r2", "eth1")), (("r2", "eth2"), ("r3", "eth1"))]
         self.existing, self.deploy_error = set(existing), deploy_error
         self.deployed = self.destroyed = 0
@@ -126,6 +127,10 @@ class FakeDriver:
                  ping=None):
         self.world, self._neighbors, self._routes = world, neighbors, routes
         self.neighbors_error, self._ping = neighbors_error, ping
+        self.name = "frr"
+
+    def nos_version(self):
+        return None
 
     def bgp_neighbors(self, vrf="default"):
         if self.neighbors_error:
@@ -149,7 +154,11 @@ def install(monkeypatch, world, lab, drivers):
         monkeypatch.setattr(runner, name,
                             lambda *a, _o=orig, **k: _o(*a, **{**k, "clock": world, "sleep": world.sleep}))
     monkeypatch.setattr(runner, "Lab", lambda path: lab)
-    monkeypatch.setattr(runner, "for_node", lambda lab_, node, override=None: drivers[node])
+    def for_node(lab_, node, override=None):
+        if node not in drivers:   # like the real for_node on a node it can't drive
+            raise DriverError(f"no driver for {node}")
+        return drivers[node]
+    monkeypatch.setattr(runner, "for_node", for_node)
 
 
 def chk(ctype, name, timeout=120, **params):

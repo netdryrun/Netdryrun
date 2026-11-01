@@ -13,7 +13,7 @@ All of pe2's sessions fail and the peer is cut off.
 
 ## The config change
 
-Against the FRR configs of the [base lab](https://github.com/netdryrun/netdryrun/tree/main/corpus/base/configs):
+Against the FRR configs of the [base lab](https://github.com/netdryrun/Netdryrun/tree/main/corpus/base/configs):
 
 ```diff
 --- a/pe2.conf
@@ -41,7 +41,7 @@ The expected verdict was committed to git before any run. All three strategies t
 
 ## What Netdryrun flagged
 
-These checks from the [intent spec](https://github.com/netdryrun/netdryrun/blob/main/corpus/specs/intent.yml) failed:
+These checks from the [intent spec](https://github.com/netdryrun/Netdryrun/blob/main/corpus/specs/intent.yml) failed:
 
 - **I1 pe1-pe2 iBGP up**: the BGP session from pe1 to 10.0.3.2 is established
 - **I1 pe2-peer1 session up**: the BGP session from pe2 to 10.0.4.2 is established
@@ -61,4 +61,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 27
 ```
 
-Case file: [`corpus/cases/27-local-asn-typo.yml`](https://github.com/netdryrun/netdryrun/blob/main/corpus/cases/27-local-asn-typo.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.
+Case file: [`corpus/cases/27-local-asn-typo.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/27-local-asn-typo.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.

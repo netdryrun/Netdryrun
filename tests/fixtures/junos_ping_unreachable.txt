@@ -1,0 +1,21 @@
+{
+    "ping-results" : [
+    {
+        "source-daemon" : [
+        {
+            "data" : "/bin/ping"
+        }
+        ], 
+        "message" : [
+        {
+            "data" : "connect: No route to host"
+        }
+        ], 
+        "ping-failure" : [
+        {
+            "data" : "no response"
+        }
+        ]
+    }
+    ]
+}

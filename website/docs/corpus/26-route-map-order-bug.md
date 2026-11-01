@@ -13,7 +13,7 @@ Sequence 5 matches everything, so upstream routes and the default leak to the pe
 
 ## The config change
 
-Against the FRR configs of the [base lab](https://github.com/netdryrun/netdryrun/tree/main/corpus/base/configs):
+Against the FRR configs of the [base lab](https://github.com/netdryrun/Netdryrun/tree/main/corpus/base/configs):
 
 ```diff
 --- a/pe2.conf
@@ -38,7 +38,7 @@ The expected verdict was committed to git before any run. All three strategies t
 
 ## What Netdryrun flagged
 
-These checks from the [intent spec](https://github.com/netdryrun/netdryrun/blob/main/corpus/specs/intent.yml) failed:
+These checks from the [intent spec](https://github.com/netdryrun/Netdryrun/blob/main/corpus/specs/intent.yml) failed:
 
 - **I4 no upstream route leaked to peer**: 203.0.113.0/24 must not be in peer1's routing table as a bgp route
 - **I4 no default leaked to peer**: 0.0.0.0/0 must not be in peer1's routing table as a bgp route
@@ -52,4 +52,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 26
 ```
 
-Case file: [`corpus/cases/26-route-map-order-bug.yml`](https://github.com/netdryrun/netdryrun/blob/main/corpus/cases/26-route-map-order-bug.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.
+Case file: [`corpus/cases/26-route-map-order-bug.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/26-route-map-order-bug.yml). Published result: netdryrun 0.3.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `08059de`, run on 2026-10-27.

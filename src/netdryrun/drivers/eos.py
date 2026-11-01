@@ -72,7 +72,9 @@ def _summary(text: str, vrf: str, afi: str, into: dict[str, BgpNeighbor] | None)
         key = _canon_addr(str(addr))
         # "Idle(Admin)" (EOS prints no space) -> "idle": the first word is the FSM state
         state = re.split(r"[\s(]", p["peerState"].strip(), maxsplit=1)[0].lower()
-        n = out.get(key) or BgpNeighbor(str(addr), state)
+        # EOS sends updates without delay unless `neighbor ... out-delay` is set, which the summary doesn't show:
+        # its platform default (0) is used
+        n = out.get(key) or BgpNeighbor(str(addr), state, adv_interval=0.0)
         if n.address != str(addr):
             # scoped link-locals sharing a key (one peer is also listed once per address family): ambiguous, and a
             # down session is never hidden by an up one
@@ -150,6 +152,20 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
     return out
 
 
+_SEGMENT = re.compile(r"([{\[])([^}\]]*)([}\]])")
+
+
+def _as_path(printed: str) -> str:
+    """EOS's AS path in the netdryrun.yml form: sets {a,b} and confederation sets [a,b] comma-separated (EOS
+    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated."""
+    text = _SEGMENT.sub(lambda m: m.group(1) + ",".join(re.split(r"[\s,]+", m.group(2).strip())) + m.group(3), printed)
+    return " ".join(text.split())
+
+
+def _med(value: int) -> int | None:
+    return value or None
+
+
 @parser(BGP_CMD)
 def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPath]:
     """`show ip bgp <prefix> vrf <vrf> | json`: the best path is the one EOS marks active.
@@ -165,10 +181,12 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
             nh = p.get("nextHop") or ""
             out.append(BgpPath(
                 best=bool((p.get("routeType") or {}).get("active")),
-                as_path=" ".join(str((p.get("asPathEntry") or {}).get("asPath", "")).split()),
+                as_path=_as_path(str((p.get("asPathEntry") or {}).get("asPath", ""))),
                 next_hop=_canon_addr(str(nh)) if nh else None,
                 local_pref=as_int(BGP_CMD, p["localPreference"]) if "localPreference" in p else None,
-                med=as_int(BGP_CMD, p["med"]) if "med" in p else None,   # no MED attribute: unknown, not 0
+                # no MED attribute: unknown, not 0. cEOS 4.36.3M also prints "med": 0 for a path received with
+                # no MED (interop IOP-2), so 0 is unknown too, and a `med: 0` check is refused (ambiguous_bgp_values)
+                med=_med(as_int(BGP_CMD, p["med"])) if "med" in p else None,
                 communities=canon_communities(detail.get("communityList")),
                 large_communities=canon_communities(detail.get("largeCommunityList")),
                 neighbor=(p.get("peerEntry") or {}).get("peerAddr") or None,
@@ -176,10 +194,43 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
     return out
 
 
+STARTUP_ERRORS_CMD = "show startup-config errors"
+_NO_STARTUP_ERRORS = "No errors were found in startup-config."
+_STARTUP_TOTAL = re.compile(r"^Total (\d+) errors found in startup-config\.$")
+_STARTUP_COUNT = re.compile(r"^errors in startup-config: (\d+)$")
+_STARTUP_REASON = re.compile(r"^% (.+?) at line (\d+)$")
+
+
+def parse_startup_config_errors(text: str) -> list[str]:
+    """`show startup-config errors` (cEOS 4.36.3M, live): [] when every startup-config line loaded, else each line
+    EOS rejected at boot ("line N: <line> (<reason>)"), in order. EOS skips such a line and loads the rest. Output
+    it can't account for (the count disagrees with the lines found, or a line it doesn't know) raises: never clean."""
+    lines = [ln.rstrip() for ln in text.splitlines() if ln.strip()]
+    if lines == [_NO_STARTUP_ERRORS]:
+        return []
+    if not lines or not _STARTUP_TOTAL.match(lines[0]) or not _STARTUP_COUNT.match(lines[-1]):
+        raise DriverError(f"{STARTUP_ERRORS_CMD}: unexpected output: {' '.join(text.split())[:200]!r}")
+    total, count = int(_STARTUP_TOTAL.match(lines[0]).group(1)), int(_STARTUP_COUNT.match(lines[-1]).group(1))
+    out, body = [], lines[1:-1]
+    if len(body) % 2:
+        raise DriverError(f"{STARTUP_ERRORS_CMD}: unexpected output: {' '.join(text.split())[:200]!r}")
+    for cmd, why in zip(body[::2], body[1::2], strict=True):
+        m = _STARTUP_REASON.match(why)
+        if not cmd.startswith(">") or not m:
+            raise DriverError(f"{STARTUP_ERRORS_CMD}: unexpected output: {cmd[:80]!r} {why[:80]!r}")
+        out.append(f"line {m.group(2)}: {cmd[1:].strip()} ({m.group(1)})")
+    if not total == count == len(out):
+        raise DriverError(f"{STARTUP_ERRORS_CMD}: says {total} and {count} errors, lists {len(out)}")
+    return out
+
+
 class EosDriver(Driver):
     name = "eos"
     # bgp_neighbors reads the IPv4 and IPv6 unicast summaries only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
+    # cEOS 4.36.3M prints "med": 0 for a path received with no MED (interop IOP-2): no output field tells them apart
+    ambiguous_bgp_values = {"med": {0: "EOS output cannot tell MED 0 from no MED (check a non-zero MED, or check "
+                                       "this route on another platform)"}}
 
     def _cli(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["Cli", "-p", "15", "-c", command], evidence)

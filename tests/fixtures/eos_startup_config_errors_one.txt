@@ -1,0 +1,9 @@
+Total 1 errors found in startup-config.
+
+
+>    neighbor 10.0.12.2 defualt-originate
+
+% Invalid input at line 10
+errors in startup-config: 1
+
+

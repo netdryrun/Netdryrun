@@ -14,15 +14,15 @@ There are two runs. v1's cases and expected verdicts are frozen as first publish
 
 ## Method
 
-- **The network:** a small provider (AS65000, two routers) with a customer, an upstream transit and a settlement-free peer, running FRR in containerlab. Its written intent is in [INTENT.md](https://github.com/netdryrun/netdryrun/blob/main/corpus/INTENT.md).
-- **The changes:** 30 realistic edits ([cases](https://github.com/netdryrun/netdryrun/tree/main/corpus/cases)): route leaks, filter typos, mass withdrawals, fat-fingered ASNs, latent risks, and safe changes that must not be blocked.
+- **The network:** a small provider (AS65000, two routers) with a customer, an upstream transit and a settlement-free peer, running FRR in containerlab. Its written intent is in [INTENT.md](https://github.com/netdryrun/Netdryrun/blob/main/corpus/INTENT.md).
+- **The changes:** 30 realistic edits ([cases](https://github.com/netdryrun/Netdryrun/tree/main/corpus/cases)): route leaks, filter typos, mass withdrawals, fat-fingered ASNs, latent risks, and safe changes that must not be blocked.
 - **Pre-registered verdicts:** each case's expected verdict (would an experienced operator reject it?) was **committed to git before any run**. Verdicts are never edited afterwards; findings after the run are listed separately below.
 - **Three strategies, same running lab per case:**
     1. **Ping only:** the customer pings the upstream and the peer.
     2. **All BGP sessions up:** every session established.
-    3. **Netdryrun™ intent checks:** one [intent spec](https://github.com/netdryrun/netdryrun/blob/main/corpus/specs/intent.yml), written once and used unchanged for every case, so it can't be tuned to win.
+    3. **Netdryrun™ intent checks:** one [intent spec](https://github.com/netdryrun/Netdryrun/blob/main/corpus/specs/intent.yml), written once and used unchanged for every case, so it can't be tuned to win.
 - **Rerun it:** `python corpus/run.py` on any Linux or WSL2 machine with Docker and containerlab. It uses the Netdryrun code in your checkout.
-- **Rerun it on GitHub's machines:** fork the repository, then run the [Reproduce corpus](https://github.com/netdryrun/netdryrun/blob/main/.github/workflows/reproduce-corpus.yml) workflow from your fork's Actions tab. It has not been run on GitHub yet, and it covers v1 only. It installs containerlab 0.81.1 and Netdryrun from your checkout (not the build that produced the committed results, so a verdict that differs can come from a code change) on a GitHub-hosted runner, runs every v1 case, uploads `results.json`, `RESULTS.md` and the run log as artifacts, and lists every verdict that differs from the committed [`results.json`](https://github.com/netdryrun/netdryrun/blob/main/corpus/results/results.json) in the run summary.
+- **Rerun it on GitHub's machines:** fork the repository, then run the [Reproduce corpus](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/reproduce-corpus.yml) workflow from your fork's Actions tab. It has not been run on GitHub yet, and it covers v1 only. It installs containerlab 0.81.1 and Netdryrun from your checkout (not the build that produced the committed results, so a verdict that differs can come from a code change) on a GitHub-hosted runner, runs every v1 case, uploads `results.json`, `RESULTS.md` and the run log as artifacts, and lists every verdict that differs from the committed [`results.json`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/results/results.json) in the run summary.
 
 ## Results
 
@@ -30,7 +30,7 @@ There are two runs. v1's cases and expected verdicts are frozen as first publish
 
 Generated 2026-10-27T18:00:53+00:00 with netdryrun 0.3.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `08059de`. Rerun everything with `python corpus/run.py`.
 
-**Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/cases/`](https://github.com/netdryrun/netdryrun/tree/main/corpus/cases)). Losses are kept and shown at the same size as the catches.
+**Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/cases)). Losses are kept and shown at the same size as the catches.
 
 ## Summary (30 cases: 19 harmful, 11 safe)
 
@@ -86,7 +86,7 @@ Generated 2026-10-27T18:00:53+00:00 with netdryrun 0.3.1, containerlab 0.81.1, F
 
 ## Findings after the run
 
-These findings came after the run. The table above is left exactly as pre-registered; nothing in [`corpus/cases/`](https://github.com/netdryrun/netdryrun/tree/main/corpus/cases) was edited.
+These findings came after the run. The table above is left exactly as pre-registered; nothing in [`corpus/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/cases) was edited.
 
 **Case 12 was labeled wrong.** The case expected that removing `neighbor 10.0.3.2 send-community` on pe1 stops pe2 from seeing the customer community. In FRR (verified on 10.4.1) communities are sent to every neighbor by default, so deleting the explicit line is a no-op: `show running-config` no longer shows it, but pe1 still advertises `10.100.0.0/24` to pe2 with community `65000:100`, and pe2 still matches it (`show bgp ipv4 unicast community 65000:100` lists the route). Reproduce with `scripts/corpus_case12_verify.sh`. The change is actually safe, so all three strategies answered case 12 correctly. With that one label corrected the scores would be: ping only 21/30, sessions up 16/30, Netdryrun 25/30. The headline numbers stay at the pre-registered values. The mistake would have been real on platforms that do not send communities by default (Cisco IOS, for example); a vendor-specific version of this case belongs in a future corpus.
 
@@ -103,13 +103,13 @@ The v1 results above are frozen. Corpus v2 is a separate, second run with its ow
 - **Rigid counts** (v1 case 06): announced-prefix counts are a range (2 to 51), so customer growth inside its block is not blocked.
 - **Vendor defaults** (v1 case 12): the FRR no-op is labeled safe, and the genuinely harmful variant is a separate case.
 
-v2 changes two lines in the base lab so the customer's max-prefix limit can actually trip: in v1 the customer filter allowed at most 7 prefixes, so a limit of 100 could never be reached. The differences, the written intent (I1 to I9) and the disclosures are in [v2/INTENT.md](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/INTENT.md). The spec is [v2/specs/intent.yml](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/specs/intent.yml).
+v2 changes two lines in the base lab so the customer's max-prefix limit can actually trip: in v1 the customer filter allowed at most 7 prefixes, so a limit of 100 could never be reached. The differences, the written intent (I1 to I9) and the disclosures are in [v2/INTENT.md](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/INTENT.md). The spec is [v2/specs/intent.yml](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/specs/intent.yml).
 
-**Pre-registration:** all 18 cases and their expected verdicts were committed and pushed in [`322cc4e`](https://github.com/netdryrun/netdryrun/commit/322cc4ede21492c3914a0a53b67268bea7abf7d6) (2026-10-27 04:02 UTC), before any v2 case was deployed. Rerun it with `python corpus/run.py --corpus v2`.
+**Pre-registration:** all 18 cases and their expected verdicts were committed and pushed in [`322cc4e`](https://github.com/netdryrun/Netdryrun/commit/322cc4ede21492c3914a0a53b67268bea7abf7d6) (2026-10-27 04:02 UTC), before any v2 case was deployed. Rerun it with `python corpus/run.py --corpus v2`.
 
 Generated 2026-10-27T19:05:43+00:00 with netdryrun 0.3.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `08059de`. Rerun everything with `python corpus/run.py --corpus v2`.
 
-**Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/v2/cases/`](https://github.com/netdryrun/netdryrun/tree/main/corpus/v2/cases)). Losses are kept and shown at the same size as the catches.
+**Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/v2/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/v2/cases)). Losses are kept and shown at the same size as the catches.
 
 ### Summary (17 deterministic cases: 10 harmful, 7 safe; 1 nondeterministic, not scored)
 
@@ -123,24 +123,24 @@ Generated 2026-10-27T19:05:43+00:00 with netdryrun 0.3.1, containerlab 0.81.1, F
 
 | Case | Category | Expected | Ping only | Sessions up | Netdryrun | What Netdryrun flagged |
 |---|---|---|---|---|---|---|
-| `01-no-change` [No change (control)](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/01-no-change.yml) | control | safe | ✅ | ✅ | ✅ | nothing |
-| `02-redistribute-connected-pe2` [redistribute connected added on pe2](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/02-redistribute-connected-pe2.yml) | hygiene | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I6 customer has no BGP route for link 10.0.3.0/30; I6 customer has no BGP route for link 10.0.4.0/30; I6 customer has no BGP route for pe2 loopback |
-| `03-test-prefix-left-in-config` [pe1 originates 1.1.1.0/24 left over from a lab test](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/03-test-prefix-left-in-config.yml) | hijack | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I7 customer has no route for 1.1.1.0/24 |
-| `04-redundant-aggregate-typo` [Aggregate added on pe2 for redundancy, mistyped as 192.0.12.0/24](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/04-redundant-aggregate-typo.yml) | hijack | unsafe | ❌ approved a bad change | ❌ approved a bad change | ❌ approved a bad change | nothing |
-| `05-customer-max-prefix-removed` [Customer maximum-prefix safety limit removed](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/05-customer-max-prefix-removed.yml) | latent-risk | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
-| `06-peer-import-filter-permit-all` [Peer inbound filter replaced with permit-all](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/06-peer-import-filter-permit-all.yml) | latent-risk | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | [peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix; [peer announces routes it does not own] I9 customer gets no hijacking more-specific; [peer announces routes it does not own] I9 pe1 has no third-party route from the peer |
-| `07-customer-adds-prefixes` [Customer announces two more /24s from its /16](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/07-customer-adds-prefixes.yml) | customer-growth | safe | ✅ | ✅ | ✅ | nothing |
-| `08-customer-announces-aggregate` [Customer also announces its covering /16](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/08-customer-announces-aggregate.yml) | customer-growth | safe | ✅ | ✅ | ✅ | nothing |
-| `09-ibgp-send-community-line-removed` [Explicit send-community line removed on the pe1 to pe2 iBGP session](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/09-ibgp-send-community-line-removed.yml) | vendor-default | safe | ✅ | ✅ | ✅ | nothing |
-| `10-ibgp-standard-communities-disabled` [Standard communities explicitly disabled on the pe1 to pe2 iBGP session](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/10-ibgp-standard-communities-disabled.yml) | policy-bug | unsafe | ✅ | ❌ approved a bad change | ✅ | I2 peer has customer route; I3 customer reaches peer; I5 peer receives 2 to 51 prefixes from us |
-| `11-customer-max-prefix-warning-only` [Customer maximum-prefix changed to warning-only](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/11-customer-max-prefix-warning-only.yml) | latent-risk | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
-| `12-customer-max-prefix-raised` [Customer maximum-prefix raised from 50 to 100](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/12-customer-max-prefix-raised.yml) | hygiene | safe | ✅ | ✅ | ✅ | nothing |
-| `13-upstream-routes-tagged-as-customer` [Upstream import policy tags routes with the customer community (copy-paste error)](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/13-upstream-routes-tagged-as-customer.yml) | route-leak | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I4 no upstream route leaked to peer; I4 no default leaked to peer |
-| `14-customer-gets-default-only` [Customer export policy restricted to the default route](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/14-customer-gets-default-only.yml) | policy-bug | unsafe | ✅ | ❌ approved a bad change | ✅ | I3 customer has upstream route; I3 customer has peer route; I3 customer reaches upstream; I3 customer reaches peer |
-| `15-upstream-default-filtered` [Default route from the upstream filtered on import](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/15-upstream-default-filtered.yml) | policy-bug | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I3 customer has default |
-| `16-customer-session-peer-group` [Customer session moved into a CUSTOMERS peer-group](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/16-customer-session-peer-group.yml) | refactor | safe | ✅ | ✅ | ✅ | nothing |
-| `17-customer-region-community` [Add an informational region community to customer routes](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/17-customer-region-community.yml) | hygiene | safe | ✅ | ✅ | ✅ | nothing |
-| `18-aggregate-discard-route-removed` [Discard route for our aggregate deleted as unused](https://github.com/netdryrun/netdryrun/blob/main/corpus/v2/cases/18-aggregate-discard-route-removed.yml) | hygiene | unsafe | 🎲 not scored | 🎲 not scored | 🎲 not scored | nondeterministic in this lab: see below |
+| `01-no-change` [No change (control)](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/01-no-change.yml) | control | safe | ✅ | ✅ | ✅ | nothing |
+| `02-redistribute-connected-pe2` [redistribute connected added on pe2](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/02-redistribute-connected-pe2.yml) | hygiene | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I6 customer has no BGP route for link 10.0.3.0/30; I6 customer has no BGP route for link 10.0.4.0/30; I6 customer has no BGP route for pe2 loopback |
+| `03-test-prefix-left-in-config` [pe1 originates 1.1.1.0/24 left over from a lab test](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/03-test-prefix-left-in-config.yml) | hijack | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I7 customer has no route for 1.1.1.0/24 |
+| `04-redundant-aggregate-typo` [Aggregate added on pe2 for redundancy, mistyped as 192.0.12.0/24](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/04-redundant-aggregate-typo.yml) | hijack | unsafe | ❌ approved a bad change | ❌ approved a bad change | ❌ approved a bad change | nothing |
+| `05-customer-max-prefix-removed` [Customer maximum-prefix safety limit removed](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/05-customer-max-prefix-removed.yml) | latent-risk | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
+| `06-peer-import-filter-permit-all` [Peer inbound filter replaced with permit-all](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/06-peer-import-filter-permit-all.yml) | latent-risk | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | [peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix; [peer announces routes it does not own] I9 customer gets no hijacking more-specific; [peer announces routes it does not own] I9 pe1 has no third-party route from the peer |
+| `07-customer-adds-prefixes` [Customer announces two more /24s from its /16](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/07-customer-adds-prefixes.yml) | customer-growth | safe | ✅ | ✅ | ✅ | nothing |
+| `08-customer-announces-aggregate` [Customer also announces its covering /16](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/08-customer-announces-aggregate.yml) | customer-growth | safe | ✅ | ✅ | ✅ | nothing |
+| `09-ibgp-send-community-line-removed` [Explicit send-community line removed on the pe1 to pe2 iBGP session](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/09-ibgp-send-community-line-removed.yml) | vendor-default | safe | ✅ | ✅ | ✅ | nothing |
+| `10-ibgp-standard-communities-disabled` [Standard communities explicitly disabled on the pe1 to pe2 iBGP session](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/10-ibgp-standard-communities-disabled.yml) | policy-bug | unsafe | ✅ | ❌ approved a bad change | ✅ | I2 peer has customer route; I3 customer reaches peer; I5 peer receives 2 to 51 prefixes from us |
+| `11-customer-max-prefix-warning-only` [Customer maximum-prefix changed to warning-only](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/11-customer-max-prefix-warning-only.yml) | latent-risk | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
+| `12-customer-max-prefix-raised` [Customer maximum-prefix raised from 50 to 100](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/12-customer-max-prefix-raised.yml) | hygiene | safe | ✅ | ✅ | ✅ | nothing |
+| `13-upstream-routes-tagged-as-customer` [Upstream import policy tags routes with the customer community (copy-paste error)](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/13-upstream-routes-tagged-as-customer.yml) | route-leak | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I4 no upstream route leaked to peer; I4 no default leaked to peer |
+| `14-customer-gets-default-only` [Customer export policy restricted to the default route](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/14-customer-gets-default-only.yml) | policy-bug | unsafe | ✅ | ❌ approved a bad change | ✅ | I3 customer has upstream route; I3 customer has peer route; I3 customer reaches upstream; I3 customer reaches peer |
+| `15-upstream-default-filtered` [Default route from the upstream filtered on import](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/15-upstream-default-filtered.yml) | policy-bug | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I3 customer has default |
+| `16-customer-session-peer-group` [Customer session moved into a CUSTOMERS peer-group](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/16-customer-session-peer-group.yml) | refactor | safe | ✅ | ✅ | ✅ | nothing |
+| `17-customer-region-community` [Add an informational region community to customer routes](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/17-customer-region-community.yml) | hygiene | safe | ✅ | ✅ | ✅ | nothing |
+| `18-aggregate-discard-route-removed` [Discard route for our aggregate deleted as unused](https://github.com/netdryrun/Netdryrun/blob/main/corpus/v2/cases/18-aggregate-discard-route-removed.yml) | hygiene | unsafe | 🎲 not scored | 🎲 not scored | 🎲 not scored | nondeterministic in this lab: see below |
 
 ### Nondeterministic cases (not scored)
 
@@ -154,7 +154,7 @@ Same build, same machine, same case, different verdicts: the verdict follows a r
 
 ### Findings after the run
 
-These findings came after the v2 run. The table above is left exactly as pre-registered in commit `322cc4e`; nothing in [`corpus/v2/cases/`](https://github.com/netdryrun/netdryrun/tree/main/corpus/v2/cases) was edited.
+These findings came after the v2 run. The table above is left exactly as pre-registered in commit `322cc4e`; nothing in [`corpus/v2/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/v2/cases) was edited.
 
 **Run provenance.** `results.json` records the commit as `unknown`: the run used git inside WSL on a Windows git worktree, and that git could not read the worktree. The run started at 04:02:42 UTC, 16 seconds after the pre-registration commit `322cc4e`. `src/` and `corpus/run.py` were not changed during the run. The renderer, the docs and the unit tests were edited during the run, and none of them affect verdicts.
 

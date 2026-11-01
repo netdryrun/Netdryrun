@@ -1,6 +1,6 @@
 ---
 title: "AI agents without Docker: the pull-request path"
-description: How a coding agent with no local Docker gets a Netdryrun verdict: it opens a pull request, the GitHub Action runs the lab, and the agent reads a fixed-format comment or a machine-readable verdict artifact.
+description: "How a coding agent with no local Docker gets a Netdryrun verdict: it opens a pull request, the GitHub Action runs the lab, and the agent reads a fixed-format comment or a machine-readable verdict artifact."
 ---
 
 # AI agents without Docker: the pull-request path
@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false   # the lab runs privileged containers: leave no token in .git/config
-      - uses: netdryrun/netdryrun@v0.3.3
+      - uses: netdryrun/Netdryrun@v0.4.0
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true

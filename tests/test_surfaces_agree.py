@@ -218,4 +218,8 @@ def test_action_defaults_and_flags_match_the_cli():
     for flag, var in (("--settle", "NDR_SETTLE"), ("--hold", "NDR_HOLD"), ("--json", "NDR_JSON")):
         assert re.search(rf'{flag} "\${var}"', cmd), f"the Action's run step no longer passes {flag}"
     assert re.search(r"netdryrun run ", cmd), "the Action runs something other than `netdryrun run`"
-    assert 'echo "exit_code=$?"' in cmd
+    # each mode records the exit code of its own netdryrun command, right after it
+    for mode in ("run", "verify"):
+        command = re.search(rf"netdryrun {mode} (?:[^\n]*\\\n)*[^\n]*\n\s*code=\$\?\n", cmd)
+        assert command, f"{mode} mode no longer records the exit code of its own command, right after it"
+    assert 'echo "exit_code=$code"' in cmd

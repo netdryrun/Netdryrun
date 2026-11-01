@@ -1,0 +1,28 @@
+# live capture: FRRouting 10.4.1_git, node edge1 of tests/fixtures/verify-lab, `vtysh -c 'show bgp vrf all ipv4 unicast detail json'`, 2026-10-28
+{
+"default":{
+ "vrfId": 0,
+ "vrfName": "default",
+ "tableVersion": 9,
+ "routerId": "192.0.2.1",
+ "defaultLocPrf": 100,
+ "localAS": 65000,
+ "routes": { "10.100.0.0/23": [{"aspath":{"string":"65100","segments":[{"type":"as-sequence","list":[65100]}],"length":1},"aggregatorAs":65000,"aggregatorId":"192.0.2.1","origin":"IGP","metric":0,"weight":32768,"valid":true,"version":7,"aggregated":true,"local":true,"bestpath":{"bestpathFromAs":65100,"overall":true,"selectionReason":"First path received"},"lastUpdate":{"epoch":1793162476,"string":"Wed Oct 28 04:41:16 2026"},"nexthops":[{"ip":"0.0.0.0","hostname":"edge1","afi":"ipv4","metric":0,"accessible":true,"used":true}],"peer":{"peerId":"0.0.0.0","routerId":"192.0.2.1"}}]
+,"10.100.0.0/24": [{"aspath":{"string":"65100","segments":[{"type":"as-sequence","list":[65100]}],"length":1},"origin":"IGP","metric":0,"locPrf":200,"valid":true,"version":8,"bestpath":{"bestpathFromAs":65100,"overall":true,"selectionReason":"First path received"},"lastUpdate":{"epoch":1793162476,"string":"Wed Oct 28 04:41:16 2026"},"nexthops":[{"ip":"10.0.1.2","hostname":"cust1","afi":"ipv4","metric":0,"accessible":true,"used":true}],"peer":{"peerId":"10.0.1.2","routerId":"10.100.0.1","hostname":"cust1","domainname":"localdomain","type":"external"}}]
+,"192.0.0.0/2": [{"aspath":{"string":"{65200,65300}","segments":[{"type":"as-set","list":[65200,65300]}],"length":1},"aggregatorAs":65000,"aggregatorId":"192.0.2.1","origin":"IGP","metric":0,"weight":32768,"valid":true,"version":5,"aggregated":true,"local":true,"bestpath":{"bestpathFromAs":65200,"overall":true,"selectionReason":"First path received"},"community":{"string":"65200:100 65200:200 65300:7 no-export","list":["65200:100","65200:200","65300:7","noExport"]},"extendedCommunity":{"string":"RT:65200:100 LB:65200:125000000 (1.000 Gbps)"},"largeCommunity":{"string":"65200:1:1 65200:2:2","list":["65200:1:1","65200:2:2"]},"lastUpdate":{"epoch":1793162476,"string":"Wed Oct 28 04:41:16 2026"},"nexthops":[{"ip":"0.0.0.0","hostname":"edge1","afi":"ipv4","metric":0,"accessible":true,"used":true}],"peer":{"peerId":"0.0.0.0","routerId":"192.0.2.1"}}]
+,"192.0.2.0/24": [{"aspath":{"string":"Local","segments":[],"length":0},"origin":"IGP","metric":0,"weight":32768,"valid":true,"version":1,"sourced":true,"local":true,"bestpath":{"bestpathFromAs":0,"overall":true,"selectionReason":"First path received"},"lastUpdate":{"epoch":1793162471,"string":"Wed Oct 28 04:41:11 2026"},"nexthops":[{"ip":"0.0.0.0","hostname":"edge1","afi":"ipv4","metric":0,"accessible":true,"used":true}],"peer":{"peerId":"0.0.0.0","routerId":"192.0.2.1"}}]
+,"198.18.0.0/24": [{"aspath":{"string":"Local","segments":[],"length":0},"origin":"IGP","metric":0,"locPrf":100,"valid":true,"version":9,"bestpath":{"bestpathFromAs":0,"overall":true,"selectionReason":"First path received"},"originatorId":"10.255.0.9","clusterList":{"list":["10.255.0.2"]},"lastUpdate":{"epoch":1793162487,"string":"Wed Oct 28 04:41:27 2026"},"nexthops":[{"ip":"10.255.0.9","hostname":"rr1","afi":"ipv4","metric":20,"accessible":true,"used":true}],"peer":{"peerId":"10.255.0.2","routerId":"10.255.0.2","hostname":"rr1","domainname":"localdomain","type":"internal"}}]
+,"198.51.100.0/24": [{"aspath":{"string":"65300","segments":[{"type":"as-sequence","list":[65300]}],"length":1},"origin":"IGP","metric":0,"locPrf":150,"valid":true,"version":6,"bestpath":{"bestpathFromAs":65300,"overall":true,"selectionReason":"First path received"},"community":{"string":"65300:7 no-export","list":["65300:7","noExport"]},"lastUpdate":{"epoch":1793162476,"string":"Wed Oct 28 04:41:16 2026"},"nexthops":[{"ip":"10.0.3.2","hostname":"peer1","afi":"ipv4","metric":0,"accessible":true,"used":true}],"peer":{"peerId":"10.0.3.2","routerId":"198.51.100.1","hostname":"peer1","domainname":"localdomain","type":"external"}}]
+,"203.0.113.0/24": [{"aspath":{"string":"65200","segments":[{"type":"as-sequence","list":[65200]}],"length":1},"origin":"IGP","metric":50,"locPrf":100,"valid":true,"version":4,"bestpath":{"bestpathFromAs":65200,"overall":true,"selectionReason":"First path received"},"community":{"string":"65200:100 65200:200","list":["65200:100","65200:200"]},"extendedCommunity":{"string":"RT:65200:100 LB:65200:125000000 (1.000 Gbps)"},"largeCommunity":{"string":"65200:1:1 65200:2:2","list":["65200:1:1","65200:2:2"]},"lastUpdate":{"epoch":1793162476,"string":"Wed Oct 28 04:41:16 2026"},"nexthops":[{"ip":"10.0.2.2","hostname":"up1","afi":"ipv4","metric":0,"accessible":true,"used":true}],"peer":{"peerId":"10.0.2.2","routerId":"203.0.113.1","hostname":"up1","domainname":"localdomain","type":"external"}}]
+ } , "totalRoutes": 7, "totalPaths": 7 } 
+,
+"cust":{
+ "vrfId": 3,
+ "vrfName": "cust",
+ "tableVersion": 1,
+ "routerId": "10.10.1.1",
+ "defaultLocPrf": 100,
+ "localAS": 65000,
+ "routes": { "10.201.0.0/24": [{"aspath":{"string":"65101","segments":[{"type":"as-sequence","list":[65101]}],"length":1},"origin":"IGP","metric":0,"valid":true,"version":1,"bestpath":{"bestpathFromAs":65101,"overall":true,"selectionReason":"First path received"},"lastUpdate":{"epoch":1793162477,"string":"Wed Oct 28 04:41:17 2026"},"nexthops":[{"ip":"10.10.1.2","hostname":"cust2","afi":"ipv4","metric":0,"accessible":true,"used":true}],"peer":{"peerId":"10.10.1.2","routerId":"10.201.0.1","hostname":"cust2","domainname":"localdomain","type":"external"}}]
+ } , "totalRoutes": 1, "totalPaths": 1 } 
+}

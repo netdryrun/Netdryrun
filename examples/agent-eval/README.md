@@ -40,7 +40,7 @@ Pre-registered in [PREREGISTRATION-OPEN.md](PREREGISTRATION-OPEN.md) ("Then"); t
 1. Install the `ndr/agent-contract` head into its own virtualenv in WSL (head `fb07cccbf8167ea0f2759025fde96f56d9a277a2` when this was written; if the branch has moved, `git rev-parse origin/ndr/agent-contract` and use that). The archive URL needs no git in the distro:
 
    ```bash
-   MSYS_NO_PATHCONV=1 wsl -d Ubuntu-ndr -- bash -c 'python3 -m venv /home/ndr/.venvs/ndr-eval-032 && /home/ndr/.venvs/ndr-eval-032/bin/pip install https://github.com/netdryrun/netdryrun/archive/fb07cccbf8167ea0f2759025fde96f56d9a277a2.zip && /home/ndr/.venvs/ndr-eval-032/bin/netdryrun --version'
+   MSYS_NO_PATHCONV=1 wsl -d Ubuntu-ndr -- bash -c 'python3 -m venv /home/ndr/.venvs/ndr-eval-032 && /home/ndr/.venvs/ndr-eval-032/bin/pip install https://github.com/netdryrun/Netdryrun/archive/fb07cccbf8167ea0f2759025fde96f56d9a277a2.zip && /home/ndr/.venvs/ndr-eval-032/bin/netdryrun --version'
    ```
 
    The last line must print `0.3.2`. This keeps the 0.3.1 venv (`ndr-eval-031`) untouched.

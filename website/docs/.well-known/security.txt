@@ -1,6 +1,6 @@
 Contact: mailto:security@netdryrun.com
-Contact: https://github.com/netdryrun/netdryrun/security/advisories/new
+Contact: https://github.com/netdryrun/Netdryrun/security/advisories/new
 Expires: 2027-10-27T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://netdryrun.com/.well-known/security.txt
-Policy: https://github.com/netdryrun/netdryrun/blob/main/SECURITY.md
+Policy: https://github.com/netdryrun/Netdryrun/blob/main/SECURITY.md

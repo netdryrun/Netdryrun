@@ -4020,6 +4020,7 @@
  },
  "checks": {
   "live/pack": "No check pack is sold yet: pack verification is paused by the roadmap until the 45-day demand test; it runs with --pack before any pack ships.",
-  "live/scale": "Not scripted yet. A 20-node lab was run by hand in pre-launch testing (it found the PR-comment size limit, fixed in 0.3.1); scripting it is a 0.4.1 item."
+  "live/scale": "Not scripted yet. A 20-node lab was run by hand in pre-launch testing (it found the PR-comment size limit, fixed in 0.3.1); scripting it is a 0.4.1 item.",
+  "after-publish/published-action": "Checked by hand on the public Actions page (the gate reads it with the gh CLI, which the release machine doesn't use): Run 54 of Published release (commit 298bcf6 on main, RELEASE 0.3.3) completed successfully; runs 55 and 56 on later main commits (8a046cc, 43acd5b) also succeeded."
  }
 }

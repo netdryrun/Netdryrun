@@ -1,0 +1,13 @@
+Total 2 errors found in startup-config.
+
+
+>    neighbor 10.0.12.2 defualt-originate
+
+% Invalid input at line 5
+
+>    neighbor 10.0.12.2 maximum-routes twelve
+
+% Invalid input at line 6
+errors in startup-config: 2
+
+

@@ -185,3 +185,61 @@ def test_the_body_fits_github_with_the_header_first(tmp_path):
     b = comment.body(v, "failed", s, "lab", SHA)
     assert len(b) <= comment.MAX_BODY < 65536 and header_json(b)["status"] == "failed"
     assert "cut" in b[-200:].lower()
+
+
+# ---------------------------------------------- mode: verify (0.4 merge of 0.3.3's comment with verify_change)
+# The verify job writes no agent result: its comment header is read from the verify report, held to the run's
+# checked status and to verify's frozen verdict table, and never says a run-mode verdict.
+
+def vreport(status, undeclared=0, not_happened=0, guards_failed=0):
+    from netdryrun.verify import report as vr
+    return {"schema": vr.SCHEMA, "status": status, "verdict": vr.VERDICTS[status],
+            "undeclared": [{"key": f"u{i}"} for i in range(undeclared)],
+            "not_happened": [{"key": f"n{i}"} for i in range(not_happened)],
+            "guards": {"passed": 2, "failed": guards_failed}}
+
+
+def test_a_verify_header_names_its_own_verdict_and_schema(tmp_path):
+    h = agent_result.verify_comment_header(vreport("matched"), commit=SHA)
+    data = header_json(h)
+    assert data == {"schema": "netdryrun.verify/v1", "status": "matched", "verdict": "INTENT MATCHED",
+                    "undeclared": 0, "not_happened": 0, "untested_config_lines": 0, "commit": SHA}
+    assert "**Netdryrun verify: INTENT MATCHED**" in h and "CHECKS PASSED" not in h
+
+
+@pytest.mark.parametrize("bad", [
+    {"status": "matched", "undeclared": 1},          # an approval with an undeclared difference
+    {"status": "no_change", "not_happened": 1},      # an approval with a declared change that didn't happen
+    {"status": "matched", "guards_failed": 1},       # an approval with a failed guard
+])
+def test_a_verify_approval_that_contradicts_its_own_report_reads_as_error(bad):
+    data = header_json(agent_result.verify_comment_header(vreport(**bad)))
+    assert data["status"] == "error" and data["verdict"] == "ERROR: NO VERDICT"
+
+
+def test_a_verify_report_with_the_wrong_schema_or_verdict_reads_as_error():
+    r = vreport("matched")
+    for broken in ({**r, "schema": "netdryrun.report/v1"}, {**r, "verdict": "CHECKS PASSED (only what the checks cover)"},
+                   {**r, "status": "passed"}, {**r, "undeclared": "none"}, {}):
+        assert header_json(agent_result.verify_comment_header(broken))["status"] == "error", broken
+
+
+def test_the_verify_body_reads_the_report_held_to_the_checked_status(tmp_path):
+    v, s = write(tmp_path, vreport("failed", undeclared=2))
+    b = comment.body(v, "failed", s, "lab/topology.clab.yml", SHA, mode="verify")
+    data = header_json(b.split("\n")[1])
+    assert b.split("\n")[0] == "<!-- netdryrun-comment lab/topology.clab.yml -->"
+    assert data["status"] == "failed" and data["verdict"] == "UNDECLARED CHANGES: DO NOT APPLY" and data["undeclared"] == 2
+    # the checked status disagrees (the run exited otherwise): error, never the report's word
+    assert header_json(comment.body(v, "matched", s, "lab", SHA, mode="verify").split("\n")[1])["status"] == "error"
+    # no report at all: error
+    assert header_json(comment.body(str(tmp_path / "none.json"), "", s, "lab", SHA, mode="verify").split("\n")[1])[
+        "verdict"] == "ERROR: NO VERDICT"
+
+
+def test_a_verify_header_counts_the_config_lines_the_lab_did_not_exercise():
+    """Gauntlet 0.4, R4: an approval lists the running-config lines it did not see exercised; the header says how many."""
+    r = {**vreport("matched"), "untested_config": [{"node": "edge1", "added": ["router bgp 65000 > a", "b"],
+                                                     "removed": ["c"]}]}
+    h = agent_result.verify_comment_header(r)
+    assert header_json(h)["untested_config_lines"] == 3 and "3 config line(s) not tested" in h

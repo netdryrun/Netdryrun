@@ -63,6 +63,14 @@ def on_page_content(content, page, config, files):
         if date:
             post["datePublished"] = date.group(1)
         graph.append(post)
+    elif src.startswith("news/posts/"):
+        # News items carry their date in front matter (the blog plugin may hand it over as {"created": ...})
+        date = page.meta.get("date")
+        date = date.get("created") if isinstance(date, dict) else date
+        post = {"@type": "BlogPosting", **base}
+        if date:
+            post["datePublished"] = str(date)[:10]
+        graph.append(post)
     elif src in ARTICLES or src.startswith(ARTICLE_DIRS):
         graph.append({"@type": "TechArticle", **base})
     if graph:

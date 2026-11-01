@@ -1,0 +1,131 @@
+{
+    "route-information": [
+        {
+            "attributes": {
+                "xmlns": "http://xml.juniper.net/junos/26.2R0/junos-routing"
+            },
+            "route-table": [
+                {
+                    "comment": "keepalive",
+                    "table-name": [
+                        {
+                            "data": "inet.0"
+                        }
+                    ],
+                    "destination-count": [
+                        {
+                            "data": "7"
+                        }
+                    ],
+                    "total-route-count": [
+                        {
+                            "data": "7"
+                        }
+                    ],
+                    "active-route-count": [
+                        {
+                            "data": "5"
+                        }
+                    ],
+                    "holddown-route-count": [
+                        {
+                            "data": "0"
+                        }
+                    ],
+                    "hidden-route-count": [
+                        {
+                            "data": "1"
+                        }
+                    ],
+                    "rt": [
+                        {
+                            "attributes": {
+                                "junos:style": "bgp-detail"
+                            },
+                            "rt-destination": [
+                                {
+                                    "data": "192.168.6.0"
+                                }
+                            ],
+                            "rt-prefix-length": [
+                                {
+                                    "data": "24"
+                                }
+                            ],
+                            "rt-entry-count": [
+                                {
+                                    "data": "1",
+                                    "attributes": {
+                                        "junos:format": "1 entry"
+                                    }
+                                }
+                            ],
+                            "rt-announced-count": [
+                                {
+                                    "data": "0"
+                                }
+                            ],
+                            "rt-state": [
+                                {}
+                            ],
+                            "rt-entry": [
+                                {
+                                    "active-tag": [
+                                        {}
+                                    ],
+                                    "protocol-name": [
+                                        {
+                                            "data": "BGP"
+                                        }
+                                    ],
+                                    "nh": [
+                                        {
+                                            "to": [
+                                                {
+                                                    "data": "10.99.99.99"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "med": [
+                                        {
+                                            "data": "0"
+                                        }
+                                    ],
+                                    "as-path": [
+                                        {
+                                            "data": "AS path: 65005 I"
+                                        }
+                                    ],
+                                    "bgp-path-attributes": [
+                                        {
+                                            "attr-as-path-effective": [
+                                                {
+                                                    "aspath-effective-string": [
+                                                        {
+                                                            "data": "AS path: "
+                                                        }
+                                                    ],
+                                                    "attr-value": [
+                                                        {
+                                                            "data": "65005 I"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "hidden-reason": [
+                                        {
+                                            "data": "Protocol nexthop is not on the interface"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

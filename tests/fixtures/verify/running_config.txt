@@ -1,0 +1,146 @@
+# live capture: FRRouting 10.4.1_git, node edge1 of tests/fixtures/verify-lab, `vtysh -c 'show running-config'`, 2026-10-30
+Building configuration...
+
+Current configuration:
+!
+frr version 10.4.1_git
+frr defaults datacenter
+hostname edge1
+domainname localdomain
+service integrated-vtysh-config
+!
+ip prefix-list CUSTOMER-IN seq 10 permit 10.100.0.0/24
+ip prefix-list NO-DEFAULT seq 10 deny 0.0.0.0/0
+ip prefix-list NO-DEFAULT seq 20 permit 0.0.0.0/0 le 32
+ip prefix-list OUR-ROUTES seq 10 permit 192.0.2.0/24
+ip prefix-list OUR-ROUTES seq 20 permit 10.100.0.0/23
+!
+route-map CUSTOMER-IN permit 10
+ match ip address prefix-list CUSTOMER-IN
+ set local-preference 200
+exit
+!
+route-map UPSTREAM-IN permit 10
+ match ip address prefix-list NO-DEFAULT
+ set local-preference 100
+exit
+!
+route-map PEER-IN permit 10
+ set local-preference 150
+exit
+!
+route-map TO-CUSTOMER permit 10
+exit
+!
+route-map TO-UPSTREAM permit 10
+ match ip address prefix-list OUR-ROUTES
+exit
+!
+route-map TO-PEER deny 10
+exit
+!
+route-map ALL permit 10
+exit
+!
+ip route 192.0.2.0/24 blackhole
+ip route 192.0.2.0/24 10.0.2.2 250
+ip route 198.18.200.0/24 10.0.2.2
+ip route 198.18.200.0/24 10.0.6.2
+!
+vrf cust
+exit-vrf
+!
+interface eth1
+ description cust1 (customer, AS 65100)
+ ip address 10.0.1.1/30
+exit
+!
+interface eth2
+ description up1 (upstream transit, AS 65200)
+ ip address 10.0.2.1/30
+exit
+!
+interface eth3
+ description peer1 (settlement-free peer, AS 65300), dual stack
+ ip address 10.0.3.1/30
+ ipv6 address 2001:db8:11::1/64
+exit
+!
+interface eth4
+ description cust2 (VRF cust, AS 65101); its address is set by the topology's exec, after eth4 joins the VRF
+exit
+!
+interface eth5
+ description rr1 (iBGP route reflector, OSPF)
+ ip address 10.0.4.1/30
+ ip ospf area 0
+ ip ospf network point-to-point
+exit
+!
+interface eth6
+ description up1, second link (an ECMP static)
+ ip address 10.0.6.1/30
+exit
+!
+interface lo
+ ip address 192.0.2.1/32
+ ip ospf area 0
+exit
+!
+router bgp 65000
+ bgp router-id 192.0.2.1
+ neighbor 10.0.1.2 remote-as 65100
+ neighbor 10.0.1.2 description cust1
+ neighbor 10.0.2.2 remote-as 65200
+ neighbor 10.0.2.2 description up1
+ neighbor 10.0.3.2 remote-as 65300
+ neighbor 10.0.3.2 description peer1
+ neighbor 10.0.9.2 remote-as 65009
+ neighbor 10.0.9.2 description configured, never comes up
+ neighbor 10.255.0.2 remote-as internal
+ neighbor 10.255.0.2 description rr1
+ neighbor 10.255.0.2 update-source lo
+ neighbor 2001:db8:11::2 remote-as 65300
+ neighbor 2001:db8:11::2 description peer1 over IPv6
+ !
+ address-family ipv4 unicast
+  network 192.0.2.0/24
+  aggregate-address 10.100.0.0/23 as-set
+  aggregate-address 192.0.0.0/2 as-set
+  neighbor 10.0.1.2 route-map CUSTOMER-IN in
+  neighbor 10.0.1.2 route-map TO-CUSTOMER out
+  neighbor 10.0.2.2 soft-reconfiguration inbound
+  neighbor 10.0.2.2 route-map UPSTREAM-IN in
+  neighbor 10.0.2.2 route-map TO-UPSTREAM out
+  neighbor 10.0.3.2 route-map PEER-IN in
+  neighbor 10.0.3.2 route-map TO-PEER out
+  neighbor 10.0.9.2 route-map ALL in
+  neighbor 10.0.9.2 route-map ALL out
+  neighbor 10.255.0.2 next-hop-self
+  neighbor 10.255.0.2 soft-reconfiguration inbound
+  no neighbor 2001:db8:11::2 activate
+ exit-address-family
+ !
+ address-family ipv6 unicast
+  neighbor 2001:db8:11::2 activate
+  neighbor 2001:db8:11::2 soft-reconfiguration inbound
+  neighbor 2001:db8:11::2 route-map PEER-IN in
+  neighbor 2001:db8:11::2 route-map TO-PEER out
+ exit-address-family
+exit
+!
+router bgp 65000 vrf cust
+ bgp router-id 10.10.1.1
+ neighbor 10.10.1.2 remote-as 65101
+ !
+ address-family ipv4 unicast
+  neighbor 10.10.1.2 route-map ALL in
+  neighbor 10.10.1.2 route-map ALL out
+ exit-address-family
+exit
+!
+router ospf
+ ospf router-id 192.0.2.1
+exit
+!
+end

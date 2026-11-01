@@ -165,7 +165,7 @@ def test_node_driver_overrides_and_setup(tmp_path):
     assert load(write(tmp_path, "- {type: route, node: r1, prefix: 10.0.0.0/8}\n")).drivers == {}
 
 
-@pytest.mark.parametrize("nodes", ["{1: {driver: frr}}", "{' ': {driver: frr}}", "{r1: {driver: junos}}",
+@pytest.mark.parametrize("nodes", ["{1: {driver: frr}}", "{' ': {driver: frr}}", "{r1: {driver: iosxr}}",
                                    "{r1: {}}", "{r1: {setup: []}}", "{r1: {setup: ['']}}", "{}", "[]"])
 def test_bad_nodes(tmp_path, nodes):
     assert refused(tmp_path, "{type: route, node: r1, prefix: 10.0.0.0/8}", f"nodes: {nodes}\n")

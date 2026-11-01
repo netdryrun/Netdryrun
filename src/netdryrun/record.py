@@ -18,6 +18,7 @@ from . import __version__
 from .checks import Unready, _evaluate
 from .config import Check, community_name
 from .drivers import DriverError, detect, for_node
+from .drivers.base import NoSuchInstance
 from .lab import Lab, LabError
 
 MAX_ROUTES_PER_NODE = 50
@@ -43,7 +44,8 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     With `guards` (the default from 0.3.3: a prefix range has room for one leaked default route, so the
     no-default-route guard is what catches it), the standard guard recipes that can be read from the lab: no
     default route via BGP, and no link subnet of the topology via BGP, on every BGP node, except what the node
-    learns via BGP today."""
+    learns via BGP today. Guards are recorded in the default VRF only.
+    Every VRF the node lists is recorded; a check outside the default VRF carries `vrf:`."""
     if prefix_mode not in ("range", "exact", "min"):
         raise ValueError(f"prefix_mode must be range, exact or min, got {prefix_mode!r}")
     lab = Lab(topology)
@@ -61,63 +63,91 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
         if drv.name == "sonic":
             warnings.append(f"{name}: SONiC is configured after boot; add its commands under nodes.{name}.setup "
                             "or the checks will fail on a fresh deploy")
+        vrfs = ["default"]
         try:
-            neighbors = drv.bgp_neighbors().value
+            vrfs += [v for v in drv.vrfs().value if v != "default"]
         except DriverError as e:
-            warnings.append(f"{name}: could not read BGP state ({e}); skipped")
-            continue
-        checks += _session_checks(name, neighbors, prefix_mode, warnings)
-        bgp_now: dict[int, set[str]] = {}   # every BGP route the node has today, received selected or not
-        if include_routes or guards:
-            for fam in (4, 6):
-                try:
-                    every = [r for r in drv.all_routes(family=fam).value if r.protocol == "bgp"]
-                except DriverError as e:
-                    warnings.append(f"{name}: could not read IPv{fam} routes ({e})")
-                    continue
-                bgp_now[fam] = {r.prefix for r in every}
-                if not include_routes:
-                    continue
-                routes = [r for r in every if r.active]
-                if len(routes) > MAX_ROUTES_PER_NODE:
-                    warnings.append(f"INCOMPLETE BASELINE: {name} has {len(routes)} BGP routes (IPv{fam}); only the "
-                                    f"first {MAX_ROUTES_PER_NODE} are recorded as checks. A change to any other route "
-                                    "goes unnoticed: add checks for the routes that matter")
-                for r in sorted(routes, key=lambda r: r.prefix)[:MAX_ROUTES_PER_NODE]:
-                    checks.append({"type": "route", "node": name, "prefix": r.prefix, "protocol": "bgp"})
-                    if attributes:
-                        try:
-                            c = _attribute_check(drv, name, r.prefix)
-                        except DriverError as e:
-                            warnings.append(f"{name}: could not read BGP attributes of {r.prefix} ({e})")
-                            continue
-                        if c:
-                            checks.append(c)
-        if guards and neighbors:
-            checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep)
+            warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
+        for vrf in vrfs:
+            checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
+                                  link_subnets if guards and vrf == "default" else None, sleep)
     data = {"lab": topology.name, "timeout": 120, "checks": checks}
     return data, warnings
 
 
-def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list[str]) -> list[dict]:
+def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: bool, prefix_mode: str,
+                attributes: bool, link_subnets: list[str] | None, sleep) -> list[dict]:
+    """One VRF of one node: its sessions, routes and (with `link_subnets`) guards."""
+    at = {} if vrf == "default" else {"vrf": vrf}
+    where = name if vrf == "default" else f"{name} (vrf {vrf})"
+    try:
+        neighbors = drv.bgp_neighbors(vrf).value
+    except NoSuchInstance as e:
+        if vrf == "default":
+            warnings.append(f"{where}: could not read BGP state ({e}); skipped")
+        return []   # a VRF without a BGP instance: no session or BGP route to record
+    except DriverError as e:
+        warnings.append(f"{where}: could not read BGP state ({e}); skipped")
+        return []
+    checks = _session_checks(name, neighbors, prefix_mode, warnings, vrf)
+    bgp_now: dict[int, set[str]] = {}   # every BGP route the node has today, received selected or not
+    if include_routes or link_subnets is not None:
+        for fam in (4, 6):
+            try:
+                every = [r for r in drv.all_routes(vrf=vrf, family=fam).value if r.protocol == "bgp"]
+            except DriverError as e:
+                warnings.append(f"{where}: could not read IPv{fam} routes ({e})")
+                continue
+            bgp_now[fam] = {r.prefix for r in every}
+            if not include_routes:
+                continue
+            routes = [r for r in every if r.active]
+            if len(routes) > MAX_ROUTES_PER_NODE:
+                warnings.append(f"INCOMPLETE BASELINE: {where} has {len(routes)} BGP routes (IPv{fam}); only the "
+                                f"first {MAX_ROUTES_PER_NODE} are recorded as checks. A change to any other route "
+                                "goes unnoticed: add checks for the routes that matter")
+            for r in sorted(routes, key=lambda r: r.prefix)[:MAX_ROUTES_PER_NODE]:
+                checks.append({"type": "route", "node": name, "prefix": r.prefix, "protocol": "bgp", **at})
+                if attributes:
+                    try:
+                        c = _attribute_check(drv, name, r.prefix, vrf)
+                    except DriverError as e:
+                        warnings.append(f"{where}: could not read BGP attributes of {r.prefix} ({e})")
+                        continue
+                    if c:
+                        checks.append(c)
+    if link_subnets is not None and neighbors:
+        checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep)
+    return checks
+
+
+def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list[str],
+                    vrf: str = "default") -> list[dict]:
+    at = {} if vrf == "default" else {"vrf": vrf}
+    where = name if vrf == "default" else f"{name} (vrf {vrf})"
     checks: list[dict] = []
     for addr, n in sorted(neighbors.items()):
         try:
             ipaddress.ip_address(addr)
         except ValueError:
-            warnings.append(f"{name}: BGP neighbor {addr!r} is not an IP address (unnumbered?); not recorded")
+            warnings.append(f"{where}: BGP neighbor {addr!r} is not an IP address (unnumbered?); not recorded")
             continue
         if n.ambiguous:
-            warnings.append(f"INCOMPLETE BASELINE: {name}: BGP neighbor {addr} is {len(n.ambiguous)} sessions "
+            warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} is {len(n.ambiguous)} sessions "
                             f"({', '.join(n.ambiguous)}) that can't be told apart; not recorded: add checks on "
                             "global addresses")
             continue
         if n.state != "established":
-            warnings.append(f"{name}: BGP neighbor {addr} is {n.state}; not recorded (fix it or add a check by hand)")
+            warnings.append(f"{where}: BGP neighbor {addr} is {n.state}; not recorded (fix it or add a check by hand)")
             continue
-        checks.append({"type": "bgp_session", "node": name, "neighbor": addr})
+        checks.append({"type": "bgp_session", "node": name, "neighbor": addr, **at})
         for afi, count in sorted(n.prefixes.items()):
-            c = {"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi}
+            if afi in n.prefixes_upto:
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count is "
+                                f"{count} to {n.prefixes_upto[afi]} (hidden routes Netdryrun can't classify); "
+                                "not recorded: add a check by hand")
+                continue
+            c = {"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, **at}
             if prefix_mode == "exact":
                 c["exact"] = count
             elif prefix_mode == "min" and count > 0:
@@ -200,11 +230,11 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
     return kept
 
 
-def _attribute_check(drv, node: str, prefix: str) -> dict | None:
-    best = next((p for p in drv.bgp_paths(prefix).value if p.best), None)
+def _attribute_check(drv, node: str, prefix: str, vrf: str = "default") -> dict | None:
+    best = next((p for p in drv.bgp_paths(prefix, vrf=vrf).value if p.best), None)
     if best is None:
         return None
-    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix}
+    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf})}
     if best.as_path is not None:
         c["as_path"] = best.as_path
     if best.local_pref is not None:

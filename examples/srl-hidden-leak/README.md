@@ -190,7 +190,7 @@ In this lab the peer just drops the traffic. In a real network, every packet wit
 
 ## Catch it before it ships
 
-The check that catches this asks the BGP table, not the routing table: **there is no BGP path for `0.0.0.0/0` at all, best or not, used or not.** By hand that's the commands above. In CI, this lab uses [Netdryrun](https://github.com/netdryrun/netdryrun), an open-source tool that deploys a containerlab topology, runs checks like these and destroys it. [`netdryrun.yml`](netdryrun.yml) has the checks monitoring would usually run, plus one leak guard per router:
+The check that catches this asks the BGP table, not the routing table: **there is no BGP path for `0.0.0.0/0` at all, best or not, used or not.** By hand that's the commands above. In CI, this lab uses [Netdryrun](https://github.com/netdryrun/Netdryrun), an open-source tool that deploys a containerlab topology, runs checks like these and destroys it. [`netdryrun.yml`](netdryrun.yml) has the checks monitoring would usually run, plus one leak guard per router:
 
 ```yaml
   - type: bgp_route    # no BGP path for 0.0.0.0/0, selected or not
