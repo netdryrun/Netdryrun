@@ -5544,6 +5544,11 @@
       "class": "equivalent",
       "reason": "parse_version returns None for anything but an object (a dict), so the guard and the parser give the same answer",
       "diff": "8d34902a0f404ac5"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_74": {
+      "class": "equivalent",
+      "reason": "a BGP path always has a session (parse_routing_routes requires bgp.session for every bgp row), so the fallback is never used",
+      "diff": "c46faff0a380c48e"
     }
   },
   "checks": {
