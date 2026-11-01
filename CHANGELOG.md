@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Capture kit: `netdryrun capture` and `netdryrun sanitize`.** Contribute your NOS version's output without sharing an image. `capture` runs a driver's own read commands on one node of a running containerlab lab, recorded as the driver sends them, and writes a bundle (outputs plus `manifest.json`: NOS, the version the node reports and the one you give, image and digest when Docker has one, scenario, every command with its sha256). It refuses any other target before running anything: a node not in the topology, an address or hostname, a `host` or `ext-container` node, or a container whose containerlab labels don't name this lab and node. `sanitize` rewrites addresses (IPv4 into 10.0.0.0/8 per /16, IPv6 into 3fff::/20 per /32, prefix lengths, order and containment kept), AS numbers where the output says they are ones, hostnames and secrets, the same way across the bundle, and shows the changes; it writes only with `--confirm`, and only when its self-check passes (no public address or AS number left, structure unchanged, and the driver reads the sanitised outputs as the sanitised version of what it read). The mapping is written outside the bundle. Reference: [capture kit](https://netdryrun.com/reference/capture/).
+- **Contributor gates on every pull request** (`.github/workflows/contrib.yml`, `pull_request` only, no secrets): every commit signed off (DCO); the AI-use disclosure ticked; the known-false-pass tests (`tests/known_false_passes.yml`) run as the base branch has them against the pull request's code; a change to verdict code needs a test that fails on the base branch's code; every file in `tests/fixtures` has a recorded source (`tests/fixtures/SOURCES.yml`) and every capture bundle validates; pre-registered corpus cases, their committed results and the nondeterministic list change only with a new AMENDMENTS.md entry; lab templates have a broken variant. With the `run-labs` label, lab templates run good and bad and both corpora rerun, failing on any changed verdict.
+- **How the project is run**, in the open: a docs page, an AI-use section in CONTRIBUTING with a disclosure checkbox, CODEOWNERS, a pull request template, issue forms for wrong verdicts ("make it lie"), capture submissions and lab templates, and the lab-template format (`community/labs/`).
+
 ## 0.4.0 (2026-10-31)
 
 ### Added

@@ -1,0 +1,19 @@
+# A human maintainer approves every change to code a verdict depends on, to the corpus's pre-registered verdicts,
+# to the known-false-pass list and the contributor gates, and to CI. See website/docs/how-its-run.md.
+# Branch protection on main must require code-owner review for this file to have effect (an owner setting).
+
+*                               @VictorKhen
+
+/src/netdryrun/drivers/         @VictorKhen
+/src/netdryrun/checks.py        @VictorKhen
+/src/netdryrun/runner.py        @VictorKhen
+/src/netdryrun/config.py        @VictorKhen
+/src/netdryrun/verify/          @VictorKhen
+/src/netdryrun/capture/         @VictorKhen
+/corpus/                        @VictorKhen
+/advisories/                    @VictorKhen
+/tests/known_false_passes.yml   @VictorKhen
+/tests/fixtures/                @VictorKhen
+/scripts/contrib_gate.py        @VictorKhen
+/.github/                       @VictorKhen
+/CONTRIBUTING.md                @VictorKhen
