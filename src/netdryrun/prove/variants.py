@@ -123,7 +123,7 @@ class FrrConfig:
 
     def _inherited(self, address: str, attr: str) -> dict:
         n = self.neighbors[address]
-        group = self.neighbors.get(n.peer_group) if n.peer_group else None
+        group = self.neighbors.get(n.peer_group)   # no peer-group is "", never a neighbor's name
         return {**(getattr(group, attr) if group else {}), **getattr(n, attr)}
 
     def maps_of(self, address: str) -> dict[tuple[str, str], str]:
@@ -135,7 +135,7 @@ class FrrConfig:
 
     def remote_as_of(self, address: str) -> str:
         n = self.neighbors[address]
-        group = self.neighbors.get(n.peer_group) if n.peer_group else None
+        group = self.neighbors.get(n.peer_group)
         return n.remote_as or (group.remote_as if group else "")
 
     def max_prefix(self, address: str) -> bool:
@@ -326,7 +326,7 @@ def _import_filter(node: str, cfg: FrrConfig, configs: dict[str, FrrConfig], lea
         known = blocked is not None and all((node, u) in blocked for u in v.soft_in)
         blocks = known and any(blocked[(node, u)] for u in v.soft_in)
         if far and leak and not blocks:   # nothing blocked today (or no state to tell): give the edit a leak
-            leaker = _originate("customer_leak", far[0], configs[far[0]], leak[:1],
+            leaker = _originate("customer_leak", far[0], configs[far[0]], leak,
                                 f"{far[0]} announces {leak[0]}", f"customer_leak:{far[0]}:with:{v.id}")
             out.append(Variant(**{**v.__dict__, "id": f"{v.id}:+leak:{far[0]}", "companion": leaker,
                                   "description": f"{v.description}, while {far[0]} announces {leak[0]}"}))
@@ -434,7 +434,7 @@ def used_networks(configs: dict[str, FrrConfig], checks=()) -> list:
     out = []
     for t in texts:
         try:
-            out.append(ipaddress.ip_network(t, strict=False))
+            out.append(ipaddress.ip_network(t, False))   # not strict: host bits allowed
         except ValueError:
             continue
     return out

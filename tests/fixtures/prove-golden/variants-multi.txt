@@ -1,0 +1,303 @@
+[
+ {
+  "id": "customer_leak:r:1",
+  "kind": "customer_leak",
+  "node": "r",
+  "description": "r announces 1 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 1 > address-family ipv4 unicast > network 100.64.0.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "customer_leak:r:2",
+  "kind": "customer_leak",
+  "node": "r",
+  "description": "r announces 2 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   "  network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "no ip route 100.64.1.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   "  no network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 1 > address-family ipv4 unicast > network 100.64.0.0/24",
+   "router bgp 1 > address-family ipv4 unicast > network 100.64.1.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24",
+   "100.64.1.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M permit 10:match ip address prefix-list P",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: `match ip address prefix-list P` deleted from route-map M permit 10 (inbound from 10.0.0.2, 10.0.0.6)",
+  "apply": [
+   "route-map M permit 10",
+   " no match ip address prefix-list P",
+   "exit"
+  ],
+  "revert": [
+   "route-map M permit 10",
+   " match ip address prefix-list P",
+   "exit"
+  ],
+  "removes": [
+   "route-map M permit 10 > match ip address prefix-list P"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2",
+   "10.0.0.6"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:ip prefix-list P seq 5 permit 10.0.0.0/8",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: prefix-list entry `ip prefix-list P seq 5 permit 10.0.0.0/8` deleted (inbound from 10.0.0.2, 10.0.0.6)",
+  "apply": [
+   "no ip prefix-list P seq 5 permit 10.0.0.0/8"
+  ],
+  "revert": [
+   "ip prefix-list P seq 5 permit 10.0.0.0/8"
+  ],
+  "removes": [
+   "ip prefix-list P seq 5 permit 10.0.0.0/8"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2",
+   "10.0.0.6"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M permit 10:swapped",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: route-map M permit 10 turned into deny (inbound from 10.0.0.2, 10.0.0.6)",
+  "apply": [
+   "no route-map M permit 10",
+   "route-map M deny 10",
+   " match ip address prefix-list P",
+   "exit"
+  ],
+  "revert": [
+   "no route-map M deny 10",
+   "route-map M permit 10",
+   " match ip address prefix-list P",
+   "exit"
+  ],
+  "removes": [
+   "route-map M permit 10",
+   "route-map M permit 10 > match ip address prefix-list P"
+  ],
+  "adds": [
+   "route-map M deny 10",
+   "route-map M deny 10 > match ip address prefix-list P"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2",
+   "10.0.0.6"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:ip prefix-list P seq 5 permit 10.0.0.0/8:swapped",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: prefix-list entry `ip prefix-list P seq 5 permit 10.0.0.0/8` turned into `ip prefix-list P seq 5 deny 10.0.0.0/8` (inbound from 10.0.0.2, 10.0.0.6)",
+  "apply": [
+   "no ip prefix-list P seq 5 permit 10.0.0.0/8",
+   "ip prefix-list P seq 5 deny 10.0.0.0/8"
+  ],
+  "revert": [
+   "no ip prefix-list P seq 5 deny 10.0.0.0/8",
+   "ip prefix-list P seq 5 permit 10.0.0.0/8"
+  ],
+  "removes": [
+   "ip prefix-list P seq 5 permit 10.0.0.0/8"
+  ],
+  "adds": [
+   "ip prefix-list P seq 5 deny 10.0.0.0/8"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2",
+   "10.0.0.6"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "session_down:r:10.0.0.2",
+  "kind": "session_down",
+  "node": "r",
+  "description": "r: BGP session to 10.0.0.2 shut down",
+  "apply": [
+   "router bgp 1",
+   " neighbor 10.0.0.2 shutdown",
+   "exit"
+  ],
+  "revert": [
+   "router bgp 1",
+   " no neighbor 10.0.0.2 shutdown",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "router bgp 1 > neighbor 10.0.0.2 shutdown"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "session_down:r:10.0.0.6",
+  "kind": "session_down",
+  "node": "r",
+  "description": "r: BGP session to 10.0.0.6 shut down",
+  "apply": [
+   "router bgp 1",
+   " neighbor 10.0.0.6 shutdown",
+   "exit"
+  ],
+  "revert": [
+   "router bgp 1",
+   " no neighbor 10.0.0.6 shutdown",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "router bgp 1 > neighbor 10.0.0.6 shutdown"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:r:M permit 10:+set local-preference 50",
+  "kind": "attribute_drift",
+  "node": "r",
+  "description": "r: `set local-preference 50` added to route-map M permit 10 (inbound from 10.0.0.2, 10.0.0.6)",
+  "apply": [
+   "route-map M permit 10",
+   " set local-preference 50",
+   "exit"
+  ],
+  "revert": [
+   "route-map M permit 10",
+   " no set local-preference 50",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "route-map M permit 10 > set local-preference 50"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2",
+   "10.0.0.6"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "default_leak:r:0.0.0.0/0",
+  "kind": "default_leak",
+  "node": "r",
+  "description": "r originates 0.0.0.0/0 into BGP",
+  "apply": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 0.0.0.0/0 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  no network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 1 > address-family ipv4 unicast > network 0.0.0.0/0"
+  ],
+  "originates": [
+   "0.0.0.0/0"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ }
+]

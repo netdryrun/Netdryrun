@@ -137,17 +137,15 @@ def footprint(variant: Variant, base: Snapshot, during: Snapshot) -> Callable[[D
     best-path, session or reachability change. A leak the receiving policy rejects is no effect: the network did the
     right thing (coordinator's rule, 2026-11-02)."""
     mine = {(p.node, x) for p in variant.parts() for x in p.originates}
-    if not mine:
-        return lambda d: False
-    ends = far_ends(base, during)
+    ends = far_ends(during)   # a pre-policy copy exists only over a session established while the variant is applied
 
     def own(d: DiffItem) -> bool:
         k = d.key
         if (k.node, k.prefix) in mine:
             return (k.kind == "rib" and k.protocol == "static") or (k.kind == "path" and k.neighbor == "local") \
                 or k.kind == "adj_out"
-        far = ends.get((k.node, k.vrf, k.neighbor), ("",))[0]
-        return k.kind == "adj_in" and (far, k.prefix) in mine
+        far = ends.get((k.node, k.vrf, k.neighbor))
+        return k.kind == "adj_in" and far is not None and (far[0], k.prefix) in mine
     return own
 
 
@@ -223,7 +221,7 @@ def _fitted(check: Check, variant: Variant) -> bool:
     if "prefix" not in check.params:
         return False
     try:
-        net = ipaddress.ip_network(str(check.params["prefix"]), strict=False)
+        net = ipaddress.ip_network(str(check.params["prefix"]), False)   # not strict: host bits allowed
     except ValueError:
         return False
     for part in variant.parts():
@@ -279,7 +277,7 @@ def classify(variant: Variant, effect: list[DiffItem], results: list[Result], re
         notes.append(f"{', '.join(r.check.name for r in unusable)} failed without usable state or evidence: a lab "
                      "problem, not a catch")
     note = "; ".join(notes) + ". Counted as survived" if notes else ""
-    return VariantResult(variant, SURVIVED, failed=failing if notes else [], effect=effect, note=note)
+    return VariantResult(variant, SURVIVED, failed=failing, effect=effect, note=note)   # no note: nothing failed
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -293,7 +291,7 @@ class _Fresh:
         self.seen: list[Result] = []
 
     def check(self, results: list[Result], checks: list[Check], since: str, what: str) -> list[Result]:
-        if len(results) != len(checks) or any(r.check is not c for r, c in zip(results, checks, strict=False)):
+        if len(results) != len(checks) or any(r.check is not checks[i] for i, r in enumerate(results)):
             raise ProveError(f"internal error: the {what} returned {len(results)} result(s) for {len(checks)} "
                              "check(s), or out of order; no strength result", "internal")
         for r in results:

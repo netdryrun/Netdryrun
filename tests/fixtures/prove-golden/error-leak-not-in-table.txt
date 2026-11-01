@@ -1,0 +1,221 @@
+ERROR: NO STRENGTH RESULT
+no strength result: variant customer_leak:cust:2: cust announces 100.64.0.0/24, 100.64.1.0/24 in its config, but its BGP table doesn't have it
+----
+{
+  "schema": "netdryrun.prove/v1",
+  "status": "error",
+  "verdict": "ERROR: NO STRENGTH RESULT",
+  "exit_code": 2,
+  "summary": "no strength result: variant customer_leak:cust:2: cust announces 100.64.0.0/24, 100.64.1.0/24 in its config, but its BGP table doesn't have it",
+  "error": "variant customer_leak:cust:2: cust announces 100.64.0.0/24, 100.64.1.0/24 in its config, but its BGP table doesn't have it",
+  "error_kind": "apply",
+  "counts": {
+    "caught": 0,
+    "survived": 0,
+    "no_effect": 0,
+    "inconclusive": 0,
+    "run": 0,
+    "generated": 31,
+    "not_run": 7
+  },
+  "by_kind": {},
+  "not_generated": [],
+  "checks": [
+    "edge: BGP session to 10.0.1.2 is established",
+    "edge: prefixes from 10.0.1.2 >= 1 and <= 3",
+    "edge: BGP session to 10.0.2.2 is established",
+    "edge: prefixes from 10.0.2.2 >= 1 and <= 3",
+    "edge: route 10.10.0.0/24 via bgp is present",
+    "edge: route 198.51.100.0/24 via bgp is present",
+    "edge: route 0.0.0.0/0 via bgp is absent",
+    "edge: route 10.0.1.0/30 via bgp is absent",
+    "edge: route 10.0.2.0/30 via bgp is absent",
+    "cust: BGP session to 10.0.1.1 is established",
+    "cust: prefixes from 10.0.1.1 >= 1 and <= 3",
+    "cust: route 198.51.100.0/24 via bgp is present",
+    "cust: route 0.0.0.0/0 via bgp is absent",
+    "cust: route 10.0.1.0/30 via bgp is absent",
+    "cust: route 10.0.2.0/30 via bgp is absent",
+    "up: BGP session to 10.0.2.1 is established",
+    "up: prefixes from 10.0.2.1 >= 1 and <= 3",
+    "up: route 10.10.0.0/24 via bgp is present",
+    "up: route 0.0.0.0/0 via bgp is absent",
+    "up: route 10.0.1.0/30 via bgp is absent",
+    "up: route 10.0.2.0/30 via bgp is absent"
+  ],
+  "variants": [],
+  "partial": [
+    {
+      "id": "customer_leak:cust:1",
+      "kind": "customer_leak",
+      "node": "cust",
+      "description": "cust announces 1 extra prefix(es) from 100.64.0.0/10",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "router bgp 65010",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24"
+      ],
+      "result": "no_effect",
+      "note": "nothing changed in the routing state outside the variant's own originated entries: an equivalent variant"
+    }
+  ],
+  "not_run": [
+    {
+      "id": "customer_leak:cust:3",
+      "kind": "customer_leak",
+      "node": "cust",
+      "description": "cust announces 3 extra prefix(es) from 100.64.0.0/10 (just outside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "ip route 100.64.2.0/24 blackhole",
+        "router bgp 65010",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        "  network 100.64.2.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24",
+        "100.64.2.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:edge:1",
+      "kind": "customer_leak",
+      "node": "edge",
+      "description": "edge announces 1 extra prefix(es) from 100.64.0.0/10",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:edge:2",
+      "kind": "customer_leak",
+      "node": "edge",
+      "description": "edge announces 2 extra prefix(es) from 100.64.0.0/10 (just inside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:edge:3",
+      "kind": "customer_leak",
+      "node": "edge",
+      "description": "edge announces 3 extra prefix(es) from 100.64.0.0/10 (just outside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "ip route 100.64.2.0/24 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        "  network 100.64.2.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24",
+        "100.64.2.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:up:1",
+      "kind": "customer_leak",
+      "node": "up",
+      "description": "up announces 1 extra prefix(es) from 100.64.0.0/10",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:up:2",
+      "kind": "customer_leak",
+      "node": "up",
+      "description": "up announces 2 extra prefix(es) from 100.64.0.0/10 (just inside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:up:3",
+      "kind": "customer_leak",
+      "node": "up",
+      "description": "up announces 3 extra prefix(es) from 100.64.0.0/10 (just outside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "ip route 100.64.2.0/24 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        "  network 100.64.2.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24",
+        "100.64.2.0/24"
+      ]
+    }
+  ],
+  "limits": [
+    "Only the variants listed were run: a finite, generated set. No variant surviving does not show that the checks are complete.",
+    "Only the top-level checks of netdryrun.yml are proven; scenario checks are not run under variants.",
+    "The routing state is the FRR snapshot of `netdryrun verify` (sessions, RIB, BGP paths, advertisements, default VRF variants only): an effect outside it is not seen.",
+    "A leak that a lab node filters counts as no effect, even where the announcing node's export policy let it out."
+  ],
+  "started": "2026-01-01T00:00:00+00:00",
+  "finished": "2026-01-01T00:00:00+00:00"
+}

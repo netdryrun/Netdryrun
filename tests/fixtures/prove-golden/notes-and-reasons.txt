@@ -1,0 +1,27 @@
+inconclusive: inconclusive: checks failed, but the routing state did not change: a flaky check, a lab problem, or state the snapshot doesn't see (the data plane). Not counted as caught
+no effect: no_effect: nothing changed in the routing state outside the variant's own originated entries: an equivalent variant
+unusable: survived: edge: BGP session to 10.0.1.2 is established, edge: BGP session to 10.0.2.2 is established failed without usable state or evidence: a lab problem, not a catch. Counted as survived
+fitted: survived: edge: no 100.64.0.0/24, up: no 100.64.0.0/24 failed, but name the variant's own announced prefixes (the leak space, or the announcing node's own announcement): checks fitted to this variant, not to the fault. Counted as survived
+reset: survived: session(s) went down under a variant that doesn't shut one (a session 1; b session 2; c session 3): applying it may have reset them, so no failing check is credited to the variant. Counted as survived
+all: survived: session(s) went down under a variant that doesn't shut one (a session 1): applying it may have reset them, so no failing check is credited to the variant; edge: no 100.64.0.0/24 failed, but name the variant's own announced prefixes (the leak space, or the announcing node's own announcement): checks fitted to this variant, not to the fault; edge: BGP session to 10.0.1.2 is established failed without usable state or evidence: a lab problem, not a catch. Counted as survived
+leak: {"check": {"type": "bgp_prefixes", "node": "edge", "neighbor": "10.0.1.2", "afi": "ipv4-unicast", "exact": 1}, "reason": "the session's prefix count today, exactly: one more prefix fails it. Today it carries 10.10.0.0/24"}
+empty session: {"check": {"type": "bgp_prefixes", "node": "edge", "neighbor": "10.9.9.9", "afi": "ipv4-unicast", "exact": 0}, "reason": "the session's prefix count today, exactly: one more prefix fails it. Today it carries nothing"}
+route gone: {"check": {"type": "route", "node": "edge", "prefix": "10.10.0.0/24", "protocol": "bgp"}, "reason": "the node has this BGP route today"}
+session down: {"check": {"type": "bgp_session", "node": "edge", "neighbor": "10.0.1.2"}, "reason": "the session is established today"}
+attributes: {"check": {"type": "bgp_route", "node": "edge", "prefix": "10.10.0.0/24", "as_path": "65010", "local_pref": 100}, "reason": "the best path's attributes today"}
+moved: {"check": {"type": "bgp_route", "node": "edge", "prefix": "10.10.0.0/24", "as_path": "65010", "local_pref": 100}, "reason": "the best path today (it moved)"}
+advertised only: {"check": null, "reason": "only what a node advertises changed (to a neighbor no lab node stands for); no check type reads advertisements yet, so nothing in netdryrun.yml can catch this: tell the human"}
+guard: {"check": {"type": "route", "node": "edge", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": false}, "reason": "a standing guard: 0.0.0.0/0 never via BGP"}
+BLIND SPOTS FOUND: DO NOT RELY ON THESE CHECKS FOR THEM
+caught 0 of 1 known-bad variants (0 no effect, 1 inconclusive, kinds not generated: none); 10 generated variant(s) not run (budget). A finite set of variants: this does not show that the checks are complete.
+By kind: import_filter 0 caught, 0 survived, 0 no effect, 1 inconclusive; session_down 0 caught, 1 survived, 0 no effect
+  [inconclusive] A
+      failed: edge: BGP session to 10.0.1.2 is established: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x 
+      note: n
+  [SURVIVED] B
+      unnoticed: cust 10.10.0.0/24 advertised to 10.0.1.1 removed
+      unnoticed: cust 203.0.113.128/25 advertised to 10.0.1.1 removed
+      suggested (review it): no check type can see this (r)
+  not run (budget, raise --max): n0, n1, n2, n3, n4, n5, n6, n7, n8, n9
+Add a check that catches each survivor, or tell the human which blind spot remains. prove never edits netdryrun.yml.
+  not run (budget, raise --max): n0, n1, n2, n3, n4, n5, n6, n7, n8, n9 ...

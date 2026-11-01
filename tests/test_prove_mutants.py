@@ -397,3 +397,59 @@ def test_select_error_text():
         assert str(e) == ("unknown variant kind(s) nope, zz; known: customer_leak, import_filter, session_down, link_down, "
                           "attribute_drift, default_leak, link_subnet_leak, more_specific, max_prefix_edge")
     assert ipaddress.ip_network("100.64.0.0/10") == V.LEAK_SPACE
+
+
+def test_the_range_note_stands_alone_without_another_note():
+    base = h.custleak(edge_filter=None)
+    v = Variant("customer_leak:cust:2", "customer_leak", "cust", "d", originates=tuple(leak_prefixes(2)),
+                range_top=("edge", "10.0.1.2", "ipv4-unicast", 3))
+    during = h.custleak(cust_extra=leak_prefixes(2), edge_filter=None)
+    ok = lambda checks: [replace(r, passed=True) for r in h.evaluate(checks, during)]  # noqa: E731
+    ex = h.FakeExecutor(base, {v.id: during}, results={v.id: ok})
+    res = core._one(ex, v, CHECKS, base, ex.side_state(), core._Fresh(), core.now)
+    assert res.note.startswith("edge's count from 10.0.1.2 reached 4")
+
+
+def test_blocked_counts_only_the_nodes_own_paths_from_that_neighbor():
+    base = h.custleak()
+    k = ItemKey("path", "up", "default", "ipv4", "unicast", "203.0.113.128/25", neighbor="10.0.1.2")
+    base.nodes["up"].items[k] = path(as_path="65010")
+    a = ItemKey("adj_out", "up", "default", "ipv4", "unicast", "203.0.113.128/25", neighbor="10.0.1.2")
+    base.nodes["up"].items[a] = attrs()
+    assert core.blocked(base)[("edge", "10.0.1.2")] is True
+
+
+def test_took_effect_names_every_missing_prefix():
+    v = Variant("customer_leak:cust:2", "customer_leak", "cust", "d", originates=("100.64.0.0/24", "100.64.1.0/24"))
+    assert core.took_effect(v, h.custleak(), h.custleak()) == (
+        "cust announces 100.64.0.0/24, 100.64.1.0/24 in its config, but its BGP table doesn't have it")
+
+
+def test_a_node_with_bgp_but_no_neighbor_leaks_no_link_subnet():
+    c = "interface eth1\n ip address 10.0.0.1/30\nrouter bgp 1\n"
+    assert not [v for v in V.generate({"r": c}, [(("r", "eth1"), ("x", "eth1"))]) if v.kind == "link_subnet_leak"]
+
+
+def test_a_quiet_session_before_a_busy_one_on_the_same_node():
+    c = "router bgp 1\n neighbor 10.0.0.2 remote-as 2\n neighbor 10.0.0.6 remote-as 3\n"
+    counts = {("r", "10.0.0.2", "ipv4-unicast"): 0, ("r", "10.0.0.6", "ipv4-unicast"): 4}
+    assert [v.id for v in V.generate({"r": c}, base_counts=counts) if v.kind == "session_down"] == ["session_down:r:10.0.0.6"]
+
+
+def test_an_undefined_inbound_prefix_list_gives_no_variant():
+    c = "router bgp 1\n neighbor 10.0.0.2 remote-as 2\n address-family ipv4 unicast\n  neighbor 10.0.0.2 prefix-list NONE in\n"
+    assert not [v for v in V.generate({"r": c}) if v.kind == "import_filter"]
+
+
+def test_remote_as_of_a_neighbor_with_none():
+    c = V.parse("router bgp 1\n neighbor 10.0.0.2 shutdown\n")
+    assert c.remote_as_of("10.0.0.2") == "" and not c.ebgp("10.0.0.2")
+
+
+def test_fresh_refuses_out_of_order_results():
+    rs = h.evaluate(CHECKS, h.custleak())
+    try:
+        core._Fresh().check([rs[1], rs[0], *rs[2:]], CHECKS, "", "x")
+        raise AssertionError("out of order must be refused")
+    except core.ProveError as e:
+        assert "out of order" in str(e)

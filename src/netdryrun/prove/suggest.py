@@ -12,6 +12,7 @@ from .variants import Variant
 
 MAX_SUGGESTIONS = 5
 DEFAULT_LOCAL_PREF = 100
+ORDER = ("bgp_session", "bgp_prefixes", "route", "bgp_route")   # the order suggestions are listed in
 GUARDED = ("default_leak", "link_subnet_leak")   # their prefixes are what a standing guard names
 
 
@@ -61,14 +62,13 @@ def suggest(variant: Variant, base: Snapshot, effect: list[DiffItem]) -> list[di
             out.append(_s(_attrs_check(k.node, k.vrf, k.prefix, d.before), "the best path's attributes today"))
         elif k.kind == "path" and d.change == "removed" and isinstance(d.before, BgpPath) and d.before.best:
             out.append(_s(_attrs_check(k.node, k.vrf, k.prefix, d.before), "the best path today (it moved)"))
-    if not out and any(d.key.kind == "adj_out" for d in effect):
-        out.append(_s(None, "only what a node advertises changed (to a neighbor no lab node stands for); no check type "
-                            "reads advertisements yet, so nothing in netdryrun.yml can catch this: tell the human"))
     unique = []
     for c in out:
         if c not in unique:
             unique.append(c)
     # sessions first (a session down explains the routes it took with it), then counts, routes, attributes
-    order = {"bgp_session": 0, "bgp_prefixes": 1, "route": 2, "bgp_route": 3}
-    unique.sort(key=lambda c: order[c["check"]["type"]] if c["check"] else 4)
+    unique.sort(key=lambda c: ORDER.index(c["check"]["type"]))
+    if not unique and any(d.key.kind == "adj_out" for d in effect):
+        unique.append(_s(None, "only what a node advertises changed (to a neighbor no lab node stands for); no check "
+                               "type reads advertisements yet, so nothing in netdryrun.yml can catch this: tell the human"))
     return unique[:MAX_SUGGESTIONS]
