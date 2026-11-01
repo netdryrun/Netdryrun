@@ -316,6 +316,18 @@ def _startup_load(lab, name: str, driver: str, bound, deployed: bool = True) -> 
             return parse_startup_config_errors(r.stdout)
         except DriverError as e:
             return [f"{e}; so whether its config loaded is unknown"]
+    if driver == "nxos":
+        # vrnetlab types the startup config into the NX-OS VM after boot and logs NX-OS's answer to each line (live,
+        # 10.4(8)): a rejected line is skipped and the rest loads, as on FRR and EOS
+        from .drivers.nxos import parse_startup_log
+        r = lab.boot_log(name)
+        if r.rc != 0:
+            return [f"its vrnetlab log could not be read ({(r.stderr or r.stdout).strip()[-200:]}), so whether its "
+                    "config loaded is unknown"]
+        try:
+            return parse_startup_log(r.stdout)
+        except DriverError as e:
+            return [str(e)]
     if driver in ("srlinux", "sonic") and not deployed:
         return None
     if driver == "srlinux":

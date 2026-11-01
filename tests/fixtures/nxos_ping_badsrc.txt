@@ -1,0 +1,7 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"msg":	"ping: can't bind to address 10.9.9.9\n"
+	},
+	"id":	1
+}

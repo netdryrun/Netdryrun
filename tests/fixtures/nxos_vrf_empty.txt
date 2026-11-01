@@ -1,0 +1,16 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf_name":	"EMPTY",
+					"vrf_id":	5,
+					"vrf_state":	"Up",
+					"vrf_reason":	"--"
+				}
+			}
+		}
+	},
+	"id":	1
+}

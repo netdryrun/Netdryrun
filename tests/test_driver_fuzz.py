@@ -17,7 +17,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from netdryrun.drivers import DriverError, eos, frr, junos, srlinux
+from netdryrun.drivers import DriverError, eos, frr, junos, nxos, srlinux
 
 FIX = Path(__file__).parent / "fixtures"
 SETTINGS = settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
@@ -30,6 +30,7 @@ def read(name: str) -> str:
 EOS_NO_ROUTES = json.dumps({"vrfs": {"default": {"routes": {}}}})
 EOS_NO_BGP = read("eos_bgp_paths_empty.txt")
 SRL_ROW = json.loads(read("srl_bgp_rib_paths.txt"))["route"][0]
+NXOS_NULL = json.dumps({"jsonrpc": "2.0", "result": None, "id": 1})   # NX-API: the command printed nothing
 
 
 # --- what "a real empty answer in the expected structure" looks like, per parser
@@ -77,6 +78,20 @@ def srl_list_empty(key):
     return check
 
 
+def nxos_body_empty(d) -> bool:
+    """An NX-API success reply whose body is a structured answer (TABLE_vrf), not an error."""
+    if isinstance(d, list) and len(d) == 1:
+        d = d[0]
+    try:
+        return "error" not in d and isinstance(d["result"]["body"]["TABLE_vrf"], dict)
+    except (TypeError, KeyError):
+        return False
+
+
+def nxos_bgp_route_side_empty(d) -> bool:
+    """The BGP side of a route check: `"result": null` is BGP not configured in a VRF whose RIB answered
+    (live, VRF EMPTY), so no BGP paths."""
+    return (isinstance(d, dict) and "result" in d and d["result"] is None and "error" not in d) or nxos_body_empty(d)
 def junos_neighbors_empty(d) -> bool:
     try:
         (info,) = d["bgp-information"]
@@ -145,6 +160,24 @@ CASES = [
     Case("srlinux.parse_rib_paths", lambda t: srlinux.parse_rib_paths(t, "192.168.20.0/24"),
          ["srl_bgp_rib_paths.txt"], srl_list_empty("route")),
     Case("srlinux.parse_all_routes", lambda t: srlinux.parse_all_routes(t), ["srl_route.txt"], srl_list_empty("route")),
+    Case("nxos.parse_bgp_summary", lambda t: nxos.parse_bgp_summary(t),
+         ["nxos_summary_v4.txt", "nxos_summary_v6.txt"], nxos_body_empty),
+    Case("nxos.parse_bgp_summary[vrf]", lambda t: nxos.parse_bgp_summary(t, "RED"), ["nxos_summary_red.txt"],
+         nxos_body_empty),
+    Case("nxos.parse_routes[route table]", lambda t: nxos.parse_routes(t, NXOS_NULL, "0.0.0.0/0"),
+         ["nxos_route_default.txt"], nxos_body_empty),
+    Case("nxos.parse_routes[bgp side]", lambda t: nxos.parse_routes(read("nxos_route_66.txt"), t, "0.0.0.0/0"),
+         ["nxos_bgp_default.txt"], nxos_bgp_route_side_empty),
+    Case("nxos.parse_routes[v6]", lambda t: nxos.parse_routes(t, NXOS_NULL, "2001:db8:20::/48"),
+         ["nxos_route_v6.txt"], nxos_body_empty),
+    Case("nxos.parse_all_routes", lambda t: nxos.parse_all_routes(t), ["nxos_all_routes.txt"], nxos_body_empty),
+    Case("nxos.parse_bgp_paths", lambda t: nxos.parse_bgp_paths(t, "192.168.20.0/24"), ["nxos_bgp_20.txt"],
+         nxos_body_empty),
+    Case("nxos.parse_bgp_paths[leak]", lambda t: nxos.parse_bgp_paths(t, "0.0.0.0/0"), ["nxos_bgp_default.txt"],
+         nxos_body_empty),
+    Case("nxos.parse_bgp_paths[v6]", lambda t: nxos.parse_bgp_paths(t, "2001:db8:20::/48"), ["nxos_bgp_v6.txt"],
+         nxos_body_empty),
+    Case("nxos.parse_bgp_vrfs", lambda t: nxos.parse_bgp_vrfs(t), ["nxos_bgp_vrf_list.txt"], lambda d: False),
     Case("junos.parse_bgp_neighbors", lambda t: junos.parse_bgp_neighbors(t, "master"), ["junos_bgp_neighbor.txt"],
          junos_neighbors_empty),
     Case("junos.parse_bgp_neighbors[instance]", lambda t: junos.parse_bgp_neighbors(t, "RED"),
@@ -249,7 +282,10 @@ KEYS = ["vrfs", "default", "routes", "route", "peers", "neighbor", "paths", "pre
         "192.168.20.0/24", "192.168.3.0/24", "0.0.0.0/0", "10.0.0.2", "peer", "peerId", "peerEntry",
         "peerAddr", "origin-protocol", "local-pref", "as-path", "route-information", "route-table", "rt",
         "rt-entry", "bgp-information", "bgp-peer", "bgp-rib", "data", "peer-state", "table-name", "ping-results",
-        "probe-results-summary", "route-table-error", "instance-core"]
+        "probe-results-summary", "route-table-error", "instance-core",
+        "jsonrpc", "result", "body", "error", "msg", "TABLE_vrf", "ROW_vrf", "vrf-name-out", "TABLE_prefix",
+        "ROW_prefix", "ipprefix", "TABLE_path", "ROW_path", "clientname", "ubest", "neighborid", "state",
+        "pathtype", "pathbest", "TABLE_neighbor", "ROW_neighbor", "prefixreceived"]
 scalars = st.none() | st.booleans() | st.integers() | st.floats(allow_nan=False) | st.text(max_size=12) | \
     st.sampled_from(KEYS)
 json_values = st.recursive(
@@ -269,7 +305,8 @@ def test_wrong_type_json(case, value):
 # --- reordered: same answer, whatever the order of keys and list entries
 
 # Lists whose order carries no meaning (AS path segments and next hops do carry one: not shuffled)
-UNORDERED = {"route", "neighbor", "paths", "bgpRoutePaths", "afi-safi", "bgp-peer", "bgp-rib", "rt"}
+UNORDERED = {"route", "neighbor", "paths", "bgpRoutePaths", "afi-safi", "bgp-peer", "bgp-rib", "rt",
+             "ROW_vrf", "ROW_neighbor", "ROW_prefix", "ROW_path", "ROW_community", "ROW_largecommunity"}
 
 
 def shuffled(node, rnd: random.Random, key=None):
@@ -366,6 +403,21 @@ FAIL_SAFE = [
      lambda r: isinstance(r, list) and all(isinstance(x, str) and x.startswith("line ") for x in r)),
     ("srlinux.parse_instance_state", lambda t: srlinux.parse_instance_state(t), ["srl_neighbor_local_pref.txt"],
      lambda r: r is None or isinstance(r, str)),
+    # nxos.parse_vrf_state: None -> the driver raises "VRF ... does not exist"
+    ("nxos.parse_vrf_state", lambda t: nxos.parse_vrf_state(t, "RED"), ["nxos_vrf_red.txt"],
+     lambda r: r is None or isinstance(r, str)),
+    # nxos.parse_vrfs: a VRF left out only narrows what `netdryrun record` reads
+    ("nxos.parse_vrfs", nxos.parse_vrfs, ["nxos_vrf_red.txt", "nxos_vrf_default.txt"],
+     lambda r: isinstance(r, list) and all(isinstance(x, str) for x in r)),
+    # nxos.parse_version: None -> the version is reported as unknown
+    ("nxos.parse_version", nxos.parse_version, ["nxos_version.txt"], lambda r: r is None or isinstance(r, str)),
+    # nxos.parse_startup_log: [] means "every line loaded"; test_nxos.py checks it never comes from text that
+    # doesn't show a config typed and a startup completed
+    ("nxos.parse_startup_log", nxos.parse_startup_log, ["nxos_boot_log_clean.txt", "nxos_boot_log_rejected.txt"],
+     lambda r: isinstance(r, list) and all(isinstance(x, str) for x in r)),
+    # nxos.parse_ping_reply: (0, 0) -> "ping did not run"
+    ("nxos.parse_ping_reply", nxos.parse_ping_reply, ["nxos_ping_ok.txt", "nxos_ping_fail.txt", "nxos_ping_novrf.txt"],
+     _ping_ok),
     ("junos.parse_ping", junos.parse_ping, ["junos_ping.txt", "junos_ping_noreply.txt", "junos_ping6.txt"], _ping_ok),
     # junos.parse_vrfs: [] only narrows what `netdryrun record` reads (it warns "only the default VRF")
     ("junos.parse_vrfs", junos.parse_vrfs, ["junos_instance_red.txt", "junos_instance_master.txt"],
@@ -427,6 +479,7 @@ DRIVER_PARSER_MODULES = {
     "sonic": ["netdryrun.drivers.sonic", "netdryrun.drivers.frr"],
     "eos": ["netdryrun.drivers.eos", "netdryrun.drivers.frr"],   # parse_ping is FRR's
     "srlinux": ["netdryrun.drivers.srlinux", "netdryrun.drivers.frr"],
+    "nxos": ["netdryrun.drivers.nxos", "netdryrun.drivers.frr"],   # parse_ping is FRR's
     "junos": ["netdryrun.drivers.junos"],
 }
 

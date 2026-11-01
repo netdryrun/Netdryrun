@@ -1,0 +1,7 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"msg":	"ping: bad context NOPE\n"
+	},
+	"id":	1
+}

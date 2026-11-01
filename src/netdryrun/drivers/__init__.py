@@ -1,11 +1,12 @@
 """Per-platform drivers that turn device state into a common shape."""
 from __future__ import annotations
 
-from ..lab import Lab, Node
+from ..lab import NXOS_KINDS, Lab, Node
 from .base import Driver, DriverError
 from .eos import EosDriver
 from .frr import FrrDriver
 from .junos import JunosDriver
+from .nxos import NxosDriver
 from .sonic import SonicDriver
 from .srlinux import SrlDriver
 
@@ -13,7 +14,7 @@ from .srlinux import SrlDriver
 JUNOS_KINDS = ("juniper_cjunosevolved", "cjunosevolved")
 
 DRIVERS: dict[str, type[Driver]] = {"frr": FrrDriver, "srlinux": SrlDriver, "eos": EosDriver, "sonic": SonicDriver,
-                                 "junos": JunosDriver}
+                                 "junos": JunosDriver, "nxos": NxosDriver}   # nxos: beta, unreleased
 
 
 def detect(node: Node) -> str:
@@ -21,6 +22,8 @@ def detect(node: Node) -> str:
         return "srlinux"
     if node.kind in ("arista_ceos", "ceos"):
         return "eos"
+    if node.kind in NXOS_KINDS:
+        return "nxos"
     if node.kind in JUNOS_KINDS:
         return "junos"
     if node.kind in ("sonic-vs", "sonic_vs") or "sonic" in node.image.lower():

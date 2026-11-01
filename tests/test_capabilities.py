@@ -28,7 +28,8 @@ def test_its_facts_are_the_codes():
     mcp_server = pytest.importorskip("netdryrun.mcp_server")
     assert DOC["schema"] == "netdryrun.capabilities/v1" and DOC["url"] == capabilities.URL
     assert DOC["version"] == __version__
-    assert {p["driver"] for p in DOC["platforms"]} == set(DRIVERS)
+    from sync_facts import UNRELEASED   # public facts follow releases: an unreleased driver isn't listed yet
+    assert {p["driver"] for p in DOC["platforms"]} == set(DRIVERS) - set(UNRELEASED)
     assert DOC["check_types"] == list(CHECK_TYPES)
     assert DOC["verdicts"]["run"] == list(mcp_server.VERDICT_ENUM)
     assert DOC["verdicts"]["verify"] == list(VERIFY_VERDICTS.values())

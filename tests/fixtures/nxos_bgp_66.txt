@@ -1,0 +1,24 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_vrf":	{
+				"ROW_vrf":	{
+					"vrf-name-out":	"default",
+					"TABLE_afi":	{
+						"ROW_afi":	{
+							"afi":	1,
+							"TABLE_safi":	{
+								"ROW_safi":	{
+									"safi":	1,
+									"af-name":	"IPv4 Unicast"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}

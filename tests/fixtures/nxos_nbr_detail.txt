@@ -1,0 +1,185 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_neighbor":	{
+				"ROW_neighbor":	{
+					"neighbor":	"10.0.1.2",
+					"remoteas":	65002,
+					"link":	"ebgp",
+					"index":	3,
+					"version":	4,
+					"remote-id":	"10.0.1.2",
+					"prevstate":	"OpenConfirm",
+					"internalvpnclient":	"false",
+					"state":	"Established",
+					"up":	"true",
+					"vrf":	"default",
+					"elapsedtime":	"PT6M7S",
+					"connectedif":	"Ethernet1/1",
+					"ttlsecurity":	"false",
+					"passiveonly":	"false",
+					"localas-inactive":	"false",
+					"remove-privateas":	"false",
+					"gshut-activate":	"false",
+					"lastread":	"PT51S",
+					"holdtime":	180,
+					"keepalivetime":	60,
+					"lastwrite":	"PT6S",
+					"keepalive":	0,
+					"msgrecvd":	12,
+					"notificationsrcvd":	0,
+					"recvbufbytesinq":	0,
+					"msgsent":	10,
+					"notificationssent":	0,
+					"sentbytesoutstanding":	0,
+					"sentbytespacked":	0,
+					"enhancederr":	"On",
+					"discardattrs":	0,
+					"connsestablished":	1,
+					"connsdropped":	0,
+					"lastupdrecd":	"PT6M6S",
+					"lastupdsent":	"PT6M6S",
+					"resetreason":	"No error",
+					"errlensnt":	0,
+					"errvalsnt":	0,
+					"rstmajsnt":	0,
+					"rstminsnt":	0,
+					"peerresetreason":	"No error",
+					"errlenrcvd":	0,
+					"errvalrcvd":	0,
+					"rstmajrcvd":	0,
+					"rstminrcvd":	0,
+					"capsnegotiated":	"false",
+					"capmpadvertised":	"true",
+					"caprefreshadvertised":	"true",
+					"capgrdynamicadvertised":	"true",
+					"capolddynamicadvertised":	"true",
+					"capolddynamicrecvd":	"false",
+					"caprradvertised":	"true",
+					"caprrrecvd":	"true",
+					"capoldrradvertised":	"true",
+					"capoldrrrecvd":	"true",
+					"capas4advertised":	"true",
+					"capas4recvd":	"true",
+					"capgradvertised":	"true",
+					"capgrrecvd":	"true",
+					"grrestarttime":	120,
+					"grstaletime":	300,
+					"grrecvdrestarttime":	120,
+					"capaddpathsadvertised":	"false",
+					"capaddpathsrecvd":	"true",
+					"capextendednhadvertised":	"true",
+					"capextendednhrecvd":	"false",
+					"epe":	"false",
+					"firstkeepalive":	"false",
+					"openssent":	1,
+					"opensrecvd":	1,
+					"updatessent":	2,
+					"updatesrecvd":	5,
+					"keepalivesent":	8,
+					"keepaliverecvd":	6,
+					"rtrefreshsent":	0,
+					"rtrefreshrecvd":	0,
+					"capabilitiessent":	0,
+					"capabilitiesrecvd":	0,
+					"bytessent":	204,
+					"bytesrecvd":	363,
+					"localaddr":	"10.0.1.1",
+					"localport":	26974,
+					"remoteaddr":	"10.0.1.2",
+					"remoteport":	179,
+					"fd":	79,
+					"TABLE_peraf":	{
+						"ROW_peraf":	{
+							"per-afi":	"1",
+							"TABLE_persaf":	{
+								"ROW_persaf":	{
+									"per-safi":	"1",
+									"per-af-name":	"IPv4 Unicast",
+									"tableversion":	"6",
+									"neighbortableversion":	"6",
+									"pfxrecvd":	"3",
+									"pathsrecvd":	"3",
+									"pfxbytes":	"864",
+									"pfxtreataswithdrawn":	"0",
+									"pfxsent":	"1",
+									"pathssent":	"1",
+									"insoftreconfigallowed":	"false",
+									"sendcommunity":	"true",
+									"sendextcommunity":	"true",
+									"asoverride":	"false",
+									"peerascheckdisabled":	"false",
+									"rrconfigured":	"false",
+									"defaultoriginate":	"false",
+									"lasteorsenttime":	"PT12M45S",
+									"firstconvgtime":	"PT12M45S",
+									"pfxsentfirsteor":	"1",
+									"TABLE_inpolicy":	{
+										"ROW_inpolicy":	{
+											"inpolicynr":	"2",
+											"inpolicytype":	"route-map",
+											"inpolicyname":	"FROM-F1",
+											"inpolicyhandle":	"true"
+										}
+									},
+									"TABLE_outpolicy":	{
+										"ROW_outpolicy":	{
+											"outpolicynr":	"2",
+											"outpolicytype":	"route-map",
+											"outpolicyname":	"ALL",
+											"outpolicyhandle":	"true"
+										}
+									}
+								}
+							}
+						}
+					},
+					"TABLE_graf":	{
+						"ROW_graf":	{
+							"gr-afi":	1,
+							"TABLE_grsaf":	{
+								"ROW_grsaf":	{
+									"gr-safi":	1,
+									"gr-af-name":	"IPv4 Unicast",
+									"gr-adv":	"true",
+									"gr-recv":	"false",
+									"gr-fwd":	"false"
+								}
+							}
+						}
+					},
+					"TABLE_af":	{
+						"ROW_af":	{
+							"af-afi":	1,
+							"TABLE_saf":	{
+								"ROW_saf":	{
+									"af-safi":	1,
+									"af-advertised":	"true",
+									"af-recvd":	"true",
+									"af-name":	"IPv4 Unicast"
+								}
+							}
+						}
+					},
+					"TABLE_addpathscapaf":	{
+						"ROW_addpathscapaf":	{
+							"addpathscap-afi":	1,
+							"TABLE_addpathscapsaf":	{
+								"ROW_addpathscapsaf":	{
+									"addpathscap-safi":	1,
+									"addpathscap-af-name":	"IPv4 Unicast",
+									"addpathssendcap-adv":	"false",
+									"addpathsrecvcap-adv":	"false",
+									"addpathssendcap-recv":	"false",
+									"addpathsrecvcap-recv":	"true"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"id":	1
+}
