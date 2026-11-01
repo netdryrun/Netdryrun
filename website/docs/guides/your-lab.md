@@ -163,7 +163,7 @@ A pass says every check in the file held in the lab. It says nothing about behav
 Two kinds of breakage pass a recorded baseline, because `record` reads routing state, not traffic or failure behavior:
 
 - **Reachability.** A route can stay active via BGP and still forward nowhere. In our [verdict corpus](../corpus.md), removing `next-hop-self` on an iBGP session cut the customer off from the peer network while every recorded route stayed active, and the recorded baseline passed. Add a `ping` check for each pair of networks that must reach each other (`type: ping`, `node:` the customer router, `target:` an address in the peer network).
-- **Safety limits that change nothing today.** Removing a `maximum-prefix` limit or replacing an import filter with permit-all passes while the neighbor sends what it sent when you recorded. Only a failure scenario, a neighbor that misbehaves, shows it; review those lines in the diff.
+- **Safety limits that change nothing today.** Removing a `maximum-prefix` limit or replacing an import filter with permit-all passes while the neighbor sends what it sent when you recorded. Only a failure scenario, a neighbor that misbehaves, shows it: add one where that neighbor announces extra routes ([`inject_routes`](../reference/config.md#failure-scenarios)) and check they stay out, with `bgp_prefixes` `max` on the neighbors behind it or `route` `present: false` for a prefix it must not get through.
 
 ## Next
 
