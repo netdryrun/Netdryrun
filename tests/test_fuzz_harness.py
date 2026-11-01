@@ -50,7 +50,7 @@ def test_every_parser_seed_runs_clean(fuzzers):
     fp = fuzzers["fuzz_parsers"]
     seeds = fp.seeds()
     assert len(seeds) >= len(fp.TARGETS)
-    for name, data in seeds.items():
+    for data in seeds.values():
         fp.TestOneInput(data)    # an AssertionError or any exception but DriverError is a finding
 
 

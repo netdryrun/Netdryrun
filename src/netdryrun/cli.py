@@ -272,8 +272,9 @@ def _cmd_sanitize(args) -> int:
         return 2
     print("Replaced: " + ", ".join(f"{n} {k}" for k, n in new["sanitizer"]["replaced"].items()))
     shown = 0
-    for (rel, old), new_rel in zip(files.items(), new_files):
-        for a, b in zip(old.splitlines(), new_files[new_rel].splitlines()):
+    for old, new_rel in zip(files.values(), new_files, strict=True):
+        # a JSON output can be laid out again, so the line counts may differ: the preview pairs what it can
+        for a, b in zip(old.splitlines(), new_files[new_rel].splitlines(), strict=False):
             if a != b and shown < 20:
                 print(f"  {new_rel}\n    - {a.strip()[:110]}\n    + {b.strip()[:110]}")
                 shown += 1

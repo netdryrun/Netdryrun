@@ -148,7 +148,7 @@ def sanitize(manifest: dict, files: dict[str, str], hostnames=()) -> tuple[dict,
     new["image"] = _image(manifest["image"], s)
     new_files: dict[str, str] = {}
     originals: dict[str, str] = {}
-    for i, (c, old) in enumerate(zip(new["commands"], manifest["commands"]), 1):
+    for i, (c, old) in enumerate(zip(new["commands"], manifest["commands"], strict=True), 1):
         c["file"] = f"outputs/{i:02d}-{_slug(c['argv'])}.txt"     # an old name can spell a prefix: name it again
         new_files[c["file"]] = rewritten[old["file"]]
         originals[c["file"]] = files[old["file"]]

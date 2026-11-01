@@ -40,9 +40,10 @@ def TestOneInput(data: bytes) -> None:
     except config.ConfigError:
         return
     raw = config.load_yaml(text)
-    pairs = list(zip(raw.get("checks") or [], cfg.checks))
-    for sc_raw, sc in zip(raw.get("scenarios") or [], cfg.scenarios):
-        pairs += list(zip(sc_raw.get("checks") or [], sc.checks))
+    # strict: a check or scenario accepted and then left out is a finding too
+    pairs = list(zip(raw.get("checks") or [], cfg.checks, strict=True))
+    for sc_raw, sc in zip(raw.get("scenarios") or [], cfg.scenarios, strict=True):
+        pairs += list(zip(sc_raw.get("checks") or [], sc.checks, strict=True))
     for raw_check, check in pairs:
         dropped = _dropped(raw_check, check)
         assert not dropped, f"check {check.name!r} accepted with {sorted(dropped)} and dropped them"
