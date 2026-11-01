@@ -317,3 +317,83 @@ def test_a_node_first_reached_in_a_scenario_still_gets_its_configured_driver(tmp
     config.drivers = {"r1": "frr"}
     runner.run(config, deploy=False)
     assert calls.count(("r1", "frr")) >= 3 and ("r1", None) not in calls
+
+
+# ------------------------------------------------------------------------- review of the equivalents (936c0ed)
+
+@pytest.mark.parametrize("short_call", [0, 1])
+def test_collect_refuses_a_read_that_comes_back_short(monkeypatch, short_call):
+    """strict=True is a guardrail: if _each ever returned fewer results than nodes (the addresses, call 0, or the
+    snapshots, call 1), collect must fail, never pair what came back with the wrong nodes or drop a node."""
+    from netdryrun.verify import run as vrun
+    from test_verify_run_mutants import CollectLab, node, patch_collector
+    patch_collector(monkeypatch)
+    monkeypatch.setattr(vrun, "unobserved_reasons", lambda lab, nodes: {})
+    each, calls = vrun._each, []
+
+    def short(fn, items, *a, **k):
+        out = each(fn, items, *a, **k)
+        calls.append(len(calls))
+        return out[:-1] if calls[-1] == short_call else out
+    monkeypatch.setattr(vrun, "_each", short)
+    with pytest.raises(ValueError):
+        vrun.collect(CollectLab(node("r1"), node("r2")), {"r1": "frr", "r2": "frr"})
+
+
+def test_the_fingerprint_names_each_vrf_and_table_the_node_does_not_have():
+    """Pinned exactly: a VRF or table that doesn't exist is an entry with its own node, VRF (and family) label, never
+    a bare value another entry could also take."""
+    d = Vrfs(Clock(), {"default": UP}, {("default", 4): STILL})
+    fp, window, ribs = Quiescence({"r1": d}, {"red"}, 10.0)._fingerprint(RoundMemo({"r1": d}))
+    assert fp == (("r1", "default", (("10.0.0.2", "established", (("ipv4-unicast", 3),), ()),)),
+                  ("r1", "default", 4, (("10.0.0.0/30", "connected", True),)),
+                  ("r1", "default", 6, "no such instance"),
+                  ("r1", "red", "no such instance"))
+    assert window == 10.0 and set(ribs) == {("r1", "default", 4)}
+
+
+class Flicker(Vrfs):
+    """`gone(t)`: whether VRF red (or only its IPv4 table, table_only) doesn't exist at time t; otherwise it is there,
+    established, with an empty table."""
+
+    def __init__(self, clock, gone, table_only=False):
+        super().__init__(clock, {"default": UP, "red": UP},
+                         {("default", 4): STILL, ("default", 6): STILL, ("red", 4): lambda t: [],
+                          ("red", 6): lambda t: []})
+        self.gone, self.table_only = gone, table_only
+
+    def bgp_neighbors(self, vrf="default"):
+        if vrf == "red" and not self.table_only and self.gone(self.clock.t):
+            raise NoSuchInstance("no VRF red")
+        return super().bgp_neighbors(vrf)
+
+    def all_routes(self, vrf="default", family=4):
+        if vrf == "red" and family == 4 and self.gone(self.clock.t):
+            raise NoSuchInstance("no table red 4")
+        return super().all_routes(vrf, family)
+
+
+@pytest.mark.parametrize("table_only", [False, True])
+def test_a_vrf_or_table_that_comes_and_goes_is_never_quiescent(table_only):
+    """Missing in one sample, present but empty in the next: the fingerprints differ every round, so the lab never
+    counts as quiescent and a failing check waits out its timeout."""
+    c = Clock()
+    d = Flicker(c, lambda t: int(t // 3) % 2 == 0, table_only)
+    q = Quiescence({"r1": d}, {"red"}, 10.0)
+    gone, there = q._fingerprint(RoundMemo({"r1": d}))[0], None
+    c.t = 3.0
+    there = q._fingerprint(RoundMemo({"r1": d}))[0]
+    assert gone != there
+    c.t = 0.0
+    [r] = rr([check("route", **ROUTE)], {"r1": d}, c, Quiescence({"r1": d}, {"red"}, 10.0))
+    assert not r.passed and "ended early" not in r.detail and r.duration >= 90
+
+
+def test_a_vrf_whose_neighbors_read_empty_is_not_a_usable_sample():
+    """A VRF there with no BGP neighbors (an empty answer, not a missing VRF) makes the sample unusable: the
+    fingerprint is None, the count starts again and a failing check waits out its timeout."""
+    c = Clock()
+    d = Vrfs(c, {"default": UP, "red": lambda t: {}}, {("default", 4): STILL, ("default", 6): STILL})
+    assert Quiescence({"r1": d}, {"red"}, 10.0)._fingerprint(RoundMemo({"r1": d})) == (None, None, None)
+    [r] = rr([check("route", **ROUTE)], {"r1": d}, c, Quiescence({"r1": d}, {"red"}, 10.0))
+    assert not r.passed and "ended early" not in r.detail and r.duration >= 90
