@@ -1,0 +1,39 @@
+# RouterOS capture lab: every shape the RouterOS fixtures and the must-fail matrix need, live. Bring your own image (the
+# CHR VMDK from mikrotik.com, built with vrnetlab); it can't be redistributed. One CHR node per lab.
+#   f1 (AS65002, ether2): 10.20.0.0/24 with MED 50 and communities, 10.21.0.0/24 with no MED, 10.66.0.0/24 (r1 rejects
+#      it by policy), and a default that r1's static blackhole outranks
+#   f2 (AS65004, ether3): 10.20.0.0/24 again with a longer AS path (received, not selected)
+#   f3 (AS65003, ether4, VRF RED): 198.18.2.0/24
+#   f4 (AS65005, ether5): an established session that sends nothing (zero prefixes)
+#   idle: a connection to 192.0.2.99, which no interface reaches (it cannot start)
+name: ndr-routeros-cap
+
+topology:
+  defaults:
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    r1:
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.23.8
+      startup-config: configs/r1.rsc
+    f1:
+      kind: linux
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/f1.conf:/etc/frr/frr.conf]
+      exec: [ip route del default]
+    f2:
+      kind: linux
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/f2.conf:/etc/frr/frr.conf]
+      exec: [ip route del default]
+    f3:
+      kind: linux
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/f3.conf:/etc/frr/frr.conf]
+      exec: [ip route del default]
+    f4:
+      kind: linux
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/f4.conf:/etc/frr/frr.conf]
+      exec: [ip route del default]
+  links:
+    - endpoints: ["r1:eth1", "f1:eth1"]
+    - endpoints: ["r1:eth2", "f2:eth1"]
+    - endpoints: ["r1:eth3", "f3:eth1"]
+    - endpoints: ["r1:eth4", "f4:eth1"]
