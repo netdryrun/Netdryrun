@@ -96,8 +96,7 @@ def test_a_run_that_reports_the_old_checks_as_strong_fails(old_checks):
     run = {v.variant.id: v.result for v in prove(h.FakeExecutor(base, default_states(vs)), old_checks).variants}
     assert run[FILTER] == SURVIVED
     assert run["session_down:cust:10.0.1.1"] == CAUGHT
-    # edge's filter holds the leak; with the disclosure's footprint cust's advertisement of it is still an effect
-    assert run["customer_leak:cust:1"] == SURVIVED
+    assert run["customer_leak:cust:1"] == NO_EFFECT   # edge's filter rejects the leak: the network did the right thing
 
 
 def default_states(vs):
@@ -304,16 +303,33 @@ def test_a_link_down_with_no_effect_did_not_happen(old_checks):
     assert rep.status == "error" and "did not go down" in rep.error
 
 
-def test_a_contained_leak_still_shows_its_advertisement(old_checks):
-    """cust announces 100.64.0.0/24 and edge filters it. The footprint is only cust's locally originated entry, so its
-    advertisement of the prefix to edge is an effect: survived (no check reads advertisements)."""
+def test_a_leak_the_filter_rejects_is_no_effect(old_checks):
+    """Filter intact: cust announces 100.64.0.0/24 and advertises it to edge, edge (with soft-reconfiguration, so it
+    keeps the pre-policy copy) rejects it. Only the variant's own footprint changed: no effect, never survived."""
+    from netdryrun.verify.snapshot import ItemKey
+    from verify_helpers import attrs
+
     vid = "customer_leak:cust:1"
     vs = variants(old_checks)
-    (v,) = prove(h.FakeExecutor(h.custleak(), {vid: h.applied(vs[vid], h.custleak(cust_extra=leak_prefixes(1)))}),
-                 old_checks, kinds=["customer_leak"], maximum=1).variants
-    assert v.result == SURVIVED
-    assert [d.key.where() for d in v.effect] == ["cust 100.64.0.0/24 advertised to 10.0.1.1"]
-    assert v.suggested[0]["check"] is None   # nothing in netdryrun.yml can see it: the report says so
+    during = h.applied(vs[vid], h.custleak(cust_extra=leak_prefixes(1)))
+    pre = ItemKey("adj_in", "edge", "default", "ipv4", "unicast", "100.64.0.0/24", neighbor="10.0.1.2")
+    during.nodes["edge"].items[pre] = attrs(next_hop="10.0.1.2")
+    assert {d.key.where() for d in core.diff(h.custleak(), during) if d.key.kind != "config"} >= {
+        "cust 100.64.0.0/24 advertised to 10.0.1.1", "edge 100.64.0.0/24 received from 10.0.1.2 (before inbound policy)"}
+    (v,) = prove(h.FakeExecutor(h.custleak(), {vid: during}), old_checks, kinds=["customer_leak"], maximum=1).variants
+    assert v.result == NO_EFFECT and v.effect == []
+
+
+def test_the_filter_removed_plus_a_leak_is_an_effect(old_checks):
+    """Filter removed and cust leaks: edge accepts the leak into its BGP table and RIB, and passes it on: an effect."""
+    base = h.custleak(foreign=False)
+    vs = variants(old_checks, base)
+    during = h.applied(vs[COMPOSED], h.custleak(foreign=False, cust_extra=LEAK1, edge_filter=None))
+    effect = core.routing_effect(vs[COMPOSED], base, during)
+    where = {d.key.where() for d in effect}
+    assert {"edge 100.64.0.0/24 path from 10.0.1.2", "edge 100.64.0.0/24 [bgp]", "up 100.64.0.0/24 path from 10.0.2.1",
+            "edge session 10.0.1.2"} <= where   # accepted, best, installed, counted
+    assert not any(w.startswith("cust ") for w in where)   # cust's own entries and advertisement are footprint
 
 
 def test_a_leak_that_gets_through_is_an_effect(old_checks):
@@ -324,14 +340,12 @@ def test_a_leak_that_gets_through_is_an_effect(old_checks):
     (v,) = prove(h.FakeExecutor(base, {vid: leaky}), old_checks, kinds=["customer_leak"], maximum=1).variants
     assert v.result == SURVIVED   # one more prefix sits inside every recorded range
     where = {d.key.where() for d in v.effect}
-    assert {"edge 100.64.0.0/24 path from 10.0.1.2", "up 100.64.0.0/24 [bgp]",
-            "cust 100.64.0.0/24 advertised to 10.0.1.1", "edge session 10.0.1.2", "up session 10.0.2.1"} <= where
-    assert not any(w.startswith("cust 100.64.0.0/24 [static]") or w == "cust 100.64.0.0/24 path from local"
-                   for w in where)
+    assert {"edge 100.64.0.0/24 path from 10.0.1.2", "up 100.64.0.0/24 [bgp]", "edge session 10.0.1.2",
+            "up session 10.0.2.1"} <= where
+    assert not any(w.startswith("cust 100.64.0.0/24") for w in where)
 
 
-def test_the_footprint_is_only_the_locally_originated_entry():
-    """Disclosure, step 2: the locally originated entry on the originating node only."""
+def test_the_footprint_is_the_originators_entries_advertisements_and_pre_policy_copies():
     from netdryrun.verify.engine import DiffItem
     from netdryrun.verify.snapshot import ItemKey
     from verify_helpers import attrs, path, rib
@@ -342,18 +356,22 @@ def test_the_footprint_is_only_the_locally_originated_entry():
     during = h.applied(v, h.custleak(cust_extra=leak_prefixes(1), edge_filter=None))
     own = core.footprint(v, base, during)
     kinds = {(d.key.node, d.key.kind): own(d) for d in core.diff(base, during) if d.key.kind != "config"}
-    assert kinds[("cust", "rib")] and kinds[("cust", "path")]
-    assert not kinds[("cust", "adj_out")] and not kinds[("edge", "path")] and not kinds[("edge", "rib")]
-    assert not kinds[("up", "path")] and not kinds[("edge", "adj_out")]
+    assert kinds[("cust", "rib")] and kinds[("cust", "path")] and kinds[("cust", "adj_out")]
+    assert not kinds[("edge", "path")] and not kinds[("edge", "rib")] and not kinds[("up", "path")]
+    assert not kinds[("edge", "adj_out")]   # edge passing it on is what the network did
     p = "100.64.0.0/24"
     k = lambda kind, node, **kw: ItemKey(kind, node, "default", "ipv4", "unicast", p, **kw)  # noqa: E731
-    # the same prefix learned on the originating node, or received on a neighbor before policy, is an effect
+    # the same prefix learned back on the originating node is an effect
     assert not own(DiffItem(k("path", "cust", neighbor="10.0.1.1"), None, path(as_path="65000")))
     assert not own(DiffItem(k("rib", "cust", protocol="bgp"), None, rib()))
-    assert not own(DiffItem(k("adj_in", "edge", neighbor="10.0.1.2"), None, attrs()))
     assert own(DiffItem(k("rib", "cust", protocol="static"), None, rib("static", hops=())))
+    assert own(DiffItem(k("adj_out", "cust", neighbor="192.0.2.99"), None, attrs()))   # any advertisement of its own
+    # pre-policy copies: from the originating node, footprint; from anyone else, an effect
+    assert own(DiffItem(k("adj_in", "edge", neighbor="10.0.1.2"), None, attrs()))
+    assert not own(DiffItem(k("adj_in", "edge", neighbor="10.0.2.2"), None, attrs()))
     assert not own(DiffItem(k("rib", "edge", protocol="static"), None, rib("static", hops=())))
-    # a variant that announces nothing has no footprint
+    other = ItemKey("adj_out", "cust", "default", "ipv4", "unicast", "10.10.0.0/24", neighbor="10.0.1.1")
+    assert not own(DiffItem(other, None, attrs()))   # a prefix it doesn't announce for the variant
     sd = vs["session_down:cust:10.0.1.1"]
     assert not any(core.footprint(sd, base, during)(d) for d in core.diff(base, during))
 

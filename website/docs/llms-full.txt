@@ -3697,7 +3697,7 @@ Not in a release yet. `netdryrun prove [path]` measures how strong the checks in
 
 | Option | Meaning |
 |---|---|
-| `--variants KIND,...` | Variant kinds to run (default: all): `customer_leak`, `import_filter`, `session_down`, `link_down`, `attribute_drift`, `default_leak`, `link_subnet_leak` |
+| `--variants KIND,...` | Variant kinds to run (default: all): `customer_leak`, `import_filter`, `session_down`, `link_down`, `attribute_drift`, `default_leak`, `link_subnet_leak` (`more_specific` and `max_prefix_edge` are named but not built yet: always reported as not generated) |
 | `--max N` | Most variants to run (default 8), taken one kind at a time |
 | `--plan` | List the variants a run would try, from the config files; starts no lab |
 

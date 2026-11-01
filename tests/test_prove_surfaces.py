@@ -185,6 +185,11 @@ def test_console_text(lab):
     assert lines[0] == preport.VERDICTS["failed"]
     assert lines[1].startswith("caught 1 of 2 known-bad variants (1 no effect, 0 inconclusive, kinds not generated: "
                                "none)")
+    every = prove_config(cfg, executor=executor_for(cfg), kinds=["import_filter", "more_specific", "max_prefix_edge"],
+                         maximum=1)
+    assert every.not_generated == ["more_specific", "max_prefix_edge"]
+    assert "kinds not generated: more_specific, max_prefix_edge)" in every.summary
+    assert preport.to_dict(every)["not_generated"] == ["more_specific", "max_prefix_edge"]
     assert "By kind: import_filter 0 caught, 1 survived, 0 no effect; session_down 1 caught, 0 survived, 0 no " \
            "effect; attribute_drift 0 caught, 0 survived, 1 no effect" in text
     assert "  [caught] cust: BGP session to 10.0.1.1 (edge) shut down" in text

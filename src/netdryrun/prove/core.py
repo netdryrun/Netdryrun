@@ -131,17 +131,24 @@ def now() -> str:
 # ---------------------------------------------------------------------------------------------------------
 
 def footprint(variant: Variant, base: Snapshot, during: Snapshot) -> Callable[[DiffItem], bool]:
-    """Whether a diff item is the variant's own mechanism rather than what the network did with it: the locally
-    originated entry of each prefix the variant announces, on the announcing node only (its discard static in the RIB
-    and its local BGP path). The same prefix learned anywhere, the node's own advertisements of it, a neighbour's
-    pre-policy copy and a neighbour's prefix count are effects, so a leak always shows one (disclosure, step 2)."""
+    """Whether a diff item is the variant's own mechanism rather than what the network did with it: for each prefix
+    the variant announces, the announcing node's own entries (its discard static, its local BGP path), its
+    advertisements of the prefix, and the copies a receiver holds before policy (Adj-RIB-In) from it. The effect is
+    post-policy state: the prefix accepted into any other node's BGP table or RIB, an accepted prefix-count change, a
+    best-path, session or reachability change. A leak the receiving policy rejects is no effect: the network did the
+    right thing (coordinator's rule, 2026-11-02)."""
     mine = {(p.node, x) for p in variant.parts() for x in p.originates}
+    if not mine:
+        return lambda d: False
+    ends = far_ends(base, during)
 
     def own(d: DiffItem) -> bool:
         k = d.key
-        if (k.node, k.prefix) not in mine:
-            return False
-        return (k.kind == "rib" and k.protocol == "static") or (k.kind == "path" and k.neighbor == "local")
+        if (k.node, k.prefix) in mine:
+            return (k.kind == "rib" and k.protocol == "static") or (k.kind == "path" and k.neighbor == "local") \
+                or k.kind == "adj_out"
+        far = ends.get((k.node, k.vrf, k.neighbor), ("",))[0]
+        return k.kind == "adj_in" and (far, k.prefix) in mine
     return own
 
 

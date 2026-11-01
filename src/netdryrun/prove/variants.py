@@ -26,6 +26,7 @@ Kinds, in the order the budget takes them (round robin, first variant of each ki
   entry that sets none
 - default_leak: 0.0.0.0/0 (::/0 for IPv6 sessions) originated into BGP
 - link_subnet_leak: a link subnet originated into BGP by a node on that link
+- more_specific, max_prefix_edge: in the published method, not built yet: listed as not generated
 """
 from __future__ import annotations
 
@@ -34,7 +35,8 @@ import re
 from dataclasses import dataclass, field
 
 KINDS = ("customer_leak", "import_filter", "session_down", "link_down", "attribute_drift", "default_leak",
-         "link_subnet_leak")
+         "link_subnet_leak", "more_specific", "max_prefix_edge")
+NOT_BUILT = ("more_specific", "max_prefix_edge")   # in the published method, not generated yet: always "not generated"
 LEAK_SPACE = ipaddress.ip_network("100.64.0.0/10")    # RFC 6598: customer_leak prefixes are /24s from it
 DEFAULT_MAX = 8
 MAX_LEAK = 1024   # the most prefixes one customer_leak variant announces (a range pair above it is left out)

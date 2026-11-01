@@ -182,7 +182,9 @@ def test_the_state_decides_whether_a_filter_edit_needs_a_leak():
 def test_the_default_budget_takes_one_of_each_kind_first():
     vs = V.generate(CONFIGS, h.LINKS)
     run, rest = V.select(vs)
-    assert [v.kind for v in run] == [*V.KINDS, "customer_leak"]
+    built = [k for k in V.KINDS if k not in V.NOT_BUILT]
+    assert [v.kind for v in run] == [*built, "customer_leak"]
+    assert not [v for v in vs if v.kind in V.NOT_BUILT]
     assert run[1].id.endswith("match ip address prefix-list CUST-IN:+leak:cust")   # the stranger's case is in it
     assert len(run) == V.DEFAULT_MAX and len(rest) == len(vs) - V.DEFAULT_MAX
 

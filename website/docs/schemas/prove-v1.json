@@ -14,7 +14,7 @@
       "properties": {
         "id": {"type": "string"},
         "kind": {"enum": ["customer_leak", "import_filter", "session_down", "link_down", "attribute_drift",
-                          "default_leak", "link_subnet_leak"]},
+                          "default_leak", "link_subnet_leak", "more_specific", "max_prefix_edge"]},
         "node": {"type": "string"},
         "description": {"type": "string"},
         "apply": {"type": "array", "items": {"type": "string"}},
