@@ -1,0 +1,77 @@
+# Every false pass Netdryrun is known to have had, and the tests that prove it still can't happen.
+#
+# The contributor CI (scripts/contrib_gate.py known-false-passes) runs these tests as the BASE branch has them, against
+# the pull request's code: a pull request can't make a known false pass come back by editing the test that guards it.
+# tests/test_known_false_passes.py fails when an advisory, a row of the advisories table on the trust page, or a
+# corpus loss that was fixed has no entry here.
+#
+#   id         stable name
+#   what       the false pass, in one line
+#   record     where it is published
+#   trust      the "Version" cell of its row in website/docs/trust.md's advisories table, if it has one
+#   corpus     corpus cases it covers (corpus/<v>/cases/<id>.yml): the label-gated live job reruns the corpus and
+#              any changed netdryrun verdict fails (scripts/contrib_gate.py corpus-results)
+#   tests      pytest files or node ids, run offline on every pull request
+
+- id: advisory-0.3.0-false-pass
+  what: A check could pass without testing what the file said (misspelled key, quoted boolean, unknown afi or
+    protocol, duplicate key, min 0, vrf all)
+  record: advisories/0.3.0-false-pass/README.md
+  trust: "0.3.0"
+  tests:
+    - tests/test_advisory_fixtures.py
+    - tests/test_redteam.py
+    - tests/test_config_strict.py
+- id: advisory-0.3.2-rejected-config
+  what: An FRR config line the router rejected at boot was skipped silently
+  record: advisories/0.3.2-rejected-config/README.md
+  trust: "0.3.2 and earlier"
+  tests:
+    - tests/test_frr_config_load.py
+    - tests/test_startup_config_load.py
+- id: advisory-0.3.3-exec-not-checked
+  what: A failed topology `exec:` command left the lab without that config
+  record: advisories/0.3.3-exec-not-checked/README.md
+  trust: "0.3.3 and earlier"
+  tests:
+    - tests/test_startup_config_load.py::test_audit_f1_an_exec_command_that_failed_fails_the_deploy
+- id: eos-med-0
+  what: On Arista EOS, `med 0` passed on a path received with no MED (cEOS prints MED 0 for both)
+  record: CHANGELOG.md (0.4.0)
+  trust: "0.3.3 and earlier"
+  tests:
+    - tests/test_interop_04_fixes.py
+    - tests/test_interop_04.py::test_eos_missing_med_never_reads_as_0
+    - tests/test_drivers_audit_033.py::test_med_zero_never_passes_on_a_path_without_med
+- id: driver-reads-error-as-nothing
+  what: A driver read a failed command, an unknown VRF or unexpected output as "no routes" or "no sessions"
+  record: tests/redteam/README.md (RT-0008 and later)
+  tests:
+    - tests/test_driver_false_pass.py
+    - tests/test_verdict_drivers.py
+    - tests/test_driver_mutants_04.py
+    - tests/test_junos_mutants.py
+- id: verdict-mutants
+  what: Mutations of the check, runner and config code that turn a failure into a pass
+  record: tests/test_verdict_checks.py, tests/test_verdict_runner.py, tests/test_verdict_config.py
+  tests:
+    - tests/test_verdict_checks.py
+    - tests/test_verdict_runner.py
+    - tests/test_verdict_config.py
+    - tests/test_runner_mutants.py
+    - tests/test_inconclusive.py
+- id: corpus-v1-misses-fixed
+  what: Corpus v1 harmful changes approved by the v1 intent (18 redistribute connected, 23 third-party origin, 21 and
+    30 latent filter removals) and the safe growth case 06 it blocked. The v1 verdicts stay losses; the v2 cases
+    below make the same mistakes and are caught, and the live job fails if any of them stops being caught
+  record: website/docs/how-its-built.md (Every miss, and what it changed)
+  corpus: [v2/02-redistribute-connected-pe2, v2/03-test-prefix-left-in-config, v2/05-customer-max-prefix-removed,
+           v2/06-peer-import-filter-permit-all, v2/07-customer-adds-prefixes]
+  tests:
+    - tests/test_verify_corpus.py
+- id: corpus-v2-18-discard-route
+  what: Corpus v2 case 18 (discard route for the aggregate deleted) was approved on a development build. It is
+    listed in corpus/v2/NONDETERMINISTIC.yml, so the live job reports its verdict and does not fail on it
+  record: corpus/v2/AMENDMENTS.md
+  corpus: [v2/18-aggregate-discard-route-removed]
+  tests: []

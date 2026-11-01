@@ -1,0 +1,103 @@
+name: Contributor gates
+
+# Gates that make an outside pull request safe to accept fast (scripts/contrib_gate.py has the details).
+# `pull_request` only, never `pull_request_target`: a fork's pull request runs with a read-only token and no
+# secrets, and nothing here needs one. Nothing from the pull request's text reaches a shell: the description is
+# read from the event file.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contrib-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --quiet -e ".[dev]"
+      - name: Every commit is signed off (DCO)
+        if: always()
+        run: python scripts/contrib_gate.py dco --base "$BASE"
+      - name: The description says whether AI tools were used
+        if: always()
+        run: python scripts/contrib_gate.py disclosure "$GITHUB_EVENT_PATH"
+      - name: Every known false pass still fails (the base branch's tests, this code)
+        if: always()
+        run: python scripts/contrib_gate.py known-false-passes --base "$BASE"
+      - name: A change to verdict code comes with a test that fails without it
+        if: always()
+        run: python scripts/contrib_gate.py fails-on-revert --base "$BASE"
+      - name: Every fixture has a recorded source; every capture bundle validates
+        if: always()
+        run: python scripts/contrib_gate.py provenance
+      - name: No pre-registered corpus case or verdict changed
+        if: always()
+        run: python scripts/contrib_gate.py corpus --base "$BASE"
+      - name: Lab templates have what the format needs
+        if: always()
+        run: python scripts/contrib_gate.py labs
+
+  # Live labs on free images, when a maintainer adds the `run-labs` label: lab templates run good (must pass) and
+  # bad (must fail), and both corpora rerun with every netdryrun verdict compared with the committed results.
+  live-labs:
+    if: contains(github.event.pull_request.labels.*.name, 'run-labs')
+    needs: gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install containerlab and Netdryrun
+        run: |
+          bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
+          python -m pip install --quiet .
+      - name: Lab templates, good and bad
+        run: sudo env -i "PATH=$PATH" "HOME=/root" python scripts/contrib_gate.py labs --run
+      - name: Keep the committed corpus results
+        run: |
+          cp corpus/results/results.json "$RUNNER_TEMP/v1.json"
+          cp corpus/v2/results/results.json "$RUNNER_TEMP/v2.json"
+          cp corpus/v2/NONDETERMINISTIC.yml "$RUNNER_TEMP/NONDETERMINISTIC.yml"
+      - name: Rerun corpus v1 and v2
+        run: |
+          set -o pipefail
+          for c in v1 v2; do
+            sudo env -i "PATH=$PATH" "HOME=/root" \
+              GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
+              python corpus/run.py --corpus "$c" 2>&1 | tee -a "$RUNNER_TEMP/corpus-run.log"
+          done
+      - name: Every netdryrun verdict is the committed one
+        run: |
+          python scripts/contrib_gate.py corpus-results "$RUNNER_TEMP/v1.json" corpus/results/results.json
+          mkdir -p "$RUNNER_TEMP/v2/results" && mv "$RUNNER_TEMP/v2.json" "$RUNNER_TEMP/v2/results/results.json"
+          mv "$RUNNER_TEMP/NONDETERMINISTIC.yml" "$RUNNER_TEMP/v2/NONDETERMINISTIC.yml"
+          python scripts/contrib_gate.py corpus-results "$RUNNER_TEMP/v2/results/results.json" corpus/v2/results/results.json
+      - name: Upload the corpus run
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: corpus-rerun
+          path: |
+            ${{ runner.temp }}/corpus-run.log
+            corpus/results/results.json
+            corpus/v2/results/results.json
+          if-no-files-found: ignore

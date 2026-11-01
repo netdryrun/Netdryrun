@@ -1,0 +1,102 @@
+# Where every file in tests/fixtures came from. The contributor CI (scripts/contrib_gate.py provenance) fails when a
+# file has no entry here, or an entry matches no file. Add your fixture's entry in the same pull request.
+#
+#   files    globs, relative to tests/fixtures
+#   kind     live-capture   output a NOS printed in a running lab (the only kind a parser test may be built on)
+#            lab-input      a topology or config fed to a lab, not output
+#            report         a report Netdryrun wrote on a real run
+#   source   the lab, NOS version and how it was captured, as far as it was recorded when the file was added
+#   added    the commit that added it, or last re-captured it
+#
+# Where the adding commit didn't name the lab or the version, the entry says so instead of guessing.
+# Contributed captures don't go here: they go in captures/ as bundles with their own manifest.json.
+
+- files: [frr_bgp_neighbors.txt, frr_ping.txt, frr_route.txt, srl_bgp_neighbors.txt, srl_ping.txt, srl_route.txt]
+  kind: live-capture
+  source: FRR and Nokia SR Linux example labs at v0.1; the commit does not record the NOS versions
+  added: f7e0b7c
+- files: [sonic_bgp_neighbors.txt, sonic_route.txt]
+  kind: live-capture
+  source: a live SONiC VS node (examples/sonic-frr), FRR inside the container, read with vtysh
+  added: f689600
+- files: [eos_bgp_route.txt, eos_bgp_summary.txt, eos_leak_bgp.txt, eos_leak_route.txt, eos_ping.txt, eos_route.txt,
+          srl_leak_rib.txt, srl_leak_route.txt, srl_rib_empty.txt]
+  kind: live-capture
+  source: Arista cEOS and SR Linux labs when the EOS driver was added (leak and not-installed routes); the commit does
+    not record the image versions
+  added: 77f43d6
+- files: [eos_bgp_paths.txt, eos_bgp_paths_empty.txt, eos_bgp_paths_local.txt, eos_bgp_paths_noexport.txt,
+          frr_bgp_paths.txt, frr_bgp_paths_local.txt, frr_bgp_paths_noexport.txt, frr_bgp_paths_v6.txt,
+          frr_bgp_table_header.txt, sonic_bgp_paths.txt, sonic_bgp_paths_empty.txt, srl_attr_set_backup.txt,
+          srl_attr_set_best.txt, srl_attr_set_noexport.txt, srl_bgp_rib_paths.txt, srl_bgp_rib_paths_noexport.txt,
+          srl_neighbor_local_pref.txt]
+  kind: live-capture
+  source: a live four-vendor lab (FRR, SR Linux, cEOS, SONiC) for the bgp_route attribute checks
+  added: a8a7afb
+- files: [junos_CAPTURES.md]
+  kind: lab-input
+  source: the capture log for the cJunosEvolved fixtures (lab, image, the command behind each file)
+  added: ddd2923
+- files: [junos_bgp_neighbor.txt, junos_bgp_neighbor_all_idle.txt, junos_bgp_neighbor_none.txt,
+          junos_bgp_neighbor_red.txt, junos_error_syntax.txt, junos_instance_*.txt, junos_ping.txt, junos_ping6.txt,
+          junos_ping_badsource.txt, junos_ping_no_instance.txt, junos_ping_noreply.txt, junos_ping_unreachable.txt,
+          junos_ping_vrf.txt, junos_route_connected.txt, junos_route_empty.txt, junos_route_hidden_nexthop.txt,
+          junos_route_hidden_only_summary.txt, junos_route_hidden_policy.txt, junos_route_leak.txt,
+          junos_route_local.txt, junos_route_no_table.txt, junos_route_paths.txt, junos_route_red.txt,
+          junos_route_static.txt, junos_route_table.txt, junos_route_table_idle.txt, junos_route_table_red.txt,
+          junos_route_table_v6.txt, junos_route_v6.txt, junos_version.txt]
+  kind: live-capture
+  source: cjunosevolved:26.2R1.7-EVO in lab ndr-junos-cap, 2026-10-28; commands in junos_CAPTURES.md
+  added: ddd2923
+- files: [junos_bgp_neighbor_ibgp.txt, junos_route_ibgp.txt, junos_route_ibgp_noexport.txt]
+  kind: live-capture
+  source: cjunosevolved:26.2R1.7-EVO in an iBGP lab (ndr-junos-ibgp)
+  added: 6d14166
+- files: [junos_error_not_ready.txt, junos_error_not_ready_ping.txt, junos_error_not_ready_route.txt]
+  kind: live-capture
+  source: cjunosevolved:26.2R1.7-EVO while rpd was still starting
+  added: b11947d
+- files: [junos_bgp_neighbor_outdelay.txt, junos_bgp_neighbor_vrf_idle.txt, junos_instances.txt,
+          junos_ping_vrf_local.txt]
+  kind: live-capture
+  source: cjunosevolved:26.2R1.7-EVO, lab window of 2026-10-29 (scripts/capture_fixtures.sh junos)
+  added: 99a4086
+- files: [frr_boot_log_clean.txt, frr_boot_log_rejected.txt]
+  kind: live-capture
+  source: FRR 10.4.1 container logs at boot, with a clean config and with rejected lines
+  added: 78d7649
+- files: [frr_boot_log_rejected.conf]
+  kind: lab-input
+  source: the frr.conf that produced frr_boot_log_rejected.txt
+  added: 78d7649
+- files: [eos_startup_config_errors_clean.txt, eos_startup_config_errors_one.txt, eos_startup_config_errors_two.txt,
+          verify-ip6-link-edge1.txt]
+  kind: live-capture
+  source: live cEOS startup-config error listings and an FRR edge node (gauntlet R4)
+  added: 28e1b15
+- files: [eos_bgp_paths_as_set.txt, eos_bgp_paths_no_med.txt, junos_route_med0.txt, junos_route_no_med.txt]
+  kind: live-capture
+  source: interop run 1 on cEOS and cJunosEvolved (branch ndr/interop)
+  added: ec45998
+- files: [frr_adj_out_multipath.txt, junos_bgp_neighbor_hidden_nexthop.txt, junos_bgp_neighbor_policy_and_nexthop.txt,
+          junos_rp_hidden.txt, junos_rp_hidden_iop7.txt, junos_rp_hidden_lab1.txt, srl_attr_set_rejected.txt,
+          srl_rib_rejected.txt]
+  kind: live-capture
+  source: interop run 2 (cJunosEvolved 26.2R1.7, SR Linux, FRR ECMP)
+  added: 9ea8b34
+- files: [report-real-failed-bgpd-down.json, report-real-failed-leak.json, report-real-passed.json]
+  kind: report
+  source: Netdryrun 0.3.0 reports from the agent-eval ground-truth runs
+  added: 36219b0
+- files: [verify/*.txt]
+  kind: live-capture
+  source: FRR 10.4.1 in tests/fixtures/verify-lab, captured with scripts/capture_verify_fixtures.py
+  added: e047547
+- files: [verify-lab/topology.clab.yml, verify-lab/configs/*]
+  kind: lab-input
+  source: the lab the verify fixtures were captured from
+  added: e047547
+- files: [verify-corpus/*.json]
+  kind: live-capture
+  source: verify snapshots of corpus v1 cases 06, 18 and 23, captured live
+  added: a3dd510
