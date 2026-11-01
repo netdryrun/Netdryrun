@@ -61,8 +61,8 @@ class Executor(Protocol):
     def run_checks(self, checks: list[Check]) -> list[Result]: ...
 
     def snapshot(self) -> Snapshot | Inconclusive:
-        """A convergence-stable snapshot: N identical samples (3 by default) at least one MRAI apart, within a timeout;
-        Inconclusive when the timeout passes (prove makes that an error, never a result)."""
+        """A convergence-stable snapshot: N identical samples (3 by default) taken max(MRAI, a 5 s floor) apart (the
+        iBGP MRAI is often 0), within a timeout; Inconclusive when the timeout passes (prove makes that an error)."""
 
     def links(self) -> list[tuple[tuple[str, str], tuple[str, str]]]: ...
 
@@ -460,6 +460,15 @@ def _one(executor: Executor, v: Variant, checks: list[Check], base: Snapshot, si
         raise ProveError(f"variant {v.id}: the link went down but nothing changed in the routing state, not even its "
                          "connected route: the link did not go down", "apply")
     out = classify(v, effect, results, sessions_reset(v, base, during))
+    if v.range_top and out.result == SURVIVED:
+        node, nbr, afi, top = v.range_top
+        got = dict(next((s.prefix_counts for k, s in during.sessions().items() if k.node == node and k.neighbor == nbr
+                         and k.vrf == "default"), ())).get(afi, 0)
+        what = (f"{node}'s count from {nbr} reached {got} (U+1 = {top + 1}) and every check passed: the range check "
+                "isn't doing its job" if got > top else
+                f"the extra prefixes never got {node}'s count from {nbr} to U+1 = {top + 1} (it is {got}): judged by "
+                "its effect like any other variant")
+        out.note = f"{out.note}; {what}" if out.note else what
     if out.result == SURVIVED:
         from .suggest import suggest
         out.suggested = suggest(v, base, effect)

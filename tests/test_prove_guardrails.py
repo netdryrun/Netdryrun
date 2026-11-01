@@ -517,3 +517,35 @@ def test_a_session_down_whose_session_stays_up_did_not_happen(old_checks):
     del gone.nodes["cust"].items[k]
     rep = prove(h.FakeExecutor(h.custleak(), {vid: gone}), old_checks, kinds=["session_down"], maximum=1)
     assert rep.status == "error" and "its session is not down" in rep.error
+
+
+def test_the_outer_range_leak_says_whether_the_count_reached_u_plus_1(tmp_path):
+    """Range [1, 3] on edge's session from cust, today 2: leaks of 1 (inside) and 2 (U+1 = 4 at edge, just outside)."""
+    base = h.custleak(edge_filter=None)   # edge accepts whatever cust sends: today 10.10.0.0/24 and the /25
+    checks = load_config_file(h.FIXTURE / "netdryrun.yml").checks
+    vs = variants(checks, base)
+    outer = vs["customer_leak:cust:2"]
+    assert outer.range_top == ("edge", "10.0.1.2", "ipv4-unicast", 3) and "just outside" in outer.description
+    assert vs["customer_leak:cust:1"].range_top is None and "just inside" in vs["customer_leak:cust:1"].description
+    through = h.applied(outer, h.custleak(cust_extra=leak_prefixes(2), edge_filter=None))   # count 4 > 3
+    ex = h.FakeExecutor(base, {outer.id: through})
+    res = core._one(ex, outer, checks, base, ex.side_state(), core._Fresh(), core.now)
+    assert res.result == CAUGHT   # the range check fails at 4
+    held = h.applied(outer, h.custleak(cust_extra=leak_prefixes(2), edge_filter=("10.10.0.0/24", "203.0.113.128/25",
+                                                                                  "100.64.0.0/24")))
+    # only one of the two arrives: edge's count is 3 (= U), every check passes, the effect is the one prefix
+    ex = h.FakeExecutor(base, {outer.id: held})
+    res = core._one(ex, outer, checks, base, ex.side_state(), core._Fresh(), core.now)
+    assert res.result == SURVIVED and "never got edge's count from 10.0.1.2 to U+1 = 4 (it is 3)" in res.note
+
+
+def test_a_range_that_lets_u_plus_1_through_is_named(old_checks):
+    from netdryrun.prove.variants import Variant
+    base = h.custleak(edge_filter=None)
+    v = Variant("customer_leak:cust:3", "customer_leak", "cust", "d", originates=tuple(leak_prefixes(3)),
+                adds=(), range_top=("edge", "10.0.1.2", "ipv4-unicast", 3))
+    during = h.custleak(cust_extra=leak_prefixes(3), edge_filter=None)
+    ok = lambda checks: [replace(r, passed=True) for r in h.evaluate(checks, during)]  # noqa: E731  checks that pass
+    ex = h.FakeExecutor(base, {v.id: during}, results={v.id: ok})
+    res = core._one(ex, v, old_checks, base, ex.side_state(), core._Fresh(), core.now)
+    assert res.result == SURVIVED and "reached 5 (U+1 = 4) and every check passed: the range check isn't" in res.note

@@ -59,6 +59,9 @@ class Variant:
     link: tuple[str, str] | None = None   # link_down: (node, interface)
     soft_in: tuple[str, ...] = ()         # neighbors to soft-reset inbound once applied and once reverted
     companion: "Variant | None" = None    # applied first and reverted last: the leak a filter variant needs
+    # the outer leak of a range pair: (node, neighbor, afi, U) of the prefix-count check it tests; its pass means the
+    # range isn't doing its job only if the count measured there reached U+1
+    range_top: tuple[str, str, str, int] | None = None
 
     def parts(self) -> list["Variant"]:
         """The variants applied, in order: the companion first."""
@@ -448,22 +451,23 @@ def leak_prefixes(count: int, used=()) -> list[str]:
     return out
 
 
-def _customer_leak(node: str, cfg: FrrConfig, headroom: dict[str, int], used) -> list[Variant]:
+def _customer_leak(node: str, cfg: FrrConfig, ranges: list[tuple[str, str, str, int, int]], used) -> list[Variant]:
+    """`ranges`: (node, neighbor, afi, U, U-C) of each prefix-count check on a session this node is the far end of."""
     if not cfg.asn or not any(cfg.ebgp(a) for a in cfg.ip_neighbors()):
         return []
-    sizes = {1: "", 2: ""}
-    for extra in sorted(headroom.values()):   # the range pair: U-C inside the range, U-C+1 just outside it
-        for n, where in ((extra, "just inside"), (extra + 1, "just outside")):
-            if 0 < n <= MAX_LEAK:
-                sizes.setdefault(n, f" ({where} the prefix-count range of a check on its session)")
+    sizes: dict[int, tuple[str, tuple | None]] = {1: ("", None), 2: ("", None)}
+    for at, nbr, afi, top, extra in sorted(ranges, key=lambda r: r[4]):   # U-C inside the range, U-C+1 just outside
+        for n, where, outer in ((extra, "just inside", None), (extra + 1, "just outside", (at, nbr, afi, top))):
+            if 0 < n <= MAX_LEAK and (n not in sizes or not sizes[n][0] or (outer and sizes[n][1] is None)):
+                sizes[n] = (f" ({where} the prefix-count range of a check on its session)", outer)
     out = []
-    for n, why in sorted(sizes.items()):
+    for n, (why, outer) in sorted(sizes.items()):
         prefixes = leak_prefixes(n, used)
         if len(prefixes) < n:
             continue
-        out.append(_originate("customer_leak", node, cfg, prefixes,
-                              f"{node} announces {n} extra prefix(es) from {LEAK_SPACE}{why}",
-                              f"customer_leak:{node}:{n}"))
+        v = _originate("customer_leak", node, cfg, prefixes, f"{node} announces {n} extra prefix(es) from {LEAK_SPACE}{why}",
+                       f"customer_leak:{node}:{n}")
+        out.append(Variant(**{**v.__dict__, "range_top": outer}))
     return out
 
 
@@ -527,18 +531,22 @@ def generate(configs: dict[str, tuple[str, ...] | str], links=(), checks=(),
     parsed = {n: parse(c) for n, c in sorted(configs.items())}
     links = [tuple(sorted(link)) for link in links]
     used = used_networks(parsed, checks)
-    room = headroom(checks, base_counts or {})
     # the leak hides in a range on node X's session to neighbor A: the node that owns A announces it
-    by_far: dict[str, dict[str, int]] = {}
-    for node, per in room.items():
-        for addr, extra in per.items():
-            far = _owner(addr, parsed)
-            if far:
-                by_far.setdefault(far, {})[f"{node}:{addr}"] = extra
+    by_far: dict[str, list[tuple[str, str, str, int, int]]] = {}
+    for c in checks:
+        p = c.params
+        top = p.get("max", p.get("exact"))
+        afi = p.get("afi", "ipv4-unicast")
+        now = (base_counts or {}).get((p.get("node"), p.get("neighbor"), afi))
+        if c.type != "bgp_prefixes" or top is None or p.get("vrf", "default") != "default" or now is None or top < now:
+            continue
+        far = _owner(p["neighbor"], parsed)
+        if far:
+            by_far.setdefault(far, []).append((p["node"], p["neighbor"], afi, top, top - now))
     leak = leak_prefixes(1, used)
     out: list[Variant] = []
     for node, cfg in parsed.items():
-        out += _customer_leak(node, cfg, by_far.get(node, {}), used)
+        out += _customer_leak(node, cfg, by_far.get(node, []), used)
     # every node's match deletions first (the incident class), then prefix-list deletions, deny clauses, swaps
     filters = [v for node, cfg in parsed.items() for v in _import_filter(node, cfg, parsed, leak, blocked)]
     out += sorted(filters, key=_filter_rank)
