@@ -1,0 +1,35 @@
+ERROR: NO STRENGTH RESULT
+no strength result: netdryrun.yml has no checks to prove
+----
+{
+  "schema": "netdryrun.prove/v1",
+  "status": "error",
+  "verdict": "ERROR: NO STRENGTH RESULT",
+  "exit_code": 2,
+  "summary": "no strength result: netdryrun.yml has no checks to prove",
+  "error": "netdryrun.yml has no checks to prove",
+  "error_kind": "setup",
+  "counts": {
+    "caught": 0,
+    "survived": 0,
+    "no_effect": 0,
+    "inconclusive": 0,
+    "run": 0,
+    "generated": 0,
+    "not_run": 0
+  },
+  "by_kind": {},
+  "not_generated": [],
+  "checks": [],
+  "variants": [],
+  "partial": [],
+  "not_run": [],
+  "limits": [
+    "Only the variants listed were run: a finite, generated set. No variant surviving does not show that the checks are complete.",
+    "Only the top-level checks of netdryrun.yml are proven; scenario checks are not run under variants.",
+    "The routing state is the FRR snapshot of `netdryrun verify` (sessions, RIB, BGP paths, advertisements, default VRF variants only): an effect outside it is not seen.",
+    "A leak that a lab node filters counts as no effect, even where the announcing node's export policy let it out."
+  ],
+  "started": "2026-01-01T00:00:00+00:00",
+  "finished": "2026-01-01T00:00:00+00:00"
+}

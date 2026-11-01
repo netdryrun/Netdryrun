@@ -104,6 +104,11 @@
     without the `only:` lists (the 0.3.3/0.4.0 record default); never deployed by the tests, which model its state
     as snapshots (tests/prove_helpers.py)
   added: 09da140
+- files: [prove-golden/*.txt]
+  kind: report
+  source: the exact console and JSON output of netdryrun prove on the snapshot model of prove-custleak, and the generated
+    variants of three configs, written by tests/test_prove_golden.py with NETDRYRUN_UPDATE_GOLDEN=1 and reviewed
+  added: (this commit; check-strength branch)
 - files: [verify-corpus/*.json]
   kind: live-capture
   source: verify snapshots of corpus v1 cases 06, 18 and 23, captured live

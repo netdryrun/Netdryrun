@@ -1,0 +1,1284 @@
+[
+ {
+  "id": "customer_leak:cust:1",
+  "kind": "customer_leak",
+  "node": "cust",
+  "description": "cust announces 1 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 65010 > address-family ipv4 unicast > network 100.64.0.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "customer_leak:cust:2",
+  "kind": "customer_leak",
+  "node": "cust",
+  "description": "cust announces 2 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   "  network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "no ip route 100.64.1.0/24 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   "  no network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 65010 > address-family ipv4 unicast > network 100.64.0.0/24",
+   "router bgp 65010 > address-family ipv4 unicast > network 100.64.1.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24",
+   "100.64.1.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "customer_leak:edge:1",
+  "kind": "customer_leak",
+  "node": "edge",
+  "description": "edge announces 1 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 65000 > address-family ipv4 unicast > network 100.64.0.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "customer_leak:edge:2",
+  "kind": "customer_leak",
+  "node": "edge",
+  "description": "edge announces 2 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   "  network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "no ip route 100.64.1.0/24 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   "  no network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 65000 > address-family ipv4 unicast > network 100.64.0.0/24",
+   "router bgp 65000 > address-family ipv4 unicast > network 100.64.1.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24",
+   "100.64.1.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "customer_leak:up:1",
+  "kind": "customer_leak",
+  "node": "up",
+  "description": "up announces 1 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 65020 > address-family ipv4 unicast > network 100.64.0.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "customer_leak:up:2",
+  "kind": "customer_leak",
+  "node": "up",
+  "description": "up announces 2 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   "  network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "no ip route 100.64.1.0/24 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   "  no network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 65020 > address-family ipv4 unicast > network 100.64.0.0/24",
+   "router bgp 65020 > address-family ipv4 unicast > network 100.64.1.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24",
+   "100.64.1.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN:+leak:cust",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: `match ip address prefix-list CUST-IN` deleted from route-map CUST-IN permit 10 (inbound from 10.0.1.2), while cust announces 100.64.0.0/24",
+  "apply": [
+   "route-map CUST-IN permit 10",
+   " no match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "revert": [
+   "route-map CUST-IN permit 10",
+   " match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "removes": [
+   "route-map CUST-IN permit 10 > match ip address prefix-list CUST-IN"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": {
+   "id": "customer_leak:cust:with:import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN",
+   "kind": "customer_leak",
+   "node": "cust",
+   "description": "cust announces 100.64.0.0/24",
+   "apply": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "revert": [
+    "no ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  no network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "removes": [],
+   "adds": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010 > address-family ipv4 unicast > network 100.64.0.0/24"
+   ],
+   "originates": [
+    "100.64.0.0/24"
+   ],
+   "link": null,
+   "soft_in": [],
+   "companion": null,
+   "range_top": null
+  },
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: `match ip address prefix-list CUST-IN` deleted from route-map CUST-IN permit 10 (inbound from 10.0.1.2)",
+  "apply": [
+   "route-map CUST-IN permit 10",
+   " no match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "revert": [
+   "route-map CUST-IN permit 10",
+   " match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "removes": [
+   "route-map CUST-IN permit 10 > match ip address prefix-list CUST-IN"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24:+leak:cust",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` deleted (inbound from 10.0.1.2), while cust announces 100.64.0.0/24",
+  "apply": [
+   "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "revert": [
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "removes": [
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": {
+   "id": "customer_leak:cust:with:import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+   "kind": "customer_leak",
+   "node": "cust",
+   "description": "cust announces 100.64.0.0/24",
+   "apply": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "revert": [
+    "no ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  no network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "removes": [],
+   "adds": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010 > address-family ipv4 unicast > network 100.64.0.0/24"
+   ],
+   "originates": [
+    "100.64.0.0/24"
+   ],
+   "link": null,
+   "soft_in": [],
+   "companion": null,
+   "range_top": null
+  },
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` deleted (inbound from 10.0.1.2)",
+  "apply": [
+   "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "revert": [
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "removes": [
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:cust:ALLOW-ALL permit 10:swapped:+leak:edge",
+  "kind": "import_filter",
+  "node": "cust",
+  "description": "cust: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.1.1), while edge announces 100.64.0.0/24",
+  "apply": [
+   "no route-map ALLOW-ALL permit 10",
+   "route-map ALLOW-ALL deny 10",
+   "exit"
+  ],
+  "revert": [
+   "no route-map ALLOW-ALL deny 10",
+   "route-map ALLOW-ALL permit 10",
+   "exit"
+  ],
+  "removes": [
+   "route-map ALLOW-ALL permit 10"
+  ],
+  "adds": [
+   "route-map ALLOW-ALL deny 10"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.1"
+  ],
+  "companion": {
+   "id": "customer_leak:edge:with:import_filter:cust:ALLOW-ALL permit 10:swapped",
+   "kind": "customer_leak",
+   "node": "edge",
+   "description": "edge announces 100.64.0.0/24",
+   "apply": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65000",
+    " address-family ipv4 unicast",
+    "  network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "revert": [
+    "no ip route 100.64.0.0/24 blackhole",
+    "router bgp 65000",
+    " address-family ipv4 unicast",
+    "  no network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "removes": [],
+   "adds": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65000 > address-family ipv4 unicast > network 100.64.0.0/24"
+   ],
+   "originates": [
+    "100.64.0.0/24"
+   ],
+   "link": null,
+   "soft_in": [],
+   "companion": null,
+   "range_top": null
+  },
+  "range_top": null
+ },
+ {
+  "id": "import_filter:cust:ALLOW-ALL permit 10:swapped",
+  "kind": "import_filter",
+  "node": "cust",
+  "description": "cust: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.1.1)",
+  "apply": [
+   "no route-map ALLOW-ALL permit 10",
+   "route-map ALLOW-ALL deny 10",
+   "exit"
+  ],
+  "revert": [
+   "no route-map ALLOW-ALL deny 10",
+   "route-map ALLOW-ALL permit 10",
+   "exit"
+  ],
+  "removes": [
+   "route-map ALLOW-ALL permit 10"
+  ],
+  "adds": [
+   "route-map ALLOW-ALL deny 10"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.1"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:ALLOW-ALL permit 10:swapped:+leak:up",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.2), while up announces 100.64.0.0/24",
+  "apply": [
+   "no route-map ALLOW-ALL permit 10",
+   "route-map ALLOW-ALL deny 10",
+   "exit"
+  ],
+  "revert": [
+   "no route-map ALLOW-ALL deny 10",
+   "route-map ALLOW-ALL permit 10",
+   "exit"
+  ],
+  "removes": [
+   "route-map ALLOW-ALL permit 10"
+  ],
+  "adds": [
+   "route-map ALLOW-ALL deny 10"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.2.2"
+  ],
+  "companion": {
+   "id": "customer_leak:up:with:import_filter:edge:ALLOW-ALL permit 10:swapped",
+   "kind": "customer_leak",
+   "node": "up",
+   "description": "up announces 100.64.0.0/24",
+   "apply": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65020",
+    " address-family ipv4 unicast",
+    "  network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "revert": [
+    "no ip route 100.64.0.0/24 blackhole",
+    "router bgp 65020",
+    " address-family ipv4 unicast",
+    "  no network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "removes": [],
+   "adds": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65020 > address-family ipv4 unicast > network 100.64.0.0/24"
+   ],
+   "originates": [
+    "100.64.0.0/24"
+   ],
+   "link": null,
+   "soft_in": [],
+   "companion": null,
+   "range_top": null
+  },
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:ALLOW-ALL permit 10:swapped",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.2)",
+  "apply": [
+   "no route-map ALLOW-ALL permit 10",
+   "route-map ALLOW-ALL deny 10",
+   "exit"
+  ],
+  "revert": [
+   "no route-map ALLOW-ALL deny 10",
+   "route-map ALLOW-ALL permit 10",
+   "exit"
+  ],
+  "removes": [
+   "route-map ALLOW-ALL permit 10"
+  ],
+  "adds": [
+   "route-map ALLOW-ALL deny 10"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.2.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:CUST-IN permit 10:swapped:+leak:cust",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: route-map CUST-IN permit 10 turned into deny (inbound from 10.0.1.2), while cust announces 100.64.0.0/24",
+  "apply": [
+   "no route-map CUST-IN permit 10",
+   "route-map CUST-IN deny 10",
+   " match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "revert": [
+   "no route-map CUST-IN deny 10",
+   "route-map CUST-IN permit 10",
+   " match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "removes": [
+   "route-map CUST-IN permit 10",
+   "route-map CUST-IN permit 10 > match ip address prefix-list CUST-IN"
+  ],
+  "adds": [
+   "route-map CUST-IN deny 10",
+   "route-map CUST-IN deny 10 > match ip address prefix-list CUST-IN"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": {
+   "id": "customer_leak:cust:with:import_filter:edge:CUST-IN permit 10:swapped",
+   "kind": "customer_leak",
+   "node": "cust",
+   "description": "cust announces 100.64.0.0/24",
+   "apply": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "revert": [
+    "no ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  no network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "removes": [],
+   "adds": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010 > address-family ipv4 unicast > network 100.64.0.0/24"
+   ],
+   "originates": [
+    "100.64.0.0/24"
+   ],
+   "link": null,
+   "soft_in": [],
+   "companion": null,
+   "range_top": null
+  },
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:CUST-IN permit 10:swapped",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: route-map CUST-IN permit 10 turned into deny (inbound from 10.0.1.2)",
+  "apply": [
+   "no route-map CUST-IN permit 10",
+   "route-map CUST-IN deny 10",
+   " match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "revert": [
+   "no route-map CUST-IN deny 10",
+   "route-map CUST-IN permit 10",
+   " match ip address prefix-list CUST-IN",
+   "exit"
+  ],
+  "removes": [
+   "route-map CUST-IN permit 10",
+   "route-map CUST-IN permit 10 > match ip address prefix-list CUST-IN"
+  ],
+  "adds": [
+   "route-map CUST-IN deny 10",
+   "route-map CUST-IN deny 10 > match ip address prefix-list CUST-IN"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24:swapped:+leak:cust",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` turned into `ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24` (inbound from 10.0.1.2), while cust announces 100.64.0.0/24",
+  "apply": [
+   "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+   "ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24"
+  ],
+  "revert": [
+   "no ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24",
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "removes": [
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "adds": [
+   "ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": {
+   "id": "customer_leak:cust:with:import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24:swapped",
+   "kind": "customer_leak",
+   "node": "cust",
+   "description": "cust announces 100.64.0.0/24",
+   "apply": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "revert": [
+    "no ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010",
+    " address-family ipv4 unicast",
+    "  no network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "removes": [],
+   "adds": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65010 > address-family ipv4 unicast > network 100.64.0.0/24"
+   ],
+   "originates": [
+    "100.64.0.0/24"
+   ],
+   "link": null,
+   "soft_in": [],
+   "companion": null,
+   "range_top": null
+  },
+  "range_top": null
+ },
+ {
+  "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24:swapped",
+  "kind": "import_filter",
+  "node": "edge",
+  "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` turned into `ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24` (inbound from 10.0.1.2)",
+  "apply": [
+   "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+   "ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24"
+  ],
+  "revert": [
+   "no ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24",
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "removes": [
+   "ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+  ],
+  "adds": [
+   "ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:up:ALLOW-ALL permit 10:swapped:+leak:edge",
+  "kind": "import_filter",
+  "node": "up",
+  "description": "up: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.1), while edge announces 100.64.0.0/24",
+  "apply": [
+   "no route-map ALLOW-ALL permit 10",
+   "route-map ALLOW-ALL deny 10",
+   "exit"
+  ],
+  "revert": [
+   "no route-map ALLOW-ALL deny 10",
+   "route-map ALLOW-ALL permit 10",
+   "exit"
+  ],
+  "removes": [
+   "route-map ALLOW-ALL permit 10"
+  ],
+  "adds": [
+   "route-map ALLOW-ALL deny 10"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.2.1"
+  ],
+  "companion": {
+   "id": "customer_leak:edge:with:import_filter:up:ALLOW-ALL permit 10:swapped",
+   "kind": "customer_leak",
+   "node": "edge",
+   "description": "edge announces 100.64.0.0/24",
+   "apply": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65000",
+    " address-family ipv4 unicast",
+    "  network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "revert": [
+    "no ip route 100.64.0.0/24 blackhole",
+    "router bgp 65000",
+    " address-family ipv4 unicast",
+    "  no network 100.64.0.0/24",
+    " exit-address-family",
+    "exit"
+   ],
+   "removes": [],
+   "adds": [
+    "ip route 100.64.0.0/24 blackhole",
+    "router bgp 65000 > address-family ipv4 unicast > network 100.64.0.0/24"
+   ],
+   "originates": [
+    "100.64.0.0/24"
+   ],
+   "link": null,
+   "soft_in": [],
+   "companion": null,
+   "range_top": null
+  },
+  "range_top": null
+ },
+ {
+  "id": "import_filter:up:ALLOW-ALL permit 10:swapped",
+  "kind": "import_filter",
+  "node": "up",
+  "description": "up: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.1)",
+  "apply": [
+   "no route-map ALLOW-ALL permit 10",
+   "route-map ALLOW-ALL deny 10",
+   "exit"
+  ],
+  "revert": [
+   "no route-map ALLOW-ALL deny 10",
+   "route-map ALLOW-ALL permit 10",
+   "exit"
+  ],
+  "removes": [
+   "route-map ALLOW-ALL permit 10"
+  ],
+  "adds": [
+   "route-map ALLOW-ALL deny 10"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.2.1"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "session_down:cust:10.0.1.1",
+  "kind": "session_down",
+  "node": "cust",
+  "description": "cust: BGP session to 10.0.1.1 (edge) shut down",
+  "apply": [
+   "router bgp 65010",
+   " neighbor 10.0.1.1 shutdown",
+   "exit"
+  ],
+  "revert": [
+   "router bgp 65010",
+   " no neighbor 10.0.1.1 shutdown",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "router bgp 65010 > neighbor 10.0.1.1 shutdown"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "session_down:edge:10.0.2.2",
+  "kind": "session_down",
+  "node": "edge",
+  "description": "edge: BGP session to 10.0.2.2 (up) shut down",
+  "apply": [
+   "router bgp 65000",
+   " neighbor 10.0.2.2 shutdown",
+   "exit"
+  ],
+  "revert": [
+   "router bgp 65000",
+   " no neighbor 10.0.2.2 shutdown",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "router bgp 65000 > neighbor 10.0.2.2 shutdown"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_down:cust:eth1--edge:eth1",
+  "kind": "link_down",
+  "node": "cust",
+  "description": "link cust:eth1 -- edge:eth1 down",
+  "apply": [],
+  "revert": [],
+  "removes": [],
+  "adds": [],
+  "originates": [],
+  "link": [
+   "cust",
+   "eth1"
+  ],
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_down:edge:eth2--up:eth1",
+  "kind": "link_down",
+  "node": "edge",
+  "description": "link edge:eth2 -- up:eth1 down",
+  "apply": [],
+  "revert": [],
+  "removes": [],
+  "adds": [],
+  "originates": [],
+  "link": [
+   "edge",
+   "eth2"
+  ],
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:cust:ALLOW-ALL permit 10:+set local-preference 50",
+  "kind": "attribute_drift",
+  "node": "cust",
+  "description": "cust: `set local-preference 50` added to route-map ALLOW-ALL permit 10 (inbound from 10.0.1.1)",
+  "apply": [
+   "route-map ALLOW-ALL permit 10",
+   " set local-preference 50",
+   "exit"
+  ],
+  "revert": [
+   "route-map ALLOW-ALL permit 10",
+   " no set local-preference 50",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "route-map ALLOW-ALL permit 10 > set local-preference 50"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.1"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:edge:ALLOW-ALL permit 10:+set local-preference 50",
+  "kind": "attribute_drift",
+  "node": "edge",
+  "description": "edge: `set local-preference 50` added to route-map ALLOW-ALL permit 10 (inbound from 10.0.2.2)",
+  "apply": [
+   "route-map ALLOW-ALL permit 10",
+   " set local-preference 50",
+   "exit"
+  ],
+  "revert": [
+   "route-map ALLOW-ALL permit 10",
+   " no set local-preference 50",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "route-map ALLOW-ALL permit 10 > set local-preference 50"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.2.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:edge:CUST-IN permit 10:+set local-preference 50",
+  "kind": "attribute_drift",
+  "node": "edge",
+  "description": "edge: `set local-preference 50` added to route-map CUST-IN permit 10 (inbound from 10.0.1.2)",
+  "apply": [
+   "route-map CUST-IN permit 10",
+   " set local-preference 50",
+   "exit"
+  ],
+  "revert": [
+   "route-map CUST-IN permit 10",
+   " no set local-preference 50",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "route-map CUST-IN permit 10 > set local-preference 50"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.1.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:up:ALLOW-ALL permit 10:+set local-preference 50",
+  "kind": "attribute_drift",
+  "node": "up",
+  "description": "up: `set local-preference 50` added to route-map ALLOW-ALL permit 10 (inbound from 10.0.2.1)",
+  "apply": [
+   "route-map ALLOW-ALL permit 10",
+   " set local-preference 50",
+   "exit"
+  ],
+  "revert": [
+   "route-map ALLOW-ALL permit 10",
+   " no set local-preference 50",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "route-map ALLOW-ALL permit 10 > set local-preference 50"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.2.1"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "default_leak:cust:0.0.0.0/0",
+  "kind": "default_leak",
+  "node": "cust",
+  "description": "cust originates 0.0.0.0/0 into BGP",
+  "apply": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 0.0.0.0/0 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  no network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 65010 > address-family ipv4 unicast > network 0.0.0.0/0"
+  ],
+  "originates": [
+   "0.0.0.0/0"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "default_leak:edge:0.0.0.0/0",
+  "kind": "default_leak",
+  "node": "edge",
+  "description": "edge originates 0.0.0.0/0 into BGP",
+  "apply": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 0.0.0.0/0 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  no network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 65000 > address-family ipv4 unicast > network 0.0.0.0/0"
+  ],
+  "originates": [
+   "0.0.0.0/0"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "default_leak:up:0.0.0.0/0",
+  "kind": "default_leak",
+  "node": "up",
+  "description": "up originates 0.0.0.0/0 into BGP",
+  "apply": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 0.0.0.0/0 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  no network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 65020 > address-family ipv4 unicast > network 0.0.0.0/0"
+  ],
+  "originates": [
+   "0.0.0.0/0"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_subnet_leak:cust:10.0.1.0/30",
+  "kind": "link_subnet_leak",
+  "node": "cust",
+  "description": "cust originates its link subnet 10.0.1.0/30 into BGP",
+  "apply": [
+   "ip route 10.0.1.0/30 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  network 10.0.1.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 10.0.1.0/30 blackhole",
+   "router bgp 65010",
+   " address-family ipv4 unicast",
+   "  no network 10.0.1.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 10.0.1.0/30 blackhole",
+   "router bgp 65010 > address-family ipv4 unicast > network 10.0.1.0/30"
+  ],
+  "originates": [
+   "10.0.1.0/30"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_subnet_leak:edge:10.0.1.0/30",
+  "kind": "link_subnet_leak",
+  "node": "edge",
+  "description": "edge originates its link subnet 10.0.1.0/30 into BGP",
+  "apply": [
+   "ip route 10.0.1.0/30 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  network 10.0.1.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 10.0.1.0/30 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  no network 10.0.1.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 10.0.1.0/30 blackhole",
+   "router bgp 65000 > address-family ipv4 unicast > network 10.0.1.0/30"
+  ],
+  "originates": [
+   "10.0.1.0/30"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_subnet_leak:edge:10.0.2.0/30",
+  "kind": "link_subnet_leak",
+  "node": "edge",
+  "description": "edge originates its link subnet 10.0.2.0/30 into BGP",
+  "apply": [
+   "ip route 10.0.2.0/30 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  network 10.0.2.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 10.0.2.0/30 blackhole",
+   "router bgp 65000",
+   " address-family ipv4 unicast",
+   "  no network 10.0.2.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 10.0.2.0/30 blackhole",
+   "router bgp 65000 > address-family ipv4 unicast > network 10.0.2.0/30"
+  ],
+  "originates": [
+   "10.0.2.0/30"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_subnet_leak:up:10.0.2.0/30",
+  "kind": "link_subnet_leak",
+  "node": "up",
+  "description": "up originates its link subnet 10.0.2.0/30 into BGP",
+  "apply": [
+   "ip route 10.0.2.0/30 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  network 10.0.2.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 10.0.2.0/30 blackhole",
+   "router bgp 65020",
+   " address-family ipv4 unicast",
+   "  no network 10.0.2.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 10.0.2.0/30 blackhole",
+   "router bgp 65020 > address-family ipv4 unicast > network 10.0.2.0/30"
+  ],
+  "originates": [
+   "10.0.2.0/30"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ }
+]

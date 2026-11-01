@@ -61,7 +61,7 @@ def test_communities_and_another_vrf_are_kept():
     after = replace(before, attrs=replace(before.attrs, communities=()))
     out = suggest(V, base, [DiffItem(k, before, after)])
     assert out == [{"check": {"type": "bgp_route", "node": "edge", "prefix": "10.9.0.0/24", "vrf": "RED",
-                              "as_path": "65010", "communities": ["65000:1"]},
+                              "as_path": "65010", "local_pref": 100, "communities": ["65000:1"]},
                     "reason": "the best path's attributes today"}]
 
 

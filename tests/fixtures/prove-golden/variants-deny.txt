@@ -1,0 +1,705 @@
+[
+ {
+  "id": "customer_leak:r:1",
+  "kind": "customer_leak",
+  "node": "r",
+  "description": "r announces 1 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "router bgp 1 > address-family ipv4 unicast > network 100.64.0.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "customer_leak:r:2",
+  "kind": "customer_leak",
+  "node": "r",
+  "description": "r announces 2 extra prefix(es) from 100.64.0.0/10",
+  "apply": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  network 100.64.0.0/24",
+   "  network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 100.64.0.0/24 blackhole",
+   "no ip route 100.64.1.0/24 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  no network 100.64.0.0/24",
+   "  no network 100.64.1.0/24",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 100.64.0.0/24 blackhole",
+   "ip route 100.64.1.0/24 blackhole",
+   "router bgp 1 > address-family ipv4 unicast > network 100.64.0.0/24",
+   "router bgp 1 > address-family ipv4 unicast > network 100.64.1.0/24"
+  ],
+  "originates": [
+   "100.64.0.0/24",
+   "100.64.1.0/24"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M deny 5:match ip address prefix-list P",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: `match ip address prefix-list P` deleted from route-map M deny 5 (inbound from 10.0.0.2)",
+  "apply": [
+   "route-map M deny 5",
+   " no match ip address prefix-list P",
+   "exit"
+  ],
+  "revert": [
+   "route-map M deny 5",
+   " match ip address prefix-list P",
+   "exit"
+  ],
+  "removes": [
+   "route-map M deny 5 > match ip address prefix-list P"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M deny 5:match community C",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: `match community C` deleted from route-map M deny 5 (inbound from 10.0.0.2)",
+  "apply": [
+   "route-map M deny 5",
+   " no match community C",
+   "exit"
+  ],
+  "revert": [
+   "route-map M deny 5",
+   " match community C",
+   "exit"
+  ],
+  "removes": [
+   "route-map M deny 5 > match community C"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M6 permit 10:match ipv6 address prefix-list P6",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: `match ipv6 address prefix-list P6` deleted from route-map M6 permit 10 (inbound from 2001:db8:9::2)",
+  "apply": [
+   "route-map M6 permit 10",
+   " no match ipv6 address prefix-list P6",
+   "exit"
+  ],
+  "revert": [
+   "route-map M6 permit 10",
+   " match ipv6 address prefix-list P6",
+   "exit"
+  ],
+  "removes": [
+   "route-map M6 permit 10 > match ipv6 address prefix-list P6"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "2001:db8:9::2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:ip prefix-list P seq 5 permit 10.0.0.0/8 le 24",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: prefix-list entry `ip prefix-list P seq 5 permit 10.0.0.0/8 le 24` deleted (inbound from 10.0.0.2)",
+  "apply": [
+   "no ip prefix-list P seq 5 permit 10.0.0.0/8 le 24"
+  ],
+  "revert": [
+   "ip prefix-list P seq 5 permit 10.0.0.0/8 le 24"
+  ],
+  "removes": [
+   "ip prefix-list P seq 5 permit 10.0.0.0/8 le 24"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:ipv6 prefix-list P6 seq 5 permit 2001:db8::/32",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: prefix-list entry `ipv6 prefix-list P6 seq 5 permit 2001:db8::/32` deleted (inbound from 2001:db8:9::2)",
+  "apply": [
+   "no ipv6 prefix-list P6 seq 5 permit 2001:db8::/32"
+  ],
+  "revert": [
+   "ipv6 prefix-list P6 seq 5 permit 2001:db8::/32"
+  ],
+  "removes": [
+   "ipv6 prefix-list P6 seq 5 permit 2001:db8::/32"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "2001:db8:9::2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M deny 5:deleted",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: route-map M deny 5 deleted (inbound from 10.0.0.2)",
+  "apply": [
+   "no route-map M deny 5"
+  ],
+  "revert": [
+   "route-map M deny 5",
+   " match ip address prefix-list P",
+   " match community C",
+   "exit"
+  ],
+  "removes": [
+   "route-map M deny 5",
+   "route-map M deny 5 > match ip address prefix-list P",
+   "route-map M deny 5 > match community C"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M deny 5:swapped",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: route-map M deny 5 turned into permit (inbound from 10.0.0.2)",
+  "apply": [
+   "no route-map M deny 5",
+   "route-map M permit 5",
+   " match ip address prefix-list P",
+   " match community C",
+   "exit"
+  ],
+  "revert": [
+   "no route-map M permit 5",
+   "route-map M deny 5",
+   " match ip address prefix-list P",
+   " match community C",
+   "exit"
+  ],
+  "removes": [
+   "route-map M deny 5",
+   "route-map M deny 5 > match ip address prefix-list P",
+   "route-map M deny 5 > match community C"
+  ],
+  "adds": [
+   "route-map M permit 5",
+   "route-map M permit 5 > match ip address prefix-list P",
+   "route-map M permit 5 > match community C"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M permit 10:swapped",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: route-map M permit 10 turned into deny (inbound from 10.0.0.2)",
+  "apply": [
+   "no route-map M permit 10",
+   "route-map M deny 10",
+   " set community 65000:9",
+   " set as-path prepend 1 1",
+   "exit"
+  ],
+  "revert": [
+   "no route-map M deny 10",
+   "route-map M permit 10",
+   " set community 65000:9",
+   " set as-path prepend 1 1",
+   "exit"
+  ],
+  "removes": [
+   "route-map M permit 10",
+   "route-map M permit 10 > set community 65000:9",
+   "route-map M permit 10 > set as-path prepend 1 1"
+  ],
+  "adds": [
+   "route-map M deny 10",
+   "route-map M deny 10 > set community 65000:9",
+   "route-map M deny 10 > set as-path prepend 1 1"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:M6 permit 10:swapped",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: route-map M6 permit 10 turned into deny (inbound from 2001:db8:9::2)",
+  "apply": [
+   "no route-map M6 permit 10",
+   "route-map M6 deny 10",
+   " match ipv6 address prefix-list P6",
+   "exit"
+  ],
+  "revert": [
+   "no route-map M6 deny 10",
+   "route-map M6 permit 10",
+   " match ipv6 address prefix-list P6",
+   "exit"
+  ],
+  "removes": [
+   "route-map M6 permit 10",
+   "route-map M6 permit 10 > match ipv6 address prefix-list P6"
+  ],
+  "adds": [
+   "route-map M6 deny 10",
+   "route-map M6 deny 10 > match ipv6 address prefix-list P6"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "2001:db8:9::2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:ip prefix-list P seq 5 permit 10.0.0.0/8 le 24:swapped",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: prefix-list entry `ip prefix-list P seq 5 permit 10.0.0.0/8 le 24` turned into `ip prefix-list P seq 5 deny 10.0.0.0/8 le 24` (inbound from 10.0.0.2)",
+  "apply": [
+   "no ip prefix-list P seq 5 permit 10.0.0.0/8 le 24",
+   "ip prefix-list P seq 5 deny 10.0.0.0/8 le 24"
+  ],
+  "revert": [
+   "no ip prefix-list P seq 5 deny 10.0.0.0/8 le 24",
+   "ip prefix-list P seq 5 permit 10.0.0.0/8 le 24"
+  ],
+  "removes": [
+   "ip prefix-list P seq 5 permit 10.0.0.0/8 le 24"
+  ],
+  "adds": [
+   "ip prefix-list P seq 5 deny 10.0.0.0/8 le 24"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "import_filter:r:ipv6 prefix-list P6 seq 5 permit 2001:db8::/32:swapped",
+  "kind": "import_filter",
+  "node": "r",
+  "description": "r: prefix-list entry `ipv6 prefix-list P6 seq 5 permit 2001:db8::/32` turned into `ipv6 prefix-list P6 seq 5 deny 2001:db8::/32` (inbound from 2001:db8:9::2)",
+  "apply": [
+   "no ipv6 prefix-list P6 seq 5 permit 2001:db8::/32",
+   "ipv6 prefix-list P6 seq 5 deny 2001:db8::/32"
+  ],
+  "revert": [
+   "no ipv6 prefix-list P6 seq 5 deny 2001:db8::/32",
+   "ipv6 prefix-list P6 seq 5 permit 2001:db8::/32"
+  ],
+  "removes": [
+   "ipv6 prefix-list P6 seq 5 permit 2001:db8::/32"
+  ],
+  "adds": [
+   "ipv6 prefix-list P6 seq 5 deny 2001:db8::/32"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "2001:db8:9::2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "session_down:r:10.0.0.2",
+  "kind": "session_down",
+  "node": "r",
+  "description": "r: BGP session to 10.0.0.2 shut down",
+  "apply": [
+   "router bgp 1",
+   " neighbor 10.0.0.2 shutdown",
+   "exit"
+  ],
+  "revert": [
+   "router bgp 1",
+   " no neighbor 10.0.0.2 shutdown",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "router bgp 1 > neighbor 10.0.0.2 shutdown"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "session_down:r:2001:db8:9::2",
+  "kind": "session_down",
+  "node": "r",
+  "description": "r: BGP session to 2001:db8:9::2 shut down",
+  "apply": [
+   "router bgp 1",
+   " neighbor 2001:db8:9::2 shutdown",
+   "exit"
+  ],
+  "revert": [
+   "router bgp 1",
+   " no neighbor 2001:db8:9::2 shutdown",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "router bgp 1 > neighbor 2001:db8:9::2 shutdown"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_down:r:eth1--z:eth1",
+  "kind": "link_down",
+  "node": "r",
+  "description": "link r:eth1 -- z:eth1 down",
+  "apply": [],
+  "revert": [],
+  "removes": [],
+  "adds": [],
+  "originates": [],
+  "link": [
+   "r",
+   "eth1"
+  ],
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:r:M permit 10:set community 65000:9",
+  "kind": "attribute_drift",
+  "node": "r",
+  "description": "r: `set community 65000:9` deleted in route-map M permit 10 (on 10.0.0.2)",
+  "apply": [
+   "route-map M permit 10",
+   " no set community 65000:9",
+   "exit"
+  ],
+  "revert": [
+   "route-map M permit 10",
+   " set community 65000:9",
+   "exit"
+  ],
+  "removes": [
+   "route-map M permit 10 > set community 65000:9"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:r:M permit 10:set as-path prepend 1 1",
+  "kind": "attribute_drift",
+  "node": "r",
+  "description": "r: `set as-path prepend 1 1` deleted in route-map M permit 10 (on 10.0.0.2)",
+  "apply": [
+   "route-map M permit 10",
+   " no set as-path prepend 1 1",
+   "exit"
+  ],
+  "revert": [
+   "route-map M permit 10",
+   " set as-path prepend 1 1",
+   "exit"
+  ],
+  "removes": [
+   "route-map M permit 10 > set as-path prepend 1 1"
+  ],
+  "adds": [],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:r:M permit 10:+set local-preference 50",
+  "kind": "attribute_drift",
+  "node": "r",
+  "description": "r: `set local-preference 50` added to route-map M permit 10 (inbound from 10.0.0.2)",
+  "apply": [
+   "route-map M permit 10",
+   " set local-preference 50",
+   "exit"
+  ],
+  "revert": [
+   "route-map M permit 10",
+   " no set local-preference 50",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "route-map M permit 10 > set local-preference 50"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "10.0.0.2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "attribute_drift:r:M6 permit 10:+set local-preference 50",
+  "kind": "attribute_drift",
+  "node": "r",
+  "description": "r: `set local-preference 50` added to route-map M6 permit 10 (inbound from 2001:db8:9::2)",
+  "apply": [
+   "route-map M6 permit 10",
+   " set local-preference 50",
+   "exit"
+  ],
+  "revert": [
+   "route-map M6 permit 10",
+   " no set local-preference 50",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "route-map M6 permit 10 > set local-preference 50"
+  ],
+  "originates": [],
+  "link": null,
+  "soft_in": [
+   "2001:db8:9::2"
+  ],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "default_leak:r:0.0.0.0/0",
+  "kind": "default_leak",
+  "node": "r",
+  "description": "r originates 0.0.0.0/0 into BGP",
+  "apply": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 0.0.0.0/0 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  no network 0.0.0.0/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 0.0.0.0/0 blackhole",
+   "router bgp 1 > address-family ipv4 unicast > network 0.0.0.0/0"
+  ],
+  "originates": [
+   "0.0.0.0/0"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "default_leak:r:::/0",
+  "kind": "default_leak",
+  "node": "r",
+  "description": "r originates ::/0 into BGP",
+  "apply": [
+   "ipv6 route ::/0 blackhole",
+   "router bgp 1",
+   " address-family ipv6 unicast",
+   "  network ::/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ipv6 route ::/0 blackhole",
+   "router bgp 1",
+   " address-family ipv6 unicast",
+   "  no network ::/0",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ipv6 route ::/0 blackhole",
+   "router bgp 1 > address-family ipv6 unicast > network ::/0"
+  ],
+  "originates": [
+   "::/0"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_subnet_leak:r:10.0.0.0/30",
+  "kind": "link_subnet_leak",
+  "node": "r",
+  "description": "r originates its link subnet 10.0.0.0/30 into BGP",
+  "apply": [
+   "ip route 10.0.0.0/30 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  network 10.0.0.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ip route 10.0.0.0/30 blackhole",
+   "router bgp 1",
+   " address-family ipv4 unicast",
+   "  no network 10.0.0.0/30",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ip route 10.0.0.0/30 blackhole",
+   "router bgp 1 > address-family ipv4 unicast > network 10.0.0.0/30"
+  ],
+  "originates": [
+   "10.0.0.0/30"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ },
+ {
+  "id": "link_subnet_leak:r:2001:db8:9::/64",
+  "kind": "link_subnet_leak",
+  "node": "r",
+  "description": "r originates its link subnet 2001:db8:9::/64 into BGP",
+  "apply": [
+   "ipv6 route 2001:db8:9::/64 blackhole",
+   "router bgp 1",
+   " address-family ipv6 unicast",
+   "  network 2001:db8:9::/64",
+   " exit-address-family",
+   "exit"
+  ],
+  "revert": [
+   "no ipv6 route 2001:db8:9::/64 blackhole",
+   "router bgp 1",
+   " address-family ipv6 unicast",
+   "  no network 2001:db8:9::/64",
+   " exit-address-family",
+   "exit"
+  ],
+  "removes": [],
+  "adds": [
+   "ipv6 route 2001:db8:9::/64 blackhole",
+   "router bgp 1 > address-family ipv6 unicast > network 2001:db8:9::/64"
+  ],
+  "originates": [
+   "2001:db8:9::/64"
+  ],
+  "link": null,
+  "soft_in": [],
+  "companion": null,
+  "range_top": null
+ }
+]

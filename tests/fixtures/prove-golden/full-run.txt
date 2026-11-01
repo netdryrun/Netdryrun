@@ -1,0 +1,1126 @@
+BLIND SPOTS FOUND: DO NOT RELY ON THESE CHECKS FOR THEM
+caught 2 of 4 known-bad variants (4 no effect, 0 inconclusive, kinds not generated: more_specific, max_prefix_edge); 23 generated variant(s) not run (budget). A finite set of variants: this does not show that the checks are complete.
+By kind: customer_leak 0 caught, 0 survived, 2 no effect; import_filter 0 caught, 1 survived, 0 no effect; session_down 1 caught, 0 survived, 0 no effect; link_down 1 caught, 0 survived, 0 no effect; attribute_drift 0 caught, 1 survived, 0 no effect; default_leak 0 caught, 0 survived, 1 no effect; link_subnet_leak 0 caught, 0 survived, 1 no effect
+  [no effect] cust announces 1 extra prefix(es) from 100.64.0.0/10
+      note: nothing changed in the routing state outside the variant's own originated entries: an equivalent variant
+  [SURVIVED] edge: `match ip address prefix-list CUST-IN` deleted from route-map CUST-IN permit 10 (inbound from 10.0.1.2)
+      unnoticed: edge 203.0.113.128/25 advertised to 10.0.2.2 added
+      unnoticed: edge 203.0.113.128/25 path from 10.0.1.2 added
+      unnoticed: up 203.0.113.128/25 path from 10.0.2.1 added
+      unnoticed: edge 203.0.113.128/25 [bgp] added
+      unnoticed: up 203.0.113.128/25 [bgp] added
+      suggested (review it): {"type": "bgp_prefixes", "node": "edge", "neighbor": "10.0.1.2", "afi": "ipv4-unicast", "exact": 1} (the session's prefix count today, exactly: one more prefix fails it. Today it carries 10.10.0.0/24)
+      suggested (review it): {"type": "bgp_prefixes", "node": "up", "neighbor": "10.0.2.1", "afi": "ipv4-unicast", "exact": 1} (the session's prefix count today, exactly: one more prefix fails it. Today it carries 10.10.0.0/24)
+  [caught] cust: BGP session to 10.0.1.1 (edge) shut down
+      failed: edge: BGP session to 10.0.1.2 is established: state is idle
+      failed: edge: prefixes from 10.0.1.2 >= 1 and <= 3: session is idle; prefix counts are only meaningful when established
+      failed: edge: route 10.10.0.0/24 via bgp is present: not active via bgp; seen: nothing
+  [caught] link cust:eth1 -- edge:eth1 down
+      failed: edge: BGP session to 10.0.1.2 is established: state is idle
+      failed: edge: prefixes from 10.0.1.2 >= 1 and <= 3: session is idle; prefix counts are only meaningful when established
+      failed: edge: route 10.10.0.0/24 via bgp is present: not active via bgp; seen: nothing
+  [SURVIVED] cust: `set local-preference 50` added to route-map ALLOW-ALL permit 10 (inbound from 10.0.1.1)
+      unnoticed: cust 198.51.100.0/24 path from 10.0.1.1 changed
+      suggested (review it): {"type": "bgp_route", "node": "cust", "prefix": "198.51.100.0/24", "as_path": "65000 65020", "local_pref": 100} (the best path's attributes today)
+  [no effect] cust originates 0.0.0.0/0 into BGP
+      note: nothing changed in the routing state outside the variant's own originated entries: an equivalent variant
+  [no effect] cust originates its link subnet 10.0.1.0/30 into BGP
+      note: nothing changed in the routing state outside the variant's own originated entries: an equivalent variant
+  [no effect] cust announces 2 extra prefix(es) from 100.64.0.0/10 (just inside the prefix-count range of a check on its session)
+      note: nothing changed in the routing state outside the variant's own originated entries: an equivalent variant
+  not run (budget, raise --max): customer_leak:cust:3, customer_leak:edge:1, customer_leak:edge:2, customer_leak:edge:3, customer_leak:up:1, customer_leak:up:2, customer_leak:up:3, import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24, import_filter:cust:ALLOW-ALL permit 10:swapped:+leak:edge, import_filter:edge:ALLOW-ALL permit 10:swapped:+leak:up ...
+Add a check that catches each survivor, or tell the human which blind spot remains. prove never edits netdryrun.yml.
+----
+{
+  "schema": "netdryrun.prove/v1",
+  "status": "failed",
+  "verdict": "BLIND SPOTS FOUND: DO NOT RELY ON THESE CHECKS FOR THEM",
+  "exit_code": 1,
+  "summary": "caught 2 of 4 known-bad variants (4 no effect, 0 inconclusive, kinds not generated: more_specific, max_prefix_edge); 23 generated variant(s) not run (budget). A finite set of variants: this does not show that the checks are complete.",
+  "error": null,
+  "error_kind": null,
+  "counts": {
+    "caught": 2,
+    "survived": 2,
+    "no_effect": 4,
+    "inconclusive": 0,
+    "run": 8,
+    "generated": 31,
+    "not_run": 23
+  },
+  "by_kind": {
+    "customer_leak": {
+      "caught": 0,
+      "survived": 0,
+      "no_effect": 2,
+      "inconclusive": 0
+    },
+    "import_filter": {
+      "caught": 0,
+      "survived": 1,
+      "no_effect": 0,
+      "inconclusive": 0
+    },
+    "session_down": {
+      "caught": 1,
+      "survived": 0,
+      "no_effect": 0,
+      "inconclusive": 0
+    },
+    "link_down": {
+      "caught": 1,
+      "survived": 0,
+      "no_effect": 0,
+      "inconclusive": 0
+    },
+    "attribute_drift": {
+      "caught": 0,
+      "survived": 1,
+      "no_effect": 0,
+      "inconclusive": 0
+    },
+    "default_leak": {
+      "caught": 0,
+      "survived": 0,
+      "no_effect": 1,
+      "inconclusive": 0
+    },
+    "link_subnet_leak": {
+      "caught": 0,
+      "survived": 0,
+      "no_effect": 1,
+      "inconclusive": 0
+    }
+  },
+  "not_generated": [
+    "more_specific",
+    "max_prefix_edge"
+  ],
+  "checks": [
+    "edge: BGP session to 10.0.1.2 is established",
+    "edge: prefixes from 10.0.1.2 >= 1 and <= 3",
+    "edge: BGP session to 10.0.2.2 is established",
+    "edge: prefixes from 10.0.2.2 >= 1 and <= 3",
+    "edge: route 10.10.0.0/24 via bgp is present",
+    "edge: route 198.51.100.0/24 via bgp is present",
+    "edge: route 0.0.0.0/0 via bgp is absent",
+    "edge: route 10.0.1.0/30 via bgp is absent",
+    "edge: route 10.0.2.0/30 via bgp is absent",
+    "cust: BGP session to 10.0.1.1 is established",
+    "cust: prefixes from 10.0.1.1 >= 1 and <= 3",
+    "cust: route 198.51.100.0/24 via bgp is present",
+    "cust: route 0.0.0.0/0 via bgp is absent",
+    "cust: route 10.0.1.0/30 via bgp is absent",
+    "cust: route 10.0.2.0/30 via bgp is absent",
+    "up: BGP session to 10.0.2.1 is established",
+    "up: prefixes from 10.0.2.1 >= 1 and <= 3",
+    "up: route 10.10.0.0/24 via bgp is present",
+    "up: route 0.0.0.0/0 via bgp is absent",
+    "up: route 10.0.1.0/30 via bgp is absent",
+    "up: route 10.0.2.0/30 via bgp is absent"
+  ],
+  "variants": [
+    {
+      "id": "customer_leak:cust:1",
+      "kind": "customer_leak",
+      "node": "cust",
+      "description": "cust announces 1 extra prefix(es) from 100.64.0.0/10",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "router bgp 65010",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24"
+      ],
+      "result": "no_effect",
+      "note": "nothing changed in the routing state outside the variant's own originated entries: an equivalent variant"
+    },
+    {
+      "id": "import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: `match ip address prefix-list CUST-IN` deleted from route-map CUST-IN permit 10 (inbound from 10.0.1.2)",
+      "apply": [
+        "route-map CUST-IN permit 10",
+        " no match ip address prefix-list CUST-IN",
+        "exit"
+      ],
+      "result": "survived",
+      "effect": [
+        {
+          "where": "edge 203.0.113.128/25 advertised to 10.0.2.2",
+          "change": "added",
+          "before": null,
+          "after": "BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65010,)),)), next_hops=(PathNextHop(ip='10.0.2.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), "
+        },
+        {
+          "where": "edge 203.0.113.128/25 path from 10.0.1.2",
+          "change": "added",
+          "before": null,
+          "after": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65010,)),)), next_hops=(PathNextHop(ip='10.0.1.2', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), clu"
+        },
+        {
+          "where": "up 203.0.113.128/25 path from 10.0.2.1",
+          "change": "added",
+          "before": null,
+          "after": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65000, 65010)),)), next_hops=(PathNextHop(ip='10.0.2.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=("
+        },
+        {
+          "where": "edge 203.0.113.128/25 [bgp]",
+          "change": "added",
+          "before": null,
+          "after": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.1.2', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w"
+        },
+        {
+          "where": "up 203.0.113.128/25 [bgp]",
+          "change": "added",
+          "before": null,
+          "after": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.2.1', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w"
+        },
+        {
+          "where": "edge session 10.0.1.2",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65010, local_as=65000, afis=('ipv4-unicast',), local_address='10.0.1.1', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='established', remote_as=65010, local_as=65000, afis=('ipv4-unicast',), local_address='10.0.1.1', prefix_counts=(('ipv4-unicast', 2),), soft_reconfig_in=(), established=True)"
+        },
+        {
+          "where": "up session 10.0.2.1",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65000, local_as=65020, afis=('ipv4-unicast',), local_address='10.0.2.2', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='established', remote_as=65000, local_as=65020, afis=('ipv4-unicast',), local_address='10.0.2.2', prefix_counts=(('ipv4-unicast', 2),), soft_reconfig_in=(), established=True)"
+        }
+      ],
+      "effect_items": 7,
+      "suggested_checks": [
+        {
+          "check": {
+            "type": "bgp_prefixes",
+            "node": "edge",
+            "neighbor": "10.0.1.2",
+            "afi": "ipv4-unicast",
+            "exact": 1
+          },
+          "reason": "the session's prefix count today, exactly: one more prefix fails it. Today it carries 10.10.0.0/24"
+        },
+        {
+          "check": {
+            "type": "bgp_prefixes",
+            "node": "up",
+            "neighbor": "10.0.2.1",
+            "afi": "ipv4-unicast",
+            "exact": 1
+          },
+          "reason": "the session's prefix count today, exactly: one more prefix fails it. Today it carries 10.10.0.0/24"
+        }
+      ]
+    },
+    {
+      "id": "session_down:cust:10.0.1.1",
+      "kind": "session_down",
+      "node": "cust",
+      "description": "cust: BGP session to 10.0.1.1 (edge) shut down",
+      "apply": [
+        "router bgp 65010",
+        " neighbor 10.0.1.1 shutdown",
+        "exit"
+      ],
+      "result": "caught",
+      "failed_checks": [
+        {
+          "name": "edge: BGP session to 10.0.1.2 is established",
+          "type": "bgp_session",
+          "node": "edge",
+          "detail": "state is idle",
+          "evidence": [
+            {
+              "node": "edge",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.2.2\": {\"address\": \"10.0.2.2\", \"state\": \"established\", \"prefixes\": {\"ipv4-unicast\": 1}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}, \"10.0.1.2\": {\"address\": \"10.0.1.2\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "edge: prefixes from 10.0.1.2 >= 1 and <= 3",
+          "type": "bgp_prefixes",
+          "node": "edge",
+          "detail": "session is idle; prefix counts are only meaningful when established",
+          "evidence": [
+            {
+              "node": "edge",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.2.2\": {\"address\": \"10.0.2.2\", \"state\": \"established\", \"prefixes\": {\"ipv4-unicast\": 1}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}, \"10.0.1.2\": {\"address\": \"10.0.1.2\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "edge: route 10.10.0.0/24 via bgp is present",
+          "type": "route",
+          "node": "edge",
+          "detail": "not active via bgp; seen: nothing",
+          "evidence": [
+            {
+              "node": "edge",
+              "cmd": "snapshot rib 10.10.0.0/24",
+              "output": "[]"
+            }
+          ]
+        },
+        {
+          "name": "cust: BGP session to 10.0.1.1 is established",
+          "type": "bgp_session",
+          "node": "cust",
+          "detail": "state is idle",
+          "evidence": [
+            {
+              "node": "cust",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.1.1\": {\"address\": \"10.0.1.1\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "cust: prefixes from 10.0.1.1 >= 1 and <= 3",
+          "type": "bgp_prefixes",
+          "node": "cust",
+          "detail": "session is idle; prefix counts are only meaningful when established",
+          "evidence": [
+            {
+              "node": "cust",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.1.1\": {\"address\": \"10.0.1.1\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "cust: route 198.51.100.0/24 via bgp is present",
+          "type": "route",
+          "node": "cust",
+          "detail": "not active via bgp; seen: nothing",
+          "evidence": [
+            {
+              "node": "cust",
+              "cmd": "snapshot rib 198.51.100.0/24",
+              "output": "[]"
+            }
+          ]
+        },
+        {
+          "name": "up: prefixes from 10.0.2.1 >= 1 and <= 3",
+          "type": "bgp_prefixes",
+          "node": "up",
+          "detail": "0 ipv4-unicast prefixes accepted",
+          "evidence": [
+            {
+              "node": "up",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.2.1\": {\"address\": \"10.0.2.1\", \"state\": \"established\", \"prefixes\": {\"ipv4-unicast\": 0}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "up: route 10.10.0.0/24 via bgp is present",
+          "type": "route",
+          "node": "up",
+          "detail": "not active via bgp; seen: nothing",
+          "evidence": [
+            {
+              "node": "up",
+              "cmd": "snapshot rib 10.10.0.0/24",
+              "output": "[]"
+            }
+          ]
+        }
+      ],
+      "effect": [
+        {
+          "where": "cust 10.10.0.0/24 advertised to 10.0.1.1",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=()), next_hops=(PathNextHop(ip='10.0.1.2', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), originator_id=None",
+          "after": null
+        },
+        {
+          "where": "cust 203.0.113.128/25 advertised to 10.0.1.1",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=()), next_hops=(PathNextHop(ip='10.0.1.2', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), originator_id=None",
+          "after": null
+        },
+        {
+          "where": "edge 10.10.0.0/24 advertised to 10.0.2.2",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65010,)),)), next_hops=(PathNextHop(ip='10.0.2.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), ",
+          "after": null
+        },
+        {
+          "where": "edge 198.51.100.0/24 advertised to 10.0.1.2",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65020,)),)), next_hops=(PathNextHop(ip='10.0.1.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), ",
+          "after": null
+        },
+        {
+          "where": "cust 198.51.100.0/24 path from 10.0.1.1",
+          "change": "removed",
+          "before": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65000, 65020)),)), next_hops=(PathNextHop(ip='10.0.1.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(",
+          "after": null
+        },
+        {
+          "where": "edge 10.10.0.0/24 path from 10.0.1.2",
+          "change": "removed",
+          "before": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65010,)),)), next_hops=(PathNextHop(ip='10.0.1.2', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), clu",
+          "after": null
+        },
+        {
+          "where": "up 10.10.0.0/24 path from 10.0.2.1",
+          "change": "removed",
+          "before": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65000, 65010)),)), next_hops=(PathNextHop(ip='10.0.2.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(",
+          "after": null
+        },
+        {
+          "where": "cust 198.51.100.0/24 [bgp]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.1.1', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w",
+          "after": null
+        },
+        {
+          "where": "edge 10.10.0.0/24 [bgp]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.1.2', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w",
+          "after": null
+        },
+        {
+          "where": "up 10.10.0.0/24 [bgp]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.2.1', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w",
+          "after": null
+        },
+        {
+          "where": "cust session 10.0.1.1",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65000, local_as=65010, afis=('ipv4-unicast',), local_address='10.0.1.2', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='idle', remote_as=65000, local_as=65010, afis=('ipv4-unicast',), local_address=None, prefix_counts=(), soft_reconfig_in=(), established=False)"
+        },
+        {
+          "where": "edge session 10.0.1.2",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65010, local_as=65000, afis=('ipv4-unicast',), local_address='10.0.1.1', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='idle', remote_as=65010, local_as=65000, afis=('ipv4-unicast',), local_address=None, prefix_counts=(), soft_reconfig_in=(), established=False)"
+        },
+        {
+          "where": "up session 10.0.2.1",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65000, local_as=65020, afis=('ipv4-unicast',), local_address='10.0.2.2', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='established', remote_as=65000, local_as=65020, afis=('ipv4-unicast',), local_address='10.0.2.2', prefix_counts=(('ipv4-unicast', 0),), soft_reconfig_in=(), established=True)"
+        }
+      ],
+      "effect_items": 13
+    },
+    {
+      "id": "link_down:cust:eth1--edge:eth1",
+      "kind": "link_down",
+      "node": "cust",
+      "description": "link cust:eth1 -- edge:eth1 down",
+      "link": "cust:eth1",
+      "result": "caught",
+      "failed_checks": [
+        {
+          "name": "edge: BGP session to 10.0.1.2 is established",
+          "type": "bgp_session",
+          "node": "edge",
+          "detail": "state is idle",
+          "evidence": [
+            {
+              "node": "edge",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.2.2\": {\"address\": \"10.0.2.2\", \"state\": \"established\", \"prefixes\": {\"ipv4-unicast\": 1}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}, \"10.0.1.2\": {\"address\": \"10.0.1.2\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "edge: prefixes from 10.0.1.2 >= 1 and <= 3",
+          "type": "bgp_prefixes",
+          "node": "edge",
+          "detail": "session is idle; prefix counts are only meaningful when established",
+          "evidence": [
+            {
+              "node": "edge",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.2.2\": {\"address\": \"10.0.2.2\", \"state\": \"established\", \"prefixes\": {\"ipv4-unicast\": 1}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}, \"10.0.1.2\": {\"address\": \"10.0.1.2\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "edge: route 10.10.0.0/24 via bgp is present",
+          "type": "route",
+          "node": "edge",
+          "detail": "not active via bgp; seen: nothing",
+          "evidence": [
+            {
+              "node": "edge",
+              "cmd": "snapshot rib 10.10.0.0/24",
+              "output": "[]"
+            }
+          ]
+        },
+        {
+          "name": "cust: BGP session to 10.0.1.1 is established",
+          "type": "bgp_session",
+          "node": "cust",
+          "detail": "state is idle",
+          "evidence": [
+            {
+              "node": "cust",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.1.1\": {\"address\": \"10.0.1.1\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "cust: prefixes from 10.0.1.1 >= 1 and <= 3",
+          "type": "bgp_prefixes",
+          "node": "cust",
+          "detail": "session is idle; prefix counts are only meaningful when established",
+          "evidence": [
+            {
+              "node": "cust",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.1.1\": {\"address\": \"10.0.1.1\", \"state\": \"idle\", \"prefixes\": {}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "cust: route 198.51.100.0/24 via bgp is present",
+          "type": "route",
+          "node": "cust",
+          "detail": "not active via bgp; seen: nothing",
+          "evidence": [
+            {
+              "node": "cust",
+              "cmd": "snapshot rib 198.51.100.0/24",
+              "output": "[]"
+            }
+          ]
+        },
+        {
+          "name": "up: prefixes from 10.0.2.1 >= 1 and <= 3",
+          "type": "bgp_prefixes",
+          "node": "up",
+          "detail": "0 ipv4-unicast prefixes accepted",
+          "evidence": [
+            {
+              "node": "up",
+              "cmd": "snapshot sessions vrf default",
+              "output": "{\"10.0.2.1\": {\"address\": \"10.0.2.1\", \"state\": \"established\", \"prefixes\": {\"ipv4-unicast\": 0}, \"prefixes_upto\": {}, \"prefixes_unread\": {}, \"adv_interval\": null, \"ambiguous\": []}}"
+            }
+          ]
+        },
+        {
+          "name": "up: route 10.10.0.0/24 via bgp is present",
+          "type": "route",
+          "node": "up",
+          "detail": "not active via bgp; seen: nothing",
+          "evidence": [
+            {
+              "node": "up",
+              "cmd": "snapshot rib 10.10.0.0/24",
+              "output": "[]"
+            }
+          ]
+        }
+      ],
+      "effect": [
+        {
+          "where": "cust 10.10.0.0/24 advertised to 10.0.1.1",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=()), next_hops=(PathNextHop(ip='10.0.1.2', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), originator_id=None",
+          "after": null
+        },
+        {
+          "where": "cust 203.0.113.128/25 advertised to 10.0.1.1",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=()), next_hops=(PathNextHop(ip='10.0.1.2', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), originator_id=None",
+          "after": null
+        },
+        {
+          "where": "edge 10.10.0.0/24 advertised to 10.0.2.2",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65010,)),)), next_hops=(PathNextHop(ip='10.0.2.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), ",
+          "after": null
+        },
+        {
+          "where": "edge 198.51.100.0/24 advertised to 10.0.1.2",
+          "change": "removed",
+          "before": "BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65020,)),)), next_hops=(PathNextHop(ip='10.0.1.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), cluster_list=(), ",
+          "after": null
+        },
+        {
+          "where": "cust 198.51.100.0/24 path from 10.0.1.1",
+          "change": "removed",
+          "before": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65000, 65020)),)), next_hops=(PathNextHop(ip='10.0.1.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(",
+          "after": null
+        },
+        {
+          "where": "edge 10.10.0.0/24 path from 10.0.1.2",
+          "change": "removed",
+          "before": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65010,)),)), next_hops=(PathNextHop(ip='10.0.1.2', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(), clu",
+          "after": null
+        },
+        {
+          "where": "up 10.10.0.0/24 path from 10.0.2.1",
+          "change": "removed",
+          "before": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65000, 65010)),)), next_hops=(PathNextHop(ip='10.0.2.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(",
+          "after": null
+        },
+        {
+          "where": "cust 10.0.1.0/30 [connected]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='connected', instance=None, selected=True, fib=True, distance=0, metric=0, tag=None, table=254, failed=False, nexthops=())]",
+          "after": null
+        },
+        {
+          "where": "cust 198.51.100.0/24 [bgp]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.1.1', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w",
+          "after": null
+        },
+        {
+          "where": "edge 10.0.1.0/30 [connected]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='connected', instance=None, selected=True, fib=True, distance=0, metric=0, tag=None, table=254, failed=False, nexthops=())]",
+          "after": null
+        },
+        {
+          "where": "edge 10.10.0.0/24 [bgp]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.1.2', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w",
+          "after": null
+        },
+        {
+          "where": "up 10.10.0.0/24 [bgp]",
+          "change": "removed",
+          "before": "[RibEntry(protocol='bgp', instance=None, selected=True, fib=True, distance=20, metric=0, tag=None, table=254, failed=False, nexthops=(NextHop(ip='10.0.2.1', interface='eth1', vrf=None, active=True, fib=True, directly_connected=False, on_link=False, recursive=False, duplicate=False, kind='gateway', w",
+          "after": null
+        },
+        {
+          "where": "cust session 10.0.1.1",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65000, local_as=65010, afis=('ipv4-unicast',), local_address='10.0.1.2', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='idle', remote_as=65000, local_as=65010, afis=('ipv4-unicast',), local_address=None, prefix_counts=(), soft_reconfig_in=(), established=False)"
+        },
+        {
+          "where": "edge session 10.0.1.2",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65010, local_as=65000, afis=('ipv4-unicast',), local_address='10.0.1.1', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='idle', remote_as=65010, local_as=65000, afis=('ipv4-unicast',), local_address=None, prefix_counts=(), soft_reconfig_in=(), established=False)"
+        },
+        {
+          "where": "up session 10.0.2.1",
+          "change": "changed",
+          "before": "Session(state='established', remote_as=65000, local_as=65020, afis=('ipv4-unicast',), local_address='10.0.2.2', prefix_counts=(('ipv4-unicast', 1),), soft_reconfig_in=(), established=True)",
+          "after": "Session(state='established', remote_as=65000, local_as=65020, afis=('ipv4-unicast',), local_address='10.0.2.2', prefix_counts=(('ipv4-unicast', 0),), soft_reconfig_in=(), established=True)"
+        }
+      ],
+      "effect_items": 15
+    },
+    {
+      "id": "attribute_drift:cust:ALLOW-ALL permit 10:+set local-preference 50",
+      "kind": "attribute_drift",
+      "node": "cust",
+      "description": "cust: `set local-preference 50` added to route-map ALLOW-ALL permit 10 (inbound from 10.0.1.1)",
+      "apply": [
+        "route-map ALLOW-ALL permit 10",
+        " set local-preference 50",
+        "exit"
+      ],
+      "result": "survived",
+      "effect": [
+        {
+          "where": "cust 198.51.100.0/24 path from 10.0.1.1",
+          "change": "changed",
+          "before": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65000, 65020)),)), next_hops=(PathNextHop(ip='10.0.1.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=None, med=None, weight=None, communities=(), ext_communities=(), large_communities=(",
+          "after": "BgpPath(attrs=BgpAttrs(origin='igp', as_path=AsPath(segments=(('seq', (65000, 65020)),)), next_hops=(PathNextHop(ip='10.0.1.1', scope='global', accessible=True, used=True, igp_metric=0, interface=None),), local_pref=50, med=None, weight=None, communities=(), ext_communities=(), large_communities=(),"
+        }
+      ],
+      "effect_items": 1,
+      "suggested_checks": [
+        {
+          "check": {
+            "type": "bgp_route",
+            "node": "cust",
+            "prefix": "198.51.100.0/24",
+            "as_path": "65000 65020",
+            "local_pref": 100
+          },
+          "reason": "the best path's attributes today"
+        }
+      ]
+    },
+    {
+      "id": "default_leak:cust:0.0.0.0/0",
+      "kind": "default_leak",
+      "node": "cust",
+      "description": "cust originates 0.0.0.0/0 into BGP",
+      "apply": [
+        "ip route 0.0.0.0/0 blackhole",
+        "router bgp 65010",
+        " address-family ipv4 unicast",
+        "  network 0.0.0.0/0",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "0.0.0.0/0"
+      ],
+      "result": "no_effect",
+      "note": "nothing changed in the routing state outside the variant's own originated entries: an equivalent variant"
+    },
+    {
+      "id": "link_subnet_leak:cust:10.0.1.0/30",
+      "kind": "link_subnet_leak",
+      "node": "cust",
+      "description": "cust originates its link subnet 10.0.1.0/30 into BGP",
+      "apply": [
+        "ip route 10.0.1.0/30 blackhole",
+        "router bgp 65010",
+        " address-family ipv4 unicast",
+        "  network 10.0.1.0/30",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "10.0.1.0/30"
+      ],
+      "result": "no_effect",
+      "note": "nothing changed in the routing state outside the variant's own originated entries: an equivalent variant"
+    },
+    {
+      "id": "customer_leak:cust:2",
+      "kind": "customer_leak",
+      "node": "cust",
+      "description": "cust announces 2 extra prefix(es) from 100.64.0.0/10 (just inside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "router bgp 65010",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24"
+      ],
+      "result": "no_effect",
+      "note": "nothing changed in the routing state outside the variant's own originated entries: an equivalent variant"
+    }
+  ],
+  "partial": [],
+  "not_run": [
+    {
+      "id": "customer_leak:cust:3",
+      "kind": "customer_leak",
+      "node": "cust",
+      "description": "cust announces 3 extra prefix(es) from 100.64.0.0/10 (just outside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "ip route 100.64.2.0/24 blackhole",
+        "router bgp 65010",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        "  network 100.64.2.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24",
+        "100.64.2.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:edge:1",
+      "kind": "customer_leak",
+      "node": "edge",
+      "description": "edge announces 1 extra prefix(es) from 100.64.0.0/10",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:edge:2",
+      "kind": "customer_leak",
+      "node": "edge",
+      "description": "edge announces 2 extra prefix(es) from 100.64.0.0/10 (just inside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:edge:3",
+      "kind": "customer_leak",
+      "node": "edge",
+      "description": "edge announces 3 extra prefix(es) from 100.64.0.0/10 (just outside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "ip route 100.64.2.0/24 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        "  network 100.64.2.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24",
+        "100.64.2.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:up:1",
+      "kind": "customer_leak",
+      "node": "up",
+      "description": "up announces 1 extra prefix(es) from 100.64.0.0/10",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:up:2",
+      "kind": "customer_leak",
+      "node": "up",
+      "description": "up announces 2 extra prefix(es) from 100.64.0.0/10 (just inside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24"
+      ]
+    },
+    {
+      "id": "customer_leak:up:3",
+      "kind": "customer_leak",
+      "node": "up",
+      "description": "up announces 3 extra prefix(es) from 100.64.0.0/10 (just outside the prefix-count range of a check on its session)",
+      "apply": [
+        "ip route 100.64.0.0/24 blackhole",
+        "ip route 100.64.1.0/24 blackhole",
+        "ip route 100.64.2.0/24 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 100.64.0.0/24",
+        "  network 100.64.1.0/24",
+        "  network 100.64.2.0/24",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "100.64.0.0/24",
+        "100.64.1.0/24",
+        "100.64.2.0/24"
+      ]
+    },
+    {
+      "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` deleted (inbound from 10.0.1.2)",
+      "apply": [
+        "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+      ]
+    },
+    {
+      "id": "import_filter:cust:ALLOW-ALL permit 10:swapped:+leak:edge",
+      "kind": "import_filter",
+      "node": "cust",
+      "description": "cust: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.1.1), while edge announces 100.64.0.0/24",
+      "apply": [
+        "no route-map ALLOW-ALL permit 10",
+        "route-map ALLOW-ALL deny 10",
+        "exit"
+      ],
+      "with": {
+        "id": "customer_leak:edge:with:import_filter:cust:ALLOW-ALL permit 10:swapped",
+        "kind": "customer_leak",
+        "node": "edge",
+        "description": "edge announces 100.64.0.0/24",
+        "apply": [
+          "ip route 100.64.0.0/24 blackhole",
+          "router bgp 65000",
+          " address-family ipv4 unicast",
+          "  network 100.64.0.0/24",
+          " exit-address-family",
+          "exit"
+        ],
+        "originates": [
+          "100.64.0.0/24"
+        ]
+      }
+    },
+    {
+      "id": "import_filter:edge:ALLOW-ALL permit 10:swapped:+leak:up",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.2), while up announces 100.64.0.0/24",
+      "apply": [
+        "no route-map ALLOW-ALL permit 10",
+        "route-map ALLOW-ALL deny 10",
+        "exit"
+      ],
+      "with": {
+        "id": "customer_leak:up:with:import_filter:edge:ALLOW-ALL permit 10:swapped",
+        "kind": "customer_leak",
+        "node": "up",
+        "description": "up announces 100.64.0.0/24",
+        "apply": [
+          "ip route 100.64.0.0/24 blackhole",
+          "router bgp 65020",
+          " address-family ipv4 unicast",
+          "  network 100.64.0.0/24",
+          " exit-address-family",
+          "exit"
+        ],
+        "originates": [
+          "100.64.0.0/24"
+        ]
+      }
+    },
+    {
+      "id": "import_filter:edge:CUST-IN permit 10:swapped",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: route-map CUST-IN permit 10 turned into deny (inbound from 10.0.1.2)",
+      "apply": [
+        "no route-map CUST-IN permit 10",
+        "route-map CUST-IN deny 10",
+        " match ip address prefix-list CUST-IN",
+        "exit"
+      ]
+    },
+    {
+      "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24:swapped",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` turned into `ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24` (inbound from 10.0.1.2)",
+      "apply": [
+        "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+        "ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24"
+      ]
+    },
+    {
+      "id": "import_filter:up:ALLOW-ALL permit 10:swapped:+leak:edge",
+      "kind": "import_filter",
+      "node": "up",
+      "description": "up: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.1), while edge announces 100.64.0.0/24",
+      "apply": [
+        "no route-map ALLOW-ALL permit 10",
+        "route-map ALLOW-ALL deny 10",
+        "exit"
+      ],
+      "with": {
+        "id": "customer_leak:edge:with:import_filter:up:ALLOW-ALL permit 10:swapped",
+        "kind": "customer_leak",
+        "node": "edge",
+        "description": "edge announces 100.64.0.0/24",
+        "apply": [
+          "ip route 100.64.0.0/24 blackhole",
+          "router bgp 65000",
+          " address-family ipv4 unicast",
+          "  network 100.64.0.0/24",
+          " exit-address-family",
+          "exit"
+        ],
+        "originates": [
+          "100.64.0.0/24"
+        ]
+      }
+    },
+    {
+      "id": "session_down:edge:10.0.2.2",
+      "kind": "session_down",
+      "node": "edge",
+      "description": "edge: BGP session to 10.0.2.2 (up) shut down",
+      "apply": [
+        "router bgp 65000",
+        " neighbor 10.0.2.2 shutdown",
+        "exit"
+      ]
+    },
+    {
+      "id": "link_down:edge:eth2--up:eth1",
+      "kind": "link_down",
+      "node": "edge",
+      "description": "link edge:eth2 -- up:eth1 down",
+      "link": "edge:eth2"
+    },
+    {
+      "id": "attribute_drift:edge:ALLOW-ALL permit 10:+set local-preference 50",
+      "kind": "attribute_drift",
+      "node": "edge",
+      "description": "edge: `set local-preference 50` added to route-map ALLOW-ALL permit 10 (inbound from 10.0.2.2)",
+      "apply": [
+        "route-map ALLOW-ALL permit 10",
+        " set local-preference 50",
+        "exit"
+      ]
+    },
+    {
+      "id": "attribute_drift:edge:CUST-IN permit 10:+set local-preference 50",
+      "kind": "attribute_drift",
+      "node": "edge",
+      "description": "edge: `set local-preference 50` added to route-map CUST-IN permit 10 (inbound from 10.0.1.2)",
+      "apply": [
+        "route-map CUST-IN permit 10",
+        " set local-preference 50",
+        "exit"
+      ]
+    },
+    {
+      "id": "attribute_drift:up:ALLOW-ALL permit 10:+set local-preference 50",
+      "kind": "attribute_drift",
+      "node": "up",
+      "description": "up: `set local-preference 50` added to route-map ALLOW-ALL permit 10 (inbound from 10.0.2.1)",
+      "apply": [
+        "route-map ALLOW-ALL permit 10",
+        " set local-preference 50",
+        "exit"
+      ]
+    },
+    {
+      "id": "default_leak:edge:0.0.0.0/0",
+      "kind": "default_leak",
+      "node": "edge",
+      "description": "edge originates 0.0.0.0/0 into BGP",
+      "apply": [
+        "ip route 0.0.0.0/0 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 0.0.0.0/0",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "0.0.0.0/0"
+      ]
+    },
+    {
+      "id": "default_leak:up:0.0.0.0/0",
+      "kind": "default_leak",
+      "node": "up",
+      "description": "up originates 0.0.0.0/0 into BGP",
+      "apply": [
+        "ip route 0.0.0.0/0 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 0.0.0.0/0",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "0.0.0.0/0"
+      ]
+    },
+    {
+      "id": "link_subnet_leak:edge:10.0.1.0/30",
+      "kind": "link_subnet_leak",
+      "node": "edge",
+      "description": "edge originates its link subnet 10.0.1.0/30 into BGP",
+      "apply": [
+        "ip route 10.0.1.0/30 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 10.0.1.0/30",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "10.0.1.0/30"
+      ]
+    },
+    {
+      "id": "link_subnet_leak:edge:10.0.2.0/30",
+      "kind": "link_subnet_leak",
+      "node": "edge",
+      "description": "edge originates its link subnet 10.0.2.0/30 into BGP",
+      "apply": [
+        "ip route 10.0.2.0/30 blackhole",
+        "router bgp 65000",
+        " address-family ipv4 unicast",
+        "  network 10.0.2.0/30",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "10.0.2.0/30"
+      ]
+    },
+    {
+      "id": "link_subnet_leak:up:10.0.2.0/30",
+      "kind": "link_subnet_leak",
+      "node": "up",
+      "description": "up originates its link subnet 10.0.2.0/30 into BGP",
+      "apply": [
+        "ip route 10.0.2.0/30 blackhole",
+        "router bgp 65020",
+        " address-family ipv4 unicast",
+        "  network 10.0.2.0/30",
+        " exit-address-family",
+        "exit"
+      ],
+      "originates": [
+        "10.0.2.0/30"
+      ]
+    }
+  ],
+  "limits": [
+    "Only the variants listed were run: a finite, generated set. No variant surviving does not show that the checks are complete.",
+    "Only the top-level checks of netdryrun.yml are proven; scenario checks are not run under variants.",
+    "The routing state is the FRR snapshot of `netdryrun verify` (sessions, RIB, BGP paths, advertisements, default VRF variants only): an effect outside it is not seen.",
+    "A leak that a lab node filters counts as no effect, even where the announcing node's export policy let it out."
+  ],
+  "started": "2026-01-01T00:00:00+00:00",
+  "finished": "2026-01-01T00:00:00+00:00"
+}

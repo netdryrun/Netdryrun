@@ -99,7 +99,6 @@ class ProveReport:
     variants: list[VariantResult] = field(default_factory=list)
     not_run: list[Variant] = field(default_factory=list)
     generated: int = 0
-    baseline_items: int = 0
     started: str = ""
     finished: str = ""
 
@@ -343,7 +342,7 @@ def blocked(snap: Snapshot) -> dict[tuple[str, str], bool]:
     ends = far_ends(snap)
     items = snap.items()
     out = {}
-    for (node, vrf, nbr), (far, far_vrf, me) in ends.items():
+    for (node, vrf, nbr), (far, far_vrf, me) in sorted(ends.items()):
         if vrf != "default":
             continue
         sent = {k.prefix for k in items if k.kind == "adj_out" and k.node == far and k.vrf == far_vrf and k.neighbor == me}
@@ -387,7 +386,6 @@ def _prove(executor: Executor, rep: ProveReport, kinds, maximum: int, log, clock
     if isinstance(base, Inconclusive):
         raise ProveError(f"the baseline snapshot never settled: {base.reason}", "timeout")
     base = canonical(base)
-    rep.baseline_items = len(base.items())
     side = executor.side_state()
     configs = {n: ns.config for n, ns in base.nodes.items()}
     variants = generate(configs, executor.links(), checks, _counts(base), blocked(base))

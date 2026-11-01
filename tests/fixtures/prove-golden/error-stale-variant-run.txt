@@ -1,0 +1,173 @@
+ERROR: NO STRENGTH RESULT
+no strength result: internal error: the run of import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN returned a result from an earlier run (edge: BGP session to 10.0.1.2 is established); no strength result
+----
+{
+  "schema": "netdryrun.prove/v1",
+  "status": "error",
+  "verdict": "ERROR: NO STRENGTH RESULT",
+  "exit_code": 2,
+  "summary": "no strength result: internal error: the run of import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN returned a result from an earlier run (edge: BGP session to 10.0.1.2 is established); no strength result",
+  "error": "internal error: the run of import_filter:edge:CUST-IN permit 10:match ip address prefix-list CUST-IN returned a result from an earlier run (edge: BGP session to 10.0.1.2 is established); no strength result",
+  "error_kind": "internal",
+  "counts": {
+    "caught": 0,
+    "survived": 0,
+    "no_effect": 0,
+    "inconclusive": 0,
+    "run": 0,
+    "generated": 31,
+    "not_run": 6
+  },
+  "by_kind": {},
+  "not_generated": [],
+  "checks": [
+    "edge: BGP session to 10.0.1.2 is established",
+    "edge: prefixes from 10.0.1.2 >= 1 and <= 3",
+    "edge: BGP session to 10.0.2.2 is established",
+    "edge: prefixes from 10.0.2.2 >= 1 and <= 3",
+    "edge: route 10.10.0.0/24 via bgp is present",
+    "edge: route 198.51.100.0/24 via bgp is present",
+    "edge: route 0.0.0.0/0 via bgp is absent",
+    "edge: route 10.0.1.0/30 via bgp is absent",
+    "edge: route 10.0.2.0/30 via bgp is absent",
+    "cust: BGP session to 10.0.1.1 is established",
+    "cust: prefixes from 10.0.1.1 >= 1 and <= 3",
+    "cust: route 198.51.100.0/24 via bgp is present",
+    "cust: route 0.0.0.0/0 via bgp is absent",
+    "cust: route 10.0.1.0/30 via bgp is absent",
+    "cust: route 10.0.2.0/30 via bgp is absent",
+    "up: BGP session to 10.0.2.1 is established",
+    "up: prefixes from 10.0.2.1 >= 1 and <= 3",
+    "up: route 10.10.0.0/24 via bgp is present",
+    "up: route 0.0.0.0/0 via bgp is absent",
+    "up: route 10.0.1.0/30 via bgp is absent",
+    "up: route 10.0.2.0/30 via bgp is absent"
+  ],
+  "variants": [],
+  "partial": [],
+  "not_run": [
+    {
+      "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` deleted (inbound from 10.0.1.2)",
+      "apply": [
+        "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24"
+      ]
+    },
+    {
+      "id": "import_filter:cust:ALLOW-ALL permit 10:swapped:+leak:edge",
+      "kind": "import_filter",
+      "node": "cust",
+      "description": "cust: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.1.1), while edge announces 100.64.0.0/24",
+      "apply": [
+        "no route-map ALLOW-ALL permit 10",
+        "route-map ALLOW-ALL deny 10",
+        "exit"
+      ],
+      "with": {
+        "id": "customer_leak:edge:with:import_filter:cust:ALLOW-ALL permit 10:swapped",
+        "kind": "customer_leak",
+        "node": "edge",
+        "description": "edge announces 100.64.0.0/24",
+        "apply": [
+          "ip route 100.64.0.0/24 blackhole",
+          "router bgp 65000",
+          " address-family ipv4 unicast",
+          "  network 100.64.0.0/24",
+          " exit-address-family",
+          "exit"
+        ],
+        "originates": [
+          "100.64.0.0/24"
+        ]
+      }
+    },
+    {
+      "id": "import_filter:edge:ALLOW-ALL permit 10:swapped:+leak:up",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.2), while up announces 100.64.0.0/24",
+      "apply": [
+        "no route-map ALLOW-ALL permit 10",
+        "route-map ALLOW-ALL deny 10",
+        "exit"
+      ],
+      "with": {
+        "id": "customer_leak:up:with:import_filter:edge:ALLOW-ALL permit 10:swapped",
+        "kind": "customer_leak",
+        "node": "up",
+        "description": "up announces 100.64.0.0/24",
+        "apply": [
+          "ip route 100.64.0.0/24 blackhole",
+          "router bgp 65020",
+          " address-family ipv4 unicast",
+          "  network 100.64.0.0/24",
+          " exit-address-family",
+          "exit"
+        ],
+        "originates": [
+          "100.64.0.0/24"
+        ]
+      }
+    },
+    {
+      "id": "import_filter:edge:CUST-IN permit 10:swapped",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: route-map CUST-IN permit 10 turned into deny (inbound from 10.0.1.2)",
+      "apply": [
+        "no route-map CUST-IN permit 10",
+        "route-map CUST-IN deny 10",
+        " match ip address prefix-list CUST-IN",
+        "exit"
+      ]
+    },
+    {
+      "id": "import_filter:edge:ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24:swapped",
+      "kind": "import_filter",
+      "node": "edge",
+      "description": "edge: prefix-list entry `ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24` turned into `ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24` (inbound from 10.0.1.2)",
+      "apply": [
+        "no ip prefix-list CUST-IN seq 10 permit 10.10.0.0/24",
+        "ip prefix-list CUST-IN seq 10 deny 10.10.0.0/24"
+      ]
+    },
+    {
+      "id": "import_filter:up:ALLOW-ALL permit 10:swapped:+leak:edge",
+      "kind": "import_filter",
+      "node": "up",
+      "description": "up: route-map ALLOW-ALL permit 10 turned into deny (inbound from 10.0.2.1), while edge announces 100.64.0.0/24",
+      "apply": [
+        "no route-map ALLOW-ALL permit 10",
+        "route-map ALLOW-ALL deny 10",
+        "exit"
+      ],
+      "with": {
+        "id": "customer_leak:edge:with:import_filter:up:ALLOW-ALL permit 10:swapped",
+        "kind": "customer_leak",
+        "node": "edge",
+        "description": "edge announces 100.64.0.0/24",
+        "apply": [
+          "ip route 100.64.0.0/24 blackhole",
+          "router bgp 65000",
+          " address-family ipv4 unicast",
+          "  network 100.64.0.0/24",
+          " exit-address-family",
+          "exit"
+        ],
+        "originates": [
+          "100.64.0.0/24"
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Only the variants listed were run: a finite, generated set. No variant surviving does not show that the checks are complete.",
+    "Only the top-level checks of netdryrun.yml are proven; scenario checks are not run under variants.",
+    "The routing state is the FRR snapshot of `netdryrun verify` (sessions, RIB, BGP paths, advertisements, default VRF variants only): an effect outside it is not seen.",
+    "A leak that a lab node filters counts as no effect, even where the announcing node's export policy let it out."
+  ],
+  "started": "2026-01-01T00:00:00+00:00",
+  "finished": "2026-01-01T00:00:00+00:00"
+}

@@ -11,6 +11,7 @@ from ..verify.snapshot import BgpPath, Session, Snapshot
 from .variants import Variant
 
 MAX_SUGGESTIONS = 5
+DEFAULT_LOCAL_PREF = 100
 GUARDED = ("default_leak", "link_subnet_leak")   # their prefixes are what a standing guard names
 
 
@@ -25,8 +26,8 @@ def _at(vrf: str) -> dict:
 
 def _attrs_check(node: str, vrf: str, prefix: str, best: BgpPath) -> dict:
     c = {"type": "bgp_route", "node": node, "prefix": prefix, **_at(vrf), "as_path": best.attrs.as_path.render()}
-    if best.attrs.local_pref is not None:
-        c["local_pref"] = best.attrs.local_pref
+    # the check reads the effective local preference: the default 100 where the path carries none
+    c["local_pref"] = best.attrs.local_pref if best.attrs.local_pref is not None else DEFAULT_LOCAL_PREF
     if best.attrs.communities:
         c["communities"] = list(best.attrs.communities)
     return c
@@ -40,7 +41,7 @@ def suggest(variant: Variant, base: Snapshot, effect: list[DiffItem]) -> list[di
     out: list[dict] = []
     for d in effect:
         k = d.key
-        if k.kind == "session" and isinstance(d.before, Session) and d.before.established:
+        if k.kind == "session" and isinstance(d.before, Session) and d.before.established                 and not (isinstance(d.after, Session) and d.after.established):   # it went down (not a count change)
             out.append(_s({"type": "bgp_session", "node": k.node, "neighbor": k.neighbor, **_at(k.vrf)},
                           "the session is established today"))
         elif k.kind == "path" and d.change == "added" and k.neighbor != "local":
