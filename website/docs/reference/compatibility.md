@@ -31,8 +31,8 @@ Each cell counts the tests on that driver's own captured output: a *must-fail* t
 |---|---|---|---|---|---|
 | `bgp_session` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
 | `bgp_prefixes` | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (5 must-fail, 1 control) |
-| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (5 must-fail, 1 control) |
-| `bgp_route` | verified (5 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (10 must-fail, 1 control) |
+| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) |
+| `bgp_route` | verified (5 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (9 must-fail, 1 control) |
 | `ping` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
 
 ## BGP prefix counts by address family
@@ -49,7 +49,7 @@ A check on a refused address family stops the run before the lab is deployed, wi
 
 | Key | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) |
 |---|---|---|---|---|---|
-| `present` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (3 must-fail) |
+| `present` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (2 must-fail) |
 | `as_path` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
 | `as_path_regex` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
 | `local_pref` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) |
