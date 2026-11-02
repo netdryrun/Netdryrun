@@ -112,7 +112,9 @@ def eos_rules():
 
 def srl_rules():
     def neighbors(text):
-        return [("protocols bgp neighbor *", text)]
+        # the RIB tree of each counted family, for AS-loop paths (0.4.1): sr_cli's live empty answer, no loops here
+        return [("protocols bgp neighbor *", text), ("bgp-rib afi-safi ipv4-unicast ipv4-unicast", fx("srl_rib_empty.txt")),
+                ("bgp-rib afi-safi ipv6-unicast ipv6-unicast", fx("srl_rib_empty.txt"))]
 
     def routes(route_text, rib_text):
         return [("route-table", route_text), ("bgp-rib afi-safi", rib_text)]

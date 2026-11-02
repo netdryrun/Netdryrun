@@ -24,18 +24,22 @@ PROTOCOLS = {"ebgp": "bgp", "ibgp": "bgp", "bgp": "bgp", "connected": "connected
              "aggregate": "aggregate", "droproute": "static", "dropped": "static"}  # static discard (Null0)
 
 
-def _protocol(rtype: str, prefix: str) -> str:
+def _protocol(rtype: str, prefix: str, command: str = "show ip route <prefix> | json") -> str:
     """An EOS routeType as a netdryrun protocol name. Every OSPF route type (intra, inter, external, NSSA, and
     any later one) is ospf, and in an IPv6 table it is OSPFv3, ospf6: the map once had no name that gave ospf6, so
-    `protocol: ospf6 present: false` never matched an EOS route (red team RT-0025)."""
-    rtype = rtype.lower().replace(" ", "")
+    `protocol: ospf6 present: false` never matched an EOS route (red team RT-0025). Any other route type this
+    driver doesn't map (a nexthop-group static, a leaked route, one a later EOS adds) is an error: 0.4.0 passed
+    the raw name through, which no `protocol` matched, so `present: false` on it passed (acceptance 0.4.1)."""
+    raw, rtype = rtype, rtype.lower().replace(" ", "")
     if rtype.startswith("ospf"):
         return "ospf6" if ":" in prefix or rtype.startswith(("ospfv3", "ospf3")) else "ospf"
     if rtype.startswith("isis"):
         return "isis"
     if "aggregate" in rtype:   # aggregate, bgpAggregate: a name that never matched would pass present: false
         return "aggregate"
-    return PROTOCOLS.get(rtype, rtype)
+    if rtype not in PROTOCOLS:
+        raise unexpected(command, f"routeType {raw!r} (read as {rtype!r}) is not one this driver maps to a protocol")
+    return PROTOCOLS[rtype]
 
 
 def _programmed(route: dict) -> bool:
@@ -193,7 +197,7 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
         if not isinstance(r, dict):
             raise unexpected(ALL_ROUTES_CMD, f"{key}: {str(r)[:150]}")
         net = str(network(ALL_ROUTES_CMD, key))
-        out.append(Route(net, _protocol(str(r.get("routeType", "")), net), _programmed(r)))
+        out.append(Route(net, _protocol(str(r.get("routeType", "")), net, ALL_ROUTES_CMD), _programmed(r)))
     return out
 
 

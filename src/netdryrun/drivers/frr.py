@@ -301,6 +301,16 @@ def _path_count(command: str, data: dict) -> None:
         raise unexpected(command, f"pathCount {count}, but {len(data['paths'])} paths listed")
 
 
+def _segments(p: dict) -> list:
+    """A path's AS-path segments. bgpd prints `aspath.segments` on every path (an empty list for the router's own);
+    without it the AS path was not printed, which must never read as empty, a locally originated route
+    (acceptance A-6)."""
+    aspath = p.get("aspath")
+    if not isinstance(aspath, dict) or not isinstance(aspath.get("segments"), list):
+        raise unexpected(BGP_PATHS_CMD, f"path without aspath segments: {str(p)[:150]}")
+    return aspath["segments"]
+
+
 def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
     """Path objects for exactly `prefix` from `show bgp ... <prefix> json`. `{}` means no path."""
     data = _bgp_json(command, text)
@@ -384,7 +394,7 @@ def parse_bgp_paths(text: str, prefix: str, default_local_pref: int | None = 100
     is listed, valid or not, best or not."""
     out = []
     for p in _bgp_paths_raw(BGP_PATHS_CMD, text, prefix):
-        segs = [(s.get("type", ""), s.get("list") or []) for s in (p.get("aspath") or {}).get("segments") or []]
+        segs = [(s.get("type", ""), s.get("list") or []) for s in _segments(p)]
         out.append(BgpPath(
             best=bool((p.get("bestpath") or {}).get("overall")),
             as_path=render_as_path(segs),  # not aspath.string: FRR prints "Local" for an empty path

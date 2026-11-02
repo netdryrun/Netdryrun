@@ -181,3 +181,16 @@
     `vtysh -c "show bgp ipv4 unicast summary json"` before and after netdryrun's RouteInjection put in 100.64.0.0/24
     (pfxSnt 3 then 4 to each peer), then again with r1's outbound route-map denying that prefix (3 then 3)
   added: ndr/gate-fixes-0.4.1
+- files: [junos_route_noinstall.txt]
+  kind: live-capture
+  source: cjunosevolved:26.2R1.7-EVO in examples/junos-frr (lab ndr-junos-frr), 2026-11-02, on j1 after `set routing-options
+    static route 10.99.0.0/24 next-hop 10.0.100.2 no-install`, with `show route 10.99.0.0/24 exact table inet.0 all extensive
+    | display json` (rt-entry-state Active NotInstall Int Ext; the forwarding table had no entry for it)
+  added: ndr/drivers-harden-0.4.1
+- files: [srl_bgp_neighbors_loop.txt, srl_bgp_rib_loop.txt]
+  kind: live-capture
+  source: ghcr.io/nokia/srlinux:26.7.2 in examples/srl-frr unchanged (lab ndr-srl-loop), 2026-11-02, on srl1 with
+    `sr_cli --output-format json "info from state /network-instance default protocols bgp neighbor *"` and `... bgp-rib
+    afi-safi ipv4-unicast ipv4-unicast` (FRR's allow-all export sends srl1's two routes back with 65010 in the path,
+    received 3, active 1, rejected 0, two local-RIB paths invalid-reason as-loop)
+  added: ndr/drivers-harden-0.4.1

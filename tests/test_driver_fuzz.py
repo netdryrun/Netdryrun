@@ -78,6 +78,16 @@ def eos_table_empty(key):
     return check
 
 
+def srl_no_loops(d) -> bool:
+    """No AS-loop path: an empty answer, or a local RIB route list none of whose paths is flagged as-loop."""
+    if d == {}:
+        return True
+    rows = d.get("local-rib", {}).get("route") if isinstance(d, dict) and isinstance(d.get("local-rib"), dict) else None
+    return isinstance(rows, list) and not any(
+        isinstance(r, dict) and isinstance(r.get("invalid-reason"), dict) and r["invalid-reason"].get("as-loop") is True
+        for r in rows)
+
+
 def srl_list_empty(key):
     def check(d) -> bool:
         return d == {} or (isinstance(d, dict) and isinstance(d.get(key), list))
@@ -272,6 +282,7 @@ CASES = [
          ["junos_route_ibgp.txt"], junos_bgp_paths_empty),
     Case("junos.parse_bgp_paths[hidden next hop]", lambda t: junos.parse_bgp_paths(t, "10.31.0.0/24"),
          ["junos_route_hidden_nexthop.txt"], junos_bgp_paths_empty),
+    Case("srlinux.parse_as_loop_counts", srlinux.parse_as_loop_counts, ["srl_bgp_rib_loop.txt"], srl_no_loops),
     Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, SRL_ROW),
          ["srl_attr_set_best.txt", "srl_attr_set_backup.txt"], lambda d: False),
 ]

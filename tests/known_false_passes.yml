@@ -126,3 +126,13 @@
   record: corpus/v2/AMENDMENTS.md
   corpus: [v2/18-aggregate-discard-route-removed]
   tests: []
+- id: drivers-harden-0.4.1
+  what: Driver output read as present, absent or a plain value where the device said otherwise (acceptance round A-1 to
+    A-7) - an EOS route type it couldn't map, an FRR path without AS-path segments read as local, an SR Linux family
+    up without counters read as 0, an SR Linux route not in the FIB counted active, a Junos no-install static counted
+    active, SR Linux AS-loop routes counted as received, a Junos graceful-restart stale route counted present
+  record: CHANGELOG.md (0.4.1); tests/redteam/RT-0037 to RT-0043
+  tests:
+    - tests/test_drivers_harden_041.py
+    - tests/test_srl_loop_count.py
+    - tests/test_redteam.py

@@ -1,0 +1,112 @@
+id: RT-0038
+title: "bgp_route as_path '' passes on FRR for paths whose AS path wasn't printed: a missing aspath.segments read as an empty AS path, a locally originated route"
+found: "2026-11-02, 0.4.1 acceptance round (adversary, A-6)"
+fixed_in: 0.4.1
+kind: driver
+# outputs: tests/fixtures/frr_bgp_paths.txt (FRR 10.4.1, live) with each path's aspath removed
+driver: frr
+check:
+  type: bgp_route
+  node: r1
+  prefix: 192.168.20.0/24
+  as_path: ""
+outputs:
+  - needle: "longer-prefixes"
+    fixture: frr_bgp_table_header.txt
+  - needle: "show bgp"
+    output: |
+      {
+       "prefix": "192.168.20.0/24",
+       "version": 1,
+       "advertisedTo": {
+        "10.1.1.2": {
+         "hostname": "src"
+        },
+        "10.1.2.2": {
+         "hostname": "src"
+        }
+       },
+       "pathCount": 2,
+       "paths": [
+        {
+         "origin": "IGP",
+         "metric": 50,
+         "locPrf": 200,
+         "valid": true,
+         "version": 1,
+         "bestpath": {
+          "bestpathFromAs": 65020,
+          "overall": true,
+          "selectionReason": "Local Pref"
+         },
+         "community": {
+          "string": "65020:100 65020:200",
+          "list": [
+           "65020:100",
+           "65020:200"
+          ]
+         },
+         "largeCommunity": {
+          "string": "65020:1:1 65020:2:2",
+          "list": [
+           "65020:1:1",
+           "65020:2:2"
+          ]
+         },
+         "lastUpdate": {
+          "epoch": 1793073299,
+          "string": "Tue Oct 27 03:54:59 2026"
+         },
+         "nexthops": [
+          {
+           "ip": "10.1.1.2",
+           "hostname": "src",
+           "afi": "ipv4",
+           "metric": 0,
+           "accessible": true,
+           "used": true
+          }
+         ],
+         "peer": {
+          "peerId": "10.1.1.2",
+          "routerId": "20.20.20.20",
+          "hostname": "src",
+          "domainname": "localdomain",
+          "type": "external"
+         }
+        },
+        {
+         "origin": "IGP",
+         "metric": 10,
+         "valid": true,
+         "version": 1,
+         "community": {
+          "string": "65020:999",
+          "list": [
+           "65020:999"
+          ]
+         },
+         "lastUpdate": {
+          "epoch": 1793073299,
+          "string": "Tue Oct 27 03:54:59 2026"
+         },
+         "nexthops": [
+          {
+           "ip": "10.1.2.2",
+           "hostname": "src",
+           "afi": "ipv4",
+           "metric": 0,
+           "accessible": true,
+           "used": true
+          }
+         ],
+         "peer": {
+          "peerId": "10.1.2.2",
+          "routerId": "20.20.20.20",
+          "hostname": "src",
+          "domainname": "localdomain",
+          "type": "external"
+         }
+        }
+       ]
+      }

@@ -1,0 +1,46 @@
+id: RT-0040
+title: "route present passes on SR Linux for a route whose FIB add is still pending (or failed): SR Linux marks it active before it forwards, and the driver read active alone"
+found: "2026-11-02, 0.4.1 acceptance round (adversary, A-1/A-2)"
+fixed_in: 0.4.1
+kind: driver
+# outputs: tests/fixtures/srl_route.txt (SR Linux 26.7.2, live) with fib-programming.pending-operation-type set to add; a FIB failure was not produced in a lab
+driver: srlinux
+check:
+  type: route
+  node: srl1
+  prefix: 192.168.20.0/24
+  protocol: bgp
+outputs:
+  - needle: "route-table"
+    output: |
+      {
+       "route": [
+        {
+         "ipv4-prefix": "192.168.20.0/24",
+         "id": 0,
+         "route-type": "bgp",
+         "route-owner": "bgp_mgr",
+         "origin-network-instance": "default",
+         "leakable": false,
+         "leaked": false,
+         "metric": 0,
+         "preference": 170,
+         "active": true,
+         "route-limit-exceeded": false,
+         "last-app-update": "2026-10-26T18:27:42.049Z (a second ago)",
+         "next-hop-group": "44970325",
+         "next-hop-group-network-instance": "default",
+         "resilient-hash": false,
+         "dynamic-load-balancing": false,
+         "fib-programming": {
+          "suppressed": false,
+          "last-successful-operation-type": "add",
+          "last-successful-operation-timestamp": "2026-10-26T18:27:42.050Z (a second ago)",
+          "pending-operation-type": "add",
+          "last-failed-operation-type": "none"
+         }
+        }
+       ]
+      }
+  - needle: "bgp-rib"
+    fixture: srl_bgp_rib_paths.txt
