@@ -72,6 +72,13 @@
   tests:
     - tests/test_afi_default.py
     - tests/test_redteam.py
+- id: family-not-carried-counted-zero
+  what: A bgp_prefixes bound on a family the session doesn't carry counted 0 and passed, and record wrote nothing
+    for that family, so an IPv6 leak over a session that later carried IPv6 passed the recorded file (acceptance
+    round B-2, B-3)
+  record: CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_afi_default.py
 - id: redteam-20261101
   what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
     bgp-evpn folded into bgp; protocol names a driver never reports accepted; EOS ospf6 never matched; SR Linux's own

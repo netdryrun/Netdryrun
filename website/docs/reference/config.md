@@ -92,11 +92,12 @@ The number of prefixes accepted from a neighbor is within a range, and (with `on
 | `max` | one of `min`, `max`, `exact`, `only` | | Upper bound, inclusive |
 | `exact` | one of `min`, `max`, `exact`, `only` | | Exact count |
 | `only` | one of `min`, `max`, `exact`, `only` | | 0.4.1: the prefixes this neighbor may send, a list of prefixes in the check's `afi` (`ipv4-unicast` or `ipv6-unicast`). Any other accepted prefix fails the check, even when the count is in range, and so does one that replaces a listed prefix. `[]` means nothing may arrive. FRR and SONiC only: on other drivers it is refused before the lab deploys (exit code `2`). `netdryrun record` writes it on every eBGP neighbor |
-| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS or Juniper (beta) |
+| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS or Juniper (beta). Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry |
 
 Rules:
 
 - At least one of `min`, `max`, `exact` or `only` is required.
+- **A family the session doesn't carry** (0.4.1): `exact: 0` passes, saying so ("0 ipv6-unicast prefixes (the session doesn't carry ipv6-unicast)"): nothing of that family can arrive, and the check fails the day the family is added and sends a prefix. Every other bound (`min`, `max`, `only`, `exact` above 0) fails with "the session to X doesn't carry ipv6-unicast": a count of 0 that was never counted is not read as one. Before 0.4.1 such a family counted 0, so `max: 3` passed while an IPv6 neighbor sent 500 IPv6 prefixes on the default `ipv4-unicast`.
 - `exact` cannot be combined with `min` or `max`.
 - `min` must not be greater than `max`.
 - All three are non-negative integers.
