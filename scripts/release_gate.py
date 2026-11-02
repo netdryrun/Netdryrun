@@ -904,6 +904,21 @@ def clab_containers() -> set[str] | None:
     return set(p.out.split()) if p.code == 0 else None
 
 
+# deploying and destroying a lab come on top of a run's own timeout; the gate waits for both, so that netdryrun times
+# out first and says which check was still waiting (junos-frr's limit equalled its timeout and hid that)
+DEPLOY_AND_DESTROY = 900
+
+
+def run_timeout(folder: Path) -> float:
+    import yaml
+    data = yaml.safe_load((folder / "netdryrun.yml").read_text(encoding="utf-8")) or {}
+    return float(data.get("timeout", 120))
+
+
+def run_limit(folder: Path) -> float:
+    return run_timeout(folder) + DEPLOY_AND_DESTROY
+
+
 class Live:
     """Shared state for the live layer: the installed wheel, a scratch folder, the lab snapshot."""
 
@@ -935,8 +950,9 @@ class Live:
                 run(["docker", "rm", "-f", c], timeout=120)
         return not left
 
-    def netdryrun_run(self, folder: Path, timeout: float = 1800) -> Proc:
+    def netdryrun_run(self, folder: Path, timeout: float | None = None) -> Proc:
         report = self.work / "reports" / f"{folder.name}.json"
+        timeout = run_limit(folder) if timeout is None else timeout
         report.parent.mkdir(exist_ok=True)
         env = {**os.environ, "CI": "1"}   # no interactive feedback prompt
         return run([self.ndr, "run", folder, "--json", report, "--no-step-summary"], cwd=self.work, env=env,
