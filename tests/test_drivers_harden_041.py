@@ -140,3 +140,49 @@ def test_srl_active_route_without_fib_programming_is_an_error():
 def test_srl_live_route_captures_still_parse_as_active():
     assert srlinux.parse_routes(read("srl_route.txt"), "192.168.20.0/24") == [Route("192.168.20.0/24", "bgp", True)]
     assert any(r.active for r in srlinux.parse_all_routes(read("srl_route.txt")))
+
+
+# ---------------------------------------------------------------- Junos: no-install (A-3) and graceful-restart stale (A-4)
+
+from netdryrun.drivers import junos  # noqa: E402
+
+JRC = f"unexpected output from `{junos.ROUTE_CMD}`: "
+
+
+def test_junos_no_install_static_is_not_active():
+    """Captured live 2026-11-02: a static with `no-install` is `*` active in the routing table but never reaches the
+    FIB (Junos marks it NotInstall); `netdryrun check` passed `route ... protocol static` on it while ping to it
+    failed (acceptance A-3). Present means forwarding, as on FRR and EOS."""
+    assert junos.parse_routes(read("junos_route_noinstall.txt"), "10.99.0.0/24") == [Route("10.99.0.0/24", "static", False)]
+
+
+def _junos_entry_doc(edit, name="junos_route_paths.txt"):
+    d = json.loads(read(name))
+    edit(d["route-information"][0]["route-table"][0]["rt"][0]["rt-entry"][0])
+    return _obj(d)
+
+
+@pytest.mark.parametrize("state", ["Active Ext Stale", "Ext Stale Changed", "Active Ext LongLivedStale"])
+def test_junos_stale_route_is_not_settled(state):
+    """A graceful-restart stale route is neither present nor gone yet, as on FRR, EOS, NX-OS and SR Linux: the read
+    stops with "not settled" and the check samples again (acceptance A-4). The token's spelling comes from Junos's
+    documented route states; a live restart wasn't produced (the lab's FRR is a GR helper, not a restarter)."""
+    text = _junos_entry_doc(lambda e: e.update({"rt-entry-state": [{"data": state}]}))
+    for parse in (junos.parse_routes, junos.parse_bgp_paths):
+        with pytest.raises(DriverError) as err:
+            parse(text, "10.20.0.0/24")
+        assert str(err.value) == "10.20.0.0/24: BGP path from 10.0.1.2 is stale (graceful restart in progress): not settled"
+
+
+def test_junos_exact_answer_without_entry_state_is_an_error():
+    """Every exact extensive answer prints rt-entry-state: without it, a stale or not-installed route couldn't be
+    told from an active one."""
+    text = _junos_entry_doc(lambda e: e.pop("rt-entry-state"))
+    with pytest.raises(DriverError) as err:
+        junos.parse_routes(text, "10.20.0.0/24")
+    assert str(err.value).startswith(JRC + "no 'rt-entry-state':")
+
+
+def test_junos_live_captures_still_parse():
+    assert [r.active for r in junos.parse_routes(read("junos_route_paths.txt"), "10.20.0.0/24")] == [True, False]
+    assert junos.parse_all_routes(read("junos_route_table.txt"))

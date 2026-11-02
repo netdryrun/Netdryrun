@@ -1,0 +1,15 @@
+id: RT-0033
+title: "route protocol static passes on Junos for a static with no-install: Junos keeps the * on it and marks it NotInstall, it never reaches the FIB, and the driver read the * alone"
+found: "2026-11-02, 0.4.1 acceptance round (adversary, A-3); confirmed live on examples/junos-frr (netdryrun check passed it while ping to it failed)"
+fixed_in: 0.4.1
+kind: driver
+# outputs: live capture, cJunosEvolved 26.2R1.7-EVO, 2026-11-02
+driver: junos
+check:
+  type: route
+  node: j1
+  prefix: 10.99.0.0/24
+  protocol: static
+outputs:
+  - needle: "exact table inet.0 all extensive"
+    fixture: junos_route_noinstall.txt

@@ -1,0 +1,17 @@
+id: RT-0034
+title: "bgp_prefixes min 3 passes on SR Linux with one usable prefix: SR Linux counts routes that fail AS-loop detection in received-routes and not in rejected-routes, and the driver read received minus rejected"
+found: "2026-10-28, live run of examples/srl-frr (documented as a known limit); captured live 2026-11-02"
+fixed_in: 0.4.1
+kind: driver
+# outputs: live capture, SR Linux 26.7.2, examples/srl-frr unchanged, 2026-11-02 (received 3, active 1, rejected 0; two paths invalid-reason as-loop)
+driver: srlinux
+check:
+  type: bgp_prefixes
+  node: srl1
+  neighbor: 10.0.100.2
+  min: 3
+outputs:
+  - needle: "protocols bgp neighbor"
+    fixture: srl_bgp_neighbors_loop.txt
+  - needle: "bgp-rib afi-safi ipv4-unicast ipv4-unicast"
+    fixture: srl_bgp_rib_loop.txt

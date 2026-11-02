@@ -28,6 +28,7 @@ def _protocol(rtype: str) -> str:
 
 NEIGHBORS_CMD = "info from state /network-instance <vrf> protocols bgp neighbor *"
 ROUTE_CMD = "info from state /network-instance <vrf> route-table <afi> route <prefix>"
+RIB_TREE_CMD = "info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>"
 RIB_CMD = "info from state /network-instance <vrf> bgp-rib ... local-rib route <prefix>"
 ATTR_CMD = "info from state /network-instance <vrf> bgp-rib attr-sets attr-set <id>"
 INSTANCE_CMD = "info from state /network-instance <vrf> oper-state"
@@ -105,6 +106,41 @@ def _in_fib(command: str, prefix: str, r: dict) -> bool:
         raise unexpected(command, f"{prefix}: active route without fib-programming")
     return (fib.get("suppressed") is False and fib.get("pending-operation-type") == "none"
             and fib.get("last-failed-operation-type") == "none")
+
+
+# invalid-reason keys a received path can carry: rejected-route is already in rejected-routes; as-loop is not
+LOOP_REASONS = {"as-loop"}
+COUNTED_REASONS = {"as-loop", "rejected-route"}
+
+
+@parser(RIB_TREE_CMD)
+def parse_as_loop_counts(text: str) -> dict[str, int]:
+    """Per neighbor, the paths in the local RIB that failed AS-loop detection. SR Linux counts them in the
+    neighbor's received-routes and not in rejected-routes (captured live 2026-11-02, examples/srl-frr: received 3,
+    rejected 0, two paths with `invalid-reason: {as-loop: true}`), so they must come off the count. Any other
+    invalid reason is an error: the count would be wrong by a reason this driver can't name."""
+    data = _json(text, RIB_TREE_CMD)
+    if not data:
+        return {}
+    rib = data.get("local-rib")
+    if not isinstance(rib, dict) or not isinstance(rib.get("route"), list):   # a renamed list would read as no loops
+        raise unexpected(RIB_TREE_CMD, data)
+    out: dict[str, int] = {}
+    for row in rib["route"]:
+        reason = row.get("invalid-reason") if isinstance(row, dict) else None
+        if not isinstance(reason, dict) or not reason:
+            continue
+        flagged = {k for k, v in reason.items() if v is True}
+        if flagged - COUNTED_REASONS:
+            raise unexpected(RIB_TREE_CMD, f"{row.get('prefix')} from {row.get('neighbor')}: invalid-reason {reason} "
+                                           "is not one this driver reads")
+        if flagged & LOOP_REASONS:
+            neighbor = row.get("neighbor")
+            if not isinstance(neighbor, str) or not neighbor:
+                raise unexpected(RIB_TREE_CMD, f"{row.get('prefix')} from {neighbor}: a looped path without a neighbor")
+            key = _canon_addr(neighbor)
+            out[key] = out.get(key, 0) + 1
+    return out
 
 
 def _bgp_learned(row: dict) -> bool:
@@ -266,7 +302,21 @@ class SrlDriver(Driver):
         neighbors = parse_bgp_neighbors(self._cli(f"info from state /network-instance {vrf} protocols bgp neighbor *", ev))
         if not neighbors:
             self._confirm_vrf(vrf, ev)
+        self._drop_looped(vrf, neighbors, ev)
         return Observation(neighbors, ev)
+
+    def _drop_looped(self, vrf: str, neighbors: dict, ev: list[dict]) -> None:
+        """Take the paths that failed AS-loop detection off each counted family (see parse_as_loop_counts)."""
+        for afi in sorted({afi for n in neighbors.values() for afi in n.prefixes}):
+            loops = parse_as_loop_counts(self._cli(f"info from state /network-instance {vrf} bgp-rib afi-safi {afi} {afi}", ev))
+            for key, n in neighbors.items():
+                looped = loops.get(key, 0)
+                if afi not in n.prefixes or not looped:
+                    continue
+                if looped > n.prefixes[afi]:
+                    raise unexpected(NEIGHBORS_CMD, f"{n.address} {afi}: {looped} looped routes but a count of "
+                                                    f"{n.prefixes[afi]} (received minus rejected)")
+                n.prefixes[afi] -= looped
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

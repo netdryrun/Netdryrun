@@ -27,6 +27,7 @@ import re
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
                    RepeatedKey, check_vrf_name, load_json, parser, render_as_path, unexpected)
 from .frr import _canon_addr
+from .stale import refuse_if_stale
 
 # The container's own SSH hop to the Junos VM (its `cli` wrapper uses the same key and address)
 VM_SSH = ["ssh", "-q", "-i", "/root/.ssh/sshkey", "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes",
@@ -361,7 +362,10 @@ def _protocol(command: str, e: dict) -> str:
 
 
 def _active(command: str, e: dict) -> bool:
-    return _leaf(command, e, "active-tag", required=False) == "*" and not _hidden(command, e)
+    """Active and forwarding: Junos marks a route it keeps out of the FIB (a static with `no-install`) NotInstall,
+    with the `*` still on it (captured 2026-11-02; acceptance A-3). Present means forwarding, as on FRR and EOS."""
+    state = (_leaf(command, e, "rt-entry-state", required=False) or "").split()
+    return _leaf(command, e, "active-tag", required=False) == "*" and not _hidden(command, e) and "NotInstall" not in state
 
 
 def _hidden(command: str, e: dict) -> bool:
@@ -386,7 +390,19 @@ def _matching(command: str, text: str, prefix: str, table: str) -> list[dict]:
         if dest != want:
             raise unexpected(command, f"a route for {dest} in the answer for {want}")
         out += _entries(command, rt)
+    for e in out:
+        _refuse_stale(command, prefix, e)
     return out
+
+
+def _refuse_stale(command: str, prefix: str, e: dict) -> None:
+    """A graceful-restart stale route (a restarting peer's, kept until it re-sends it or the stale timer ends) is
+    neither present nor gone yet: the read stops with "not settled", as on FRR, EOS, NX-OS and SR Linux (acceptance
+    A-4). Every exact extensive answer prints rt-entry-state; without it a stale route couldn't be told from an active
+    one. The token's spelling (Stale, LongLivedStale) is Junos's documented one, not yet seen in a live restart."""
+    state = _leaf(command, e, "rt-entry-state")
+    stale = any("stale" in token.lower() for token in state.split())
+    refuse_if_stale(prefix, _leaf(command, e, "gateway", required=False), stale)
 
 
 @parser(ROUTE_CMD)
