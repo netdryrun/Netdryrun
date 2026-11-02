@@ -136,3 +136,18 @@
     - tests/test_drivers_harden_041.py
     - tests/test_srl_loop_count.py
     - tests/test_redteam.py
+- id: advisory-0.4.0-further-false-passes
+  what: The 15 further false passes in 0.4.0 and earlier, published together (prefix without a length, IPv6 default afi,
+    families not carried, verify pins, FRR/SONiC/SR Linux/EOS/Junos driver cases, inject_routes never sent)
+  record: advisories/0.4.0-further-false-passes/README.md
+  trust: "0.4.0 and earlier"
+  tests:
+    - tests/test_prefix_length.py
+    - tests/test_afi_default.py
+    - tests/test_verify_pins_041.py
+    - tests/test_false_passes_041.py
+    - tests/test_exact_prefix_answers.py
+    - tests/test_drivers_harden_041.py
+    - tests/test_srl_loop_count.py
+    - tests/test_inject_sent_counts.py
+    - tests/test_redteam.py
