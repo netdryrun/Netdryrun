@@ -5684,6 +5684,56 @@
       "reason": "timing only (test gap, 0.4.1 decision): the containers are looked at on every wait instead of every 15 s; a stopped one is still an error; kill test (injected clock) is a 0.4.2 follow-up",
       "diff": "5a2ac53f5ca356ff",
       "class": "timing-only"
+    },
+    "netdryrun.verify.engine.x__pins_ok__mutmut_53": {
+      "reason": "test gap, fails closed (0.4.1 decision): reading a missing attribute as null lets a received-only route meet a `null` pin it can't show, so the line reads as happened; the route itself stays undeclared (_pinned_items keeps the UNSEEN rule), so the verdict is failed either way; kill test (the line isn't met) is a 0.4.2 follow-up",
+      "diff": "4519623b05fb1636",
+      "class": "safety"
+    },
+    "netdryrun.verify.engine.x__pins_ok__mutmut_55": {
+      "reason": "test gap, fails closed (0.4.1 decision): reading a missing attribute as null lets a received-only route meet a `null` pin it can't show, so the line reads as happened; the route itself stays undeclared (_pinned_items keeps the UNSEEN rule), so the verdict is failed either way; kill test (the line isn't met) is a 0.4.2 follow-up",
+      "diff": "cb0add02c400eb9c",
+      "class": "safety"
+    },
+    "netdryrun.verify.engine.x__pins_ok__mutmut_74": {
+      "reason": "message text only: which keys the one-candidate mismatch message lists; whether a candidate matches is decided above",
+      "diff": "527c02ec2cdaf043",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.junos.x__active__mutmut_6": {
+      "reason": "equivalent: _leaf only tests `if required`, and None and False are both false",
+      "diff": "903786e96c1ef3e4",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.x__active__mutmut_20": {
+      "reason": "equivalent: _leaf only tests `if required`, and None and False are both false",
+      "diff": "5ce7aca0b68a1c14",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.x__refuse_stale__mutmut_25": {
+      "reason": "equivalent: _leaf only tests `if required`, and None and False are both false",
+      "diff": "800030de4ff7e26d",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.x__active__mutmut_14": {
+      "reason": "equivalent: a missing rt-entry-state reads as 'XXXX' instead of '', and neither contains the NotInstall token",
+      "diff": "9c03928774d9953a",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.x__active__mutmut_31": {
+      "reason": "message text only: the command reaches _leaf/_items only for the text of the DriverError (unexpected output from `...`); the same error is raised",
+      "diff": "152de75ca8056526",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.junos.x__hidden__mutmut_3": {
+      "reason": "message text only: the command reaches _leaf/_items only for the text of the DriverError (unexpected output from `...`); the same error is raised",
+      "diff": "0cc62f72f0cf054a",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.junos.x__filtered__mutmut_15": {
+      "reason": "message text only: the command reaches _leaf/_items only for the text of the DriverError (unexpected output from `...`); the same error is raised",
+      "diff": "f45cf1837542d825",
+      "class": "message-text"
     }
   },
   "checks": {
