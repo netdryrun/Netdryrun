@@ -341,17 +341,15 @@ def _pins_ok(pins: dict, view: RouteView, state: str) -> str:
 
 
 def _pinned(d: DiffItem, view: RouteView, bgp: dict) -> bool:
-    """Whether a new path or received route for the prefix matches every BGP pin (as _pins_ok compares them)."""
+    """Whether a new path or received route for the prefix matches every BGP pin (as _pins_ok compares them). A
+    received route shows fewer attributes (ADJ_IN_VIEW): a pin it can't show doesn't match it."""
     k = d.key
     if k.kind == "path":
-        p = view.paths.get((k.neighbor, k.path_id))
-        c = path_view(k.neighbor, p) if p is not None else None
-    elif k.kind == "adj_in":
-        a = view.adj_in.get((k.neighbor, k.path_id))
-        c = {**{f: v for f, v in attrs_view(a).items() if f in ADJ_IN_VIEW}, "from": k.neighbor} if a is not None else None
+        c = path_view(k.neighbor, view.paths[(k.neighbor, k.path_id)])
     else:
-        return False
-    return c is not None and all(c.get(f, UNSEEN) == v for f, v in bgp.items())
+        c = {**{f: v for f, v in attrs_view(view.adj_in[(k.neighbor, k.path_id)]).items() if f in ADJ_IN_VIEW},
+             "from": k.neighbor}
+    return all(c.get(f, UNSEEN) == v for f, v in bgp.items())
 
 
 def _pinned_items(items: list[DiffItem], view: RouteView, bgp: dict) -> set[ItemKey]:
@@ -359,7 +357,7 @@ def _pinned_items(items: list[DiffItem], view: RouteView, bgp: dict) -> set[Item
     path and received route from a neighbor with at least one of them matching every pin (the same route seen
     before and after inbound policy). A path from any other neighbor, best or not, stays undeclared (acceptance
     round B-6: it was explained, and a change that also opened a transit peer's filter got INTENT MATCHED)."""
-    sources = {d.key.neighbor for d in items if _pinned(d, view, bgp)}
+    sources = {d.key.neighbor for d in items if d.key.kind in ("path", "adj_in") and _pinned(d, view, bgp)}
     return {d.key for d in items if d.key.kind not in ("path", "adj_in") or d.key.neighbor in sources}
 
 
@@ -380,7 +378,7 @@ def _appears(ctx: _Ctx, ln: Line) -> LineResult:
             return LineResult(ln, False, f"{n}: {why}")
         items = ctx.route_items(n, ln.vrf, afi, ln.prefix)
         bgp = {k: v for k, v in ln.pins.items() if k not in ("protocol", "distance", "metric")}
-        res.explained |= _pinned_items(items, a, bgp) if bgp else {d.key for d in items}
+        res.explained |= _pinned_items(items, a, bgp)   # no BGP pins: every path matches, so every item
         res.details.append({"node": n, **_route_details(a)})
     res.explained |= ctx.adv_to(set(ln.nodes), ln.vrf, afi, ln.prefix, "added")
     return res

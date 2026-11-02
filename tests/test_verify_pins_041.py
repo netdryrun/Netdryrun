@@ -44,6 +44,18 @@ def test_without_pins_every_new_path_is_explained_as_before():
     assert not [d for d in m.undeclared if d.key.kind == "path"]
 
 
+def test_a_pin_a_received_route_cannot_show_never_matches_it():
+    """originator_id isn't shown before inbound policy: `originator_id: null` matches the declared neighbor's path,
+    never another neighbor's received route (which can't show it)."""
+    after = base()
+    after.path("up1", P, "10.0.2.1", path(best=False, as_path="65000 65101", next_hop="10.0.2.1"))
+    after.adj_in("up1", "10.0.9.2", P, attrs(as_path="65020 65666", next_hop="10.0.9.2"))
+    m = run(base(), after, [{"prefix": P, "appears_on": "up1", "state": "received", "with": {"originator_id": None}}])
+    assert m.status == "failed"
+    assert [d.key.where() for d in m.undeclared if d.key.kind in ("path", "adj_in")] == \
+        [f"up1 {P} received from 10.0.9.2 (before inbound policy)"]
+
+
 def test_received_before_and_after_policy_from_the_pinned_neighbor_and_nothing_else():
     """state: received. The pinned neighbor's route seen before inbound policy (prepended) and after both count;
     the second neighbor's received route does not."""

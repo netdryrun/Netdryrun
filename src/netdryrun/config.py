@@ -270,7 +270,7 @@ def explicit_network(where: str, value: Any):
     a host: `prefix: 0.0.0.0, present: false` (meant as "no default route") checked a /32 and passed with a leaked
     0.0.0.0/0 installed (acceptance round B-1). Text that isn't a prefix at all keeps ipaddress's own error."""
     text = str(value).strip()
-    net = ipaddress.ip_network(text, strict=False)
+    net = ipaddress.ip_interface(text).network   # host bits allowed, as everywhere a prefix is read
     if "/" not in text:
         hint = ("::/0 for a default route, 2001:db8::1/128 for one host" if net.version == 6
                 else "0.0.0.0/0 for a default route, 192.0.2.1/32 for one host")
@@ -278,23 +278,13 @@ def explicit_network(where: str, value: Any):
     return net
 
 
-def _explicit_prefixes(where: str, raw: Any) -> None:
-    """Every prefix a check names (`prefix`, each of `only`) carries its length. Anything else (another type, text
-    that isn't a prefix at all) is left to _validate_check, which refuses it with its own message."""
-    if not isinstance(raw, dict):
-        return
-    named = [(where, raw.get("prefix"))]
-    if isinstance(raw.get("only"), list):
-        named += [(f"{where}: only", x) for x in raw["only"]]
-    for at, value in named:
-        if not isinstance(value, str):
-            continue
-        try:
+def _explicit_prefixes(where: str, raw: dict) -> None:
+    """Every prefix a check names (`prefix`, each of `only`) carries its length. Called once _validate_check has
+    accepted the check, so each one is already a valid prefix written as a string."""
+    only = raw.get("only") or []
+    for at, value in [(where, raw.get("prefix"))] + [(f"{where}: only", x) for x in only]:
+        if value is not None:
             explicit_network(at, value)
-        except ConfigError:
-            raise
-        except ValueError:
-            continue
 
 
 def _afi_default_fits(where: str, ctype: str, raw: Any, params: dict) -> None:
@@ -303,7 +293,7 @@ def _afi_default_fits(where: str, ctype: str, raw: Any, params: dict) -> None:
     (acceptance round B-2). IPv4 over an IPv6 session is real (RFC 8950), so it is allowed when written."""
     if ctype != "bgp_prefixes" or "afi" in raw:
         return
-    if ipaddress.ip_address(params["neighbor"].split("%")[0]).version == 6:
+    if ipaddress.ip_address(params["neighbor"]).version == 6:   # a %scope is read too (Python 3.9+)
         raise ConfigError(f"{where}: neighbor {params['neighbor']} is an IPv6 address, but afi defaults to "
                           "ipv4-unicast: set afi: ipv6-unicast (or afi: ipv4-unicast if this session carries IPv4 "
                           "routes)")
