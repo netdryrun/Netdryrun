@@ -691,9 +691,11 @@ def make_brownfield(base: Path, spec: dict, src: Path) -> None:
 
 
 def make_big30(base: Path, spec: dict, src: Path) -> None:
-    """Leaf-spine: 2 FRR spines (AS 65000, 65001), 28 leaves (AS 65101..), each with /31s to both spines and its
-    loopback 172.16.<i>.1/32 announced. Leaves listed under srlinux, eos and sonic run that NOS, the rest FRR.
-    bad: leaf20 (FRR) announces 203.0.113.0/24, which it doesn't own."""
+    """Leaf-spine: 2 FRR spines, both AS 65000 so that no leaf carries one spine's routes to the other (with two
+    spine ASes the leaves are transit, and which paths they pass on follows best-path timing, different on every
+    deploy), and 28 leaves (AS 65101..), each with /31s to both spines and its loopback 172.16.<i>.1/32 announced.
+    Leaves listed under srlinux, eos and sonic run that NOS, the rest FRR. bad: the last FRR leaf announces
+    203.0.113.0/24, which it doesn't own."""
     shutil.rmtree(base, ignore_errors=True)
     g = base / "good"
     (g / "configs").mkdir(parents=True)
@@ -705,7 +707,7 @@ def make_big30(base: Path, spec: dict, src: Path) -> None:
         return (f"    {name}:\n      kind: linux\n      image: {frr}\n      binds:\n        - configs/daemons:/etc/frr/daemons\n"
                 f"        - configs/vtysh.conf:/etc/frr/vtysh.conf\n        - configs/{name}.conf:/etc/frr/frr.conf\n")
     nodes, links, setup = [], [], {}
-    for s, asn in ((1, 65000), (2, 65001)):
+    for s, asn in ((1, 65000), (2, 65000)):
         lines = [f"frr defaults datacenter\nhostname spine{s}\n!\ninterface lo\n ip address 10.255.0.{s}/32\n!"]
         lines += [f"interface eth{i}\n ip address 10.{s}.{i}.0/31\n!" for i in leaves]
         lines.append(f"route-map ALLOW-ALL permit 10\n!\nrouter bgp {asn}\n bgp router-id 10.255.0.{s}")
@@ -732,7 +734,7 @@ def make_big30(base: Path, spec: dict, src: Path) -> None:
                     "set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable",
                     "set / network-instance default protocols bgp group ebgp export-policy [ accept-all ]",
                     "set / network-instance default protocols bgp group ebgp import-policy [ accept-all ]"]
-            for k, peer in ((1, 65000), (2, 65001)):
+            for k, peer in ((1, 65000), (2, 65000)):
                 cli += [f"set / network-instance default protocols bgp neighbor 10.{k}.{i}.0 peer-group ebgp",
                         f"set / network-instance default protocols bgp neighbor 10.{k}.{i}.0 peer-as {peer}"]
             (g / "configs" / f"{name}.cli").write_text("\n".join(cli) + "\n")
@@ -746,7 +748,7 @@ def make_big30(base: Path, spec: dict, src: Path) -> None:
                 f"interface Ethernet2\n   no switchport\n   ip address 10.2.{i}.1/31\n!\n"
                 f"interface Loopback0\n   ip address {lo}/32\n!\nip routing\n!\n"
                 f"router bgp {asn}\n   router-id {lo}\n   neighbor 10.1.{i}.0 remote-as 65000\n"
-                f"   neighbor 10.2.{i}.0 remote-as 65001\n   network {lo}/32\n!\nend\n")
+                f"   neighbor 10.2.{i}.0 remote-as 65000\n   network {lo}/32\n!\nend\n")
             nodes.append(f"    {name}:\n      kind: arista_ceos\n      image: ceos:4.36.3M\n      startup-config: configs/{name}.cfg\n")
             ifs = ("eth1", "eth2")
         elif i in spec["sonic"]:
@@ -757,7 +759,7 @@ def make_big30(base: Path, spec: dict, src: Path) -> None:
                 f"config interface ip add Ethernet4 10.2.{i}.1/31 && config interface startup Ethernet4",
                 f"config loopback add Loopback0; config interface ip add Loopback0 {lo}/32",
                 f'vtysh -c "conf t" -c "router bgp {asn}" -c "bgp router-id {lo}" -c "no bgp ebgp-requires-policy" '
-                f'-c "neighbor 10.1.{i}.0 remote-as 65000" -c "neighbor 10.2.{i}.0 remote-as 65001" '
+                f'-c "neighbor 10.1.{i}.0 remote-as 65000" -c "neighbor 10.2.{i}.0 remote-as 65000" '
                 f'-c "address-family ipv4 unicast" -c "network {lo}/32"']}
             ifs = ("eth1", "eth2")
         else:
@@ -765,7 +767,7 @@ def make_big30(base: Path, spec: dict, src: Path) -> None:
                 f"frr defaults datacenter\nhostname {name}\n!\ninterface lo\n ip address {lo}/32\n!\n"
                 f"interface eth1\n ip address 10.1.{i}.1/31\n!\ninterface eth2\n ip address 10.2.{i}.1/31\n!\n"
                 f"route-map ALLOW-ALL permit 10\n!\nrouter bgp {asn}\n bgp router-id {lo}\n"
-                f" neighbor 10.1.{i}.0 remote-as 65000\n neighbor 10.2.{i}.0 remote-as 65001\n"
+                f" neighbor 10.1.{i}.0 remote-as 65000\n neighbor 10.2.{i}.0 remote-as 65000\n"
                 f" address-family ipv4 unicast\n  network {lo}/32\n"
                 f"  neighbor 10.1.{i}.0 route-map ALLOW-ALL in\n  neighbor 10.1.{i}.0 route-map ALLOW-ALL out\n"
                 f"  neighbor 10.2.{i}.0 route-map ALLOW-ALL in\n  neighbor 10.2.{i}.0 route-map ALLOW-ALL out\n"
