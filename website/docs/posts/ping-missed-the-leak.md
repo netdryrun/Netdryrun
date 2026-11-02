@@ -44,7 +44,7 @@ On Linux or WSL2 with Docker and containerlab:
 
 ```bash
 pipx install netdryrun
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp-broken
 ```
 

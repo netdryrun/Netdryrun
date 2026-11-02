@@ -61,7 +61,7 @@ Requirements: Linux or WSL2, Docker, [containerlab](https://containerlab.dev/ins
 
 ```bash
 pipx install netdryrun
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp          # 3 FRR routers, should pass
 netdryrun run examples/srl-frr          # SR Linux + FRR, should pass
 netdryrun run examples/frr-bgp-broken   # a bad change, should fail

@@ -25,7 +25,7 @@ You need Netdryrun, Docker and containerlab. See [Getting started](getting-start
 Any containerlab topology works. Here, the bundled `examples/frr-bgp` lab stands in for "your lab": three FRR routers in a triangle, each in its own AS, each announcing one LAN prefix over eBGP.
 
 ```bash
-git clone https://github.com/netdryrun/Netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun
 mkdir my-lab
 cp -r netdryrun/examples/frr-bgp/configs netdryrun/examples/frr-bgp/topology.clab.yml my-lab/
 sed -i 's/^name: ndr-frr-bgp/name: ndr-my-lab/' my-lab/topology.clab.yml
