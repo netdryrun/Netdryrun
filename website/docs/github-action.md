@@ -7,8 +7,8 @@ description: Run Netdryrun in GitHub Actions with netdryrun/Netdryrun@v0.4.1. In
 
 The action installs containerlab, installs Netdryrun™, runs your checks, writes a summary to the job page, uploads the JSON and JUnit reports as an artifact, and fails the job if any check fails.
 
-!!! warning "Known issue in v0.4.0: pull requests need a deeper checkout"
-    With `actions/checkout`'s default shallow fetch, the action's checks-file step fails every `pull_request` run with "github.sha is not this pull request's merge commit". It fails closed (the job goes red), so no wrong verdict is reported, but the action can't run on pull requests. Until 0.4.1, give the checkout step `with: {fetch-depth: 0}`. 0.4.1 fetches what it needs itself.
+!!! warning "Known issue in v0.4.0, fixed in 0.4.1: pull requests needed a deeper checkout"
+    With `actions/checkout`'s default shallow fetch, v0.4.0's checks-file step fails every `pull_request` run with "github.sha is not this pull request's merge commit". It fails closed (the job goes red), so no wrong verdict is reported, but the action can't run on pull requests. Fixed in 0.4.1, which fetches what it needs itself. On `@v0.4.0`, give the checkout step `with: {fetch-depth: 0}`.
 
 ```yaml title=".github/workflows/network-dryrun.yml"
 name: Network dry run

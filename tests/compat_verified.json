@@ -13,7 +13,7 @@
   "sonic": {
     "date": "2026-10-28",
     "limits": [
-      "graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1."
+      "graceful restart: SONiC's routing is FRR, and its driver reads FRR's `stale` flag as the FRR driver does: a `route` or `bgp_route` check never passes on a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends). A live graceful restart has not been captured on docker-sonic-vs to confirm the flag. Mitigation: leave graceful restart off in the lab."
     ]
   },
   "eos": {
@@ -26,6 +26,7 @@
   "junos": {
     "date": "2026-10-29",
     "limits": [
+      "graceful restart: the driver doesn't read the stale mark yet, so a `route` or `bgp_route` check can pass on a restarting peer's route that is about to go (found by the 0.4.1 acceptance run; the junos-frr example negotiates graceful restart with FRR). Mitigation: leave graceful restart off in the lab, or give the checks a `timeout` above the stale timer.",
       "Hidden routes count as received, except routes Junos hid because the import policy rejected them (`hidden-reason` \"Rejected by import policy\"): those can never be used, and FRR and Arista EOS don't keep them at all.",
       "`bgp_route` reads routes received over BGP only. Junos doesn't list its own static, direct or aggregate routes as BGP routes, even when an export policy advertises them.",
       "`bgp_prefixes` counts received routes minus those import policy rejected, reading the hidden routes' reasons when Junos hides any. A hidden route whose reason is neither \"Rejected by import policy\" nor \"Protocol nexthop is not on the interface\" leaves the count a range from accepted to received, and a bound is judged only when the whole range agrees (otherwise the check fails, never passes).",
