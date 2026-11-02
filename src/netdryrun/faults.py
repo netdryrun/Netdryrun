@@ -111,7 +111,8 @@ class RouteInjection:
         self.asn = ""
         self.applied = False   # set before the config goes in: restore even if applying half-fails
         self.sent_before: dict[tuple[str, str], int] = {}
-        # whether the routes left the node: True, False, or None when the sent counts couldn't be read at restore
+        self.resets_before: dict[str, tuple] = {}
+        # whether the routes left the node: True, False, or None when the counts couldn't be read at restore
         self.left: bool | None = None
 
     def sent(self) -> dict[tuple[str, str], int]:
@@ -125,6 +126,26 @@ class RouteInjection:
                                    f"(`show bgp {afi} unicast summary json`)")
                 out[(afi, peer)] = info["pfxSnt"]
         return out
+
+    def resets(self) -> dict[str, tuple]:
+        """peer -> (sessions dropped, last reset reason, last NOTIFICATION code and subcode), from `show bgp neighbors
+        json`. A peer that tears the session down because the injected routes exceeded its prefix limit sends a Cease
+        NOTIFICATION with subcode 1 (`0601`, "Maximum Number of Prefixes Reached", live FRR 10.4.1): the routes left,
+        though the sent count then reads 0 on the session that came back or is still down."""
+        data = json.loads(self._vtysh("-c", "show bgp neighbors json") or "{}")
+        out = {}
+        for peer, info in data.items():
+            if not isinstance(info, dict) or not isinstance(info.get("connectionsDropped"), int):
+                raise LabError(f"inject_routes on {self.node}: no dropped-session count for {peer} "
+                               "(`show bgp neighbors json`)")
+            out[peer] = (info["connectionsDropped"], info.get("lastResetDueTo"), info.get("lastErrorCodeSubcode"))
+        return out
+
+    def _max_prefix_reset(self, peer: str, now: tuple) -> bool:
+        """The peer dropped the session during the injection, and the last drop was its prefix-limit Cease."""
+        dropped, due, code = now
+        return (dropped > self.resets_before.get(peer, (dropped,))[0] and due == "BGP Notification received"
+                and code == "0601")
 
     def _vtysh(self, *args: str, timeout: float = 120) -> str:
         r = self.lab.exec(self.node, ["vtysh", *args], timeout=timeout)
@@ -172,6 +193,7 @@ class RouteInjection:
         if self.as_path and re.search(rf"^route-map {ROUTE_MAP} ", running, re.M):
             raise LabError(f"inject_routes on {self.node}: route-map {ROUTE_MAP} already exists")
         self.sent_before = self.sent()   # read before anything changes: a count that can't be read stops here
+        self.resets_before = self.resets()
         self.applied = True
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path))
         self._wait(want_present=True)
@@ -180,11 +202,14 @@ class RouteInjection:
         if not self.applied:
             return
         # Read while the routes are still in, after the scenario's checks: did any peer get more prefixes than
-        # before? If none did, the routes never left this node (an outbound filter here, no session carrying their
-        # family), and a max: or present: false check elsewhere passed on nothing (acceptance round B-5)
+        # before, or tear the session down over its prefix limit? If neither, the routes never left this node (an
+        # outbound filter here, no session carrying their family), and a max: or present: false check elsewhere
+        # passed on nothing (acceptance round B-5). Any other reset proves nothing: inconclusive.
         try:
             after = self.sent()
-            self.left = any(n > self.sent_before.get(k, 0) for k, n in after.items())
+            resets = self.resets()
+            self.left = (any(n > self.sent_before.get(k, 0) for k, n in after.items())
+                         or any(self._max_prefix_reset(p, now) for p, now in resets.items()))
         except (LabError, ValueError):
             self.left = None
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path, remove=True))

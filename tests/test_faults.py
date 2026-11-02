@@ -89,6 +89,10 @@ class FakeLab:
                 elif w[:2] == ["no", "network"]:
                     self.table.discard(w[2])
             return ExecResult(cmd, 0, "", "")
+        if cmd[1] == "-c" and cmd[2].endswith("unicast summary json"):   # one peer, sent everything in the table
+            return ExecResult(cmd, 0, json.dumps({"peers": {"10.0.0.2": {"pfxSnt": len(self.table) + 1}}}), "")
+        if cmd[1:3] == ["-c", "show bgp neighbors json"]:
+            return ExecResult(cmd, 0, json.dumps({"10.0.0.2": {"connectionsDropped": 0}}), "")
         if cmd[1] == "-c" and cmd[2].startswith("show bgp"):
             return ExecResult(cmd, 0, json.dumps({"routes": {p: [] for p in self.table}}), "")
         raise AssertionError(cmd)

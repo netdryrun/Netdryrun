@@ -194,3 +194,11 @@
     afi-safi ipv4-unicast ipv4-unicast` (FRR's allow-all export sends srl1's two routes back with 65010 in the path,
     received 3, active 1, rejected 0, two local-RIB paths invalid-reason as-loop)
   added: ndr/drivers-harden-0.4.1
+- files: [frr_v2_inject_before_summary.txt, frr_v2_inject_before_neighbors.txt, frr_v2_inject_maxprefix_summary.txt,
+          frr_v2_inject_maxprefix_neighbors.txt, frr_v2_inject_maxprefix_pe1_neighbor.txt, frr_v2_inject_clear_summary.txt,
+          frr_v2_inject_clear_neighbors.txt, frr_v2_inject_linkdown_summary.txt, frr_v2_inject_linkdown_neighbors.txt]
+  kind: live-capture
+  source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git), corpus/v2/base, 2026-11-02, ce1 and pe1 with
+    `show bgp ipv4 unicast summary json` and `show bgp neighbors <peer> json`, before, after ce1 injected 200 prefixes
+    (I8; pe1 maximum-prefix 50 sent Cease 0601), after `clear bgp 10.0.1.1` on ce1, and with ce1 eth1 down
+  added: ndr/gate-fixes-0.4.1
