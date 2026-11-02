@@ -336,3 +336,63 @@ def test_a_lab_lock_file_left_by_another_user_is_no_internal_error(tmp_path, mon
     lab = Lab(topo)
     lab.acquire_lock()            # b61c325: PermissionError
     lab.release_lock()
+
+
+# --- angle 2 (end user): a VM node without KVM -----------------------------------------------------------------
+
+def _fake_run(monkeypatch, tmp_path, kind="linux", dies_at=None):
+    """The runner on a fake clock, a fake lab and a fake driver whose route never appears (so only the timeout or
+    the lab can end the run). With dies_at, node r1's container stops at that time, as a VM node's does when qemu
+    can't start."""
+    from test_runner_robustness import FakeDriver, FakeLab, World, cfg, chk
+
+    from netdryrun import runner
+
+    w = World()
+    lab = FakeLab(w, nodes=("r1",))
+    lab.nodes["r1"] = lab.nodes["r1"].__class__("r1", "clab-t-r1", kind, "vrnetlab/cisco_n9kv:9300-10.4.8.M")
+
+    def stopped():
+        if dies_at is not None and w.t >= dies_at:
+            return {"clab-t-r1": "qemu-system-x86_64: CPU model 'host' requires KVM or HVF"}
+        return {}
+    lab.stopped_containers = stopped
+    from netdryrun.lab import Lab
+    lab.kvm_problem = Lab.kvm_problem.__get__(lab)   # the real check, on the fake lab's nodes
+    monkeypatch.setattr(runner, "_clock", w, raising=False)
+    monkeypatch.setattr(runner, "_sleep", w.sleep, raising=False)
+    monkeypatch.setattr(runner, "Lab", lambda path: lab)
+    monkeypatch.setattr(runner, "for_node", lambda lab_, node, override=None: FakeDriver(w, routes=lambda _w, p: False))
+    rep = runner.run(cfg(tmp_path, [chk("route", "r1 route", timeout=900, node="r1", prefix="10.0.0.0/24")]))
+    return rep, lab, w
+
+
+def test_a_node_container_that_dies_ends_the_run_at_once(tmp_path, monkeypatch):
+    """F3 (end-user angle). With no KVM, a VM node's container exits right after deploy (qemu refuses to start), and
+    b61c325 polled it until every check's timeout: no verdict after 23 minutes. A node whose container stopped can
+    never answer: the run must end quickly as an error (exit 2), naming the node and its last log line."""
+    rep, lab, w = _fake_run(monkeypatch, tmp_path, dies_at=20)
+    assert rep.status == "error", rep.status
+    assert "clab-t-r1" in rep.error and "requires KVM" in rep.error
+    assert w.t < 120, f"noticed only after {w.t:.0f} s"
+    assert lab.destroyed == 1
+
+
+def test_a_healthy_lab_is_not_stopped_by_the_watch(tmp_path, monkeypatch):
+    rep, _, _ = _fake_run(monkeypatch, tmp_path)
+    assert rep.status == "failed" and not rep.error
+
+
+def test_a_vm_node_without_kvm_is_refused_before_deploy(tmp_path, monkeypatch):
+    """F3: a VM-based node (vrnetlab: NX-OS, RouterOS, Junos) on a host without /dev/kvm can't boot. Refuse before
+    deploying, with exit 2 and a message that says so, instead of deploying a lab that can't come up."""
+    import os.path as osp
+
+    from netdryrun import lab as lab_mod
+
+    real = osp.exists
+    monkeypatch.setattr(lab_mod.os.path, "exists", lambda p: False if str(p) == "/dev/kvm" else real(p))
+    monkeypatch.delenv("DOCKER_HOST", raising=False)
+    rep, lab, _ = _fake_run(monkeypatch, tmp_path, kind="cisco_n9kv")
+    assert rep.status == "error" and "KVM" in rep.error and "r1" in rep.error, rep.error
+    assert lab.deployed == 0

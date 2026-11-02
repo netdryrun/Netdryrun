@@ -95,6 +95,12 @@ class FakeLab:
             raise self.destroy_error
         return ExecResult([], self.destroy_rc, "", "boom" if self.destroy_rc else "")
 
+    def stopped_containers(self):
+        return {}
+
+    def kvm_problem(self):
+        return None
+
     def running_containers(self):
         if self.running is not None:
             return set(self.running)

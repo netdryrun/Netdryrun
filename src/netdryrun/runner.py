@@ -38,6 +38,26 @@ POLL = 3.0   # seconds between samples, as in checks.py
 _ACTIVE: set = set()
 
 
+class _NodeWatch:
+    """A sleep that first asks Docker, at most every `every` seconds of the run's clock, whether any node's container
+    stopped. One did: LabError (exit 2), naming it with its last log lines. A check that samples a stopped node only
+    sees command errors, and polling them to the timeout gave no verdict for as long as 23 minutes (0.4.1 acceptance,
+    a VM node without KVM)."""
+
+    def __init__(self, lab: Lab, sleep, every: float = 15.0):
+        self.lab, self.sleep, self.every, self.last = lab, sleep, every, None
+
+    def __call__(self, seconds: float) -> None:
+        now = _clock()
+        if self.last is None or now - self.last >= self.every:
+            self.last = now
+            stopped = self.lab.stopped_containers()
+            if stopped:
+                raise LabError("node container(s) stopped during the run, so no check can be evaluated: " +
+                               "; ".join(f"{c} ({why})" for c, why in sorted(stopped.items())))
+        self.sleep(seconds)
+
+
 class RunError(RuntimeError):
     """A run that can't go ahead for a reason that is neither the config file nor the lab (bad arguments)."""
 
@@ -449,6 +469,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         # Every node a check or a fault names must exist, and every check be readable, before deploying
         preflight(config, lab)
         if deploy:
+            # A VM node can't boot without KVM: say so before deploying a lab that would never come up
+            kvm = lab.kvm_problem()
+            if kvm:
+                raise LabError(kvm)
             # Two runs of the same lab would redeploy each other's containers and destroy them under each
             # other's checks. Refuse instead: a lock for runs on this host, and Docker for everything else.
             lab.acquire_lock()
@@ -467,6 +491,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         missing = {n.container for n in lab.nodes.values()} - lab.running_containers()
         if missing:
             raise LabError(f"lab containers not running: {', '.join(sorted(missing))}")
+        # From here every wait also watches the nodes: a container that stops (a VM that couldn't boot, a NOS
+        # that crashed) can never answer, so the run ends at once as an error instead of polling it to the timeout
+        global _sleep
+        unwatched, _sleep = _sleep, _NodeWatch(lab, _sleep)
         if deploy:
             for node, cmds in config.setup.items():
                 log(f"Running setup on {node}...")
@@ -558,6 +586,8 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         if _debug():
             traceback.print_exc(file=sys.stderr)
     finally:
+        if isinstance(_sleep, _NodeWatch):
+            _sleep = unwatched
         with _signals_deferred() as pending:
             # An interrupted run has no verdict, so --keep-on-failure doesn't apply: only --keep keeps the lab
             keep_now = keep or (keep_on_failure and interrupted is None and report.status != "passed")

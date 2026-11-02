@@ -20,6 +20,11 @@ class LabError(RuntimeError):
 ROUTEROS_KINDS = ("mikrotik_ros", "vr-ros", "vr-mikrotik_ros")
 # containerlab kinds for the Cisco Nexus 9000v (a VM inside the container, vrnetlab)
 NXOS_KINDS = ("cisco_n9kv", "vr-n9kv", "vr-cisco_n9kv")
+# Kinds that run the NOS as a VM inside the container (vrnetlab, cJunosEvolved): they can't boot without KVM
+VM_KINDS = frozenset({*ROUTEROS_KINDS, *NXOS_KINDS, "juniper_cjunosevolved", "juniper_vjunosrouter",
+                      "juniper_vjunosswitch", "juniper_vjunosevolved", "juniper_vmx", "juniper_vsrx", "juniper_vqfx",
+                      "cisco_xrv9k", "cisco_xrv", "cisco_csr1000v", "cisco_c8000v", "cisco_cat9kv", "nokia_sros",
+                      "arista_veos", "ipinfusion_ocnos", "sonic-vm", "huawei_vrp"})
 
 
 @dataclass
@@ -195,6 +200,36 @@ class Lab:
             raise LabError(f"could not list Docker containers: {(r.stderr or r.stdout).strip()[-300:]}")
         return {line.strip() for line in r.stdout.splitlines() if line.strip()}
 
+    def kvm_problem(self) -> str | None:
+        """Why the lab can't boot here, when a node runs its NOS as a VM and this host has no KVM: the VM never
+        starts (qemu: "CPU model 'host' requires KVM"), so no check could be evaluated. None when KVM is there,
+        no node needs it, or Docker runs on another host (DOCKER_HOST), where /dev/kvm can't be seen from here."""
+        vms = sorted(n.name for n in self.nodes.values() if n.kind in VM_KINDS or n.kind.startswith("vr-"))
+        if not vms or os.name != "posix" or os.environ.get("DOCKER_HOST") or os.path.exists("/dev/kvm"):
+            return None
+        return (f"node(s) {', '.join(vms)} run their NOS as a VM, which needs KVM, and this host has no /dev/kvm: "
+                "the VM would never start. Run on a Linux host (or a VM with nested virtualization enabled) where "
+                "/dev/kvm exists and your user can open it")
+
+    def stopped_containers(self) -> dict[str, str]:
+        """The lab's node containers that are no longer running, each with the last lines of its log. A node whose
+        container stopped can't answer any command: the run is over (a VM that couldn't boot, a crashed NOS).
+        {} when Docker can't be asked: the checks then report what they can't read."""
+        r = _run(["docker", "ps", "-a", "--filter", f"label=containerlab={self.name}",
+                  "--format", "{{.Names}} {{.State}}"], timeout=60)
+        if r.rc != 0:
+            return {}
+        ours = {n.container for n in self.nodes.values()}
+        out = {}
+        for line in r.stdout.splitlines():
+            name, _, state = line.strip().partition(" ")
+            if name in ours and state and state != "running":
+                logs = _run(["docker", "logs", "--tail", "5", name], timeout=60, errors="replace")
+                lines = (logs.stdout + "\n" + logs.stderr).splitlines()
+                tail = " | ".join(x.strip() for x in lines if x.strip())
+                out[name] = f"{state}; last log lines: {tail[-600:] or '(none)'}"
+        return out
+
     def acquire_lock(self) -> None:
         """Hold a host-wide lock on this lab name for the whole run, so two runs started at the same moment
         can't both deploy (and then destroy) the same lab. Released by release_lock() or on process exit."""
@@ -204,7 +239,14 @@ class Lab:
 
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", self.name)
         path = Path(tempfile.gettempdir()) / f"netdryrun-lab-{safe}.lock"
-        f = open(path, "a+")
+        # Read-only: flock needs no write access, so a lock file another user (or a run with sudo) left behind
+        # still locks. Created world-readable; the file is never removed (removing it would race the lock).
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_CREAT, 0o644)
+        except OSError as e:
+            raise LabError(f"can't open the lab lock {path} ({e.strerror}): another user's run left it unreadable. "
+                           f"Remove it (sudo rm {path}) when no run of lab '{self.name}' is going") from None
+        f = os.fdopen(fd, "r")
         try:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
