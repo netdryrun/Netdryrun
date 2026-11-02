@@ -79,6 +79,13 @@
   record: CHANGELOG.md (0.4.1)
   tests:
     - tests/test_afi_default.py
+- id: inject-routes-never-left
+  what: A scenario whose injected routes never left the injecting node (an outbound filter there) passed its max and
+    present false checks on nothing, because the BGP gate only waits for counts to stop changing (acceptance round B-5)
+  record: CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_verdict_runner.py
+    - tests/test_inject_sent_counts.py
 - id: redteam-20261101
   what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
     bgp-evpn folded into bgp; protocol names a driver never reports accepted; EOS ospf6 never matched; SR Linux's own

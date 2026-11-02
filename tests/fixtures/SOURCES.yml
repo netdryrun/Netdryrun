@@ -174,3 +174,10 @@
     cEOS `show ip route` answers with the covering /24 (longest match), every other command answers with no row
     (exact). FRR 10.4.1 zebra and bgpd answered `{}` for the same question (not kept, the answer is `{}`)
   added: ndr/gate-fixes-0.4.1
+- files: [frr_bgp_summary_inject_before.txt, frr_bgp_summary_inject_after.txt, frr_bgp_summary_inject_denied_before.txt,
+          frr_bgp_summary_inject_denied_after.txt]
+  kind: live-capture
+  source: quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git), examples/frr-bgp, 2026-11-02, on r1 with
+    `vtysh -c "show bgp ipv4 unicast summary json"` before and after netdryrun's RouteInjection put in 100.64.0.0/24
+    (pfxSnt 3 then 4 to each peer), then again with r1's outbound route-map denying that prefix (3 then 3)
+  added: ndr/gate-fixes-0.4.1

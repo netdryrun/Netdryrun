@@ -240,6 +240,8 @@ class Env:
 
             def restore(self):
                 self.restored += 1
+                # as RouteInjection: whether a peer's sent-prefix count rose, read before the routes are removed
+                self.left = getattr(env, "inject_left", True)
                 env.lab.events.append(("uninject", self.node))
 
             def clock_now(self):
@@ -1883,3 +1885,55 @@ def test_the_fault_wait_names_every_session_still_up_even_after_an_unreadable_no
         runner._wait_fault_visible([("r1", "default", "10.0.12.2"), ("r2", "default", "10.0.12.1")],
                                    {"r1": a, "r2": b}.__getitem__, 9, sc)
     assert "r1: BGP state unreadable" in str(e.value) and "r2 -> 10.0.12.1" in str(e.value)
+
+
+# --- B-5 (acceptance round, 2026-11-02): injected routes that never left the injecting node --------------------
+
+NEVER_LEFT = ("inconclusive: the injected routes never left r2: no BGP peer's sent-prefix count rose while they were "
+              "injected (an outbound filter there, or no session carrying their family), so this scenario tested "
+              "nothing")
+
+
+def test_a_scenario_whose_injected_routes_never_left_is_inconclusive(monkeypatch):
+    """Every check in it is not passed with the reason, even one that passed on the unchanged network."""
+    e = make(monkeypatch)
+    e.inject_left = False
+    results = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])],
+                                 [route("x", node="r3")]))
+    assert [(r.passed, str(r.detail), r.samples_passed) for r in results] == [(False, NEVER_LEFT, 0)]
+    assert isinstance(results[0].detail, runner.NeverLeft) and NEVER_LEFT in " ".join(e.logs)
+
+
+def test_injected_routes_that_left_keep_the_scenario_results(monkeypatch):
+    e = make(monkeypatch)
+    results = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])],
+                                 [route("x", node="r3")]))
+    assert [r.passed for r in results] == [True]
+
+
+def test_sent_counts_that_could_not_be_read_are_inconclusive_too(monkeypatch):
+    e = make(monkeypatch)
+    e.inject_left = None
+    [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x", node="r3")]))
+    assert r.passed is False and str(r.detail) == ("inconclusive: the injected routes never left r2: its sent-prefix "
+                                                   "counts could not be read, so this scenario tested nothing")
+
+
+def test_a_run_whose_only_failures_never_left_is_inconclusive_exit_3(monkeypatch):
+    clock = Clock()
+    lab = FakeLab(clock)
+    e = Env(monkeypatch, clock, lab, {n: Drv(clock, neighbors=up(), routes={"default": always}) for n in lab.nodes})
+    e.inject_left = False
+    rep = e.run([route("a")], [Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x")])])
+    assert (rep.status, rep.exit_code, rep.inconclusive_reason) == ("inconclusive", 3, NEVER_LEFT)
+
+
+def test_a_real_failure_beside_a_never_left_scenario_stays_failed(monkeypatch):
+    clock = Clock()
+    lab = FakeLab(clock)
+    e = Env(monkeypatch, clock, lab, {n: Drv(clock, neighbors=up(), routes={"default": always}) for n in lab.nodes})
+    e.inject_left = False
+    broken = route("b", prefix="10.99.0.0/24", present=False)   # always present: a real finding
+    rep = e.run([route("a"), broken],
+                [Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x")])])
+    assert (rep.status, rep.exit_code) == ("failed", 1)

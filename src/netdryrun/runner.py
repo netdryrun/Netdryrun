@@ -204,8 +204,14 @@ class RunReport:
 
     @property
     def inconclusive_reason(self) -> str | None:
-        """Set when the lab never reached a testable state (see checks.inconclusive_reason)."""
-        return None if self.error else inconclusive_reason(self.results)
+        """Set when the lab never reached a testable state (see checks.inconclusive_reason), or when every failed
+        check is in a scenario whose injected routes never left their node (NeverLeft)."""
+        if self.error:
+            return None
+        failed = [r for r in self.results if not r.passed]
+        if failed and all(isinstance(r.detail, NeverLeft) for r in failed):
+            return str(failed[0].detail)
+        return inconclusive_reason(self.results)
 
     @property
     def exit_code(self) -> int:
@@ -1032,4 +1038,24 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
         if downed or applied:
             log(f"Restored {len(downed)} link(s) and {applied} route injection(s); settling {settle:g}s")
             _sleep(settle)
-    return results
+    return _never_left(injected, results, log)
+
+
+class NeverLeft(Unready):
+    """The detail of a scenario check whose injected routes never left the injecting node: the scenario tested
+    nothing, and the run is inconclusive unless something else failed (RunReport.inconclusive_reason)."""
+
+
+def _never_left(injected: list[RouteInjection], results: list[Result], log=lambda _: None) -> list[Result]:
+    """A scenario's results, or, when an injection's routes never left its node (no peer's sent-prefix count rose
+    while they were in), every one of them not passed and inconclusive (acceptance round B-5)."""
+    quiet = [inj for inj in injected if inj.applied and inj.left is not True]
+    if not quiet:
+        return results
+    inj = quiet[0]
+    why = ("no BGP peer's sent-prefix count rose while they were injected (an outbound filter there, or no session "
+           "carrying their family)" if inj.left is False else "its sent-prefix counts could not be read")
+    detail = NeverLeft(f"inconclusive: the injected routes never left {inj.node}: {why}, so this scenario tested "
+                       "nothing")
+    log(f"  {detail}")
+    return [replace(r, passed=False, detail=detail, samples_passed=0) for r in results]
