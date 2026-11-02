@@ -5158,7 +5158,7 @@ Source: https://netdryrun.com/roadmap/
 ## Current: 0.4.1
 
 - The fix for [GHSA-cg9f-xjw5-38ph](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-cg9f-xjw5-38ph), plus the further fixes our weekly adversarial testing found before release. 0.3.3 and 0.4.0 are yanked once 0.4.1 is out.
-- Cisco NX-OS (Nexus 9000v), beta, bring your own image; MikroTik RouterOS 7 (CHR, a free image), beta.
+- Cisco NX-OS (Nexus 9000v) and MikroTik RouterOS 7 (CHR), beta, bring your own image.
 - Supply-chain hardening: dependencies pinned by hash, build provenance on releases, fuzzing of every output parser.
 - A published compatibility matrix: each driver and the exact images it is verified on.
 
