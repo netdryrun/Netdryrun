@@ -235,7 +235,8 @@ def test_verify_outputs_cannot_be_spoofed(tmp_path):
         assert read_result(tmp_path, rep, code) ["status"] == "error"
     # a verdict that doesn't belong to its status, a run report in verify mode, no report at all
     assert read_result(tmp_path, {**rep, "verdict": OLD}, "0")["status"] == "error"
-    run_rep = {"status": "passed", "summary": {"passed": 3, "failed": 0}, "inconclusive_reason": None}
+    run_rep = {"status": "passed", "summary": {"passed": 3, "failed": 0}, "inconclusive_reason": None,
+               "checks": [{"name": n, "passed": True} for n in "abc"]}
     assert read_result(tmp_path, run_rep, "0")["status"] == "error"
     out = read_result(tmp_path, None, "0")
     assert (out["status"], out["verdict"]) == ("error", "ERROR: NO VERDICT")

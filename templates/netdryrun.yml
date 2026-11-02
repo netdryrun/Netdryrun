@@ -48,11 +48,16 @@ spec:
       description: Path for the Markdown summary (also printed in the job log)
       default: netdryrun-summary.md
     settle:
-      description: Seconds to wait before negative checks
-      default: "10"
+      description: Seconds to wait before negative checks (empty = Netdryrun's default, 10)
+      default: ""
     hold:
       description: Seconds a negative check must hold
       default: "10"
+    allow-check-edit:
+      description: >-
+        Let a merge request that changes netdryrun.yml and the lab's configs together run. Set it only when
+        approval rules require a code owner's review of netdryrun.yml (CODEOWNERS lists it)
+      default: "false"
     artifacts-expire-in:
       description: How long GitLab keeps the reports
       default: 14 days
@@ -73,6 +78,7 @@ spec:
     NDR_MARKDOWN: $[[ inputs.markdown-report ]]
     NDR_SETTLE: $[[ inputs.settle ]]
     NDR_HOLD: $[[ inputs.hold ]]
+    NDR_ALLOW_CHECK_EDIT: $[[ inputs.allow-check-edit ]]
   script:
     - |
       set +e
@@ -109,6 +115,55 @@ spec:
         fi
       done
 
+      # A merge request that changes the checks and the configs together would grade its own change (it can
+      # weaken the check that would catch it); one that changes the pipeline with the lab picks how it is judged.
+      # Refused before anything is installed, as the GitHub Action refuses such a pull request.
+      python3 - <<'GUARD'
+      import os, subprocess, sys
+
+      def git(*args):
+          return subprocess.run(["git", *args], capture_output=True, text=True)
+
+      def fail(msg):
+          print(f"ERROR: Netdryrun: {msg}")
+          sys.exit(1)
+
+      if os.environ.get("CI_PIPELINE_SOURCE") != "merge_request_event":
+          sys.exit(0)
+      base, head = os.environ.get("CI_MERGE_REQUEST_DIFF_BASE_SHA", ""), os.environ.get("CI_COMMIT_SHA", "")
+      if not (base and head):
+          fail("cannot tell what this merge request changes (no CI_MERGE_REQUEST_DIFF_BASE_SHA or CI_COMMIT_SHA)")
+      for c in (base, head):   # GitLab clones shallow (GIT_DEPTH 20 by default)
+          if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
+              git("fetch", "-q", "--no-tags", "--depth=1", "origin", c)
+              if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
+                  fail(f"cannot fetch commit {c} (set the job variable GIT_DEPTH: 0)")
+      path = os.path.normpath(os.environ.get("NDR_PATH", ".") or ".")
+      checks = path if path.endswith((".yml", ".yaml")) else os.path.join(path, "netdryrun.yml")
+      lab = os.path.dirname(checks) or "."
+      changed = git("diff", "--name-only", "--no-renames", base, head, "--", lab)
+      ci = os.environ.get("CI_CONFIG_PATH") or ".gitlab-ci.yml"
+      pipeline = git("diff", "--name-only", "--no-renames", base, head, "--", ci)
+      rest = git("diff", "--name-only", "--no-renames", base, head, "--", ".", f":!{ci}")
+      if changed.returncode or pipeline.returncode or rest.returncode:
+          fail(f"cannot list what the merge request changes: {' '.join((changed.stderr or rest.stderr).split())[:300]}")
+      if pipeline.stdout.strip() and rest.stdout.strip():
+          fail(f"the merge request changes the pipeline ({ci}) together with other files: the pipeline sets path and "
+               "allow-check-edit, so the merge request would choose which checks grade it. Change the pipeline in a "
+               "separate reviewed merge request.")
+      files = [os.path.normpath(f) for f in changed.stdout.split()]
+      configs = [f for f in files if f != os.path.normpath(checks)]
+      if os.path.normpath(checks) in files and configs:
+          msg = ("checks and configs changed in the same merge request: it edits netdryrun.yml and the lab's configs "
+                 f"({', '.join(configs[:5])}{' ...' if len(configs) > 5 else ''}), so the change would grade itself. "
+                 "Change the checks in a separate reviewed merge request, or set allow-check-edit: true only where "
+                 "approval rules require a code owner's review of netdryrun.yml.")
+          if os.environ.get("NDR_ALLOW_CHECK_EDIT") != "true":
+              fail(msg)
+          print(f"WARNING: Netdryrun: {msg} Allowed by allow-check-edit.")
+      GUARD
+      [ $? = 0 ] || exit 2
+
       # Docker: the runner's (shell runner, mounted socket) or our own daemon (privileged Docker-in-Docker image)
       if ! docker info >/dev/null 2>&1 && [ -x /usr/local/share/docker-init.sh ]; then
         echo "Starting Docker inside the job container"
@@ -140,7 +195,8 @@ spec:
       if [ -n "$AS_ROOT" ] || [ "$(id -u)" = 0 ]; then LAB_HOME=/root; else LAB_HOME="$HOME"; fi
       $AS_ROOT env -i "PATH=$VENV/bin:$PATH" "HOME=$LAB_HOME" \
         netdryrun run "$NDR_PATH" \
-        --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown "$NDR_MARKDOWN" --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
+        --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown "$NDR_MARKDOWN" \
+        ${NDR_SETTLE:+--settle "$NDR_SETTLE"} --hold "$NDR_HOLD"
       NDR_EXIT=$?
 
       # Job outputs (dotenv, for later jobs): only a report that matches this run's exit code counts
@@ -154,6 +210,14 @@ spec:
                  "inconclusive_reason": rep.get("inconclusive_reason") or ""}
           if EXIT.get(out["status"]) != os.environ.get("NDR_EXIT"):
               raise ValueError("the report does not match the run's exit code")
+          # the counts are the checks' counts, and passed means checks exist and every one passed
+          if out["status"] in ("passed", "failed"):
+              results = [c["passed"] for c in rep["checks"]]
+              if any(r not in (True, False) for r in results) or \
+                      (out["passed"], out["failed"]) != (results.count(True), results.count(False)):
+                  raise ValueError("the report's counts don't match its checks")
+              if out["status"] == "passed" and (not results or False in results):
+                  raise ValueError("a passed report without checks, or with a failed one")
       except Exception:
           out = {"status": "error", "passed": 0, "failed": 0, "inconclusive_reason": ""}
       # The reason can quote lab output: one line, no quotes, backslashes, $ or backticks
@@ -163,6 +227,12 @@ spec:
               f.write(f"NETDRYRUN_{k.upper()}={' '.join(str(v).split())}\n")
       EOF
 
+      # exit 0 only with a report of this run that passed: anything else (no report, one that contradicts the
+      # exit code or itself) is no verdict
+      if [ "$NDR_EXIT" = 0 ] && ! grep -qx 'NETDRYRUN_STATUS=passed' netdryrun.env 2>/dev/null; then
+        echo "ERROR: Netdryrun: exit 0 without a passing report of this run: no verdict"
+        NDR_EXIT=2
+      fi
       [ -f "$NDR_MARKDOWN" ] && cat "$NDR_MARKDOWN"
       case "$NDR_EXIT" in
         0) ;;

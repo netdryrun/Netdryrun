@@ -43,14 +43,17 @@ inputs:
     description: Name of the uploaded artifact
     default: netdryrun-report
   settle:
-    description: Seconds to wait before negative checks
-    default: "10"
+    description: "mode: run: seconds to wait before negative checks (empty: 10). mode: verify: seconds between the two snapshots that must match, more than the slowest MRAI or update-delay in the lab (empty: 15)"
+    default: ""
   timeout:
     description: "mode: verify only. Seconds each lab may take to reach a stable snapshot (default 300). Raise it for a lab with a slow-booting node: cJunosEvolved took 4 to 19 minutes to boot, and an approval boots each side twice, so also set the job's timeout-minutes"
     default: "300"
   hold:
-    description: Seconds a negative check must hold
+    description: "Seconds a negative check must hold (mode: verify: the standing guards' hold window)"
     default: "10"
+  unobserved:
+    description: "mode: verify: nodes without a routing stack (hosts), separated by spaces"
+    default: ""
   pr-comment:
     description: "On pull requests, post (and keep updating) one comment with the verdict and evidence. Needs permissions pull-requests: write"
     default: "false"
@@ -90,6 +93,70 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Remove old reports
+      # Reports already in the workspace (committed in the PR, or left by an earlier run on a self-hosted runner)
+      # must never be read, posted or uploaded as this run's result. This is the first step, so no failing step
+      # can skip it: "Upload reports" and the PR comment run whatever happens after.
+      # A directory at a report path is removed too, but never the workspace or anything above it.
+      shell: bash
+      env:
+        NDR_JSON: ${{ inputs.json-report }}
+        NDR_JUNIT: ${{ inputs.junit-report }}
+        NDR_VERDICT: ${{ inputs.verdict-report }}
+      run: |
+        for f in "$NDR_JSON" "$NDR_JUNIT" "$NDR_VERDICT" netdryrun-summary.md netdryrun-comment.json; do
+          [ -n "$f" ] || continue
+          if [ -d "$f" ] && [ ! -L "$f" ] && [ "$(realpath -- "$f")" != "$(realpath .)" ] \
+             && case "$(realpath .)/" in "$(realpath -- "$f")/"*) false;; *) true;; esac; then
+            sudo rm -rf -- "$f"
+          else
+            sudo rm -f -- "$f"
+          fi
+          if [ -e "$f" ] || [ -L "$f" ]; then
+            echo "::error title=Netdryrun::could not remove $f, a report path left in the workspace"
+            exit 1
+          fi
+        done
+
+    - name: Check the inputs
+      # An input the mode doesn't use is an error naming it, never silently ignored
+      shell: bash
+      env:
+        NDR_MODE: ${{ inputs.mode }}
+        NDR_PATH: ${{ inputs.path }}
+        NDR_ALLOW_CHECK_EDIT: ${{ inputs.allow-check-edit }}
+        NDR_JUNIT: ${{ inputs.junit-report }}
+        NDR_VERDICT: ${{ inputs.verdict-report }}
+        NDR_TOPOLOGY: ${{ inputs.topology }}
+        NDR_INTENT: ${{ inputs.intent-file }}
+        NDR_ALLOW_INTENT_EDIT: ${{ inputs.allow-intent-edit }}
+        NDR_TIMEOUT: ${{ inputs.timeout }}
+        NDR_UNOBSERVED: ${{ inputs.unobserved }}
+      run: |
+        fail() {
+          echo "::error title=Netdryrun::$1"
+          printf '### ⚠️ Netdryrun: ERROR: NO VERDICT\n\n%s\n' "$1" > netdryrun-summary.md
+          exit 1
+        }
+        case "$NDR_MODE" in
+          run)
+            [ -z "$NDR_TOPOLOGY" ] || fail '`topology` is for mode: verify; mode: run reads the lab from netdryrun.yml (`path`)'
+            [ "$NDR_INTENT" = "netdryrun-intent.yml" ] || fail '`intent-file` is for mode: verify'
+            [ "$NDR_ALLOW_INTENT_EDIT" = "false" ] || fail '`allow-intent-edit` is for mode: verify; in mode: run use `allow-check-edit`'
+            [ "$NDR_TIMEOUT" = "300" ] || fail '`timeout` is for mode: verify; in mode: run set `timeout` in netdryrun.yml'
+            [ -z "$NDR_UNOBSERVED" ] || fail '`unobserved` is for mode: verify'
+            ;;
+          verify)
+            [ "$NDR_PATH" = "." ] || fail '`path` is for mode: run; mode: verify reads `topology` and `intent-file`'
+            [ "$NDR_ALLOW_CHECK_EDIT" = "false" ] || fail '`allow-check-edit` is for mode: run; in mode: verify use `allow-intent-edit`'
+            [ "$NDR_JUNIT" = "netdryrun-junit.xml" ] || fail '`junit-report` is for mode: run; mode: verify writes no JUnit report'
+            [ "$NDR_VERDICT" = "netdryrun-verdict.json" ] || fail '`verdict-report` is for mode: run; mode: verify writes its result to `json-report`'
+            ;;
+          *)
+            fail "mode must be run or verify (lowercase), not '$NDR_MODE'"
+            ;;
+        esac
+
     - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
       with:
         python-version: "3.12"
@@ -104,6 +171,8 @@ runs:
         NDR_TOPOLOGY: ${{ inputs.topology }}
         NDR_INTENT: ${{ inputs.intent-file }}
         NDR_ALLOW_INTENT_EDIT: ${{ inputs.allow-intent-edit }}
+        NDR_TOKEN: ${{ inputs.github-token }}
+        NDR_SERVER: ${{ github.server_url }}
         NDR_BASE: ${{ github.event.pull_request.base.sha }}
         NDR_HEAD: ${{ github.event.pull_request.head.sha }}
         NDR_MERGE: ${{ github.sha }}
@@ -111,10 +180,25 @@ runs:
         # Reports left in the workspace must never be read, posted or uploaded as this run's result
         sudo rm -f -- "$NDR_JSON" "$NDR_JUNIT" netdryrun-summary.md netdryrun-comment.json
         python - <<'EOF'
-        import os, re, subprocess, sys
+        import base64, os, re, subprocess, sys
 
         def git(*args):
             return subprocess.run(["git", *args], capture_output=True, text=True)
+
+        def fetch(*args):
+            """git fetch; with persist-credentials: false the checkout kept no credentials, so on a private
+            repository retry once with the job's token, sent as a header (never stored or printed)."""
+            if git("fetch", "-q", "--no-tags", *args).returncode == 0:
+                return True
+            token, server = os.environ.get("NDR_TOKEN", ""), os.environ.get("NDR_SERVER", "").rstrip("/")
+            if not (token and server.startswith("https://")):
+                return False
+            auth = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+            return git("-c", f"http.{server}/.extraheader=AUTHORIZATION: basic {auth}",
+                       "fetch", "-q", "--no-tags", *args).returncode == 0
+
+        def parents_of(c):
+            return git("rev-list", "--parents", "-n", "1", c).stdout.split()[1:]
 
         def fail(msg):
             # one line for the log, and the PR comment says it too (the comment step posts the summary)
@@ -135,9 +219,14 @@ runs:
             fail("mode: verify needs the intent-file input")
         for c in (merge, base, head):   # a shallow checkout (the default) may hold only the merge commit
             if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
-                git("fetch", "--no-tags", "--depth=2", "origin", c)
+                fetch("--depth=2", "origin", c)
                 if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
-                    fail(f"cannot fetch commit {c} (use actions/checkout with fetch-depth: 0)")
+                    fail(f"cannot fetch commit {c} (the Action fetches what it needs itself: the job needs permissions contents: read, or check out with actions/checkout fetch-depth: 0)")
+        # actions/checkout's default fetch-depth: 1 holds the merge commit with its parents cut off: deepen it
+        if len(parents_of(merge)) != 2:
+            fetch("--depth=2", "origin", merge)
+        if not parents_of(merge) and git("rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+            fail(f"cannot read the parents of the merge commit {merge} (the Action fetches what it needs itself: the job needs permissions contents: read, or check out with actions/checkout fetch-depth: 0)")
         # What lands is the PR merged into the base branch as it is now (GitHub's merge commit, github.sha), not
         # the PR head: two edits can each be harmless and harmful together. Before = the merge's first parent
         # (the base branch tip), after = the merge commit; its second parent must be this PR's head.
@@ -179,15 +268,32 @@ runs:
       env:
         NDR_PATH: ${{ inputs.path }}
         NDR_ALLOW_CHECK_EDIT: ${{ inputs.allow-check-edit }}
+        NDR_TOKEN: ${{ inputs.github-token }}
+        NDR_SERVER: ${{ github.server_url }}
         NDR_BASE: ${{ github.event.pull_request.base.sha }}
         NDR_HEAD: ${{ github.event.pull_request.head.sha }}
         NDR_MERGE: ${{ github.sha }}
       run: |
         python - <<'EOF'
-        import os, re, subprocess, sys
+        import base64, os, re, subprocess, sys
 
         def git(*args):
             return subprocess.run(["git", *args], capture_output=True, text=True)
+
+        def fetch(*args):
+            """git fetch; with persist-credentials: false the checkout kept no credentials, so on a private
+            repository retry once with the job's token, sent as a header (never stored or printed)."""
+            if git("fetch", "-q", "--no-tags", *args).returncode == 0:
+                return True
+            token, server = os.environ.get("NDR_TOKEN", ""), os.environ.get("NDR_SERVER", "").rstrip("/")
+            if not (token and server.startswith("https://")):
+                return False
+            auth = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+            return git("-c", f"http.{server}/.extraheader=AUTHORIZATION: basic {auth}",
+                       "fetch", "-q", "--no-tags", *args).returncode == 0
+
+        def parents_of(c):
+            return git("rev-list", "--parents", "-n", "1", c).stdout.split()[1:]
 
         def fail(msg):
             print(f"::error title=Netdryrun::{msg}")
@@ -199,11 +305,16 @@ runs:
         sha = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
         if not (sha.fullmatch(base) and sha.fullmatch(head) and sha.fullmatch(merge)):
             fail("cannot tell what this pull request changes (no base, head or merge commit)")
-        for c in (merge, base, head):   # a shallow checkout may hold only the merge commit
+        for c in (merge, base, head):   # a shallow checkout (the default) may hold only the merge commit
             if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
-                git("fetch", "--no-tags", "--depth=2", "origin", c)
+                fetch("--depth=2", "origin", c)
                 if git("cat-file", "-e", f"{c}^{{commit}}").returncode != 0:
-                    fail(f"cannot fetch commit {c} (use actions/checkout with fetch-depth: 0)")
+                    fail(f"cannot fetch commit {c} (the Action fetches what it needs itself: the job needs permissions contents: read, or check out with actions/checkout fetch-depth: 0)")
+        # actions/checkout's default fetch-depth: 1 holds the merge commit with its parents cut off: deepen it
+        if len(parents_of(merge)) != 2:
+            fetch("--depth=2", "origin", merge)
+        if not parents_of(merge) and git("rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+            fail(f"cannot read the parents of the merge commit {merge} (the Action fetches what it needs itself: the job needs permissions contents: read, or check out with actions/checkout fetch-depth: 0)")
         parents = git("rev-list", "--parents", "-n", "1", merge).stdout.split()
         if len(parents) != 3 or parents[2] != head:
             fail("github.sha is not this pull request's merge commit (its parents must be the base branch and the PR head)")
@@ -277,6 +388,7 @@ runs:
         NDR_HOLD: ${{ inputs.hold }}
         NDR_TOPOLOGY: ${{ inputs.topology }}
         NDR_INTENT: ${{ inputs.intent-file }}
+        NDR_UNOBSERVED: ${{ inputs.unobserved }}
         NDR_BASE: ${{ steps.intent.outputs.base }}
         NDR_HEAD: ${{ steps.intent.outputs.head }}
       run: |
@@ -300,7 +412,8 @@ runs:
           run)
             sudo env -i "PATH=$PATH" "HOME=/root" "GITHUB_STEP_SUMMARY=$GITHUB_STEP_SUMMARY" \
               netdryrun run "$NDR_PATH" \
-              --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown netdryrun-summary.md --settle "$NDR_SETTLE" --hold "$NDR_HOLD"
+              --json "$NDR_JSON" --junit "$NDR_JUNIT" --verdict "$NDR_VERDICT" --markdown netdryrun-summary.md \
+              ${NDR_SETTLE:+--settle "$NDR_SETTLE"} --hold "$NDR_HOLD"
             code=$?
             ;;
           verify)
@@ -308,11 +421,13 @@ runs:
             # netdryrun.yml next to the topology. git runs as root on the runner's checkout: trust
             # exactly that repository.
             top="$(git rev-parse --show-toplevel)"
+            unobserved=()
+            for n in $NDR_UNOBSERVED; do unobserved+=(--unobserved "$n"); done
             sudo env -i "PATH=$PATH" "HOME=/root" \
               "GIT_CONFIG_COUNT=1" "GIT_CONFIG_KEY_0=safe.directory" "GIT_CONFIG_VALUE_0=$top" \
               netdryrun verify "$NDR_TOPOLOGY" --before "$NDR_BASE" --after "$NDR_HEAD" --intent "$NDR_INTENT" \
               --intent-source action --json "$NDR_JSON" --markdown netdryrun-summary.md --hold "$NDR_HOLD" \
-              --timeout "$NDR_TIMEOUT"
+              --timeout "$NDR_TIMEOUT" ${NDR_SETTLE:+--settle "$NDR_SETTLE"} "${unobserved[@]}"
             code=$?
             if [ -f netdryrun-summary.md ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
               cat netdryrun-summary.md >> "$GITHUB_STEP_SUMMARY"
@@ -356,9 +471,24 @@ runs:
                 out = {"status": rep["status"], "passed": len(rep["declared"]) + int(g.get("passed", 0)),
                        "failed": len(rep["undeclared"]) + len(rep["not_happened"]) + int(g.get("failed", 0)),
                        "inconclusive_reason": (rep["inconclusive"] or {}).get("reason") or ""}
+                # a report that contradicts itself is no verdict: a match with anything left unexplained, or
+                # undeclared changes with nothing undeclared
+                if out["status"] in ("matched", "no_change") and out["failed"]:
+                    raise ValueError("a match with undeclared differences, missing declarations or failed guards")
+                if out["status"] == "failed" and not out["failed"]:
+                    raise ValueError("undeclared changes with nothing undeclared")
             else:
                 out = {"status": rep["status"], "passed": int(rep["summary"]["passed"]), "failed": int(rep["summary"]["failed"]),
                        "inconclusive_reason": rep.get("inconclusive_reason") or ""}
+                # a verdict must agree with its own checks: the counts are the checks' counts, and passed means
+                # checks exist and every one passed (failed with no checks is how a run that ran none ends)
+                if out["status"] in ("passed", "failed"):
+                    results = [c["passed"] for c in rep["checks"]]
+                    if any(r not in (True, False) for r in results) or \
+                            (out["passed"], out["failed"]) != (results.count(True), results.count(False)):
+                        raise ValueError("the report's counts don't match its checks")
+                    if out["status"] == "passed" and (not results or False in results):
+                        raise ValueError("a passed report without checks, or with a failed one")
             if EXIT.get(out["status"]) != os.environ.get("NDR_EXIT"):
                 raise ValueError("the report does not match the run's exit code")
         except Exception:

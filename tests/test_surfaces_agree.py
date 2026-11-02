@@ -212,7 +212,8 @@ def test_mcp_uses_the_runner_defaults(lab_dir, monkeypatch):
 
 def test_action_defaults_and_flags_match_the_cli():
     inputs = ACTION["inputs"]
-    assert {k: float(inputs[k]["default"]) for k in ("settle", "hold")} == _run_defaults()
+    # an empty settle means each command's own default (run 10 s, verify 15 s): the Action passes it only when set
+    assert inputs["settle"]["default"] == "" and float(inputs["hold"]["default"]) == _run_defaults()["hold"]
     cmd = STEPS["run"]["run"]
     # the Action passes them through, and writes the JSON report its result step reads
     for flag, var in (("--settle", "NDR_SETTLE"), ("--hold", "NDR_HOLD"), ("--json", "NDR_JSON")):
