@@ -4291,18 +4291,18 @@
     },
     "netdryrun.runner.x_run__mutmut_62": {
       "reason": "message text only: the text of the 'containers not running' LabError (status error, exit 2)",
-      "diff": "5b46a05fc46503a9",
+      "diff": "7c9ed84f9bb0c157",
       "class": "message-text"
     },
     "netdryrun.runner.x_run__mutmut_63": {
       "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
-      "diff": "0c72cf33a913e87d",
+      "diff": "5847337f996d86a1",
       "class": "message-text"
     },
     "netdryrun.runner.x_run__mutmut_64": {
-      "reason": "message text only: a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
-      "diff": "76fb8129209aea0d",
-      "class": "logging"
+      "reason": "message text only: the separator in the 'containers not running' LabError (status error, exit 2)",
+      "diff": "2961883117f53a6c",
+      "class": "message-text"
     },
     "netdryrun.runner.x_run__mutmut_87": {
       "reason": "report.results = run_round_robin(...) instead of +=: nothing has been added to report.results before this line (a fresh RunReport, no earlier append), so assigning the positive results equals appending them",
@@ -5597,13 +5597,93 @@
     },
     "netdryrun.drivers.x_check_supported__mutmut_76": {
       "reason": "equivalent: the getattr default only feeds `not`, and not None == not False; every Driver subclass inherits reads_received from base, and an unknown name (DRIVERS.get -> None) takes the default either way",
-      "diff": "36bcf3e7175e0cb7",
+      "diff": "1d111b46013ee608",
       "class": "equivalent"
     },
     "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_74": {
       "class": "equivalent",
       "reason": "a BGP path always has a session (parse_routing_routes requires bgp.session for every bgp row), so the fallback is never used",
       "diff": "c46faff0a380c48e"
+    },
+    "netdryrun.runner.x_run__mutmut_94": {
+      "reason": "equivalent: report.results is still empty when the positives run, so `=` and `+=` give the same list",
+      "diff": "8ea0861efb2792d2",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run__mutmut_267": {
+      "reason": "equivalent: traceback.print_exc(file=None) prints to sys.stderr, the same stream (only with --debug)",
+      "diff": "687821cde0ae8423",
+      "class": "equivalent"
+    },
+    "netdryrun.verify.intent.x__groups__mutmut_11": {
+      "reason": "equivalent: int.from_bytes defaults to byteorder 'big' since Python 3.11 (the gate's Python is 3.12); on 3.10 the call raises TypeError, an error, never a pass",
+      "diff": "7f99cc59d99879f3",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__init____mutmut_1": {
+      "reason": "timing only: the node watch looks at the containers every 16 s instead of 15 s",
+      "diff": "2c0af1521081c9dc",
+      "class": "timing-only"
+    },
+    "netdryrun.runner.x_run__mutmut_65": {
+      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
+      "diff": "6385bc9a61bcf913",
+      "class": "message-text"
+    },
+    "netdryrun.runner.x_run__mutmut_71": {
+      "reason": "message text only: the 'Running setup on' progress line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
+      "diff": "b152a320cd9c6f94",
+      "class": "logging"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_10": {
+      "reason": "message text only: the text of the 'node container(s) stopped' LabError (status error, exit 2)",
+      "diff": "f1941d18327c27e4",
+      "class": "message-text"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_11": {
+      "reason": "message text only: the case of the 'node container(s) stopped' LabError text (status error, exit 2)",
+      "diff": "4b2f1b89d3f036dc",
+      "class": "message-text"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_13": {
+      "reason": "message text only: the separator between stopped containers in the LabError text (status error, exit 2)",
+      "diff": "cf96ee7a208e7c99",
+      "class": "message-text"
+    },
+    "netdryrun.verify.engine.x__pins_ok__mutmut_75": {
+      "reason": "message text only: which keys the one-candidate mismatch message lists; whether a candidate matches is decided on the line above",
+      "diff": "a6f6c0def9fe2b00",
+      "class": "message-text"
+    },
+    "netdryrun.verify.engine.x__pins_ok__mutmut_76": {
+      "reason": "message text only: which keys the one-candidate mismatch message lists; whether a candidate matches is decided on the line above",
+      "diff": "7674b7cb939dfb80",
+      "class": "message-text"
+    },
+    "netdryrun.runner.x_run__mutmut_268": {
+      "reason": "test gap, fails closed (0.4.1 decision): after a run the module's _sleep is None, so a second run() in the same process crashes into an error (exit 2), never a pass; kill test (run() twice in one process) is a 0.4.2 follow-up",
+      "diff": "a1889f127adb57aa",
+      "class": "safety"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_1": {
+      "reason": "test gap, fails closed (0.4.1 decision): with now = None the second wait raises TypeError, which run() reports as an internal error (exit 2), never a pass; kill test (two waits) is a 0.4.2 follow-up",
+      "diff": "cb231feda27c1ad2",
+      "class": "safety"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_4": {
+      "reason": "timing only (test gap, 0.4.1 decision): the containers are looked at on every wait instead of every 15 s; a stopped one is still an error; kill test (injected clock) is a 0.4.2 follow-up",
+      "diff": "e8b7c302f45c420a",
+      "class": "timing-only"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_5": {
+      "reason": "timing only (test gap, 0.4.1 decision): the look at the containers happens at > 15 s instead of >= 15 s; kill test (injected clock) is a 0.4.2 follow-up",
+      "diff": "7ddcb3dd545eac6e",
+      "class": "timing-only"
+    },
+    "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_6": {
+      "reason": "timing only (test gap, 0.4.1 decision): the containers are looked at on every wait instead of every 15 s; a stopped one is still an error; kill test (injected clock) is a 0.4.2 follow-up",
+      "diff": "5a2ac53f5ca356ff",
+      "class": "timing-only"
     }
   },
   "checks": {
