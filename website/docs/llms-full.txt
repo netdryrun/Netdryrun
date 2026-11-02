@@ -487,13 +487,13 @@ Deploying lab ndr-my-lab, then waiting 45s for the network to converge...
 recording r1 (frr)
 recording r2 (frr)
 recording r3 (frr)
-Recorded 18 checks to /home/ndr/work/docs031/my-lab/netdryrun.yml. Review it, then: netdryrun run /home/ndr/work/docs031/my-lab
+Recorded 30 checks to /home/ndr/work/docs031/my-lab/netdryrun.yml. Review it, then: netdryrun run /home/ndr/work/docs031/my-lab
 ```
 
-This took 50 seconds. The file has one check for every established BGP session, every prefix count and every BGP route. The start of it:
+This took 52 seconds with 0.4.1. The file has a check for every established BGP session and every BGP route, a prefix check on every BGP neighbor, and two guards on every BGP node: no default route and no link subnet via BGP. The prefix check is a range (today's count up to 20% more, at least 2) and, on each eBGP neighbor, the list of prefixes it sends today (`only`): any other prefix from it fails, even inside the range. The start of it:
 
 ```yaml title="my-lab/netdryrun.yml (recorded)"
-# Recorded by netdryrun 0.3.1 record on 2026-10-28T02:26:27+00:00.
+# Recorded by netdryrun 0.4.1 record on 2026-11-02T02:54:04+00:00.
 # This is a baseline of the network's behavior when it was recorded. Review it before committing:
 # remove anything that is allowed to change, and add negative checks (route present: false,
 # ping expect: failure) for things that must never happen. Docs: https://netdryrun.com/reference/config/
@@ -507,49 +507,58 @@ checks:
   node: r1
   neighbor: 10.0.12.2
   afi: ipv4-unicast
-  exact: 2
+  min: 2
+  max: 4
+  only:
+  - 192.168.2.0/24
+  - 192.168.3.0/24
 - type: bgp_session
   node: r1
   neighbor: 10.0.13.2
-# ... 15 more: the same pattern for r2 and r3, plus one route check per learned LAN
+# ... then r1's route checks and its guards (0.0.0.0/0 and each link subnet, present: false),
+# and the same for r2 and r3
 ```
 
 ## 3. Review and prune it
 
 A recorded baseline says "nothing may change". That is rarely what you want. Decide what is allowed to change.
 
-Here is what happens if you skip this step. The change in step 5 adds a LAN on r3, and its first attempt announces it with `redistribute connected`. Run against the raw baseline, the `exact: 2` prefix counts fail, because r1 and r2 now get 6 prefixes:
+Here is what happens if you skip this step. The change in step 5 adds a LAN on r3, and its first attempt announces it with `redistribute connected`. Run against the raw baseline, r1 and r2 now get 6 prefixes from each neighbor: the new LAN, the link subnets and the management network. The prefix checks fail, and so do the guards for the link subnets:
 
 ```text
 $ netdryrun run my-lab
-Netdryrun 0.3.1: 18 checks from my-lab/netdryrun.yml
+Netdryrun 0.4.1: 30 checks from my-lab/netdryrun.yml
 Deploying lab ndr-my-lab (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...
-  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (10.9s)
+  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (9.7s)
   ...
 Convergence checks done; settling 10s before post-convergence checks...
-  [FAIL] r1: prefixes from 10.0.12.2 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [FAIL] r1: prefixes from 10.0.13.2 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [FAIL] r2: prefixes from 10.0.12.1 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [FAIL] r2: prefixes from 10.0.23.2 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [PASS] r3: prefixes from 10.0.13.1 = 2 -- 2 ipv4-unicast prefixes accepted (held 10s, 5 samples) (10.1s)
-  [PASS] r3: prefixes from 10.0.23.1 = 2 -- 2 ipv4-unicast prefixes accepted (held 10s, 5 samples) (10.1s)
+  [FAIL] r1: prefixes from 10.0.12.2 >= 2 and <= 4 and only from 2 recorded prefix(es) -- 6 ipv4-unicast prefixes accepted; not in the allowed set: 10.0.13.0/30, 10.0.23.0/30, 172.20.20.0/24, 192.168.33.0/24 (30.1s)
+  [FAIL] r1: prefixes from 10.0.13.2 >= 2 and <= 4 and only from 2 recorded prefix(es) -- 6 ipv4-unicast prefixes accepted; not in the allowed set: 10.0.13.0/30, 10.0.23.0/30, 172.20.20.0/24, 192.168.33.0/24 (30.1s)
+  [PASS] r1: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 5 samples) (10.2s)
+  [PASS] r1: route 10.0.12.0/30 via bgp is absent -- absent (held 10s, 5 samples) (10.2s)
+  [FAIL] r1: route 10.0.13.0/30 via bgp is absent -- unexpectedly present via bgp (not selected) (0.2s)
+  [FAIL] r1: route 10.0.23.0/30 via bgp is absent -- unexpectedly present via bgp (0.2s)
+  ...
+  [PASS] r3: prefixes from 10.0.13.1 >= 2 and <= 4 and only from 2 recorded prefix(es) -- 2 ipv4-unicast prefixes accepted; all within the allowed set (held 10s, 5 samples) (10.2s)
+  ...
 Destroying lab...
-FAILED: 14 passed, 4 failed (18 checks)
+FAILED: 22 passed, 8 failed (30 checks)
 ```
 
-The test did its job: something changed. But adding a LAN is allowed, so the baseline should allow it. Edit the file:
+The test did its job: something changed, and some of it shouldn't have. Adding a LAN is allowed, so the baseline should allow it; leaking link subnets is not. Edit the file:
 
 - **Keep** every `bgp_session` check. Sessions must stay up.
-- **Turn exact prefix counts into ranges.** `min: 2` keeps today's routes; `max: 10` still catches a leak that floods r1. You can also record ranges from the start with `netdryrun record --min-prefixes`.
+- **Keep the guards** (`present: false` for the default route and the link subnets). They are what catches the bad part of this change. This tutorial keeps r1's and removes the r2 and r3 copies to keep the file short.
+- **Decide on the prefix checks.** An `only` list allows exactly today's prefixes from a neighbor, so a new LAN fails it until you add the new prefix to the list (in a reviewed change to the checks, before or with the change that adds the LAN). Where growth is expected, as here where sites add LANs, you can replace the list with a range instead: `min: 2` keeps today's routes, `max: 10` still catches a flood. A range alone lets a leak of a few prefixes pass inside it (the [0.4.0 advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)), so only do this where guards, as above, name the prefixes that must never arrive. This tutorial uses ranges.
 - **Keep the route checks you care about.** This tutorial keeps r1's and removes the r2 and r3 copies to keep the file short.
 
 ## 4. Add negative checks
 
-`record` only writes down what exists. It cannot know what must never exist. Add those checks yourself. For this lab:
+`record` writes down what exists, plus two guards it can derive: no default route and no link subnet via BGP. It cannot know anything else that must never exist. For this lab:
 
-- nobody sends r1 a default route,
-- the point-to-point link subnets (`10.0.x.x/30`) stay out of BGP,
-- and a ping, so the test proves traffic gets through, not only that routes exist.
+- nobody sends r1 a default route (recorded guard),
+- the point-to-point link subnets (`10.0.x.x/30`) stay out of BGP (recorded guards; the file below keeps one),
+- and add a ping yourself, so the test proves traffic gets through, not only that routes exist.
 
 The reviewed file:
 
@@ -577,7 +586,7 @@ checks:
 - type: bgp_session
   node: r3
   neighbor: 10.0.23.1
-# Prefix counts may grow when a site adds a LAN, but not past 10 (recorded as exact: 2, edited).
+# Prefix counts may grow when a site adds a LAN, but not past 10 (recorded with an `only` list, edited to a range).
 - type: bgp_prefixes
   node: r1
   neighbor: 10.0.12.2
@@ -602,7 +611,7 @@ checks:
   node: r1
   source: 192.168.1.1
   target: 192.168.3.1
-# Added by hand: things that must never happen.
+# Things that must never happen (guards record wrote; r1's kept).
 - type: route          # nobody sends r1 a default route
   node: r1
   prefix: 0.0.0.0/0
