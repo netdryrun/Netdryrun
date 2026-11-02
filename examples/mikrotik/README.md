@@ -38,6 +38,9 @@ Measured on WSL2 (Ubuntu 22.04, 20 threads, 24 GB for WSL), 2026-10-30, Netdryru
 | Good configs | passed, 10 of 10 | 52 s | 96 s |
 | With [`leaks/frr1.conf`](leaks/frr1.conf) | failed, 8 passed, 2 failed | 52 s | 95 s |
 
+
+**Recording a baseline of this lab:** the VM boots for several minutes, longer than `record`'s default `--wait` of 45 seconds, so a plain `record --deploy` writes an INCOMPLETE BASELINE. Give it the boot time: `netdryrun record <topology> --deploy --wait 900` (more on a busy host).
+
 ## The leak
 
 [`leaks/frr1.conf`](leaks/frr1.conf) adds one line to FRR, a common shortcut:

@@ -40,6 +40,9 @@ Measured on WSL2 (Ubuntu 22.04, 20 threads, 24 GB for WSL), 2026-10-31, Netdryru
 
 NX-OS doesn't show the advertisement interval it applies, so the driver assumes 30 s (the usual Cisco eBGP default) and the settle and hold windows stretch to 32 s. The capture lab (`QEMU_MEMORY: 8192`, three FRR peers) logged `Startup complete in: 0:04:23` on 2026-10-31 (0:07:04 on 2026-10-28, with 16 GB for WSL); the container used 9.1 GiB.
 
+
+**Recording a baseline of this lab:** the VM boots for several minutes, longer than `record`'s default `--wait` of 45 seconds, so a plain `record --deploy` writes an INCOMPLETE BASELINE. Give it the boot time: `netdryrun record <topology> --deploy --wait 900` (more on a busy host).
+
 ## The leak
 
 [`leaks/frr1.conf`](leaks/frr1.conf) adds one line to FRR, a common shortcut:

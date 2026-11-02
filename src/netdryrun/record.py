@@ -130,6 +130,8 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
     at = {} if vrf == "default" else {"vrf": vrf}
     where = name if vrf == "default" else f"{name} (vrf {vrf})"
     checks: list[dict] = []
+    # a family the driver can't count is refused by `run` (check_supported): never written, so record then run works
+    unsupported = getattr(drv, "unsupported_afis", frozenset())
     for addr, n in sorted(neighbors.items()):
         try:
             ipaddress.ip_address(addr)
@@ -149,6 +151,8 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
             continue
         checks.append({"type": "bgp_session", "node": name, "neighbor": addr, **at})
         for afi, count in sorted(n.prefixes.items()):
+            if afi in unsupported:
+                continue
             if afi in n.prefixes_upto:
                 warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count is "
                                 f"{count} to {n.prefixes_upto[afi]} (hidden routes Netdryrun can't classify); "
@@ -169,7 +173,7 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
             # added and sends a prefix the check fails (acceptance round B-3; a family a session doesn't carry
             # satisfies only exact: 0, see checks._bgp_prefixes)
             for afi in ("ipv4-unicast", "ipv6-unicast"):
-                if afi not in n.prefixes:
+                if afi not in n.prefixes and afi not in unsupported:
                     checks.append({"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, "exact": 0, **at})
     return checks
 

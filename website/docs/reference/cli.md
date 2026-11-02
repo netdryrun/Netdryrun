@@ -61,7 +61,7 @@ Snapshots a known-good lab into a `netdryrun.yml` baseline: every established BG
 |---|---|
 | `--out FILE` | Where to write (default: `netdryrun.yml` next to the topology) |
 | `--deploy` | Deploy the lab first and destroy it afterwards (otherwise the lab must be running) |
-| `--wait SECONDS` | With `--deploy`: time for BGP to converge before recording (default 45) |
+| `--wait SECONDS` | With `--deploy`: time for BGP to converge before recording (default 45). VM-based NOSes (Juniper cJunosEvolved, Cisco NX-OS, MikroTik RouterOS) boot for several minutes: give them `--wait 900` or more, or the baseline is INCOMPLETE |
 | `--exact-prefixes` | Pin prefix counts exactly, without `only` lists (0.3.2 and earlier did this by default) |
 | `--min-prefixes` | Record prefix counts as minimums only |
 | `--no-guards` | Leave out the standard [guards](../recipes.md#guard-recipes), which `record` writes by default from 0.3.3: on each BGP node, no default route via BGP (`0.0.0.0/0`, and `::/0` with IPv6 BGP) and no link subnet of the topology via BGP, each as a `route` check with `present: false`. Each guard is first run on the recording lab: one the lab already fails (a default the node learns or merely receives via BGP from upstream, say) is left out, and a comment in the file says why. They are on by default because a prefix-count range has room for one leaked default route. `--no-guards` doesn't remove the `only` lists |

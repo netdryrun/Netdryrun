@@ -30,6 +30,9 @@ containerlab destroy -t topology.clab.yml --cleanup
 
 cJunosEvolved boots a VM, which installs Junos and reboots on every deploy. On a quiet host Junos answered about 4 minutes after deploy and BGP was up after about 6; with a CPU-heavy job running next to it, 18 and 21 minutes. `CPTX_NUM_IF: "1"` in the topology tells the container how many data links to expect; without it, it waits 5 minutes for 36.
 
+
+**Recording a baseline of this lab:** the VM boots for several minutes, longer than `record`'s default `--wait` of 45 seconds, so a plain `record --deploy` writes an INCOMPLETE BASELINE. Give it the boot time: `netdryrun record <topology> --deploy --wait 900` (more on a busy host).
+
 ## Two one-line leaks
 
 [`leaks/`](leaks/) holds the same two configs, each with one change.

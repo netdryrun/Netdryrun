@@ -70,8 +70,8 @@ def check_supported(lab: Lab, check, override: str | None = None) -> None:
         afi = check.params.get("afi", "ipv4-unicast")
         if afi in getattr(DRIVERS.get(name), "unsupported_afis", ()):
             # the count would read as 0, which passes max and exact: refuse instead
-            raise DriverError(f"{check.name}: afi {afi} is not supported on {name} (the {name} driver reads "
-                              "ipv4-unicast and ipv6-unicast prefix counts only)")
+            raise DriverError(f"{check.name}: afi {afi} is not supported on {name} (the {name} driver "
+                              "can't count prefixes in that family)")
         if "only" in check.params and not getattr(DRIVERS.get(name), "reads_received", False):
             raise DriverError(f"{check.name}: only is not supported on {name} yet (it can't list the prefixes a "
                               "neighbor sent); use exact, or route checks with present: false")

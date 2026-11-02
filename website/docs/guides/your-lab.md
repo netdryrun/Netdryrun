@@ -36,7 +36,7 @@ recording r3 (frr)
 Recorded 30 checks to ~/my-lab/netdryrun.yml. Review it, then: netdryrun run ~/my-lab
 ```
 
-`record --deploy` deploys the lab, waits for BGP to converge (`--wait`, 45 seconds by default), writes `netdryrun.yml` next to the topology, and destroys the lab. Without `--deploy` it reads a lab that is already running. It writes one check for every established BGP session, every prefix count and up to 50 BGP routes per node, plus the standard guards (no default route and no link subnet via BGP):
+`record --deploy` deploys the lab, waits for BGP to converge (`--wait`, 45 seconds by default; a lab with a VM-based NOS such as Juniper cJunosEvolved, Cisco NX-OS or MikroTik RouterOS boots for several minutes, so give it `--wait 900` or more, or the baseline comes out INCOMPLETE), writes `netdryrun.yml` next to the topology, and destroys the lab. Without `--deploy` it reads a lab that is already running. It writes one check for every established BGP session, every prefix count and up to 50 BGP routes per node, plus the standard guards (no default route and no link subnet via BGP):
 
 ```yaml title="my-lab/netdryrun.yml (recorded)"
 # Recorded by netdryrun 0.3.3 record on 2026-10-30T10:41:34+00:00.

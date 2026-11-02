@@ -127,8 +127,7 @@ def test_unsupported_afi_exact_message(tmp_path):
     c = check(type="bgp_prefixes", node="r1", neighbor="10.20.1.2", afi="evpn", max=0, name="c1")
     with pytest.raises(DriverError) as e:
         check_supported(_lab(tmp_path), c)
-    assert str(e.value) == ("c1: afi evpn is not supported on eos (the eos driver reads ipv4-unicast and ipv6-unicast "
-                            "prefix counts only)")
+    assert str(e.value) == "c1: afi evpn is not supported on eos (the eos driver can't count prefixes in that family)"
 
 
 @pytest.mark.parametrize("override", [None, "nosuch"])
