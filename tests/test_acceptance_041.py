@@ -396,3 +396,23 @@ def test_a_vm_node_without_kvm_is_refused_before_deploy(tmp_path, monkeypatch):
     rep, lab, _ = _fake_run(monkeypatch, tmp_path, kind="cisco_n9kv")
     assert rep.status == "error" and "KVM" in rep.error and "r1" in rep.error, rep.error
     assert lab.deployed == 0
+
+
+# --- found on the 0.4.1 head acb546b: record then run on RouterOS ----------------------------------------------
+
+def test_record_writes_only_checks_the_driver_can_run(monkeypatch):
+    """RouterOS (beta) declares ipv6-unicast unsupported (drivers/routeros.py), and `run` refuses a bgp_prefixes check
+    on that family before deploying. `record` (a79fedd, B-3) writes `afi: ipv6-unicast, exact: 0` on every eBGP
+    session that carries no IPv6 today, whatever the driver: on RouterOS the README's record-then-run flow ends in
+    exit 2 ('afi ipv6-unicast is not supported on routeros'), live on acb546b (mikrotik example). Whatever record
+    writes must pass check_supported for the driver it recorded."""
+    from test_record import FakeDrv, run_record
+
+    from netdryrun.drivers import DRIVERS
+
+    class RosLike(FakeDrv):
+        unsupported_afis = DRIVERS["routeros"].unsupported_afis
+
+    data, _ = run_record(monkeypatch, {"r1": RosLike({"10.0.12.2": {"ipv4-unicast": 4}}), "r2": RosLike({})})
+    afis = {c["afi"] for c in data["checks"] if c["type"] == "bgp_prefixes"}
+    assert afis <= {"ipv4-unicast"}, f"record wrote checks for families the driver refuses: {sorted(afis)}"
