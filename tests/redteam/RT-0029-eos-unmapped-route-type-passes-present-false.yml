@@ -1,0 +1,18 @@
+id: RT-0029
+title: "route protocol static present: false passes on Arista EOS with a nexthop-group static installed: an unmapped routeType was passed through raw, so no protocol matched it"
+found: "2026-11-02, 0.4.1 acceptance round (adversary)"
+fixed_in: 0.4.1
+kind: driver
+# outputs: hand-written to the structure of cEOS 4.36.3M's `show ip route | json` (tests/fixtures/eos_route.txt); no nexthop-group lab was run
+driver: eos
+check:
+  type: route
+  node: ceos1
+  prefix: 10.1.0.0/16
+  protocol: static
+  present: false
+outputs:
+  - needle: "show ip route"
+    output: '{"vrfs": {"default": {"routes": {"10.1.0.0/16": {"routeType": "nexthopGroupStaticRoute", "kernelProgrammed": true, "hardwareProgrammed": true}}}}}'
+  - needle: "show ip bgp"
+    output: '{"vrfs": {"default": {"bgpRouteEntries": {}}}}'
