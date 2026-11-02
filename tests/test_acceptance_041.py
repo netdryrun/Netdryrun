@@ -310,3 +310,29 @@ def test_gitlab_mr_that_changes_checks_and_configs_together_is_refused(tmp_path)
     assert run(source="push")[0] == 0   # only merge requests are checked, as the Action checks pull requests only
     inputs = yaml.safe_load(TEMPLATE.read_text(encoding="utf-8").split("\n---\n", 1)[0])["spec"]["inputs"]
     assert inputs["allow-check-edit"]["default"] == "false"
+
+
+# --- angle 2 (end user): a lab lock left by another user -------------------------------------------------------
+
+def test_a_lab_lock_file_left_by_another_user_is_no_internal_error(tmp_path, monkeypatch):
+    """F2 (end-user angle). acquire_lock opened /tmp/netdryrun-lab-<name>.lock in a+ mode and never removes it, created
+    0644: after one run as another user (or with sudo, which troubleshooting.md suggests), every later run of that lab
+    as this user ended in "internal error: PermissionError ... This is a Netdryrun bug". A lock file this user can't
+    write must still lock (flock needs no write access), never stop the run."""
+    import tempfile
+
+    import pytest
+
+    from netdryrun.lab import Lab
+
+    if os.name != "posix" or os.geteuid() == 0:
+        pytest.skip("needs a non-root POSIX user (root can write any file)")
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    topo = tmp_path / "t.clab.yml"
+    topo.write_text("name: ndr-lock-perm\ntopology:\n  nodes:\n    r1: {}\n")
+    stale = tmp_path / "netdryrun-lab-ndr-lock-perm.lock"
+    stale.write_text("")
+    stale.chmod(0o444)            # what another user's run leaves behind, as far as this user can tell
+    lab = Lab(topo)
+    lab.acquire_lock()            # b61c325: PermissionError
+    lab.release_lock()
