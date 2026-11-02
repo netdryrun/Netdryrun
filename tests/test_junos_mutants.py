@@ -136,7 +136,9 @@ def test_json_errors_name_the_command_and_the_message():
 # ---------------------------------------------------------------- routes
 
 def entry(**over) -> dict:
-    e = {"protocol-name": [{"data": "BGP"}], "active-tag": [{"data": "*"}], "as-path": [{"data": "AS path: 65002 I"}]}
+    # every entry of an extensive answer prints rt-entry-state (read for NotInstall and graceful-restart Stale since 0.4.1)
+    e = {"protocol-name": [{"data": "BGP"}], "active-tag": [{"data": "*"}], "rt-entry-state": [{"data": "Active Ext"}],
+         "as-path": [{"data": "AS path: 65002 I"}]}
     e.update(over)
     return e
 
