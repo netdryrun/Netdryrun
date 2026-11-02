@@ -75,7 +75,14 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
         # from a down session would satisfy "max" by accident
         return False, f"session is {n.state}; prefix counts are only meaningful when established", obs.evidence
     afi = p.get("afi", "ipv4-unicast")
-    count = n.prefixes.get(afi, 0)  # established but the family reports nothing: zero prefixes
+    if afi not in n.prefixes:
+        # every driver lists the families an established session carries, 0 prefixes included: this one isn't
+        # carried. Nothing of it can arrive, which is all `exact: 0` claims (and stops being true once the family
+        # is added and sends a prefix); any other bound would be judged on a 0 nobody counted (acceptance B-2)
+        if p.get("exact") == 0 and "only" not in p:
+            return True, f"0 {afi} prefixes (the session doesn't carry {afi})", obs.evidence
+        return False, f"the session to {p['neighbor']} doesn't carry {afi}", obs.evidence
+    count = n.prefixes[afi]
     low, high = (p["exact"], p["exact"]) if "exact" in p else (p.get("min", 0), p.get("max"))
     if "only" in p:
         ok, detail, ev = _counted(n, afi, count, low, high, obs.evidence)

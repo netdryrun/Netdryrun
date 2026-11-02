@@ -92,11 +92,12 @@ The number of prefixes accepted from a neighbor is within a range, and (with `on
 | `max` | one of `min`, `max`, `exact`, `only` | | Upper bound, inclusive |
 | `exact` | one of `min`, `max`, `exact`, `only` | | Exact count |
 | `only` | one of `min`, `max`, `exact`, `only` | | 0.4.1: the prefixes this neighbor may send, a list of prefixes in the check's `afi` (`ipv4-unicast` or `ipv6-unicast`). Any other accepted prefix fails the check, even when the count is in range, and so does one that replaces a listed prefix. `[]` means nothing may arrive. FRR and SONiC only: on other drivers it is refused before the lab deploys (exit code `2`). `netdryrun record` writes it on every eBGP neighbor |
-| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS or Juniper (beta) |
+| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS or Juniper (beta). Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry |
 
 Rules:
 
 - At least one of `min`, `max`, `exact` or `only` is required.
+- **A family the session doesn't carry** (0.4.1): `exact: 0` passes, saying so ("0 ipv6-unicast prefixes (the session doesn't carry ipv6-unicast)"): nothing of that family can arrive, and the check fails the day the family is added and sends a prefix. Every other bound (`min`, `max`, `only`, `exact` above 0) fails with "the session to X doesn't carry ipv6-unicast": a count of 0 that was never counted is not read as one. Before 0.4.1 such a family counted 0, so `max: 3` passed while an IPv6 neighbor sent 500 IPv6 prefixes on the default `ipv4-unicast`.
 - `exact` cannot be combined with `min` or `max`.
 - `min` must not be greater than `max`.
 - All three are non-negative integers.
@@ -133,7 +134,7 @@ A route is present in (or absent from) the routing table.
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `prefix` | yes | | IPv4 or IPv6 prefix |
+| `prefix` | yes | | IPv4 or IPv6 prefix with its length: `0.0.0.0/0` for a default route, `192.0.2.1/32` for one host. From 0.4.1 a prefix without a length is a config error (it used to mean a single host, so `0.0.0.0` checked 0.0.0.0/32) |
 | `present` | no | `true` | `false` means the route must be absent. Unquoted `true` or `false` only |
 | `protocol` | no | any | Only count routes from this protocol: one of the names in [protocol names](#protocol-names). Case-insensitive |
 | `vrf` | no | `default` | VRF or network-instance |
@@ -157,7 +158,7 @@ Attributes of the BGP **best path** for a prefix: communities, AS path, local pr
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `prefix` | yes | | IPv4 or IPv6 prefix, matched exactly |
+| `prefix` | yes | | IPv4 or IPv6 prefix with its length, matched exactly (a prefix without a length is a config error from 0.4.1) |
 | `communities` | no | | The best path must carry **all** of these. Standard (`'65000:100'`), large (`'65000:1:2'`) or well-known names (`no-export`, `no-advertise`, `no-peer`, `blackhole`, `graceful-shutdown`, `accept-own`, `llgr-stale`, `no-llgr`, `no-export-subconfed`, and from 0.4.1 `internet` (0:0), `accept-own-nexthop`, `route-filter-translated-v4`, `route-filter-v4`, `route-filter-translated-v6`, `route-filter-v6`) |
 | `without_communities` | no | | The best path must carry **none** of these. Same forms as `communities`. From 0.4.1 a path carrying a community the device prints by a name Netdryrun can't turn into a number (a `bgp community alias`, a name it doesn't know) fails the check: it could be one of these. 0.4.0 and earlier kept such names as text, so FRR's `internet`, `accept-own-nexthop` and `route-filter-translated-v4` never matched `0:0`, `65535:8` and `65535:2`, and the check passed |
 | `as_path` | no | | Exact AS path, ASNs separated by spaces: `"65002 65003"`. `""` is the empty path of a locally originated route. AS sets are written `{65004,65005}` |
@@ -266,7 +267,7 @@ A scenario's positive checks ("the route is still there", "ping still works") ar
 4. Positive checks must pass on 2 consecutive samples **and** keep passing for the hold window (`--hold`; a positive check can't set its own `hold`): a redundancy claim is about the whole failure, not one instant. A check that passes at first and then fails within the window fails.
 5. Post-convergence checks then wait for the same [BGP gate](#convergence-semantics) as at the top level: every BGP session on their node up, with unchanged prefix counts on 2 consecutive samples, capped at their `timeout`. Sessions over the downed links don't count (the fault took them down), nor do sessions a `bgp_session` check in the scenario or at the top level expects in another state. If another session on the node stays down, the checks fail as **not evaluated**; a session the fault takes down indirectly (for example iBGP between loopbacks whose only path was the downed link) needs a `bgp_session` check with `state: down` in the scenario. Then the checks must hold, as everywhere else. 0.3.1 and later.
 
-When the state was read and no BGP session runs over the downed links (static routing, a link without BGP, iBGP between loopbacks over an IGP), step 2 has nothing to observe; steps 3 to 5 still apply, so give such scenarios a `--settle` that covers the failure detection time. `inject_routes` faults have no step 2: Netdryrun instead waits until the injected prefixes are in the node's own BGP table. That alone doesn't show they reached the node under test; the BGP gate in step 5 does, for post-convergence checks: their node's prefix counts must stop changing first. The limit: a peer with a long advertisement interval (for example eBGP with a 30-second `advertisement-interval`) can hold the routes back for longer than 2 samples 3 seconds apart, so they can still arrive after the gate. Raise `--settle` above the advertisement interval for such labs.
+When the state was read and no BGP session runs over the downed links (static routing, a link without BGP, iBGP between loopbacks over an IGP), step 2 has nothing to observe; steps 3 to 5 still apply, so give such scenarios a `--settle` that covers the failure detection time. `inject_routes` faults have no step 2: Netdryrun instead waits until the injected prefixes are in the node's own BGP table. That doesn't show they reached the node under test, and neither does the BGP gate in step 5: it waits until the prefix counts on a post-convergence check's node stop changing, and counts that never changed are stable at once. So, from 0.4.1, Netdryrun reads on the injecting node how many prefixes it has sent each BGP peer (bgpd's `pfxSnt`), before the injection and again after the scenario's checks, while the routes are still in. If no peer's count rose, the routes never left that node (an outbound filter there, a session that doesn't carry their family), a `max:` or `present: false` check elsewhere would pass on nothing, and every check in the scenario is reported not passed: "inconclusive: the injected routes never left r2 ...". The run is then inconclusive (exit `3`) unless another check failed for real. Counts that can't be read are inconclusive too. A filter further along the path is what such a scenario tests: the injecting node sent the routes, so it is judged as usual. A peer with a long advertisement interval (for example eBGP with a 30-second `advertisement-interval`) can also hold the routes back for longer than 2 samples 3 seconds apart, so they can still arrive after the gate: raise `--settle` above the advertisement interval for such labs.
 
 ### Injecting routes
 
@@ -277,9 +278,9 @@ New in 0.3.1: Netdryrun 0.3.0 rejects the key as unknown.
 | Key | Required | Meaning |
 |---|---|---|
 | `node` | yes | The node that announces the routes. It must be an FRR node with `router bgp` in the default VRF |
-| `prefixes` | one of | A prefix or list of prefixes, IPv4 or IPv6 |
+| `prefixes` | one of | A prefix or list of prefixes, IPv4 or IPv6, each with its length |
 | `count` | one of | Announce this many consecutive prefixes (1 to 10000), starting at `from` |
-| `from` | no | First prefix for `count`; its length is used for all of them. Default `100.64.0.0/24` |
+| `from` | no | First prefix for `count`, with its length, which is used for all of them. Default `100.64.0.0/24` |
 | `as_path` | no | List of AS numbers prepended to the injected routes, so they look learned from those networks |
 
 On the node, Netdryrun adds a blackhole static route and a BGP `network` statement per prefix (with `as_path`, through a route-map named `NDR-INJECT`). It applies them with `vtysh -f` and waits until every prefix is in the node's own BGP table before running the scenario's checks (whose post-convergence checks then wait for the BGP gate on their own node; see [scenario timing](#scenario-timing)). Afterwards it removes exactly what it added and waits until the prefixes are gone. What the node's neighbors do with the routes is up to the policy under test: an outbound filter on the node itself can still stop them.

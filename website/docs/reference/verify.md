@@ -118,7 +118,7 @@ intent:
     with: {from: 10.0.2.1, next_hop: 10.0.2.1, as_path: "65000 65101", protocol: bgp}
 ```
 
-`with:` accepts `from`, `next_hop`, `as_path`, `origin`, `local_pref`, `med`, `weight`, `communities`, `ext_communities`, `large_communities`, `cluster_list`, `originator_id`, `protocol`, `distance` and `metric`. Each value must equal exactly; communities are the exact set.
+`with:` accepts `from`, `next_hop`, `as_path`, `origin`, `local_pref`, `med`, `weight`, `communities`, `ext_communities`, `large_communities`, `cluster_list`, `originator_id`, `protocol`, `distance` and `metric`. Each value must equal exactly; communities are the exact set. **With BGP attributes in `with:`, the line explains only the paths (and received routes) that match them.** In the example, a new path for 10.101.0.0/24 on up1 from any neighbor but 10.0.2.1, or with another AS path, is an undeclared difference, best path or not: from 0.4.1 a second path from a peer the line doesn't name fails the verdict (0.4.0 explained every new path for the prefix once the best one matched).
 
 It explains every new item for that prefix on the listed nodes, and every advertisement of the prefix *to* a listed node. An advertisement to any other neighbor, inside or outside the lab, needs its own line (see [advertisement](#advertisement)). Best-path changes on routes that already existed always need their own line.
 
@@ -202,7 +202,7 @@ intent:
 
 Each FRR node's running config is in the snapshot (see below), so a config change whose effect the lab can't show (a description, a policy for routes the lab doesn't carry, `maximum-prefix`, a timer) is still a difference: with nothing else declared on that node, it fails with "this change has no observable effect in the lab; test it with checks". `config_change_on` declares it for the listed nodes, when you accept that it is not tested. It explains only those nodes' config changes, and it didn't happen if a listed node's config is unchanged.
 
-A config change on a node that a declared line names (and that happened) needs no `config_change_on`; a node a line doesn't name, such as one that only advertises the declared route, does. **Every approval lists each changed config line** (with the section headers above it, `router bgp 65000 > address-family ipv4 unicast > neighbor 10.0.2.2 maximum-prefix 5`) under "not tested if the lab doesn't exercise them": in the report (`untested_config`), the console, the PR comment and its header (`untested_config_lines`), and the MCP result. Read that list: a line there changed nothing this lab could observe.
+A config change on a node that a declared line names (and that happened) needs no `config_change_on`; a node a line doesn't name, such as one that only advertises the declared route, does. **Every approval lists each changed config line** (with the section headers above it, `router bgp 65000 > address-family ipv4 unicast > neighbor 10.0.2.2 maximum-prefix 5`) under "not tested if the lab doesn't exercise them": in the report (`untested_config`), the console, the PR comment and its header (`untested_config_lines`), and the MCP result. Verify doesn't link a config line to the behaviour it causes: the list holds every changed line on that node, approved because a declared line there happened, whether or not the lab exercised it. Read that list: a line there may have changed nothing this lab could observe, and nothing in the verdict tested it on its own.
 
 ## What is compared: the snapshot
 

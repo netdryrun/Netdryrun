@@ -265,6 +265,40 @@ def _bool(where: str, key: str, v: Any) -> bool:
     return v
 
 
+def explicit_network(where: str, value: Any):
+    """A prefix from netdryrun.yml, which must carry its length. Without one, ipaddress reads `0.0.0.0` as 0.0.0.0/32,
+    a host: `prefix: 0.0.0.0, present: false` (meant as "no default route") checked a /32 and passed with a leaked
+    0.0.0.0/0 installed (acceptance round B-1). Text that isn't a prefix at all keeps ipaddress's own error."""
+    text = str(value).strip()
+    net = ipaddress.ip_interface(text).network   # host bits allowed, as everywhere a prefix is read
+    if "/" not in text:
+        hint = ("::/0 for a default route, 2001:db8::1/128 for one host" if net.version == 6
+                else "0.0.0.0/0 for a default route, 192.0.2.1/32 for one host")
+        raise ConfigError(f"{where}: prefix {text!r} has no length: write it with one ({hint})")
+    return net
+
+
+def _explicit_prefixes(where: str, raw: dict) -> None:
+    """Every prefix a check names (`prefix`, each of `only`) carries its length. Called once _validate_check has
+    accepted the check, so each one is already a valid prefix written as a string."""
+    only = raw.get("only") or []
+    for at, value in [(where, raw.get("prefix"))] + [(f"{where}: only", x) for x in only]:
+        if value is not None:
+            explicit_network(at, value)
+
+
+def _afi_default_fits(where: str, ctype: str, raw: Any, params: dict) -> None:
+    """A bgp_prefixes check on an IPv6 neighbor names its afi: the default, ipv4-unicast, is usually a family that
+    session doesn't carry, so `max: 3` read the IPv4 count (0) and passed while the neighbor sent 500 IPv6 prefixes
+    (acceptance round B-2). IPv4 over an IPv6 session is real (RFC 8950), so it is allowed when written."""
+    if ctype != "bgp_prefixes" or "afi" in raw:
+        return
+    if ipaddress.ip_address(params["neighbor"]).version == 6:   # a %scope is read too (Python 3.9+)
+        raise ConfigError(f"{where}: neighbor {params['neighbor']} is an IPv6 address, but afi defaults to "
+                          "ipv4-unicast: set afi: ipv6-unicast (or afi: ipv4-unicast if this session carries IPv4 "
+                          "routes)")
+
+
 def _check_where(prefix: str, i: int, raw: Any) -> str:
     where = f"{prefix}[{i}]"
     if isinstance(raw, dict) and isinstance(raw.get("name"), str) and raw["name"].strip():
@@ -405,6 +439,10 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
                               "a bgp_route attribute, expect: failure, a state other than established, max "
                               "or exact); this check passes after 2 consecutive passing samples, so hold would be "
                               "ignored")
+    # last, so every earlier rule (and its mutation-test numbering) stays as it was: a prefix without a length
+    # was canonicalised above as a host route, which is exactly what must never be accepted (B-1)
+    _explicit_prefixes(where, raw)
+    _afi_default_fits(where, ctype, raw, params)
     return check
 
 

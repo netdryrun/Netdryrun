@@ -52,6 +52,40 @@
     - tests/test_false_passes_041.py
     - tests/test_redteam.py
     - tests/test_record.py
+- id: prefix-without-length
+  what: A prefix written without a length (`0.0.0.0`) was read as a host (/32 or /128), so a `present false` guard meant as
+    "no default route" checked 0.0.0.0/32 and passed with 0.0.0.0/0 leaked (acceptance round B-1)
+  record: CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_prefix_length.py
+- id: verify-pin-explains-other-peer
+  what: verify_change with `with` pins on appears_on explained every new path for the prefix, so a non-best path from
+    an undeclared transit peer (a hijacker's origin AS) got INTENT MATCHED (acceptance round B-6)
+  record: CHANGELOG.md (0.4.1); tests/redteam/RT-0035
+  tests:
+    - tests/test_acceptance_041.py
+    - tests/test_verify_pins_041.py
+- id: ipv6-neighbor-default-afi
+  what: bgp_prefixes on an IPv6 neighbor without afi read the default ipv4-unicast, a family the session doesn't
+    carry, so the count read 0 and a max bound passed while the neighbor sent 500 IPv6 prefixes (acceptance round B-2)
+  record: CHANGELOG.md (0.4.1); tests/redteam/RT-0036
+  tests:
+    - tests/test_afi_default.py
+    - tests/test_redteam.py
+- id: family-not-carried-counted-zero
+  what: A bgp_prefixes bound on a family the session doesn't carry counted 0 and passed, and record wrote nothing
+    for that family, so an IPv6 leak over a session that later carried IPv6 passed the recorded file (acceptance
+    round B-2, B-3)
+  record: CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_afi_default.py
+- id: inject-routes-never-left
+  what: A scenario whose injected routes never left the injecting node (an outbound filter there) passed its max and
+    present false checks on nothing, because the BGP gate only waits for counts to stop changing (acceptance round B-5)
+  record: CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_verdict_runner.py
+    - tests/test_inject_sent_counts.py
 - id: redteam-20261101
   what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
     bgp-evpn folded into bgp; protocol names a driver never reports accepted; EOS ospf6 never matched; SR Linux's own

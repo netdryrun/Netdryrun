@@ -1,0 +1,14 @@
+id: RT-0036
+title: "bgp_prefixes on an IPv6 neighbor without afi read the default ipv4-unicast, a family the session doesn't carry: the count read 0 and max: 3 passed while the neighbor sent 500 IPv6 prefixes"
+found: "2026-11-02, Layer 5b acceptance, adversary B (0.4.1 candidate b61c325), B-2"
+fixed_in: 0.4.1
+kind: config
+topology: |
+  name: t
+  topology:
+    nodes:
+      r1: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+config: |
+  lab: topology.clab.yml
+  checks:
+    - {type: bgp_prefixes, node: r1, neighbor: "2001:db8:1::2", max: 3}

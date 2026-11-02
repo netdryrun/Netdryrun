@@ -212,12 +212,13 @@ def test_prefixes_exact_ignores_min_and_max():
     assert ok(_bgp_prefixes, d, {"neighbor": NB, "exact": 2, "min": 0, "max": 9}) is False
 
 
-def test_prefixes_family_without_a_counter_counts_zero():
-    """Established, but the family reports nothing: 0 prefixes, never 1."""
+def test_prefixes_family_the_session_does_not_carry():
+    """Established, but the session doesn't carry the family: only `exact: 0` holds (nothing of it can arrive);
+    every other bound fails rather than reading a 0 nobody counted (acceptance round B-2)."""
     d = Fake(neighbors={"default": nbr(ipv6_unicast=7)})
     assert ok(_bgp_prefixes, d, {"neighbor": NB, "min": 1}) is False
     assert ok(_bgp_prefixes, d, {"neighbor": NB, "exact": 0}) is True
-    assert ok(_bgp_prefixes, d, {"neighbor": NB, "max": 0}) is True
+    assert ok(_bgp_prefixes, d, {"neighbor": NB, "max": 0}) is False
     assert ok(_bgp_prefixes, d, {"neighbor": NB, "exact": 1}) is False
 
 

@@ -22,6 +22,7 @@ DEFAULT_FROM = "100.64.0.0/24"   # shared address space (RFC 6598): never in a l
 
 def parse_inject(where: str, item: Any) -> dict:
     """Validate one inject_routes entry; returns {node, prefixes, as_path}."""
+    from .config import explicit_network   # here: config imports this module
     if not isinstance(item, dict) or "node" not in item:
         raise ValueError(f"{where}: inject_routes needs a node")
     unknown = set(item) - {"node", "prefixes", "count", "from", "as_path"}
@@ -36,12 +37,12 @@ def parse_inject(where: str, item: Any) -> dict:
             raw = item["prefixes"] if isinstance(item["prefixes"], list) else [item["prefixes"]]
             if not raw:
                 raise ValueError("prefixes is empty")
-            nets = [ipaddress.ip_network(str(p), strict=False) for p in raw]
+            nets = [explicit_network("prefixes", p) for p in raw]
         else:
             count = item["count"]
             if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= MAX_COUNT:
                 raise ValueError(f"count must be an integer from 1 to {MAX_COUNT}")
-            first = ipaddress.ip_network(str(item.get("from", DEFAULT_FROM)), strict=False)
+            first = explicit_network("from", item.get("from", DEFAULT_FROM))
             nets = [first]
             for _ in range(count - 1):
                 nxt = nets[-1].broadcast_address + 1   # raises past the end of the address space
@@ -109,6 +110,21 @@ class RouteInjection:
         self.lab, self.node, self.prefixes, self.as_path, self.budget = lab, node, prefixes, as_path, budget
         self.asn = ""
         self.applied = False   # set before the config goes in: restore even if applying half-fails
+        self.sent_before: dict[tuple[str, str], int] = {}
+        # whether the routes left the node: True, False, or None when the sent counts couldn't be read at restore
+        self.left: bool | None = None
+
+    def sent(self) -> dict[tuple[str, str], int]:
+        """(family, peer) -> the prefixes the node has sent that peer (bgpd's pfxSnt), for each family injected."""
+        out = {}
+        for afi in sorted({_afi(p) for p in self.prefixes}):
+            peers = json.loads(self._vtysh("-c", f"show bgp {afi} unicast summary json") or "{}").get("peers") or {}
+            for peer, info in peers.items():
+                if not isinstance(info, dict) or not isinstance(info.get("pfxSnt"), int):
+                    raise LabError(f"inject_routes on {self.node}: no sent-prefix count for {peer} "
+                                   f"(`show bgp {afi} unicast summary json`)")
+                out[(afi, peer)] = info["pfxSnt"]
+        return out
 
     def _vtysh(self, *args: str, timeout: float = 120) -> str:
         r = self.lab.exec(self.node, ["vtysh", *args], timeout=timeout)
@@ -155,6 +171,7 @@ class RouteInjection:
                            "inject prefixes the node does not announce yet")
         if self.as_path and re.search(rf"^route-map {ROUTE_MAP} ", running, re.M):
             raise LabError(f"inject_routes on {self.node}: route-map {ROUTE_MAP} already exists")
+        self.sent_before = self.sent()   # read before anything changes: a count that can't be read stops here
         self.applied = True
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path))
         self._wait(want_present=True)
@@ -162,6 +179,14 @@ class RouteInjection:
     def restore(self) -> None:
         if not self.applied:
             return
+        # Read while the routes are still in, after the scenario's checks: did any peer get more prefixes than
+        # before? If none did, the routes never left this node (an outbound filter here, no session carrying their
+        # family), and a max: or present: false check elsewhere passed on nothing (acceptance round B-5)
+        try:
+            after = self.sent()
+            self.left = any(n > self.sent_before.get(k, 0) for k, n in after.items())
+        except (LabError, ValueError):
+            self.left = None
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path, remove=True))
         self._wait(want_present=False)
 

@@ -48,7 +48,9 @@ def test_the_stranger_leak_fails_the_recorded_check():
     """record on the good lab: 1 prefix from the customer. After the change: 2, within the old range 1..3."""
     drv = Received(1, {CUST})
     warnings: list[str] = []
-    [session, prefixes] = _session_checks("core1", {NB: drv.n}, "range", warnings, drv=drv)
+    # the eBGP session doesn't carry IPv6: exact 0 there too (B-3)
+    [session, prefixes, v6] = _session_checks("core1", {NB: drv.n}, "range", warnings, drv=drv)
+    assert v6 == {"type": "bgp_prefixes", "node": "core1", "neighbor": NB, "afi": "ipv6-unicast", "exact": 0}
     assert prefixes == {"type": "bgp_prefixes", "node": "core1", "neighbor": NB, "afi": "ipv4-unicast",
                         "min": 1, "max": 3, "only": [CUST]}
     assert not warnings and session["type"] == "bgp_session"

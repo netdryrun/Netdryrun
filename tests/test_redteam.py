@@ -22,7 +22,7 @@ import yaml
 
 from netdryrun import cli
 from netdryrun.checks import hold_together, is_post_convergence, run_check, run_round_robin
-from netdryrun.config import _validate_check
+from netdryrun.config import ConfigError, _validate_check
 from netdryrun.drivers import DRIVERS
 from netdryrun.drivers.base import BgpNeighbor, BgpPath, Observation, Route
 from netdryrun.lab import ExecResult
@@ -112,7 +112,10 @@ class StateDriver:
 def test_check_case_does_not_pass(case):
     clock = FakeClock()
     drivers = {node: StateDriver(s) for node, s in case["state"].items()}
-    checks = [_validate_check(i, dict(c), 20) for i, c in enumerate(case["checks"])]
+    try:
+        checks = [_validate_check(i, dict(c), 20) for i, c in enumerate(case["checks"])]
+    except ConfigError:
+        return   # refused before anything runs (exit 2): never a pass
     results = run_round_robin([c for c in checks if not is_post_convergence(c)], drivers,
                               clock=clock, sleep=clock.sleep)
     results += hold_together([c for c in checks if is_post_convergence(c)], drivers, hold=10,
@@ -127,7 +130,10 @@ def test_driver_case_does_not_pass(case):
     for o in case["outputs"]:
         text = (FIXTURES / o["fixture"]).read_text(encoding="utf-8") if "fixture" in o else o.get("output", "")
         rules.append((o["needle"], (o.get("rc", 0), text, o.get("stderr", ""))))
-    check = _validate_check(0, dict(case["check"]), 20)
+    try:
+        check = _validate_check(0, dict(case["check"]), 20)
+    except ConfigError:
+        return   # refused before anything runs (exit 2): never a pass
     driver = DRIVERS[case["driver"]](Lab(rules), check.node)
     clock = FakeClock()
     if is_post_convergence(check):

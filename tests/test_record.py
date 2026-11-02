@@ -96,11 +96,12 @@ def test_prefix_counts_are_ranges_by_default(monkeypatch):
     data, _ = run_record(monkeypatch, drivers)
     got = {(c["neighbor"], c["afi"]): {k: c[k] for k in ("min", "max", "exact") if k in c} for c in prefixes(data)}
     assert got == {("10.0.12.2", "ipv4-unicast"): {"min": 4, "max": 6},     # +max(2, 20%)
+                   ("10.0.12.2", "ipv6-unicast"): {"exact": 0},               # not carried: nothing of it may arrive (B-3)
                    ("10.0.13.2", "ipv4-unicast"): {"min": 20, "max": 24},
                    ("10.0.13.2", "ipv6-unicast"): {"exact": 0}}               # min: 0 is refused; nothing stays nothing
     # 0.4.1: each range carries today's accepted set, so a new prefix within the range still fails
     only = {(c["neighbor"], c["afi"]): c.get("only") for c in prefixes(data)}
-    assert only == {("10.0.12.2", "ipv4-unicast"): [f"10.2.{i}.0/24" for i in range(4)],
+    assert only == {("10.0.12.2", "ipv4-unicast"): [f"10.2.{i}.0/24" for i in range(4)], ("10.0.12.2", "ipv6-unicast"): None,
                     ("10.0.13.2", "ipv4-unicast"): [f"10.2.{i}.0/24" for i in range(20)],   # in address order
                     ("10.0.13.2", "ipv6-unicast"): None}
 
@@ -144,7 +145,8 @@ def test_guards_add_no_default_route_and_no_link_subnets(monkeypatch):
                "r2": FakeDrv({"10.0.12.1": {"ipv4-unicast": 1}, "fd00::1": {"ipv6-unicast": 1}},
                              routes4=["192.168.1.0/24"], routes6=["fd01::/64"])}
     data, _ = run_record(monkeypatch, drivers, guards=True)
-    assert guards(data, "r1") == ["0.0.0.0/0", "10.0.12.0/30"]
+    # r1's eBGP session doesn't carry IPv6, so ::/0 is guarded too: a family added later can't leak a default (B-3)
+    assert guards(data, "r1") == ["0.0.0.0/0", "10.0.12.0/30", "::/0"]
     assert guards(data, "r2") == ["0.0.0.0/0", "10.0.12.0/30", "::/0"]   # IPv6 BGP on r2: ::/0 too
     for c in data["checks"]:
         if c.get("present") is False:
@@ -156,7 +158,7 @@ def test_no_guard_against_what_the_network_does_today(monkeypatch):
     drivers = {"r1": FakeDrv({"10.0.12.2": {"ipv4-unicast": 2}}, routes4=["0.0.0.0/0", "10.0.12.0/30"]),
                "r2": FakeDrv({})}
     data, warnings = run_record(monkeypatch, drivers, guards=True)
-    assert guards(data, "r1") == []
+    assert guards(data, "r1") == ["::/0"]   # no IPv6 today: its default is still guarded (B-3)
     assert any("r1" in w and "0.0.0.0/0" in w for w in warnings)
 
 
@@ -245,7 +247,7 @@ def test_a_link_with_no_global_address_where_it_is_read_is_loud(monkeypatch):
     addrs = {("r1", "eth1"): ["fe80::1/64"], ("r2", "eth1"): []}
     drivers = {"r1": FakeDrv({"10.0.12.2": {"ipv4-unicast": 2}}), "r2": FakeDrv({})}
     data, warnings = run_record(monkeypatch, drivers, lab=FakeLab(None, addresses=addrs))
-    assert [g for g in guards(data, "r1") if g != "0.0.0.0/0"] == []
+    assert [g for g in guards(data, "r1") if g not in ("0.0.0.0/0", "::/0")] == []
     assert any(w.startswith("INCOMPLETE BASELINE") and "eth1" in w and "address" in w for w in warnings)
 
 
@@ -256,5 +258,20 @@ def test_a_prefix_count_known_only_as_a_range_is_not_recorded():
     warnings: list[str] = []
     n = BgpNeighbor("10.0.100.2", "established", {"ipv4-unicast": 1}, {"ipv4-unicast": 3})
     checks = _session_checks("j1", {"10.0.100.2": n}, "exact", warnings)
-    assert [c["type"] for c in checks] == ["bgp_session"]
+    assert [(c["type"], c.get("afi"), c.get("exact")) for c in checks] == [("bgp_session", None, None),
+                                                                          ("bgp_prefixes", "ipv6-unicast", 0)]
     assert any("INCOMPLETE BASELINE" in w and "1 to 3" in w for w in warnings)
+
+
+def test_a_down_session_makes_the_baseline_incomplete():
+    """B-4 (acceptance round, 2026-11-02): a session down at record time has nothing to record, so the file says
+    INCOMPLETE BASELINE first, not one warning among the others."""
+    warnings: list[str] = []
+    checks = rec._session_checks("r1", {"10.0.0.9": BgpNeighbor("10.0.0.9", "active"),
+                                        "10.0.0.2": BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 0})},
+                                 "range", warnings)
+    assert [c["neighbor"] for c in checks if c["type"] == "bgp_session"] == ["10.0.0.2"]
+    assert warnings == ["INCOMPLETE BASELINE: r1: BGP neighbor 10.0.0.9 is active; not recorded, so a change to that "
+                        "session goes unnoticed: bring it up and record again, or add a check by hand"]
+    text = rec.render({"lab": "t.clab.yml", "checks": checks}, warnings)
+    assert text.startswith("# INCOMPLETE BASELINE: r1: BGP neighbor 10.0.0.9 is active")

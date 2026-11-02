@@ -142,7 +142,10 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
                             "global addresses")
             continue
         if n.state != "established":
-            warnings.append(f"{where}: BGP neighbor {addr} is {n.state}; not recorded (fix it or add a check by hand)")
+            # a session that is down today has nothing to record, so the baseline is partial: said first in the file
+            # and on stderr, like every other gap (acceptance round B-4: it was a warning among the others)
+            warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} is {n.state}; not recorded, so a change "
+                            "to that session goes unnoticed: bring it up and record again, or add a check by hand")
             continue
         checks.append({"type": "bgp_session", "node": name, "neighbor": addr, **at})
         for afi, count in sorted(n.prefixes.items()):
@@ -161,6 +164,13 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
                 if count > 0 and n.external is not False:
                     _closed_world(c, drv, where, addr, afi, count, warnings)
             checks.append(c)
+        if n.external is not False and "%" not in addr:
+            # an eBGP session that doesn't carry a unicast family today: exact 0 there, so the day that family is
+            # added and sends a prefix the check fails (acceptance round B-3; a family a session doesn't carry
+            # satisfies only exact: 0, see checks._bgp_prefixes)
+            for afi in ("ipv4-unicast", "ipv6-unicast"):
+                if afi not in n.prefixes:
+                    checks.append({"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, "exact": 0, **at})
     return checks
 
 
@@ -225,9 +235,12 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
     a guard that never gets a real answer is left out with an INCOMPLETE BASELINE line."""
     v6 = (any(":" in a for a in neighbors) or bool(bgp_now.get(6))   # IPv6 neighbors or routes, or IPv6
           or any("ipv6" in afi for n in neighbors.values() for afi in n.prefixes))   # carried over IPv4
+    # an eBGP session that doesn't carry IPv6 today still gets the ::/0 guard, so a family added later can't leak a
+    # default unseen (acceptance round B-3), wherever IPv6 routes can be read
+    ebgp = any(n.state == "established" and n.external is not False for n in neighbors.values())
     out = []
     for fam, default in ((4, "0.0.0.0/0"), (6, "::/0")):
-        if fam == 6 and not v6:
+        if fam == 6 and not v6 and not (ebgp and 6 in bgp_now):
             continue
         if fam not in bgp_now:   # its routes couldn't be read: a guard against what it has today can't be built
             warnings.append(f"INCOMPLETE BASELINE: {name}: IPv{fam} routes could not be read, so no IPv{fam} "
