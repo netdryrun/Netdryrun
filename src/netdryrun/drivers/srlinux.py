@@ -68,6 +68,7 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
             raise unexpected(NEIGHBORS_CMD, f"{addr}: no afi-safi list")
         prefixes = {}
         for af in families:
+            _counted_if_up(addr, af)
             if "received-routes" in af:  # families without counters (evpn) are skipped; see unsupported_afis
                 # accepted = received minus rejected by import policy (matches FRR's acceptedPrefixCounter)
                 prefixes[str(af["afi-safi-name"])] = (as_int(NEIGHBORS_CMD, af["received-routes"])
@@ -80,6 +81,30 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state.lower(), prefixes, adv_interval=adv,
                                                        external=external))
     return out
+
+
+COUNTED_FAMILIES = ("ipv4-unicast", "ipv6-unicast")
+
+
+def _counted_if_up(addr: str, af: dict) -> None:
+    """A family netdryrun counts that is up prints received-routes; without it the count would read 0, which passes
+    `max` and `exact: 0` (acceptance A-7). Families it doesn't count (evpn, route-target) are skipped as before."""
+    if af.get("afi-safi-name") in COUNTED_FAMILIES and str(af.get("oper-state", "")).lower() == "up"             and "received-routes" not in af:
+        raise unexpected(NEIGHBORS_CMD, f"{addr} {af['afi-safi-name']}: oper-state up but no received-routes counter")
+
+
+def _in_fib(command: str, prefix: str, r: dict) -> bool:
+    """Whether an SR Linux route forwards. SR Linux marks a route active before its FIB add completes and keeps
+    it active when the add fails (acceptance A-1/A-2): present means forwarding, as on FRR and EOS, so an active
+    route is active only with no FIB operation pending, none failed and not suppressed. An active route without
+    `fib-programming` is output this driver doesn't know (every live capture prints it)."""
+    if not r.get("active"):
+        return False
+    fib = r.get("fib-programming")
+    if not isinstance(fib, dict):
+        raise unexpected(command, f"{prefix}: active route without fib-programming")
+    return (fib.get("suppressed") is False and fib.get("pending-operation-type") == "none"
+            and fib.get("last-failed-operation-type") == "none")
 
 
 def _bgp_learned(row: dict) -> bool:
@@ -146,7 +171,7 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
         if network(ROUTE_CMD, r[key]) != want:   # the command names the prefix as a key: only it can be listed
             raise unexpected(ROUTE_CMD, f"a route for {r[key]} in the answer for {want}")
         rtype = str(r.get("route-type", "")).lower()
-        out.append(Route(prefix, _protocol(rtype), bool(r.get("active"))))
+        out.append(Route(prefix, _protocol(rtype), _in_fib(ROUTE_CMD, prefix, r)))
     rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error
     if bgp_rib_text is not None and not any(is_bgp(r.protocol) and r.active for r in out):
         if any(_bgp_learned(r) for r in rib):
@@ -338,5 +363,6 @@ def parse_all_routes(text: str, key: str = "ipv4-prefix") -> list[Route]:
         if key not in r:
             raise unexpected(cmd, str(r)[:150])
         rtype = str(r.get("route-type", "")).lower()
-        out.append(Route(str(network(cmd, r[key])), _protocol(rtype), bool(r.get("active"))))
+        net = str(network(cmd, r[key]))
+        out.append(Route(net, _protocol(rtype), _in_fib(cmd, net, r)))
     return out

@@ -28,6 +28,11 @@ Eight false passes are fixed: one in `record` (0.3.3 and 0.4.0, the [advisory](a
 - **SR Linux: a path marked invalid (`valid-route: false`) that gives no `invalid-reason` is an error**, never a received or an absent path (a release that omits the reason couldn't be told from a route import policy rejected).
 - **Juniper: the prefix count is read from a table that held still.** The neighbor output and the hidden routes are two commands; the neighbor output is now read again after the hidden routes, and the count is used only when both reads agree and the hidden routes number received minus accepted. Otherwise everything is read once more, and a second disagreement is an error (no usable state), never a count.
 
+- **Arista EOS: a route type the driver doesn't map is an error.** An unmapped `routeType` (a nexthop-group static, a leaked route, one a later EOS adds) was passed through as its raw name, which no `protocol` matched, so `present: false` passed. Every mapped type reads as before (acceptance round, 2026-11-02).
+- **FRR and SONiC: a path without AS-path segments is an error,** never an empty AS path (a locally originated route), so `as_path: ""` can't pass on a path whose AS path wasn't printed (acceptance A-6).
+- **SR Linux: an IPv4 or IPv6 family that is up but prints no `received-routes` is an error,** never 0 prefixes, which passed `max` and `exact: 0` (acceptance A-7). Families the driver doesn't count (EVPN, route-target) are skipped as before.
+- **SR Linux: an active route that isn't in the FIB is not active.** SR Linux marks a route active before its FIB add completes and keeps it active when the add fails; a route counts as active only when `fib-programming` shows no pending and no failed operation and the route isn't suppressed, as FRR and Arista EOS already require. An active route without `fib-programming` is an error (acceptance A-1/A-2).
+
 ### Changed
 
 - **The release gate refuses CLEARED without a fresh synthetic-stranger status.** `release_gate.py report --stranger-status STATUS.json` adds a BLOCKER when the status is missing or unreadable, reports a false pass, isn't green, shows no must-fail change that failed as it must, is older than 36 hours, or doesn't name the release as the version it tested. 0.3.3 and 0.4.0 shipped while it reported the `record` false pass above.
