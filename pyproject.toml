@@ -115,5 +115,5 @@ pytest_add_cli_args_test_selection = ["tests/"]
 also_copy = [
   "examples/", "website/", "scripts/", "corpus/", "advisories/", ".github/", "action.yml", "server.json",
   "README.md", "AGENTS.md", "CHANGELOG.md", "skills/", "templates/", "fuzz/",
-  "releases/acceptance-matrix.yml",   # read by tests/test_acceptance_script.py
+  "releases/",   # acceptance-matrix.yml is read by tests/test_acceptance_script.py (mutmut copies a lone file without its folder)
 ]
