@@ -58,6 +58,13 @@
   record: CHANGELOG.md (0.4.1)
   tests:
     - tests/test_prefix_length.py
+- id: verify-pin-explains-other-peer
+  what: verify_change with `with` pins on appears_on explained every new path for the prefix, so a non-best path from
+    an undeclared transit peer (a hijacker's origin AS) got INTENT MATCHED (acceptance round B-6)
+  record: CHANGELOG.md (0.4.1); tests/redteam/RT-0035
+  tests:
+    - tests/test_acceptance_041.py
+    - tests/test_verify_pins_041.py
 - id: redteam-20261101
   what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
     bgp-evpn folded into bgp; protocol names a driver never reports accepted; EOS ospf6 never matched; SR Linux's own

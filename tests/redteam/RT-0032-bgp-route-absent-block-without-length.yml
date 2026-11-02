@@ -1,7 +1,7 @@
 id: RT-0032
 title: "bgp_route prefix 10.20.0.0 (a customer /16 written without its length) and route prefix 0.0.0.0, both present: false, pass while 10.20.0.0/16 and 0.0.0.0/0 are in the tables: the checks silently test host routes"
 found: "2026-11-02, Layer 5b acceptance, adversary B (0.4.1 candidate b61c325)"
-fixed_in: open
+fixed_in: 0.4.1
 kind: check
 checks:
   - {type: bgp_route, node: r1, prefix: 10.20.0.0, present: false}

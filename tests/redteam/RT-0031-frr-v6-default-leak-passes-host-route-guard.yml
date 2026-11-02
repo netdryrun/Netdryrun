@@ -1,7 +1,7 @@
 id: RT-0031
 title: "FRR: `route prefix: '::' present: false` is read as ::/128, so a leaked ::/0 passes the IPv6 default guard"
 found: "2026-11-02, Layer 5b acceptance, adversary B (0.4.1 candidate b61c325)"
-fixed_in: open
+fixed_in: 0.4.1
 kind: driver
 driver: frr
 check: {type: route, node: r1, prefix: "::", protocol: bgp, present: false}

@@ -10,8 +10,10 @@ undeclared. Every intent line either happened or didn't; a line that didn't happ
 What each form explains (and nothing else):
 
   appears_on S          on each node in S, every item for the prefix (RIB entries, BGP paths, received
-                        routes), all of them new since the route was absent; and every advertisement of the
-                        prefix *to* a node in S (whoever sends it).
+                        routes), all of them new since the route was absent; with BGP attributes in `with:`,
+                        only the paths and received routes that match them (another new path for the prefix
+                        stays undeclared); and every advertisement of the prefix *to* a node in S (whoever
+                        sends it).
   disappears_from S     on each node in S, the removed RIB entries and BGP paths for the prefix (received-only
                         routes before inbound policy only with including_received_only); and every
                         withdrawn advertisement of the prefix to a node in S.
@@ -338,6 +340,29 @@ def _pins_ok(pins: dict, view: RouteView, state: str) -> str:
     return "no received path matches every pinned attribute"
 
 
+def _pinned(d: DiffItem, view: RouteView, bgp: dict) -> bool:
+    """Whether a new path or received route for the prefix matches every BGP pin (as _pins_ok compares them)."""
+    k = d.key
+    if k.kind == "path":
+        p = view.paths.get((k.neighbor, k.path_id))
+        c = path_view(k.neighbor, p) if p is not None else None
+    elif k.kind == "adj_in":
+        a = view.adj_in.get((k.neighbor, k.path_id))
+        c = {**{f: v for f, v in attrs_view(a).items() if f in ADJ_IN_VIEW}, "from": k.neighbor} if a is not None else None
+    else:
+        return False
+    return c is not None and all(c.get(f, UNSEEN) == v for f, v in bgp.items())
+
+
+def _pinned_items(items: list[DiffItem], view: RouteView, bgp: dict) -> set[ItemKey]:
+    """The new items for the prefix that the line's BGP pins explain: the RIB entry (the route itself), and every
+    path and received route from a neighbor with at least one of them matching every pin (the same route seen
+    before and after inbound policy). A path from any other neighbor, best or not, stays undeclared (acceptance
+    round B-6: it was explained, and a change that also opened a transit peer's filter got INTENT MATCHED)."""
+    sources = {d.key.neighbor for d in items if _pinned(d, view, bgp)}
+    return {d.key for d in items if d.key.kind not in ("path", "adj_in") or d.key.neighbor in sources}
+
+
 def _appears(ctx: _Ctx, ln: Line) -> LineResult:
     afi = _afi(ln.prefix)
     res = LineResult(ln, True)
@@ -353,7 +378,9 @@ def _appears(ctx: _Ctx, ln: Line) -> LineResult:
         why = _pins_ok(ln.pins, a, ln.state)
         if why:
             return LineResult(ln, False, f"{n}: {why}")
-        res.explained |= {d.key for d in ctx.route_items(n, ln.vrf, afi, ln.prefix)}
+        items = ctx.route_items(n, ln.vrf, afi, ln.prefix)
+        bgp = {k: v for k, v in ln.pins.items() if k not in ("protocol", "distance", "metric")}
+        res.explained |= _pinned_items(items, a, bgp) if bgp else {d.key for d in items}
         res.details.append({"node": n, **_route_details(a)})
     res.explained |= ctx.adv_to(set(ln.nodes), ln.vrf, afi, ln.prefix, "added")
     return res

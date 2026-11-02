@@ -297,12 +297,6 @@ def _explicit_prefixes(where: str, raw: Any) -> None:
             continue
 
 
-def _checked(i: int, raw: Any, default_timeout: float, prefix: str = "checks") -> Check:
-    """_validate_check, once every prefix in the check is known to carry its length."""
-    _explicit_prefixes(_check_where(prefix, i, raw), raw)
-    return _validate_check(i, raw, default_timeout, prefix)
-
-
 def _check_where(prefix: str, i: int, raw: Any) -> str:
     where = f"{prefix}[{i}]"
     if isinstance(raw, dict) and isinstance(raw.get("name"), str) and raw["name"].strip():
@@ -443,6 +437,9 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
                               "a bgp_route attribute, expect: failure, a state other than established, max "
                               "or exact); this check passes after 2 consecutive passing samples, so hold would be "
                               "ignored")
+    # last, so every earlier rule (and its mutation-test numbering) stays as it was: a prefix without a length
+    # was canonicalised above as a host route, which is exactly what must never be accepted (B-1)
+    _explicit_prefixes(where, raw)
     return check
 
 
@@ -549,7 +546,7 @@ def load(path: str | Path) -> Config:
         raise ConfigError(f"{path}: no checks defined")
     if not isinstance(raw_checks, list):
         raise ConfigError(f"{path}: checks must be a list of checks")
-    checks = [_checked(i, c, timeout) for i, c in enumerate(raw_checks)]
+    checks = [_validate_check(i, c, timeout) for i, c in enumerate(raw_checks)]
     drivers, setup = _validate_nodes(str(path), data)
     scenarios: list[Scenario] = []
     if "scenarios" in data:
@@ -645,7 +642,7 @@ def _validate_scenario(i: int, raw: Any, default_timeout: float) -> Scenario:
     if not isinstance(raw_checks, list):
         raise ConfigError(f"{where}: checks must be a list of checks")
     name = str(raw.get("name") or ", ".join(f.describe() for f in faults))
-    checks = [_checked(j, c, default_timeout, prefix=f"scenarios[{i}].checks") for j, c in enumerate(raw_checks)]
+    checks = [_validate_check(j, c, default_timeout, prefix=f"scenarios[{i}].checks") for j, c in enumerate(raw_checks)]
     for c in checks:
         c.name = f"[{name}] {c.name}"
     return Scenario(name=name, faults=faults, checks=checks)

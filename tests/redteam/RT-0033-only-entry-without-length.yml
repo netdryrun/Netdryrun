@@ -1,7 +1,7 @@
 id: RT-0033
 title: "bgp_prefixes `only: [10.10.0.0]` (the customer's /24 written without its length) is read as 10.10.0.0/32: the list no longer names the prefix the user meant"
 found: "2026-11-02, Layer 5b acceptance, adversary B (0.4.1 candidate b61c325); same normalisation as RT-0029"
-fixed_in: open
+fixed_in: 0.4.1
 kind: config
 topology: |
   name: t
