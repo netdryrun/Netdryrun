@@ -1,4 +1,4 @@
-id: RT-0032
+id: RT-0040
 title: "route present passes on SR Linux for a route whose FIB add is still pending (or failed): SR Linux marks it active before it forwards, and the driver read active alone"
 found: "2026-11-02, 0.4.1 acceptance round (adversary, A-1/A-2)"
 fixed_in: 0.4.1

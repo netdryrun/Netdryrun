@@ -1,4 +1,4 @@
-id: RT-0030
+id: RT-0038
 title: "bgp_route as_path '' passes on FRR for paths whose AS path wasn't printed: a missing aspath.segments read as an empty AS path, a locally originated route"
 found: "2026-11-02, 0.4.1 acceptance round (adversary, A-6)"
 fixed_in: 0.4.1

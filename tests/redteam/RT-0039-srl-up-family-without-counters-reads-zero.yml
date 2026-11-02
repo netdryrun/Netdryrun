@@ -1,4 +1,4 @@
-id: RT-0031
+id: RT-0039
 title: "bgp_prefixes exact 0 passes on SR Linux for an IPv4 family that is up but prints no received-routes: the family was skipped, and a missing count reads as 0"
 found: "2026-11-02, 0.4.1 acceptance round (adversary, A-7)"
 fixed_in: 0.4.1

@@ -1,4 +1,4 @@
-id: RT-0034
+id: RT-0042
 title: "bgp_prefixes min 3 passes on SR Linux with one usable prefix: SR Linux counts routes that fail AS-loop detection in received-routes and not in rejected-routes, and the driver read received minus rejected"
 found: "2026-10-28, live run of examples/srl-frr (documented as a known limit); captured live 2026-11-02"
 fixed_in: 0.4.1

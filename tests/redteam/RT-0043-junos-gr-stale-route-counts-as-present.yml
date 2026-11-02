@@ -1,4 +1,4 @@
-id: RT-0035
+id: RT-0043
 title: "route present passes on Junos for a graceful-restart stale route (rt-entry-state Stale): the route is about to go, and the driver read no stale marker"
 found: "2026-11-02, 0.4.1 acceptance round (adversary, A-4)"
 fixed_in: 0.4.1
