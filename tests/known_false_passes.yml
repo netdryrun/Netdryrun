@@ -52,6 +52,12 @@
     - tests/test_false_passes_041.py
     - tests/test_redteam.py
     - tests/test_record.py
+- id: prefix-without-length
+  what: A prefix written without a length (`0.0.0.0`) was read as a host (/32 or /128), so a `present false` guard meant as
+    "no default route" checked 0.0.0.0/32 and passed with 0.0.0.0/0 leaked (acceptance round B-1)
+  record: CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_prefix_length.py
 - id: redteam-20261101
   what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
     bgp-evpn folded into bgp; protocol names a driver never reports accepted; EOS ospf6 never matched; SR Linux's own

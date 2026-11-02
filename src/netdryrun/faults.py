@@ -22,6 +22,7 @@ DEFAULT_FROM = "100.64.0.0/24"   # shared address space (RFC 6598): never in a l
 
 def parse_inject(where: str, item: Any) -> dict:
     """Validate one inject_routes entry; returns {node, prefixes, as_path}."""
+    from .config import explicit_network   # here: config imports this module
     if not isinstance(item, dict) or "node" not in item:
         raise ValueError(f"{where}: inject_routes needs a node")
     unknown = set(item) - {"node", "prefixes", "count", "from", "as_path"}
@@ -36,12 +37,12 @@ def parse_inject(where: str, item: Any) -> dict:
             raw = item["prefixes"] if isinstance(item["prefixes"], list) else [item["prefixes"]]
             if not raw:
                 raise ValueError("prefixes is empty")
-            nets = [ipaddress.ip_network(str(p), strict=False) for p in raw]
+            nets = [explicit_network("prefixes", p) for p in raw]
         else:
             count = item["count"]
             if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= MAX_COUNT:
                 raise ValueError(f"count must be an integer from 1 to {MAX_COUNT}")
-            first = ipaddress.ip_network(str(item.get("from", DEFAULT_FROM)), strict=False)
+            first = explicit_network("from", item.get("from", DEFAULT_FROM))
             nets = [first]
             for _ in range(count - 1):
                 nxt = nets[-1].broadcast_address + 1   # raises past the end of the address space

@@ -265,6 +265,44 @@ def _bool(where: str, key: str, v: Any) -> bool:
     return v
 
 
+def explicit_network(where: str, value: Any):
+    """A prefix from netdryrun.yml, which must carry its length. Without one, ipaddress reads `0.0.0.0` as 0.0.0.0/32,
+    a host: `prefix: 0.0.0.0, present: false` (meant as "no default route") checked a /32 and passed with a leaked
+    0.0.0.0/0 installed (acceptance round B-1). Text that isn't a prefix at all keeps ipaddress's own error."""
+    text = str(value).strip()
+    net = ipaddress.ip_network(text, strict=False)
+    if "/" not in text:
+        hint = ("::/0 for a default route, 2001:db8::1/128 for one host" if net.version == 6
+                else "0.0.0.0/0 for a default route, 192.0.2.1/32 for one host")
+        raise ConfigError(f"{where}: prefix {text!r} has no length: write it with one ({hint})")
+    return net
+
+
+def _explicit_prefixes(where: str, raw: Any) -> None:
+    """Every prefix a check names (`prefix`, each of `only`) carries its length. Anything else (another type, text
+    that isn't a prefix at all) is left to _validate_check, which refuses it with its own message."""
+    if not isinstance(raw, dict):
+        return
+    named = [(where, raw.get("prefix"))]
+    if isinstance(raw.get("only"), list):
+        named += [(f"{where}: only", x) for x in raw["only"]]
+    for at, value in named:
+        if not isinstance(value, str):
+            continue
+        try:
+            explicit_network(at, value)
+        except ConfigError:
+            raise
+        except ValueError:
+            continue
+
+
+def _checked(i: int, raw: Any, default_timeout: float, prefix: str = "checks") -> Check:
+    """_validate_check, once every prefix in the check is known to carry its length."""
+    _explicit_prefixes(_check_where(prefix, i, raw), raw)
+    return _validate_check(i, raw, default_timeout, prefix)
+
+
 def _check_where(prefix: str, i: int, raw: Any) -> str:
     where = f"{prefix}[{i}]"
     if isinstance(raw, dict) and isinstance(raw.get("name"), str) and raw["name"].strip():
@@ -511,7 +549,7 @@ def load(path: str | Path) -> Config:
         raise ConfigError(f"{path}: no checks defined")
     if not isinstance(raw_checks, list):
         raise ConfigError(f"{path}: checks must be a list of checks")
-    checks = [_validate_check(i, c, timeout) for i, c in enumerate(raw_checks)]
+    checks = [_checked(i, c, timeout) for i, c in enumerate(raw_checks)]
     drivers, setup = _validate_nodes(str(path), data)
     scenarios: list[Scenario] = []
     if "scenarios" in data:
@@ -607,7 +645,7 @@ def _validate_scenario(i: int, raw: Any, default_timeout: float) -> Scenario:
     if not isinstance(raw_checks, list):
         raise ConfigError(f"{where}: checks must be a list of checks")
     name = str(raw.get("name") or ", ".join(f.describe() for f in faults))
-    checks = [_validate_check(j, c, default_timeout, prefix=f"scenarios[{i}].checks") for j, c in enumerate(raw_checks)]
+    checks = [_checked(j, c, default_timeout, prefix=f"scenarios[{i}].checks") for j, c in enumerate(raw_checks)]
     for c in checks:
         c.name = f"[{name}] {c.name}"
     return Scenario(name=name, faults=faults, checks=checks)
