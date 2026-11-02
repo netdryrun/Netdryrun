@@ -1,0 +1,13 @@
+id: RT-0030
+title: "FRR: `route prefix: 0.0.0.0 present: false` asks zebra and bgpd for 0.0.0.0/32 exactly; a leaked 0.0.0.0/0 is never looked at and the guard passes"
+found: "2026-11-02, Layer 5b acceptance, adversary B (0.4.1 candidate b61c325)"
+fixed_in: open
+kind: driver
+driver: frr
+check: {type: route, node: r1, prefix: 0.0.0.0, protocol: bgp, present: false}
+outputs:
+  # zebra and bgpd answer for exactly the prefix asked: {} for 0.0.0.0/32 while 0.0.0.0/0 (the leak) is installed
+  - needle: "show ip route 0.0.0.0/32 json"
+    output: "{}"
+  - needle: "show bgp ipv4 unicast 0.0.0.0/32 json"
+    output: "{}"
