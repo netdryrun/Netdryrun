@@ -186,3 +186,10 @@ def test_junos_exact_answer_without_entry_state_is_an_error():
 def test_junos_live_captures_still_parse():
     assert [r.active for r in junos.parse_routes(read("junos_route_paths.txt"), "10.20.0.0/24")] == [True, False]
     assert junos.parse_all_routes(read("junos_route_table.txt"))
+
+
+def test_junos_stale_route_with_an_unreadable_gateway_names_the_command():
+    text = _junos_entry_doc(lambda e: e.update({"rt-entry-state": [{"data": "Active Ext Stale"}], "gateway": [{"data": 5}]}))
+    with pytest.raises(DriverError) as err:
+        junos.parse_routes(text, "10.20.0.0/24")
+    assert str(err.value) == JRC + "gateway: 5"

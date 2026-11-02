@@ -90,7 +90,7 @@ COUNTED_FAMILIES = ("ipv4-unicast", "ipv6-unicast")
 def _counted_if_up(addr: str, af: dict) -> None:
     """A family netdryrun counts that is up prints received-routes; without it the count would read 0, which passes
     `max` and `exact: 0` (acceptance A-7). Families it doesn't count (evpn, route-target) are skipped as before."""
-    if af.get("afi-safi-name") in COUNTED_FAMILIES and str(af.get("oper-state", "")).lower() == "up"             and "received-routes" not in af:
+    if af.get("afi-safi-name") in COUNTED_FAMILIES and str(af.get("oper-state")).lower() == "up"             and "received-routes" not in af:
         raise unexpected(NEIGHBORS_CMD, f"{addr} {af['afi-safi-name']}: oper-state up but no received-routes counter")
 
 
@@ -310,7 +310,7 @@ class SrlDriver(Driver):
         for afi in sorted({afi for n in neighbors.values() for afi in n.prefixes}):
             loops = parse_as_loop_counts(self._cli(f"info from state /network-instance {vrf} bgp-rib afi-safi {afi} {afi}", ev))
             for key, n in neighbors.items():
-                looped = loops.get(key, 0)
+                looped = loops.get(key)
                 if afi not in n.prefixes or not looped:
                     continue
                 if looped > n.prefixes[afi]:

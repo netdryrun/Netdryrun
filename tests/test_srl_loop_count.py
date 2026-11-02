@@ -81,3 +81,44 @@ def test_more_looped_routes_than_received_is_an_error():
         srlinux.SrlDriver(lab_, "srl1").bgp_neighbors()
     assert str(e.value) == (f"unexpected output from `{srlinux.NEIGHBORS_CMD}`: "
                             "10.0.100.2 ipv4-unicast: 2 looped routes but a count of 1 (received minus rejected)")
+
+
+def _two_neighbors(first_received: int, second_family_up: bool = True) -> str:
+    """Two neighbors: 10.0.0.1 (no looped paths) listed first, then 10.0.100.2 (two looped paths in the live RIB)."""
+    import json
+    d = json.loads(read("srl_bgp_neighbors_loop.txt"))
+    other = json.loads(json.dumps(d["neighbor"][0]))
+    other["peer-address"] = "10.0.0.1"
+    for af in other["afi-safi"]:
+        if af["afi-safi-name"] == "ipv4-unicast":
+            af["received-routes"] = first_received
+    if not second_family_up:
+        for af in d["neighbor"][0]["afi-safi"]:
+            if af["afi-safi-name"] == "ipv4-unicast":
+                af.update({"oper-state": "down", "admin-state": "disable"})
+                for k in ("received-routes", "rejected-routes", "active-routes", "suppressed-routes"):
+                    af.pop(k, None)
+    d["neighbor"] = [other] + d["neighbor"]
+    return json.dumps(d)
+
+
+def _driver(neighbors: str):
+    return srlinux.SrlDriver(Lab([("protocols bgp neighbor", neighbors),
+                                  ("bgp-rib afi-safi ipv4-unicast ipv4-unicast", read("srl_bgp_rib_loop.txt"))]), "srl1")
+
+
+def test_every_neighbor_gets_its_own_loops_off():
+    """A neighbor without looped paths (listed first) doesn't stop the next one's loops coming off."""
+    n = _driver(_two_neighbors(first_received=4)).bgp_neighbors().value
+    assert n["10.0.0.1"].prefixes == {"ipv4-unicast": 4} and n["10.0.100.2"].prefixes == {"ipv4-unicast": 1}
+
+
+def test_loops_of_a_family_a_neighbor_doesnt_count_are_ignored():
+    """10.0.100.2's IPv4 family is down here (not counted) while the RIB still lists its looped paths."""
+    n = _driver(_two_neighbors(first_received=4, second_family_up=False)).bgp_neighbors().value
+    assert n["10.0.0.1"].prefixes == {"ipv4-unicast": 4} and n["10.0.100.2"].prefixes == {}
+
+
+def test_as_many_looped_routes_as_received_counts_zero():
+    neighbors = read("srl_bgp_neighbors_loop.txt").replace('"received-routes": 3', '"received-routes": 2')
+    assert _driver(neighbors).bgp_neighbors().value["10.0.100.2"].prefixes == {"ipv4-unicast": 0}
