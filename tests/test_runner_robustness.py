@@ -93,6 +93,12 @@ class FakeLab:
     def running_containers(self):
         return {n.container for n in self.nodes.values()}
 
+    def stopped_containers(self):
+        return {}
+
+    def kvm_problem(self):
+        return None
+
     def boot_log(self, node):   # a clean FRR boot: every config line loaded
         return ExecResult([], 0, "[45|bgpd] done", "")
 
@@ -347,6 +353,8 @@ SIGNAL_SCRIPT = textwrap.dedent("""\
             (folder / "destroyed").write_text("yes")
             return ExecResult([], 0, "", "")
         def running_containers(self): return {"clab-t-r1"}
+        def stopped_containers(self): return {}
+        def kvm_problem(self): return None
 
     class Driver:
         def bgp_neighbors(self, vrf="default"):

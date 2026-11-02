@@ -135,6 +135,7 @@ LAYERS = {  # name -> title, in report order
     "unit": "Layer 2: unit tests on every supported Python",
     "mutation": "Layer 4: mutation testing",
     "live": "Layer 5: live matrix on the built package",
+    "acceptance": "Layer 5b: acceptance from five angles",
     "after-publish": "Layer 7: after-publish proof",
 }
 # Run by the nightly gate on main, outside the release record (GATE.md never waits for it).
@@ -977,6 +978,45 @@ def layer_live(args) -> Layer:
     return layer
 
 
+def layer_acceptance(args) -> Layer:
+    """Layer 5b: scripts/acceptance.py on the lab machine (angles 1 to 4, against the wheel of this commit), then the
+    adversary angle, which agents run by hand (releases/ACCEPTANCE-PROMPT.md) and record in acceptance-adversary.md.
+    An item that couldn't be covered is a SKIP: a FAIL under --strict, and never CLEARED without it."""
+    layer = Layer("acceptance", args)
+    folder = out_dir(args)
+    cmd = [sys.executable, ROOT / "scripts" / "acceptance.py", "--version", args.version, "--out", folder]
+    if args.acceptance_only:
+        cmd += ["--only", args.acceptance_only]
+    p = run(cmd, timeout=args.acceptance_timeout)
+    path = folder / "acceptance.json"
+    head = git("rev-parse", "HEAD")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = None
+    if not data or not head or data.get("sha") != head.strip() or data.get("version") != args.version:
+        layer.add("acceptance-ran", "scripts/acceptance.py ran on this commit", BLOCKER, False,
+                  f"no acceptance.json for {args.version} at {(head or '?').strip()[:10]} (exit {p.code})", tail(p.out),
+                  p.seconds, cmdline(cmd))
+        return layer
+    for it in data["items"]:
+        ok = {"pass": True, "fail": False}.get(it["status"])   # "not covered" is a SKIP
+        layer.add(it["id"], f"{it['title']} ({it['id']})", BLOCKER, ok, it.get("note") or it.get("got") or "",
+                  it.get("evidence") or "", it.get("seconds") or 0)
+    if args.acceptance_only:
+        layer.add("acceptance-complete", "every acceptance item ran", BLOCKER, False,
+                  f"--acceptance-only {args.acceptance_only}: a partial run never clears the layer")
+    adv = folder / "acceptance-adversary.md"
+    text = adv.read_text(encoding="utf-8") if adv.exists() else ""
+    verdict = re.search(r"^Result: (no open false pass|open false pass)", text, re.M)
+    layer.add("adversary", "angle 5: two isolated red-teamers on new cases, verified (releases/ACCEPTANCE-PROMPT.md)",
+              BLOCKER, None if not verdict or head.strip() not in text else verdict.group(1) == "no open false pass",
+              verdict.group(0) if verdict and head.strip() in text else
+              f"acceptance-adversary.md for {head.strip()[:10]} not recorded yet")
+    layer.sections.append("Every item, with its evidence: [acceptance.md](acceptance.md).")
+    return layer
+
+
 def live_install(live: Live, args) -> bool:
     """Build the wheel and install it in a fresh venv: everything else runs that, not the source tree."""
     layer, uv = live.layer, shutil.which("uv")
@@ -1794,6 +1834,7 @@ def layer_failed(layer: Layer) -> bool:
 # --------------------------------------------------------------------------------------------
 
 RUNNERS = {"static": layer_static, "unit": layer_unit, "mutation": layer_mutation, "live": layer_live,
+           "acceptance": layer_acceptance,
            "after-publish": layer_after_publish, "consistency": layer_consistency}
 
 
@@ -1825,6 +1866,8 @@ def main() -> int:
     ap.add_argument("--allow-running-labs", action="store_true",
                     help="live: start although clab- containers exist (only new ones count as left over)")
     ap.add_argument("--chaos-docker-restart", action="store_true", help="live: also restart Docker mid-run (sudo)")
+    ap.add_argument("--acceptance-only", help="acceptance: only these items (glob patterns; never clears the layer)")
+    ap.add_argument("--acceptance-timeout", type=float, default=12 * 3600, help="acceptance: seconds (default 12 h)")
     args = ap.parse_args()
 
     if args.layer == "after-publish":
@@ -1845,7 +1888,7 @@ def main() -> int:
         print(f"wrote {write_out(args, 'GATE.md', text)}: {state}")
         return 0 if cleared else 1
 
-    names = ["static", "unit", "mutation", "live"] if args.layer == "all" else [args.layer]
+    names = ["static", "unit", "mutation", "live", "acceptance"] if args.layer == "all" else [args.layer]
     failed = []
     for name in names:
         print(f"== {({**LAYERS, **CHECK_LAYERS})[name]} (Netdryrun {args.version})", flush=True)

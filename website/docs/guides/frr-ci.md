@@ -199,12 +199,12 @@ jobs:
 
 The job installs containerlab and Netdryrun, pulls the FRR image, runs the checks, uploads the JSON and JUnit reports, and fails if a check fails. With `pr-comment: true` it also posts the verdict and the evidence for each failed check on the pull request. See [GitHub Action](../github-action.md) for every input, and the security notes before running labs from forks.
 
-**Other CI systems:** any Linux runner that can start privileged Docker containers works. The steps are the same three commands. `env "PATH=$PATH"` keeps the `netdryrun` that `pip` installed on the path under `sudo`:
+**Other CI systems:** any Linux runner that can start privileged Docker containers works. The steps are the same three commands: containerlab, Netdryrun pinned to a release in its own virtualenv (a plain `pip install` outside one is refused on Ubuntu 24.04 and Debian 12), and the run. `env -i` gives the lab only a path and a home, not the job's variables: a CI token in the environment would otherwise reach a run that starts privileged containers.
 
 ```bash
 bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
-pip install netdryrun
-sudo env "PATH=$PATH" netdryrun run network/ --junit netdryrun-junit.xml --json netdryrun-report.json
+python3 -m venv .ndr && .ndr/bin/pip install netdryrun==0.4.1
+sudo env -i "PATH=$PWD/.ndr/bin:/usr/sbin:/usr/bin:/sbin:/bin" HOME=/root netdryrun run network/ --junit netdryrun-junit.xml --json netdryrun-report.json
 ```
 
 Exit codes: `0` passed, `1` a check failed, `2` a setup problem (bad YAML, the lab didn't start), `3` inconclusive (the lab never reached a testable state; rerun it).

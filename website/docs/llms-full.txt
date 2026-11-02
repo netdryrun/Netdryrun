@@ -487,13 +487,13 @@ Deploying lab ndr-my-lab, then waiting 45s for the network to converge...
 recording r1 (frr)
 recording r2 (frr)
 recording r3 (frr)
-Recorded 18 checks to /home/ndr/work/docs031/my-lab/netdryrun.yml. Review it, then: netdryrun run /home/ndr/work/docs031/my-lab
+Recorded 30 checks to /home/ndr/work/docs031/my-lab/netdryrun.yml. Review it, then: netdryrun run /home/ndr/work/docs031/my-lab
 ```
 
-This took 50 seconds. The file has one check for every established BGP session, every prefix count and every BGP route. The start of it:
+This took 52 seconds with 0.4.1. The file has a check for every established BGP session and every BGP route, a prefix check on every BGP neighbor, and two guards on every BGP node: no default route and no link subnet via BGP. The prefix check is a range (today's count up to 20% more, at least 2) and, on each eBGP neighbor, the list of prefixes it sends today (`only`): any other prefix from it fails, even inside the range. The start of it:
 
 ```yaml title="my-lab/netdryrun.yml (recorded)"
-# Recorded by netdryrun 0.3.1 record on 2026-10-28T02:26:27+00:00.
+# Recorded by netdryrun 0.4.1 record on 2026-11-02T02:54:04+00:00.
 # This is a baseline of the network's behavior when it was recorded. Review it before committing:
 # remove anything that is allowed to change, and add negative checks (route present: false,
 # ping expect: failure) for things that must never happen. Docs: https://netdryrun.com/reference/config/
@@ -507,49 +507,58 @@ checks:
   node: r1
   neighbor: 10.0.12.2
   afi: ipv4-unicast
-  exact: 2
+  min: 2
+  max: 4
+  only:
+  - 192.168.2.0/24
+  - 192.168.3.0/24
 - type: bgp_session
   node: r1
   neighbor: 10.0.13.2
-# ... 15 more: the same pattern for r2 and r3, plus one route check per learned LAN
+# ... then r1's route checks and its guards (0.0.0.0/0 and each link subnet, present: false),
+# and the same for r2 and r3
 ```
 
 ## 3. Review and prune it
 
 A recorded baseline says "nothing may change". That is rarely what you want. Decide what is allowed to change.
 
-Here is what happens if you skip this step. The change in step 5 adds a LAN on r3, and its first attempt announces it with `redistribute connected`. Run against the raw baseline, the `exact: 2` prefix counts fail, because r1 and r2 now get 6 prefixes:
+Here is what happens if you skip this step. The change in step 5 adds a LAN on r3, and its first attempt announces it with `redistribute connected`. Run against the raw baseline, r1 and r2 now get 6 prefixes from each neighbor: the new LAN, the link subnets and the management network. The prefix checks fail, and so do the guards for the link subnets:
 
 ```text
 $ netdryrun run my-lab
-Netdryrun 0.3.1: 18 checks from my-lab/netdryrun.yml
+Netdryrun 0.4.1: 30 checks from my-lab/netdryrun.yml
 Deploying lab ndr-my-lab (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...
-  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (10.9s)
+  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (9.7s)
   ...
 Convergence checks done; settling 10s before post-convergence checks...
-  [FAIL] r1: prefixes from 10.0.12.2 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [FAIL] r1: prefixes from 10.0.13.2 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [FAIL] r2: prefixes from 10.0.12.1 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [FAIL] r2: prefixes from 10.0.23.2 = 2 -- 6 ipv4-unicast prefixes accepted (0.1s)
-  [PASS] r3: prefixes from 10.0.13.1 = 2 -- 2 ipv4-unicast prefixes accepted (held 10s, 5 samples) (10.1s)
-  [PASS] r3: prefixes from 10.0.23.1 = 2 -- 2 ipv4-unicast prefixes accepted (held 10s, 5 samples) (10.1s)
+  [FAIL] r1: prefixes from 10.0.12.2 >= 2 and <= 4 and only from 2 recorded prefix(es) -- 6 ipv4-unicast prefixes accepted; not in the allowed set: 10.0.13.0/30, 10.0.23.0/30, 172.20.20.0/24, 192.168.33.0/24 (30.1s)
+  [FAIL] r1: prefixes from 10.0.13.2 >= 2 and <= 4 and only from 2 recorded prefix(es) -- 6 ipv4-unicast prefixes accepted; not in the allowed set: 10.0.13.0/30, 10.0.23.0/30, 172.20.20.0/24, 192.168.33.0/24 (30.1s)
+  [PASS] r1: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 5 samples) (10.2s)
+  [PASS] r1: route 10.0.12.0/30 via bgp is absent -- absent (held 10s, 5 samples) (10.2s)
+  [FAIL] r1: route 10.0.13.0/30 via bgp is absent -- unexpectedly present via bgp (not selected) (0.2s)
+  [FAIL] r1: route 10.0.23.0/30 via bgp is absent -- unexpectedly present via bgp (0.2s)
+  ...
+  [PASS] r3: prefixes from 10.0.13.1 >= 2 and <= 4 and only from 2 recorded prefix(es) -- 2 ipv4-unicast prefixes accepted; all within the allowed set (held 10s, 5 samples) (10.2s)
+  ...
 Destroying lab...
-FAILED: 14 passed, 4 failed (18 checks)
+FAILED: 22 passed, 8 failed (30 checks)
 ```
 
-The test did its job: something changed. But adding a LAN is allowed, so the baseline should allow it. Edit the file:
+The test did its job: something changed, and some of it shouldn't have. Adding a LAN is allowed, so the baseline should allow it; leaking link subnets is not. Edit the file:
 
 - **Keep** every `bgp_session` check. Sessions must stay up.
-- **Turn exact prefix counts into ranges.** `min: 2` keeps today's routes; `max: 10` still catches a leak that floods r1. You can also record ranges from the start with `netdryrun record --min-prefixes`.
+- **Keep the guards** (`present: false` for the default route and the link subnets). They are what catches the bad part of this change. This tutorial keeps r1's and removes the r2 and r3 copies to keep the file short.
+- **Decide on the prefix checks.** An `only` list allows exactly today's prefixes from a neighbor, so a new LAN fails it until you add the new prefix to the list (in a reviewed change to the checks, before or with the change that adds the LAN). Where growth is expected, as here where sites add LANs, you can replace the list with a range instead: `min: 2` keeps today's routes, `max: 10` still catches a flood. A range alone lets a leak of a few prefixes pass inside it (the [0.4.0 advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)), so only do this where guards, as above, name the prefixes that must never arrive. This tutorial uses ranges.
 - **Keep the route checks you care about.** This tutorial keeps r1's and removes the r2 and r3 copies to keep the file short.
 
 ## 4. Add negative checks
 
-`record` only writes down what exists. It cannot know what must never exist. Add those checks yourself. For this lab:
+`record` writes down what exists, plus two guards it can derive: no default route and no link subnet via BGP. It cannot know anything else that must never exist. For this lab:
 
-- nobody sends r1 a default route,
-- the point-to-point link subnets (`10.0.x.x/30`) stay out of BGP,
-- and a ping, so the test proves traffic gets through, not only that routes exist.
+- nobody sends r1 a default route (recorded guard),
+- the point-to-point link subnets (`10.0.x.x/30`) stay out of BGP (recorded guards; the file below keeps one),
+- and add a ping yourself, so the test proves traffic gets through, not only that routes exist.
 
 The reviewed file:
 
@@ -577,7 +586,7 @@ checks:
 - type: bgp_session
   node: r3
   neighbor: 10.0.23.1
-# Prefix counts may grow when a site adds a LAN, but not past 10 (recorded as exact: 2, edited).
+# Prefix counts may grow when a site adds a LAN, but not past 10 (recorded with an `only` list, edited to a range).
 - type: bgp_prefixes
   node: r1
   neighbor: 10.0.12.2
@@ -602,7 +611,7 @@ checks:
   node: r1
   source: 192.168.1.1
   target: 192.168.3.1
-# Added by hand: things that must never happen.
+# Things that must never happen (guards record wrote; r1's kept).
 - type: route          # nobody sends r1 a default route
   node: r1
   prefix: 0.0.0.0/0
@@ -1378,6 +1387,9 @@ Source: https://netdryrun.com/github-action/
 
 The action installs containerlab, installs Netdryrun™, runs your checks, writes a summary to the job page, uploads the JSON and JUnit reports as an artifact, and fails the job if any check fails.
 
+!!! warning "Known issue in v0.4.0, fixed in 0.4.1: pull requests needed a deeper checkout"
+    With `actions/checkout`'s default shallow fetch, v0.4.0's checks-file step fails every `pull_request` run with "github.sha is not this pull request's merge commit". It fails closed (the job goes red), so no wrong verdict is reported, but the action can't run on pull requests. Fixed in 0.4.1, which fetches what it needs itself. On `@v0.4.0`, give the checkout step `with: {fetch-depth: 0}`.
+
 ```yaml title=".github/workflows/network-dryrun.yml"
 name: Network dry run
 on: pull_request
@@ -1409,14 +1421,17 @@ It needs a Linux runner with Docker. GitHub-hosted `ubuntu-latest` runners work.
 | `verdict-report` | `netdryrun-verdict.json` | Path for the agent result: status, verdict, failures and the sha256 of every file tested, in the shape the MCP tools return ([schema](https://netdryrun.com/schemas/mcp-result-v1.json)). Uploaded with the reports (from 0.3.3) |
 | `upload-artifact` | `true` | Upload the reports as a workflow artifact |
 | `artifact-name` | `netdryrun-report` | Name of the uploaded artifact |
-| `settle` | `10` | Seconds to wait before post-convergence checks |
+| `settle` | | `mode: run`: seconds to wait before post-convergence checks (empty: 10). `mode: verify`: seconds between the two snapshots that must match, more than the slowest MRAI or update-delay in the lab (empty: 15) |
 | `hold` | `10` | Seconds a post-convergence check must hold |
+| `unobserved` | | `mode: verify` only: nodes without a routing stack (hosts), separated by spaces. Verify doesn't snapshot them |
 | `timeout` | `300` | `mode: verify` only: seconds each lab may take to reach a stable snapshot. Raise it for a lab with a slow-booting node (see [verify](reference/verify.md#nodes-verify-does-not-snapshot-and-slow-boots)), and set the job's `timeout-minutes` to match |
 | `pr-comment` | `false` | On pull requests, post one comment with the verdict, failures first, and the evidence for each failed check. Updated in place on every push. Needs `permissions: pull-requests: write` |
 | `comment-author` | `github-actions[bot]` | The account that writes the PR comment: only its comment is updated. Set it when `github-token` is another account's token (from 0.3.3) |
 | `github-token` | `${{ github.token }}` | Token used for the PR comment |
 | `cloud` | `false` | Reserved for Netdryrun Cloud, which is **not available yet**. With `true`, the action tries to POST the JSON report to `cloud-url` with a GitHub OIDC token; that address doesn't resolve today, so nothing is uploaded and you only get a warning ("evidence upload failed", or "needs 'permissions: id-token: write'" without that permission). Leave it off |
 | `cloud-url` | `https://cloud.netdryrun.com` | Reserved for Netdryrun Cloud (this address does not exist yet) |
+
+An input that belongs to the other mode (`path`, `allow-check-edit`, `junit-report` or `verdict-report` in `mode: verify`; `topology`, `intent-file`, `allow-intent-edit`, `timeout` or `unobserved` in `mode: run`) is an error that names it, before anything is installed (0.4.1). Earlier releases ignored it.
 
 ## Outputs
 
@@ -1461,7 +1476,7 @@ jobs:
           NDR_STATUS: ${{ steps.ndr.outputs.status }}
           NDR_PASSED: ${{ steps.ndr.outputs.passed }}
           NDR_FAILED: ${{ steps.ndr.outputs.failed }}
-        run: echo "Netdryrun $NDR_STATUS: $NDR_PASSED passed, $NDR_FAILED failed"
+        run: 'echo "Netdryrun $NDR_STATUS: $NDR_PASSED passed, $NDR_FAILED failed"'
 ```
 
 ### Several labs
@@ -2929,12 +2944,12 @@ jobs:
 
 The job installs containerlab and Netdryrun, pulls the FRR image, runs the checks, uploads the JSON and JUnit reports, and fails if a check fails. With `pr-comment: true` it also posts the verdict and the evidence for each failed check on the pull request. See [GitHub Action](../github-action.md) for every input, and the security notes before running labs from forks.
 
-**Other CI systems:** any Linux runner that can start privileged Docker containers works. The steps are the same three commands. `env "PATH=$PATH"` keeps the `netdryrun` that `pip` installed on the path under `sudo`:
+**Other CI systems:** any Linux runner that can start privileged Docker containers works. The steps are the same three commands: containerlab, Netdryrun pinned to a release in its own virtualenv (a plain `pip install` outside one is refused on Ubuntu 24.04 and Debian 12), and the run. `env -i` gives the lab only a path and a home, not the job's variables: a CI token in the environment would otherwise reach a run that starts privileged containers.
 
 ```bash
 bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
-pip install netdryrun
-sudo env "PATH=$PATH" netdryrun run network/ --junit netdryrun-junit.xml --json netdryrun-report.json
+python3 -m venv .ndr && .ndr/bin/pip install netdryrun==0.4.1
+sudo env -i "PATH=$PWD/.ndr/bin:/usr/sbin:/usr/bin:/sbin:/bin" HOME=/root netdryrun run network/ --junit netdryrun-junit.xml --json netdryrun-report.json
 ```
 
 Exit codes: `0` passed, `1` a check failed, `2` a setup problem (bad YAML, the lab didn't start), `3` inconclusive (the lab never reached a testable state; rerun it).
@@ -3628,7 +3643,7 @@ Known limit: **A line FRR warned about but applied can still make the run an err
 
 **Startup config on Arista cEOS, Nokia SR Linux and SONiC** (fixed in 0.4): a line the NOS rejected at boot makes the run an error (exit 2). cEOS skips such a line and loads the rest, like FRR: Netdryrun reads `show startup-config errors` after the checks, and any listed line, or output it can't read, is an error naming the line. SR Linux: a CLI startup config is one commit containerlab applies at deploy, and a line that doesn't parse or a commit that fails fails the deploy; a JSON one SR Linux loads itself and, when it rejects it, runs without it while the deploy succeeds, so Netdryrun reads its log ("Load of startup configuration failed"; a log it can't read is an error). SONiC (docker-sonic-vs) has no startup config: it is configured with `setup:` commands, which stop the run when they exit non-zero; a config file bound into a SONiC node's `/etc`, `/usr` or `/var/lib`, or an inline startup config, is an error. A `setup:` command is checked by its exit code only: SONiC's `config ...` commands and CONFIG_DB writes can exit 0 and fail later, so configure SONiC's routing with `vtysh -c` lines, which fail at once. On a lab Netdryrun didn't deploy (`netdryrun check`), SR Linux and SONiC say `not verified`. **A topology `exec:` command that fails** is an error on every platform: containerlab only logs it and exits 0, and the node runs without what it configured. **Juniper cJunosEvolved (beta): the config load is not verified yet**; the report says `not verified on junos`: add a positive check for what each changed line creates.
 
-Known limit: **Graceful restart on SR Linux, EOS and SONiC** (found by the 0.3.3 cross-platform review): while a peer restarts with graceful restart, its routes stay in the table marked stale until it re-sends them or the stale timer ends, and on these platforms the BGP checks count a stale path as present and best. A route check can pass on a route that is about to go. On FRR, Netdryrun reads the stale flag: a route or `bgp_route` check never passes on a stale path (0.3.3). Mitigation: leave graceful restart off in the lab, or give the checks a `timeout` above the stale timer. Fix scheduled: 0.4.1 (read the stale flag on the other platforms, from a live graceful-restart capture; was scheduled for 0.4).
+Graceful restart (found by the 0.3.3 cross-platform review): while a peer restarts with graceful restart, its routes stay in the table marked stale until it re-sends them or the stale timer ends. On FRR and SONiC (which runs FRR) Netdryrun reads the stale flag, and a `route` or `bgp_route` check never passes on a stale path (0.3.3). On SR Linux (`stale-route`) and Arista EOS (`routeType.stale`) a stale path stops the read with a 'not settled' error, so the check samples again until the mark clears (0.4.1); on SR Linux, EOS and SONiC the field hasn't been seen turning true in a live graceful restart yet. Known limit: **Juniper (beta) doesn't read the stale mark yet**, so a check can pass on a restarting peer's route that is about to go. Mitigation: leave graceful restart off in the lab, or give the checks a `timeout` above the stale timer.
 
 **SR Linux prefix counts, fixed in 0.4.1:** a `bgp_prefixes` count on SR Linux leaves out routes that failed BGP loop detection. SR Linux counts them in the neighbor's `received-routes` but not in `rejected-routes`, so 0.4.0 and earlier counted them and a `min` or `exact` check could pass with fewer usable prefixes. The driver now reads the local RIB and takes off every path marked `invalid-reason: as-loop` (captured live from `examples/srl-frr`, 2026-11-02), so the count agrees with FRR and Junos, which don't accept such routes.
 
@@ -4339,9 +4354,10 @@ A check on a refused address family stops the run before the lab is deployed, wi
 
 - **SR Linux:** graceful restart: a path the router marks stale (a restarting peer's route, kept until it re-sends it or the stale timer ends) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The mark is read from the NOS's own field (`stale-route`); a live graceful restart has not been captured on this NOS to confirm the field turns true during one. Mitigation: leave graceful restart off in the lab.
 - **SR Linux:** A path SR Linux marks invalid (`invalid-reason`) for anything but `rejected-route` (rejected by import policy, which doesn't count as received) is an error until the driver reads that reason, and so is a path marked invalid (`valid-route: false`) with no reason given: a check on that prefix fails with the reason named, never passes.
-- **SONiC:** graceful restart: a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends) counts as present and best; no stale marker is read yet. A route check can pass on a route that is about to go. Mitigation: leave graceful restart off in the lab, or use a `timeout` above the stale timer. Fix scheduled: 0.4.1.
+- **SONiC:** graceful restart: SONiC's routing is FRR, and its driver reads FRR's `stale` flag as the FRR driver does: a `route` or `bgp_route` check never passes on a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends). A live graceful restart has not been captured on docker-sonic-vs to confirm the flag. Mitigation: leave graceful restart off in the lab.
 - **Arista EOS:** graceful restart: a path the router marks stale (a restarting peer's route, kept until it re-sends it or the stale timer ends) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The mark is read from the NOS's own field (`routeType.stale`); a live graceful restart has not been captured on this NOS to confirm the field turns true during one. Mitigation: leave graceful restart off in the lab.
 - **Arista EOS:** `med: 0` is refused before the lab boots (exit 2): cEOS 4.36.3M prints MED 0 for a path received with no MED (live capture, 0.4 interop test), and no field of `show ip bgp <prefix> | json` tells the two apart. A non-zero MED is checked as usual; a path whose MED reads 0 reports it as "not set".
+- **Juniper (beta):** graceful restart: the driver doesn't read the stale mark yet, so a `route` or `bgp_route` check can pass on a restarting peer's route that is about to go (found by the 0.4.1 acceptance run; the junos-frr example negotiates graceful restart with FRR). Mitigation: leave graceful restart off in the lab, or give the checks a `timeout` above the stale timer.
 - **Juniper (beta):** Hidden routes count as received, except routes Junos hid because the import policy rejected them (`hidden-reason` "Rejected by import policy"): those can never be used, and FRR and Arista EOS don't keep them at all.
 - **Juniper (beta):** `bgp_route` reads routes received over BGP only. Junos doesn't list its own static, direct or aggregate routes as BGP routes, even when an export policy advertises them.
 - **Juniper (beta):** `bgp_prefixes` counts received routes minus those import policy rejected, reading the hidden routes' reasons when Junos hides any. A hidden route whose reason is neither "Rejected by import policy" nor "Protocol nexthop is not on the interface" leaves the count a range from accepted to received, and a bound is judged only when the whole range agrees (otherwise the check fails, never passes).

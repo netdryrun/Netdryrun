@@ -79,7 +79,8 @@ def _dotenv(tmp_path, rep: dict | None, exit_code: str) -> dict:
 
 
 def test_component_outputs_cannot_be_spoofed_or_inject_shell(tmp_path):
-    passed = {"status": "passed", "summary": {"passed": 3, "failed": 0}, "inconclusive_reason": None}
+    passed = {"status": "passed", "summary": {"passed": 3, "failed": 0}, "inconclusive_reason": None,
+              "checks": [{"name": n, "passed": True} for n in "abc"]}
     assert _dotenv(tmp_path, passed, "0") == {"NETDRYRUN_STATUS": "passed", "NETDRYRUN_PASSED": "3",
                                               "NETDRYRUN_FAILED": "0", "NETDRYRUN_INCONCLUSIVE_REASON": ""}
     # a report committed in the MR claims "passed", but the run itself exited 2 (config error)

@@ -7,6 +7,9 @@ description: Run Netdryrun in GitHub Actions with netdryrun/Netdryrun@v0.4.1. In
 
 The action installs containerlab, installs Netdryrun™, runs your checks, writes a summary to the job page, uploads the JSON and JUnit reports as an artifact, and fails the job if any check fails.
 
+!!! warning "Known issue in v0.4.0, fixed in 0.4.1: pull requests needed a deeper checkout"
+    With `actions/checkout`'s default shallow fetch, v0.4.0's checks-file step fails every `pull_request` run with "github.sha is not this pull request's merge commit". It fails closed (the job goes red), so no wrong verdict is reported, but the action can't run on pull requests. Fixed in 0.4.1, which fetches what it needs itself. On `@v0.4.0`, give the checkout step `with: {fetch-depth: 0}`.
+
 ```yaml title=".github/workflows/network-dryrun.yml"
 name: Network dry run
 on: pull_request
@@ -38,14 +41,17 @@ It needs a Linux runner with Docker. GitHub-hosted `ubuntu-latest` runners work.
 | `verdict-report` | `netdryrun-verdict.json` | Path for the agent result: status, verdict, failures and the sha256 of every file tested, in the shape the MCP tools return ([schema](https://netdryrun.com/schemas/mcp-result-v1.json)). Uploaded with the reports (from 0.3.3) |
 | `upload-artifact` | `true` | Upload the reports as a workflow artifact |
 | `artifact-name` | `netdryrun-report` | Name of the uploaded artifact |
-| `settle` | `10` | Seconds to wait before post-convergence checks |
+| `settle` | | `mode: run`: seconds to wait before post-convergence checks (empty: 10). `mode: verify`: seconds between the two snapshots that must match, more than the slowest MRAI or update-delay in the lab (empty: 15) |
 | `hold` | `10` | Seconds a post-convergence check must hold |
+| `unobserved` | | `mode: verify` only: nodes without a routing stack (hosts), separated by spaces. Verify doesn't snapshot them |
 | `timeout` | `300` | `mode: verify` only: seconds each lab may take to reach a stable snapshot. Raise it for a lab with a slow-booting node (see [verify](reference/verify.md#nodes-verify-does-not-snapshot-and-slow-boots)), and set the job's `timeout-minutes` to match |
 | `pr-comment` | `false` | On pull requests, post one comment with the verdict, failures first, and the evidence for each failed check. Updated in place on every push. Needs `permissions: pull-requests: write` |
 | `comment-author` | `github-actions[bot]` | The account that writes the PR comment: only its comment is updated. Set it when `github-token` is another account's token (from 0.3.3) |
 | `github-token` | `${{ github.token }}` | Token used for the PR comment |
 | `cloud` | `false` | Reserved for Netdryrun Cloud, which is **not available yet**. With `true`, the action tries to POST the JSON report to `cloud-url` with a GitHub OIDC token; that address doesn't resolve today, so nothing is uploaded and you only get a warning ("evidence upload failed", or "needs 'permissions: id-token: write'" without that permission). Leave it off |
 | `cloud-url` | `https://cloud.netdryrun.com` | Reserved for Netdryrun Cloud (this address does not exist yet) |
+
+An input that belongs to the other mode (`path`, `allow-check-edit`, `junit-report` or `verdict-report` in `mode: verify`; `topology`, `intent-file`, `allow-intent-edit`, `timeout` or `unobserved` in `mode: run`) is an error that names it, before anything is installed (0.4.1). Earlier releases ignored it.
 
 ## Outputs
 
@@ -90,7 +96,7 @@ jobs:
           NDR_STATUS: ${{ steps.ndr.outputs.status }}
           NDR_PASSED: ${{ steps.ndr.outputs.passed }}
           NDR_FAILED: ${{ steps.ndr.outputs.failed }}
-        run: echo "Netdryrun $NDR_STATUS: $NDR_PASSED passed, $NDR_FAILED failed"
+        run: 'echo "Netdryrun $NDR_STATUS: $NDR_PASSED passed, $NDR_FAILED failed"'
 ```
 
 ### Several labs

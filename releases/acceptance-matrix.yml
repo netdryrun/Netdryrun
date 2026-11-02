@@ -1,0 +1,155 @@
+# Layer 5b: acceptance from five angles (RELEASING.md). Read by scripts/acceptance.py; every release runs it.
+# Angles 1 to 4 are scripted here; angle 5 (the adversary) and reading the mismatches are agent jobs
+# (releases/ACCEPTANCE-PROMPT.md). A driver the release claims and the run can't cover live fails the layer.
+#
+# Placeholders in traps and checks: {node} {neighbor} {legit} {legit_sub} {legit_super}.
+
+# The customer of the ported must-fail change: frr1 in each vendor example announces its own 192.168.20.0/24 and a
+# 203.0.113.128/25 it doesn't own. The vendor node's inbound filter permits only the /24 (`filter`); the change
+# deletes the filter's match (`drop_match`), as the synthetic stranger's fail-bogon change does on FRR.
+customer:
+  file: configs/frr1.conf
+  replace:
+    - ["router bgp 65020", "ip route 203.0.113.128/25 blackhole\nip prefix-list OWN-LAN seq 20 permit 203.0.113.128/25\n!\nrouter bgp 65020"]
+    - ["  network 192.168.20.0/24\n", "  network 192.168.20.0/24\n  network 203.0.113.128/25\n"]
+
+# Vendor output traps, checked against the kept good lab of the must-fail change: every T- check must fail and
+# every S- check must pass (longest-match answers, missing VRF, IPv6, communities, protocol, unknown neighbor).
+traps:
+  - {name: S-legit-present, type: route, node: "{node}", prefix: "{legit}", protocol: bgp}
+  - {name: S-foreign-absent, type: route, node: "{node}", prefix: 203.0.113.128/25, present: false}
+  - {name: T-longest-sub, type: route, node: "{node}", prefix: "{legit_sub}"}
+  - {name: T-longest-super, type: route, node: "{node}", prefix: "{legit_super}"}
+  - {name: T-covered-by-default, type: route, node: "{node}", prefix: 10.99.99.0/24}
+  - {name: T-v6-absent, type: route, node: "{node}", prefix: "2001:db8:99::/48"}
+  - {name: T-filtered-present, type: route, node: "{node}", prefix: 203.0.113.128/25}
+  - {name: T-protocol, type: route, node: "{node}", prefix: "{legit}", protocol: ospf}
+  - {name: T-vrf-missing, type: route, node: "{node}", prefix: "{legit}", vrf: NOPE}
+  - {name: T-community, type: bgp_route, node: "{node}", prefix: "{legit}", communities: ["65020:999"]}
+  - {name: T-large-community, type: bgp_route, node: "{node}", prefix: "{legit}", communities: ["65020:1:2"]}
+  - {name: T-graceful-shutdown, type: bgp_route, node: "{node}", prefix: "{legit}", communities: [graceful-shutdown]}
+  - {name: T-as-path, type: bgp_route, node: "{node}", prefix: "{legit}", as_path: "65099"}
+  - {name: T-bgp-route-sub, type: bgp_route, node: "{node}", prefix: "{legit_sub}"}
+  - {name: T-count, type: bgp_prefixes, node: "{node}", neighbor: "{neighbor}", max: 0}
+  - {name: T-session-unknown, type: bgp_session, node: "{node}", neighbor: 10.9.9.9}
+
+# Angle 1. claimed: the release names this driver as supported (docs, README); a claimed driver that isn't
+# covered live fails the layer. `examples`: run as is (first documented outcome), then each file of `leaks/`
+# copied over configs/ (second documented outcome); the expected results come from the docs' examples table.
+drivers:
+  frr:
+    claimed: true
+    examples: [frr-bgp, frr-bgp-broken, frr-customer-leak, leak-pattern, batfish-pipeline, agent-demo]
+    # In-repo port of the stranger's fail-bogon: frr-customer-leak's edge.conf (good) and edge-bad.conf (the
+    # filter's match deleted). The baseline is recorded on the good config.
+    mustfail: {example: frr-customer-leak, good_bind: ["- edge-bad.conf:/etc/frr/frr.conf", "- configs/edge.conf:/etc/frr/frr.conf"],
+               node: edge, neighbor: 10.0.1.2, legit: 10.10.0.0/24}
+  srlinux:
+    claimed: true
+    examples: [srl-frr, srl-hidden-leak]
+    mustfail:
+      example: srl-frr
+      node: srl1
+      neighbor: 10.0.100.2
+      file: configs/srl1.cli
+      filter:
+        - ["set / routing-policy policy accept-all default-action policy-result accept\n", "set / routing-policy policy accept-all default-action policy-result accept\nset / routing-policy prefix-set cust prefix 192.168.20.0/24 mask-length-range exact\nset / routing-policy policy cust-in default-action policy-result reject\nset / routing-policy policy cust-in statement 10 match prefix prefix-set cust\nset / routing-policy policy cust-in statement 10 action policy-result accept\n"]
+        - ["group ebgp import-policy [ accept-all ]", "group ebgp import-policy [ cust-in ]"]
+      drop_match:
+        - ["set / routing-policy policy cust-in statement 10 match prefix prefix-set cust\n", ""]
+  sonic:
+    claimed: true
+    examples: [sonic-frr]
+    mustfail:
+      example: sonic-frr
+      node: sonic1
+      neighbor: 10.0.40.2
+      # docker-sonic-vs is configured after boot: the filter is in the last setup command of netdryrun.yml
+      setup_last: >-
+        vtysh -c "conf t" -c "ip prefix-list CUST-IN seq 10 permit 192.168.20.0/24" -c "route-map CUST-IN permit 10"
+        -c "match ip address prefix-list CUST-IN" -c "exit" -c "router bgp 65040" -c "bgp router-id 40.40.40.40"
+        -c "no bgp ebgp-requires-policy" -c "neighbor 10.0.40.2 remote-as 65020" -c "address-family ipv4 unicast"
+        -c "network 192.168.40.1/32" -c "neighbor 10.0.40.2 route-map CUST-IN in"
+      drop_match_setup: ['-c "match ip address prefix-list CUST-IN" ', '']
+  eos:
+    claimed: true
+    examples: [arista-frr]
+    mustfail:
+      example: arista-frr
+      node: ceos1
+      neighbor: 10.0.200.2
+      file: configs/ceos1.cfg
+      filter:
+        - ["router bgp 65030\n", "ip prefix-list CUST-IN seq 10 permit 192.168.20.0/24\n!\nroute-map CUST-IN permit 10\n   match ip address prefix-list CUST-IN\n!\nrouter bgp 65030\n"]
+        - ["   neighbor 10.0.200.2 remote-as 65020\n", "   neighbor 10.0.200.2 remote-as 65020\n   neighbor 10.0.200.2 route-map CUST-IN in\n"]
+      drop_match:
+        - ["   match ip address prefix-list CUST-IN\n", ""]
+  junos:
+    claimed: true   # beta
+    examples: [junos-frr]
+    mustfail:
+      example: junos-frr
+      node: j1
+      neighbor: 10.0.100.2
+      file: configs/j1.cfg
+      filter:
+        - ["    policy-statement ACCEPT-ALL {", "    policy-statement CUST-IN {\n        term cust {\n            from {\n                route-filter 192.168.20.0/24 exact;\n            }\n            then accept;\n        }\n        term rest {\n            then reject;\n        }\n    }\n    policy-statement ACCEPT-ALL {"]
+        - ["            peer-as 65020;\n            import ACCEPT-ALL;\n            export EXPORT-OWN;\n", "            peer-as 65020;\n            import CUST-IN;\n            export EXPORT-OWN;\n"]
+      drop_match:
+        - ["            from {\n                route-filter 192.168.20.0/24 exact;\n            }\n", ""]
+  nxos:
+    claimed: true   # beta
+    examples: [nxos-frr]
+    mustfail:
+      example: nxos-frr
+      node: n1
+      neighbor: 10.0.100.2
+      file: configs/n1.cfg
+      filter:
+        - ["route-map ACCEPT-ALL permit 10\n", "route-map ACCEPT-ALL permit 10\nip prefix-list CUST-IN seq 10 permit 192.168.20.0/24\nroute-map CUST-IN permit 10\n  match ip address prefix-list CUST-IN\n"]
+        - ["      route-map ACCEPT-ALL in\n", "      route-map CUST-IN in\n"]
+      drop_match:
+        - ["  match ip address prefix-list CUST-IN\n", ""]
+  routeros:
+    claimed: true   # beta
+    examples: [mikrotik]
+    mustfail:
+      example: mikrotik
+      node: r1
+      neighbor: 10.0.100.2
+      file: configs/r1.rsc
+      filter:
+        - ["/routing filter rule add chain=ACCEPT-ALL rule=\"accept\"\n", "/routing filter rule add chain=ACCEPT-ALL rule=\"accept\"\n/routing filter rule add chain=CUST-IN rule=\"if (dst == 192.168.20.0/24) { accept }\"\n/routing filter rule add chain=CUST-IN rule=\"reject\"\n"]
+        - ["input.filter=ACCEPT-ALL", "input.filter=CUST-IN"]
+      drop_match:
+        - ["chain=CUST-IN rule=\"if (dst == 192.168.20.0/24) { accept }\"", "chain=CUST-IN rule=\"accept\""]
+
+# Angle 1: one lab of three or more NOSes. The 30-node lab of angle 3 is it (FRR, SR Linux, Arista cEOS, SONiC).
+
+# Angle 2: the end-user paths, word for word in a fresh container, with only the package source substituted,
+# and the common mistakes (each: a clear message, exit 2, no lab left behind).
+enduser:
+  image: ubuntu:24.04
+  docs:
+    - {doc: README.md, heading: "On your own machine"}
+    - {doc: README.md, heading: "On your own containerlab topology (3 commands)", lab: own-topology}
+  mistakes:
+    - {id: missing-image, example: frr-bgp, edit: ["image: quay.io/frrouting/frr:10.4.1", "image: quay.io/frrouting/frr:0.0.0-does-not-exist"], file: topology.clab.yml}
+    - {id: typo-in-netdryrun-yml, example: frr-bgp, edit: ["checks:", "chekcs:"], file: netdryrun.yml}
+    - {id: wrong-path, path: /nonexistent/lab}
+    - {id: no-docker-permission, example: frr-bgp, as_user: nobody}
+    - {id: no-kvm, example: nxos-frr, hide_kvm: true}
+
+# Angle 3
+integrator:
+  big30: {spines: 2, leaves: 28, srlinux: [1, 2, 3], eos: [4, 5], sonic: [6]}
+  brownfield: {customer_prefixes: 1200, bogons: 600}
+  concurrency: [different-labs, same-lab]
+  schema: true
+  templates: true
+
+# Angle 4: the MCP server on a fresh copy of the agent demo; attempt 1 (the leaky change) must be rejected.
+mcp:
+  example: agent-demo
+  leaky: changes/attempt-1-open-filters.diff
+  fix: changes/attempt-2-prefix-lists.diff

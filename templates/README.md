@@ -76,8 +76,11 @@ report:
 | `verdict-report` | `netdryrun-verdict.json` | Path for the agent result: status, verdict, failures and the sha256 of every file tested, in the shape the MCP tools return ([schema](https://netdryrun.com/schemas/mcp-result-v1.json)). Kept with the reports (0.3.3) |
 | `mr-comment` | `false` | On merge request pipelines, post and keep updating one note with the verdict (see below) |
 | `mr-comment-token-variable` | `NETDRYRUN_GITLAB_TOKEN` | Name of the masked CI/CD variable holding the token for the note |
-| `settle` | `10` | Seconds to wait before post-convergence checks |
+| `settle` | | Seconds to wait before post-convergence checks (empty: Netdryrun's default, 10) |
 | `hold` | `10` | Seconds a post-convergence check must hold |
+| `allow-check-edit` | `false` | On merge request pipelines: let a merge request that changes `netdryrun.yml` and the lab's configs together run (with a warning). Without it such a merge request fails before anything is installed: it would grade its own change. Set it only where approval rules require a code owner's review of `netdryrun.yml` |
+
+The job exits `0` only with a report of this run that passed and agrees with its own checks; anything else (no report, a report that contradicts the exit code or itself) ends with exit `2`. A merge request that changes `.gitlab-ci.yml` together with other files is refused too: the pipeline sets `path` and `allow-check-edit`, so it would choose which checks grade it (0.4.1; the GitHub Action already refused both).
 | `artifacts-expire-in` | `14 days` | How long GitLab keeps the reports |
 
 The GitHub Action's `pr-comment` and `cloud` inputs have no GitLab counterpart yet: the component doesn't comment on merge requests and doesn't upload to Netdryrun Cloud.
