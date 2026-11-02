@@ -1,0 +1,7 @@
+id: RT-0035
+title: "verify_change: an intent line with `with: {from: <customer>}` explained every new path for the prefix, including a non-best path from an undeclared transit peer with a hijacker's origin AS, so a change that also opened the peer's filter got INTENT MATCHED"
+found: "2026-11-02, Layer 5b acceptance, adversary B (0.4.1 candidate b61c325)"
+fixed_in: open
+kind: pinned
+tests:
+  - tests/test_acceptance_041.py::test_with_from_pin_does_not_explain_a_path_from_an_undeclared_peer
