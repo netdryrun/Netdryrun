@@ -1,10 +1,21 @@
 """False passes found by the 0.4.1 release gate's Layer 5b acceptance run (adversary angle), kept failing until fixed.
 Each test reproduces one on fake state, with no lab; the red-team corpus lists them (tests/redteam)."""
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+import yaml
+
 from netdryrun.verify.engine import match
 from netdryrun.verify.intent import parse_intent_text
 from netdryrun.verify.snapshot import (AsPath, BgpAttrs, BgpPath, ItemKey, NextHop, NodeSnapshot, PathNextHop,
                                        RibEntry, Session, Snapshot)
+from test_action_verify import git, merged, python_of
 
+ROOT = Path(__file__).parents[1]
+FENCE = "`" * 3
 P = "10.101.0.0/24"
 
 
@@ -51,3 +62,60 @@ intent:
     m = match(before, after, intent)
     assert m.status != "matched", "a path from an undeclared peer was explained by a pinned line"
     assert any(d.key.neighbor == "10.0.9.2" for d in m.undeclared)
+
+
+# --- angle 3 (system integrator): documented CI templates -------------------------------------------------------
+
+
+
+def test_every_yaml_block_in_the_docs_parses():
+    """T-B2. A user copies these into a workflow or a config file: each one must at least be YAML. 0.4.1 b61c325's
+    "Use the outputs in a later step" (github-action.md) has an unquoted `run: echo "... $NDR_STATUS: ..."`,
+    which GitHub refuses to load."""
+    block = re.compile(FENCE + r"ya?ml[^\n]*\n(.*?)" + FENCE, re.DOTALL)
+    bad = []
+    for md in [ROOT / "README.md", *sorted((ROOT / "website" / "docs").rglob("*.md"))]:
+        text = md.read_text(encoding="utf-8")
+        for m in block.finditer(text):
+            body = re.sub(r"^ {0,4}(?=\S)", "", m.group(1), flags=re.MULTILINE) if m.group(1).startswith("    ") else m.group(1)
+            try:
+                yaml.safe_load(body)
+            except yaml.YAMLError as e:
+                line = text[:m.start()].count("\n") + 1
+                bad.append(f"{md.relative_to(ROOT)}:{line}: {str(e).splitlines()[0]}")
+    assert not bad, "\n".join(bad)
+
+
+def test_the_check_step_works_after_a_shallow_checkout(tmp_path):
+    """T-B1. actions/checkout fetches only github.sha (the merge commit) at depth 1, which every documented workflow
+    uses. The merge commit is then present but has no parents in the clone, so "Check the checks file" refused
+    every pull request ("github.sha is not this pull request's merge commit"): the product's own CI on pull
+    requests has failed this way since 31 Oct (v0.4.0 has the same step). A PR that changes only a config must
+    pass this step with the default checkout."""
+    origin = tmp_path / "origin"
+    (origin / "lab" / "configs").mkdir(parents=True)
+    git(origin, "init", "-q")
+    (origin / "lab" / "netdryrun.yml").write_text("lab: topology.clab.yml\nchecks: []\n")
+    (origin / "lab" / "topology.clab.yml").write_text("name: t\n")
+    (origin / "lab" / "configs" / "r1.conf").write_text("! r1\n")
+    git(origin, "add", ".")
+    git(origin, "commit", "-q", "-m", "base")
+    base = git(origin, "rev-parse", "HEAD").strip()
+    (origin / "lab" / "configs" / "r1.conf").write_text("! r1 changed\n")
+    git(origin, "commit", "-q", "-am", "change")
+    head = git(origin, "rev-parse", "HEAD").strip()
+    merge = merged(origin, base, head)
+    git(origin, "update-ref", "refs/pull/1/merge", merge)
+    # what actions/checkout does on pull_request with its default fetch-depth: 1
+    work = tmp_path / "work"
+    work.mkdir()
+    git(work, "init", "-q")
+    git(work, "remote", "add", "origin", origin.as_uri())
+    git(work, "fetch", "-q", "--no-tags", "--depth=1", "origin", "+refs/pull/1/merge:refs/remotes/pull/1/merge")
+    git(work, "checkout", "-q", "--detach", merge)
+    out = work / "gh-output.txt"
+    env = {**os.environ, "NDR_PATH": "lab", "NDR_BASE": base, "NDR_HEAD": head, "NDR_MERGE": merge,
+           "NDR_ALLOW_CHECK_EDIT": "false", "GITHUB_OUTPUT": str(out)}
+    p = subprocess.run([sys.executable, "-c", python_of("Check the checks file")], cwd=work, env=env,
+                       capture_output=True, text=True)
+    assert p.returncode == 0, p.stdout + p.stderr
