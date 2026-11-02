@@ -2234,6 +2234,12 @@ ERROR: lab containers not running: clab-my-lab-r1, clab-my-lab-r2, clab-my-lab-r
 
 Before you run, check what is up with `docker ps` or `containerlab inspect --all`.
 
+## Two labs deployed at the same time
+
+One containerlab lab at a time per host is supported. Two labs with different names deployed at once (two Netdryrun runs side by side, or a run while a lab of your own is up) share containerlab's management network, and the second deploy can fail on it. Netdryrun then stops with exit code `2` and shows containerlab's error; nothing is tested. The verdict of a run that did deploy is not affected.
+
+Fix: run labs one after another (on CI, one lab job per runner at a time), or use separate hosts. Check what is up first with `containerlab inspect --all`.
+
 ## A host port is already in use
 
 If a topology publishes ports on the host (`ports:` on a node), two containers cannot use the same host port, whether they are in two labs or in one. Here r1 and r2 of the same lab both publish `18179:179`:
@@ -3569,7 +3575,7 @@ A scenario's positive checks ("the route is still there", "ping still works") ar
 4. Positive checks must pass on 2 consecutive samples **and** keep passing for the hold window (`--hold`; a positive check can't set its own `hold`): a redundancy claim is about the whole failure, not one instant. A check that passes at first and then fails within the window fails.
 5. Post-convergence checks then wait for the same [BGP gate](#convergence-semantics) as at the top level: every BGP session on their node up, with unchanged prefix counts on 2 consecutive samples, capped at their `timeout`. Sessions over the downed links don't count (the fault took them down), nor do sessions a `bgp_session` check in the scenario or at the top level expects in another state. If another session on the node stays down, the checks fail as **not evaluated**; a session the fault takes down indirectly (for example iBGP between loopbacks whose only path was the downed link) needs a `bgp_session` check with `state: down` in the scenario. Then the checks must hold, as everywhere else. 0.3.1 and later.
 
-When the state was read and no BGP session runs over the downed links (static routing, a link without BGP, iBGP between loopbacks over an IGP), step 2 has nothing to observe; steps 3 to 5 still apply, so give such scenarios a `--settle` that covers the failure detection time. `inject_routes` faults have no step 2: Netdryrun instead waits until the injected prefixes are in the node's own BGP table. That alone doesn't show they reached the node under test; the BGP gate in step 5 does, for post-convergence checks: their node's prefix counts must stop changing first. The limit: a peer with a long advertisement interval (for example eBGP with a 30-second `advertisement-interval`) can hold the routes back for longer than 2 samples 3 seconds apart, so they can still arrive after the gate. Raise `--settle` above the advertisement interval for such labs.
+When the state was read and no BGP session runs over the downed links (static routing, a link without BGP, iBGP between loopbacks over an IGP), step 2 has nothing to observe; steps 3 to 5 still apply, so give such scenarios a `--settle` that covers the failure detection time. `inject_routes` faults have no step 2: Netdryrun instead waits until the injected prefixes are in the node's own BGP table. That doesn't show they reached the node under test, and neither does the BGP gate in step 5: it waits until the prefix counts on a post-convergence check's node stop changing, and counts that never changed are stable at once. If the routes never leave the injecting node (an outbound filter there, a session that doesn't carry their family), a `max:` or `present: false` check in the scenario passes without having been tested. Pair such a scenario with a positive check that the injected routes reach a node they should reach (for example `bgp_prefixes min:` on the injecting node's neighbor). A peer with a long advertisement interval (for example eBGP with a 30-second `advertisement-interval`) can also hold the routes back for longer than 2 samples 3 seconds apart, so they can still arrive after the gate: raise `--settle` above the advertisement interval for such labs.
 
 ### Injecting routes
 
@@ -3727,6 +3733,8 @@ netdryrun --version
 ### run
 
 Deploys the containerlab topology (`containerlab deploy --reconfigure`), runs every check, writes reports, and destroys the lab (`containerlab destroy --cleanup`). The lab is destroyed even when checks fail, unless you ask to keep it.
+
+**One containerlab lab at a time per host is supported.** Two labs deployed at once, even with different names (two runs side by side, or a run beside a lab of your own), can collide on containerlab's shared management network: the second deploy fails with containerlab's error, and Netdryrun stops with exit code `2` and that error. Run labs one after another, or on separate hosts.
 
 `run` refuses to start (exit code `2`) when a lab with the same name is already running: another Netdryrun run of the same lab, a lab deployed by hand, or one kept with `--keep`. Redeploying it would reconfigure the other lab's containers, and destroying it afterwards would pull them out from under whoever is using it. The error names a container and the command to remove the lab: `containerlab destroy -t <topology> --cleanup`. Two runs of the same lab started at the same moment on one host are also refused, by a lock (`another Netdryrun run is already using lab '<name>' on this host`). `check` doesn't deploy, so it runs against the existing lab.
 
@@ -4032,7 +4040,7 @@ intent:
     with: {from: 10.0.2.1, next_hop: 10.0.2.1, as_path: "65000 65101", protocol: bgp}
 ```
 
-`with:` accepts `from`, `next_hop`, `as_path`, `origin`, `local_pref`, `med`, `weight`, `communities`, `ext_communities`, `large_communities`, `cluster_list`, `originator_id`, `protocol`, `distance` and `metric`. Each value must equal exactly; communities are the exact set.
+`with:` accepts `from`, `next_hop`, `as_path`, `origin`, `local_pref`, `med`, `weight`, `communities`, `ext_communities`, `large_communities`, `cluster_list`, `originator_id`, `protocol`, `distance` and `metric`. Each value must equal exactly; communities are the exact set. **With BGP attributes in `with:`, the line explains only the paths (and received routes) that match them.** In the example, a new path for 10.101.0.0/24 on up1 from any neighbor but 10.0.2.1, or with another AS path, is an undeclared difference, best path or not: from 0.4.1 a second path from a peer the line doesn't name fails the verdict (0.4.0 explained every new path for the prefix once the best one matched).
 
 It explains every new item for that prefix on the listed nodes, and every advertisement of the prefix *to* a listed node. An advertisement to any other neighbor, inside or outside the lab, needs its own line (see [advertisement](#advertisement)). Best-path changes on routes that already existed always need their own line.
 
@@ -4116,7 +4124,7 @@ intent:
 
 Each FRR node's running config is in the snapshot (see below), so a config change whose effect the lab can't show (a description, a policy for routes the lab doesn't carry, `maximum-prefix`, a timer) is still a difference: with nothing else declared on that node, it fails with "this change has no observable effect in the lab; test it with checks". `config_change_on` declares it for the listed nodes, when you accept that it is not tested. It explains only those nodes' config changes, and it didn't happen if a listed node's config is unchanged.
 
-A config change on a node that a declared line names (and that happened) needs no `config_change_on`; a node a line doesn't name, such as one that only advertises the declared route, does. **Every approval lists each changed config line** (with the section headers above it, `router bgp 65000 > address-family ipv4 unicast > neighbor 10.0.2.2 maximum-prefix 5`) under "not tested if the lab doesn't exercise them": in the report (`untested_config`), the console, the PR comment and its header (`untested_config_lines`), and the MCP result. Read that list: a line there changed nothing this lab could observe.
+A config change on a node that a declared line names (and that happened) needs no `config_change_on`; a node a line doesn't name, such as one that only advertises the declared route, does. **Every approval lists each changed config line** (with the section headers above it, `router bgp 65000 > address-family ipv4 unicast > neighbor 10.0.2.2 maximum-prefix 5`) under "not tested if the lab doesn't exercise them": in the report (`untested_config`), the console, the PR comment and its header (`untested_config_lines`), and the MCP result. Verify doesn't link a config line to the behaviour it causes: the list holds every changed line on that node, approved because a declared line there happened, whether or not the lab exercised it. Read that list: a line there may have changed nothing this lab could observe, and nothing in the verdict tested it on its own.
 
 ## What is compared: the snapshot
 

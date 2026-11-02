@@ -28,6 +28,8 @@ netdryrun --version
 
 Deploys the containerlab topology (`containerlab deploy --reconfigure`), runs every check, writes reports, and destroys the lab (`containerlab destroy --cleanup`). The lab is destroyed even when checks fail, unless you ask to keep it.
 
+**One containerlab lab at a time per host is supported.** Two labs deployed at once, even with different names (two runs side by side, or a run beside a lab of your own), can collide on containerlab's shared management network: the second deploy fails with containerlab's error, and Netdryrun stops with exit code `2` and that error. Run labs one after another, or on separate hosts.
+
 `run` refuses to start (exit code `2`) when a lab with the same name is already running: another Netdryrun run of the same lab, a lab deployed by hand, or one kept with `--keep`. Redeploying it would reconfigure the other lab's containers, and destroying it afterwards would pull them out from under whoever is using it. The error names a container and the command to remove the lab: `containerlab destroy -t <topology> --cleanup`. Two runs of the same lab started at the same moment on one host are also refused, by a lock (`another Netdryrun run is already using lab '<name>' on this host`). `check` doesn't deploy, so it runs against the existing lab.
 
 ### check

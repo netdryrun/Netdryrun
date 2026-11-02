@@ -65,6 +65,13 @@
   tests:
     - tests/test_acceptance_041.py
     - tests/test_verify_pins_041.py
+- id: ipv6-neighbor-default-afi
+  what: bgp_prefixes on an IPv6 neighbor without afi read the default ipv4-unicast, a family the session doesn't
+    carry, so the count read 0 and a max bound passed while the neighbor sent 500 IPv6 prefixes (acceptance round B-2)
+  record: CHANGELOG.md (0.4.1); tests/redteam/RT-0036
+  tests:
+    - tests/test_afi_default.py
+    - tests/test_redteam.py
 - id: redteam-20261101
   what: FRR route that failed to install counted as present; FRR well-known community names never matched; SR Linux
     bgp-evpn folded into bgp; protocol names a driver never reports accepted; EOS ospf6 never matched; SR Linux's own

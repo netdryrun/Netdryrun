@@ -279,6 +279,12 @@ ERROR: lab containers not running: clab-my-lab-r1, clab-my-lab-r2, clab-my-lab-r
 
 Before you run, check what is up with `docker ps` or `containerlab inspect --all`.
 
+## Two labs deployed at the same time
+
+One containerlab lab at a time per host is supported. Two labs with different names deployed at once (two Netdryrun runs side by side, or a run while a lab of your own is up) share containerlab's management network, and the second deploy can fail on it. Netdryrun then stops with exit code `2` and shows containerlab's error; nothing is tested. The verdict of a run that did deploy is not affected.
+
+Fix: run labs one after another (on CI, one lab job per runner at a time), or use separate hosts. Check what is up first with `containerlab inspect --all`.
+
 ## A host port is already in use
 
 If a topology publishes ports on the host (`ports:` on a node), two containers cannot use the same host port, whether they are in two labs or in one. Here r1 and r2 of the same lab both publish `18179:179`:

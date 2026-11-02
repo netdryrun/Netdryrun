@@ -297,6 +297,18 @@ def _explicit_prefixes(where: str, raw: Any) -> None:
             continue
 
 
+def _afi_default_fits(where: str, ctype: str, raw: Any, params: dict) -> None:
+    """A bgp_prefixes check on an IPv6 neighbor names its afi: the default, ipv4-unicast, is usually a family that
+    session doesn't carry, so `max: 3` read the IPv4 count (0) and passed while the neighbor sent 500 IPv6 prefixes
+    (acceptance round B-2). IPv4 over an IPv6 session is real (RFC 8950), so it is allowed when written."""
+    if ctype != "bgp_prefixes" or "afi" in raw:
+        return
+    if ipaddress.ip_address(params["neighbor"].split("%")[0]).version == 6:
+        raise ConfigError(f"{where}: neighbor {params['neighbor']} is an IPv6 address, but afi defaults to "
+                          "ipv4-unicast: set afi: ipv6-unicast (or afi: ipv4-unicast if this session carries IPv4 "
+                          "routes)")
+
+
 def _check_where(prefix: str, i: int, raw: Any) -> str:
     where = f"{prefix}[{i}]"
     if isinstance(raw, dict) and isinstance(raw.get("name"), str) and raw["name"].strip():
@@ -440,6 +452,7 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
     # last, so every earlier rule (and its mutation-test numbering) stays as it was: a prefix without a length
     # was canonicalised above as a host route, which is exactly what must never be accepted (B-1)
     _explicit_prefixes(where, raw)
+    _afi_default_fits(where, ctype, raw, params)
     return check
 
 

@@ -142,7 +142,10 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
                             "global addresses")
             continue
         if n.state != "established":
-            warnings.append(f"{where}: BGP neighbor {addr} is {n.state}; not recorded (fix it or add a check by hand)")
+            # a session that is down today has nothing to record, so the baseline is partial: said first in the file
+            # and on stderr, like every other gap (acceptance round B-4: it was a warning among the others)
+            warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} is {n.state}; not recorded, so a change "
+                            "to that session goes unnoticed: bring it up and record again, or add a check by hand")
             continue
         checks.append({"type": "bgp_session", "node": name, "neighbor": addr, **at})
         for afi, count in sorted(n.prefixes.items()):

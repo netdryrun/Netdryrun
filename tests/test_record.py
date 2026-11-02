@@ -258,3 +258,17 @@ def test_a_prefix_count_known_only_as_a_range_is_not_recorded():
     checks = _session_checks("j1", {"10.0.100.2": n}, "exact", warnings)
     assert [c["type"] for c in checks] == ["bgp_session"]
     assert any("INCOMPLETE BASELINE" in w and "1 to 3" in w for w in warnings)
+
+
+def test_a_down_session_makes_the_baseline_incomplete():
+    """B-4 (acceptance round, 2026-11-02): a session down at record time has nothing to record, so the file says
+    INCOMPLETE BASELINE first, not one warning among the others."""
+    warnings: list[str] = []
+    checks = rec._session_checks("r1", {"10.0.0.9": BgpNeighbor("10.0.0.9", "active"),
+                                        "10.0.0.2": BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 0})},
+                                 "range", warnings)
+    assert [c["neighbor"] for c in checks if c["type"] == "bgp_session"] == ["10.0.0.2"]
+    assert warnings == ["INCOMPLETE BASELINE: r1: BGP neighbor 10.0.0.9 is active; not recorded, so a change to that "
+                        "session goes unnoticed: bring it up and record again, or add a check by hand"]
+    text = rec.render({"lab": "t.clab.yml", "checks": checks}, warnings)
+    assert text.startswith("# INCOMPLETE BASELINE: r1: BGP neighbor 10.0.0.9 is active")
