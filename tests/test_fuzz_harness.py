@@ -85,5 +85,8 @@ FINDINGS = FUZZ / "findings"
 
 def test_finding_junos_bgp_paths_entry_dropped(fuzzers):
     """Fixed in 0.4.1: rt-entry-count 2 with one Static entry listed is a parse error (the check errors),
-    never "no BGP path"."""
-    fuzzers["fuzz_parsers"].TestOneInput((FINDINGS / "junos-bgp-paths-entry-dropped.bin").read_bytes())
+    never "no BGP path". The input's first byte picks a target by its position, which moves whenever a case is added
+    to tests/test_driver_fuzz.py, so the finding is replayed on the target it was found on, by name."""
+    fp = fuzzers["fuzz_parsers"]
+    data = (FINDINGS / "junos-bgp-paths-entry-dropped.bin").read_bytes()
+    fp.TestOneInput(bytes([[name for name, _ in fp.TARGETS].index("junos.parse_bgp_paths[leak]")]) + data[1:])

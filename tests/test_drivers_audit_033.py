@@ -219,13 +219,21 @@ def _as(fixture: str, other: str) -> str:
 
 @pytest.mark.parametrize("other", _OTHERS)
 def test_only_the_exact_prefix_counts_on_every_driver(other):
+    """Never a pass on another prefix. Where the command answers with the longest match (EOS `show ip route`, probed on
+    cEOS 4.36.3M 2026-11-02), a covering route is skipped; where it answers for exactly the prefix asked (FRR zebra
+    and bgpd, EOS `show ip bgp`, SR Linux keys: probed the same day), another prefix is unexpected output."""
     frr_table = json.dumps({other: [dict(json.loads(read("frr_route.txt"))["192.168.3.0/24"][0], prefix=other)]})
-    assert frr.parse_routes(frr_table, _WANT, _as("frr_bgp_paths.txt", other)) == []
-    assert frr.parse_bgp_paths(_as("frr_bgp_paths.txt", other), _WANT) == []
-    assert eos.parse_routes(_as("eos_route.txt", other), _as("eos_bgp_route.txt", other), _WANT) == []
-    assert eos.parse_bgp_paths(_as("eos_bgp_paths.txt", other), _WANT) == []
-    assert srlinux.parse_routes(_as("srl_route.txt", other), _WANT, _as("srl_bgp_rib_paths.txt", other)) == []
-    assert srlinux.parse_rib_paths(_as("srl_bgp_rib_paths.txt", other), _WANT) == []
+    for read_other in (lambda: frr.parse_routes(frr_table, _WANT),
+                       lambda: frr.parse_routes("{}", _WANT, _as("frr_bgp_paths.txt", other)),
+                       lambda: frr.parse_bgp_paths(_as("frr_bgp_paths.txt", other), _WANT),
+                       lambda: eos.parse_routes(read("eos_route.txt"), _as("eos_bgp_route.txt", other), _WANT),
+                       lambda: eos.parse_bgp_paths(_as("eos_bgp_paths.txt", other), _WANT),
+                       lambda: srlinux.parse_routes(_as("srl_route.txt", other), _WANT),
+                       lambda: srlinux.parse_routes("{}", _WANT, _as("srl_bgp_rib_paths.txt", other)),
+                       lambda: srlinux.parse_rib_paths(_as("srl_bgp_rib_paths.txt", other), _WANT)):
+        with pytest.raises(DriverError, match=f"for {other} in the answer for {_WANT}"):
+            read_other()
+    assert eos.parse_routes(_as("eos_route.txt", other), read("eos_bgp_paths_empty.txt"), _WANT) == []
     # the same captures with the exact prefix do answer (so the rewrite, not the capture, makes them empty)
     assert eos.parse_routes(read("eos_route.txt"), read("eos_bgp_route.txt"), _WANT)
     assert srlinux.parse_routes(read("srl_route.txt"), _WANT, read("srl_bgp_rib_paths.txt"))
@@ -242,7 +250,7 @@ def test_a_route_check_fails_when_only_a_covering_route_exists():
 
         def routes(self, prefix, vrf="default"):
             return Observation(eos.parse_routes(_as("eos_route.txt", "0.0.0.0/0"),
-                                                _as("eos_bgp_route.txt", "0.0.0.0/0"), prefix), [])
+                                                read("eos_bgp_paths_empty.txt"), prefix), [])
 
     ok, detail, _ = _evaluate(Check("route", {"node": "r1", "prefix": _WANT, "protocol": "bgp"}, "c", 30), Drv())
     assert not ok and "not active" in detail

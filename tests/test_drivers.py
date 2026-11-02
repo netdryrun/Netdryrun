@@ -23,7 +23,10 @@ def test_frr_bgp_neighbors():
 def test_frr_routes():
     routes = frr.parse_routes(read("frr_route.txt"), "192.168.3.0/24")
     assert any(r.protocol == "bgp" and r.active for r in routes)
-    assert frr.parse_routes(read("frr_route.txt"), "10.99.0.0/16") == []
+    assert frr.parse_routes("{}", "10.99.0.0/16") == []
+    # zebra answers for exactly the prefix asked: an answer for another one is unexpected, never "absent"
+    with pytest.raises(DriverError, match="a route for 192.168.3.0/24 in the answer for 10.99.0.0/16"):
+        frr.parse_routes(read("frr_route.txt"), "10.99.0.0/16")
 
 
 def test_ping_busybox_and_iputils():
@@ -188,7 +191,9 @@ def test_eos_bgp_paths():
     local = eos.parse_bgp_paths(read("eos_bgp_paths_local.txt"), "192.168.30.1/32")
     assert local[0].best and local[0].as_path == "" and local[0].next_hop is None and local[0].local_pref is None
     assert eos.parse_bgp_paths(read("eos_bgp_paths_empty.txt"), "10.99.0.0/16") == []
-    assert eos.parse_bgp_paths(read("eos_bgp_paths.txt"), "192.168.20.0/25") == []
+    # `show ip bgp <prefix>` lists exactly that prefix (cEOS 4.36.3M): another one is unexpected, never "no path"
+    with pytest.raises(DriverError, match="an entry for 192.168.20.0/24 in the answer for 192.168.20.0/25"):
+        eos.parse_bgp_paths(read("eos_bgp_paths.txt"), "192.168.20.0/25")
 
 
 def test_srl_bgp_paths():

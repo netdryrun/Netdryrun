@@ -170,10 +170,13 @@ def test_srl_a_valid_route_flag_that_is_not_a_boolean_is_unexpected_output(valid
         EVALUATORS["route"](d, {"node": "s1", "prefix": "192.168.6.0/24", "present": False})
 
 
-def test_srl_an_unknown_reason_on_another_prefix_is_not_read():
+def test_srl_a_route_for_another_prefix_is_unexpected():
+    """The command names the prefix as a key, so a row for another one (even with a reason the driver can't read)
+    is unexpected output, never "absent"."""
     other = json.loads(_srl_rib({"as-loop": True}))
     other["route"][0]["prefix"] = "192.168.7.0/24"
-    assert srlinux.parse_routes("{\n}", "192.168.6.0/24", json.dumps(other)) == []
+    with pytest.raises(DriverError, match="a route for 192.168.7.0/24 in the answer for 192.168.6.0/24"):
+        srlinux.parse_routes("{\n}", "192.168.6.0/24", json.dumps(other))
 
 
 # ---- IOP-7 (run 2): Junos hides import-rejected routes and routes with an unusable next hop alike, so the

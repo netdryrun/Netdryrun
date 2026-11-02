@@ -395,13 +395,20 @@ def test_frr_route_active(entry, active):
     assert frr.parse_routes(route_json("10.1.0.0/16", entry), "10.1.0.0/16") == [Route("10.1.0.0/16", "bgp", active)]
 
 
-def test_frr_routes_ignore_a_covering_prefix_and_keep_every_entry():
-    text = J({"10.0.0.0/8": [{"protocol": "static", "selected": True, "installed": True}],
-              "10.1.0.0/16": [{"protocol": "Connected", "selected": True, "installed": True}, {"protocol": "bgp"}]})
+def test_frr_routes_keep_every_entry_and_refuse_another_prefix():
+    """zebra answers for exactly the prefix asked (FRR 10.4.1: `{}` for a /25 inside an installed /24), so a route
+    for another prefix, covering or not, is unexpected output, never "absent"."""
+    text = J({"10.1.0.0/16": [{"protocol": "Connected", "selected": True, "installed": True}, {"protocol": "bgp"}]})
     assert frr.parse_routes(text, "10.1.0.0/16") == [Route("10.1.0.0/16", "connected", True),
                                                      Route("10.1.0.0/16", "bgp", False)]
-    assert frr.parse_routes(text, "10.2.0.0/16") == []
-    assert frr.parse_routes(J({"10.1.0.0/16": [{"protocol": "bgp", "selected": True}]}), "10.1.0.0/24") == []
+    covering = J({"10.0.0.0/8": [{"protocol": "static", "selected": True, "installed": True}],
+                  "10.1.0.0/16": [{"protocol": "bgp", "selected": True}]})
+    for text, prefix, other in ((covering, "10.1.0.0/16", "10.0.0.0/8"), (covering, "10.2.0.0/16", "10.0.0.0/8"),
+                                (J({"10.1.0.0/16": [{"protocol": "bgp", "selected": True}]}), "10.1.0.0/24", "10.1.0.0/16")):
+        with pytest.raises(DriverError) as e:
+            frr.parse_routes(text, prefix)
+        assert str(e.value) == (f"unexpected output from `show ip route <prefix> json`: a route for {other} in the "
+                                f"answer for {prefix}")
 
 
 @pytest.mark.parametrize("text", [J([]), J({"vrf1": []}), J({"10.0.0.0/8": []}), J({"10.0.0.0/8": {}}),
@@ -463,8 +470,9 @@ def test_frr_received_path_rules():
     for bad in ({}, {"peer": {}}, {"peer": "x"}, {"peer": {"peerId": 3}}):
         with pytest.raises(DriverError):
             frr.parse_routes("{}", "10.1.0.0/16", bgp_text("10.1.0.0/16", bad))
-    # the BGP side answering for a covering prefix: nothing for this one
-    assert frr.parse_routes("{}", "10.1.0.0/16", bgp_text("10.0.0.0/8", _path())) == []
+    # the BGP side answering for another prefix: unexpected (bgpd answers exactly the prefix asked), never "no path"
+    with pytest.raises(DriverError, match="paths for 10.0.0.0/8 in the answer for 10.1.0.0/16"):
+        frr.parse_routes("{}", "10.1.0.0/16", bgp_text("10.0.0.0/8", _path()))
     assert frr.parse_routes("{}", "10.1.0.0/16", None) == []
 
 
@@ -483,7 +491,11 @@ def test_frr_parse_bgp_paths():
     assert paths[1] == BgpPath(False, "", "10.0.0.3", 100, None, [], [], "10.0.0.3")
     assert frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/16", default_local_pref=None)[1].local_pref is None
     assert frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/16", default_local_pref=150)[1].local_pref == 150
-    assert frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/24") == [] and frr.parse_bgp_paths("{}", "10.1.0.0/16") == []
+    assert frr.parse_bgp_paths("{}", "10.1.0.0/16") == []
+    with pytest.raises(DriverError) as e:
+        frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/24")
+    assert str(e.value) == ("unexpected output from `show bgp <afi> unicast <prefix> json`: paths for 10.1.0.0/16 in "
+                            "the answer for 10.1.0.0/24")
     one = bgp_text("10.1.0.0/16", {"bestpath": {"overall": False}, "aspath": None, "nexthops": None, "peer": None})
     assert frr.parse_bgp_paths(one, "10.1.0.0/16") == [BgpPath(False, "", None, 100, None, [], [], None)]
 
@@ -635,10 +647,20 @@ def test_srl_neighbors_unexpected(text):
 
 
 SRL_ROUTE = J({"route": [{"ipv4-prefix": "10.1.0.0/16", "route-type": "BGP", "active": True},
-                         {"ipv4-prefix": "10.1.0.0/16", "route-type": "local", "active": False},
-                         {"ipv4-prefix": "10.0.0.0/8", "route-type": "static", "active": True}]})
+                         {"ipv4-prefix": "10.1.0.0/16", "route-type": "local", "active": False}]})
 SRL_RIB = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "origin-protocol": "bgp", "best-route": True,
                         "attr-id": 7}]})
+
+
+def test_srl_a_route_table_row_for_another_prefix_is_unexpected():
+    """The route-table command names the prefix as a key (SR Linux 26.7.2 answers `{}` for a /25 inside an installed
+    /24): a row for another prefix is unexpected output, never "absent"."""
+    other = J({"route": [{"ipv4-prefix": "10.1.0.0/16", "route-type": "BGP", "active": True},
+                         {"ipv4-prefix": "10.0.0.0/8", "route-type": "static", "active": True}]})
+    with pytest.raises(DriverError) as e:
+        srlinux.parse_routes(other, "10.1.0.0/16")
+    assert str(e.value) == ("unexpected output from `info from state /network-instance <vrf> route-table <afi> route "
+                            "<prefix>`: a route for 10.0.0.0/8 in the answer for 10.1.0.0/16")
 
 
 def test_srl_routes():
@@ -692,11 +714,18 @@ def test_srl_parse_routes_rules():
     ("{}", J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "origin-protocol": "Static"}]}), []),
     ("{}", J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0"}]}), [Route("10.1.0.0/16", "bgp", False)]),
     ("{}", J({"route": [{"prefix": "10.1.0.0/16", "origin-protocol": "BGP"}]}), [Route("10.1.0.0/16", "bgp", False)]),
-    ("{}", J({"route": [{"prefix": "10.0.0.0/8", "origin-protocol": "bgp"}]}), []),
     ("{}", "{}", []),
 ])
 def test_srl_bgp_rib_paths_count_as_present(table, rib, expected):
     assert srlinux.parse_routes(table, "10.1.0.0/16", rib) == expected
+
+
+def test_srl_a_rib_row_for_another_prefix_is_unexpected():
+    """The BGP-RIB command names the prefix as a key: a row for another one is unexpected output, never "absent"."""
+    with pytest.raises(DriverError) as e:
+        srlinux.parse_routes("{}", "10.1.0.0/16", J({"route": [{"prefix": "10.0.0.0/8", "origin-protocol": "bgp"}]}))
+    assert str(e.value) == ("unexpected output from `info from state /network-instance <vrf> bgp-rib ... local-rib "
+                            "route <prefix>`: a route for 10.0.0.0/8 in the answer for 10.1.0.0/16")
 
 
 def test_srl_rib_rows():
@@ -707,9 +736,11 @@ def test_srl_rib_rows():
     with pytest.raises(DriverError):
         srlinux.parse_rib_paths(J({"route": [1]}), "10.1.0.0/16")
     rows = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "a"}, {"prefix": "10.1.0.0/16", "neighbor": "b",
-                                                                     "best-route": True},
-                        {"prefix": "10.0.0.0/8", "neighbor": "c", "best-route": True}]})
+                                                                     "best-route": True}]})
     assert [r["neighbor"] for r in srlinux.parse_rib_paths(rows, "10.1.0.0/16")] == ["b", "a"]
+    other = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "a"}, {"prefix": "10.0.0.0/8", "neighbor": "c"}]})
+    with pytest.raises(DriverError, match="a route for 10.0.0.0/8 in the answer for 10.1.0.0/16"):
+        srlinux.parse_rib_paths(other, "10.1.0.0/16")
     assert srlinux.parse_rib_paths("{}", "10.1.0.0/16") == []
 
 
@@ -1001,9 +1032,16 @@ def test_eos_route_types(rtype, proto):
 
 def test_eos_routes_rules():
     pfx = "10.1.0.0/16"
+    # `show ip route` answers with the longest match, so a covering route there is skipped; `show ip bgp` answers
+    # exactly the prefix asked (cEOS 4.36.3M, probed 2026-11-02), so an entry for another one is unexpected
     static = eos_routes(**{pfx: {"routeType": "static"}, "10.0.0.0/8": {"routeType": "eBGP"}})
-    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}, "10.1.0.0/24": {"bgpRoutePaths": [eos_path()]}})
-    assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True)]   # own path; other prefix ignored
+    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}})
+    assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True)]   # own path; covering route skipped
+    other = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}, "10.1.0.0/24": {"bgpRoutePaths": [eos_path()]}})
+    with pytest.raises(DriverError) as e:
+        eos.parse_routes(static, other, pfx)
+    assert str(e.value) == ("unexpected output from `show ip bgp <prefix> | json`: an entry for 10.1.0.0/24 in the "
+                            "answer for 10.1.0.0/16")
     learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path(""), eos_path()]}})
     assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True), Route(pfx, "bgp", False)]
     installed = eos_routes(**{pfx: {"routeType": "eBGP"}})
@@ -1032,7 +1070,7 @@ def test_eos_bgp_paths():
                  localPreference=200, med=5, routeDetail={"communityList": ["65000:010"],
                                                           "largeCommunityList": ["1:2:3"]}),
         eos_path("", routeType={"active": False}),
-    ]}, "10.0.0.0/8": {"bgpRoutePaths": [eos_path(routeType={"active": True})]}})
+    ]}})
     lab = Lab([("bgp", text)])
     obs = EosDriver(lab, "r1").bgp_paths(pfx)
     assert lab.lines() == ["Cli -p 15 -c show ip bgp 10.1.0.0/16 vrf default | json"] and len(obs.evidence) == 1

@@ -1,0 +1,28 @@
+{
+    "vrfs": {
+        "default": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "192.168.20.0/24": {
+                    "hardwareProgrammed": true,
+                    "routeType": "eBGP",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "preference": 200,
+                    "metric": 0,
+                    "routeAction": "forward",
+                    "directlyConnected": false,
+                    "vias": [
+                        {
+                            "nexthopAddr": "10.0.200.2",
+                            "interface": "Ethernet1"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

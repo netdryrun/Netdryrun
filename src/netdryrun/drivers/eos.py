@@ -156,6 +156,14 @@ def _bgp_entries(command: str, text: str, vrf: str) -> dict:
     return entries
 
 
+def _exact_entry(key: str, want) -> None:
+    """`show ip bgp <prefix>` lists exactly that prefix, nothing without it (cEOS 4.36.3M): an entry for another one
+    is output this parser doesn't know, never "no path". (`show ip route <prefix>` is different: it answers with the
+    longest match, so parse_routes skips a covering route there.)"""
+    if network(BGP_CMD, key) != want:
+        raise unexpected(BGP_CMD, f"an entry for {key} in the answer for {want}")
+
+
 @parser(ROUTE_CMD)
 def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "default") -> list[Route]:
     want = ipaddress.ip_network(prefix)
@@ -171,8 +179,7 @@ def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "defaul
     # `present: false`.
     has_installed_bgp = any(r.protocol == "bgp" for r in out)
     for key, e in _bgp_entries(BGP_CMD, bgp_text, vrf).items():
-        if network(BGP_CMD, key) != want:
-            continue
+        _exact_entry(key, want)
         if not has_installed_bgp and any(_learned(p) for p in e["bgpRoutePaths"]):
             out.append(Route(prefix, "bgp", False))
             break
@@ -212,8 +219,7 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
     want = ipaddress.ip_network(prefix)
     out = []
     for key, e in _bgp_entries(BGP_CMD, text, vrf).items():
-        if network(BGP_CMD, key) != want:
-            continue
+        _exact_entry(key, want)
         for p in e["bgpRoutePaths"]:
             detail = p.get("routeDetail") or {}
             nh = p.get("nextHop") or ""

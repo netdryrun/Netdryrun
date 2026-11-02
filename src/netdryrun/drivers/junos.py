@@ -376,9 +376,17 @@ def _filtered(command: str, e: dict) -> bool:
 
 
 def _matching(command: str, text: str, prefix: str, table: str) -> list[dict]:
+    """The entries of exactly `prefix`. The command asks `exact`, so every route listed is that prefix: a route for
+    another one is output this parser doesn't know, never "that prefix isn't there" (a skipped route made
+    `present: false` pass; fuzz finding 2026-11-02)."""
     want = ipaddress.ip_network(prefix)
-    rts = _tables(command, text, table)
-    return [e for rt in rts if _destination(command, rt) == want for e in _entries(command, rt)]
+    out = []
+    for rt in _tables(command, text, table):
+        dest = _destination(command, rt)
+        if dest != want:
+            raise unexpected(command, f"a route for {dest} in the answer for {want}")
+        out += _entries(command, rt)
+    return out
 
 
 @parser(ROUTE_CMD)
