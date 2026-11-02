@@ -177,8 +177,10 @@ def test_entry_without_active_tag_is_inactive_not_an_error():
     assert routes(answer(rt(e))) == [("bgp", False)]
 
 
-def test_unknown_protocol_keeps_its_junos_name():
-    assert routes(answer(rt(entry(**{"protocol-name": [{"data": "Mystery"}]})))) == [("mystery", True)]
+def test_unknown_protocol_is_an_error():
+    """Its raw name matched no `protocol`, so `present: false` on it passed (Layer 6 on b03cb7a)."""
+    raises(lambda: routes(answer(rt(entry(**{"protocol-name": [{"data": "Mystery"}]})))),
+           RC + "protocol-name 'Mystery' is not one this driver maps to a protocol")
 
 
 def test_entry_errors_name_the_command():

@@ -5666,9 +5666,9 @@
       "class": "safety"
     },
     "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_1": {
-      "reason": "test gap, fails closed (0.4.1 decision): with now = None the second wait raises TypeError, which run() reports as an internal error (exit 2), never a pass; kill test (two waits) is a 0.4.2 follow-up",
+      "reason": "timing only (test gap, 0.4.1 decision): with now = None, last stays None, so the watch looks at the containers on every wait instead of every 15 s; a stopped one is still an error (exit 2); kill test (injected clock) is a 0.4.2 follow-up",
       "diff": "cb231feda27c1ad2",
-      "class": "safety"
+      "class": "timing-only"
     },
     "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_4": {
       "reason": "timing only (test gap, 0.4.1 decision): the containers are looked at on every wait instead of every 15 s; a stopped one is still an error; kill test (injected clock) is a 0.4.2 follow-up",
@@ -5684,16 +5684,6 @@
       "reason": "timing only (test gap, 0.4.1 decision): the containers are looked at on every wait instead of every 15 s; a stopped one is still an error; kill test (injected clock) is a 0.4.2 follow-up",
       "diff": "5a2ac53f5ca356ff",
       "class": "timing-only"
-    },
-    "netdryrun.verify.engine.x__pins_ok__mutmut_53": {
-      "reason": "test gap, fails closed (0.4.1 decision): reading a missing attribute as null lets a received-only route meet a `null` pin it can't show, so the line reads as happened; the route itself stays undeclared (_pinned_items keeps the UNSEEN rule), so the verdict is failed either way; kill test (the line isn't met) is a 0.4.2 follow-up",
-      "diff": "4519623b05fb1636",
-      "class": "safety"
-    },
-    "netdryrun.verify.engine.x__pins_ok__mutmut_55": {
-      "reason": "test gap, fails closed (0.4.1 decision): reading a missing attribute as null lets a received-only route meet a `null` pin it can't show, so the line reads as happened; the route itself stays undeclared (_pinned_items keeps the UNSEEN rule), so the verdict is failed either way; kill test (the line isn't met) is a 0.4.2 follow-up",
-      "diff": "cb0add02c400eb9c",
-      "class": "safety"
     },
     "netdryrun.verify.engine.x__pins_ok__mutmut_74": {
       "reason": "message text only: which keys the one-candidate mismatch message lists; whether a candidate matches is decided above",

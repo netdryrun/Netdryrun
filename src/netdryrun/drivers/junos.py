@@ -35,7 +35,8 @@ VM_SSH = ["ssh", "-q", "-i", "/root/.ssh/sshkey", "-o", "StrictHostKeyChecking=n
 
 # Junos protocol-name -> the shared vocabulary used in netdryrun.yml (FRR's names)
 PROTOCOLS = {"bgp": "bgp", "direct": "connected", "local": "local", "static": "static", "aggregate": "aggregate",
-             "ospf": "ospf", "ospf3": "ospf6", "is-is": "isis", "rip": "rip", "ripng": "ripng"}
+             "ospf": "ospf", "ospf3": "ospf6", "is-is": "isis", "rip": "rip", "ripng": "ripng",
+             "inet6": "local"}   # INET6: ff02::2/128, the all-routers group a router joins (captured inet6.0)
 
 NEIGHBORS_CMD = "show bgp neighbor instance <instance>"
 ROUTE_CMD = "show route <prefix> exact table <table> all extensive"
@@ -357,8 +358,13 @@ def _entries(command: str, rt: dict, counted: bool = True) -> list[dict]:
 
 
 def _protocol(command: str, e: dict) -> str:
-    name = _leaf(command, e, "protocol-name").strip().lower()
-    return PROTOCOLS.get(name, name)
+    """A route type this driver doesn't map is an error: its raw name matched no `protocol`, so `present: false` on it
+    passed (Layer 6 on b03cb7a, the EOS acceptance finding on every driver)."""
+    raw = _leaf(command, e, "protocol-name")
+    name = raw.strip().lower()
+    if name not in PROTOCOLS:
+        raise unexpected(command, f"protocol-name {raw!r} is not one this driver maps to a protocol")
+    return PROTOCOLS[name]
 
 
 def _active(command: str, e: dict) -> bool:

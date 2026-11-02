@@ -18,13 +18,25 @@ from .stale import refuse_if_stale, strict_bool
 PROTOCOLS = {"local": "connected", "host": "local", "ospfv2": "ospf", "ospfv3": "ospf6"}
 
 
-def _protocol(rtype: str) -> str:
+# route types that are their own netdryrun protocol name (the others are mapped by PROTOCOLS, or are bgp*)
+SAME_NAME = frozenset({"static", "aggregate", "isis", "dhcp", "arp-nd", "gribi"})
+
+
+def _protocol(rtype: str, command: str = "info from state /network-instance <vrf> route-table <afi> route *") -> str:
     """bgp-evpn and bgp-vpn keep their names, so `protocol: bgp-evpn` can match (it never did when every bgp*
     type was folded into bgp, red team RT-0023); `protocol: bgp` still matches them (base.protocol_matches), so
-    BGP guards see every BGP-learned route. Other BGP route types (bgp-label, ...) are bgp."""
+    BGP guards see every BGP-learned route. Other BGP route types (bgp-label, ...) are bgp. Any other type this driver
+    doesn't map is an error: its raw name matched no `protocol`, so `present: false` on it passed (Layer 6 on
+    b03cb7a)."""
     if rtype in BGP_SUBTYPES:
         return rtype
-    return "bgp" if rtype.startswith("bgp") else PROTOCOLS.get(rtype, rtype)
+    if rtype.startswith("bgp"):
+        return "bgp"
+    if rtype in SAME_NAME:
+        return rtype
+    if rtype not in PROTOCOLS:
+        raise unexpected(command, f"route-type {rtype!r} is not one this driver maps to a protocol")
+    return PROTOCOLS[rtype]
 
 NEIGHBORS_CMD = "info from state /network-instance <vrf> protocols bgp neighbor *"
 ROUTE_CMD = "info from state /network-instance <vrf> route-table <afi> route <prefix>"
@@ -110,36 +122,38 @@ def _in_fib(command: str, prefix: str, r: dict) -> bool:
 
 # invalid-reason keys a received path can carry: rejected-route is already in rejected-routes; as-loop is not
 LOOP_REASONS = {"as-loop"}
-COUNTED_REASONS = {"as-loop", "rejected-route"}
+REJECTED_REASONS = {"rejected-route"}
 
 
 @parser(RIB_TREE_CMD)
-def parse_as_loop_counts(text: str) -> dict[str, int]:
-    """Per neighbor, the paths in the local RIB that failed AS-loop detection. SR Linux counts them in the
-    neighbor's received-routes and not in rejected-routes (captured live 2026-11-02, examples/srl-frr: received 3,
-    rejected 0, two paths with `invalid-reason: {as-loop: true}`), so they must come off the count. Any other
-    invalid reason is an error: the count would be wrong by a reason this driver can't name."""
+def parse_as_loop_counts(text: str) -> dict[str, tuple[int, int]]:
+    """Per neighbor, (looped, unsure): the paths in the local RIB that failed AS-loop detection, and those whose
+    place in the counters isn't known. SR Linux counts a path flagged exactly `{as-loop: true}` in the neighbor's
+    received-routes and not in rejected-routes (captured live 2026-11-02, examples/srl-frr: received 3, rejected 0,
+    two such paths), so it comes off the count; one flagged exactly `{rejected-route: true}` is in rejected-routes
+    already. Any other set of reasons (both together, next-hop-unresolved, ...) is unsure: it may or may not be in
+    received minus rejected, so the count becomes a range (Layer 6 on b03cb7a: both flags were taken off twice, and
+    an unknown reason raised and broke every BGP read on the node)."""
     data = _json(text, RIB_TREE_CMD)
     if not data:
         return {}
     rib = data.get("local-rib")
     if not isinstance(rib, dict) or not isinstance(rib.get("route"), list):   # a renamed list would read as no loops
         raise unexpected(RIB_TREE_CMD, data)
-    out: dict[str, int] = {}
+    out: dict[str, tuple[int, int]] = {}
     for row in rib["route"]:
         reason = row.get("invalid-reason") if isinstance(row, dict) else None
         if not isinstance(reason, dict) or not reason:
             continue
         flagged = {k for k, v in reason.items() if v is True}
-        if flagged - COUNTED_REASONS:
-            raise unexpected(RIB_TREE_CMD, f"{row.get('prefix')} from {row.get('neighbor')}: invalid-reason {reason} "
-                                           "is not one this driver reads")
-        if flagged & LOOP_REASONS:
-            neighbor = row.get("neighbor")
-            if not isinstance(neighbor, str) or not neighbor:
-                raise unexpected(RIB_TREE_CMD, f"{row.get('prefix')} from {neighbor}: a looped path without a neighbor")
-            key = _canon_addr(neighbor)
-            out[key] = out.get(key, 0) + 1
+        if not flagged or flagged == REJECTED_REASONS:
+            continue
+        neighbor = row.get("neighbor")
+        if not isinstance(neighbor, str) or not neighbor:
+            raise unexpected(RIB_TREE_CMD, f"{row.get('prefix')} from {neighbor}: an invalid path without a neighbor")
+        key = _canon_addr(neighbor)
+        looped, unsure = out.get(key, (0, 0))
+        out[key] = (looped + 1, unsure) if flagged == LOOP_REASONS else (looped, unsure + 1)
     return out
 
 
@@ -207,7 +221,7 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
         if network(ROUTE_CMD, r[key]) != want:   # the command names the prefix as a key: only it can be listed
             raise unexpected(ROUTE_CMD, f"a route for {r[key]} in the answer for {want}")
         rtype = str(r.get("route-type", "")).lower()
-        out.append(Route(prefix, _protocol(rtype), _in_fib(ROUTE_CMD, prefix, r)))
+        out.append(Route(prefix, _protocol(rtype, ROUTE_CMD), _in_fib(ROUTE_CMD, prefix, r)))
     rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error
     if bgp_rib_text is not None and not any(is_bgp(r.protocol) and r.active for r in out):
         if any(_bgp_learned(r) for r in rib):
@@ -310,13 +324,16 @@ class SrlDriver(Driver):
         for afi in sorted({afi for n in neighbors.values() for afi in n.prefixes}):
             loops = parse_as_loop_counts(self._cli(f"info from state /network-instance {vrf} bgp-rib afi-safi {afi} {afi}", ev))
             for key, n in neighbors.items():
-                looped = loops.get(key)
-                if afi not in n.prefixes or not looped:
+                looped, unsure = loops.get(key, (0, 0))
+                if afi not in n.prefixes or not looped + unsure:
                     continue
-                if looped > n.prefixes[afi]:
-                    raise unexpected(NEIGHBORS_CMD, f"{n.address} {afi}: {looped} looped routes but a count of "
-                                                    f"{n.prefixes[afi]} (received minus rejected)")
-                n.prefixes[afi] -= looped
+                if looped + unsure > n.prefixes[afi]:
+                    raise unexpected(NEIGHBORS_CMD, f"{n.address} {afi}: {looped + unsure} invalid routes but a count "
+                                                    f"of {n.prefixes[afi]} (received minus rejected)")
+                top = n.prefixes[afi] - looped
+                n.prefixes[afi] = top - unsure
+                if unsure:   # each unsure path may or may not be counted: judged only where the whole range agrees
+                    n.prefixes_upto[afi] = top
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
@@ -414,5 +431,5 @@ def parse_all_routes(text: str, key: str = "ipv4-prefix") -> list[Route]:
             raise unexpected(cmd, str(r)[:150])
         rtype = str(r.get("route-type", "")).lower()
         net = str(network(cmd, r[key]))
-        out.append(Route(net, _protocol(rtype), _in_fib(cmd, net, r)))
+        out.append(Route(net, _protocol(rtype, cmd), _in_fib(cmd, net, r)))
     return out

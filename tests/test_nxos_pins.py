@@ -116,11 +116,13 @@ def test_route_messages():
     assert message(lambda: nxos.parse_routes(ok({"x": 1}), NO_BGP, "10.0.0.0/8")) == U(cmd, "no TABLE_vrf.ROW_vrf: {'x': 1}")
 
 
-def test_unknown_client_names_keep_their_own_name():
+def test_an_unknown_client_name_is_an_error():
+    """Its raw name matched no `protocol`, so `present: false` on it passed (Layer 6 on b03cb7a)."""
     row = {"ipprefix": "10.0.0.0/8", "TABLE_path": {"ROW_path": [{"clientname": "rpm-12", "ubest": "true"},
                                                                  {"clientname": "ospf-1", "ubest": True}]}}
-    assert nxos.parse_routes(_rib([row]), NO_BGP, "10.0.0.0/8") == [Route("10.0.0.0/8", "rpm", True),
-                                                                      Route("10.0.0.0/8", "ospf", True)]
+    with pytest.raises(DriverError) as e:
+        nxos.parse_routes(_rib([row]), NO_BGP, "10.0.0.0/8")
+    assert str(e.value).endswith("clientname 'rpm-12' is not one this driver maps to a protocol")
 
 
 def _bgp(prefix_rows, rd=True, afi=True) -> str:

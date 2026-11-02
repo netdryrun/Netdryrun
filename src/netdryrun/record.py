@@ -60,7 +60,8 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
         try:
             detect(node)
         except DriverError:
-            warnings.append(f"{name}: no driver for kind={node.kind!r} image={node.image!r}; skipped")
+            warnings.append(f"INCOMPLETE BASELINE: {name}: no driver for kind={node.kind!r} image={node.image!r}; "
+                            "nothing on it is recorded: add checks by hand")
             continue
         drv = for_node(lab, name)
         log(f"recording {name} ({drv.name})")
@@ -91,7 +92,8 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
             warnings.append(f"{where}: could not read BGP state ({e}); skipped")
         return []   # a VRF without a BGP instance: no session or BGP route to record
     except DriverError as e:
-        warnings.append(f"{where}: could not read BGP state ({e}); skipped")
+        warnings.append(f"INCOMPLETE BASELINE: {where}: could not read BGP state ({e}), so no session, prefix count or "
+                        f"BGP route of {where} is recorded: fix the read and record again, or add checks by hand")
         return []
     checks = _session_checks(name, neighbors, prefix_mode, warnings, vrf, drv)
     bgp_now: dict[int, set[str]] = {}   # every BGP route the node has today, received selected or not
@@ -100,7 +102,10 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
             try:
                 every = [r for r in drv.all_routes(vrf=vrf, family=fam).value if is_bgp(r.protocol)]
             except DriverError as e:
-                warnings.append(f"{where}: could not read IPv{fam} routes ({e})")
+                # without include_routes only the guards needed them, and _guards says what that leaves out
+                warnings.append(f"INCOMPLETE BASELINE: {where}: could not read IPv{fam} routes ({e}), so none is "
+                                "recorded as a check: fix the read and record again, or add checks by hand"
+                                if include_routes else f"{where}: could not read IPv{fam} routes ({e})")
                 continue
             bgp_now[fam] = {r.prefix for r in every}
             if not include_routes:
@@ -116,7 +121,9 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
                     try:
                         c = _attribute_check(drv, name, r.prefix, vrf)
                     except DriverError as e:
-                        warnings.append(f"{where}: could not read BGP attributes of {r.prefix} ({e})")
+                        warnings.append(f"INCOMPLETE BASELINE: {where}: could not read BGP attributes of {r.prefix} "
+                                        f"({e}), so they are not recorded: fix the read and record again, or add a "
+                                        "bgp_route check by hand")
                         continue
                     if c:
                         checks.append(c)

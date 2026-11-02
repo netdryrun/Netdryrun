@@ -7,6 +7,8 @@ back with 65010 in the AS path): the neighbor reads received 3, active 1, reject
 looped routes as paths from 10.0.100.2 with `invalid-reason: {as-loop: true}`. The driver now subtracts those. FRR
 drops such routes and Junos doesn't accept them, so the counts agree across drivers.
 """
+import json
+
 import pytest
 
 from netdryrun.drivers import srlinux
@@ -52,7 +54,7 @@ def test_a_route_that_fails_as_loop_detection_is_not_counted():
 
 
 def test_as_loop_counts_per_neighbor():
-    assert srlinux.parse_as_loop_counts(read("srl_bgp_rib_loop.txt")) == {"10.0.100.2": 2}
+    assert srlinux.parse_as_loop_counts(read("srl_bgp_rib_loop.txt")) == {"10.0.100.2": (2, 0)}
     assert srlinux.parse_as_loop_counts("{\n}") == {}
 
 
@@ -60,13 +62,11 @@ RIB = f"unexpected output from `{srlinux.RIB_TREE_CMD}`: "
 
 
 @pytest.mark.parametrize("text,detail", [
-    ('{"local-rib": {"route": [{"prefix": "10.0.0.0/8", "neighbor": "10.0.0.2", "invalid-reason": {"next-hop-unresolved": true}}]}}',
-     "10.0.0.0/8 from 10.0.0.2: invalid-reason {'next-hop-unresolved': True} is not one this driver reads"),
     ('{"local-rib": {"route": [{"prefix": "10.0.0.0/8", "invalid-reason": {"as-loop": true}}]}}',
-     "10.0.0.0/8 from None: a looped path without a neighbor"),
+     "10.0.0.0/8 from None: an invalid path without a neighbor"),
     ('{"local-rib": {"routes": []}}', "{'local-rib': {'routes': []}}"),
     ('{"rib-in-out": {}}', "{'rib-in-out': {}}"),
-], ids=["unknown-reason", "looped-without-neighbor", "routes-renamed", "no-local-rib"])
+], ids=["looped-without-neighbor", "routes-renamed", "no-local-rib"])
 def test_as_loop_count_errors(text, detail):
     with pytest.raises(DriverError) as e:
         srlinux.parse_as_loop_counts(text)
@@ -80,7 +80,7 @@ def test_more_looped_routes_than_received_is_an_error():
     with pytest.raises(DriverError) as e:
         srlinux.SrlDriver(lab_, "srl1").bgp_neighbors()
     assert str(e.value) == (f"unexpected output from `{srlinux.NEIGHBORS_CMD}`: "
-                            "10.0.100.2 ipv4-unicast: 2 looped routes but a count of 1 (received minus rejected)")
+                            "10.0.100.2 ipv4-unicast: 2 invalid routes but a count of 1 (received minus rejected)")
 
 
 def _two_neighbors(first_received: int, second_family_up: bool = True) -> str:
@@ -122,3 +122,45 @@ def test_loops_of_a_family_a_neighbor_doesnt_count_are_ignored():
 def test_as_many_looped_routes_as_received_counts_zero():
     neighbors = read("srl_bgp_neighbors_loop.txt").replace('"received-routes": 3', '"received-routes": 2')
     assert _driver(neighbors).bgp_neighbors().value["10.0.100.2"].prefixes == {"ipv4-unicast": 0}
+
+
+# --- Layer 6 on b03cb7a: a path with any reason but exactly {as-loop} or exactly {rejected-route} ------------------
+
+def _nb(received, rejected):
+    return ('{"neighbor": [{"peer-address": "10.0.0.2", "session-state": "established", "afi-safi": [{"afi-safi-name": '
+            f'"ipv4-unicast", "oper-state": "up", "received-routes": {received}, "rejected-routes": {rejected}}}]}}]}}')
+
+
+def _rib(*reasons):
+    rows = ", ".join('{"prefix": "10.9.%d.0/24", "neighbor": "10.0.0.2", "origin-protocol": "bgp", "valid-route": false, '
+                     '"invalid-reason": %s}' % (i, json.dumps(r)) for i, r in enumerate(reasons))
+    return '{"local-rib": {"route": [%s]}}' % rows
+
+
+def _read(received, rejected, *reasons):
+    lab_ = Lab([("protocols bgp neighbor", _nb(received, rejected)), ("bgp-rib afi-safi ipv4-unicast", _rib(*reasons))])
+    n = srlinux.SrlDriver(lab_, "srl1").bgp_neighbors().value["10.0.0.2"]
+    return n.prefixes["ipv4-unicast"], n.prefixes_upto.get("ipv4-unicast")
+
+
+def test_a_path_both_looped_and_rejected_is_not_subtracted_twice():
+    """It may sit in rejected-routes already (then received minus rejected is right) or not (then it comes off): the
+    count is a range, so `max: 2` can't pass on 4 received, 1 rejected (it passed on 2)."""
+    assert _read(4, 1, {"as-loop": True, "rejected-route": True}) == (2, 3)
+
+
+def test_an_invalid_reason_the_driver_does_not_know_makes_a_range_not_an_error():
+    """next-hop-unresolved: whether SR Linux counts it in received-routes isn't known, so the count is a range; the
+    other neighbors' reads go on (it raised and broke every BGP read on the node)."""
+    assert _read(3, 0, {"next-hop-unresolved": True}, {"as-loop": True}) == (1, 2)
+
+
+def test_exact_reasons_stay_exact():
+    assert _read(4, 1, {"as-loop": True}, {"rejected-route": True}) == (2, None)
+
+
+def test_a_range_is_judged_only_when_both_ends_agree():
+    from netdryrun.checks import _counted
+    from netdryrun.drivers.base import BgpNeighbor
+    n = BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 2}, prefixes_upto={"ipv4-unicast": 3})
+    assert _counted(n, "ipv4-unicast", 2, 0, 2, [])[0] is False

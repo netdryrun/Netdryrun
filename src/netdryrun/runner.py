@@ -1078,7 +1078,8 @@ class NeverLeft(Unready):
 
 def _never_left(injected: list[RouteInjection], results: list[Result], log=lambda _: None) -> list[Result]:
     """A scenario's results, or, when an injection's routes never left its node (no peer's sent-prefix count rose
-    while they were in), every one of them not passed and inconclusive (acceptance round B-5)."""
+    while they were in), every passed one not passed and inconclusive (acceptance round B-5). A check that failed
+    stays failed: routes that never left can't have made it fail (Layer 6 on b03cb7a)."""
     quiet = [inj for inj in injected if inj.applied and inj.left is not True]
     if not quiet:
         return results
@@ -1088,4 +1089,4 @@ def _never_left(injected: list[RouteInjection], results: list[Result], log=lambd
     detail = NeverLeft(f"inconclusive: the injected routes never left {inj.node}: {why}, so this scenario tested "
                        "nothing")
     log(f"  {detail}")
-    return [replace(r, passed=False, detail=detail, samples_passed=0) for r in results]
+    return [replace(r, passed=False, detail=detail, samples_passed=0) if r.passed else r for r in results]

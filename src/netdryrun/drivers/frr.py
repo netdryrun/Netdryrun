@@ -260,9 +260,19 @@ def _route_table(command: str, text: str) -> dict[ipaddress._BaseNetwork, list[d
     return table
 
 
-def _route(prefix: str, e: dict) -> Route:
+# zebra's route types (lib/route_types.txt): any other name is an error, never passed through raw (it matched no
+# `protocol`, so `present: false` on it passed; Layer 6 on b03cb7a, the EOS acceptance finding on every driver)
+ZEBRA_TYPES = frozenset({"system", "kernel", "connected", "local", "static", "rip", "ripng", "ospf", "ospf6", "isis",
+                         "bgp", "pim", "eigrp", "nhrp", "hsls", "olsr", "table", "ldp", "vnc", "vnc-direct", "vnc-rn",
+                         "bgp-direct", "bgp-direct-to-nve", "babel", "sharp", "pbr", "bfd", "openfabric", "vrrp",
+                         "nhg", "srte", "table-direct"})
+
+
+def _route(prefix: str, e: dict, command: str = ROUTE_CMD) -> Route:
     # zebra prints `installed: true` on every route in the FIB and leaves the key out otherwise (a FIB install
     # that failed prints `failed: true` instead): no key is not installed (red team RT-0021)
+    if e["protocol"].lower() not in ZEBRA_TYPES:
+        raise unexpected(command, f"protocol {e['protocol']!r} is not one this driver maps to a protocol")
     return Route(prefix, e["protocol"].lower(),
                  e.get("selected") is True and e.get("installed") is True and not e.get("failed"))
 
@@ -377,7 +387,8 @@ def _bgp_paths_for_route_check(text: str, prefix: str) -> list[dict]:
 
 @parser(ALL_ROUTES_CMD)
 def parse_all_routes(text: str) -> list[Route]:
-    return [_route(str(net), e) for net, entries in _route_table(ALL_ROUTES_CMD, text).items() for e in entries]
+    return [_route(str(net), e, ALL_ROUTES_CMD) for net, entries in _route_table(ALL_ROUTES_CMD, text).items()
+            for e in entries]
 
 
 def _next_hop(hops: list) -> str | None:

@@ -67,3 +67,17 @@ def test_received_before_and_after_policy_from_the_pinned_neighbor_and_nothing_e
     assert m.status == "failed"
     assert [d.key.where() for d in m.undeclared if d.key.kind in ("path", "adj_in")] == \
         [f"up1 {P} received from 10.0.9.2 (before inbound policy)"]
+
+
+def test_a_received_route_alone_cannot_meet_a_pin_it_cannot_show():
+    """The line's own pin check (_pins_ok): the only new candidate is a route received before inbound policy, which
+    shows no originator_id, so `originator_id: null` is unknown there, not "no originator": the line isn't met. With an
+    allow_anywhere glob explaining the leftover route, a missing attribute read as null gave INTENT MATCHED (Layer 6
+    on b03cb7a; mutants _pins_ok 53 and 55)."""
+    after = base()
+    after.adj_in("up1", "10.0.9.2", P, attrs(as_path="65020 65666", next_hop="10.0.9.2"))
+    m = match(base().snap(), after.snap(), intent([{"prefix": P, "appears_on": "up1", "state": "received",
+                                                    "with": {"originator_id": None}}], allow=["10.101.*.0/24"]))
+    assert m.status == "failed"
+    assert not m.lines[0].happened
+    assert m.lines[0].reason == "up1: originator_id is not shown, pinned null"

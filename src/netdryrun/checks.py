@@ -90,9 +90,10 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
             return ok, detail, ev
         got = d.bgp_received(p["neighbor"], afi, p.get("vrf", "default"))
         ev = ev + got.evidence
-        if count and not got.value:
-            # the counter says routes arrived but none is listed: the list can't be trusted to show a new one
-            return False, Unready(f"error: {count} {afi} prefixes counted from {p['neighbor']} but none listed"), ev
+        if count != len(got.value):
+            # the counter and the listing disagree: a prefix missing from the list is one `only` never sees
+            return False, Unready(f"error: {count} {afi} prefixes counted from {p['neighbor']} but "
+                                  f"{len(got.value) or 'none'} listed"), ev
         extra = sorted(got.value - set(p["only"]))
         if extra:
             shown = ", ".join(extra[:10]) + (f" and {len(extra) - 10} more" if len(extra) > 10 else "")

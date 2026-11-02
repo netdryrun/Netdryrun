@@ -79,12 +79,14 @@ def eos_table_empty(key):
 
 
 def srl_no_loops(d) -> bool:
-    """No AS-loop path: an empty answer, or a local RIB route list none of whose paths is flagged as-loop."""
+    """No path off the count or unsure: an empty answer, or a local RIB route list none of whose paths is flagged
+    with anything but exactly rejected-route."""
     if d == {}:
         return True
     rows = d.get("local-rib", {}).get("route") if isinstance(d, dict) and isinstance(d.get("local-rib"), dict) else None
     return isinstance(rows, list) and not any(
-        isinstance(r, dict) and isinstance(r.get("invalid-reason"), dict) and r["invalid-reason"].get("as-loop") is True
+        isinstance(r, dict) and isinstance(r.get("invalid-reason"), dict)
+        and {k for k, v in r["invalid-reason"].items() if v is True} - {"rejected-route"}
         for r in rows)
 
 

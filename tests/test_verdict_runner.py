@@ -1943,3 +1943,19 @@ def test_a_real_failure_beside_a_never_left_scenario_stays_failed(monkeypatch):
     rep = e.run([route("a"), broken],
                 [Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x")])])
     assert (rep.status, rep.exit_code) == ("failed", 1)
+
+
+def test_a_check_that_failed_in_a_never_left_scenario_stays_failed_exit_1(monkeypatch):
+    """Only passes are inconclusive: an injection that never left can't have made a check fail, so a check that
+    failed anyway is a real finding (exit 1), not exit 3 (Layer 6 on b03cb7a)."""
+    clock = Clock()
+    lab = FakeLab(clock)
+    e = Env(monkeypatch, clock, lab, {n: Drv(clock, neighbors=up(), routes={"default": always}) for n in lab.nodes})
+    e.inject_left = False
+    broken = route("x-broken", prefix="10.99.0.0/24", present=False)   # always present: fails with or without the routes
+    rep = e.run([route("a")], [Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])],
+                                        [route("x"), broken])])
+    by = {r.check.name: r for r in rep.results}
+    assert isinstance(by["x"].detail, runner.NeverLeft) and not by["x"].passed
+    assert not isinstance(by["x-broken"].detail, runner.NeverLeft) and not by["x-broken"].passed
+    assert (rep.status, rep.exit_code) == ("failed", 1)

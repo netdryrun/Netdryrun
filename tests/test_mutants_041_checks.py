@@ -219,3 +219,14 @@ def test_bgp_route_unknown_next_hop_and_several_wrongs_joined():
     assert ok is False
     assert detail == ("MED is 0, expected 5; next hop is ?, expected 10.0.0.9 "
                       "(best path: as-path '65001', next hop ?, local-pref 100, MED 0, communities none)")
+
+
+@pytest.mark.parametrize("count,listed", [(3, 2), (1, 2)])
+def test_only_with_a_list_that_disagrees_with_the_count_is_an_error(count, listed):
+    """Any mismatch, not only an empty list: a prefix missing from the listing is one `only` never sees (Layer 6 on
+    b03cb7a: 3 counted, 2 listed, all allowed, passed)."""
+    d = Fake(neighbor=established(count=count), received=_pfx(listed))
+    ok, detail, ev = _bgp_prefixes(d, {"neighbor": NB, "only": _pfx(listed)})
+    assert ok is False
+    assert isinstance(detail, Unready)
+    assert detail == f"error: {count} ipv4-unicast prefixes counted from {NB} but {listed} listed"

@@ -235,7 +235,9 @@ def _rib_routes(command: str, prefix: str, row: dict) -> list[Route]:
         if not isinstance(client, str) or not client:
             raise unexpected(command, f"path without clientname: {str(path)[:150]}")
         proto = client.split("-")[0].lower()           # "bgp-65001", "ospf-1", "static", "direct"
-        out.append(Route(prefix, PROTOCOLS.get(proto, proto), _flag(command, path.get("ubest", False))))
+        if proto not in PROTOCOLS:   # a raw name would match no `protocol` (Layer 6 on b03cb7a)
+            raise unexpected(command, f"clientname {client!r} is not one this driver maps to a protocol")
+        out.append(Route(prefix, PROTOCOLS[proto], _flag(command, path.get("ubest", False))))
     return out
 
 

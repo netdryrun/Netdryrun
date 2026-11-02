@@ -145,6 +145,8 @@ A configured BGP session that is down (`idle`, `active`, `connect`, ...) is neve
 
 Known limit: a change that deletes a node's entire BGP configuration looks like a NOS that never started BGP, so it is reported `inconclusive`. It is still never `passed`.
 
+The other path to `inconclusive` (from 0.4.1): a scenario with `inject_routes` whose injected routes never left the injecting node (no BGP peer's sent-prefix count rose while they were in, or the counts couldn't be read) tested nothing. Each check in that scenario that passed is turned into a failure with the reason `the injected routes never left <node>`. A check that failed anyway stays a plain failure: routes that never left can't have caused it. The run is `inconclusive` when those never-left results are its only failures; any other failure makes it `failed`.
+
 What to do: rerun, raise `timeout`, or check that the lab boots (`containerlab inspect`). Don't change the network change because of an inconclusive run.
 
 The JSON report says why in `inconclusive_reason`, and each unready sample in `history` has `"unready": true`.

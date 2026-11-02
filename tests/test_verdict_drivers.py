@@ -702,8 +702,8 @@ def test_srl_routes():
 def test_srl_parse_routes_rules():
     v6 = J({"route": [{"ipv6-prefix": "2001:db8:0::/32", "route-type": "ospfv3", "active": True, "fib-programming": SRL_FIB_OK}]})
     assert srlinux.parse_routes(v6, "2001:db8::/32") == [Route("2001:db8::/32", "ospf6", True)]
-    assert srlinux.parse_routes(J({"route": [{"ipv4-prefix": "10.1.0.0/16"}]}), "10.1.0.0/16") == \
-        [Route("10.1.0.0/16", "", False)]
+    with pytest.raises(DriverError):   # no route-type: no protocol to name (it read as "", which no check matched)
+        srlinux.parse_routes(J({"route": [{"ipv4-prefix": "10.1.0.0/16"}]}), "10.1.0.0/16")
     assert srlinux.parse_routes(J({"route": [{"ipv4-prefix": "10.1.0.0/16", "route-type": "host", "active": 1, "fib-programming": SRL_FIB_OK}]}),
                                 "10.1.0.0/16") == [Route("10.1.0.0/16", "local", True)]
     with pytest.raises(DriverError):
@@ -922,7 +922,8 @@ def test_srl_all_routes():
         SrlDriver(Lab([("route-table", "{}"), ("oper-state", "{}")]), "r1").all_routes("nope")
     with pytest.raises(DriverError):
         srlinux.parse_all_routes(J({"route": [{"ipv6-prefix": "2001:db8::/32"}]}))
-    assert srlinux.parse_all_routes(J({"route": [{"ipv4-prefix": "10.0.0.0/8"}]})) == [Route("10.0.0.0/8", "", False)]
+    with pytest.raises(DriverError):   # no route-type: no protocol to name (it read as "", which no check matched)
+        srlinux.parse_all_routes(J({"route": [{"ipv4-prefix": "10.0.0.0/8"}]}))
 
 
 @pytest.mark.parametrize("netns,vrf,expected", [
@@ -1193,7 +1194,7 @@ def test_srl_evidence_is_kept_everywhere():
     assert len(SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16", "red").evidence) == 2
     lab = Lab([("route-table", "{}"), ("oper-state", J({"oper-state": "up"}))])
     assert len(SrlDriver(lab, "r1").all_routes("red").evidence) == 2
-    lab = Lab([("route-table", J({"route": [{"ipv4-prefix": "10.0.0.0/8"}]}))])
+    lab = Lab([("route-table", J({"route": [{"ipv4-prefix": "10.0.0.0/8", "route-type": "static"}]}))])
     assert len(SrlDriver(lab, "r1").all_routes().evidence) == 1
 
 
