@@ -14,7 +14,7 @@ New here? Start with an issue labelled `good first issue` (they are kept for peo
 ## Development setup (Linux or WSL2, Docker, containerlab)
 
 ```bash
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 pytest -q                     # unit tests, no lab needed

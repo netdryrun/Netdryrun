@@ -52,7 +52,7 @@ The MCP server for AI agents is included: run `netdryrun mcp`. See [AI agents](a
 The repository ships these example labs. The FRR and SR Linux images are pulled automatically on first use.
 
 ```bash
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp          # 3 FRR routers, should pass
 netdryrun run examples/srl-frr          # SR Linux + FRR, should pass
 netdryrun run examples/frr-bgp-broken   # a bad change, should fail

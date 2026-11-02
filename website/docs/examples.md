@@ -8,7 +8,7 @@ description: Every Netdryrun example lab. What each one shows, its topology and 
 The repository's [`examples/`](https://github.com/netdryrun/Netdryrun/tree/main/examples) folder has one lab per supported network OS, a deliberately broken change, a teaching lab about leaks that ping can't see, the AI agent demo, and a Batfish-then-lab pipeline. Each folder holds a containerlab topology, the router configs and a `netdryrun.yml`.
 
 ```bash
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp
 ```
 

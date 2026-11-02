@@ -216,7 +216,7 @@ The MCP server for AI agents is included: run `netdryrun mcp`. See [AI agents](a
 The repository ships these example labs. The FRR and SR Linux images are pulled automatically on first use.
 
 ```bash
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp          # 3 FRR routers, should pass
 netdryrun run examples/srl-frr          # SR Linux + FRR, should pass
 netdryrun run examples/frr-bgp-broken   # a bad change, should fail
@@ -457,7 +457,7 @@ You need Netdryrun, Docker and containerlab. See [Getting started](getting-start
 Any containerlab topology works. Here, the bundled `examples/frr-bgp` lab stands in for "your lab": three FRR routers in a triangle, each in its own AS, each announcing one LAN prefix over eBGP.
 
 ```bash
-git clone https://github.com/netdryrun/Netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun
 mkdir my-lab
 cp -r netdryrun/examples/frr-bgp/configs netdryrun/examples/frr-bgp/topology.clab.yml my-lab/
 sed -i 's/^name: ndr-frr-bgp/name: ndr-my-lab/' my-lab/topology.clab.yml
@@ -912,7 +912,7 @@ Source: https://netdryrun.com/examples/
 The repository's [`examples/`](https://github.com/netdryrun/Netdryrun/tree/main/examples) folder has one lab per supported network OS, a deliberately broken change, a teaching lab about leaks that ping can't see, the AI agent demo, and a Batfish-then-lab pipeline. Each folder holds a containerlab topology, the router configs and a `netdryrun.yml`.
 
 ```bash
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp
 ```
 
@@ -5281,7 +5281,7 @@ On Linux or WSL2 with Docker and containerlab:
 
 ```bash
 pipx install netdryrun
-git clone https://github.com/netdryrun/Netdryrun && cd netdryrun
+git clone https://github.com/netdryrun/Netdryrun netdryrun && cd netdryrun
 netdryrun run examples/frr-bgp-broken
 ```
 
