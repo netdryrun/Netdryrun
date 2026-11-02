@@ -30,9 +30,10 @@ python scripts/release_gate.py static            # seconds
 python scripts/release_gate.py unit              # minutes
 python scripts/release_gate.py mutation          # minutes to an hour
 python scripts/release_gate.py live              # 1 to 2 hours, on the lab machine
+python scripts/release_gate.py acceptance        # Layer 5b, about 3 to 5 hours, on the lab machine
 python scripts/release_gate.py after-publish 0.4.0
 python scripts/release_gate.py consistency      # seconds: every public place names the release (nightly)
-python scripts/release_gate.py all               # static, unit, mutation, live
+python scripts/release_gate.py all               # static, unit, mutation, live, acceptance
 python scripts/release_gate.py report --stranger-status STATUS.json   # rebuild GATE.md (needs the stranger's status)
 ```
 
@@ -131,6 +132,34 @@ lab is running, so that anything left over afterwards is known to come from the 
   machine. Each case must end with its exit code (130 for SIGINT, 143 for SIGTERM, 2 for a lab
   that can't deploy) and a clear message with no traceback.
 - After every example, corpus run and chaos case, **no `clab-` container may be left running**.
+
+### 5b. Acceptance from five angles
+
+Added for 0.4.1, after each extra round of testing on it found another false-pass path. It runs
+[`scripts/acceptance.py`](scripts/acceptance.py) on the lab machine, against the wheel of the candidate commit
+built in a clean clone, from the matrix in [`releases/acceptance-matrix.yml`](releases/acceptance-matrix.yml):
+
+1. **Each network OS:** for every driver, its examples (good and every leak), the synthetic stranger's must-fail
+   change ported to that NOS (a customer filter loses its `match`) against a `record` baseline, and the vendor
+   output traps (longest-match answers, a missing VRF, IPv6, communities, protocol, an unknown neighbor) on the
+   kept good lab. A driver the release claims and the run can't cover live fails the layer; it is never "passing".
+2. **The end user:** the README's commands word for word in a fresh container, with only the package source
+   substituted, and the common mistakes (a missing image, no Docker permission, a typo in `netdryrun.yml`, a wrong
+   path, no KVM). Each mistake must end in exit `2` with a clear message and no lab left.
+3. **The system integrator:** a 30-node lab of four NOSes (which is also angle 1's mixed lab), two runs at once, a
+   brownfield-sized FRR policy, every JSON report read against the published schema, and every CI template in
+   the docs (YAML and actionlint).
+4. **The AI agent:** the MCP server on a fresh lab. `dry_run` must reject a leaky change; then `start_run` and
+   `get_result`, `record_baseline` and `verify_change` run, and the size of each result is recorded.
+5. **The adversary:** two isolated red-teamers and a verifier, all agents, following
+   [`releases/ACCEPTANCE-PROMPT.md`](releases/ACCEPTANCE-PROMPT.md). They record their outcome in
+   `releases/<version>/acceptance-adversary.md`.
+
+The script takes the lab lock for each lab and yields to a running `live` layer or stranger. It cleans up after
+every lab and resumes after an interruption. It writes `acceptance.json` and `acceptance.md`. Every item that
+doesn't pass is a BLOCKER: an expectation mismatch, a lab left behind, a traceback, an item that couldn't be
+covered (a SKIP, which `--strict` counts as a FAIL), a partial run, or a missing or open adversary record.
+An agent reads the mismatches (job 2 of the prompt file).
 
 ### 6. Independent review
 

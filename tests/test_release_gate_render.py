@@ -57,7 +57,8 @@ gate = SimpleNamespace(**{k: getattr(gate, k) for k in dir(gate) if not k.starts
 gate.render = render
 
 
-PRE = {"static": [("s", "BLOCKER", "PASS")], "unit": [("u", "BLOCKER", "PASS")], "mutation": [("m", "BLOCKER", "PASS")]}
+PRE = {"static": [("s", "BLOCKER", "PASS")], "unit": [("u", "BLOCKER", "PASS")], "mutation": [("m", "BLOCKER", "PASS")],
+       "acceptance": [("a", "BLOCKER", "PASS")]}
 
 
 def test_a_skipped_major_can_be_accepted(tmp_path):
