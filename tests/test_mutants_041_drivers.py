@@ -180,4 +180,7 @@ def test_nxos_bgp_paths_raw_body_error_names_the_bgp_command():
 
 @pytest.mark.parametrize("image", ["example/routeros:7.16", "registry.local/RouterOS-chr:7.16"])
 def test_detect_routeros_by_image_name_alone(image):
-    assert detect(Node("r1", "clab-x-r1", "linux", image)) == "routeros"
+    """Recognised by its image name alone, and refused: RouterOS is a beta driver used only when chosen."""
+    with pytest.raises(DriverError) as e:
+        detect(Node("r1", "clab-x-r1", "linux", image))
+    assert "runs MikroTik RouterOS" in str(e.value)

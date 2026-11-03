@@ -359,8 +359,10 @@ def test_med_zero_is_unknown_and_a_med_zero_check_is_refused(tmp_path):
     topo.write_text("name: t\ntopology:\n  nodes:\n    r1: {kind: mikrotik_ros, image: x}\n")
     lab = RealLab(topo)
     with pytest.raises(DriverError, match="med: 0 can't be checked on routeros: RouterOS output cannot tell MED 0"):
-        check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8", "med": 0}, 20))
-    check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8", "med": 50}, 20))
+        check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8", "med": 0}, 20),
+                        "routeros")
+    check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8", "med": 50}, 20),
+                    "routeros")
 
 
 # ---- startup config: RouterOS's own log of the uploaded config's run -------------------------------------------
@@ -429,3 +431,30 @@ def test_nos_version_comes_from_system_resource():
     assert d.nos_version() == "RouterOS 7.23.8 (long-term)"
     d, _ = driver([("/system/resource", "500\n{}")])
     assert d.nos_version() is None
+
+
+# ---- Layer 6 on b03cb7a ------------------------------------------------------------------------------------------
+def test_the_received_count_must_match_the_listed_paths():
+    """prefix-count is what the session received: accepted plus filtered paths listed in the table (4 = 3 + 1 on the
+    live CHR capture). A table that lists fewer was cut or misread, and the accepted count from it can't be trusted."""
+    rows = [dict(r) for r in SESSIONS]
+    for r in rows:
+        if r.get("prefix-count") == "4":
+            r["prefix-count"] = "5"
+    d, _ = driver([("/routing/bgp/session", body(rows))] + STATE[1:])
+    with pytest.raises(DriverError) as e:
+        d.bgp_neighbors()
+    assert "received 5 prefixes (prefix-count) but the table lists 4 of its paths" in str(e.value)
+
+
+def test_without_communities_is_refused_before_deploying(tmp_path):
+    """RouterOS leaves bgp.communities out of a path with none (live CHR 7.23.8), so a missing key can't be told from
+    a value it didn't print: a `without_communities` check could pass on what it never saw."""
+    from netdryrun.config import _validate_check
+    from netdryrun.drivers import check_supported
+    from netdryrun.lab import Lab as RealLab
+    topo = tmp_path / "t.clab.yml"
+    topo.write_text("name: t\ntopology:\n  nodes:\n    r1: {kind: mikrotik_ros, image: x}\n")
+    with pytest.raises(DriverError, match="without_communities is not supported on routeros"):
+        check_supported(RealLab(topo), _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8",
+                                                           "without_communities": ["65000:1"]}, 20), "routeros")

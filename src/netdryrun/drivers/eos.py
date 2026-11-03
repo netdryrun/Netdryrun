@@ -45,8 +45,9 @@ def _protocol(rtype: str, prefix: str, command: str = "show ip route <prefix> | 
 def _programmed(route: dict) -> bool:
     """Whether a routing-table entry forwards: EOS flags one it could not put in the kernel or the hardware
     (kernelProgrammed / hardwareProgrammed false, e.g. a full TCAM), and such a route is not active, never
-    a pass of `present` (red team plausible case, 2026-11-01). cEOS 4.36.3M prints both flags on every route."""
-    return route.get("kernelProgrammed") is not False and route.get("hardwareProgrammed") is not False
+    a pass of `present` (red team plausible case, 2026-11-01). cEOS 4.36.3M prints both flags on every route, so
+    one missing is unknown, and unknown is not forwarding, as on SR Linux (Layer 6 on b03cb7a)."""
+    return route.get("kernelProgrammed") is True and route.get("hardwareProgrammed") is True
 
 
 SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "show ipv6 bgp summary | json"}

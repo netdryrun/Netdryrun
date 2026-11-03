@@ -59,9 +59,9 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     for name, node in lab.nodes.items():
         try:
             detect(node)
-        except DriverError:
-            warnings.append(f"INCOMPLETE BASELINE: {name}: no driver for kind={node.kind!r} image={node.image!r}; "
-                            "nothing on it is recorded: add checks by hand")
+        except DriverError as e:   # no driver, or a beta one (used only when a netdryrun.yml names it)
+            warnings.append(f"INCOMPLETE BASELINE: {name}: no driver ({e}); nothing on it is recorded: add checks "
+                            "by hand")
             continue
         drv = for_node(lab, name)
         log(f"recording {name} ({drv.name})")

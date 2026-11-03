@@ -4,6 +4,9 @@
 # default wins. See README.md.
 lab: topology.clab.yml
 timeout: 900   # the Nexus 9000v VM boots in several minutes before NX-OS answers
+nodes:
+  n1:
+    driver: nxos   # an unreleased beta driver: used only when chosen, never detected from the kind
 
 checks:
   - type: bgp_session

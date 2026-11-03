@@ -3,6 +3,9 @@
 # r1: the leaked default is received and is BGP's best path, but r1's own static default is the active route.
 lab: topology.clab.yml
 timeout: 600   # the CHR VM boots, then the startup config is imported: the REST API answers before the import is done
+nodes:
+  r1:
+    driver: routeros   # an unreleased beta driver: used only when chosen, never detected from the kind
 
 checks:
   - type: bgp_session

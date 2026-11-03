@@ -19,15 +19,26 @@ DRIVERS: dict[str, type[Driver]] = {"frr": FrrDriver, "srlinux": SrlDriver, "eos
                                  "routeros": RouterosDriver}   # routeros: beta, unreleased
 
 
+# Unreleased beta drivers: used only when a node names one (nodes.<node>.driver), never detected, and a run that
+# uses one says so (Layer 6 on b03cb7a)
+BETA_DRIVERS = frozenset({"nxos", "routeros"})
+
+
+def _beta(node: Node, name: str, label: str) -> DriverError:
+    return DriverError(f"node {node.name} (kind={node.kind!r}, image={node.image!r}) runs {label}, whose driver is an "
+                       f"unreleased beta: it is used only when chosen, with nodes.{node.name}.driver: {name} in "
+                       "netdryrun.yml")
+
+
 def detect(node: Node) -> str:
     if node.kind in ("nokia_srlinux", "srl"):
         return "srlinux"
     if node.kind in ("arista_ceos", "ceos"):
         return "eos"
     if node.kind in ROUTEROS_KINDS or any(w in node.image.lower() for w in ("mikrotik", "routeros")):
-        return "routeros"
+        raise _beta(node, "routeros", "MikroTik RouterOS")
     if node.kind in NXOS_KINDS:
-        return "nxos"
+        raise _beta(node, "nxos", "Cisco NX-OS")
     if node.kind in JUNOS_KINDS:
         return "junos"
     if node.kind in ("sonic-vs", "sonic_vs") or "sonic" in node.image.lower():

@@ -184,14 +184,23 @@ def N(name, kind="linux", image="x"):
     ("arista_ceos", "ceos", "eos"), ("ceos", "x", "eos"),
     ("sonic-vs", "x", "sonic"), ("sonic_vs", "x", "sonic"), ("linux", "docker-SONiC-vs:latest", "sonic"),
     ("linux", "quay.io/frrouting/FRR:10.4", "frr"),
-    ("mikrotik_ros", "vrnetlab/mikrotik_routeros:7.23.8", "routeros"), ("vr-ros", "x", "routeros"), ("vr-mikrotik_ros", "x", "routeros"),
-    ("linux", "mikrotik/chr:7", "routeros"), ("mikrotik_ros", "frr-lookalike", "routeros"),   # the kind decides before any image-name guess
-    ("cisco_n9kv", "vrnetlab/cisco_n9kv:9300-10.4.8.M", "nxos"), ("vr-n9kv", "x", "nxos"), ("vr-cisco_n9kv", "x", "nxos"),
-    ("cisco_n9kv", "frr-lookalike", "nxos"),   # the kind decides before any image-name guess
     ("juniper_cjunosevolved", "cjunosevolved:26.2R1.7-EVO", "junos"), ("cjunosevolved", "x", "junos"),
 ])
 def test_detect(kind, image, expected):
     assert drv.detect(N("r1", kind, image)) == expected
+
+
+@pytest.mark.parametrize("kind,image,beta", [
+    ("mikrotik_ros", "vrnetlab/mikrotik_routeros:7.23.8", "routeros"), ("vr-ros", "x", "routeros"), ("vr-mikrotik_ros", "x", "routeros"),
+    ("linux", "mikrotik/chr:7", "routeros"), ("mikrotik_ros", "frr-lookalike", "routeros"),   # the kind decides before any image-name guess
+    ("cisco_n9kv", "vrnetlab/cisco_n9kv:9300-10.4.8.M", "nxos"), ("vr-n9kv", "x", "nxos"), ("vr-cisco_n9kv", "x", "nxos"),
+    ("cisco_n9kv", "frr-lookalike", "nxos"),   # the kind decides before any image-name guess
+])
+def test_a_beta_nos_is_recognised_but_never_detected(kind, image, beta):
+    """NX-OS and RouterOS are unreleased beta drivers (Layer 6 on b03cb7a): the error names the driver to choose."""
+    with pytest.raises(DriverError) as e:
+        drv.detect(N("r1", kind, image))
+    assert str(e.value).endswith(f"with nodes.r1.driver: {beta} in netdryrun.yml")
 
 
 def test_detect_unknown_raises():
@@ -1005,6 +1014,11 @@ def test_eos_summary_rules():
 
 
 def eos_routes(vrf="default", **routes):
+    # cEOS prints both programmed flags on every route; a route here sets them only to test them
+    for r in routes.values():
+        if isinstance(r, dict):
+            r.setdefault("kernelProgrammed", True)
+            r.setdefault("hardwareProgrammed", True)
     return J({"vrfs": {vrf: {"routes": routes}}})
 
 

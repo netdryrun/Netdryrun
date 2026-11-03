@@ -58,8 +58,9 @@ class Lab:
 
 def test_registered_and_detected():
     assert DRIVERS["nxos"] is NxosDriver and NxosDriver.name == "nxos"
-    for kind in ("cisco_n9kv", "vr-n9kv", "vr-cisco_n9kv"):
-        assert detect(Node("n1", "clab-x-n1", kind, "vrnetlab/cisco_n9kv:9300-10.4.8.M")) == "nxos"
+    for kind in ("cisco_n9kv", "vr-n9kv", "vr-cisco_n9kv"):   # recognised, and refused: a beta driver used only when chosen
+        with pytest.raises(DriverError, match="nodes.n1.driver: nxos"):
+            detect(Node("n1", "clab-x-n1", kind, "vrnetlab/cisco_n9kv:9300-10.4.8.M"))
     assert NxosDriver.unsupported_afis == frozenset({"evpn"})
 
 
@@ -520,8 +521,10 @@ def test_med_zero_is_unknown_and_a_med_zero_check_is_refused(tmp_path):
     topo.write_text("name: t\ntopology:\n  nodes:\n    n1: {kind: cisco_n9kv, image: x}\n")
     lab = RealLab(topo)
     with pytest.raises(DriverError, match="med: 0 can't be checked on nxos: NX-OS output cannot tell MED 0 from no MED"):
-        check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "n1", "prefix": "10.0.0.0/8", "med": 0}, 20))
-    check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "n1", "prefix": "10.0.0.0/8", "med": 50}, 20))
+        check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "n1", "prefix": "10.0.0.0/8", "med": 0}, 20),
+                        "nxos")
+    check_supported(lab, _validate_check(0, {"type": "bgp_route", "node": "n1", "prefix": "10.0.0.0/8", "med": 50}, 20),
+                    "nxos")
 
 
 def _vrf_rows(*rows):

@@ -50,6 +50,10 @@ class RouterosDriver(Driver):
     # for its own: 0 can't be told from no MED, so it is unknown and a `med: 0` check is refused before deploying
     ambiguous_bgp_values = {"med": {0: "RouterOS output cannot tell MED 0 from no MED (check a non-zero MED, or check "
                                        "this route on another platform)"}}
+    # RouterOS leaves bgp.communities out of a path that carries none (live CHR 7.23.8), so a missing key can't be told
+    # from one it didn't print: `without_communities` could pass on what it never saw (Layer 6 on b03cb7a). A
+    # `communities` check can't pass on a missing key (the communities it requires are missing too)
+    unsupported_bgp_attributes = frozenset({"without_communities"})
 
     def _rest(self, method: str, path: str, evidence: list[dict], body: str = "", timeout: float = 90) -> Reply:
         """One REST request inside the container. Evidence never carries the credentials."""
@@ -117,6 +121,12 @@ class RouterosDriver(Driver):
         for s in sessions:
             n = BgpNeighbor(s.remote_address, "established" if s.established else "active")
             if s.established:
+                # prefix-count is what the session received: accepted plus filtered paths, every one listed in the
+                # table (live CHR 7.23.8). A table that lists another number was cut or misread (Layer 6 on b03cb7a)
+                listed = {p.prefix for p in paths if p.kind == "bgp" and p.session == s.name and p.prefix}
+                if s.received_count is not None and len(listed) != s.received_count:
+                    raise DriverError(f"BGP session {s.name} ({s.remote_address}) received {s.received_count} prefixes "
+                                      f"(prefix-count) but the table lists {len(listed)} of its paths")
                 n.prefixes["ipv4-unicast"] = len(accepted_prefixes(paths, s.name))
             out[s.remote_address] = n
         for c in connections:

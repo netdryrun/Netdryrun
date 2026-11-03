@@ -22,7 +22,7 @@ from . import __version__
 from .checks import (Result, Unready, _sample, hold_together, inconclusive_reason, is_post_convergence,
                      never_ready_nodes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
-from .drivers import DriverError, check_supported, detect, for_node
+from .drivers import BETA_DRIVERS, DriverError, check_supported, detect, for_node
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
 from .faults import RouteInjection
@@ -282,6 +282,13 @@ def preflight(config: Config, lab: Lab, *, full: bool = False) -> None:
             lab._require_linux_links(f.node)
 
 
+def _warn_beta(config: Config, log) -> None:
+    for node, name in sorted(config.drivers.items()):
+        if name in BETA_DRIVERS:
+            log(f"Warning: {node} uses the {name} driver, an unreleased beta: its verdicts are not covered by a "
+                "released gate yet")
+
+
 def check_topology(config: Config) -> Lab:
     """`netdryrun validate` past the file itself: load the topology (strictly) and make every pre-deploy
     check, without Docker or containerlab. Raises LabError or DriverError."""
@@ -474,6 +481,7 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         }
         # Every node a check or a fault names must exist, and every check be readable, before deploying
         preflight(config, lab)
+        _warn_beta(config, log)
         if deploy:
             # A VM node can't boot without KVM: say so before deploying a lab that would never come up
             kvm = lab.kvm_problem()

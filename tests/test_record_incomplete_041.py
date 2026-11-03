@@ -68,5 +68,5 @@ def test_a_node_without_a_driver_is_an_incomplete_baseline(monkeypatch):
     monkeypatch.setattr(rec, "for_node", lambda lab_, name: drivers[name])
     from pathlib import Path
     _, warnings = rec.record(Path("t.clab.yml"))
-    assert any(w.startswith("INCOMPLETE BASELINE: r1: no driver for kind=") and w.endswith(
+    assert any(w.startswith("INCOMPLETE BASELINE: r1: no driver (no driver)") and w.endswith(
         "nothing on it is recorded: add checks by hand") for w in warnings)
