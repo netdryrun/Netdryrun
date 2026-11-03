@@ -320,10 +320,34 @@ def _segments(p: dict) -> list:
     """A path's AS-path segments. bgpd prints `aspath.segments` on every path (an empty list for the router's own);
     without it the AS path was not printed, which must never read as empty, a locally originated route
     (acceptance A-6)."""
-    aspath = p.get("aspath")
-    if not isinstance(aspath, dict) or not isinstance(aspath.get("segments"), list):
+    if (not isinstance(p, dict) or "aspath" not in p or not isinstance(p["aspath"], dict)
+            or not isinstance(p["aspath"].get("segments"), list)):
         raise unexpected(BGP_PATHS_CMD, f"path without aspath segments: {str(p)[:150]}")
-    return aspath["segments"]
+    aspath = p["aspath"]
+    # each segment names its type and its list, and aspath.length (printed on every path, each capture) is the hop
+    # count of those segments: a segment without its list read as no ASNs, so `as_path: ""` passed on a path that
+    # had some (Layer 6 round 4 on bf29e89)
+    segs = []
+    for s in aspath["segments"]:
+        if not isinstance(s, dict) or not isinstance(s.get("type"), str) or not isinstance(s.get("list"), list):
+            raise unexpected(BGP_PATHS_CMD, f"aspath segment without its type or list: {str(s)[:150]}")
+        segs.append((s["type"], s["list"]))
+    hops = sum(len(asns) if kind == "as-sequence" else 1 if kind == "as-set" else 0 for kind, asns in segs)
+    if "length" not in aspath or as_int(BGP_PATHS_CMD, aspath["length"]) != hops:
+        raise unexpected(BGP_PATHS_CMD, f"aspath length {aspath.get('length')!r}, but its segments count {hops} hops")
+    return segs
+
+
+def _communities(p: dict, key: str) -> list[str]:
+    """bgpd adds `community` / `largeCommunity` to a path only when it carries the attribute (frr_bgp_paths captures
+    with and without), so absence is none. Present, it must carry its string, as verify reads it: an object without
+    one read as no communities, so `without_communities` passed (Layer 6 round 4 on bf29e89)."""
+    if key not in p:
+        return []
+    obj = p[key]
+    if not isinstance(obj, dict) or not isinstance(obj.get("string"), str):
+        raise unexpected(BGP_PATHS_CMD, f"{key} without its string: {str(obj)[:150]}")
+    return obj["string"].split()
 
 
 def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
@@ -413,15 +437,15 @@ def parse_bgp_paths(text: str, prefix: str, default_local_pref: int | None = 100
     is listed, valid or not, best or not."""
     out = []
     for p in _bgp_paths_raw(BGP_PATHS_CMD, text, prefix):
-        segs = [(s.get("type", ""), s.get("list") or []) for s in _segments(p)]
+        segs = _segments(p)
         out.append(BgpPath(
             best=bool((p.get("bestpath") or {}).get("overall")),
             as_path=render_as_path(segs),  # not aspath.string: FRR prints "Local" for an empty path
             next_hop=_next_hop(p.get("nexthops") or []),
             local_pref=as_int(BGP_PATHS_CMD, p["locPrf"]) if "locPrf" in p else default_local_pref,
             med=as_int(BGP_PATHS_CMD, p["metric"]) if "metric" in p else None,   # no MED attribute: unknown, not 0
-            communities=canon_communities(((p.get("community") or {}).get("string") or "").split()),
-            large_communities=canon_communities(((p.get("largeCommunity") or {}).get("string") or "").split()),
+            communities=canon_communities(_communities(p, "community")),
+            large_communities=canon_communities(_communities(p, "largeCommunity")),
             neighbor=(p.get("peer") or {}).get("peerId"),
         ))
     return out

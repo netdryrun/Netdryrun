@@ -41,8 +41,11 @@ class InjectLab:
     """Answers the summary and neighbor commands with the next capture each, and each peer's advertised routes with
     its listing; every other command succeeds."""
 
-    def __init__(self, summaries, neighbors=(), advertised=None, summaries6=()):
-        self.summaries, self.summaries6, self.neighbors = list(summaries), list(summaries6), list(neighbors)
+    def __init__(self, summaries, neighbors=None, advertised=None, summaries6=()):
+        self.summaries, self.summaries6 = list(summaries), list(summaries6)
+        # by default every peer's session is steady (never dropped) for the whole injection
+        peers = sorted({p for t in [*self.summaries, *self.summaries6] for p in _peers(t)})
+        self.neighbors = list(neighbors) if neighbors is not None else [steady(peers)] * 4
         self.advertised = advertised or {}
         self.asked = []
 
@@ -60,9 +63,23 @@ class InjectLab:
         return ExecResult(cmd, 0, "", "")
 
 
-def applied(lab, node, prefixes, asn="65001", ago=60):
+def _peers(text: str) -> list[str]:
+    try:
+        return list(json.loads(text).get("peers") or {})
+    except (ValueError, AttributeError):
+        return []
+
+
+def steady(peers, dropped=None) -> str:
+    """`show bgp neighbors json` with these peers, each session never dropped (or dropped as given), IPv4 only."""
+    dropped = dropped or {}
+    return json.dumps({p: {"connectionsDropped": dropped.get(p, 0), "addressFamilyInfo": {"ipv4Unicast": {}}}
+                       for p in peers})
+
+
+def applied(lab, node, prefixes, asn="65001", ago=60, shares_node=False):
     """An injection whose routes went in `ago` seconds ago: the peers and resets read as apply() reads them."""
-    inj = RouteInjection(lab, node, prefixes, [])
+    inj = RouteInjection(lab, node, prefixes, [], shares_node=shares_node)
     inj._wait = lambda want_present: None
     inj.asn, inj.applied = asn, True
     inj.peers_before, inj.resets_before = inj.established(), inj.resets()
@@ -147,13 +164,48 @@ def test_a_family_no_established_session_carries_never_left_though_the_other_did
     assert (inj.left, inj.quiet, inj.unsent) == (False, {}, {"ipv6": ["2001:db8:99::/48"]})
 
 
-def test_a_peer_that_was_down_before_the_injection_is_not_waited_for():
+def test_a_peer_that_was_down_before_the_injection_and_still_is_is_not_waited_for():
     lab = InjectLab([summary({"10.0.12.2": "Established", "10.0.13.2": "Active"})] * 2,
                     advertised={"10.0.12.2": adv(R1)})
     inj = applied(lab, "r1", [R1])
     assert inj.peers_before == {"ipv4": ["10.0.12.2"]}
     inj.restore()
     assert (inj.left, inj.quiet) == (True, {})
+
+
+def test_a_peer_that_came_up_while_the_routes_were_in_must_show_them_too():
+    """Layer 6 round 4 on bf29e89 (F1): only the peers established at apply were read, so a peer that came up during
+    the injection and was sent nothing passed. Up at restore, it must show every prefix."""
+    lab = InjectLab([summary({"10.0.12.2": "Established", "10.0.13.2": "Active"}),
+                     summary({"10.0.12.2": "Established", "10.0.13.2": "Established"})],
+                    advertised={"10.0.12.2": adv(R1), "10.0.13.2": adv()})
+    inj = applied(lab, "r1", [R1])
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, {"10.0.13.2": [R1]})
+    lab = InjectLab([summary({"10.0.12.2": "Active"}), summary({"10.0.12.2": "Established"})],
+                    advertised={"10.0.12.2": adv(R1)})
+    inj = applied(lab, "r1", [R1])   # no session at apply, one at restore that shows it: delivered, not unsent
+    inj.restore()
+    assert (inj.left, inj.quiet, inj.unsent) == (True, {}, {})
+
+
+def test_a_session_that_reset_while_the_routes_were_in_did_not_get_them():
+    """F2: a hold-timer reset during the injection, the session back and the prefixes re-sent: what the checks saw
+    while it was down is unknown, so that peer is quiet."""
+    lab = InjectLab([summary({"10.0.12.2": "Established"})] * 2,
+                    neighbors=[steady(["10.0.12.2"]), steady(["10.0.12.2"], {"10.0.12.2": 1})],
+                    advertised={"10.0.12.2": adv(R1)})
+    inj = applied(lab, "r1", [R1])
+    inj.restore()
+    assert (inj.left, inj.quiet, lab.asked) == (False, {"10.0.12.2": [R1]}, [])
+
+
+def test_a_peer_whose_resets_cant_be_read_did_not_get_them():
+    lab = InjectLab([summary({"10.0.12.2": "Established"})] * 2, neighbors=[steady(["10.0.12.2"]), "{}"],
+                    advertised={"10.0.12.2": adv(R1)})
+    inj = applied(lab, "r1", [R1])
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
 
 
 def test_a_peer_that_went_down_while_the_routes_were_in_did_not_get_them():
@@ -195,7 +247,7 @@ def test_session_states_unreadable_at_restore_are_unknown_not_left():
 
 # --- a prefix-limit reset, and only one proven to be the injection's, also shows the routes left ------------------
 
-def v2_injection(after, change=None, ago=60):
+def v2_injection(after, change=None, ago=60, shares_node=False):
     """ce1 on the corpus v2 lab (FRR 10.4.1, live): before the injection, then `after` while the routes are in."""
     neighbors = json.loads(v2(after, "neighbors"))
     if change:
@@ -203,7 +255,7 @@ def v2_injection(after, change=None, ago=60):
     lab = InjectLab([v2("before", "summary"), v2(after, "summary")],
                     neighbors=[v2("before", "neighbors"), json.dumps(neighbors)],
                     advertised={"10.0.1.1": adv("10.0.0.0/24")})
-    inj = applied(lab, "ce1", ["10.100.16.0/24"], asn="65100", ago=ago)   # the capture's reset is 15 s old
+    inj = applied(lab, "ce1", ["10.100.16.0/24"], asn="65100", ago=ago, shares_node=shares_node)   # reset 15 s old
     inj.restore()
     return inj
 
@@ -233,6 +285,12 @@ def test_a_prefix_limit_reset_on_a_session_with_another_family_proves_nothing():
 
 def test_a_prefix_limit_reset_from_before_the_injection_proves_nothing():
     assert v2_injection("maxprefix", ago=5).left is False
+
+
+def test_a_prefix_limit_reset_proves_nothing_when_another_injection_shares_the_node():
+    """F3: with two injections on ce1, B's overflow tore the session down and proved A delivered, though none of A's
+    prefixes was ever advertised. Shared, the reset is nobody's proof."""
+    assert v2_injection("maxprefix", shares_node=True).left is False
 
 
 @pytest.mark.parametrize("change", [{"addressFamilyInfo": None}, {"lastResetTimerMsecs": None}])

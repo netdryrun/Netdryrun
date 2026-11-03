@@ -21,4 +21,14 @@ def forms(d, o, e, c):
     n = bool(d.get("best-route"))                          # bool() of .get(K)
     p = not d.get("suppressed")                            # not .get(K)
     q = [r for r in d if r.get("pathstaled")]              # a comprehension filter on .get(K)
-    return a, b, f, g, h, i, j, k, m, n, p, q
+    r = d.get("ubest") is True                             # .get(K) is True (round 4)
+    t = d.get("pathbest") == True  # noqa: E712           # .get(K) == True
+    u = "valid-route" in d and d["valid-route"]            # K in x and x[K]
+    v = d.pop("pfxSnt", 0)                                 # pop with a default
+    try:                                                   # a bare except
+        w = d["largeCommunityList"]
+    except:  # noqa: E722
+        w = []
+    x = dict.get(d, "aspath", "")                          # dict.get(x, K, default)
+    y = str(d.get("session-state")).lower()                # str() of .get(K)
+    return a, b, f, g, h, i, j, k, m, n, p, q, r, t, u, v, w, x, y

@@ -363,11 +363,11 @@ def route_json(prefix, *entries):
 
 
 FRR_PATHS = J({"prefix": "10.1.0.0/16", "pathCount": 2, "paths": [
-    {"bestpath": {"overall": True}, "aspath": {"segments": [{"type": "as-sequence", "list": [65002, 65003]}]},
+    {"bestpath": {"overall": True}, "aspath": {"segments": [{"type": "as-sequence", "list": [65002, 65003]}], "length": 2},
      "nexthops": [{"ip": "fe80::1", "scope": "link-local"}, {"ip": "10.0.0.2", "scope": "global"}],
      "locPrf": 200, "metric": 7, "community": {"string": "65000:1 no-export"},
      "largeCommunity": {"string": "65000:1:2"}, "peer": {"peerId": "10.0.0.2"}},
-    {"aspath": {"segments": []}, "nexthops": [{"ip": "10.0.0.3"}], "peer": {"peerId": "10.0.0.3"}},
+    {"aspath": {"segments": [], "length": 0}, "nexthops": [{"ip": "10.0.0.3"}], "peer": {"peerId": "10.0.0.3"}},
 ]})
 
 
@@ -433,7 +433,7 @@ def test_frr_route_table_unexpected(text):
 
 
 def _path(**kw):
-    base_ = {"peer": {"peerId": "10.0.0.2"}, "aspath": {"segments": []}}   # bgpd prints aspath.segments on every path
+    base_ = {"peer": {"peerId": "10.0.0.2"}, "aspath": {"segments": [], "length": 0}}   # bgpd prints aspath.segments on every path
     base_.update(kw)
     return base_
 
@@ -507,7 +507,7 @@ def test_frr_parse_bgp_paths():
         frr.parse_bgp_paths(FRR_PATHS, "10.1.0.0/24")
     assert str(e.value) == ("unexpected output from `show bgp <afi> unicast <prefix> json`: paths for 10.1.0.0/16 in "
                             "the answer for 10.1.0.0/24")
-    one = bgp_text("10.1.0.0/16", {"bestpath": {"overall": False}, "aspath": {"segments": []}, "nexthops": None,
+    one = bgp_text("10.1.0.0/16", {"bestpath": {"overall": False}, "aspath": {"segments": [], "length": 0}, "nexthops": None,
                                    "peer": None})
     assert frr.parse_bgp_paths(one, "10.1.0.0/16") == [BgpPath(False, "", None, 100, None, [], [], None)]
     # an AS path that wasn't printed is never an empty one (a local route): 0.4.1, acceptance A-6
@@ -859,7 +859,7 @@ def test_srl_bgp_paths_reads_the_best_and_the_first_learned_path():
                        {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "best-route": True, "attr-id": 1,
                         "origin-protocol": "static"},
                        {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.4", "attr-id": 3, "best-route": False, "stale-route": False, "origin-protocol": "bgp"}]})
-    lab = _srl_paths_lab(rib, J({"as-path": {}, "local-pref": 100}))
+    lab = _srl_paths_lab(rib, J({"as-path": {"segment": []}, "local-pref": 100}))
     paths = SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value
     assert [p.neighbor for p in paths] == ["0.0.0.0", "10.0.0.3", "10.0.0.4"]
     assert [p.local_pref for p in paths] == [100, 100, None]          # the third path is not read

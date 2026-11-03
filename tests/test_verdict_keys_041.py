@@ -5,6 +5,7 @@ entry of its allowlist says why that read is safe. The tests after it are the kn
 eaa323c."""
 import ast
 import json
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -30,11 +31,12 @@ VERDICT_KEYS = frozenset({
     "rt-entry-state", "active-tag", "accepted-prefix-count", "received-prefix-count", "totalRoutes", "state",
     "peerState", "session-state", "afi-safi", "addressFamilyInfo", "addPath", "best-route", "configuredpeers",
     "peerEntry", "neighborCapabilities", "sentPrefixCounter", "connectionsDropped", "lastResetDueTo",
-    "lastErrorCodeSubcode", "lastResetTimerMsecs", "peerAddr", "filtered", "contribution"})
+    "lastErrorCodeSubcode", "lastResetTimerMsecs", "peerAddr", "filtered", "contribution", "segments", "list",
+    "segment", "member", "string", "length", "valid-route", "invalid-reason", "local", "sourced", "overall", "scope"})
 # every module that reads device output on the way to a verdict (Layer 6 round 3: verify/, faults.py and runner.py
 # were never scanned)
 SCANNED = sorted((SRC / "drivers").glob("*.py")) + sorted((SRC / "verify").glob("*.py")) + [
-    SRC / "checks.py", SRC / "faults.py", SRC / "runner.py"]
+    SRC / "checks.py", SRC / "faults.py", SRC / "runner.py", SRC.parent.parent / "action.yml"]
 
 # (file, key) -> why the read can't pass a check on a missing key. Each reason names what a reviewer checks: the
 # capture that shows the device leaves the key out (and so what absence means), or that the value is netdryrun's own
@@ -63,14 +65,35 @@ ALLOWED = {
     ("verify/frr.py", "addPath"): "add_path_tx only: as neighborCapabilities, missing is add-path, never 'one path'",
     ("drivers/frr.py", "bestpath"): "bgpd prints bestpath only on the best path (frr_bgp_paths captures): a path "
                                     "without it reads as not best, which only fails a best-path check",
-    ("drivers/frr.py", "community"): "bgpd adds `community` to a path's JSON only when the path carries the attribute "
-                                     "(frr_bgp_paths captures with and without): absence is proven empty",
-    ("drivers/frr.py", "largeCommunity"): "as `community`: bgpd prints it only for a path with large communities",
     ("drivers/frr.py", "stale"): "bgpd prints `stale` only when set (json_object_boolean_true_add); present, it must be "
                                  "a boolean, so a malformed flag is an error, and absence is not stale",
     ("drivers/frr.py", "failed"): "zebra prints selected, installed and failed only when true (frr route captures); a "
                                   "route is present only when selected and installed are both true, so a missing "
                                   "failed flag can't make an uninstalled route present",
+    ("checks.py", "active"): PARAM,
+    ("action.yml", "failed"): "the Action reads netdryrun's own guards summary (rep['guards']), written by the guards "
+                              "run, not device output",
+    ("drivers/frr.py", "local"): "bgpd prints `local` and `sourced` only on the router's own paths (json boolean "
+                                 "true); such a path also names peer 0.0.0.0, which is checked next, so a missing flag "
+                                 "can't make an own path read as received",
+    ("drivers/frr.py", "sourced"): "as `local`: printed only when true, and the peer address is checked as well",
+    ("drivers/frr.py", "selected"): "zebra prints selected and installed only when true (frr route captures): a route "
+                                    "without them is not forwarding, which only fails `present`",
+    ("drivers/frr.py", "installed"): "as selected: zebra prints it only when true, so absent only fails `present`",
+    ("drivers/frr.py", "overall"): "bgpd prints bestpath, with overall true inside it, only on the best path "
+                                   "(frr_bgp_paths captures): absent reads as not best, which only fails a best-path "
+                                   "check",
+    ("drivers/frr.py", "scope"): "bgpd prints scope only on IPv6 next hops (global or link-local); an IPv4 next hop has "
+                                 "none (frr_bgp_paths captures), so absent is global",
+    ("verify/frr.py", "scope"): "as drivers/frr.py: absent on IPv4 next hops; any value but global or link-local is an "
+                                "error",
+    ("verify/frr.py", "bestpath"): "bgpd prints bestpath only on the best path; when present it is read strictly "
+                                   "(_obj with its known keys, then _flag on overall)",
+    ("drivers/srlinux.py", "oper-state"): "_counted_if_up raises on a counted family without oper-state the line "
+                                          "before it reads it; families it doesn't count are skipped",
+    ("drivers/srlinux.py", "as-path"): "an attr-set without as-path reads as None (unknown), never the empty path: "
+                                       "as_path and as_path_regex on None are an error (checks.py); a container "
+                                       "without its segment list is an error",
     ("drivers/nxos.py", "ubest"): "NX-OS prints ubest only on the best path (nxos_route_default.txt, live): absent "
                                   "reads not active, which only fails `present`; `present: false` fails on any listed "
                                   "route",
@@ -97,78 +120,113 @@ ALLOWED = {
 }
 
 
-def defaulted_reads(files=None) -> set[tuple[str, str]]:
-    """(file, key) for every read of a verdict key that can stand in a value for a missing key (Layer 6 round 3 on
-    5e65852 widened it from two forms): `x.get(K, default)`; `x.get(K)` in a truth test or followed by `or`; a
-    `... if K in x else ...` ternary; getattr(o, K, default); x.setdefault(K, ...); a subscript of K inside a try
-    whose handler catches KeyError; and a helper called with K and required=False. K is a string literal or a
-    module-level name bound to one."""
-    out = set()
-    for f in files if files is not None else SCANNED:
-        tree = ast.parse(f.read_text(encoding="utf-8"))
-        names = {t.id: n.value.value for n in tree.body if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant)
-                 and isinstance(n.value.value, str) for t in n.targets if isinstance(t, ast.Name)}
-        where = f.relative_to(SRC).as_posix() if SRC in f.parents else f.name
-
-        def key(node, names=names):
-            v = node.value if isinstance(node, ast.Constant) else names.get(node.id) if isinstance(node, ast.Name) else None
-            return v if isinstance(v, str) and v in VERDICT_KEYS else None
-
-        def get_key(node, nargs):
-            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get"
-                    and len(node.args) in nargs):
-                return key(node.args[0])
-            return None
-
-        tests = []
-        for n in ast.walk(tree):
-            if isinstance(n, (ast.If, ast.While, ast.IfExp, ast.Assert)):
-                tests.append(n.test)
-            elif isinstance(n, ast.comprehension):
-                tests += n.ifs
-            elif isinstance(n, ast.UnaryOp) and isinstance(n.op, ast.Not):
-                tests.append(n.operand)
-            elif isinstance(n, ast.BoolOp):
-                tests += n.values
-            elif isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "bool" and n.args:
-                tests.append(n.args[0])
-        for t in tests:
-            k = get_key(t, (1,)) or (get_key(t, (2,)) if isinstance(t, ast.Call) and t.args and isinstance(t.args[-1], ast.Constant)
-                                      and t.args[-1].value is None else None)
-            if k:
-                out.add((where, k))
-        for n in ast.walk(tree):
-            k = None
-            if isinstance(n, ast.Call):
-                k = get_key(n, (2,))
-                if k and isinstance(n.args[1], ast.Constant) and n.args[1].value is None:
-                    k = None   # .get(K, None) is .get(K): flagged only where it stands in for a value (above)
-                f_ = n.func
-                if isinstance(f_, ast.Name) and f_.id == "getattr" and len(n.args) == 3:
-                    k = key(n.args[1])
-                if isinstance(f_, ast.Attribute) and f_.attr == "setdefault" and n.args:
-                    k = key(n.args[0])
-                if any(kw.arg == "required" and isinstance(kw.value, ast.Constant) and kw.value.value is False
-                       for kw in n.keywords):
-                    k = next((key(a) for a in n.args if key(a)), None)
-            elif isinstance(n, ast.IfExp) and isinstance(n.test, ast.Compare) and isinstance(n.test.ops[0], ast.In):
-                k = key(n.test.left)
-            elif isinstance(n, ast.Try) and any(_catches_keyerror(h) for h in n.handlers):
-                for s in ast.walk(ast.Module(body=n.body, type_ignores=[])):
-                    if isinstance(s, ast.Subscript) and key(s.slice):
-                        out.add((where, key(s.slice)))
-            if k:
-                out.add((where, k))
+def _sources(f: Path) -> list[tuple[str, str]]:
+    """(where, Python source) of a scanned file: a module, or each `python - <<'EOF'` block of action.yml."""
+    text = f.read_text(encoding="utf-8")
+    where = f.relative_to(SRC).as_posix() if SRC in f.parents else f.name
+    if f.suffix != ".yml":
+        return [(where, text)]
+    out, lines = [], text.split("\n")
+    for i, line in enumerate(lines):
+        if line.strip() == "python - <<'EOF'":
+            end = next(j for j in range(i + 1, len(lines)) if lines[j].strip() == "EOF")
+            out.append((where, textwrap.dedent("\n".join(lines[i + 1:end]))))
     return out
 
 
+def defaulted_reads(files=None) -> set[tuple[str, str]]:
+    """(file, key) for every read of a verdict key that can stand in a value for a missing key: `x.get(K, default)`;
+    `x.get(K)` in a truth test, followed by `or`, compared with True or False, or passed to str(); a `... if K in x
+    else ...` ternary and `K in x and x[K]`; getattr(o, K, default); `dict.get(x, K, default)`; x.setdefault(K, ...)
+    and x.pop(K, default); a subscript of K inside a try whose handler catches KeyError (or everything); and a helper
+    called with K and required=False (Layer 6 rounds 3 and 4). K is a string literal or a module-level name bound to
+    one. What it can't see (a key in a variable or a parameter, a value used later) is a known gap: the 0.4.2 router
+    state contract moves every verdict key behind one strict accessor (QUALITY-SYSTEM.md, known gaps)."""
+    out = set()
+    for f in files if files is not None else SCANNED:
+        for where, text in _sources(f):
+            _scan(where, ast.parse(text), out)
+    return out
+
+
+def _scan(where: str, tree: ast.AST, out: set) -> None:
+    names = {t.id: n.value.value for n in tree.body if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant)
+             and isinstance(n.value.value, str) for t in n.targets if isinstance(t, ast.Name)}
+
+    def key(node):
+        v = node.value if isinstance(node, ast.Constant) else names.get(node.id) if isinstance(node, ast.Name) else None
+        return v if isinstance(v, str) and v in VERDICT_KEYS else None
+
+    def get_key(node, nargs):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get"
+                and len(node.args) in nargs):
+            return key(node.args[0])
+        return None
+
+    tests = []
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.If, ast.While, ast.IfExp, ast.Assert)):
+            tests.append(n.test)
+        elif isinstance(n, ast.comprehension):
+            tests += n.ifs
+        elif isinstance(n, ast.UnaryOp) and isinstance(n.op, ast.Not):
+            tests.append(n.operand)
+        elif isinstance(n, ast.BoolOp):
+            tests += n.values
+        elif isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in ("bool", "str") and n.args:
+            tests.append(n.args[0])
+        elif (isinstance(n, ast.Compare) and len(n.comparators) == 1 and isinstance(n.comparators[0], ast.Constant)
+              and isinstance(n.comparators[0].value, bool)):
+            tests.append(n.left)   # x.get(K) is True / == False
+    for t in tests:
+        k = get_key(t, (1,)) or (get_key(t, (2,)) if isinstance(t, ast.Call) and t.args and isinstance(t.args[-1], ast.Constant)
+                                  and t.args[-1].value is None else None)
+        if k:
+            out.add((where, k))
+    for n in ast.walk(tree):
+        k = None
+        if isinstance(n, ast.Call):
+            k = get_key(n, (2,))
+            if k and isinstance(n.args[1], ast.Constant) and n.args[1].value is None:
+                k = None   # .get(K, None) is .get(K): flagged only where it stands in for a value (above)
+            f_ = n.func
+            if isinstance(f_, ast.Name) and f_.id == "getattr" and len(n.args) == 3:
+                k = key(n.args[1])
+            if isinstance(f_, ast.Attribute) and f_.attr == "setdefault" and n.args:
+                k = key(n.args[0])
+            if isinstance(f_, ast.Attribute) and f_.attr == "pop" and len(n.args) == 2:
+                k = key(n.args[0])
+            if (isinstance(f_, ast.Attribute) and f_.attr == "get" and isinstance(f_.value, ast.Name)
+                    and f_.value.id == "dict" and len(n.args) == 3):
+                k = key(n.args[1])
+            if any(kw.arg == "required" and isinstance(kw.value, ast.Constant) and kw.value.value is False
+                   for kw in n.keywords):
+                k = next((key(a) for a in n.args if key(a)), None)
+        elif isinstance(n, ast.IfExp) and isinstance(n.test, ast.Compare) and isinstance(n.test.ops[0], ast.In):
+            k = key(n.test.left)
+        elif isinstance(n, ast.BoolOp) and isinstance(n.op, ast.And):
+            tested = {key(v.left) for v in n.values if isinstance(v, ast.Compare) and isinstance(v.ops[0], ast.In)}
+            read = {key(s.slice) for v in n.values for s in ast.walk(v) if isinstance(s, ast.Subscript)}
+            k = next(iter((tested & read) - {None}), None)   # K in x and x[K]
+        elif isinstance(n, ast.Try) and any(_catches_keyerror(h) for h in n.handlers):
+            for s in ast.walk(ast.Module(body=n.body, type_ignores=[])):
+                if isinstance(s, ast.Subscript) and key(s.slice):
+                    out.add((where, key(s.slice)))
+        if k:
+            out.add((where, k))
+
+
 def _catches_keyerror(h: ast.ExceptHandler) -> bool:
+    if h.type is None:
+        return True   # a bare except
     types = h.type.elts if isinstance(h.type, ast.Tuple) else [h.type]
-    return any(isinstance(t, ast.Name) and t.id in ("KeyError", "LookupError", "Exception") for t in types)
+    return any(isinstance(t, ast.Name) and t.id in ("KeyError", "LookupError", "Exception", "BaseException")
+               for t in types)
 
 
 RED = {"stale", "active", "asPath", "communityList", "pfxRcd", "installed", "selected", "communities",
-       "totalPrefixCounter", "rt-entry-state", "best-route", "suppressed", "pathstaled"}
+       "totalPrefixCounter", "rt-entry-state", "best-route", "suppressed", "pathstaled", "ubest", "pathbest",
+       "valid-route", "pfxSnt", "largeCommunityList", "aspath", "session-state"}
 
 
 def test_the_scan_flags_every_defaulted_form_in_the_red_fixture():
@@ -502,3 +560,49 @@ def test_verify_a_set_driver_is_checked_against_the_node():
         nodes = {"r2": Node("r2", "c2", "linux", "quay.io/frrouting/frr:10.4.1")}
     with pytest.raises(vrun.VerifyInputError, match="is set to driver srlinux, but its kind and image say frr"):
         vrun.classify_nodes(L(), {"r2": "srlinux"}, ["r2"])
+
+
+# --- Layer 6 round 4 on bf29e89: parser instances of the missing-key class, each failing on bf29e89 ---------------
+
+def _frr_best(change):
+    d = json.loads((FX / "frr_bgp_paths_noexport.txt").read_text(encoding="utf-8"))
+    change(next(p for p in d["paths"] if (p.get("bestpath") or {}).get("overall")))
+    return json.dumps(d), d["prefix"]
+
+
+@pytest.mark.parametrize("key", ["community", "largeCommunity"])
+def test_frr_a_community_object_without_its_string_is_an_error(key):
+    """F4: read as no communities, so `without_communities` passed."""
+    text, prefix = _frr_best(lambda p: p.update({key: {"list": ["65020:300"]}}))
+    with pytest.raises(DriverError, match=f"{key} without its string"):
+        frr.parse_bgp_paths(text, prefix)
+
+
+@pytest.mark.parametrize("change,detail", [
+    (lambda p: p["aspath"].update(segments=[{"type": "as-sequence"}]), "aspath segment without its type or list"),
+    (lambda p: p["aspath"].update(length=3), "aspath length 3, but its segments count 1 hops"),
+    (lambda p: p["aspath"].pop("length"), "aspath length None"),
+], ids=["no-list", "length", "no-length"])
+def test_frr_an_aspath_segment_without_its_list_or_a_wrong_length_is_an_error(change, detail):
+    """F5: a segment without its list read as no ASNs, so `as_path: ""` passed on a path that had some."""
+    text, prefix = _frr_best(change)
+    with pytest.raises(DriverError, match=detail):
+        frr.parse_bgp_paths(text, prefix)
+
+
+@pytest.mark.parametrize("as_path,detail", [({}, "as-path without its segment list"),
+                                            ({"segment": [{"type": "as-sequence"}]},
+                                             "as-path segment without its type or members")], ids=["empty", "member"])
+def test_srl_an_as_path_without_segments_or_members_is_an_error(as_path, detail):
+    """F6: both read as the empty path, which `as_path: ""` matched."""
+    a = json.loads((FX / "srl_attr_set_best.txt").read_text(encoding="utf-8"))
+    a["as-path"] = as_path
+    with pytest.raises(DriverError, match=detail):
+        srlinux.parse_attr_set(json.dumps(a), {"best-route": True, "neighbor": "10.2.1.2", "origin-protocol": "bgp"})
+
+
+def test_the_scan_reads_the_python_in_action_yml():
+    """F7: the Action's embedded Python reads report keys too; the scan sees each `python - <<'EOF'` block."""
+    blocks = _sources(SRC.parent.parent / "action.yml")
+    assert len(blocks) >= 4 and all(where == "action.yml" for where, _ in blocks)
+    assert all(ast.parse(text) for _, text in blocks)

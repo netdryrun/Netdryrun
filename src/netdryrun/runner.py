@@ -1024,7 +1024,8 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     try:
         for f, ifaces in plan:
             if f.kind == "inject_routes":
-                inj = RouteInjection(lab, f.node, f.prefixes, f.as_path)
+                inj = RouteInjection(lab, f.node, f.prefixes, f.as_path,
+                                     shares_node=sum(g.kind == "inject_routes" and g.node == f.node for g, _ in plan) > 1)
                 injected.append(inj)   # recorded first: restore even if applying half-fails
                 log(f"Injecting {inj.describe()}")
                 inj.apply()
@@ -1104,9 +1105,9 @@ def _never_left(injected: list[RouteInjection], results: list[Result], log=lambd
     if inj.quiet:   # a check on the far side of one of these peers passed on nothing (Layer 6)
         held = "; ".join(f"{peer} was not sent {_some(missing)}" for peer, missing in inj.quiet.items())
         text = (f"inconclusive: the injected routes on {inj.node} did not all reach its BGP peers: {held} (not in the "
-                "routes it advertised to them while the routes were in, and no session there reset over its prefix "
-                "limit after they went in: an outbound filter, or a session that went down), so this scenario tested "
-                "nothing")
+                "routes it advertised to them while the routes were in, or the session reset while they were in, other "
+                "than over a prefix limit only these routes can explain: an outbound filter, or a session that went "
+                "down or reset), so this scenario tested nothing")
     elif inj.unsent:
         why = "; ".join(f"no established {afi} BGP session there carries {_some(prefixes)}"
                         for afi, prefixes in inj.unsent.items())

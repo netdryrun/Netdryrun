@@ -111,8 +111,12 @@ def conflicts(running_config: str, prefixes: list[str]) -> list[str]:
 class RouteInjection:
     """One inject_routes fault on one node. apply() then, whatever happens, restore()."""
 
-    def __init__(self, lab: Lab, node: str, prefixes: list[str], as_path: list[int], budget: float = 60):
+    def __init__(self, lab: Lab, node: str, prefixes: list[str], as_path: list[int], budget: float = 60,
+                 shares_node: bool = False):
         self.lab, self.node, self.prefixes, self.as_path, self.budget = lab, node, prefixes, as_path, budget
+        # another inject_routes on the same node in the same scenario: its routes are in at the same time, so a
+        # prefix-limit reset can't tell whose routes overflowed the limit (Layer 6 round 4 on bf29e89)
+        self.shares_node = shares_node
         self.asn = ""
         self.applied = False   # set before the config goes in: restore even if applying half-fails
         self.peers_before: dict[str, list[str]] = {}   # family -> the peers established when the routes went in
@@ -237,13 +241,14 @@ class RouteInjection:
     def restore(self) -> None:
         if not self.applied:
             return
-        # Read while the routes are still in, after the scenario's checks: is every injected prefix in the advertised
-        # routes towards every peer that was established in its family when they went in, or did that peer tear the
-        # session down over its prefix limit? A peer that did neither never got those prefixes (an outbound filter
-        # towards it, a session that went down), and a max: or present: false check on its side passed on nothing
-        # (acceptance round B-5). Every peer, not one (Layer 6 on b03cb7a); every prefix, not a count (Layer 6 round
-        # 2 on eaa323c, round 3 on 5e65852). A family no established session carries sent nothing. Any other reset
-        # proves nothing: inconclusive.
+        # Read while the routes are still in, after the scenario's checks. Every peer established in a prefix's
+        # family when the routes went in or now must show it: in the advertised routes towards it now, with its session
+        # never reset in between; or a prefix-limit reset that only this injection's routes can explain. A peer that
+        # does neither never got the prefix (an outbound filter towards it, a session that went down or reset), and a
+        # max: or present: false check on its side passed on nothing (acceptance round B-5). Every peer, not one
+        # (Layer 6 on b03cb7a); every prefix, not a count (round 2 on eaa323c, round 3 on 5e65852); a peer that came
+        # up while they were in, any other reset, and a prefix-limit reset with another injection's routes in on the
+        # same node all prove nothing (round 4 on bf29e89). A family no established session carries sent nothing.
         try:
             now = self.established()
             resets = self.resets()
@@ -252,11 +257,18 @@ class RouteInjection:
             unsent: dict[str, list[str]] = {}
             for afi in sorted({_afi(p) for p in self.prefixes}):
                 mine = [p for p in self.prefixes if _afi(p) == afi]
-                if not self.peers_before[afi]:
+                peers = sorted(set(self.peers_before[afi]) | set(now[afi]))
+                if not peers:
                     unsent[afi] = mine
                     continue
-                for peer in self.peers_before[afi]:
-                    if peer in resets and self._max_prefix_reset(peer, resets[peer], afi, elapsed):
+                for peer in peers:
+                    if peer not in resets or peer not in self.resets_before:
+                        quiet.setdefault(peer, []).extend(mine)   # whether its session reset can't be read
+                        continue
+                    if resets[peer][0] != self.resets_before[peer][0]:
+                        if not self.shares_node and self._max_prefix_reset(peer, resets[peer], afi, elapsed):
+                            continue
+                        quiet.setdefault(peer, []).extend(mine)   # it reset while the routes were in
                         continue
                     got = self.advertised(afi, peer) if peer in now[afi] else set()
                     quiet.setdefault(peer, []).extend(p for p in mine if p not in got)

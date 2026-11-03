@@ -193,3 +193,14 @@
     - tests/test_verdict_keys_041.py
     - tests/test_verdict_runner.py
     - tests/test_junos_mutants.py
+- id: layer6-review-4-0.4.1
+  what: False passes round 4 of the Layer 6 review found in the 0.4.1 candidate (bf29e89) - inject_routes never read
+    a peer that came up during the injection, counted a peer whose session reset (for another reason) and came back
+    as reached, and let one injection's prefix-limit overflow prove another on the same node delivered; FRR community
+    objects without their string and AS-path segments without their list read as none; SR Linux as-path containers
+    without segments read as the empty path
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 4)
+  tests:
+    - tests/test_inject_sent_counts.py
+    - tests/test_verdict_keys_041.py
+    - tests/test_verdict_runner.py

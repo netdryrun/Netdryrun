@@ -232,9 +232,10 @@ class Env:
         env = self
 
         class Injection:
-            def __init__(self, lab_, node, prefixes, as_path):
+            def __init__(self, lab_, node, prefixes, as_path, shares_node=False):
                 assert lab_ is lab
                 self.node, self.prefixes, self.as_path, self.applied, self.restored = node, prefixes, as_path, False, 0
+                self.shares_node = shares_node
                 env.injections.append(self)
 
             def describe(self):
@@ -1923,9 +1924,9 @@ def test_injected_routes_that_missed_a_peer_name_it(monkeypatch):
     [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x", node="r3")]))
     assert r.passed is False and str(r.detail) == (
         "inconclusive: the injected routes on r2 did not all reach its BGP peers: 10.0.12.1 was not sent 10.66.0.0/16 "
-        "(not in the routes it advertised to them while the routes were in, and no session there reset over its "
-        "prefix limit after they went in: an outbound filter, or a session that went down), so this scenario tested "
-        "nothing")
+        "(not in the routes it advertised to them while the routes were in, or the session reset while they were in, "
+        "other than over a prefix limit only these routes can explain: an outbound filter, or a session that went "
+        "down or reset), so this scenario tested nothing")
 
 
 def test_injected_routes_that_missed_two_peers_name_both(monkeypatch):
@@ -1936,8 +1937,9 @@ def test_injected_routes_that_missed_two_peers_name_both(monkeypatch):
     assert r.passed is False and str(r.detail) == (
         "inconclusive: the injected routes on r2 did not all reach its BGP peers: 10.0.12.1 was not sent 10.66.0.0/24; "
         "10.0.23.1 was not sent 10.66.0.0/24, 10.66.1.0/24, 10.66.2.0/24, 10.66.3.0/24, 10.66.4.0/24 and 1 more (not "
-        "in the routes it advertised to them while the routes were in, and no session there reset over its prefix "
-        "limit after they went in: an outbound filter, or a session that went down), so this scenario tested nothing")
+        "in the routes it advertised to them while the routes were in, or the session reset while they were in, other "
+        "than over a prefix limit only these routes can explain: an outbound filter, or a session that went down or "
+        "reset), so this scenario tested nothing")
 
 
 def test_a_family_without_a_session_is_named_even_when_the_other_left(monkeypatch):
@@ -2001,3 +2003,13 @@ def test_a_check_that_failed_in_a_never_left_scenario_stays_failed_exit_1(monkey
     assert isinstance(by["x"].detail, runner.NeverLeft) and not by["x"].passed
     assert not isinstance(by["x-broken"].detail, runner.NeverLeft) and not by["x-broken"].passed
     assert (rep.status, rep.exit_code) == ("failed", 1)
+
+
+def test_injections_that_share_a_node_are_told_so(monkeypatch):
+    """Layer 6 round 4 on bf29e89 (F3): two injections on one node are in at the same time, so neither can take a
+    prefix-limit reset as its own proof; one alone on its node can."""
+    e = make(monkeypatch)
+    direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"]),
+                             Fault("inject_routes", "r2", prefixes=["10.67.0.0/16"]),
+                             Fault("inject_routes", "r1", prefixes=["10.68.0.0/16"])], [route("x", node="r3")]))
+    assert [(i.node, i.shares_node) for i in e.injections] == [("r2", True), ("r2", True), ("r1", False)]
