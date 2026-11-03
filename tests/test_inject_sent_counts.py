@@ -1,13 +1,12 @@
-"""inject_routes proves the routes left the injecting node (acceptance round B-5): every injected prefix must be in the
-injector's advertised routes (its adj-rib-out after outbound policy) towards every peer that was established in its
-family when the routes went in, read while they are still in, unless that peer tore the session down over its prefix
-limit after they went in. Layer 6 round 3 on 5e65852: bgpd's aggregate sent-prefix count (pfxSnt), the proof before,
-can't say which prefixes left (another injection's prefixes raised it). Session captures: live FRR 10.4.1
+"""inject_routes proves the routes left the injecting node (acceptance round B-5) by one rule (Layer 6 round 5 on
+45f63df, after four rounds of cleverer proofs leaked): a peer was reached only if its session was established when
+the routes went in, is established at restore, never dropped in between, and every injected prefix of its family is
+in the injector's advertised routes towards it (its adj-rib-out after outbound policy), read strictly. Every other
+peer seen in that family is quiet; a prefix-limit reset proves nothing. Session captures: live FRR 10.4.1
 (tests/fixtures/SOURCES.yml); the advertised listings are built in the shape of the live frr_adj_out_multipath
 capture."""
 import copy
 import json
-import time
 from pathlib import Path
 
 import pytest
@@ -77,13 +76,12 @@ def steady(peers, dropped=None) -> str:
                        for p in peers})
 
 
-def applied(lab, node, prefixes, asn="65001", ago=60, shares_node=False):
-    """An injection whose routes went in `ago` seconds ago: the peers and resets read as apply() reads them."""
-    inj = RouteInjection(lab, node, prefixes, [], shares_node=shares_node)
+def applied(lab, node, prefixes, asn="65001"):
+    """An injection whose routes went in: the peers and drop counts read as apply() reads them."""
+    inj = RouteInjection(lab, node, prefixes, [])
     inj._wait = lambda want_present: None
     inj.asn, inj.applied = asn, True
-    inj.peers_before, inj.resets_before = inj.established(), inj.resets()
-    inj.applied_at = time.monotonic() - ago
+    inj.peers_before, inj.dropped_before = inj.established(), inj.dropped()
     return inj
 
 
@@ -173,20 +171,26 @@ def test_a_peer_that_was_down_before_the_injection_and_still_is_is_not_waited_fo
     assert (inj.left, inj.quiet) == (True, {})
 
 
-def test_a_peer_that_came_up_while_the_routes_were_in_must_show_them_too():
-    """Layer 6 round 4 on bf29e89 (F1): only the peers established at apply were read, so a peer that came up during
-    the injection and was sent nothing passed. Up at restore, it must show every prefix."""
+@pytest.mark.parametrize("listing", [adv(), adv(R1)], ids=["sent-nothing", "sent-it-at-the-end"])
+def test_a_peer_that_came_up_while_the_routes_were_in_is_quiet(listing):
+    """Round 4 (F1): a peer that came up during the injection and was sent nothing passed. Round 5 (F1, a regression
+    from bf29e89): one that showed the prefix at restore counted as reached, though the checks ran while it had no
+    session. Either way it's quiet, and its advertised routes aren't even read."""
     lab = InjectLab([summary({"10.0.12.2": "Established", "10.0.13.2": "Active"}),
                      summary({"10.0.12.2": "Established", "10.0.13.2": "Established"})],
-                    advertised={"10.0.12.2": adv(R1), "10.0.13.2": adv()})
+                    advertised={"10.0.12.2": adv(R1), "10.0.13.2": listing})
     inj = applied(lab, "r1", [R1])
     inj.restore()
     assert (inj.left, inj.quiet) == (False, {"10.0.13.2": [R1]})
+    assert lab.asked == ["show bgp ipv4 unicast neighbors 10.0.12.2 advertised-routes detail json"]
+
+
+def test_a_family_with_no_session_at_apply_never_left_even_if_one_came_up():
     lab = InjectLab([summary({"10.0.12.2": "Active"}), summary({"10.0.12.2": "Established"})],
                     advertised={"10.0.12.2": adv(R1)})
-    inj = applied(lab, "r1", [R1])   # no session at apply, one at restore that shows it: delivered, not unsent
+    inj = applied(lab, "r1", [R1])
     inj.restore()
-    assert (inj.left, inj.quiet, inj.unsent) == (True, {}, {})
+    assert (inj.left, inj.quiet, inj.unsent) == (False, {"10.0.12.2": [R1]}, {"ipv4": [R1]})
 
 
 def test_a_session_that_reset_while_the_routes_were_in_did_not_get_them():
@@ -245,17 +249,15 @@ def test_session_states_unreadable_at_restore_are_unknown_not_left():
     assert inj.left is None
 
 
-# --- a prefix-limit reset, and only one proven to be the injection's, also shows the routes left ------------------
+# --- a prefix-limit reset proves nothing (Layer 6 round 5 on 45f63df: another node's injection or a rerouted link
+# can trip it too) ---------------------------------------------------------------------------------------------------
 
-def v2_injection(after, change=None, ago=60, shares_node=False):
+def v2_injection(after):
     """ce1 on the corpus v2 lab (FRR 10.4.1, live): before the injection, then `after` while the routes are in."""
-    neighbors = json.loads(v2(after, "neighbors"))
-    if change:
-        neighbors["10.0.1.1"].update(change)
     lab = InjectLab([v2("before", "summary"), v2(after, "summary")],
-                    neighbors=[v2("before", "neighbors"), json.dumps(neighbors)],
-                    advertised={"10.0.1.1": adv("10.0.0.0/24")})
-    inj = applied(lab, "ce1", ["10.100.16.0/24"], asn="65100", ago=ago, shares_node=shares_node)   # reset 15 s old
+                    neighbors=[v2("before", "neighbors"), v2(after, "neighbors")],
+                    advertised={"10.0.1.1": adv("10.100.16.0/24")})
+    inj = applied(lab, "ce1", ["10.100.16.0/24"], asn="65100")
     inj.restore()
     return inj
 
@@ -263,36 +265,13 @@ def v2_injection(after, change=None, ago=60, shares_node=False):
 def test_the_v2_baseline_reads_live():
     lab = InjectLab([v2("before", "summary")], neighbors=[v2("before", "neighbors")])
     inj = applied(lab, "ce1", ["10.100.16.0/24"], asn="65100")
-    assert inj.peers_before == {"ipv4": ["10.0.1.1"]}
-    assert inj.resets_before == {"10.0.1.1": (0, None, None, frozenset({"ipv4Unicast"}), None)}
+    assert (inj.peers_before, inj.dropped_before) == ({"ipv4": ["10.0.1.1"]}, {"10.0.1.1": 0})
 
 
-def test_i8_a_prefix_limit_reset_by_the_receiver_means_the_routes_left():
-    """Corpus v2 I8, live: ce1 floods, pe1's maximum-prefix tears the session down (ce1 receives Cease 0601)."""
-    assert v2_injection("maxprefix").left is True
-
-
-@pytest.mark.parametrize("after", ["linkdown", "clear"])
-def test_any_other_reset_proves_nothing(after):
-    """ce1's link to pe1 down, or a clear from ce1: the session reset, not over a prefix limit, and the prefix is not
-    in what ce1 advertises: inconclusive."""
-    assert v2_injection(after).left is False
-
-
-def test_a_prefix_limit_reset_on_a_session_with_another_family_proves_nothing():
-    assert v2_injection("maxprefix", {"addressFamilyInfo": {"ipv4Unicast": {}, "ipv6Unicast": {}}}).left is False
-
-
-def test_a_prefix_limit_reset_from_before_the_injection_proves_nothing():
-    assert v2_injection("maxprefix", ago=5).left is False
-
-
-def test_a_prefix_limit_reset_proves_nothing_when_another_injection_shares_the_node():
-    """F3: with two injections on ce1, B's overflow tore the session down and proved A delivered, though none of A's
-    prefixes was ever advertised. Shared, the reset is nobody's proof."""
-    assert v2_injection("maxprefix", shares_node=True).left is False
-
-
-@pytest.mark.parametrize("change", [{"addressFamilyInfo": None}, {"lastResetTimerMsecs": None}])
-def test_a_prefix_limit_reset_with_its_family_or_time_unread_proves_nothing(change):
-    assert v2_injection("maxprefix", change).left is False
+@pytest.mark.parametrize("after", ["maxprefix", "linkdown", "clear"])
+def test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them(after):
+    """Corpus v2, live: pe1's maximum-prefix tore the session down (ce1 received Cease 0601), ce1's link went down, or
+    ce1 cleared the session. Each is a reset; the prefix-limit one used to prove delivery, and no longer does: a
+    max-prefix scenario asserts the receiver's session state, and the counts behind it are inconclusive."""
+    inj = v2_injection(after)
+    assert (inj.left, inj.quiet) == (False, {"10.0.1.1": ["10.100.16.0/24"]})

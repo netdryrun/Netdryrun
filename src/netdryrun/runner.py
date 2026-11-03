@@ -20,7 +20,7 @@ import yaml
 
 from . import __version__
 from .checks import (Result, Unready, _sample, hold_together, inconclusive_reason, is_post_convergence,
-                     never_ready_nodes, run_round_robin)
+                     never_ready_nodes, passes_without_the_routes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
 from .drivers import BETA_DRIVERS, DriverError, check_supported, for_node, resolve
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
@@ -1024,8 +1024,7 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     try:
         for f, ifaces in plan:
             if f.kind == "inject_routes":
-                inj = RouteInjection(lab, f.node, f.prefixes, f.as_path,
-                                     shares_node=sum(g.kind == "inject_routes" and g.node == f.node for g, _ in plan) > 1)
+                inj = RouteInjection(lab, f.node, f.prefixes, f.as_path)
                 injected.append(inj)   # recorded first: restore even if applying half-fails
                 log(f"Injecting {inj.describe()}")
                 inj.apply()
@@ -1093,11 +1092,12 @@ class NeverLeft(Unready):
 
 
 def _never_left(injected: list[RouteInjection], results: list[Result], log=lambda _: None) -> list[Result]:
-    """A scenario's results, or, when an injected prefix didn't reach an established BGP peer of its node (missing
-    from the node's advertised routes towards that peer while the routes were in, and no reset over its prefix limit),
-    or its family had no established session, every passed one not passed and inconclusive (acceptance round B-5;
-    every peer: Layer 6 on b03cb7a; every prefix: Layer 6 round 3 on 5e65852). A check that failed stays failed:
-    routes that never left can't have made it fail (Layer 6 on b03cb7a)."""
+    """A scenario's results, or, when an injected prefix didn't provably reach a BGP peer of its node (RouteInjection's
+    one rule: the session up at apply and at restore, never dropped, and the prefix in its advertised routes), or its
+    family had no established session, every passed check the missing routes could have made pass not passed and
+    inconclusive (acceptance round B-5; every peer: Layer 6 on b03cb7a; every prefix: round 3 on 5e65852; only
+    those checks: round 5 on 45f63df). A check that needs the routes there keeps its verdict, and a check that failed
+    stays failed: routes that never left can't have made it fail (Layer 6 on b03cb7a)."""
     quiet = [inj for inj in injected if inj.applied and inj.left is not True]
     if not quiet:
         return results
@@ -1105,16 +1105,18 @@ def _never_left(injected: list[RouteInjection], results: list[Result], log=lambd
     if inj.quiet:   # a check on the far side of one of these peers passed on nothing (Layer 6)
         held = "; ".join(f"{peer} was not sent {_some(missing)}" for peer, missing in inj.quiet.items())
         text = (f"inconclusive: the injected routes on {inj.node} did not all reach its BGP peers: {held} (not in the "
-                "routes it advertised to them while the routes were in, or the session reset while they were in, other "
-                "than over a prefix limit only these routes can explain: an outbound filter, or a session that went "
-                "down or reset), so this scenario tested nothing")
+                "routes it advertised to them while the routes were in, or the session wasn't up from when they went in "
+                "until then without a reset: an outbound filter, or a session that went down, reset or came up while "
+                "the checks ran), so this check could pass on routes that never arrived")
     elif inj.unsent:
         why = "; ".join(f"no established {afi} BGP session there carries {_some(prefixes)}"
                         for afi, prefixes in inj.unsent.items())
-        text = f"inconclusive: the injected routes never left {inj.node}: {why}, so this scenario tested nothing"
+        text = (f"inconclusive: the injected routes never left {inj.node}: {why}, so this check could pass on routes "
+                "that never arrived")
     else:
         text = (f"inconclusive: the injected routes on {inj.node} may not have left: its BGP sessions or advertised "
-                "routes could not be read, so this scenario tested nothing")
+                "routes could not be read, so this check could pass on routes that never arrived")
     detail = NeverLeft(text)
     log(f"  {detail}")
-    return [replace(r, passed=False, detail=detail, samples_passed=0) if r.passed else r for r in results]
+    return [replace(r, passed=False, detail=detail, samples_passed=0) if r.passed and passes_without_the_routes(r.check)
+            else r for r in results]

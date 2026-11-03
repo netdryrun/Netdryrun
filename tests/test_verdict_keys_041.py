@@ -92,8 +92,9 @@ ALLOWED = {
     ("drivers/srlinux.py", "oper-state"): "_counted_if_up raises on a counted family without oper-state the line "
                                           "before it reads it; families it doesn't count are skipped",
     ("drivers/srlinux.py", "as-path"): "an attr-set without as-path reads as None (unknown), never the empty path: "
-                                       "as_path and as_path_regex on None are an error (checks.py); a container "
-                                       "without its segment list is an error",
+                                       "as_path and as_path_regex on None are an error (checks.py); so does a "
+                                       "container without segments (no capture shows an empty path); a malformed "
+                                       "segment is an error",
     ("drivers/nxos.py", "ubest"): "NX-OS prints ubest only on the best path (nxos_route_default.txt, live): absent "
                                   "reads not active, which only fails `present`; `present: false` fails on any listed "
                                   "route",
@@ -113,7 +114,8 @@ ALLOWED = {
     ("drivers/srlinux.py", "afi-safi"): "an established session without it is an error (default None); a down one has "
                                         "none",
     ("drivers/srlinux.py", "communities"): "YANG state leaves an empty container out: a path without communities has "
-                                           "none (srl_attr_set_rejected.txt, live)",
+                                           "none (srl_attr_set_rejected.txt, live); a present container must hold a "
+                                           "community or large-community list, else it is an error",
     ("drivers/junos.py", "rt-entry-state"): "only the brief `show route table` (ALL_ROUTES_CMD) reads it optionally: "
                                             "that listing never prints it (junos_route_table*.txt, live) and only "
                                             "record reads it, to propose checks; the extensive output requires it",
@@ -445,7 +447,8 @@ def test_verify_a_changed_config_of_an_unobserved_node_is_refused(tmp_path):
 
 # --- Layer 6 round 3 on 5e65852: the reads the round-2 sweep missed, each failing on 5e65852 -----------------------
 
-SRL_ATTR = json.dumps({"attr-id": 3, "as-path": {"segment": []}, "next-hop": "0.0.0.0", "origin": "igp"})
+SRL_ATTR = json.dumps({"attr-id": 3, "as-path": {"segment": [{"type": "as-sequence", "member": [65020]}]},
+                       "next-hop": "0.0.0.0", "origin": "igp"})
 
 
 def test_srl_a_local_rib_row_without_origin_protocol_is_an_error_not_a_bgp_path():
@@ -590,15 +593,47 @@ def test_frr_an_aspath_segment_without_its_list_or_a_wrong_length_is_an_error(ch
         frr.parse_bgp_paths(text, prefix)
 
 
-@pytest.mark.parametrize("as_path,detail", [({}, "as-path without its segment list"),
-                                            ({"segment": [{"type": "as-sequence"}]},
-                                             "as-path segment without its type or members")], ids=["empty", "member"])
-def test_srl_an_as_path_without_segments_or_members_is_an_error(as_path, detail):
-    """F6: both read as the empty path, which `as_path: ""` matched."""
+def _srl_attr(**change):
     a = json.loads((FX / "srl_attr_set_best.txt").read_text(encoding="utf-8"))
-    a["as-path"] = as_path
+    a.update(change)
+    return json.dumps(a)
+
+
+SRL_ROW = {"best-route": True, "neighbor": "10.2.1.2", "origin-protocol": "bgp"}
+
+
+@pytest.mark.parametrize("as_path,detail", [
+    ({"segment": [{"type": "as-sequence"}]}, "as-path segment without its type or members"),
+    ({"segment": [{"type": "as-sequence", "member": []}]}, "as-path segment without its type or members"),
+    ({"segment": "65020"}, "as-path without its segment list"),
+    ({"segments": []}, "as-path: "),
+], ids=["no-member", "empty-member", "not-a-list", "unknown-key"])
+def test_srl_a_malformed_as_path_is_an_error(as_path, detail):
+    """Round 4 (F6) and round 5 (F4): a segment without members, or with an empty member list, read as the empty
+    path, which `as_path: ""` matched."""
     with pytest.raises(DriverError, match=detail):
-        srlinux.parse_attr_set(json.dumps(a), {"best-route": True, "neighbor": "10.2.1.2", "origin-protocol": "bgp"})
+        srlinux.parse_attr_set(_srl_attr(**{"as-path": as_path}), SRL_ROW)
+
+
+@pytest.mark.parametrize("as_path", [{}, {"segment": []}], ids=["no-segments", "empty-segment-list"])
+def test_srl_an_as_path_without_segments_is_unknown_and_an_as_path_check_errors(as_path):
+    """No capture shows how SR Linux prints an empty AS path: unknown, never the empty path, so `as_path: ""` and
+    `as_path_regex: "^$"` are an error, while the path's other attributes stay readable."""
+    bp = srlinux.parse_attr_set(_srl_attr(**{"as-path": as_path}), SRL_ROW)
+    assert bp.as_path is None
+    for p in ({"prefix": "192.168.22.0/24", "as_path": ""}, {"prefix": "192.168.22.0/24", "as_path_regex": "^$"}):
+        passed, detail, _ = checks._bgp_route(_Paths([bp]), p)
+        assert passed is False and isinstance(detail, Unready)
+
+
+@pytest.mark.parametrize("comms", [{}, {"community": "65020:100"}, {"community-member": ["65020:100"]},
+                                   {"community": ["65020:100"], "extended": ["target:1:1"]}],
+                         ids=["empty", "string", "other-key", "extra-key"])
+def test_srl_a_communities_container_without_a_known_list_is_an_error(comms):
+    """Round 5 (F3): `a.get("communities") or {}` then `.get("community")` read these as no communities, so
+    `without_communities` passed."""
+    with pytest.raises(DriverError, match="communities without a community list"):
+        srlinux.parse_attr_set(_srl_attr(communities=comms), SRL_ROW)
 
 
 def test_the_scan_reads_the_python_in_action_yml():

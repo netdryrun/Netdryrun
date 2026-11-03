@@ -163,19 +163,35 @@ def parse_as_loop_counts(text: str) -> dict[str, tuple[int, int]]:
     return out
 
 
-def _as_path_segments(path) -> list[tuple[str, list]]:
-    """An attr-set's as-path: every live one is `{"segment": [{"type": ..., "member": [...]}]}`. A container without
-    its segment list, or a segment without its type or members, read as the empty path, which `as_path: ""` matched
-    (Layer 6 round 4 on bf29e89): an error. No capture shows how SR Linux prints an empty AS path, so a router's own
-    route without a segment list errors too: never the empty path by guess."""
-    if not isinstance(path, dict) or not isinstance(path.get("segment"), list):
+def _as_path_segments(path) -> list[tuple[str, list]] | None:
+    """An attr-set's as-path: every live one is `{"segment": [{"type": ..., "member": [...]}]}`. No capture shows how
+    SR Linux prints an empty AS path (a router's own route), so a container without segments (`{}`, or an empty
+    segment list) is unknown, None: as_path and as_path_regex on it are an error (checks.py), never the empty path that
+    `as_path: ""` matched (Layer 6 rounds 4 and 5). A segment without its type or members is malformed: an error."""
+    if not isinstance(path, dict) or set(path) - {"segment"}:
+        raise unexpected(ATTR_CMD, f"as-path: {str(path)[:150]}")
+    if "segment" not in path or path["segment"] == []:
+        return None
+    if not isinstance(path["segment"], list):
         raise unexpected(ATTR_CMD, f"as-path without its segment list: {str(path)[:150]}")
     segs = []
     for s in path["segment"]:
-        if not isinstance(s, dict) or not isinstance(s.get("type"), str) or not isinstance(s.get("member"), list):
+        if (not isinstance(s, dict) or not isinstance(s.get("type"), str) or not isinstance(s.get("member"), list)
+                or not s["member"]):
             raise unexpected(ATTR_CMD, f"as-path segment without its type or members: {str(s)[:150]}")
         segs.append((s["type"], s["member"]))
     return segs
+
+
+def _communities(c) -> dict:
+    """An attr-set's communities container: YANG state leaves it out of a path with none (srl_attr_set_rejected.txt)
+    and leaves out an empty leaf-list inside it, so present it holds `community`, `large-community` or both, each a
+    list (every live capture). Anything else read as no communities, so `without_communities` passed (Layer 6
+    round 5 on 45f63df): an error."""
+    if (not isinstance(c, dict) or not c or set(c) - {"community", "large-community"}
+            or not all(isinstance(v, list) for v in c.values())):
+        raise unexpected(ATTR_CMD, f"communities without a community list: {str(c)[:150]}")
+    return c
 
 
 def _best(row: dict) -> bool:
@@ -274,7 +290,7 @@ def parse_attr_set(text: str, row: dict, default_local_pref: int | None = None) 
     # round 2 on eaa323c); every live attr-set prints one. A path without communities has no communities container
     # (srl_attr_set_rejected.txt, live): YANG state leaves an empty container out, so that absence is "none"
     segs = _as_path_segments(a["as-path"]) if "as-path" in a else None
-    comms = a.get("communities") or {}
+    comms = _communities(a["communities"]) if "communities" in a else {}
     nh = a.get("next-hop")
     return BgpPath(
         best=_best(row),

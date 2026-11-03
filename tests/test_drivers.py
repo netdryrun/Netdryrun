@@ -236,8 +236,9 @@ def test_srl_leak_behind_own_static_is_described():
     """When the best path is the router's own route, the leaked path's attributes are read too, so a
     `present: false` failure says where the leak came from (live-found: it said 'as-path ?')."""
     paths = srlinux.SrlDriver(_SrlLeakLab(), "srl1").bgp_paths("0.0.0.0/0").value
+    # the own static's attr-set is not captured: its empty segment list is unknown, never the empty path (round 5)
     assert [(p.local_candidate, p.as_path, p.next_hop) for p in paths] == [
-        (True, "", "0.0.0.0"), (False, "65020", "10.0.100.2")]
+        (True, None, "0.0.0.0"), (False, "65020", "10.0.100.2")]
     assert paths[1].local_pref == 100
 
 

@@ -204,3 +204,13 @@
     - tests/test_inject_sent_counts.py
     - tests/test_verdict_keys_041.py
     - tests/test_verdict_runner.py
+- id: layer6-review-5-0.4.1
+  what: False passes round 5 of the Layer 6 review found in the 0.4.1 candidate (45f63df) - inject_routes counted a
+    peer that came up during the injection as reached from its advertised routes at restore, and a prefix-limit reset
+    as delivery though other route growth can trip it; SR Linux communities containers without a known list and
+    segments with empty member lists read as none and as the empty path
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 5)
+  tests:
+    - tests/test_inject_sent_counts.py
+    - tests/test_verdict_runner.py
+    - tests/test_verdict_keys_041.py
