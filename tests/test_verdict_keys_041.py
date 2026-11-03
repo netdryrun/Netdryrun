@@ -216,6 +216,22 @@ def test_detection_of_plain_images_is_unchanged():
     assert detect(Node("v1", "c", "sonic-vs", "docker-sonic-vs:latest")) == "sonic"
 
 
+def test_only_sonic_may_carry_the_frr_mark():
+    """SONiC runs FRR inside, so its image may name frr; any other NOS whose image names frr is a mismatch."""
+    assert detect(Node("v1", "c", "sonic-vs", "docker-sonic-vs-frr:202505")) == "sonic"
+    with pytest.raises(DriverError, match="looks like frr, not eos"):
+        detect(Node("e1", "c", "ceos", "ceos-frr:4.36.3M"))
+    with pytest.raises(DriverError, match="looks like frr, not srlinux"):
+        detect(Node("s1", "c", "srl", "srlinux-frr:26.7.2"))
+
+
+@pytest.mark.parametrize("peer", [{}, {"peerAddr": None}, {"peerAddr": 5}, "10.0.0.2", None])
+def test_eos_path_whose_peer_address_is_not_a_string_is_an_error(peer):
+    """A path whose peerEntry carries no string peerAddr can't be told learned from local: an error, never a guess."""
+    with pytest.raises(DriverError, match="path without peerEntry"):
+        eos._learned({"peerEntry": peer})
+
+
 # --- the Action holds every status to its evidence ------------------------------------------------------------------
 
 def test_action_verify_match_without_a_declared_line_or_inconclusive_without_reason_is_no_verdict(tmp_path):

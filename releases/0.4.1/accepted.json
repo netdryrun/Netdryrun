@@ -5709,13 +5709,13 @@
       "class": "message-text"
     },
     "netdryrun.drivers.srlinux.x__protocol__mutmut_1": {
-      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
-      "diff": "5ed495c880c853db",
+      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a; re-pinned on ddfdf4a after the round-2 lines moved it)",
+      "diff": "2e8e8ec4593220ec",
       "class": "message-text"
     },
     "netdryrun.drivers.srlinux.x__protocol__mutmut_2": {
-      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
-      "diff": "517e096429f14a1b",
+      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a; re-pinned on ddfdf4a after the round-2 lines moved it)",
+      "diff": "3db9d185d819980b",
       "class": "message-text"
     },
     "netdryrun.drivers.srlinux.x__protocol__mutmut_11": {
@@ -5736,6 +5736,91 @@
     "netdryrun.drivers.junos.x__protocol__mutmut_2": {
       "reason": "message text only: _protocol runs only after _entries read the same protocol-name leaf with the real command, so any raise fires there first; the command reaches _leaf only for the error text",
       "diff": "16163f66be55c290",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.eos.x__programmed__mutmut_2": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "3fbecfab7479afe4",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.eos.x__programmed__mutmut_11": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "107e2c9df7531eef",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.eos.x__bgp_entries__mutmut_54": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "d606d95f30122211",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__protocol__mutmut_10": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "ffd258af37ae2555",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__counted_if_up__mutmut_9": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "d528b0e2c2a96c84",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__in_fib__mutmut_2": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "e524f3a363e46160",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__in_fib__mutmut_22": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "ac9e6b09f0428176",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__in_fib__mutmut_32": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "614cdb9864e67621",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__in_fib__mutmut_43": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "96821625e6ad55aa",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__rib_rows__mutmut_53": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "509a4bcad79f0d2b",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.nxos.x__bgp_paths_raw__mutmut_42": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "c43f85ea9c2502ea",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.base.x_must__mutmut_4": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "9f8bc849ad2954d9",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.base.x_must_bool__mutmut_2": {
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "ab61f38301ddc36a",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.base.x_must__mutmut_8": {
+      "reason": "message text only: how much of the offending output the DriverError quotes; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "b4f4e749f2180b28",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.base.x_must__mutmut_9": {
+      "reason": "message text only: how much of the offending output the DriverError quotes; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "93af909853857c63",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.base.x_must_bool__mutmut_18": {
+      "reason": "message text only: how much of the offending output the DriverError quotes; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "5c8a47cf72436db3",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.x_detect__mutmut_16": {
+      "reason": "message text only: the separator between the NOS names in the image-mismatch DriverError; the same error is raised, so detection still fails (Layer 6 round 2 on ddfdf4a)",
+      "diff": "73a6f3c5e5c43d03",
       "class": "message-text"
     }
   },
