@@ -10,7 +10,8 @@ from __future__ import annotations
 import ipaddress
 
 from .base import (BGP_SUBTYPES, BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int,
-                   canon_communities, check_vrf_name, is_bgp, load_json, network, parser, render_as_path, unexpected)
+                   canon_communities, check_vrf_name, is_bgp, load_json, must, must_bool, network, parser, render_as_path,
+                   unexpected)
 from .frr import _canon_addr, _keep_down, parse_ping
 from .stale import refuse_if_stale, strict_bool
 
@@ -25,13 +26,11 @@ SAME_NAME = frozenset({"static", "aggregate", "isis", "dhcp", "arp-nd", "gribi"}
 def _protocol(rtype: str, command: str = "info from state /network-instance <vrf> route-table <afi> route *") -> str:
     """bgp-evpn and bgp-vpn keep their names, so `protocol: bgp-evpn` can match (it never did when every bgp*
     type was folded into bgp, red team RT-0023); `protocol: bgp` still matches them (base.protocol_matches), so
-    BGP guards see every BGP-learned route. Other BGP route types (bgp-label, ...) are bgp. Any other type this driver
-    doesn't map is an error: its raw name matched no `protocol`, so `present: false` on it passed (Layer 6 on
-    b03cb7a)."""
-    if rtype in BGP_SUBTYPES:
+    BGP guards see every BGP-learned route. Any other type this driver doesn't map is an error, a new BGP subtype
+    included: its raw name matched no `protocol`, so `present: false` on it passed (Layer 6 on b03cb7a), and folded
+    into bgp, `protocol: bgp-evpn present: false` missed it (Layer 6 round 2 on eaa323c)."""
+    if rtype in BGP_SUBTYPES or rtype == "bgp":
         return rtype
-    if rtype.startswith("bgp"):
-        return "bgp"
     if rtype in SAME_NAME:
         return rtype
     if rtype not in PROTOCOLS:
@@ -84,8 +83,10 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
             _counted_if_up(addr, af)
             if "received-routes" in af:  # families without counters (evpn) are skipped; see unsupported_afis
                 # accepted = received minus rejected by import policy (matches FRR's acceptedPrefixCounter)
+                # every live capture prints both counters: a missing rejected-routes is unknown, never 0 (Layer 6
+                # round 2 on eaa323c: received alone over-counted, and `min` passed on it)
                 prefixes[str(af["afi-safi-name"])] = (as_int(NEIGHBORS_CMD, af["received-routes"])
-                                                      - as_int(NEIGHBORS_CMD, af.get("rejected-routes", 0)))
+                                                      - as_int(NEIGHBORS_CMD, must(NEIGHBORS_CMD, af, "rejected-routes")))
         # SR Linux's minimum-advertisement-interval, 5 s by default where the state doesn't list it
         timers = n.get("timers") if isinstance(n.get("timers"), dict) else {}
         adv = float(as_int(NEIGHBORS_CMD, timers.get("minimum-advertisement-interval", SRL_DEFAULT_ADV_INTERVAL)))
@@ -101,7 +102,11 @@ COUNTED_FAMILIES = ("ipv4-unicast", "ipv6-unicast")
 
 def _counted_if_up(addr: str, af: dict) -> None:
     """A family netdryrun counts that is up prints received-routes; without it the count would read 0, which passes
-    `max` and `exact: 0` (acceptance A-7). Families it doesn't count (evpn, route-target) are skipped as before."""
+    `max` and `exact: 0` (acceptance A-7). A family it counts without an oper-state is unknown, never "not carried",
+    which passes `exact: 0` (Layer 6 round 2 on eaa323c). Families it doesn't count (evpn, route-target) are skipped
+    as before."""
+    if af.get("afi-safi-name") in COUNTED_FAMILIES and "oper-state" not in af:
+        raise unexpected(NEIGHBORS_CMD, f"{addr} {af['afi-safi-name']}: no oper-state")
     if af.get("afi-safi-name") in COUNTED_FAMILIES and str(af.get("oper-state")).lower() == "up"             and "received-routes" not in af:
         raise unexpected(NEIGHBORS_CMD, f"{addr} {af['afi-safi-name']}: oper-state up but no received-routes counter")
 
@@ -110,14 +115,15 @@ def _in_fib(command: str, prefix: str, r: dict) -> bool:
     """Whether an SR Linux route forwards. SR Linux marks a route active before its FIB add completes and keeps
     it active when the add fails (acceptance A-1/A-2): present means forwarding, as on FRR and EOS, so an active
     route is active only with no FIB operation pending, none failed and not suppressed. An active route without
-    `fib-programming` is output this driver doesn't know (every live capture prints it)."""
-    if not r.get("active"):
+    `fib-programming` is output this driver doesn't know (every live capture prints it), and so is a missing `active`
+    or FIB field: unknown, never "not forwarding", which would pass `present: false` (Layer 6 round 2 on eaa323c)."""
+    if not must_bool(command, r, "active"):
         return False
     fib = r.get("fib-programming")
     if not isinstance(fib, dict):
         raise unexpected(command, f"{prefix}: active route without fib-programming")
-    return (fib.get("suppressed") is False and fib.get("pending-operation-type") == "none"
-            and fib.get("last-failed-operation-type") == "none")
+    return (must_bool(command, fib, "suppressed") is False and must(command, fib, "pending-operation-type") == "none"
+            and must(command, fib, "last-failed-operation-type") == "none")
 
 
 # invalid-reason keys a received path can carry: rejected-route is already in rejected-routes; as-loop is not
@@ -197,9 +203,9 @@ def _rib_rows(text: str, prefix: str) -> list[dict]:
         if network(RIB_CMD, r["prefix"]) != want:   # the command names the prefix as a key: only it can be listed
             raise unexpected(RIB_CMD, f"a route for {r['prefix']} in the answer for {want}")
     mine = [r for r in rows if _received(r)]
-    for r in mine:
-        if "stale-route" in r:   # graceful restart: a stale path is neither present nor gone yet
-            refuse_if_stale(prefix, r.get("neighbor"), strict_bool(RIB_CMD, r["stale-route"]))
+    for r in mine:   # graceful restart: a stale path is neither present nor gone yet; every live row prints the
+        # mark, so a missing one is unknown, never "not stale" (Layer 6 round 2 on eaa323c)
+        refuse_if_stale(prefix, r.get("neighbor"), strict_bool(RIB_CMD, must(RIB_CMD, r, "stale-route")))
     return mine
 
 
@@ -242,12 +248,17 @@ def parse_attr_set(text: str, row: dict, default_local_pref: int | None = None) 
     a = _json(text, ATTR_CMD)
     if not a:
         raise DriverError(f"attr-set {row.get('attr-id')} for {row.get('prefix')} not found")
-    segs = [(s.get("type", ""), s.get("member") or []) for s in (a.get("as-path") or {}).get("segment") or []]
+    # no as-path container: unknown (None), never an empty path that `as_path: ""` or a regex would match (Layer 6
+    # round 2 on eaa323c); every live attr-set prints one. A path without communities has no communities container
+    # (srl_attr_set_rejected.txt, live): YANG state leaves an empty container out, so that absence is "none"
+    path = a.get("as-path")
+    segs = None if not isinstance(path, dict) else [(s.get("type", ""), s.get("member") or [])
+                                                    for s in path.get("segment") or []]
     comms = a.get("communities") or {}
     nh = a.get("next-hop")
     return BgpPath(
         best=bool(row.get("best-route")),
-        as_path=render_as_path(segs),
+        as_path=None if segs is None else render_as_path(segs),
         next_hop=_canon_addr(str(nh)) if nh else None,
         local_pref=as_int(ATTR_CMD, a["local-pref"]) if "local-pref" in a else default_local_pref,
         med=as_int(ATTR_CMD, a["med"]) if "med" in a else None,   # no MED attribute: unknown, not 0

@@ -1096,10 +1096,11 @@ def _never_left(injected: list[RouteInjection], results: list[Result], log=lambd
     peers = inj.quiet   # RouteInjection sets it in __init__
     if peers:   # they reached some peers, not these: a check on the far side of one passed on nothing (Layer 6)
         one = len(peers) == 1
-        text = (f"inconclusive: the injected routes on {inj.node} never reached its BGP peer{'' if one else 's'} "
-                f"{', '.join(peers)} (no sent-prefix count towards {'it' if one else 'them'} rose, and no session "
-                f"there reset over its prefix limit: an outbound filter towards {'it' if one else 'them'}, or a "
-                "session that went down), so this scenario tested nothing")
+        text = (f"inconclusive: the injected routes on {inj.node} did not all reach its BGP peer{'' if one else 's'} "
+                f"{', '.join(peers)} (the sent-prefix count towards {'it' if one else 'them'} rose by less than the "
+                "prefixes injected, and no session there reset over its prefix limit after they went in: an outbound "
+                f"filter towards {'it' if one else 'them'}, or a session that went down), so this scenario tested "
+                "nothing")
     else:
         why = ("no established BGP session there carries their family" if inj.left is False
                else "its sent-prefix counts could not be read")

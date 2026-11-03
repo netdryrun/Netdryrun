@@ -179,7 +179,7 @@ def test_eos_ipv6_summary_is_still_read():
 
 def test_srl_failed_local_pref_lookup_raises():
     """The neighbor local-preference lookup's failure was swallowed (local-pref silently unknown)."""
-    row = {"prefix": "10.0.0.0/24", "best-route": True, "neighbor": "10.0.0.2", "origin-protocol": "bgp",
+    row = {"prefix": "10.0.0.0/24", "best-route": True, "neighbor": "10.0.0.2", "stale-route": False, "origin-protocol": "bgp",
            "attr-id": "7"}
     lab = Lab([("local-rib", _obj({"route": [row]})), ("attr-set", _obj({"as-path": {"segment": []}})),
                ("local-preference", (1, "Error: timeout"))])

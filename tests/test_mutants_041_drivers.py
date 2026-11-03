@@ -79,7 +79,7 @@ def test_eos_stale_mark_of_unknown_type_names_the_bgp_command():
     data, paths = eos_paths()
     paths[0]["routeType"]["stale"] = "yes"
     msg = error(eos.parse_bgp_paths, json.dumps(data), EOS_PFX)
-    assert msg == unexpected_msg(eos.BGP_CMD, "stale mark is not a boolean: 'yes'")
+    assert msg == unexpected_msg(eos.BGP_CMD, "stale is not a boolean: 'yes'")
 
 
 def test_eos_path_that_is_not_an_object_names_command_key_and_150_chars():

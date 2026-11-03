@@ -432,10 +432,11 @@ def test_eos_gshut_is_graceful_shutdown_live():
     assert parse_community("GSHUT") == "65535:0" and community_name("65535:0") == "graceful-shutdown"
 
 
-@pytest.mark.parametrize("flags,active", [({}, False), ({"kernelProgrammed": False}, False),
-                                          ({"hardwareProgrammed": False}, False),
+@pytest.mark.parametrize("flags,active", [({"kernelProgrammed": False, "hardwareProgrammed": True}, False),
+                                          ({"kernelProgrammed": False}, False),
+                                          ({"kernelProgrammed": True, "hardwareProgrammed": False}, False),
                                           ({"kernelProgrammed": True, "hardwareProgrammed": True}, True),
-                                          ({"kernelProgrammed": None, "hardwareProgrammed": None}, False)])
+                                          ({"kernelProgrammed": False, "hardwareProgrammed": None}, False)])
 def test_eos_route_not_programmed_is_not_active(flags, active):
     """The live route with its programmed flags changed (hand-edited from eos_ipv6_route_ospf3_ext.txt): a route EOS
     could not put in the kernel or the hardware does not forward, so it is present but never active."""

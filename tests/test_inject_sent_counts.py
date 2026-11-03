@@ -1,6 +1,8 @@
 """inject_routes proves the routes left the injecting node (acceptance round B-5): bgpd's sent-prefix count per peer
 (pfxSnt), read before the injection and while the routes are still in, must rise for some peer. Live FRR 10.4.1
 captures of examples/frr-bgp (tests/fixtures/SOURCES.yml): sent (3 then 4), and denied outbound on r1 (3 then 3)."""
+import json
+import time
 from pathlib import Path
 
 import pytest
@@ -37,6 +39,7 @@ def v2_injection(after):
     inj._wait = lambda want_present: None
     inj.asn, inj.applied = "65100", True
     inj.sent_before, inj.resets_before = inj.sent(), inj.resets()
+    inj.applied_at = time.monotonic() - 60   # the capture's reset is 15 s old: inside a 60 s injection
     return inj
 
 
@@ -60,7 +63,7 @@ def test_any_other_reset_proves_nothing(after):
 def test_the_v2_baseline_reads_live():
     inj = v2_injection("maxprefix")
     assert inj.sent_before == {("ipv4", "10.0.1.1"): 5}
-    assert inj.resets_before == {"10.0.1.1": (0, None, None)}
+    assert inj.resets_before == {"10.0.1.1": (0, None, None, frozenset({"ipv4Unicast"}), None)}
 
 
 def injection(*names):
@@ -145,3 +148,57 @@ def test_a_peer_without_a_state_stops_the_injection():
         RouteInjection(lab, "r1", ["100.64.0.0/24"], []).sent()
     assert str(e.value) == ("inject_routes on r1: no session state for 10.0.12.2 "
                             "(`show bgp ipv4 unicast summary json`)")
+
+
+# --- Layer 6 round 2 on eaa323c: all the injected prefixes, and a reset proven to be theirs -------------------------
+
+def _counts(before, after, prefixes):
+    lab = SummaryLab(json.dumps({"peers": {"10.0.12.2": {"pfxSnt": before, "state": "Established"}}}),
+                     json.dumps({"peers": {"10.0.12.2": {"pfxSnt": after, "state": "Established"}}}))
+    inj = RouteInjection(lab, "r1", prefixes, [])
+    inj._wait = lambda want_present: None
+    inj.asn, inj.applied = "65001", True
+    inj.sent_before, inj.resets_before = inj.sent(), inj.resets()
+    inj.restore()
+    return inj.left, inj.quiet
+
+
+THREE = ["203.0.113.0/24", "198.51.100.0/24", "192.0.2.0/24"]
+
+
+def test_a_filter_that_lets_one_of_three_through_has_not_sent_them():
+    """pfxSnt 4 -> 5 with three injected: two were held back, and a check on that side passed on nothing (left)."""
+    assert _counts(4, 5, THREE) == (False, ["10.0.12.2"])
+
+
+def test_all_three_sent_left():
+    assert _counts(4, 7, THREE) == (True, [])
+
+
+def _maxprefix(change, applied_ago=60):
+    after = json.loads(v2("maxprefix", "neighbors"))
+    after["10.0.1.1"].update(change)
+    lab = SummaryLab(v2("before", "summary"), v2("maxprefix", "summary"),
+                     neighbors=[v2("before", "neighbors"), json.dumps(after)])
+    inj = RouteInjection(lab, "ce1", ["10.100.16.0/24"], [])
+    inj._wait = lambda want_present: None
+    inj.asn, inj.applied = "65100", True
+    inj.sent_before, inj.resets_before = inj.sent(), inj.resets()
+    inj.applied_at = time.monotonic() - applied_ago
+    inj.restore()
+    return inj.left
+
+
+def test_a_prefix_limit_reset_on_a_session_with_another_family_proves_nothing():
+    """The session carries IPv6 too: the limit it hit may be IPv6's, so the IPv4 routes aren't shown to have left."""
+    assert _maxprefix({"addressFamilyInfo": {"ipv4Unicast": {}, "ipv6Unicast": {}}}) is False
+
+
+def test_a_prefix_limit_reset_from_before_the_injection_proves_nothing():
+    """The capture's reset is 15 s old; an injection 5 s ago can't have caused it."""
+    assert _maxprefix({}, applied_ago=5) is False
+
+
+@pytest.mark.parametrize("change", [{"addressFamilyInfo": None}, {"lastResetTimerMsecs": None}])
+def test_a_prefix_limit_reset_with_its_family_or_time_unread_proves_nothing(change):
+    assert _maxprefix(change) is False

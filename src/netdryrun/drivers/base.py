@@ -43,6 +43,22 @@ def unexpected(command: str, text: object) -> DriverError:
     return DriverError(f"unexpected output from `{command}`: {snippet}")
 
 
+def must(command: str, d: object, key: str) -> object:
+    """A key that decides a verdict (a count, the AS path, communities, a stale or forwarding flag, a route type):
+    present, or the read fails. A missing one is unknown, never empty, zero or false (Layer 6 round 2 on eaa323c:
+    the class, closed by tests/test_verdict_keys_041.py)."""
+    if not isinstance(d, dict) or key not in d:
+        raise unexpected(command, f"no {key}: {str(d)[:150]}")
+    return d[key]
+
+
+def must_bool(command: str, d: object, key: str) -> bool:
+    value = must(command, d, key)
+    if value is True or value is False:
+        return value
+    raise unexpected(command, f"{key} is not a boolean: {str(value)[:60]!r}")
+
+
 class RepeatedKey(ValueError):
     def __init__(self, key: str):
         super().__init__(key)

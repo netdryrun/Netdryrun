@@ -619,8 +619,8 @@ SRL_FIB_OK = {"suppressed": False, "pending-operation-type": "none", "last-faile
 
 SRL_NBR = J({"neighbor": [
     {"peer-address": "10.0.0.2", "session-state": "Established",
-     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "received-routes": 5, "rejected-routes": 1},
-                  {"afi-safi-name": "ipv6-unicast", "received-routes": "4"},
+     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "oper-state": "up", "received-routes": 5, "rejected-routes": 1},
+                  {"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": "4", "rejected-routes": 0},
                   {"afi-safi-name": "evpn"}]},
     {"peer-address": "2001:db8:0::1", "session-state": "idle"},
 ]})
@@ -661,7 +661,7 @@ def test_srl_bgp_neighbors():
     J({"neighbor": [{"peer-address": "10.0.0.2", "session-state": "established"}]}),     # no afi-safi
     J({"neighbor": [{"peer-address": "10.0.0.2", "session-state": "idle", "afi-safi": {}}]}),
     J({"neighbor": [{"peer-address": "10.0.0.2", "session-state": "established",
-                     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "received-routes": "x"}]}]}),
+                     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "oper-state": "up", "received-routes": "x"}]}]}),
 ])
 def test_srl_neighbors_unexpected(text):
     with pytest.raises(DriverError):
@@ -670,7 +670,7 @@ def test_srl_neighbors_unexpected(text):
 
 SRL_ROUTE = J({"route": [{"ipv4-prefix": "10.1.0.0/16", "route-type": "BGP", "active": True, "fib-programming": SRL_FIB_OK},
                          {"ipv4-prefix": "10.1.0.0/16", "route-type": "local", "active": False}]})
-SRL_RIB = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "origin-protocol": "bgp", "best-route": True,
+SRL_RIB = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "stale-route": False, "origin-protocol": "bgp", "best-route": True,
                         "attr-id": 7}]})
 
 
@@ -713,7 +713,7 @@ def test_srl_parse_routes_rules():
     assert srlinux.parse_routes(v6, "2001:db8::/32") == [Route("2001:db8::/32", "ospf6", True)]
     with pytest.raises(DriverError):   # no route-type: no protocol to name (it read as "", which no check matched)
         srlinux.parse_routes(J({"route": [{"ipv4-prefix": "10.1.0.0/16"}]}), "10.1.0.0/16")
-    assert srlinux.parse_routes(J({"route": [{"ipv4-prefix": "10.1.0.0/16", "route-type": "host", "active": 1, "fib-programming": SRL_FIB_OK}]}),
+    assert srlinux.parse_routes(J({"route": [{"ipv4-prefix": "10.1.0.0/16", "route-type": "host", "active": True, "fib-programming": SRL_FIB_OK}]}),
                                 "10.1.0.0/16") == [Route("10.1.0.0/16", "local", True)]
     with pytest.raises(DriverError):
         srlinux.parse_routes(J({"route": [{"ipv6-prefix": "10.1.0.0/16"}]}), "10.1.0.0/16")
@@ -733,9 +733,9 @@ def test_srl_parse_routes_rules():
     (J({"route": [{"ipv4-prefix": "10.1.0.0/16", "route-type": "static", "active": True, "fib-programming": SRL_FIB_OK}]}), SRL_RIB,
      [Route("10.1.0.0/16", "static", True), Route("10.1.0.0/16", "bgp", False)]),
     # the router's own static in the RIB is not a BGP route
-    ("{}", J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "origin-protocol": "Static"}]}), []),
-    ("{}", J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0"}]}), [Route("10.1.0.0/16", "bgp", False)]),
-    ("{}", J({"route": [{"prefix": "10.1.0.0/16", "origin-protocol": "BGP"}]}), [Route("10.1.0.0/16", "bgp", False)]),
+    ("{}", J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "origin-protocol": "Static"}]}), []),
+    ("{}", J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False}]}), [Route("10.1.0.0/16", "bgp", False)]),
+    ("{}", J({"route": [{"prefix": "10.1.0.0/16", "stale-route": False, "origin-protocol": "BGP"}]}), [Route("10.1.0.0/16", "bgp", False)]),
     ("{}", "{}", []),
 ])
 def test_srl_bgp_rib_paths_count_as_present(table, rib, expected):
@@ -745,7 +745,7 @@ def test_srl_bgp_rib_paths_count_as_present(table, rib, expected):
 def test_srl_a_rib_row_for_another_prefix_is_unexpected():
     """The BGP-RIB command names the prefix as a key: a row for another one is unexpected output, never "absent"."""
     with pytest.raises(DriverError) as e:
-        srlinux.parse_routes("{}", "10.1.0.0/16", J({"route": [{"prefix": "10.0.0.0/8", "origin-protocol": "bgp"}]}))
+        srlinux.parse_routes("{}", "10.1.0.0/16", J({"route": [{"prefix": "10.0.0.0/8", "stale-route": False, "origin-protocol": "bgp"}]}))
     assert str(e.value) == ("unexpected output from `info from state /network-instance <vrf> bgp-rib ... local-rib "
                             "route <prefix>`: a route for 10.0.0.0/8 in the answer for 10.1.0.0/16")
 
@@ -757,10 +757,10 @@ def test_srl_rib_rows():
         srlinux.parse_rib_paths(J({"route": "x"}), "10.1.0.0/16")
     with pytest.raises(DriverError):
         srlinux.parse_rib_paths(J({"route": [1]}), "10.1.0.0/16")
-    rows = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "a"}, {"prefix": "10.1.0.0/16", "neighbor": "b",
+    rows = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "a", "stale-route": False}, {"prefix": "10.1.0.0/16", "neighbor": "b", "stale-route": False,
                                                                      "best-route": True}]})
     assert [r["neighbor"] for r in srlinux.parse_rib_paths(rows, "10.1.0.0/16")] == ["b", "a"]
-    other = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "a"}, {"prefix": "10.0.0.0/8", "neighbor": "c"}]})
+    other = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "a", "stale-route": False}, {"prefix": "10.0.0.0/8", "neighbor": "c", "stale-route": False}]})
     with pytest.raises(DriverError, match="a route for 10.0.0.0/8 in the answer for 10.1.0.0/16"):
         srlinux.parse_rib_paths(other, "10.1.0.0/16")
     assert srlinux.parse_rib_paths("{}", "10.1.0.0/16") == []
@@ -783,11 +783,11 @@ ATTR = J({"as-path": {"segment": [{"type": "as_sequence", "member": [65002, 6500
 
 
 def test_srl_parse_attr_set():
-    row = {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "best-route": True, "attr-id": 7}
+    row = {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "stale-route": False, "best-route": True, "attr-id": 7}
     assert srlinux.parse_attr_set(ATTR, row) == BgpPath(True, "65002 65003", "2001:db8::2", 200, 9, ["65000:10"],
                                                         ["1:2:3"], "10.0.0.2", False)
-    bare = srlinux.parse_attr_set(J({"x": 1}), {"neighbor": "0.0.0.0", "origin-protocol": "static"}, 150)
-    assert bare == BgpPath(False, "", None, 150, None, [], [], "0.0.0.0", True)
+    bare = srlinux.parse_attr_set(J({"x": 1}), {"neighbor": "0.0.0.0", "stale-route": False, "origin-protocol": "static"}, 150)
+    assert bare == BgpPath(False, None, None, 150, None, [], [], "0.0.0.0", True)   # no as-path: unknown
     assert srlinux.parse_attr_set(J({"x": 1}), row).local_pref is None
     with pytest.raises(DriverError):
         srlinux.parse_attr_set("{}", row)
@@ -798,7 +798,7 @@ def test_srl_parse_attr_set():
 def test_srl_unread_path():
     assert srlinux.unread_path({"best-route": True, "neighbor": "10.0.0.3"}) == \
         BgpPath(True, None, None, None, None, [], [], "10.0.0.3", False)
-    assert srlinux.unread_path({"origin-protocol": "local"}) == BgpPath(False, None, None, None, None, [], [], None, True)
+    assert srlinux.unread_path({"stale-route": False, "origin-protocol": "local"}) == BgpPath(False, None, None, None, None, [], [], None, True)
 
 
 def test_srl_find_and_instance_state():
@@ -837,7 +837,7 @@ def test_srl_bgp_paths_commands():
         "sr_cli --output-format json info from state /network-instance default bgp-rib attr-sets attr-set 7"]
     assert obs.value == [BgpPath(True, "65002 65003", "2001:db8::2", 200, 9, ["65000:10"], ["1:2:3"], "10.0.0.2")]
     assert len(obs.evidence) == 2
-    rib6 = J({"route": [{"prefix": "2001:db8::/32", "neighbor": "10.0.0.2", "best-route": True, "attr-id": 3}]})
+    rib6 = J({"route": [{"prefix": "2001:db8::/32", "neighbor": "10.0.0.2", "stale-route": False, "best-route": True, "attr-id": 3}]})
     lab = _srl_paths_lab(rib6, ATTR)
     SrlDriver(lab, "r1").bgp_paths("2001:db8::/32", "red")
     assert lab.lines() == [
@@ -854,10 +854,10 @@ def test_srl_bgp_paths_commands():
 
 
 def test_srl_bgp_paths_reads_the_best_and_the_first_learned_path():
-    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.3", "attr-id": 2, "origin-protocol": "bgp"},
-                       {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "best-route": True, "attr-id": 1,
-                        "origin-protocol": "static"},
-                       {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.4", "attr-id": 3, "origin-protocol": "bgp"}]})
+    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.3", "stale-route": False, "attr-id": 2, "stale-route": False, "origin-protocol": "bgp"},
+                       {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "best-route": True, "attr-id": 1,
+                        "stale-route": False, "origin-protocol": "static"},
+                       {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.4", "stale-route": False, "attr-id": 3, "stale-route": False, "origin-protocol": "bgp"}]})
     lab = _srl_paths_lab(rib, J({"as-path": {}, "local-pref": 100}))
     paths = SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value
     assert [p.neighbor for p in paths] == ["0.0.0.0", "10.0.0.3", "10.0.0.4"]
@@ -865,21 +865,21 @@ def test_srl_bgp_paths_reads_the_best_and_the_first_learned_path():
     assert paths[0].local_candidate and not paths[1].local_candidate and paths[2].as_path is None
     assert [ln.rsplit(" ", 1)[1] for ln in lab.lines() if "attr-set " in ln] == ["1", "2"]
     # the best path is learned: only it is read
-    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.3", "attr-id": 2, "best-route": True},
-                       {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.4", "attr-id": 3}]})
+    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.3", "stale-route": False, "attr-id": 2, "best-route": True},
+                       {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.4", "stale-route": False, "attr-id": 3}]})
     lab = _srl_paths_lab(rib, J({"local-pref": 100}))
     paths = SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value
     assert [p.local_pref for p in paths] == [100, None] and sum("attr-set " in ln for ln in lab.lines()) == 1
     # only the router's own paths: only the best is read
-    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "attr-id": 2, "best-route": True,
-                        "origin-protocol": "local"},
-                       {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "attr-id": 3, "origin-protocol": "static"}]})
+    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "attr-id": 2, "best-route": True,
+                        "stale-route": False, "origin-protocol": "local"},
+                       {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "attr-id": 3, "stale-route": False, "origin-protocol": "static"}]})
     lab = _srl_paths_lab(rib, J({"local-pref": 100}))
     assert [p.local_pref for p in SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value] == [100, None]
 
 
 def test_srl_local_pref_from_the_neighbor():
-    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "attr-id": 7, "best-route": True}]})
+    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "stale-route": False, "attr-id": 7, "best-route": True}]})
     lab = _srl_paths_lab(rib, J({"med": 1}), neighbor_lp=J({"local-preference": 250}))
     [p] = SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16", "red").value
     assert p.local_pref == 250
@@ -893,8 +893,8 @@ def test_srl_local_pref_from_the_neighbor():
         SrlDriver(_srl_paths_lab(rib, J({"med": 1}), neighbor_lp="[]"), "r1").bgp_paths("10.1.0.0/16")
     # no neighbor to ask: the router's own route, an unspecified address, or a non-IP neighbor
     for row in ({"neighbor": "0.0.0.0"}, {"neighbor": "::"}, {"neighbor": "x"}, {},
-                {"neighbor": "10.0.0.2", "origin-protocol": "static"}):
-        r = J({"route": [{"prefix": "10.1.0.0/16", "attr-id": 7, "best-route": True, **row}]})
+                {"neighbor": "10.0.0.2", "stale-route": False, "origin-protocol": "static"}):
+        r = J({"route": [{"prefix": "10.1.0.0/16", "attr-id": 7, "best-route": True, "stale-route": False, **row}]})
         lab = _srl_paths_lab(r, J({"med": 1}))
         assert SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value[0].local_pref is None
         assert not any("local-preference" in ln for ln in lab.lines())
@@ -906,7 +906,7 @@ def test_srl_local_pref_from_the_neighbor():
 
 @pytest.mark.parametrize("attr_id", ["7; reboot", None, "x", "", "-1"])
 def test_srl_bad_attr_id_raises(attr_id):
-    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "attr-id": attr_id, "best-route": True}]})
+    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "stale-route": False, "attr-id": attr_id, "best-route": True}]})
     with pytest.raises(DriverError):
         SrlDriver(_srl_paths_lab(rib, ATTR), "r1").bgp_paths("10.1.0.0/16")
 
@@ -918,7 +918,7 @@ def test_srl_all_routes():
     assert lab.lines() == ["sr_cli --output-format json info from state /network-instance default route-table "
                            "ipv4-unicast route * id * route-type * route-owner * origin-network-instance *"]
     assert obs.value == [Route("10.1.0.0/16", "connected", True)]
-    v6 = J({"route": [{"ipv6-prefix": "2001:db8::/32", "route-type": "bgp"}]})
+    v6 = J({"route": [{"ipv6-prefix": "2001:db8::/32", "route-type": "bgp", "active": False}]})
     lab = Lab([("route-table", v6)])
     assert SrlDriver(lab, "r1").all_routes("red", 6).value == [Route("2001:db8::/32", "bgp", False)]
     assert lab.lines() == ["sr_cli --output-format json info from state /network-instance red route-table "
@@ -1031,8 +1031,17 @@ def eos_bgp(vrf="default", entries=None):
 
 
 def eos_path(peer="10.0.0.2", **kw):
+    # cEOS 4.36.3M prints these on every path (each capture in tests/fixtures); a test sets them only to test them
     p = {"peerEntry": {"peerAddr": peer}}
     p.update(kw)
+    if isinstance(p.get("routeType", {}), dict):
+        p.setdefault("routeType", {}).setdefault("active", False)
+        p["routeType"].setdefault("stale", False)
+    if isinstance(p.get("asPathEntry", {}), dict):
+        p.setdefault("asPathEntry", {}).setdefault("asPath", "")
+    if isinstance(p.get("routeDetail", {}), dict):
+        p.setdefault("routeDetail", {}).setdefault("communityList", [])
+        p["routeDetail"].setdefault("largeCommunityList", [])
     return p
 
 
@@ -1056,10 +1065,11 @@ def test_eos_route_types(rtype, proto):
     assert out == [Route("10.1.0.0/16", proto, True)]
 
 
-@pytest.mark.parametrize("route", [{"routeType": "weird type"}, {}], ids=["unmapped", "missing"])
-def test_eos_route_type_it_cannot_map_is_an_error(route):
+@pytest.mark.parametrize("route,detail", [({"routeType": "weird type"}, "is not one this driver maps to a protocol"),
+                                          ({}, "no routeType")], ids=["unmapped", "missing"])
+def test_eos_route_type_it_cannot_map_is_an_error(route, detail):
     """0.4.0 passed an unmapped (or missing) routeType through as its raw name, which no protocol matched: 0.4.1."""
-    with pytest.raises(DriverError, match="is not one this driver maps to a protocol"):
+    with pytest.raises(DriverError, match=detail):
         eos.parse_routes(eos_routes(**{"10.1.0.0/16": route}), eos_bgp(), "10.1.0.0/16")
 
 
@@ -1114,7 +1124,8 @@ def test_eos_bgp_paths():
     assert lab.lines() == ["Cli -p 15 -c show ipv6 bgp 2001:db8::/32 vrf red | json"]
     bare = eos_bgp(entries={pfx: {"bgpRoutePaths": [{"routeType": None, "asPathEntry": None, "routeDetail": None,
                                                      "peerEntry": None}]}})
-    assert eos.parse_bgp_paths(bare, pfx) == [BgpPath(False, "", None, None, None, [], [], None)]
+    with pytest.raises(DriverError, match="no stale"):   # unknown, never an empty path (Layer 6 round 2 on eaa323c)
+        eos.parse_bgp_paths(bare, pfx)
     with pytest.raises(DriverError):
         eos.parse_bgp_paths(eos_bgp(entries={pfx: {"bgpRoutePaths": [{"med": "x"}]}}), pfx)
 
@@ -1131,7 +1142,7 @@ def test_eos_all_routes():
     for bad in (eos_routes(**{"10.0.0.0/8": "x"}), eos_routes(**{"x": {}}), eos_routes("red")):
         with pytest.raises(DriverError):
             eos.parse_all_routes(bad)
-    with pytest.raises(DriverError, match="is not one this driver maps to a protocol"):   # no routeType: 0.4.1
+    with pytest.raises(DriverError, match="no routeType"):   # 0.4.1
         eos.parse_all_routes(eos_routes(**{"10.0.0.0/8": {}}))
 
 
@@ -1208,7 +1219,7 @@ def test_srl_evidence_is_kept_everywhere():
     assert len(SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16", "red").evidence) == 2
     lab = Lab([("route-table", "{}"), ("oper-state", J({"oper-state": "up"}))])
     assert len(SrlDriver(lab, "r1").all_routes("red").evidence) == 2
-    lab = Lab([("route-table", J({"route": [{"ipv4-prefix": "10.0.0.0/8", "route-type": "static"}]}))])
+    lab = Lab([("route-table", J({"route": [{"ipv4-prefix": "10.0.0.0/8", "route-type": "static", "active": False}]}))])
     assert len(SrlDriver(lab, "r1").all_routes().evidence) == 1
 
 

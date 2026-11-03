@@ -66,6 +66,9 @@ def _afi(prefix: str) -> str:
     return "ipv6" if ":" in prefix else "ipv4"
 
 
+AF_KEY = {"ipv4": "ipv4Unicast", "ipv6": "ipv6Unicast"}   # `show bgp neighbors json` addressFamilyInfo keys
+
+
 def config_lines(asn: str, prefixes: list[str], as_path: list[int], remove: bool = False) -> list[str]:
     """vtysh config that adds (or removes) the injected routes."""
     no = "no " if remove else ""
@@ -114,7 +117,8 @@ class RouteInjection:
         self.resets_before: dict[str, tuple] = {}
         # whether the routes left the node: True, False, or None when the counts couldn't be read at restore
         self.left: bool | None = None
-        self.quiet: list[str] = []   # the established peers they never reached (left is False)
+        self.quiet: list[str] = []   # the established peers they never all reached (left is False)
+        self.applied_at: float | None = None   # time.monotonic() when the config went in: resets before it prove nothing
 
     def sent(self) -> dict[tuple[str, str], int]:
         """(family, peer) -> the prefixes the node has sent that peer (bgpd's pfxSnt), for each family injected and
@@ -134,8 +138,8 @@ class RouteInjection:
         return out
 
     def resets(self) -> dict[str, tuple]:
-        """peer -> (sessions dropped, last reset reason, last NOTIFICATION code and subcode), from `show bgp neighbors
-        json`. A peer that tears the session down because the injected routes exceeded its prefix limit sends a Cease
+        """peer -> (sessions dropped, last reset reason, last NOTIFICATION code and subcode, the session's families,
+        milliseconds since the last reset), from `show bgp neighbors json`. A peer that tears the session down because the injected routes exceeded its prefix limit sends a Cease
         NOTIFICATION with subcode 1 (`0601`, "Maximum Number of Prefixes Reached", live FRR 10.4.1): the routes left,
         though the sent count then reads 0 on the session that came back or is still down."""
         data = json.loads(self._vtysh("-c", "show bgp neighbors json") or "{}")
@@ -144,14 +148,20 @@ class RouteInjection:
             if not isinstance(info, dict) or not isinstance(info.get("connectionsDropped"), int):
                 raise LabError(f"inject_routes on {self.node}: no dropped-session count for {peer} "
                                "(`show bgp neighbors json`)")
-            out[peer] = (info["connectionsDropped"], info.get("lastResetDueTo"), info.get("lastErrorCodeSubcode"))
+            families = info.get("addressFamilyInfo")
+            out[peer] = (info["connectionsDropped"], info.get("lastResetDueTo"), info.get("lastErrorCodeSubcode"),
+                         frozenset(families) if isinstance(families, dict) else None, info.get("lastResetTimerMsecs"))
         return out
 
-    def _max_prefix_reset(self, peer: str, now: tuple) -> bool:
-        """The peer dropped the session during the injection, and the last drop was its prefix-limit Cease."""
-        dropped, due, code = now
+    def _max_prefix_reset(self, peer: str, now: tuple, afi: str, elapsed: float) -> bool:
+        """The peer dropped the session after the routes went in (elapsed seconds ago), the last drop was its
+        prefix-limit Cease, and the session carries no family but the injected one, so the limit it hit can only be
+        that family's (Layer 6 round 2 on eaa323c: an unrelated family's reset, or one from before the injection,
+        counted). Anything unread proves nothing."""
+        dropped, due, code, families, msecs = now
         return (dropped > self.resets_before.get(peer, (dropped,))[0] and due == "BGP Notification received"
-                and code == "0601")
+                and code == "0601" and families == frozenset({AF_KEY[afi]})
+                and isinstance(msecs, int) and not isinstance(msecs, bool) and msecs <= elapsed * 1000 + 1000)
 
     def _vtysh(self, *args: str, timeout: float = 120) -> str:
         r = self.lab.exec(self.node, ["vtysh", *args], timeout=timeout)
@@ -201,6 +211,7 @@ class RouteInjection:
         self.sent_before = self.sent()   # read before anything changes: a count that can't be read stops here
         self.resets_before = self.resets()
         self.applied = True
+        self.applied_at = time.monotonic()
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path))
         self._wait(want_present=True)
 
@@ -208,17 +219,21 @@ class RouteInjection:
         if not self.applied:
             return
         # Read while the routes are still in, after the scenario's checks: did every peer that was established when
-        # they went in get more prefixes than before, or tear the session down over its prefix limit? A peer that
-        # did neither never got them (an outbound filter towards it, a session that went down), and a max: or
-        # present: false check on its side passed on nothing (acceptance round B-5). Every peer, not one: the
-        # routes reaching one neighbor says nothing about another's side (Layer 6 on b03cb7a). Any other reset
-        # proves nothing: inconclusive.
+        # they went in get at least as many more prefixes of the family as were injected in it, or tear the session
+        # down over its prefix limit? A peer that did neither never got them all (an outbound filter towards it, a
+        # session that went down), and a max: or present: false check on its side passed on nothing (acceptance
+        # round B-5). Every peer, not one: the routes reaching one neighbor says nothing about another's side (Layer
+        # 6 on b03cb7a). All of them, not one more: a filter that lets one of three through raises the count by one
+        # (Layer 6 round 2 on eaa323c). Any other reset proves nothing: inconclusive.
         try:
             after = self.sent()
             resets = self.resets()
+            elapsed = time.monotonic() - (self.applied_at if self.applied_at is not None else time.monotonic())
+            injected = {afi: sum(_afi(p) == afi for p in self.prefixes) for afi, _ in self.sent_before}
             self.quiet = sorted({peer for (afi, peer), n in self.sent_before.items()
-                                 if not (after.get((afi, peer), 0) > n
-                                         or (peer in resets and self._max_prefix_reset(peer, resets[peer])))})
+                                 if not (after.get((afi, peer), 0) >= n + injected[afi]
+                                         or (peer in resets
+                                             and self._max_prefix_reset(peer, resets[peer], afi, elapsed)))})
             self.left = bool(self.sent_before) and not self.quiet
         except (LabError, ValueError):
             self.left = None

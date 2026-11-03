@@ -14,7 +14,7 @@ import re
 import ipaddress
 
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
-                   check_vrf_name, load_json, network, parser, unexpected)
+                   check_vrf_name, load_json, must, must_bool, network, parser, unexpected)
 from .frr import _canon_addr, parse_ping
 from .stale import refuse_if_stale, strict_bool
 
@@ -42,12 +42,13 @@ def _protocol(rtype: str, prefix: str, command: str = "show ip route <prefix> | 
     return PROTOCOLS[rtype]
 
 
-def _programmed(route: dict) -> bool:
+def _programmed(command: str, route: dict) -> bool:
     """Whether a routing-table entry forwards: EOS flags one it could not put in the kernel or the hardware
     (kernelProgrammed / hardwareProgrammed false, e.g. a full TCAM), and such a route is not active, never
     a pass of `present` (red team plausible case, 2026-11-01). cEOS 4.36.3M prints both flags on every route, so
-    one missing is unknown, and unknown is not forwarding, as on SR Linux (Layer 6 on b03cb7a)."""
-    return route.get("kernelProgrammed") is True and route.get("hardwareProgrammed") is True
+    one missing is unknown: the read fails, never "not forwarding", which would pass `present: false` (Layer 6
+    round 2 on eaa323c)."""
+    return must_bool(command, route, "kernelProgrammed") and must_bool(command, route, "hardwareProgrammed")
 
 
 SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "show ipv6 bgp summary | json"}
@@ -155,9 +156,10 @@ def _bgp_entries(command: str, text: str, vrf: str) -> dict:
         for p in e["bgpRoutePaths"]:
             if not isinstance(p, dict):
                 raise unexpected(command, f"{key} path: {str(p)[:150]}")
-            kind = p.get("routeType")
-            if isinstance(kind, dict) and "stale" in kind:   # graceful restart: neither present nor gone yet
-                refuse_if_stale(key, (p.get("peerEntry") or {}).get("peerAddr"), strict_bool(command, kind["stale"]))
+            # graceful restart: neither present nor gone yet. cEOS prints routeType.stale on every path: missing is
+            # unknown, never "not stale" (Layer 6 round 2 on eaa323c)
+            stale = must_bool(command, must(command, p, "routeType"), "stale")
+            refuse_if_stale(key, (p.get("peerEntry") or {}).get("peerAddr"), stale)
     return entries
 
 
@@ -177,7 +179,7 @@ def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "defaul
         if not isinstance(r, dict):
             raise unexpected(ROUTE_CMD, f"{key}: {str(r)[:150]}")
         if network(ROUTE_CMD, key) == want:
-            out.append(Route(prefix, _protocol(str(r.get("routeType", "")), prefix), _programmed(r)))
+            out.append(Route(prefix, _protocol(str(must(ROUTE_CMD, r, "routeType")), prefix), _programmed(ROUTE_CMD, r)))
     # A BGP path can be "best" inside BGP and still not be installed (a static or connected route with
     # a better preference wins the routing table). Unless BGP is the installed route, every BGP path
     # learned from a neighbor, valid or not, is "present but not selected": a leak that must still fail
@@ -198,7 +200,8 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
         if not isinstance(r, dict):
             raise unexpected(ALL_ROUTES_CMD, f"{key}: {str(r)[:150]}")
         net = str(network(ALL_ROUTES_CMD, key))
-        out.append(Route(net, _protocol(str(r.get("routeType", "")), net, ALL_ROUTES_CMD), _programmed(r)))
+        out.append(Route(net, _protocol(str(must(ALL_ROUTES_CMD, r, "routeType")), net, ALL_ROUTES_CMD),
+                         _programmed(ALL_ROUTES_CMD, r)))
     return out
 
 
@@ -226,18 +229,20 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
     for key, e in _bgp_entries(BGP_CMD, text, vrf).items():
         _exact_entry(key, want)
         for p in e["bgpRoutePaths"]:
-            detail = p.get("routeDetail") or {}
+            # cEOS 4.36.3M prints the AS path, the active flag and both community lists ([] when none) on every
+            # path: one missing is unknown, never "no communities" or an empty AS path (Layer 6 round 2 on eaa323c)
+            detail = must(BGP_CMD, p, "routeDetail")
             nh = p.get("nextHop") or ""
             out.append(BgpPath(
-                best=bool((p.get("routeType") or {}).get("active")),
-                as_path=_as_path(str((p.get("asPathEntry") or {}).get("asPath", ""))),
+                best=must_bool(BGP_CMD, must(BGP_CMD, p, "routeType"), "active"),
+                as_path=_as_path(str(must(BGP_CMD, must(BGP_CMD, p, "asPathEntry"), "asPath"))),
                 next_hop=_canon_addr(str(nh)) if nh else None,
                 local_pref=as_int(BGP_CMD, p["localPreference"]) if "localPreference" in p else None,
                 # no MED attribute: unknown, not 0. cEOS 4.36.3M also prints "med": 0 for a path received with
                 # no MED (interop IOP-2), so 0 is unknown too, and a `med: 0` check is refused (ambiguous_bgp_values)
                 med=_med(as_int(BGP_CMD, p["med"])) if "med" in p else None,
-                communities=canon_communities(detail.get("communityList")),
-                large_communities=canon_communities(detail.get("largeCommunityList")),
+                communities=canon_communities(must(BGP_CMD, detail, "communityList")),
+                large_communities=canon_communities(must(BGP_CMD, detail, "largeCommunityList")),
                 neighbor=(p.get("peerEntry") or {}).get("peerAddr") or None,
             ))
     return out

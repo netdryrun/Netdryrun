@@ -42,16 +42,19 @@ def test_the_known_types_still_read():
     assert {r.protocol for r in srlinux.parse_all_routes(read("srl_route.txt"))} >= {"bgp"}
 
 
-# --- a missing forwarding flag is not forwarding, on every driver that reads one (Layer 6 on b03cb7a, rule 2) --------
+# --- a missing forwarding flag is unknown: an error, never "not forwarding" (Layer 6 round 2 on eaa323c) ------------
 
-@pytest.mark.parametrize("route", [{"kernelProgrammed": True}, {"hardwareProgrammed": True}, {}])
-def test_eos_a_route_without_both_programmed_flags_is_not_forwarding(route):
+@pytest.mark.parametrize("route", [{"kernelProgrammed": True}, {"hardwareProgrammed": True}, {},
+                                   {"kernelProgrammed": True, "hardwareProgrammed": None}])
+def test_eos_a_route_without_both_programmed_flags_is_unknown(route):
     """cEOS 4.36.3M prints both flags on every route-table entry (every capture in tests/fixtures): one missing is
-    unknown, and unknown is not a pass of `present` (SR Linux's _in_fib already reads it so)."""
+    unknown. Read as not forwarding (Layer 6 on b03cb7a), it passed `present: false`; now the read fails."""
     from netdryrun.drivers import eos
-    assert eos._programmed(route) is False
+    with pytest.raises(DriverError):
+        eos._programmed("cmd", route)
 
 
-def test_eos_both_flags_true_forwards():
+def test_eos_flags_read_as_given():
     from netdryrun.drivers import eos
-    assert eos._programmed({"kernelProgrammed": True, "hardwareProgrammed": True}) is True
+    assert eos._programmed("cmd", {"kernelProgrammed": True, "hardwareProgrammed": True}) is True
+    assert eos._programmed("cmd", {"kernelProgrammed": True, "hardwareProgrammed": False}) is False

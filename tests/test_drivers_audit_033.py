@@ -31,9 +31,9 @@ def test_srl_link_local_neighbors_that_collapse_keep_the_down_one():
     for first, second in (("established", "idle"), ("idle", "established")):
         text = json.dumps({"neighbor": [
             {"peer-address": "fe80::1%e1-1.0", "session-state": first,
-             "afi-safi": [{"afi-safi-name": "ipv6-unicast", "received-routes": 1}] if first == "established" else []},
+             "afi-safi": [{"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": 1, "rejected-routes": 0}] if first == "established" else []},
             {"peer-address": "fe80::1%e1-2.0", "session-state": second,
-             "afi-safi": [{"afi-safi-name": "ipv6-unicast", "received-routes": 1}] if second == "established" else []}]})
+             "afi-safi": [{"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": 1, "rejected-routes": 0}] if second == "established" else []}]})
         assert srlinux.parse_bgp_neighbors(text)["fe80::1"].state == "idle", (first, second)
 
 
@@ -286,7 +286,7 @@ def _ambiguous_on_every_driver(first: tuple, second: tuple):
                     for i, (s, c) in ((1, first), (2, second))})
     srl = json.dumps({"neighbor": [
         {"peer-address": f"fe80::1%e1-{i}.0", "session-state": "established" if s == "up" else "idle",
-         "afi-safi": [{"afi-safi-name": "ipv6-unicast", "received-routes": c}] if s == "up" else []}
+         "afi-safi": [{"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": c, "rejected-routes": 0}] if s == "up" else []}
         for i, (s, c) in ((1, first), (2, second))]})
     e = json.dumps({"vrfs": {"default": {"peers": {
         f"fe80::1%Et{i}": {"peerState": "Established" if s == "up" else "Idle", **({"prefixAccepted": c} if s == "up" else {})}
@@ -367,7 +367,7 @@ def test_an_ambiguous_neighbor_is_not_recorded_and_says_so():
 def test_srl_every_bgp_route_type_matches_protocol_bgp():
     from netdryrun.drivers.base import is_bgp
     row = json.loads(read("srl_leak_route.txt"))
-    for rtype, proto in (("bgp", "bgp"), ("bgp-evpn", "bgp-evpn"), ("bgp-vpn", "bgp-vpn"), ("bgp-label", "bgp")):
+    for rtype, proto in (("bgp", "bgp"), ("bgp-evpn", "bgp-evpn"), ("bgp-vpn", "bgp-vpn")):
         row["route"][0]["route-type"] = rtype
         got = srlinux.parse_routes(json.dumps(row), "0.0.0.0/0")[0].protocol
         assert got == proto and is_bgp(got), rtype
