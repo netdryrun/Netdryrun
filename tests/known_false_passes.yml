@@ -151,3 +151,17 @@
     - tests/test_srl_loop_count.py
     - tests/test_inject_sent_counts.py
     - tests/test_redteam.py
+- id: layer6-review-0.4.1
+  what: False passes the Layer 6 review found in the 0.4.1 candidate (b03cb7a) - a with null pin met by a received-only
+    route that can't show it (INTENT MATCHED with allow_anywhere), inject_routes counted as sent when one peer got the
+    routes and another's side was checked, only passing with a listing shorter than the count, an SR Linux path both
+    looped and rejected taken off twice, raw route-type names on NX-OS, Junos, SR Linux and FRR, an EOS route without
+    its programmed flags counted as forwarding, RouterOS without_communities on a key it leaves out
+  record: CHANGELOG.md (0.4.1, Layer 6 review of the 0.4.1 candidate)
+  tests:
+    - tests/test_verify_pins_041.py
+    - tests/test_inject_sent_counts.py
+    - tests/test_mutants_041_checks.py
+    - tests/test_srl_loop_count.py
+    - tests/test_unmapped_route_types_041.py
+    - tests/test_routeros_driver.py

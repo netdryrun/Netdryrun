@@ -10,7 +10,7 @@ import pytest
 from test_nxos import Lab, err, live_lab, ok, read
 
 from netdryrun.drivers import nxos
-from netdryrun.drivers.base import DriverError, NoSuchInstance, Route
+from netdryrun.drivers.base import DriverError, NoSuchInstance
 from netdryrun.drivers.nxos import NxosDriver
 from netdryrun.lab import ExecResult
 
