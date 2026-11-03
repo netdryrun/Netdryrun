@@ -482,6 +482,10 @@ runs:
                 # error carries its error
                 if out["status"] == "matched" and not rep["declared"]:
                     raise ValueError("a match with no declared line")
+                # no change means an empty diff and an intent that declares nothing (Layer 6 round 3 on 5e65852)
+                if out["status"] == "no_change" and (rep["diff_items"] != 0 or rep["declared"] or rep["allowed"]
+                                                     or (rep["intent"] or {"lines": []})["lines"]):
+                    raise ValueError("no change with a diff or a declared line")
                 if out["status"] in ("inconclusive", "unhealthy_baseline") and not out["inconclusive_reason"]:
                     raise ValueError("an inconclusive verdict without a reason")
                 if out["status"] == "error" and not rep.get("error"):

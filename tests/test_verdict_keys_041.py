@@ -28,49 +28,156 @@ VERDICT_KEYS = frozenset({
     "pathbest", "totalPrefixCounter", "pfxRcd", "pfxSnt", "acceptedPrefixCounter", "bestpath", "largeCommunity",
     "protocol", "installed", "selected", "failed", "bgp.communities", "bgp.large-communities", "bgp.as-path",
     "rt-entry-state", "active-tag", "accepted-prefix-count", "received-prefix-count", "totalRoutes", "state",
-    "peerState", "session-state", "afi-safi", "addressFamilyInfo", "addPath"})
+    "peerState", "session-state", "afi-safi", "addressFamilyInfo", "addPath", "best-route", "configuredpeers",
+    "peerEntry", "neighborCapabilities", "sentPrefixCounter", "connectionsDropped", "lastResetDueTo",
+    "lastErrorCodeSubcode", "lastResetTimerMsecs", "peerAddr", "filtered", "contribution"})
+# every module that reads device output on the way to a verdict (Layer 6 round 3: verify/, faults.py and runner.py
+# were never scanned)
+SCANNED = sorted((SRC / "drivers").glob("*.py")) + sorted((SRC / "verify").glob("*.py")) + [
+    SRC / "checks.py", SRC / "faults.py", SRC / "runner.py"]
 
-# (file, key) -> why the defaulted read can't pass a check on a missing key
+# (file, key) -> why the read can't pass a check on a missing key. Each reason names what a reviewer checks: the
+# capture that shows the device leaves the key out (and so what absence means), or that the value is netdryrun's own
+# input, not device output.
+PARAM = "a netdryrun.yml parameter of the check (p / c.params), validated by config, not device output"
 ALLOWED = {
-    ("checks.py", "communities"): "a netdryrun.yml parameter of the check (p), validated by config, not device output",
-    ("checks.py", "protocol"): "a netdryrun.yml parameter of the check (p), validated by config, not device output",
-    ("checks.py", "state"): "a netdryrun.yml parameter of the check (p), validated by config, not device output",
-    ("frr.py", "addressFamilyInfo"): "an established session without it is an error (default None); only a session "
-                                     "that is down defaults to no families, and its counts are never judged",
-    ("frr.py", "bestpath"): "a path without bestpath reads as not best, which only fails a best-path check",
-    ("frr.py", "community"): "bgpd adds `community` to a path's JSON only when the path carries the attribute "
-                             "(frr_bgp_paths captures with and without): absence is proven empty",
-    ("frr.py", "largeCommunity"): "as `community`: bgpd prints it only for a path with large communities",
-    ("nxos.py", "ubest"): "NX-OS prints ubest only on the best path (nxos_route_default.txt, live): absent reads not "
-                          "active, which only fails `present`; `present: false` fails on any listed route",
-    ("routeros_state.py", "bgp.communities"): "RouterOS leaves it out of a path with none (live); without_communities "
-                                              "is refused on RouterOS for that reason",
-    ("routeros_state.py", "bgp.large-communities"): "as bgp.communities",
-    ("srlinux.py", "afi-safi"): "an established session without it is an error (default None); a down one has none",
-    ("srlinux.py", "communities"): "YANG state leaves an empty container out: a path without communities has none "
-                                   "(srl_attr_set_rejected.txt, live)",
-    ("srlinux.py", "origin-protocol"): "defaults to bgp: a row without it counts as learned over BGP, which only "
-                                       "makes `present: false` fail",
+    ("checks.py", "communities"): PARAM,
+    ("checks.py", "protocol"): PARAM,
+    ("checks.py", "state"): PARAM,
+    ("runner.py", "protocol"): PARAM,
+    ("runner.py", "state"): PARAM,
+    ("verify/intent.py", "state"): "an intent file parameter (`state:` of an appears_on line), validated by INTENT_KEYS "
+                                   "before use, not device output",
+    ("verify/report.py", "failed"): "netdryrun's own guards summary (r.guards, built by the guards run), rendered into "
+                                    "the report; not device output",
+    ("drivers/frr.py", "addressFamilyInfo"): "an established session without it is an error (default None); only a "
+                                             "session that is down defaults to no families, and its counts are never "
+                                             "judged (frr_v2_inject_linkdown_neighbors.txt, live: down, no families)",
+    ("verify/frr.py", "addressFamilyInfo"): "parse_neighbors: as drivers/frr.py (an established session without it is "
+                                            "an error). sent_counters: a family without a count is left out, and an "
+                                            "empty advertised listing on it is then an error (FrrCollector). "
+                                            "add_path_tx: no family list reads as every family carrying add-path",
+    ("verify/frr.py", "neighborCapabilities"): "add_path_tx only: missing reads as add-path on every carried family "
+                                               "(more paths assumed, never fewer); _add_path_rx refuses it on an "
+                                               "established session",
+    ("verify/frr.py", "addPath"): "add_path_tx only: as neighborCapabilities, missing is add-path, never 'one path'",
+    ("drivers/frr.py", "bestpath"): "bgpd prints bestpath only on the best path (frr_bgp_paths captures): a path "
+                                    "without it reads as not best, which only fails a best-path check",
+    ("drivers/frr.py", "community"): "bgpd adds `community` to a path's JSON only when the path carries the attribute "
+                                     "(frr_bgp_paths captures with and without): absence is proven empty",
+    ("drivers/frr.py", "largeCommunity"): "as `community`: bgpd prints it only for a path with large communities",
+    ("drivers/frr.py", "stale"): "bgpd prints `stale` only when set (json_object_boolean_true_add); present, it must be "
+                                 "a boolean, so a malformed flag is an error, and absence is not stale",
+    ("drivers/frr.py", "failed"): "zebra prints selected, installed and failed only when true (frr route captures); a "
+                                  "route is present only when selected and installed are both true, so a missing "
+                                  "failed flag can't make an uninstalled route present",
+    ("drivers/nxos.py", "ubest"): "NX-OS prints ubest only on the best path (nxos_route_default.txt, live): absent "
+                                  "reads not active, which only fails `present`; `present: false` fails on any listed "
+                                  "route",
+    ("drivers/nxos.py", "configuredpeers"): "NX-OS leaves it out of a family without peers, printing only safi and "
+                                            "af-name (nxos_summary_red_v6.txt, live); only that exact shape reads as "
+                                            "0 peers, any other row without it is an error",
+    ("drivers/nxos.py", "aspath"): "absent reads as None (unread), never the empty path: as_path and as_path_regex "
+                                   "on None are an error (checks.py)",
+    ("drivers/routeros_state.py", "active"): "RouterOS prints active only when true (routeros_routes_*.txt, live); the "
+                                             "row's contribution must agree, so a missing flag on an active route is "
+                                             "an error",
+    ("drivers/routeros_state.py", "filtered"): "as active: printed only when true, and contribution must agree",
+    ("drivers/routeros_state.py", "bgp.communities"): "RouterOS leaves it out of a path with none (live); "
+                                                      "without_communities is refused on RouterOS for that reason",
+    ("drivers/routeros_state.py", "bgp.large-communities"): "as bgp.communities: left out of a path with none, so "
+                                                            "without_communities is refused on RouterOS",
+    ("drivers/srlinux.py", "afi-safi"): "an established session without it is an error (default None); a down one has "
+                                        "none",
+    ("drivers/srlinux.py", "communities"): "YANG state leaves an empty container out: a path without communities has "
+                                           "none (srl_attr_set_rejected.txt, live)",
+    ("drivers/junos.py", "rt-entry-state"): "only the brief `show route table` (ALL_ROUTES_CMD) reads it optionally: "
+                                            "that listing never prints it (junos_route_table*.txt, live) and only "
+                                            "record reads it, to propose checks; the extensive output requires it",
 }
 
 
-def defaulted_reads(root: Path = SRC) -> set[tuple[str, str]]:
-    """(file, key) for every `x.get(KEY, default)` with a default other than None, and every `x.get(KEY) or ...`."""
+def defaulted_reads(files=None) -> set[tuple[str, str]]:
+    """(file, key) for every read of a verdict key that can stand in a value for a missing key (Layer 6 round 3 on
+    5e65852 widened it from two forms): `x.get(K, default)`; `x.get(K)` in a truth test or followed by `or`; a
+    `... if K in x else ...` ternary; getattr(o, K, default); x.setdefault(K, ...); a subscript of K inside a try
+    whose handler catches KeyError; and a helper called with K and required=False. K is a string literal or a
+    module-level name bound to one."""
     out = set()
-    for f in sorted((root / "drivers").glob("*.py")) + [root / "checks.py"]:
-        for n in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
-            if isinstance(n, ast.BoolOp) and isinstance(n.op, ast.Or):
-                n = n.values[0]
-                if _get(n) and len(n.args) == 1:
-                    out.add((f.name, n.args[0].value))
-            elif _get(n) and len(n.args) == 2 and not (isinstance(n.args[1], ast.Constant) and n.args[1].value is None):
-                out.add((f.name, n.args[0].value))
+    for f in files if files is not None else SCANNED:
+        tree = ast.parse(f.read_text(encoding="utf-8"))
+        names = {t.id: n.value.value for n in tree.body if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant)
+                 and isinstance(n.value.value, str) for t in n.targets if isinstance(t, ast.Name)}
+        where = f.relative_to(SRC).as_posix() if SRC in f.parents else f.name
+
+        def key(node, names=names):
+            v = node.value if isinstance(node, ast.Constant) else names.get(node.id) if isinstance(node, ast.Name) else None
+            return v if isinstance(v, str) and v in VERDICT_KEYS else None
+
+        def get_key(node, nargs):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get"
+                    and len(node.args) in nargs):
+                return key(node.args[0])
+            return None
+
+        tests = []
+        for n in ast.walk(tree):
+            if isinstance(n, (ast.If, ast.While, ast.IfExp, ast.Assert)):
+                tests.append(n.test)
+            elif isinstance(n, ast.comprehension):
+                tests += n.ifs
+            elif isinstance(n, ast.UnaryOp) and isinstance(n.op, ast.Not):
+                tests.append(n.operand)
+            elif isinstance(n, ast.BoolOp):
+                tests += n.values
+            elif isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "bool" and n.args:
+                tests.append(n.args[0])
+        for t in tests:
+            k = get_key(t, (1,)) or (get_key(t, (2,)) if isinstance(t, ast.Call) and t.args and isinstance(t.args[-1], ast.Constant)
+                                      and t.args[-1].value is None else None)
+            if k:
+                out.add((where, k))
+        for n in ast.walk(tree):
+            k = None
+            if isinstance(n, ast.Call):
+                k = get_key(n, (2,))
+                if k and isinstance(n.args[1], ast.Constant) and n.args[1].value is None:
+                    k = None   # .get(K, None) is .get(K): flagged only where it stands in for a value (above)
+                f_ = n.func
+                if isinstance(f_, ast.Name) and f_.id == "getattr" and len(n.args) == 3:
+                    k = key(n.args[1])
+                if isinstance(f_, ast.Attribute) and f_.attr == "setdefault" and n.args:
+                    k = key(n.args[0])
+                if any(kw.arg == "required" and isinstance(kw.value, ast.Constant) and kw.value.value is False
+                       for kw in n.keywords):
+                    k = next((key(a) for a in n.args if key(a)), None)
+            elif isinstance(n, ast.IfExp) and isinstance(n.test, ast.Compare) and isinstance(n.test.ops[0], ast.In):
+                k = key(n.test.left)
+            elif isinstance(n, ast.Try) and any(_catches_keyerror(h) for h in n.handlers):
+                for s in ast.walk(ast.Module(body=n.body, type_ignores=[])):
+                    if isinstance(s, ast.Subscript) and key(s.slice):
+                        out.add((where, key(s.slice)))
+            if k:
+                out.add((where, k))
     return out
 
 
-def _get(n) -> bool:
-    return (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "get" and bool(n.args)
-            and isinstance(n.args[0], ast.Constant) and n.args[0].value in VERDICT_KEYS)
+def _catches_keyerror(h: ast.ExceptHandler) -> bool:
+    types = h.type.elts if isinstance(h.type, ast.Tuple) else [h.type]
+    return any(isinstance(t, ast.Name) and t.id in ("KeyError", "LookupError", "Exception") for t in types)
+
+
+RED = {"stale", "active", "asPath", "communityList", "pfxRcd", "installed", "selected", "communities",
+       "totalPrefixCounter", "rt-entry-state", "best-route", "suppressed", "pathstaled"}
+
+
+def test_the_scan_flags_every_defaulted_form_in_the_red_fixture():
+    """F7: one read per form; a form the scan stops seeing drops its key here."""
+    assert {k for _f, k in defaulted_reads([Path(__file__).parent / "scan_red" / "defaulted_reads.txt"])} == RED
+
+
+def test_every_allowlist_entry_gives_a_reason():
+    assert all(isinstance(why, str) and len(why) > 40 for why in ALLOWED.values())
 
 
 def test_no_verdict_key_is_read_with_a_default():
@@ -228,7 +335,7 @@ def test_only_sonic_may_carry_the_frr_mark():
 @pytest.mark.parametrize("peer", [{}, {"peerAddr": None}, {"peerAddr": 5}, "10.0.0.2", None])
 def test_eos_path_whose_peer_address_is_not_a_string_is_an_error(peer):
     """A path whose peerEntry carries no string peerAddr can't be told learned from local: an error, never a guess."""
-    with pytest.raises(DriverError, match="path without peerEntry"):
+    with pytest.raises(DriverError, match="path without peerEntry|no peerAddr"):
         eos._learned({"peerEntry": peer})
 
 
@@ -243,6 +350,19 @@ def test_action_verify_match_without_a_declared_line_or_inconclusive_without_rea
     assert read_result(tmp_path, {**rep, "declared": []}, "0")["status"] == "error"
     inc = {**rep, "status": "inconclusive", "verdict": "INCONCLUSIVE", "declared": [], "inconclusive": None}
     assert read_result(tmp_path, inc, "3")["status"] == "error"
+
+
+def test_action_verify_no_change_needs_an_empty_diff_and_nothing_declared(tmp_path):
+    """Layer 6 round 3 on 5e65852 (F8): no_change had no evidence rule; a report claiming it over a diff, or with an
+    intent that declares lines, is no verdict."""
+    from test_action_verify import read_result, verify_report
+    from verify_helpers import base
+    rep, _ = verify_report(tmp_path / "n", base().snap(), base().snap(), "intent: []\n")
+    assert read_result(tmp_path, rep, "0")["status"] == "no_change"
+    line = {"prefix": "10.101.0.0/24"}
+    for bad in ({**rep, "diff_items": 3}, {**rep, "declared": [line]}, {**rep, "allowed": [line]},
+                {**rep, "intent": {**rep["intent"], "lines": ["10.101.0.0/24 appears on edge1"]}}):
+        assert read_result(tmp_path, bad, "0")["status"] == "error", bad
 
 
 def test_action_run_inconclusive_counts_must_match_its_checks(tmp_path):
@@ -263,3 +383,122 @@ def test_verify_a_changed_config_of_an_unobserved_node_is_refused(tmp_path):
                  "binds: [r1/frr.conf:/etc/frr/frr.conf]}\n")
     with pytest.raises(vrun.VerifyInputError, match=r"r1/frr.conf \(/etc/frr/frr.conf on r1\)"):
         vrun.check_changed_binds(t, ["r1/frr.conf"], {"r1": ""})
+
+
+# --- Layer 6 round 3 on 5e65852: the reads the round-2 sweep missed, each failing on 5e65852 -----------------------
+
+SRL_ATTR = json.dumps({"attr-id": 3, "as-path": {"segment": []}, "next-hop": "0.0.0.0", "origin": "igp"})
+
+
+def test_srl_a_local_rib_row_without_origin_protocol_is_an_error_not_a_bgp_path():
+    """F3: read as bgp, the router's own static became a BGP best path, and `as_path: ""` passed on it (RT-0026)."""
+    with pytest.raises(DriverError, match="no origin-protocol"):
+        srlinux.parse_attr_set(SRL_ATTR, {"prefix": "10.9.0.0/24", "best-route": True, "neighbor": "0.0.0.0"})
+    with pytest.raises(DriverError, match="no origin-protocol"):
+        srlinux.unread_path({"best-route": False, "neighbor": "10.0.0.2"})
+
+
+def test_srl_a_local_rib_row_without_best_route_is_an_error_not_a_non_best_path():
+    with pytest.raises(DriverError, match="no best-route"):
+        srlinux.unread_path({"neighbor": "10.0.0.2", "origin-protocol": "bgp"})
+
+
+def _nxos_summary(saf):
+    return json.dumps({"result": {"body": {"TABLE_vrf": {"ROW_vrf": {"vrf-name-out": "default", "TABLE_af": {
+        "ROW_af": {"af-id": 2, "TABLE_saf": {"ROW_saf": saf}}}}}}}})
+
+
+def test_nxos_a_family_row_without_configuredpeers_is_an_error_unless_it_is_the_empty_shape():
+    """F6: configuredpeers defaulted to 0, so the family's peers went unlisted and `exact: 0` passed. Only the live
+    shape of a family without peers (safi and af-name, nxos_summary_red_v6.txt) reads as none."""
+    peer = {"TABLE_neighbor": {"ROW_neighbor": {"neighborid": "10.0.1.2", "state": "Established", "prefixreceived": 3}}}
+    for saf in ({"safi": 1, **peer}, {"safi": 1, "af-name": "IPv6 Unicast", "other": 1}):
+        with pytest.raises(DriverError, match="no configuredpeers"):
+            nxos.parse_bgp_summary(_nxos_summary(saf), afi="ipv6-unicast")
+    assert nxos.parse_bgp_summary(_nxos_summary({"safi": 1, "af-name": "IPv6 Unicast"}), afi="ipv6-unicast") == {}
+
+
+def test_junos_an_extensive_entry_without_its_state_is_an_error():
+    """The BGP best-path read took a missing rt-entry-state as no state: a Hidden or NotInstall route read active."""
+    d = json.loads((FX / "junos_route_paths.txt").read_text(encoding="utf-8"))
+    _strip(d, "rt-entry-state")
+    with pytest.raises(DriverError, match="no 'rt-entry-state'"):
+        junos.parse_bgp_paths(json.dumps(d), "10.20.0.0/24")
+
+
+def test_routeros_an_active_flag_that_disagrees_with_the_contribution_is_an_error():
+    """RouterOS prints active only when true (live): a missing flag on an active route read as inactive."""
+    from netdryrun.drivers import routeros_state
+    rows = json.loads((FX / "routeros_routes_main.txt").read_text(encoding="utf-8"))
+    row = next(r for r in rows if r.get("contribution") == "active")
+    del row["active"]
+    with pytest.raises(DriverError, match="active flag None and contribution 'active' disagree"):
+        routeros_state.parse_routing_routes(rows)
+
+
+def test_frr_a_stale_flag_that_is_not_a_boolean_is_an_error():
+    d = json.loads((FX / "frr_bgp_paths.txt").read_text(encoding="utf-8"))
+    d["paths"][0]["stale"] = "yes"
+    with pytest.raises(DriverError, match="stale: 'yes'"):
+        frr.parse_bgp_paths(json.dumps(d), "192.168.20.0/24")
+
+
+def _verify_neighbors(drop):
+    from verify_helpers import fixture
+    doc = json.loads(fixture("neighbors.txt"))
+    nb = doc["default"]["10.0.2.2"]
+    drop(nb)
+    return json.dumps(doc)
+
+
+@pytest.mark.parametrize("drop", [lambda nb: nb.pop("neighborCapabilities"),
+                                  lambda nb: nb["neighborCapabilities"].pop("addPath"),
+                                  lambda nb: nb["neighborCapabilities"]["addPath"].pop("ipv4Unicast")],
+                         ids=["capabilities", "addPath", "family"])
+def test_verify_an_established_session_without_its_add_path_rx_capability_is_an_error(drop):
+    """F4: _add_path_rx read a missing capability as "one path", the opposite of add_path_tx."""
+    from netdryrun.verify import frr as vfrr
+    from netdryrun.verify.snapshot import SnapshotError
+
+    def soft_and_drop(nb):
+        nb["addressFamilyInfo"]["ipv4Unicast"]["inboundSoftConfigPermit"] = True
+        drop(nb)
+    with pytest.raises(SnapshotError, match="no add-path capability"):
+        vfrr.parse_neighbors(_verify_neighbors(soft_and_drop))
+
+
+def test_verify_an_empty_advertised_listing_without_a_sent_count_is_an_error():
+    """F4: `sent.get(..., 0)` read a missing count as 0 sent, so an empty listing passed as "advertises nothing"."""
+    from netdryrun.verify import frr as vfrr
+    from test_verify_snapshot import FakeNode
+    over = {vfrr.NEIGHBORS_CMD: _verify_neighbors(lambda nb: nb["addressFamilyInfo"]["ipv4Unicast"].pop(
+                "sentPrefixCounter")),
+            vfrr.adj_command("default", "ipv4", "10.0.2.2", "out"): "{}"}
+    with pytest.raises(vfrr.CommandFailed, match="gives no sent-prefix count"):
+        vfrr.FrrCollector("edge1", FakeNode(over)).collect()
+
+
+def test_verify_unobserved_does_not_swallow_an_image_mark_mismatch():
+    """F5: --unobserved read detect()'s mismatch error as "not FRR", so an FRR node whose image names another NOS was
+    accepted unobserved. A host detection can't place is still accepted."""
+    from netdryrun.verify import run as vrun
+
+    class L:
+        def __init__(self, nodes):
+            self.nodes = nodes
+    lab = L({"r1": Node("r1", "c1", "linux", "quay.io/frrouting/frr:10.4.1"),
+             "r2": Node("r2", "c2", "linux", "registry.local/frr-nexus-peer:10.4.1")})
+    with pytest.raises(vrun.VerifyInputError, match="--unobserved r2: .*looks like nxos, not frr"):
+        vrun.classify_nodes(lab, {}, ["r2"])
+    host = L({"r1": Node("r1", "c1", "linux", "quay.io/frrouting/frr:10.4.1"), "h1": Node("h1", "c2", "linux", "alpine:3")})
+    assert vrun.classify_nodes(host, {}, ["h1"]) == {"r1": "frr", "h1": ""}
+
+
+def test_verify_a_set_driver_is_checked_against_the_node():
+    """F5: an srlinux override on an FRR node was trusted, so --unobserved accepted an FRR node as SR Linux."""
+    from netdryrun.verify import run as vrun
+
+    class L:
+        nodes = {"r2": Node("r2", "c2", "linux", "quay.io/frrouting/frr:10.4.1")}
+    with pytest.raises(vrun.VerifyInputError, match="is set to driver srlinux, but its kind and image say frr"):
+        vrun.classify_nodes(L(), {"r2": "srlinux"}, ["r2"])

@@ -68,11 +68,12 @@ def test_eos_stale_path_names_the_prefix_and_peer():
     assert msg == f"{EOS_PFX}: BGP path from 10.3.1.2 {NOT_SETTLED}"
 
 
-def test_eos_stale_path_without_peer_entry_says_question_mark():
+def test_eos_stale_path_without_peer_entry_is_an_error_for_the_missing_key():
+    """It said "from ?" (Layer 6 round 3 on 5e65852): a path without peerEntry is unreadable, stale or not."""
     data, paths = eos_paths()
     paths[0]["routeType"]["stale"] = True
     del paths[0]["peerEntry"]
-    assert error(eos.parse_bgp_paths, json.dumps(data), EOS_PFX) == f"{EOS_PFX}: BGP path from ? {NOT_SETTLED}"
+    assert "no peerEntry" in error(eos.parse_bgp_paths, json.dumps(data), EOS_PFX)
 
 
 def test_eos_stale_mark_of_unknown_type_names_the_bgp_command():

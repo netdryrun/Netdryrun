@@ -24,10 +24,22 @@ DRIVERS: dict[str, type[Driver]] = {"frr": FrrDriver, "srlinux": SrlDriver, "eos
 BETA_DRIVERS = frozenset({"nxos", "routeros"})
 
 
-def _beta(node: Node, name: str, label: str) -> DriverError:
-    return DriverError(f"node {node.name} (kind={node.kind!r}, image={node.image!r}) runs {label}, whose driver is an "
-                       f"unreleased beta: it is used only when chosen, with nodes.{node.name}.driver: {name} in "
-                       "netdryrun.yml")
+class BetaDriver(DriverError):
+    """Detection found a NOS whose driver is an unreleased beta: it is used only when chosen."""
+
+    def __init__(self, message: str, driver: str):
+        super().__init__(message)
+        self.driver = driver
+
+
+class Undetectable(DriverError):
+    """Nothing in the node's kind or image names a NOS this release knows."""
+
+
+def _beta(node: Node, name: str, label: str) -> BetaDriver:
+    return BetaDriver(f"node {node.name} (kind={node.kind!r}, image={node.image!r}) runs {label}, whose driver is an "
+                      f"unreleased beta: it is used only when chosen, with nodes.{node.name}.driver: {name} in "
+                      "netdryrun.yml", name)
 
 
 # image-name marks of each detectable NOS: an image that carries another NOS's mark than its kind (or than the image
@@ -43,13 +55,38 @@ def _marks(image: str) -> set[str]:
     return {name for name, marks in IMAGE_MARKS.items() if any(m in image for m in marks)}
 
 
-def detect(node: Node) -> str:
-    name = _detect(node)
+def _check_marks(node: Node, name: str) -> None:
     others = _marks(node.image) - {name} - ({"frr"} if name == "sonic" else set())   # SONiC runs FRR inside
     if others:
         raise DriverError(f"node {node.name} (kind={node.kind!r}, image={node.image!r}): the image name looks like "
                           f"{', '.join(sorted(others))}, not {name}; set nodes.{node.name}.driver in netdryrun.yml")
+
+
+def detect(node: Node) -> str:
+    name = _detect(node)
+    _check_marks(node, name)
     return name
+
+
+def resolve(node: Node, override: str | None = None) -> str:
+    """The node's driver: nodes.<node>.driver when set, else detected. A set driver is checked, never trusted: a kind
+    or image that detection maps to another driver, or an image carrying another NOS's mark, is an error (Layer 6
+    round 3 on 5e65852). A node detection can't place is what the setting is for."""
+    if not override:
+        return detect(node)
+    if override not in DRIVERS:
+        return override   # each caller refuses an unknown name in its own words
+    try:
+        detected: str | None = _detect(node)
+    except BetaDriver as e:
+        detected = e.driver
+    except Undetectable:
+        detected = None
+    if detected is not None and detected != override:
+        raise DriverError(f"node {node.name} (kind={node.kind!r}, image={node.image!r}) is set to driver {override}, "
+                          f"but its kind and image say {detected}; fix nodes.{node.name}.driver in netdryrun.yml")
+    _check_marks(node, override)
+    return override
 
 
 def _detect(node: Node) -> str:
@@ -67,7 +104,7 @@ def _detect(node: Node) -> str:
         return "sonic"
     if "frr" in node.image.lower():
         return "frr"
-    raise DriverError(
+    raise Undetectable(
         f"cannot detect driver for node {node.name} (kind={node.kind!r}, image={node.image!r}); "
         f"set nodes.{node.name}.driver in netdryrun.yml to one of {sorted(DRIVERS)}"
     )
@@ -76,7 +113,7 @@ def _detect(node: Node) -> str:
 def for_node(lab: Lab, node: str, override: str | None = None) -> Driver:
     if node not in lab.nodes:
         raise DriverError(f"node {node!r} is not in the topology (nodes: {', '.join(lab.nodes)})")
-    name = override or detect(lab.nodes[node])
+    name = resolve(lab.nodes[node], override)
     if name not in DRIVERS:
         raise DriverError(f"unknown driver {name!r} for node {node}; expected one of {sorted(DRIVERS)}")
     return DRIVERS[name](lab, node)
@@ -90,7 +127,7 @@ def check_supported(lab: Lab, check, override: str | None = None) -> None:
         return
     if check.type == "route" and "protocol" not in check.params:
         return
-    name = override or detect(lab.nodes[check.node])
+    name = override or detect(lab.nodes[check.node])   # a set driver is checked by preflight and for_node
     if check.type == "route":
         proto = check.params["protocol"]
         known = getattr(DRIVERS.get(name), "route_protocols", frozenset())

@@ -197,8 +197,12 @@ def parse_bgp_summary(text: str, vrf: str = "default", afi: str = "ipv4-unicast"
     for v in _vrf_rows(SUMMARY_CMD, body, vrf):
         for af in _rows(SUMMARY_CMD, v, "af", required=False):        # a VRF row without tables: none
             for saf in _rows(SUMMARY_CMD, af, "saf"):
-                # NX-OS leaves TABLE_neighbor out for a family without peers, and then lists no peer counts
-                peers = saf.get("configuredpeers", 0)
+                # NX-OS leaves configuredpeers and TABLE_neighbor out for a family without peers, and then prints
+                # nothing but safi and af-name (nxos_summary_red_v6, live): only that exact shape reads as no peers;
+                # anything else without configuredpeers is unknown, an error (Layer 6 round 3 on 5e65852)
+                if "configuredpeers" not in saf and set(saf) - {"safi", "af-name"}:
+                    raise unexpected(SUMMARY_CMD, f"no configuredpeers: {str(saf)[:150]}")
+                peers = saf["configuredpeers"] if "configuredpeers" in saf else 0
                 for n in _rows(SUMMARY_CMD, saf, "neighbor", required=as_int(SUMMARY_CMD, peers) > 0):
                     addr, state = n.get("neighborid"), n.get("state")
                     if not isinstance(addr, str) or not addr or not isinstance(state, str) or not state.strip():

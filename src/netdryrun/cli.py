@@ -234,12 +234,12 @@ def _cmd_verify(args) -> int:
 
 def _cmd_capture(args) -> int:
     from .capture import CaptureError, bundle, collect, guard
-    from .drivers import DriverError, detect
+    from .drivers import DriverError, resolve
 
     try:
         params = collect.check_params(args.scenario, args.prefix, args.target, args.source)
         lab, node = guard.lab_node(Path(args.topology), args.node)
-        nos = args.driver or detect(node)
+        nos = resolve(node, args.driver)
         recorded, reading, version = collect.capture(lab, node, nos, args.scenario, params, args.vrf)
         manifest, files = bundle.build(node, nos, args.scenario, params, args.vrf, recorded, reading, version,
                                        args.nos_version, lab.image_digest(node.image) if node.image else None)

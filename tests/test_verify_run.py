@@ -741,7 +741,7 @@ def test_a_node_verify_cannot_snapshot_is_refused_and_named_with_the_way_out(tmp
     before a lab boots, naming --unobserved and what it costs; it is never snapshotted by a guess."""
     from netdryrun.lab import Lab
     monkeypatch.setattr(vrun, "DRIVERS", {**vrun.DRIVERS, driver: object})
-    monkeypatch.setattr(vrun, "detect", lambda node: driver if node.name == "x1" else "frr")
+    monkeypatch.setattr(vrun, "resolve", lambda node, override=None: driver if node.name == "x1" else "frr")
     topo = tmp_path / "t.clab.yml"
     topo.write_text("name: t\ntopology:\n  nodes:\n    r1: {kind: linux, image: quay.io/frrouting/frr:10.4.1}\n"
                     "    x1: {kind: linux, image: some/nos:1}\n")

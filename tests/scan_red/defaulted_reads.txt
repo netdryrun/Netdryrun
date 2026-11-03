@@ -1,0 +1,24 @@
+# Red input for tests/test_verdict_keys_041.py (Layer 6 round 3 on 5e65852, F7): one defaulted read of a verdict key
+# per form the closure scan must flag. Python source, never imported or run; each form uses its own key.
+K = "pfxRcd"
+
+
+def forms(d, o, e, c):
+    a = d.get("stale", False)                              # .get(K, default)
+    if d.get("active"):                                    # .get(K) in a truth test
+        pass
+    b = d.get("asPath") or ""                              # .get(K) followed by or
+    f = d.get("communityList", None) or []                 # .get(K, None) followed by or
+    g = d.get(K, 0)                                        # a module-level name bound to the key
+    h = d["installed"] if "installed" in d else False      # K in d ternary
+    i = getattr(o, "selected", False)                      # getattr with a default
+    j = d.setdefault("communities", [])                    # setdefault
+    try:                                                   # try/except KeyError with a default
+        k = d["totalPrefixCounter"]
+    except KeyError:
+        k = 0
+    m = _leaf(c, e, "rt-entry-state", required=False)     # a helper called with required=False
+    n = bool(d.get("best-route"))                          # bool() of .get(K)
+    p = not d.get("suppressed")                            # not .get(K)
+    q = [r for r in d if r.get("pathstaled")]              # a comprehension filter on .get(K)
+    return a, b, f, g, h, i, j, k, m, n, p, q

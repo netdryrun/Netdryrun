@@ -180,3 +180,16 @@
     - tests/test_inject_sent_counts.py
     - tests/test_verdict_checks.py
     - tests/test_verify_adj_multipath.py
+- id: layer6-review-3-0.4.1
+  what: False passes round 3 of the Layer 6 review found in the 0.4.1 candidate (5e65852) - inject_routes judged
+    delivery on bgpd's aggregate sent-prefix count, so a filtered injection beside a sent one, or a family with no
+    session beside one with sessions, read as delivered; SR Linux origin-protocol and best-route, FRR verify add-path
+    receive state and sent count, NX-OS configuredpeers, Junos active-tag, RouterOS active and EOS peerEntry read with
+    defaults; a set driver trusted against the node's kind and image, and verify --unobserved reading an image
+    mismatch as not FRR; and a verify no_change with no evidence rule in the Action
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 3)
+  tests:
+    - tests/test_inject_sent_counts.py
+    - tests/test_verdict_keys_041.py
+    - tests/test_verdict_runner.py
+    - tests/test_junos_mutants.py

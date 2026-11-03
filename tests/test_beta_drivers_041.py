@@ -35,7 +35,7 @@ def test_a_run_that_uses_one_says_so():
 
 def test_run_warns_for_a_beta_driver_after_preflight(monkeypatch):
     from test_verdict_runner import make, route
-    e = make(monkeypatch)
+    e = make(monkeypatch, kinds={"r1": ("cisco_n9kv", "vrnetlab/vr-n9kv:10.4")})
     e.run([route("a")], drivers_cfg={"r1": "nxos"})
     assert ("Warning: r1 uses the nxos driver, an unreleased beta: its verdicts are not covered by a released gate "
             "yet") in e.logs

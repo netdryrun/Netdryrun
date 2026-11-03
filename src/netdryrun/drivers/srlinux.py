@@ -163,11 +163,18 @@ def parse_as_loop_counts(text: str) -> dict[str, tuple[int, int]]:
     return out
 
 
+def _best(row: dict) -> bool:
+    """SR Linux prints best-route on every local-RIB row (each capture): a row without it is unknown, an error, never
+    "not best" (Layer 6 round 3 on 5e65852)."""
+    return must_bool(RIB_CMD, row, "best-route")
+
+
 def _bgp_learned(row: dict) -> bool:
     """SR Linux lists the router's own static and interface routes in its BGP local-RIB as locally
     originated paths (neighbor 0.0.0.0, origin-protocol static, ...), whether or not an export policy
-    advertises them. Only paths with origin-protocol bgp were learned over BGP."""
-    return str(row.get("origin-protocol", "bgp")).lower() == "bgp"
+    advertises them. Only paths with origin-protocol bgp were learned over BGP. A row without it is unknown, an
+    error: read as bgp, the router's own static became a BGP best path (RT-0026; Layer 6 round 3 on 5e65852)."""
+    return str(must(RIB_CMD, row, "origin-protocol")).lower() == "bgp"
 
 
 def _received(row: dict) -> bool:
@@ -238,7 +245,7 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
 @parser(RIB_CMD)
 def parse_rib_paths(text: str, prefix: str) -> list[dict]:
     """Local-RIB entries for exactly `prefix`, best path first: neighbor, best-route, attr-id."""
-    return sorted(_rib_rows(text, prefix), key=lambda r: not r.get("best-route"))
+    return sorted(_rib_rows(text, prefix), key=lambda r: not _best(r))
 
 
 @parser(ATTR_CMD)
@@ -257,7 +264,7 @@ def parse_attr_set(text: str, row: dict, default_local_pref: int | None = None) 
     comms = a.get("communities") or {}
     nh = a.get("next-hop")
     return BgpPath(
-        best=bool(row.get("best-route")),
+        best=_best(row),
         as_path=None if segs is None else render_as_path(segs),
         next_hop=_canon_addr(str(nh)) if nh else None,
         local_pref=as_int(ATTR_CMD, a["local-pref"]) if "local-pref" in a else default_local_pref,
@@ -298,7 +305,7 @@ def _ip_or_none(addr) -> str | None:
 
 def unread_path(row: dict) -> BgpPath:
     """A path whose attributes were not read (only the first path's are: the best one if any)."""
-    return BgpPath(best=bool(row.get("best-route")), as_path=None, next_hop=None, local_pref=None, med=None,
+    return BgpPath(best=_best(row), as_path=None, next_hop=None, local_pref=None, med=None,
                    neighbor=row.get("neighbor"), local_candidate=not _bgp_learned(row))
 
 

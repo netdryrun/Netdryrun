@@ -341,7 +341,10 @@ def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
     for p in data["paths"]:
         if not isinstance(p, dict):
             raise unexpected(command, f"path: {str(p)[:150]}")
-        if p.get("stale"):
+        stale = p["stale"] if "stale" in p else False   # bgpd prints the flag only when set
+        if not isinstance(stale, bool):
+            raise unexpected(command, f"stale: {str(stale)[:40]!r}")
+        if stale:
             # graceful restart: bgpd keeps the restarting peer's paths, marked stale, until it re-sends them or
             # the stale timer ends. Such a path is neither present nor gone yet, so no check can pass on it
             raise DriverError(f"{prefix}: BGP path from {(p.get('peer') or {}).get('peerId', '?')} is stale "

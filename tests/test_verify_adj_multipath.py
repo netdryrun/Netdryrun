@@ -87,7 +87,7 @@ def test_some_paths_with_an_id_and_some_without_is_unreadable():
         vfrr.parse_adj(_doc(lambda ps: ps[0].update(addpathTxId=1)), CMD, "ipv4", "out", add_path_tx=False)
 
 
-def _neighbors(addpath) -> str:
+def _neighbors(addpath, keep=False) -> str:
     # the live `show bgp vrf all neighbors json` capture of edge1 (tests/fixtures/verify)
     doc = json.loads(fixture("neighbors.txt"))
     for inst in doc.values():
@@ -96,7 +96,8 @@ def _neighbors(addpath) -> str:
                 if addpath is None:
                     nb["neighborCapabilities"].pop("addPath", None)
                 else:
-                    nb["neighborCapabilities"]["addPath"] = copy.deepcopy(addpath)
+                    caps = nb["neighborCapabilities"]
+                    caps["addPath"] = {**caps["addPath"], **addpath} if keep else copy.deepcopy(addpath)
     return json.dumps(doc)
 
 
@@ -156,7 +157,7 @@ def test_collector_reads_the_best_path_sent_on_a_session_without_add_path():
 
 def test_must_fail_collector_refuses_multipath_without_ids_on_an_add_path_session():
     with pytest.raises(SnapshotError, match="several paths without addpathTxId"):
-        _collect(_neighbors({"ipv4Unicast": {"txAdvertised": True}}))   # this node may send add-path
+        _collect(_neighbors({"ipv4Unicast": {"txAdvertised": True}}, keep=True))   # this node may send add-path
 
 
 def test_a_single_advertised_path_is_read_whether_or_not_it_is_flagged_best():

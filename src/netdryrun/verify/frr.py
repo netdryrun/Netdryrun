@@ -314,7 +314,7 @@ def parse_neighbors(text: str) -> dict[str, dict[str, Session]]:
                 counts.append((name, _int(cmd, info["acceptedPrefixCounter"], f"{where} {af}.acceptedPrefixCounter")))
                 if _flag(cmd, info, "inboundSoftConfigPermit", f"{where} {af}"):
                     soft.append(name)
-                    if _add_path_rx(nb, af):
+                    if _add_path_rx(cmd, nb, af, where, state == "established"):
                         raise _bad(cmd, f"{where} {af}: the neighbor may send several paths per prefix (add-path), and "
                                         "verify 0.4 reads received routes from a listing with one path per prefix")
             local = None
@@ -382,12 +382,19 @@ def add_path_tx(text: str) -> set[tuple[str, str, str]]:
     return out
 
 
-def _add_path_rx(nb: dict, af: str) -> bool:
-    """The neighbor said it may send this node several paths per prefix (its add-path TX capability)."""
-    caps = nb.get("neighborCapabilities", {})
-    ap = caps.get("addPath", {}) if isinstance(caps, dict) else {}
-    info = ap.get(af, {}) if isinstance(ap, dict) else {}
-    return isinstance(info, dict) and any(info.get(k) for k in ("txReceived", "txAdvertisedAndReceived"))
+def _add_path_rx(cmd: str, nb: dict, af: str, where: str, established: bool) -> bool:
+    """The neighbor said it may send this node several paths per prefix (its add-path TX capability). FRR lists
+    addPath for every family an established session carries (every capture); a session that isn't up negotiated
+    nothing and receives nothing. Missing on an established session is unknown, an error, never "one path": add_path_tx
+    reads the same gap as add-path (Layer 6 round 3 on 5e65852). A flag that isn't a clear false counts."""
+    if not established:
+        return False
+    caps = nb["neighborCapabilities"] if "neighborCapabilities" in nb else None
+    ap = caps["addPath"] if isinstance(caps, dict) and "addPath" in caps else None
+    info = ap[af] if isinstance(ap, dict) and af in ap else None
+    if not isinstance(info, dict):
+        raise _bad(cmd, f"{where} {af}: no add-path capability (neighborCapabilities.addPath.{af})")
+    return any(info[k] is not False for k in ("txReceived", "txAdvertisedAndReceived") if k in info)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -891,7 +898,11 @@ class FrrCollector:
                     for d in directions:
                         cmd = adj_command(vrf, afi, nbr, d)
                         listing = parse_adj(self._vtysh(cmd, raw), cmd, afi, d, (vrf, nbr, fam) in tx_add_path)
-                        if d == "out" and not listing and sent.get((vrf, nbr, fam), 0) > 0:
+                        if d == "out" and not listing and (vrf, nbr, fam) not in sent:
+                            raise CommandFailed(f"`vtysh -c '{cmd}'` on {node} listed nothing, and the neighbor output "
+                                                "gives no sent-prefix count to check that against: not read as "
+                                                "'advertises nothing'")
+                        if d == "out" and not listing and sent[(vrf, nbr, fam)] > 0:
                             raise CommandFailed(f"`vtysh -c '{cmd}'` on {node} listed nothing, but the neighbor output "
                                                 f"says {sent[(vrf, nbr, fam)]} prefixes were sent: not read as "
                                                 "'advertises nothing'")

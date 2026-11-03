@@ -22,7 +22,7 @@ from . import __version__
 from .checks import (Result, Unready, _sample, hold_together, inconclusive_reason, is_post_convergence,
                      never_ready_nodes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
-from .drivers import BETA_DRIVERS, DriverError, check_supported, detect, for_node
+from .drivers import BETA_DRIVERS, DriverError, check_supported, for_node, resolve
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
 from .faults import RouteInjection
@@ -267,13 +267,16 @@ def preflight(config: Config, lab: Lab, *, full: bool = False) -> None:
     if unknown:
         raise LabError(f"unknown node(s) {', '.join(unknown)}; the topology has {', '.join(lab.nodes)}")
     all_checks = config.checks + [c for sc in config.scenarios for c in sc.checks]
+    for node, name in sorted(config.drivers.items()):   # a set driver is checked against the node, never trusted
+        if node in lab.nodes:
+            resolve(lab.nodes[node], name)
     if full:
-        for node in sorted({c.node for c in all_checks} - set(config.drivers)):
-            detect(lab.nodes[node])
+        for node in sorted({c.node for c in all_checks}):
+            resolve(lab.nodes[node], config.drivers.get(node))
     for c in all_checks:
         check_supported(lab, c, config.drivers.get(c.node))
     for f in (f for sc in config.scenarios for f in sc.faults if f.kind == "inject_routes"):
-        driver = config.drivers.get(f.node) or detect(lab.nodes[f.node])
+        driver = resolve(lab.nodes[f.node], config.drivers.get(f.node))
         if driver != "frr":
             raise LabError(f"inject_routes on {f.node} ({driver}) is not supported yet: it needs an FRR node; "
                            "inject the routes from an FRR neighbor instead")
@@ -301,7 +304,7 @@ def _driver_of(config: Config):
     """The driver a node runs as: the config's override, else detected from its kind and image; None: unknown."""
     def driver_of(name: str, node) -> str | None:
         try:
-            return config.drivers.get(name) or detect(node)
+            return resolve(node, config.drivers.get(name))
         except DriverError:
             return None   # FRR in an image not named for it is still FRR: its rejected lines still count
     return driver_of
@@ -1079,32 +1082,38 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     return _never_left(injected, results, log)
 
 
+def _some(prefixes: list[str]) -> str:
+    return ", ".join(prefixes[:5]) + (f" and {len(prefixes) - 5} more" if len(prefixes) > 5 else "")
+
+
 class NeverLeft(Unready):
     """The detail of a scenario check whose injected routes never left the injecting node: the scenario tested
     nothing, and the run is inconclusive unless something else failed (RunReport.inconclusive_reason)."""
 
 
 def _never_left(injected: list[RouteInjection], results: list[Result], log=lambda _: None) -> list[Result]:
-    """A scenario's results, or, when an injection's routes didn't reach every established BGP peer of its node (one
-    whose sent-prefix count didn't rise while they were in, and which didn't reset over its prefix limit), every
-    passed one not passed and inconclusive (acceptance round B-5; every peer, not one: Layer 6 on b03cb7a). A check that failed
-    stays failed: routes that never left can't have made it fail (Layer 6 on b03cb7a)."""
+    """A scenario's results, or, when an injected prefix didn't reach an established BGP peer of its node (missing
+    from the node's advertised routes towards that peer while the routes were in, and no reset over its prefix limit),
+    or its family had no established session, every passed one not passed and inconclusive (acceptance round B-5;
+    every peer: Layer 6 on b03cb7a; every prefix: Layer 6 round 3 on 5e65852). A check that failed stays failed:
+    routes that never left can't have made it fail (Layer 6 on b03cb7a)."""
     quiet = [inj for inj in injected if inj.applied and inj.left is not True]
     if not quiet:
         return results
     inj = quiet[0]
-    peers = inj.quiet   # RouteInjection sets it in __init__
-    if peers:   # they reached some peers, not these: a check on the far side of one passed on nothing (Layer 6)
-        one = len(peers) == 1
-        text = (f"inconclusive: the injected routes on {inj.node} did not all reach its BGP peer{'' if one else 's'} "
-                f"{', '.join(peers)} (the sent-prefix count towards {'it' if one else 'them'} rose by less than the "
-                "prefixes injected, and no session there reset over its prefix limit after they went in: an outbound "
-                f"filter towards {'it' if one else 'them'}, or a session that went down), so this scenario tested "
+    if inj.quiet:   # a check on the far side of one of these peers passed on nothing (Layer 6)
+        held = "; ".join(f"{peer} was not sent {_some(missing)}" for peer, missing in inj.quiet.items())
+        text = (f"inconclusive: the injected routes on {inj.node} did not all reach its BGP peers: {held} (not in the "
+                "routes it advertised to them while the routes were in, and no session there reset over its prefix "
+                "limit after they went in: an outbound filter, or a session that went down), so this scenario tested "
                 "nothing")
-    else:
-        why = ("no established BGP session there carries their family" if inj.left is False
-               else "its sent-prefix counts could not be read")
+    elif inj.unsent:
+        why = "; ".join(f"no established {afi} BGP session there carries {_some(prefixes)}"
+                        for afi, prefixes in inj.unsent.items())
         text = f"inconclusive: the injected routes never left {inj.node}: {why}, so this scenario tested nothing"
+    else:
+        text = (f"inconclusive: the injected routes on {inj.node} may not have left: its BGP sessions or advertised "
+                "routes could not be read, so this scenario tested nothing")
     detail = NeverLeft(text)
     log(f"  {detail}")
     return [replace(r, passed=False, detail=detail, samples_passed=0) if r.passed else r for r in results]

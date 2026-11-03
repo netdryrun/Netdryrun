@@ -130,10 +130,16 @@ def parse_bgp_summary(text: str, vrf: str = "default", afi: str = "ipv4-unicast"
 def _learned(p: dict) -> bool:
     """A path received from a BGP neighbor (EOS leaves peerAddr empty for the router's own paths:
     network statements, redistribution). Valid or not, active or not, it was received."""
-    peer = p.get("peerEntry")
-    if not isinstance(peer, dict) or not isinstance(peer.get("peerAddr"), str):  # "" for its own paths
+    return bool(_peer(p))
+
+
+def _peer(p: dict) -> str:
+    """The neighbor a path came from: peerEntry.peerAddr, "" for the router's own paths. Missing is an error."""
+    peer = must(BGP_CMD, p, "peerEntry") if isinstance(p, dict) else None
+    addr = must(BGP_CMD, peer, "peerAddr") if isinstance(peer, dict) else None
+    if not isinstance(addr, str):
         raise unexpected(BGP_CMD, f"path without peerEntry: {str(p)[:150]}")
-    return bool(peer["peerAddr"])
+    return addr
 
 
 def _path_count(command: str, key: str, e: dict) -> None:
@@ -159,7 +165,7 @@ def _bgp_entries(command: str, text: str, vrf: str) -> dict:
             # graceful restart: neither present nor gone yet. cEOS prints routeType.stale on every path: missing is
             # unknown, never "not stale" (Layer 6 round 2 on eaa323c)
             stale = must_bool(command, must(command, p, "routeType"), "stale")
-            refuse_if_stale(key, (p.get("peerEntry") or {}).get("peerAddr"), stale)
+            refuse_if_stale(key, _peer(p), stale)
     return entries
 
 
@@ -243,7 +249,7 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
                 med=_med(as_int(BGP_CMD, p["med"])) if "med" in p else None,
                 communities=canon_communities(must(BGP_CMD, detail, "communityList")),
                 large_communities=canon_communities(must(BGP_CMD, detail, "largeCommunityList")),
-                neighbor=(p.get("peerEntry") or {}).get("peerAddr") or None,
+                neighbor=_peer(p) or None,
             ))
     return out
 

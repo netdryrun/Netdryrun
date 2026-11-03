@@ -370,13 +370,22 @@ def _protocol(command: str, e: dict) -> str:
 def _active(command: str, e: dict) -> bool:
     """Active and forwarding: Junos marks a route it keeps out of the FIB (a static with `no-install`) NotInstall,
     with the `*` still on it (captured 2026-11-02; acceptance A-3). Present means forwarding, as on FRR and EOS."""
-    state = (_leaf(command, e, "rt-entry-state", required=False) or "").split()
-    return _leaf(command, e, "active-tag", required=False) == "*" and not _hidden(command, e) and "NotInstall" not in state
+    # Junos prints active-tag on every entry, "*" on the active one and empty on the others (each capture)
+    return (_leaf(command, e, "active-tag") == "*" and not _hidden(command, e)
+            and "NotInstall" not in _state(command, e))
+
+
+def _state(command: str, e: dict) -> list[str]:
+    """rt-entry-state's words. The extensive output prints it on every entry (each capture), so there a missing one
+    is an error (Layer 6 round 3 on 5e65852). The brief `show route table` never prints it; only record reads that
+    listing, to propose checks, never to decide one."""
+    if command == ALL_ROUTES_CMD:
+        return (_leaf(command, e, "rt-entry-state", required=False) or "").split()
+    return str(_leaf(command, e, "rt-entry-state")).split()
 
 
 def _hidden(command: str, e: dict) -> bool:
-    state = _leaf(command, e, "rt-entry-state", required=False) or ""
-    return "Hidden" in state.split() or "hidden-reason" in e
+    return "Hidden" in _state(command, e) or "hidden-reason" in e
 
 
 def _filtered(command: str, e: dict) -> bool:

@@ -171,10 +171,12 @@ def test_hidden_by_state_or_by_reason_is_never_active():
     assert routes(answer(rt(entry()))) == [("bgp", True)]
 
 
-def test_entry_without_active_tag_is_inactive_not_an_error():
+def test_entry_without_active_tag_is_an_error():
+    """Junos prints active-tag on every entry, "*" on the active one and empty on the others (every capture): an entry
+    without it is unknown, never inactive, which made `present: false` pass (Layer 6 round 3 on 5e65852)."""
     e = entry()
     del e["active-tag"]
-    assert routes(answer(rt(e))) == [("bgp", False)]
+    raises(lambda: routes(answer(rt(e))), RC + "no 'active-tag': " + str(e)[:150])
 
 
 def test_unknown_protocol_is_an_error():

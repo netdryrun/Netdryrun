@@ -68,7 +68,7 @@ class SrlLab:
 
 
 def test_srl_device_output_does_not_reach_the_cli_unchecked():
-    row = {"prefix": "10.0.0.0/24", "best-route": True, "neighbor": "10.0.0.2", "stale-route": False,
+    row = {"prefix": "10.0.0.0/24", "best-route": True, "neighbor": "10.0.0.2", "origin-protocol": "bgp", "stale-route": False,
            "attr-id": "7 | bash -c id"}
     with pytest.raises(DriverError, match="unexpected attr-id"):
         srlinux.SrlDriver(SrlLab(row), "r1").bgp_paths("10.0.0.0/24")

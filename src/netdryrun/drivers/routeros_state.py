@@ -155,6 +155,11 @@ def parse_routing_routes(rows) -> list[RoutingRoute]:
         flagged = as_bool(req, r["filtered"]) if "filtered" in r else False
         if flagged != (contribution == "filtered"):
             raise unexpected(req, f"filtered flag {r.get('filtered')!r} and contribution {contribution!r} disagree")
+        # RouterOS prints active only when true (each capture): a route is active exactly when its contribution
+        # is, so the two must agree, as with filtered; absent is then proven false (Layer 6 round 3 on 5e65852)
+        active = as_bool(req, r["active"]) if "active" in r else False
+        if active != (contribution == "active"):
+            raise unexpected(req, f"active flag {r.get('active')!r} and contribution {contribution!r} disagree")
         belongs = r["belongs-to"]
         if belongs in ("connected", "interface", "static"):
             kind = belongs
@@ -184,7 +189,7 @@ def parse_routing_routes(rows) -> list[RoutingRoute]:
             as_path = [as_int(req, a) for a in str(r["bgp.as-path"]).split(",")] if r["bgp.as-path"] else []
         out.append(RoutingRoute(
             kind=kind, table=str(r["routing-table"]), prefix=prefix, contribution=contribution,
-            active=as_bool(req, r["active"]) if "active" in r else False,
+            active=active,
             filtered=contribution == "filtered",
             distance=as_int(req, r["distance"]) if "distance" in r else None,
             gateway=r.get("gateway"), session=session, as_path=as_path,

@@ -14,6 +14,8 @@ import time
 from typing import Any
 
 from .lab import Lab, LabError
+from .verify.frr import adj_command, parse_adj
+from .verify.snapshot import SnapshotError
 
 ROUTE_MAP = "NDR-INJECT"
 MAX_COUNT = 10000
@@ -113,29 +115,46 @@ class RouteInjection:
         self.lab, self.node, self.prefixes, self.as_path, self.budget = lab, node, prefixes, as_path, budget
         self.asn = ""
         self.applied = False   # set before the config goes in: restore even if applying half-fails
-        self.sent_before: dict[tuple[str, str], int] = {}
+        self.peers_before: dict[str, list[str]] = {}   # family -> the peers established when the routes went in
         self.resets_before: dict[str, tuple] = {}
-        # whether the routes left the node: True, False, or None when the counts couldn't be read at restore
+        # whether the routes left the node: True, False, or None when the advertised routes couldn't be read at restore
         self.left: bool | None = None
-        self.quiet: list[str] = []   # the established peers they never all reached (left is False)
+        self.quiet: dict[str, list[str]] = {}    # established peer -> the injected prefixes it was not sent (left False)
+        self.unsent: dict[str, list[str]] = {}   # family -> its injected prefixes, with no session there to carry them
         self.applied_at: float | None = None   # time.monotonic() when the config went in: resets before it prove nothing
 
-    def sent(self) -> dict[tuple[str, str], int]:
-        """(family, peer) -> the prefixes the node has sent that peer (bgpd's pfxSnt), for each family injected and
-        each established session (a session that is down sends nothing, and is not waited for)."""
-        out = {}
+    def established(self) -> dict[str, list[str]]:
+        """family -> the peers whose session is established, for each family injected (a session that is down sends
+        nothing, and is not waited for). `{}` is a family with no session configured (live FRR 10.4.1)."""
+        out: dict[str, list[str]] = {}
         for afi in sorted({_afi(p) for p in self.prefixes}):
-            peers = json.loads(self._vtysh("-c", f"show bgp {afi} unicast summary json") or "{}").get("peers") or {}
-            for peer, info in peers.items():
-                if not isinstance(info, dict) or not isinstance(info.get("pfxSnt"), int):
-                    raise LabError(f"inject_routes on {self.node}: no sent-prefix count for {peer} "
-                                   f"(`show bgp {afi} unicast summary json`)")
-                if not isinstance(info.get("state"), str):
+            cmd = f"show bgp {afi} unicast summary json"
+            try:
+                data = json.loads(self._vtysh("-c", cmd))
+            except ValueError:
+                data = None
+            if not isinstance(data, dict):
+                raise LabError(f"inject_routes on {self.node}: unexpected output from `{cmd}`")
+            out[afi] = []
+            if data == {}:
+                continue
+            if not isinstance(data.get("peers"), dict):
+                raise LabError(f"inject_routes on {self.node}: no peers (`{cmd}`)")
+            for peer, info in data["peers"].items():
+                if not isinstance(info, dict) or not isinstance(info.get("state"), str):
                     raise LabError(f"inject_routes on {self.node}: no session state for {peer} "
                                    f"(`show bgp {afi} unicast summary json`)")
                 if info["state"] == "Established":
-                    out[(afi, peer)] = info["pfxSnt"]
+                    out[afi].append(peer)
         return out
+
+    def advertised(self, afi: str, peer: str) -> set[str]:
+        """The prefixes the node advertises to the peer now: its adj-rib-out after outbound policy, read as strictly
+        as verify reads it (prefix family, a path for each prefix, totalPrefixCounter equal to the prefixes listed).
+        This, not bgpd's aggregate sent-prefix count, says which prefixes left (Layer 6 round 3 on 5e65852: another
+        injection's prefixes raised the count, so routes that were all filtered read as sent)."""
+        cmd = adj_command("default", afi, peer, "out")
+        return {prefix for prefix, _pid in parse_adj(self._vtysh("-c", cmd), cmd, afi, "out", add_path_tx=False)}
 
     def resets(self) -> dict[str, tuple]:
         """peer -> (sessions dropped, last reset reason, last NOTIFICATION code and subcode, the session's families,
@@ -208,7 +227,7 @@ class RouteInjection:
                            "inject prefixes the node does not announce yet")
         if self.as_path and re.search(rf"^route-map {ROUTE_MAP} ", running, re.M):
             raise LabError(f"inject_routes on {self.node}: route-map {ROUTE_MAP} already exists")
-        self.sent_before = self.sent()   # read before anything changes: a count that can't be read stops here
+        self.peers_before = self.established()   # read before anything changes: what can't be read stops here
         self.resets_before = self.resets()
         self.applied = True
         self.applied_at = time.monotonic()
@@ -218,24 +237,33 @@ class RouteInjection:
     def restore(self) -> None:
         if not self.applied:
             return
-        # Read while the routes are still in, after the scenario's checks: did every peer that was established when
-        # they went in get at least as many more prefixes of the family as were injected in it, or tear the session
-        # down over its prefix limit? A peer that did neither never got them all (an outbound filter towards it, a
-        # session that went down), and a max: or present: false check on its side passed on nothing (acceptance
-        # round B-5). Every peer, not one: the routes reaching one neighbor says nothing about another's side (Layer
-        # 6 on b03cb7a). All of them, not one more: a filter that lets one of three through raises the count by one
-        # (Layer 6 round 2 on eaa323c). Any other reset proves nothing: inconclusive.
+        # Read while the routes are still in, after the scenario's checks: is every injected prefix in the advertised
+        # routes towards every peer that was established in its family when they went in, or did that peer tear the
+        # session down over its prefix limit? A peer that did neither never got those prefixes (an outbound filter
+        # towards it, a session that went down), and a max: or present: false check on its side passed on nothing
+        # (acceptance round B-5). Every peer, not one (Layer 6 on b03cb7a); every prefix, not a count (Layer 6 round
+        # 2 on eaa323c, round 3 on 5e65852). A family no established session carries sent nothing. Any other reset
+        # proves nothing: inconclusive.
         try:
-            after = self.sent()
+            now = self.established()
             resets = self.resets()
             elapsed = time.monotonic() - (self.applied_at if self.applied_at is not None else time.monotonic())
-            injected = {afi: sum(_afi(p) == afi for p in self.prefixes) for afi, _ in self.sent_before}
-            self.quiet = sorted({peer for (afi, peer), n in self.sent_before.items()
-                                 if not (after.get((afi, peer), 0) >= n + injected[afi]
-                                         or (peer in resets
-                                             and self._max_prefix_reset(peer, resets[peer], afi, elapsed)))})
-            self.left = bool(self.sent_before) and not self.quiet
-        except (LabError, ValueError):
+            quiet: dict[str, list[str]] = {}
+            unsent: dict[str, list[str]] = {}
+            for afi in sorted({_afi(p) for p in self.prefixes}):
+                mine = [p for p in self.prefixes if _afi(p) == afi]
+                if not self.peers_before[afi]:
+                    unsent[afi] = mine
+                    continue
+                for peer in self.peers_before[afi]:
+                    if peer in resets and self._max_prefix_reset(peer, resets[peer], afi, elapsed):
+                        continue
+                    got = self.advertised(afi, peer) if peer in now[afi] else set()
+                    quiet.setdefault(peer, []).extend(p for p in mine if p not in got)
+            self.quiet = {peer: missing for peer, missing in sorted(quiet.items()) if missing}
+            self.unsent = unsent
+            self.left = not self.quiet and not self.unsent
+        except (LabError, ValueError, SnapshotError):
             self.left = None
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path, remove=True))
         self._wait(want_present=False)

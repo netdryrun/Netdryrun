@@ -246,9 +246,11 @@ class Env:
 
             def restore(self):
                 self.restored += 1
-                # as RouteInjection: whether a peer's sent-prefix count rose, read before the routes are removed
+                # as RouteInjection: whether each prefix is in each peer's advertised routes, read before removal
                 self.left = getattr(env, "inject_left", True)
-                self.quiet = getattr(env, "inject_quiet", [])
+                self.quiet = getattr(env, "inject_quiet", {})
+                self.unsent = getattr(env, "inject_unsent",
+                                      {"ipv4": self.prefixes} if self.left is False and not self.quiet else {})
                 env.lab.events.append(("uninject", self.node))
 
             def clock_now(self):
@@ -283,9 +285,9 @@ def iso(s):
     return isinstance(s, str) and datetime.fromisoformat(s).utcoffset().total_seconds() == 0
 
 
-def make(monkeypatch, nodes=("r1", "r2", "r3"), **drivers_kw):
+def make(monkeypatch, nodes=("r1", "r2", "r3"), kinds=None, **drivers_kw):
     clock = Clock()
-    lab = FakeLab(clock, nodes=nodes)
+    lab = FakeLab(clock, nodes=nodes, kinds=kinds)
     drivers = {n: Drv(clock, **drivers_kw.get(n, {"neighbors": up(), "routes": {"default": always}})) for n in nodes}
     return Env(monkeypatch, clock, lab, drivers)
 
@@ -451,7 +453,7 @@ def test_report_started(monkeypatch):
 # ----------------------------------------------------------------------------------------------- run(): setup
 
 def test_drivers_get_the_configured_override(monkeypatch):
-    e = make(monkeypatch)
+    e = make(monkeypatch, kinds={"r2": ("nokia_srlinux", "ghcr.io/nokia/srlinux:26.7.2")})
     sc = Scenario("s", [Fault("link_down", "r1", "eth9")], [route("[s] x", node="r3")])
     e.run([route("a"), route("b", node="r2")], [sc], drivers_cfg={"r2": "srlinux"})
     assert ("r2", "srlinux") in e.for_node_calls and ("r1", None) in e.for_node_calls
@@ -482,8 +484,12 @@ def test_inject_routes_needs_an_frr_node(monkeypatch):
     e = Env(monkeypatch, clock, lab, {n: Drv(clock, neighbors=up(), routes={"default": always}) for n in lab.nodes})
     sc = Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x")])
     assert e.run([route("a")], [sc]).status == "error" and not e.injections
-    # an frr override on that node makes it acceptable
+    # an frr override on that node is refused too: a set driver its kind contradicts (Layer 6 round 3 on 5e65852)
     e = Env(monkeypatch, clock, lab, e.drivers)
+    assert e.run([route("a")], [sc], drivers_cfg={"r2": "frr"}).status == "error" and not e.injections
+    # on a node detection can't place, the frr setting is what makes it acceptable
+    lab3 = FakeLab(clock, kinds={"r2": ("linux", "registry.local/bgp-speaker:1")})
+    e = Env(monkeypatch, clock, lab3, {n: Drv(clock, neighbors=up(), routes={"default": always}) for n in lab3.nodes})
     assert e.run([route("a")], [sc], drivers_cfg={"r2": "frr"}).status == "passed" and e.injections
     # and an override to another driver refuses an FRR image
     lab2 = FakeLab(clock)
@@ -1473,7 +1479,7 @@ def test_config_path(tmp_path):
 
 def test_scenario_drivers_built_mid_scenario_get_their_override(monkeypatch):
     """r2 has no check of its own: its driver is first needed to watch the BGP session over the downed link."""
-    e = make(monkeypatch)
+    e = make(monkeypatch, kinds={"r2": ("nokia_srlinux", "ghcr.io/nokia/srlinux:26.7.2")})
     sc = Scenario("s", [Fault("link_down", "r1", "eth1")], [route("[s] x", node="r3")])
     rep = e.run([route("a")], [sc], drivers_cfg={"r2": "srlinux"})
     assert rep.status == "passed"
@@ -1896,8 +1902,8 @@ def test_the_fault_wait_names_every_session_still_up_even_after_an_unreadable_no
 
 # --- B-5 (acceptance round, 2026-11-02): injected routes that never left the injecting node --------------------
 
-NEVER_LEFT = ("inconclusive: the injected routes never left r2: no established BGP session there carries their "
-              "family, so this scenario tested nothing")
+NEVER_LEFT = ("inconclusive: the injected routes never left r2: no established ipv4 BGP session there carries "
+              "10.66.0.0/16, so this scenario tested nothing")
 
 
 def test_a_scenario_whose_injected_routes_never_left_is_inconclusive(monkeypatch):
@@ -1913,23 +1919,36 @@ def test_a_scenario_whose_injected_routes_never_left_is_inconclusive(monkeypatch
 def test_injected_routes_that_missed_a_peer_name_it(monkeypatch):
     """They reached one neighbor but not another (Layer 6 on b03cb7a): a check beyond the quiet one tested nothing."""
     e = make(monkeypatch)
-    e.inject_left, e.inject_quiet = False, ["10.0.12.1"]
+    e.inject_left, e.inject_quiet = False, {"10.0.12.1": ["10.66.0.0/16"]}
     [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x", node="r3")]))
     assert r.passed is False and str(r.detail) == (
-        "inconclusive: the injected routes on r2 did not all reach its BGP peer 10.0.12.1 (the sent-prefix count "
-        "towards it rose by less than the prefixes injected, and no session there reset over its prefix limit after "
-        "they went in: an outbound filter towards it, or a session that went down), so this scenario tested nothing")
+        "inconclusive: the injected routes on r2 did not all reach its BGP peers: 10.0.12.1 was not sent 10.66.0.0/16 "
+        "(not in the routes it advertised to them while the routes were in, and no session there reset over its "
+        "prefix limit after they went in: an outbound filter, or a session that went down), so this scenario tested "
+        "nothing")
 
 
 def test_injected_routes_that_missed_two_peers_name_both(monkeypatch):
     e = make(monkeypatch)
-    e.inject_left, e.inject_quiet = False, ["10.0.12.1", "10.0.23.1"]
-    [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x", node="r3")]))
+    six = [f"10.66.{i}.0/24" for i in range(6)]
+    e.inject_left, e.inject_quiet = False, {"10.0.12.1": ["10.66.0.0/24"], "10.0.23.1": six}
+    [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=six)], [route("x", node="r3")]))
     assert r.passed is False and str(r.detail) == (
-        "inconclusive: the injected routes on r2 did not all reach its BGP peers 10.0.12.1, 10.0.23.1 (the "
-        "sent-prefix count towards them rose by less than the prefixes injected, and no session there reset over its "
-        "prefix limit after they went in: an outbound filter towards them, or a session that went down), so this "
-        "scenario tested nothing")
+        "inconclusive: the injected routes on r2 did not all reach its BGP peers: 10.0.12.1 was not sent 10.66.0.0/24; "
+        "10.0.23.1 was not sent 10.66.0.0/24, 10.66.1.0/24, 10.66.2.0/24, 10.66.3.0/24, 10.66.4.0/24 and 1 more (not "
+        "in the routes it advertised to them while the routes were in, and no session there reset over its prefix "
+        "limit after they went in: an outbound filter, or a session that went down), so this scenario tested nothing")
+
+
+def test_a_family_without_a_session_is_named_even_when_the_other_left(monkeypatch):
+    """Layer 6 round 3 on 5e65852 (F2): an IPv4 and an IPv6 prefix, IPv4 sessions only: the IPv6 one never left."""
+    e = make(monkeypatch)
+    e.inject_left, e.inject_unsent = False, {"ipv6": ["2001:db8:99::/48"]}
+    [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16", "2001:db8:99::/48"])],
+                             [route("x", node="r3")]))
+    assert r.passed is False and str(r.detail) == (
+        "inconclusive: the injected routes never left r2: no established ipv6 BGP session there carries "
+        "2001:db8:99::/48, so this scenario tested nothing")
 
 
 def test_injected_routes_that_left_keep_the_scenario_results(monkeypatch):
@@ -1943,8 +1962,9 @@ def test_sent_counts_that_could_not_be_read_are_inconclusive_too(monkeypatch):
     e = make(monkeypatch)
     e.inject_left = None
     [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x", node="r3")]))
-    assert r.passed is False and str(r.detail) == ("inconclusive: the injected routes never left r2: its sent-prefix "
-                                                   "counts could not be read, so this scenario tested nothing")
+    assert r.passed is False and str(r.detail) == ("inconclusive: the injected routes on r2 may not have left: its BGP "
+                                                   "sessions or advertised routes could not be read, so this scenario "
+                                                   "tested nothing")
 
 
 def test_a_run_whose_only_failures_never_left_is_inconclusive_exit_3(monkeypatch):

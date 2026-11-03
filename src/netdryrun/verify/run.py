@@ -29,7 +29,7 @@ from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from ..config import ConfigError, load_yaml
-from ..drivers import DRIVERS, DriverError, detect
+from ..drivers import DRIVERS, BetaDriver, DriverError, Undetectable, detect, resolve
 from ..lab import Lab, LabError
 from .converge import Inconclusive, stable_snapshot
 from .engine import VerifyError, baseline_problems, diff, match
@@ -436,10 +436,14 @@ def classify_nodes(lab: Lab, overrides: dict[str, str], unobserved: list[str]) -
             out[name] = ""
             continue
         if name in unobserved:
+            # a node detection can't place (a host) or a beta NOS isn't FRR; any other refusal, such as an image
+            # carrying another NOS's mark, or a set driver its kind contradicts, stops here (Layer 6 round 3)
             try:
-                runs = overrides.get(name) or detect(node)
-            except DriverError:
+                runs = resolve(node, overrides.get(name))
+            except (Undetectable, BetaDriver):
                 runs = None
+            except DriverError as e:
+                raise VerifyInputError(f"--unobserved {name}: {e}") from None
             if runs == "frr":
                 raise VerifyInputError(f"--unobserved {name}: {name} runs FRR, which verify observes; a change on "
                                        "it would go uncompared")
@@ -448,14 +452,14 @@ def classify_nodes(lab: Lab, overrides: dict[str, str], unobserved: list[str]) -
         if node.kind in HOST_KINDS and name not in overrides:
             raise VerifyInputError(f"node {name} is of kind {node.kind}: verify can't observe it, and an unobserved "
                                    f"node could hide a change. Pass --unobserved {name} if it has no routing stack")
-        drv = overrides.get(name)
-        if drv is None:
-            try:
-                drv = detect(node)
-            except DriverError:
-                raise VerifyInputError(f"cannot tell what runs on node {name} (kind {node.kind!r}, image {node.image!r}); "
-                                       f"set nodes.{name}.driver: frr in the guards file, or pass --unobserved {name} "
-                                       "if it is a host without a routing stack") from None
+        try:
+            drv = resolve(node, overrides.get(name))
+        except Undetectable:
+            raise VerifyInputError(f"cannot tell what runs on node {name} (kind {node.kind!r}, image {node.image!r}); "
+                                   f"set nodes.{name}.driver: frr in the guards file, or pass --unobserved {name} "
+                                   "if it is a host without a routing stack") from None
+        except DriverError as e:
+            raise VerifyInputError(str(e)) from None
         if drv not in DRIVERS:
             raise VerifyInputError(f"node {name}: unknown driver {drv!r}")
         if drv != "frr":
@@ -475,7 +479,7 @@ def unobserved_reasons(lab: Lab, nodes: dict[str, str]) -> dict[str, str]:
             out[name] = f"a {node.kind} (no routing stack)"
             continue
         try:
-            drv = detect(node)
+            drv = resolve(node)
         except DriverError:
             drv = None
         if drv and drv != "frr":
