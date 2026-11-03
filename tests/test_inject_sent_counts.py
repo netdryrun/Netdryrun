@@ -101,3 +101,47 @@ def test_a_count_missing_before_the_injection_stops_it():
         RouteInjection(lab, "r1", ["100.64.0.0/24"], []).sent()
     assert str(e.value) == ("inject_routes on r1: no sent-prefix count for 10.0.12.2 "
                             "(`show bgp ipv4 unicast summary json`)")
+
+
+# --- Layer 6 on b03cb7a: the routes must leave towards every established peer, not just one ------------------------
+
+def _after(**counts):
+    """The live `after` capture with some peers' sent counts (or states) changed."""
+    import json
+    d = json.loads((FX / "frr_bgp_summary_inject_after.txt").read_text(encoding="utf-8"))
+    for peer, change in counts.items():
+        d["peers"][peer.replace("_", ".")].update(change)
+    return json.dumps(d)
+
+
+def test_routes_that_reached_one_peer_but_not_another_did_not_leave():
+    """r1 injects, its outbound filter towards 10.0.13.2 holds them back, 10.0.12.2 gets them: a check on the far
+    side of 10.0.13.2 passed on nothing. Inconclusive, naming the peer (it was left=True)."""
+    lab = SummaryLab((FX / "frr_bgp_summary_inject_before.txt").read_text(encoding="utf-8"),
+                     _after(**{"10_0_13_2": {"pfxSnt": 3}}))
+    inj = RouteInjection(lab, "r1", ["100.64.0.0/24"], [])
+    inj._wait = lambda want_present: None
+    inj.asn, inj.applied = "65001", True
+    inj.sent_before, inj.resets_before = inj.sent(), inj.resets()
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, ["10.0.13.2"])
+
+
+def test_a_peer_that_was_down_before_the_injection_is_not_waited_for():
+    before = _after(**{"10_0_12_2": {"pfxSnt": 3}, "10_0_13_2": {"pfxSnt": 0, "state": "Active"}})
+    lab = SummaryLab(before, _after(**{"10_0_13_2": {"pfxSnt": 0, "state": "Active"}}))
+    inj = RouteInjection(lab, "r1", ["100.64.0.0/24"], [])
+    inj._wait = lambda want_present: None
+    inj.asn, inj.applied = "65001", True
+    inj.sent_before, inj.resets_before = inj.sent(), inj.resets()
+    assert inj.sent_before == {("ipv4", "10.0.12.2"): 3}
+    inj.restore()
+    assert (inj.left, inj.quiet) == (True, [])
+
+
+def test_a_peer_without_a_state_stops_the_injection():
+    lab = SummaryLab('{"peers": {"10.0.12.2": {"pfxSnt": 3}}}')
+    with pytest.raises(LabError) as e:
+        RouteInjection(lab, "r1", ["100.64.0.0/24"], []).sent()
+    assert str(e.value) == ("inject_routes on r1: no session state for 10.0.12.2 "
+                            "(`show bgp ipv4 unicast summary json`)")

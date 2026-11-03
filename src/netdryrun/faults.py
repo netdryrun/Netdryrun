@@ -114,9 +114,11 @@ class RouteInjection:
         self.resets_before: dict[str, tuple] = {}
         # whether the routes left the node: True, False, or None when the counts couldn't be read at restore
         self.left: bool | None = None
+        self.quiet: list[str] = []   # the established peers they never reached (left is False)
 
     def sent(self) -> dict[tuple[str, str], int]:
-        """(family, peer) -> the prefixes the node has sent that peer (bgpd's pfxSnt), for each family injected."""
+        """(family, peer) -> the prefixes the node has sent that peer (bgpd's pfxSnt), for each family injected and
+        each established session (a session that is down sends nothing, and is not waited for)."""
         out = {}
         for afi in sorted({_afi(p) for p in self.prefixes}):
             peers = json.loads(self._vtysh("-c", f"show bgp {afi} unicast summary json") or "{}").get("peers") or {}
@@ -124,7 +126,11 @@ class RouteInjection:
                 if not isinstance(info, dict) or not isinstance(info.get("pfxSnt"), int):
                     raise LabError(f"inject_routes on {self.node}: no sent-prefix count for {peer} "
                                    f"(`show bgp {afi} unicast summary json`)")
-                out[(afi, peer)] = info["pfxSnt"]
+                if not isinstance(info.get("state"), str):
+                    raise LabError(f"inject_routes on {self.node}: no session state for {peer} "
+                                   f"(`show bgp {afi} unicast summary json`)")
+                if info["state"] == "Established":
+                    out[(afi, peer)] = info["pfxSnt"]
         return out
 
     def resets(self) -> dict[str, tuple]:
@@ -201,15 +207,19 @@ class RouteInjection:
     def restore(self) -> None:
         if not self.applied:
             return
-        # Read while the routes are still in, after the scenario's checks: did any peer get more prefixes than
-        # before, or tear the session down over its prefix limit? If neither, the routes never left this node (an
-        # outbound filter here, no session carrying their family), and a max: or present: false check elsewhere
-        # passed on nothing (acceptance round B-5). Any other reset proves nothing: inconclusive.
+        # Read while the routes are still in, after the scenario's checks: did every peer that was established when
+        # they went in get more prefixes than before, or tear the session down over its prefix limit? A peer that
+        # did neither never got them (an outbound filter towards it, a session that went down), and a max: or
+        # present: false check on its side passed on nothing (acceptance round B-5). Every peer, not one: the
+        # routes reaching one neighbor says nothing about another's side (Layer 6 on b03cb7a). Any other reset
+        # proves nothing: inconclusive.
         try:
             after = self.sent()
             resets = self.resets()
-            self.left = (any(n > self.sent_before.get(k, 0) for k, n in after.items())
-                         or any(self._max_prefix_reset(p, now) for p, now in resets.items()))
+            self.quiet = sorted({peer for (afi, peer), n in self.sent_before.items()
+                                 if not (after.get((afi, peer), 0) > n
+                                         or (peer in resets and self._max_prefix_reset(peer, resets[peer])))})
+            self.left = bool(self.sent_before) and not self.quiet
         except (LabError, ValueError):
             self.left = None
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path, remove=True))

@@ -248,6 +248,7 @@ class Env:
                 self.restored += 1
                 # as RouteInjection: whether a peer's sent-prefix count rose, read before the routes are removed
                 self.left = getattr(env, "inject_left", True)
+                self.quiet = getattr(env, "inject_quiet", [])
                 env.lab.events.append(("uninject", self.node))
 
             def clock_now(self):
@@ -1895,9 +1896,8 @@ def test_the_fault_wait_names_every_session_still_up_even_after_an_unreadable_no
 
 # --- B-5 (acceptance round, 2026-11-02): injected routes that never left the injecting node --------------------
 
-NEVER_LEFT = ("inconclusive: the injected routes never left r2: no BGP peer's sent-prefix count rose while they were "
-              "injected (an outbound filter there, or no session carrying their family), so this scenario tested "
-              "nothing")
+NEVER_LEFT = ("inconclusive: the injected routes never left r2: no established BGP session there carries their "
+              "family, so this scenario tested nothing")
 
 
 def test_a_scenario_whose_injected_routes_never_left_is_inconclusive(monkeypatch):
@@ -1908,6 +1908,17 @@ def test_a_scenario_whose_injected_routes_never_left_is_inconclusive(monkeypatch
                                  [route("x", node="r3")]))
     assert [(r.passed, str(r.detail), r.samples_passed) for r in results] == [(False, NEVER_LEFT, 0)]
     assert isinstance(results[0].detail, runner.NeverLeft) and NEVER_LEFT in " ".join(e.logs)
+
+
+def test_injected_routes_that_missed_a_peer_name_it(monkeypatch):
+    """They reached one neighbor but not another (Layer 6 on b03cb7a): a check beyond the quiet one tested nothing."""
+    e = make(monkeypatch)
+    e.inject_left, e.inject_quiet = False, ["10.0.12.1"]
+    [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x", node="r3")]))
+    assert r.passed is False and str(r.detail) == (
+        "inconclusive: the injected routes on r2 never reached its BGP peer 10.0.12.1 (no sent-prefix count towards it "
+        "rose, and no session there reset over its prefix limit: an outbound filter towards it, or a session that "
+        "went down), so this scenario tested nothing")
 
 
 def test_injected_routes_that_left_keep_the_scenario_results(monkeypatch):

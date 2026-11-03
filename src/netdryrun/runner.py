@@ -1077,16 +1077,25 @@ class NeverLeft(Unready):
 
 
 def _never_left(injected: list[RouteInjection], results: list[Result], log=lambda _: None) -> list[Result]:
-    """A scenario's results, or, when an injection's routes never left its node (no peer's sent-prefix count rose
-    while they were in), every passed one not passed and inconclusive (acceptance round B-5). A check that failed
+    """A scenario's results, or, when an injection's routes didn't reach every established BGP peer of its node (one
+    whose sent-prefix count didn't rise while they were in, and which didn't reset over its prefix limit), every
+    passed one not passed and inconclusive (acceptance round B-5; every peer, not one: Layer 6 on b03cb7a). A check that failed
     stays failed: routes that never left can't have made it fail (Layer 6 on b03cb7a)."""
     quiet = [inj for inj in injected if inj.applied and inj.left is not True]
     if not quiet:
         return results
     inj = quiet[0]
-    why = ("no BGP peer's sent-prefix count rose while they were injected (an outbound filter there, or no session "
-           "carrying their family)" if inj.left is False else "its sent-prefix counts could not be read")
-    detail = NeverLeft(f"inconclusive: the injected routes never left {inj.node}: {why}, so this scenario tested "
-                       "nothing")
+    peers = getattr(inj, "quiet", [])
+    if peers:   # they reached some peers, not these: a check on the far side of one passed on nothing (Layer 6)
+        one = len(peers) == 1
+        text = (f"inconclusive: the injected routes on {inj.node} never reached its BGP peer{'' if one else 's'} "
+                f"{', '.join(peers)} (no sent-prefix count towards {'it' if one else 'them'} rose, and no session "
+                f"there reset over its prefix limit: an outbound filter towards {'it' if one else 'them'}, or a "
+                "session that went down), so this scenario tested nothing")
+    else:
+        why = ("no established BGP session there carries their family" if inj.left is False
+               else "its sent-prefix counts could not be read")
+        text = f"inconclusive: the injected routes never left {inj.node}: {why}, so this scenario tested nothing"
+    detail = NeverLeft(text)
     log(f"  {detail}")
     return [replace(r, passed=False, detail=detail, samples_passed=0) if r.passed else r for r in results]
