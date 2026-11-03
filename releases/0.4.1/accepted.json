@@ -5707,6 +5707,36 @@
       "reason": "message text only: the invalid-path total in the over-count error; the same DriverError is raised (the condition itself is mutant 20, killed)",
       "diff": "41bcf270903277e1",
       "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__protocol__mutmut_1": {
+      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
+      "diff": "5ed495c880c853db",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__protocol__mutmut_2": {
+      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
+      "diff": "517e096429f14a1b",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.srlinux.x__protocol__mutmut_11": {
+      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
+      "diff": "0db759c8824eb595",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.nxos.x__rib_routes__mutmut_29": {
+      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
+      "diff": "2f7d77e9ec15866b",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.frr.x__route__mutmut_5": {
+      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
+      "diff": "76d0aea0cc26efcb",
+      "class": "message-text"
+    },
+    "netdryrun.drivers.junos.x__protocol__mutmut_2": {
+      "reason": "message text only: _protocol runs only after _entries read the same protocol-name leaf with the real command, so any raise fires there first; the command reaches _leaf only for the error text",
+      "diff": "16163f66be55c290",
+      "class": "message-text"
     }
   },
   "checks": {

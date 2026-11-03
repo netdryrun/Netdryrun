@@ -1921,6 +1921,16 @@ def test_injected_routes_that_missed_a_peer_name_it(monkeypatch):
         "went down), so this scenario tested nothing")
 
 
+def test_injected_routes_that_missed_two_peers_name_both(monkeypatch):
+    e = make(monkeypatch)
+    e.inject_left, e.inject_quiet = False, ["10.0.12.1", "10.0.23.1"]
+    [r] = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])], [route("x", node="r3")]))
+    assert r.passed is False and str(r.detail) == (
+        "inconclusive: the injected routes on r2 never reached its BGP peers 10.0.12.1, 10.0.23.1 (no sent-prefix "
+        "count towards them rose, and no session there reset over its prefix limit: an outbound filter towards "
+        "them, or a session that went down), so this scenario tested nothing")
+
+
 def test_injected_routes_that_left_keep_the_scenario_results(monkeypatch):
     e = make(monkeypatch)
     results = direct(e, Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"])],

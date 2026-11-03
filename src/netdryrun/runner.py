@@ -1093,7 +1093,7 @@ def _never_left(injected: list[RouteInjection], results: list[Result], log=lambd
     if not quiet:
         return results
     inj = quiet[0]
-    peers = getattr(inj, "quiet", [])
+    peers = inj.quiet   # RouteInjection sets it in __init__
     if peers:   # they reached some peers, not these: a check on the far side of one passed on nothing (Layer 6)
         one = len(peers) == 1
         text = (f"inconclusive: the injected routes on {inj.node} never reached its BGP peer{'' if one else 's'} "
