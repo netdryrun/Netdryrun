@@ -104,11 +104,14 @@ def test_add_path_tx_is_read_from_the_neighbor_capabilities():
     # the live capture: receive only (FRR's default), so one path per prefix is sent
     text = fixture("neighbors.txt")
     assert vfrr.add_path_tx(text) == set()
-    assert vfrr.add_path_tx(_neighbors(None)) == set()
+    # no addPath at all on an established session: unknown, so add-path, never "one path sent" (Layer 6 round 2)
+    assert ("default", "10.0.2.2", "ipv4-unicast") in vfrr.add_path_tx(_neighbors(None))
     for flag in ("txAdvertised", "txReceived", "txAdvertisedAndReceived"):
         tx = vfrr.add_path_tx(_neighbors({"ipv4Unicast": {flag: True}}))
         assert ("default", "10.0.2.2", "ipv4-unicast") in tx, flag
-    assert vfrr.add_path_tx(_neighbors({"ipv4Unicast": {"txAdvertised": False, "rxReceived": True}})) == set()
+    # the IPv6 session's addPath now names IPv4 only: its own family is unknown, so add-path (Layer 6 round 2)
+    assert vfrr.add_path_tx(_neighbors({"ipv4Unicast": {"txAdvertised": False, "rxReceived": True}})) == {
+        ("default", "2001:db8:11::2", "ipv6-unicast")}
 
 
 @pytest.mark.parametrize("addpath", [

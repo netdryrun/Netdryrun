@@ -292,6 +292,11 @@ def parse_received(text: str, family: int) -> set[str]:
         net = network(RECEIVED_CMD, key)
         if net.version != family or not isinstance(paths, list) or not paths:
             raise unexpected(RECEIVED_CMD, f"{key}: {str(paths)[:150]}")
+        # each path names its prefix (`network`, FRR 10.4.1): an element that doesn't is output this parser doesn't
+        # know, never a received prefix that `only` then judges (Layer 6 round 2 on eaa323c)
+        for p in paths:
+            if not isinstance(p, dict) or not isinstance(p.get("network"), str)                     or network(RECEIVED_CMD, p["network"]) != net:
+                raise unexpected(RECEIVED_CMD, f"{key} path: {str(p)[:150]}")
         out.add(str(net))
     # bgpd closes the listing with its own route total (FRR 10.4.1; its totalPaths counts every path of those
     # prefixes, from any neighbor): a listing that disagrees was cut or misread, and a prefix missing from it would

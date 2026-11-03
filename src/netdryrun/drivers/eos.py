@@ -16,7 +16,7 @@ import ipaddress
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
                    check_vrf_name, load_json, must, must_bool, network, parser, unexpected)
 from .frr import _canon_addr, parse_ping
-from .stale import refuse_if_stale, strict_bool
+from .stale import refuse_if_stale
 
 PROTOCOLS = {"ebgp": "bgp", "ibgp": "bgp", "bgp": "bgp", "connected": "connected", "static": "static",
              "ospf": "ospf", "ospfintraarea": "ospf", "ospfinterarea": "ospf", "ospfexternaltype1": "ospf",

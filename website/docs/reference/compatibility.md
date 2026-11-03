@@ -56,7 +56,7 @@ A check on a refused address family stops the run before the lab is deployed, wi
 | `med` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
 | `next_hop` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
 | `communities` | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | no must-fail test | verified (1 must-fail) |
-| `without_communities` | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | verified (1 must-fail) |
+| `without_communities` | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | refused: not supported on this driver |
 
 ## Known limits
 

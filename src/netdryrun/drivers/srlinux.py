@@ -226,7 +226,7 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
             raise unexpected(ROUTE_CMD, str(r)[:150])
         if network(ROUTE_CMD, r[key]) != want:   # the command names the prefix as a key: only it can be listed
             raise unexpected(ROUTE_CMD, f"a route for {r[key]} in the answer for {want}")
-        rtype = str(r.get("route-type", "")).lower()
+        rtype = str(must(ROUTE_CMD, r, "route-type")).lower()
         out.append(Route(prefix, _protocol(rtype, ROUTE_CMD), _in_fib(ROUTE_CMD, prefix, r)))
     rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error
     if bgp_rib_text is not None and not any(is_bgp(r.protocol) and r.active for r in out):
@@ -440,7 +440,7 @@ def parse_all_routes(text: str, key: str = "ipv4-prefix") -> list[Route]:
     for r in _list(cmd, _json(text, cmd), "route"):
         if key not in r:
             raise unexpected(cmd, str(r)[:150])
-        rtype = str(r.get("route-type", "")).lower()
+        rtype = str(must(cmd, r, "route-type")).lower()
         net = str(network(cmd, r[key]))
         out.append(Route(net, _protocol(rtype, cmd), _in_fib(cmd, net, r)))
     return out

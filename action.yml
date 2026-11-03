@@ -477,12 +477,24 @@ runs:
                     raise ValueError("a match with undeclared differences, missing declarations or failed guards")
                 if out["status"] == "failed" and not out["failed"]:
                     raise ValueError("undeclared changes with nothing undeclared")
+                # every status is held to its own evidence (Layer 6 round 2 on eaa323c): a match declares something
+                # (zero declared lines and a change is UNDECLARED CHANGES), an inconclusive verdict says why, an
+                # error carries its error
+                if out["status"] == "matched" and not rep["declared"]:
+                    raise ValueError("a match with no declared line")
+                if out["status"] in ("inconclusive", "unhealthy_baseline") and not out["inconclusive_reason"]:
+                    raise ValueError("an inconclusive verdict without a reason")
+                if out["status"] == "error" and not rep.get("error"):
+                    raise ValueError("an error without its error")
             else:
                 out = {"status": rep["status"], "passed": int(rep["summary"]["passed"]), "failed": int(rep["summary"]["failed"]),
                        "inconclusive_reason": rep.get("inconclusive_reason") or ""}
                 # a verdict must agree with its own checks: the counts are the checks' counts, and passed means
-                # checks exist and every one passed (failed with no checks is how a run that ran none ends)
-                if out["status"] in ("passed", "failed"):
+                # checks exist and every one passed (failed with no checks is how a run that ran none ends). Every
+                # status with checks, inconclusive included (Layer 6 round 2 on eaa323c), and inconclusive says why
+                if out["status"] == "inconclusive" and not out["inconclusive_reason"]:
+                    raise ValueError("an inconclusive report without a reason")
+                if out["status"] in ("passed", "failed", "inconclusive"):
                     results = [c["passed"] for c in rep["checks"]]
                     if any(r not in (True, False) for r in results) or \
                             (out["passed"], out["failed"]) != (results.count(True), results.count(False)):

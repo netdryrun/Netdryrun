@@ -854,10 +854,10 @@ def test_srl_bgp_paths_commands():
 
 
 def test_srl_bgp_paths_reads_the_best_and_the_first_learned_path():
-    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.3", "stale-route": False, "attr-id": 2, "stale-route": False, "origin-protocol": "bgp"},
+    rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "10.0.0.3", "attr-id": 2, "stale-route": False, "origin-protocol": "bgp"},
                        {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "best-route": True, "attr-id": 1,
-                        "stale-route": False, "origin-protocol": "static"},
-                       {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.4", "stale-route": False, "attr-id": 3, "stale-route": False, "origin-protocol": "bgp"}]})
+                        "origin-protocol": "static"},
+                       {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.4", "attr-id": 3, "stale-route": False, "origin-protocol": "bgp"}]})
     lab = _srl_paths_lab(rib, J({"as-path": {}, "local-pref": 100}))
     paths = SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value
     assert [p.neighbor for p in paths] == ["0.0.0.0", "10.0.0.3", "10.0.0.4"]
@@ -872,8 +872,8 @@ def test_srl_bgp_paths_reads_the_best_and_the_first_learned_path():
     assert [p.local_pref for p in paths] == [100, None] and sum("attr-set " in ln for ln in lab.lines()) == 1
     # only the router's own paths: only the best is read
     rib = J({"route": [{"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "attr-id": 2, "best-route": True,
-                        "stale-route": False, "origin-protocol": "local"},
-                       {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "stale-route": False, "attr-id": 3, "stale-route": False, "origin-protocol": "static"}]})
+                        "origin-protocol": "local"},
+                       {"prefix": "10.1.0.0/16", "neighbor": "0.0.0.0", "attr-id": 3, "stale-route": False, "origin-protocol": "static"}]})
     lab = _srl_paths_lab(rib, J({"local-pref": 100}))
     assert [p.local_pref for p in SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value] == [100, None]
 

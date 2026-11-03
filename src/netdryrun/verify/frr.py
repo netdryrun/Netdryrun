@@ -370,6 +370,15 @@ def add_path_tx(text: str) -> set[tuple[str, str, str]]:
                 if af in AF_KEYS and (not isinstance(info, dict) or any(v is not False for k, v in info.items()
                                                                            if k.startswith("tx"))):
                     out.add((vrf, canon_ip(key), AF_KEYS[af]))
+            # FRR lists addPath for every family the session carries (rx flags at least, every capture): a carried
+            # family it leaves out is unknown, and unknown is add-path, or extra paths sent would hide behind the
+            # best one (Layer 6 round 2 on eaa323c). No family list at all: every family. A session that isn't up
+            # (no capabilities negotiated, live) sends nothing
+            families = nb.get("addressFamilyInfo")
+            up = nb.get("bgpState") == "Established" or not isinstance(nb.get("bgpState"), str)
+            for af in AF_KEYS:
+                if up and af not in ap and (not isinstance(families, dict) or af in families):
+                    out.add((vrf, canon_ip(key), AF_KEYS[af]))
     return out
 
 
@@ -742,7 +751,11 @@ def _best_sent(cmd: str, prefix: str, plist: list) -> dict:
 
 
 def _check_total(cmd: str, data: dict, listed: int) -> None:
-    if "totalPrefixCounter" in data and _int(cmd, data["totalPrefixCounter"], "totalPrefixCounter") != listed:
+    """FRR prints totalPrefixCounter under every non-empty listing (each capture): without it a listing cut short
+    would read as the whole of it, so verify would see a subset (Layer 6 round 2 on eaa323c)."""
+    if "totalPrefixCounter" not in data:
+        raise _bad(cmd, f"no totalPrefixCounter under {listed} listed prefixes")
+    if _int(cmd, data["totalPrefixCounter"], "totalPrefixCounter") != listed:
         raise _bad(cmd, f"totalPrefixCounter {data['totalPrefixCounter']} but {listed} prefixes listed")
 
 

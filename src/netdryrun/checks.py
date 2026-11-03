@@ -223,9 +223,14 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
         # an alias or a name Netdryrun doesn't know could be any of the communities the path must not carry
         wrong.append(f"carries communities Netdryrun can't read as numbers ({' '.join(unread)}), so it can't tell "
                      "whether they are ones the path must not carry")
+    if ("as_path" in p or "as_path_regex" in p) and best.as_path is None:
+        # unread is unknown: never the empty path that `as_path: ""` or a regex like `^$` would match (Layer 6
+        # round 2 on eaa323c)
+        return False, Unready(f"error: the AS path of the best path could not be read (best path: "
+                              f"{_describe_path(best)})"), obs.evidence
     if "as_path" in p and best.as_path != p["as_path"]:
         wrong.append(f"as-path is '{best.as_path}', expected '{p['as_path']}'")
-    if "as_path_regex" in p and not re.search(p["as_path_regex"], best.as_path or ""):
+    if "as_path_regex" in p and not re.search(p["as_path_regex"], best.as_path):
         wrong.append(f"as-path '{best.as_path}' does not match /{p['as_path_regex']}/")
     for key, label in (("local_pref", "local-pref"), ("med", "MED")):
         if key in p and getattr(best, key) != p[key]:

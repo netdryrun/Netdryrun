@@ -30,7 +30,29 @@ def _beta(node: Node, name: str, label: str) -> DriverError:
                        "netdryrun.yml")
 
 
+# image-name marks of each detectable NOS: an image that carries another NOS's mark than its kind (or than the image
+# rule that would pick a driver) is an error, never a guess (Layer 6 round 2 on eaa323c: kind generic_vm with an
+# n9kv image was detected as frr from "frr" in the image name)
+IMAGE_MARKS = {"srlinux": ("srlinux",), "eos": ("ceos", "arista"), "nxos": ("n9kv", "nxos", "nexus"),
+               "junos": ("junos", "juniper"), "routeros": ("mikrotik", "routeros"), "sonic": ("sonic",),
+               "frr": ("frr",)}
+
+
+def _marks(image: str) -> set[str]:
+    image = image.lower()
+    return {name for name, marks in IMAGE_MARKS.items() if any(m in image for m in marks)}
+
+
 def detect(node: Node) -> str:
+    name = _detect(node)
+    others = _marks(node.image) - {name} - ({"frr"} if name == "sonic" else set())   # SONiC runs FRR inside
+    if others:
+        raise DriverError(f"node {node.name} (kind={node.kind!r}, image={node.image!r}): the image name looks like "
+                          f"{', '.join(sorted(others))}, not {name}; set nodes.{node.name}.driver in netdryrun.yml")
+    return name
+
+
+def _detect(node: Node) -> str:
     if node.kind in ("nokia_srlinux", "srl"):
         return "srlinux"
     if node.kind in ("arista_ceos", "ceos"):

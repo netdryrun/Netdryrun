@@ -19,7 +19,7 @@ import ipaddress
 import re
 
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int,
-                   canon_communities, check_vrf_name, load_json, network, parser, render_as_path, unexpected)
+                   canon_communities, check_vrf_name, load_json, must, network, parser, render_as_path, unexpected)
 from .frr import _canon_addr, parse_ping
 from .stale import refuse_if_stale
 
@@ -285,9 +285,9 @@ def _bgp_paths_raw(text: str, prefix: str, vrf: str) -> list[dict]:
     for net, row in _bgp_prefix_rows(BGP_CMD, _body(BGP_CMD, text), vrf):
         _exact(BGP_CMD, net, want)
         paths += _counted_paths(row)
-    for p in paths:
-        if "pathstaled" in p:   # graceful restart: a stale path is neither present nor gone yet
-            refuse_if_stale(prefix, p.get("ipv6neighbor", p.get("neighbor")), _flag(BGP_CMD, p["pathstaled"]))
+    for p in paths:   # graceful restart: a stale path is neither present nor gone yet. NX-OS 10.4(8) prints the mark
+        # on every path (each capture): a missing one is unknown, never "not stale" (Layer 6 round 2 on eaa323c)
+        refuse_if_stale(prefix, p.get("ipv6neighbor", p.get("neighbor")), _flag(BGP_CMD, must(BGP_CMD, p, "pathstaled")))
     return paths
 
 
@@ -387,7 +387,9 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
         nh = p.get("ipv6nexthop", p.get("ipnexthop"))
         out.append(BgpPath(
             best=_flag(BGP_CMD, p.get("pathbest")),
-            as_path=_as_path(p.get("aspath", "")),
+            # NX-OS prints no aspath for its own path (nxos_bgp_20.txt): unknown (None), never the empty path that
+            # `as_path: ""` or a regex would match, so an AS-path check on it errors (Layer 6 round 2 on eaa323c)
+            as_path=_as_path(p["aspath"]) if "aspath" in p else None,
             next_hop=_canon_addr(nh) if isinstance(nh, str) and nh else None,
             local_pref=as_int(BGP_CMD, p["localpref"]) if "localpref" in p else None,
             # NX-OS prints "metric": 0 for a path received with no MED (live: FRR's network statement and
@@ -510,6 +512,10 @@ class NxosDriver(Driver):
     unsupported_afis = frozenset({"evpn"})
     ambiguous_bgp_values = {"med": {0: "NX-OS output cannot tell MED 0 from no MED (check a non-zero MED, or check "
                                        "this route on another platform)"}}
+    # NX-OS leaves TABLE_community out of a path without communities (nxos_bgp_local.txt and nxos_bgp_v6.txt, live),
+    # so a missing key can't be told from one it didn't print: `without_communities` could pass on what it never
+    # saw (Layer 6 round 2 on eaa323c, as on RouterOS)
+    unsupported_bgp_attributes = frozenset({"without_communities"})
 
     def _nxapi(self, command: str, evidence: list[dict], method: str = "cli", timeout: float = 60) -> str:
         """One NX-API request from inside the container. Not reaching NX-API is an error."""

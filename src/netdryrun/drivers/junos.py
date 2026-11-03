@@ -550,6 +550,11 @@ class JunosDriver(Driver):
     route_protocols = frozenset(PROTOCOLS.values())
     # bgp_neighbors reads the inet.0 and inet6.0 RIB counts only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
+    # Junos leaves <communities> out of a route without any (junos_route_leak.txt, junos_route_med0.txt, live), so a
+    # missing element can't be told from one it didn't print: `without_communities` could pass on what it never saw
+    # (Layer 6 round 2 on eaa323c, as on RouterOS and NX-OS). Extended communities are left out on purpose: no
+    # netdryrun.yml community names one (config.parse_community takes standard, large and well-known only)
+    unsupported_bgp_attributes = frozenset({"without_communities"})
 
     def _vrf(self, vrf: str) -> str:
         vrf = check_vrf_name(vrf)

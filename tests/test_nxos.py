@@ -228,7 +228,8 @@ def test_bgp_paths_on_live_output():
         (True, "65002", "10.0.1.2", 200, 50, "10.0.1.2")
     assert p.communities == ["65002:100", "65002:200"] and p.large_communities == ["65002:1:1"]
     [local] = nxos.parse_bgp_paths(read("nxos_bgp_local.txt"), "192.168.10.1/32")
-    assert (local.as_path, local.neighbor, local.med) == ("", None, None)   # its neighborid is the router ID
+    # its neighborid is the router ID; NX-OS prints no aspath for it: unknown, never "" (Layer 6 round 2 on eaa323c)
+    assert (local.as_path, local.neighbor, local.med) == (None, None, None)
     [v6] = nxos.parse_bgp_paths(read("nxos_bgp_v6.txt"), "2001:db8:20::/48")
     assert (v6.next_hop, v6.neighbor) == ("2001:db8:1::2", "2001:db8:1::2")
     [red] = nxos.parse_bgp_paths(read("nxos_bgp_red.txt"), "172.16.2.0/24", "RED")

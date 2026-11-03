@@ -165,3 +165,18 @@
     - tests/test_srl_loop_count.py
     - tests/test_unmapped_route_types_041.py
     - tests/test_routeros_driver.py
+- id: layer6-review-2-0.4.1
+  what: False passes round 2 of the Layer 6 review found in the 0.4.1 candidate (eaa323c) - inject_routes counted a
+    partial send (one of three prefixes through a filter) and an unrelated or earlier prefix-limit reset as reaching
+    the peer, verdict keys missing from device output read as empty, zero or false (EOS communities, AS path, stale and
+    programmed flags; SR Linux rejected-routes, family state, stale mark, FIB fields, as-path; NX-OS pathstaled and
+    aspath; FRR verify totalPrefixCounter and add-path state), as_path_regex matching an unreadable path as empty,
+    without_communities on Junos and NX-OS paths that leave the key out, unknown SR Linux bgp-* subtypes folded into
+    bgp, malformed FRR received paths counted for only, an n9kv image under another kind detected as FRR, and Action
+    reports whose status wasn't held to its evidence
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 2)
+  tests:
+    - tests/test_verdict_keys_041.py
+    - tests/test_inject_sent_counts.py
+    - tests/test_verdict_checks.py
+    - tests/test_verify_adj_multipath.py

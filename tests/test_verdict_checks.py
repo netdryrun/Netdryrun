@@ -368,11 +368,15 @@ def test_bgp_route_attributes(params, expected):
     assert ok(_bgp_route, d, {"prefix": "p", **params}) is expected
 
 
-def test_bgp_route_regex_on_an_unreadable_as_path():
+@pytest.mark.parametrize("params", [{"as_path_regex": "^$"}, {"as_path_regex": "^(?!.*65666)"}, {"as_path_regex": "1"},
+                                    {"as_path": ""}])
+def test_bgp_route_on_an_unreadable_as_path_is_an_error(params):
+    """An AS path the driver couldn't read (None) is unknown: `^$` matched it as the empty path, so a check that the
+    route was locally originated, or that 65666 is nowhere in it, passed on nothing (Layer 6 round 2 on eaa323c)."""
     d = Fake(paths={"default": [P(as_path=None)]})
-    assert ok(_bgp_route, d, {"prefix": "p", "as_path_regex": "^$"}) is True
-    assert ok(_bgp_route, d, {"prefix": "p", "as_path_regex": "1"}) is False
-    assert ok(_bgp_route, d, {"prefix": "p", "as_path": ""}) is False
+    passed, detail, _ = _bgp_route(d, {"prefix": "p", **params})
+    assert passed is False and isinstance(detail, Unready) and detail.startswith(
+        "error: the AS path of the best path could not be read")
 
 
 def test_bgp_route_evidence():
