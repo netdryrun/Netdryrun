@@ -63,7 +63,7 @@ class SrlLab:
         if "local-rib" in cmd[-1]:
             return ExecResult(cmd, 0, json.dumps({"route": [self.row]}), "")
         if "attr-set" in cmd[-1]:
-            return ExecResult(cmd, 0, json.dumps({"as-path": {"segment": []}}), "")
+            return ExecResult(cmd, 0, json.dumps({"index": cmd[-1].split()[-1], "as-path": {"segment": []}}), "")
         return ExecResult(cmd, 0, "{}", "")
 
 

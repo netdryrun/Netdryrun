@@ -240,6 +240,9 @@ class Env:
             def describe(self):
                 return f"{self.node}"
 
+            def await_delivery(self, settle):
+                self.awaited = settle
+
             def apply(self):
                 self.applied = True
                 env.lab.events.append(("inject", self.node, self.clock_now()))
@@ -1901,71 +1904,59 @@ def test_the_fault_wait_names_every_session_still_up_even_after_an_unreadable_no
 
 
 # --- B-5 (acceptance round, 2026-11-02): injected routes that never left the injecting node --------------------
-# Layer 6 round 5 on 45f63df: only the checks the missing routes could have made pass become inconclusive; a check
-# that needs the routes there keeps its verdict.
+# Every passed check in the scenario is inconclusive: "the attack had no effect" checks (the legitimate path stays,
+# the session stays up, ping works, min holds) pass on routes that never arrived too (Layer 6 round 6 on 1a597d7).
 
-PASSES_ON_NOTHING = ("so this check could pass on routes that never arrived")
 NEVER_LEFT = ("inconclusive: the injected routes never left r2: no established ipv4 BGP session there carries "
-              "10.66.0.0/16, " + PASSES_ON_NOTHING)
-
-
-def _absent_on_r3(monkeypatch, **env):
-    """r3 holds no route at all: a `present: false` check there passes on nothing, a `present` one on r1 passes."""
-    e = make(monkeypatch, r3={"neighbors": up(), "routes": {"default": never}})
-    for k, v in env.items():
-        setattr(e, k, v)
-    return e
+              "10.66.0.0/16, so this scenario tested nothing")
 
 
 def _scenario(*checks, prefixes=("10.66.0.0/16",)):
     return Scenario("s", [Fault("inject_routes", "r2", prefixes=list(prefixes))], list(checks))
 
 
-def test_a_scenario_whose_injected_routes_never_left_makes_its_pass_on_nothing_checks_inconclusive(monkeypatch):
-    """`present: false` on the far side passed on routes that never left; a positive check keeps its pass."""
-    e = _absent_on_r3(monkeypatch, inject_left=False)
-    results = direct(e, _scenario(leak("gone", node="r3"), route("there")))
-    by = {r.check.name: r for r in results}
-    assert (by["gone"].passed, str(by["gone"].detail), by["gone"].samples_passed) == (False, NEVER_LEFT, 0)
-    assert isinstance(by["gone"].detail, runner.NeverLeft) and NEVER_LEFT in " ".join(e.logs)
-    assert by["there"].passed is True and not isinstance(by["there"].detail, runner.NeverLeft)
+def test_a_scenario_whose_injected_routes_never_left_is_inconclusive(monkeypatch):
+    """Every check in it is not passed with the reason, even one that passed on the unchanged network."""
+    e = make(monkeypatch)
+    e.inject_left = False
+    results = direct(e, _scenario(route("x", node="r3")))
+    assert [(r.passed, str(r.detail), r.samples_passed) for r in results] == [(False, NEVER_LEFT, 0)]
+    assert isinstance(results[0].detail, runner.NeverLeft) and NEVER_LEFT in " ".join(e.logs)
 
 
-@pytest.mark.parametrize("check,turned", [
-    (chk("route", "c", node="r1", prefix="10.9.9.0/24", present=False), True),
-    (chk("bgp_route", "c", node="r1", prefix="10.9.9.0/24", present=False), True),
-    (chk("bgp_route", "c", node="r1", prefix="10.9.9.0/24", without_communities=["65000:1"]), True),
-    (chk("bgp_prefixes", "c", node="r1", neighbor="10.0.0.2", max=5), True),
-    (chk("bgp_prefixes", "c", node="r1", neighbor="10.0.0.2", exact=0), True),
-    (chk("bgp_prefixes", "c", node="r1", neighbor="10.0.0.2", only=["10.66.0.0/16"]), True),
-    (chk("ping", "c", node="r1", target="10.66.0.1", expect="failure"), True),
-    (chk("route", "c", node="r1", prefix="10.9.9.0/24"), False),
-    (chk("bgp_prefixes", "c", node="r1", neighbor="10.0.0.2", min=1), False),
-    (chk("bgp_session", "c", node="r1", neighbor="10.0.0.2", state="idle"), False),
-    (chk("bgp_route", "c", node="r1", prefix="10.9.9.0/24", as_path="65002"), False),
-], ids=["route-absent", "bgp-absent", "without", "max", "exact", "only", "ping-fail", "route-present", "min",
-        "session-down", "as_path"])
-def test_only_checks_the_missing_routes_could_make_pass_are_turned(check, turned):
-    """A max-prefix scenario keeps its session-down check; the upper bounds behind it are inconclusive."""
-    from netdryrun.checks import passes_without_the_routes
-    assert passes_without_the_routes(check) is turned
+def test_an_attack_had_no_effect_check_is_inconclusive_too(monkeypatch):
+    """Round 6 (BLOCKER): a hijack test asserting that the legitimate best path stays (a `present` check) kept its
+    pass though the hijack routes never left: the pass said nothing. Positive checks are turned as well."""
+    e = make(monkeypatch)
+    e.inject_left, e.inject_quiet = False, {"10.0.12.1": ["10.66.0.0/16"]}
+    results = direct(e, _scenario(route("legit-path-stays", node="r3"), route("still-there")))
+    assert all(not r.passed and isinstance(r.detail, runner.NeverLeft) for r in results)
+
+
+def test_the_checks_wait_for_the_routes_to_leave(monkeypatch):
+    """Round 6: each applied injection waits, before the scenario's checks, until its peers are sent its routes."""
+    e = make(monkeypatch)
+    direct(e, _scenario(route("x", node="r3")), settle=7)
+    assert [(i.node, i.awaited) for i in e.injections] == [("r2", 7)]
 
 
 def test_injected_routes_that_missed_a_peer_name_it(monkeypatch):
     """They reached one neighbor but not another (Layer 6 on b03cb7a): a check beyond the quiet one tested nothing."""
-    e = _absent_on_r3(monkeypatch, inject_left=False, inject_quiet={"10.0.12.1": ["10.66.0.0/16"]})
-    [r] = direct(e, _scenario(leak("x", node="r3")))
+    e = make(monkeypatch)
+    e.inject_left, e.inject_quiet = False, {"10.0.12.1": ["10.66.0.0/16"]}
+    [r] = direct(e, _scenario(route("x", node="r3")))
     assert r.passed is False and str(r.detail) == (
         "inconclusive: the injected routes on r2 did not all reach its BGP peers: 10.0.12.1 was not sent 10.66.0.0/16 "
         "(not in the routes it advertised to them while the routes were in, or the session wasn't up from when they "
         "went in until then without a reset: an outbound filter, or a session that went down, reset or came up while "
-        "the checks ran), " + PASSES_ON_NOTHING)
+        "the checks ran), so this scenario tested nothing")
 
 
 def test_injected_routes_that_missed_two_peers_name_both(monkeypatch):
     six = [f"10.66.{i}.0/24" for i in range(6)]
-    e = _absent_on_r3(monkeypatch, inject_left=False, inject_quiet={"10.0.12.1": ["10.66.0.0/24"], "10.0.23.1": six})
-    [r] = direct(e, _scenario(leak("x", node="r3"), prefixes=six))
+    e = make(monkeypatch)
+    e.inject_left, e.inject_quiet = False, {"10.0.12.1": ["10.66.0.0/24"], "10.0.23.1": six}
+    [r] = direct(e, _scenario(route("x", node="r3"), prefixes=six))
     assert r.passed is False and str(r.detail).startswith(
         "inconclusive: the injected routes on r2 did not all reach its BGP peers: 10.0.12.1 was not sent 10.66.0.0/24; "
         "10.0.23.1 was not sent 10.66.0.0/24, 10.66.1.0/24, 10.66.2.0/24, 10.66.3.0/24, 10.66.4.0/24 and 1 more (")
@@ -1973,55 +1964,55 @@ def test_injected_routes_that_missed_two_peers_name_both(monkeypatch):
 
 def test_a_family_without_a_session_is_named_even_when_the_other_left(monkeypatch):
     """Layer 6 round 3 on 5e65852 (F2): an IPv4 and an IPv6 prefix, IPv4 sessions only: the IPv6 one never left."""
-    e = _absent_on_r3(monkeypatch, inject_left=False, inject_unsent={"ipv6": ["2001:db8:99::/48"]})
-    [r] = direct(e, _scenario(leak("x", node="r3"), prefixes=("10.66.0.0/16", "2001:db8:99::/48")))
+    e = make(monkeypatch)
+    e.inject_left, e.inject_unsent = False, {"ipv6": ["2001:db8:99::/48"]}
+    [r] = direct(e, _scenario(route("x", node="r3"), prefixes=("10.66.0.0/16", "2001:db8:99::/48")))
     assert r.passed is False and str(r.detail) == (
         "inconclusive: the injected routes never left r2: no established ipv6 BGP session there carries "
-        "2001:db8:99::/48, " + PASSES_ON_NOTHING)
+        "2001:db8:99::/48, so this scenario tested nothing")
 
 
 def test_injected_routes_that_left_keep_the_scenario_results(monkeypatch):
-    e = _absent_on_r3(monkeypatch)
-    results = direct(e, _scenario(leak("x", node="r3"), route("y")))
-    assert [r.passed for r in results] == [True, True]
+    e = make(monkeypatch)
+    assert [r.passed for r in direct(e, _scenario(route("x", node="r3")))] == [True]
 
 
 def test_sessions_or_listings_that_could_not_be_read_are_inconclusive_too(monkeypatch):
-    e = _absent_on_r3(monkeypatch, inject_left=None)
-    [r] = direct(e, _scenario(leak("x", node="r3")))
+    e = make(monkeypatch)
+    e.inject_left = None
+    [r] = direct(e, _scenario(route("x", node="r3")))
     assert r.passed is False and str(r.detail) == (
         "inconclusive: the injected routes on r2 may not have left: its BGP sessions or advertised routes could not be "
-        "read, " + PASSES_ON_NOTHING)
+        "read, so this scenario tested nothing")
 
 
-def _env_absent_r3(monkeypatch):
+def _env_never_left(monkeypatch):
     clock = Clock()
     lab = FakeLab(clock)
-    drivers = {n: Drv(clock, neighbors=up(), routes={"default": never if n == "r3" else always}) for n in lab.nodes}
-    e = Env(monkeypatch, clock, lab, drivers)
+    e = Env(monkeypatch, clock, lab, {n: Drv(clock, neighbors=up(), routes={"default": always}) for n in lab.nodes})
     e.inject_left = False
     return e
 
 
 def test_a_run_whose_only_failures_never_left_is_inconclusive_exit_3(monkeypatch):
-    e = _env_absent_r3(monkeypatch)
-    rep = e.run([route("a")], [_scenario(leak("x", node="r3"), route("y"))])
+    e = _env_never_left(monkeypatch)
+    rep = e.run([route("a")], [_scenario(route("x"))])
     assert (rep.status, rep.exit_code, rep.inconclusive_reason) == ("inconclusive", 3, NEVER_LEFT)
 
 
 def test_a_real_failure_beside_a_never_left_scenario_stays_failed(monkeypatch):
-    e = _env_absent_r3(monkeypatch)
-    broken = route("b", prefix="10.99.0.0/24", present=False)   # always present on r1: a real finding
-    rep = e.run([route("a"), broken], [_scenario(leak("x", node="r3"))])
+    e = _env_never_left(monkeypatch)
+    broken = route("b", prefix="10.99.0.0/24", present=False)   # always present: a real finding
+    rep = e.run([route("a"), broken], [_scenario(route("x"))])
     assert (rep.status, rep.exit_code) == ("failed", 1)
 
 
 def test_a_check_that_failed_in_a_never_left_scenario_stays_failed_exit_1(monkeypatch):
-    """Only passes are turned: an injection that never left can't have made a check fail, so a check that failed
-    anyway is a real finding (exit 1), not exit 3 (Layer 6 on b03cb7a)."""
-    e = _env_absent_r3(monkeypatch)
-    broken = route("x-broken", prefix="10.99.0.0/24", present=False)   # always present on r1: fails either way
-    rep = e.run([route("a")], [_scenario(leak("x", node="r3"), broken)])
+    """Only passes are inconclusive: an injection that never left can't have made a check fail, so a check that
+    failed anyway is a real finding (exit 1), not exit 3 (Layer 6 on b03cb7a)."""
+    e = _env_never_left(monkeypatch)
+    broken = route("x-broken", prefix="10.99.0.0/24", present=False)   # always present: fails with or without them
+    rep = e.run([route("a")], [_scenario(route("x"), broken)])
     by = {r.check.name: r for r in rep.results}
     assert isinstance(by["x"].detail, runner.NeverLeft) and not by["x"].passed
     assert not isinstance(by["x-broken"].detail, runner.NeverLeft) and not by["x-broken"].passed

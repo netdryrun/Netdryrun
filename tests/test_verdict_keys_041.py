@@ -278,7 +278,8 @@ class _Paths:
 def test_srl_an_attr_set_without_as_path_is_unknown_and_an_as_path_check_errors():
     a = json.loads((FX / "srl_attr_set_best.txt").read_text(encoding="utf-8"))
     del a["as-path"]
-    bp = srlinux.parse_attr_set(json.dumps(a), {"best-route": True, "neighbor": "10.2.1.2", "origin-protocol": "bgp"})
+    bp = srlinux.parse_attr_set(json.dumps(a), {"best-route": True, "neighbor": "10.2.1.2", "origin-protocol": "bgp",
+                                                "attr-id": "7"})
     assert bp.as_path is None
     passed, detail, _ = checks._bgp_route(_Paths([bp]), {"prefix": "192.168.22.0/24", "as_path": ""})
     assert passed is False and isinstance(detail, Unready)
@@ -447,14 +448,15 @@ def test_verify_a_changed_config_of_an_unobserved_node_is_refused(tmp_path):
 
 # --- Layer 6 round 3 on 5e65852: the reads the round-2 sweep missed, each failing on 5e65852 -----------------------
 
-SRL_ATTR = json.dumps({"attr-id": 3, "as-path": {"segment": [{"type": "as-sequence", "member": [65020]}]},
+SRL_ATTR = json.dumps({"index": "3", "as-path": {"segment": [{"type": "as-sequence", "member": [65020]}]},
                        "next-hop": "0.0.0.0", "origin": "igp"})
 
 
 def test_srl_a_local_rib_row_without_origin_protocol_is_an_error_not_a_bgp_path():
     """F3: read as bgp, the router's own static became a BGP best path, and `as_path: ""` passed on it (RT-0026)."""
     with pytest.raises(DriverError, match="no origin-protocol"):
-        srlinux.parse_attr_set(SRL_ATTR, {"prefix": "10.9.0.0/24", "best-route": True, "neighbor": "0.0.0.0"})
+        srlinux.parse_attr_set(SRL_ATTR, {"prefix": "10.9.0.0/24", "best-route": True, "neighbor": "0.0.0.0",
+                                          "attr-id": "3"})
     with pytest.raises(DriverError, match="no origin-protocol"):
         srlinux.unread_path({"best-route": False, "neighbor": "10.0.0.2"})
 
@@ -599,7 +601,7 @@ def _srl_attr(**change):
     return json.dumps(a)
 
 
-SRL_ROW = {"best-route": True, "neighbor": "10.2.1.2", "origin-protocol": "bgp"}
+SRL_ROW = {"best-route": True, "neighbor": "10.2.1.2", "origin-protocol": "bgp", "attr-id": "7"}
 
 
 @pytest.mark.parametrize("as_path,detail", [

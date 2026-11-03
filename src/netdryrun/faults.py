@@ -11,6 +11,7 @@ import ipaddress
 import json
 import re
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from .lab import Lab, LabError
@@ -107,6 +108,15 @@ def conflicts(running_config: str, prefixes: list[str]) -> list[str]:
     return [p for p in prefixes if p in taken]
 
 
+@dataclass(frozen=True)
+class Session:
+    """A BGP session as inject_routes reads it from `show bgp neighbors json`."""
+    dropped: int
+    dynamic: bool
+    up_ms: int | None     # established for this long; None when not established, or unread
+    mrai_ms: int | None   # advertisement interval; None when unread
+
+
 class RouteInjection:
     """One inject_routes fault on one node. apply() then, whatever happens, restore()."""
 
@@ -115,7 +125,9 @@ class RouteInjection:
         self.asn = ""
         self.applied = False   # set before the config goes in: restore even if applying half-fails
         self.peers_before: dict[str, list[str]] = {}   # family -> the peers established when the routes went in
-        self.dropped_before: dict[str, int] = {}       # peer -> its sessions dropped when the routes went in
+        self.sessions_before: dict[str, Session] = {}  # peer -> its session's drop count, kind and uptime then
+        self.applied_at: float | None = None           # time.monotonic() when the routes went in
+        self.late: set[str] = set()   # established peers not advertised every prefix before the checks ran
         # whether the routes left the node: True, False, or None when the advertised routes couldn't be read at restore
         self.left: bool | None = None
         self.quiet: dict[str, list[str]] = {}    # established peer -> the injected prefixes it was not sent (left False)
@@ -154,9 +166,12 @@ class RouteInjection:
         cmd = adj_command("default", afi, peer, "out")
         return {prefix for prefix, _pid in parse_adj(self._vtysh("-c", cmd), cmd, afi, "out", add_path_tx=False)}
 
-    def dropped(self) -> dict[str, int]:
-        """peer -> the sessions to it that have dropped (bgpd's connectionsDropped), from `show bgp neighbors json`:
-        a change while the routes were in is a reset."""
+    def sessions(self) -> dict[str, Session]:
+        """peer -> its session from `show bgp neighbors json`: the drops (bgpd's connectionsDropped; a change while the
+        routes were in is a reset), whether it is a dynamic peer (`bgp listen range`: FRR deletes it when its session
+        drops and creates a new one on reconnect, so its count reads 0 across a flap; bgpd adds dynamicPeer only for
+        one), how long it has been established (bgpTimerUpMsec, printed for an established session, each capture),
+        and its advertisement interval (minBtwnAdvertisementRunsTimerMsecs)."""
         cmd = "show bgp neighbors json"
         try:
             data = json.loads(self._vtysh("-c", cmd))
@@ -168,8 +183,33 @@ class RouteInjection:
         for peer, info in data.items():
             if not isinstance(info, dict) or not isinstance(info.get("connectionsDropped"), int):
                 raise LabError(f"inject_routes on {self.node}: no dropped-session count for {peer} (`{cmd}`)")
-            out[peer] = info["connectionsDropped"]
+            up = info["bgpTimerUpMsec"] if isinstance(info.get("bgpTimerUpMsec"), int) else None
+            mrai = (info["minBtwnAdvertisementRunsTimerMsecs"]
+                    if isinstance(info.get("minBtwnAdvertisementRunsTimerMsecs"), int) else None)
+            out[peer] = Session(info["connectionsDropped"], "dynamicPeer" in info, up, mrai)
         return out
+
+    def await_delivery(self, settle: float) -> None:
+        """Before the scenario's checks: wait until every peer established in a family when the routes went in
+        advertises every injected prefix of that family (its adj-rib-out), so the checks never run before the routes
+        left (Layer 6 round 6 on 1a597d7). Bounded by twice the longest advertisement interval, plus settle (an
+        interval that can't be read counts as bgpd's eBGP default of 30 s, more wait, never less). A peer still
+        missing one by then is late, and quiet at restore."""
+        mrai = [s.mrai_ms / 1000 if s.mrai_ms is not None else 30.0 for s in self.sessions_before.values()]
+        deadline = time.monotonic() + settle + 2 * max(mrai, default=30.0) + 2
+        pending = {(afi, peer) for afi, peers in self.peers_before.items() for peer in peers}
+        while True:
+            for afi, peer in sorted(pending):
+                try:
+                    got = self.advertised(afi, peer)
+                except (LabError, ValueError, SnapshotError):
+                    continue   # unreadable now: still pending
+                if all(p in got for p in self.prefixes if _afi(p) == afi):
+                    pending.discard((afi, peer))
+            if not pending or time.monotonic() > deadline:
+                break
+            time.sleep(2)
+        self.late = {peer for _afi, peer in pending}
 
     def _vtysh(self, *args: str, timeout: float = 120) -> str:
         r = self.lab.exec(self.node, ["vtysh", *args], timeout=timeout)
@@ -217,8 +257,9 @@ class RouteInjection:
         if self.as_path and re.search(rf"^route-map {ROUTE_MAP} ", running, re.M):
             raise LabError(f"inject_routes on {self.node}: route-map {ROUTE_MAP} already exists")
         self.peers_before = self.established()   # read before anything changes: what can't be read stops here
-        self.dropped_before = self.dropped()
+        self.sessions_before = self.sessions()
         self.applied = True
+        self.applied_at = time.monotonic()
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path))
         self._wait(want_present=True)
 
@@ -227,14 +268,17 @@ class RouteInjection:
             return
         # Read while the routes are still in, after the scenario's checks. One rule (Layer 6 round 5 on 45f63df,
         # after four rounds of cleverer proofs leaked): a peer was reached only if its session was established when
-        # the routes went in, is established now, never dropped in between (and its drop count reads), and every
-        # injected prefix of its family is in the routes advertised to it now, read strictly. Every other peer seen
-        # in that family, at apply or now, is quiet: an outbound filter towards it, a session that went down, reset
-        # or came up while the checks ran. A prefix-limit reset proves nothing either: another node's injection or a
-        # rerouted link can trip it too. A family no established session carried at apply sent nothing.
+        # the routes went in, is established now, never reset in between, every injected prefix of its family was in
+        # the routes advertised to it before the checks ran (await_delivery), and still is now, read strictly. Never
+        # reset: its drop count reads and didn't change, it isn't a dynamic peer (recreated on reconnect, its count
+        # reads 0 across a flap), and it has been up at least since the routes went in (round 6 on 1a597d7). Every
+        # other peer seen in that family, at apply or now, is quiet: an outbound filter towards it, a session that
+        # went down, reset or came up while the checks ran. A prefix-limit reset proves nothing: another node's
+        # injection or a rerouted link can trip it too. A family no established session carried at apply sent nothing.
         try:
             now = self.established()
-            dropped = self.dropped()
+            sessions = self.sessions()
+            since_ms = (time.monotonic() - self.applied_at) * 1000 if self.applied_at is not None else None
             quiet: dict[str, list[str]] = {}
             unsent: dict[str, list[str]] = {}
             for afi in sorted({_afi(p) for p in self.prefixes}):
@@ -242,8 +286,11 @@ class RouteInjection:
                 if not self.peers_before[afi]:
                     unsent[afi] = mine
                 for peer in sorted(set(self.peers_before[afi]) | set(now[afi])):
-                    steady = (peer in self.peers_before[afi] and peer in now[afi] and peer in dropped
-                              and peer in self.dropped_before and dropped[peer] == self.dropped_before[peer])
+                    then, s = self.sessions_before.get(peer), sessions.get(peer)
+                    steady = (peer in self.peers_before[afi] and peer in now[afi] and peer not in self.late
+                              and then is not None and s is not None and not then.dynamic and not s.dynamic
+                              and s.dropped == then.dropped and since_ms is not None and s.up_ms is not None
+                              and s.up_ms + 1000 >= since_ms)   # bgpd counts the uptime in whole seconds
                     got = self.advertised(afi, peer) if steady else set()
                     quiet.setdefault(peer, []).extend(p for p in mine if p not in got)
             self.quiet = {peer: missing for peer, missing in sorted(quiet.items()) if missing}

@@ -225,10 +225,11 @@ class _SrlLeakLab:
         if "local-rib" in cmd[-1]:
             return ExecResult(cmd, 0, read("srl_leak_rib.txt"), "")
         if cmd[-1].endswith("attr-set 6"):
-            return ExecResult(cmd, 0, json.dumps({"as-path": {"segment": [{"type": "as-sequence", "member": [65020]}]},
-                                                  "next-hop": "10.0.100.2"}), "")
+            return ExecResult(cmd, 0, json.dumps({"index": "6", "next-hop": "10.0.100.2",
+                                                  "as-path": {"segment": [{"type": "as-sequence", "member": [65020]}]}}), "")
         if "attr-set" in cmd[-1]:
-            return ExecResult(cmd, 0, json.dumps({"as-path": {"segment": []}, "next-hop": "0.0.0.0"}), "")
+            return ExecResult(cmd, 0, json.dumps({"index": cmd[-1].split()[-1], "as-path": {"segment": []},
+                                                  "next-hop": "0.0.0.0"}), "")
         return ExecResult(cmd, 0, json.dumps({"local-preference": 100}), "")
 
 

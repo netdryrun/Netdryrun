@@ -214,3 +214,13 @@
     - tests/test_inject_sent_counts.py
     - tests/test_verdict_runner.py
     - tests/test_verdict_keys_041.py
+- id: layer6-review-6-0.4.1
+  what: False passes round 6 of the Layer 6 review found in the 0.4.1 candidate (1a597d7) - checks asserting that an
+    injection had no effect kept their pass when its routes never arrived; routes advertised only after the checks,
+    and resets the drop count can't show (dynamic peers, a count that went down, a short uptime), counted as delivered;
+    and a wrapped or mismatched SR Linux attr-set answer read as a path without attributes
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 6)
+  tests:
+    - tests/test_inject_sent_counts.py
+    - tests/test_verdict_runner.py
+    - tests/test_verdict_drivers.py

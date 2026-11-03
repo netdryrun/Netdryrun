@@ -263,20 +263,6 @@ def is_post_convergence(check: Check) -> bool:
     )
 
 
-def passes_without_the_routes(check: Check) -> bool:
-    """Checks a scenario's injected routes can make pass by never arriving: "must be absent", an upper bound or an
-    exact count, a received-prefix list, "must not carry" a community, a ping that must fail. When the routes didn't
-    provably reach every peer, these are inconclusive; a check that needs the routes there (present, min, an
-    attribute of the best path, a session state) keeps its verdict (Layer 6 round 5 on 45f63df)."""
-    p = check.params
-    return (
-        (check.type in ("route", "bgp_route") and p.get("present") is False)
-        or (check.type == "bgp_route" and any(k.startswith("without_") for k in p))
-        or (check.type == "bgp_prefixes" and ("max" in p or "exact" in p or "only" in p))
-        or (check.type == "ping" and p.get("expect") == "failure")
-    )
-
-
 def _evaluate(check: Check, driver: Driver) -> tuple[bool, str, list]:
     try:
         return EVALUATORS[check.type](driver, check.params)

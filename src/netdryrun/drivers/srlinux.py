@@ -42,6 +42,8 @@ ROUTE_CMD = "info from state /network-instance <vrf> route-table <afi> route <pr
 RIB_TREE_CMD = "info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>"
 RIB_CMD = "info from state /network-instance <vrf> bgp-rib ... local-rib route <prefix>"
 ATTR_CMD = "info from state /network-instance <vrf> bgp-rib attr-sets attr-set <id>"
+ATTR_SET_KEYS = frozenset({"index", "as-path", "atomic-aggregate", "communities", "local-pref", "med", "next-hop",
+                           "origin", "aggregator", "originator-id", "cluster-list"})
 INSTANCE_CMD = "info from state /network-instance <vrf> oper-state"
 
 
@@ -286,6 +288,11 @@ def parse_attr_set(text: str, row: dict, default_local_pref: int | None = None) 
     a = _json(text, ATTR_CMD)
     if not a:
         raise DriverError(f"attr-set {row.get('attr-id')} for {row.get('prefix')} not found")
+    # the answer is the attr-set asked for: a top-level object naming that index, with the keys every live attr-set
+    # prints (and the path attributes SR Linux's YANG adds for reflected or aggregated routes). A wrapped answer, or
+    # another attr-set, read as a path without its attributes (Layer 6 round 6 on 1a597d7)
+    if not isinstance(a, dict) or set(a) - ATTR_SET_KEYS or str(a.get("index")) != str(row.get("attr-id")):
+        raise unexpected(ATTR_CMD, f"not attr-set {row.get('attr-id')}: {str(a)[:150]}")
     # no as-path container: unknown (None), never an empty path that `as_path: ""` or a regex would match (Layer 6
     # round 2 on eaa323c); every live attr-set prints one. A path without communities has no communities container
     # (srl_attr_set_rejected.txt, live): YANG state leaves an empty container out, so that absence is "none"

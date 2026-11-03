@@ -42,11 +42,23 @@ class Lab:
                     rc, out, err = (answer + ("",))[:3] if len(answer) == 2 else answer
                 else:
                     rc, out, err = 0, answer, ""
-                return ExecResult(list(cmd), rc, out, err)
+                return ExecResult(list(cmd), rc, _as_asked(line, out), err)
         raise AssertionError(f"unexpected command: {line}")
 
     def lines(self):
         return [" ".join(c[1]) for c in self.calls]
+
+
+def _as_asked(line: str, out: str) -> str:
+    """An SR Linux attr-set answer names the index asked for (every live one does): the fakes below give an attr-set's
+    attributes only, so the index comes from the command."""
+    if " attr-set " not in line:
+        return out
+    try:
+        d = json.loads(out)
+    except ValueError:
+        return out
+    return json.dumps({"index": line.split()[-1], **d}) if isinstance(d, dict) and d and "index" not in d else out
 
 
 def J(d) -> str:
@@ -779,17 +791,22 @@ def test_srl_list():
     assert srlinux._json("{}") == {}
 
 
-ATTR = J({"as-path": {"segment": [{"type": "as_sequence", "member": [65002, 65003]}]}, "next-hop": "2001:db8:0::2",
-          "local-pref": 200, "med": 9, "communities": {"community": ["65000:010"], "large-community": ["1:2:3"]}})
+ATTR = J({"as-path": {"segment": [{"type": "as_sequence", "member": [65002, 65003]}]},
+          "next-hop": "2001:db8:0::2", "local-pref": 200, "med": 9,
+          "communities": {"community": ["65000:010"], "large-community": ["1:2:3"]}})
 
 
 def test_srl_parse_attr_set():
     row = {"prefix": "10.1.0.0/16", "neighbor": "10.0.0.2", "origin-protocol": "bgp", "stale-route": False, "best-route": True, "attr-id": 7}
-    assert srlinux.parse_attr_set(ATTR, row) == BgpPath(True, "65002 65003", "2001:db8::2", 200, 9, ["65000:10"],
-                                                        ["1:2:3"], "10.0.0.2", False)
-    bare = srlinux.parse_attr_set(J({"x": 1}), {"neighbor": "0.0.0.0", "best-route": False, "stale-route": False, "origin-protocol": "static"}, 150)
+    assert srlinux.parse_attr_set(_as_asked("get attr-set 7", ATTR), row) == BgpPath(
+        True, "65002 65003", "2001:db8::2", 200, 9, ["65000:10"], ["1:2:3"], "10.0.0.2", False)
+    own = {"neighbor": "0.0.0.0", "best-route": False, "stale-route": False, "origin-protocol": "static", "attr-id": 5}
+    bare = srlinux.parse_attr_set(J({"index": "5"}), own, 150)
     assert bare == BgpPath(False, None, None, 150, None, [], [], "0.0.0.0", True)   # no as-path: unknown
-    assert srlinux.parse_attr_set(J({"x": 1}), row).local_pref is None
+    assert srlinux.parse_attr_set(J({"index": "7"}), row).local_pref is None
+    for wrong in ({"x": 1, "index": "7"}, {"index": "8"}, {"attr-set": [{"index": "7"}]}):   # round 6 on 1a597d7
+        with pytest.raises(DriverError, match="not attr-set 7"):
+            srlinux.parse_attr_set(J(wrong), row)
     with pytest.raises(DriverError):
         srlinux.parse_attr_set("{}", row)
     with pytest.raises(DriverError):

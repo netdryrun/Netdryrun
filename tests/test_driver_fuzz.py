@@ -31,6 +31,15 @@ def read(name: str) -> str:
 EOS_NO_ROUTES = json.dumps({"vrfs": {"default": {"routes": {}}}})
 EOS_NO_BGP = read("eos_bgp_paths_empty.txt")
 SRL_ROW = json.loads(read("srl_bgp_rib_paths.txt"))["route"][0]
+
+
+def _index(text: str):
+    """The index an attr-set answer names: each fixture is a different attr-set, read for a row that asked for it."""
+    try:
+        d = json.loads(text)
+    except ValueError:
+        return None
+    return d.get("index") if isinstance(d, dict) else None
 NXOS_NULL = json.dumps({"jsonrpc": "2.0", "result": None, "id": 1})   # NX-API: the command printed nothing
 
 
@@ -285,7 +294,7 @@ CASES = [
     Case("junos.parse_bgp_paths[hidden next hop]", lambda t: junos.parse_bgp_paths(t, "10.31.0.0/24"),
          ["junos_route_hidden_nexthop.txt"], junos_bgp_paths_empty),
     Case("srlinux.parse_as_loop_counts", srlinux.parse_as_loop_counts, ["srl_bgp_rib_loop.txt"], srl_no_loops),
-    Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, SRL_ROW),
+    Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, {**SRL_ROW, "attr-id": _index(t)}),
          ["srl_attr_set_best.txt", "srl_attr_set_backup.txt"], lambda d: False),
 ]
 CASES += [

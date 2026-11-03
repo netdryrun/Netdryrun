@@ -7,6 +7,7 @@ peer seen in that family is quiet; a prefix-limit reset proves nothing. Session 
 capture."""
 import copy
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -69,19 +70,21 @@ def _peers(text: str) -> list[str]:
         return []
 
 
-def steady(peers, dropped=None) -> str:
-    """`show bgp neighbors json` with these peers, each session never dropped (or dropped as given), IPv4 only."""
+def steady(peers, dropped=None, up_ms=600000, **extra) -> str:
+    """`show bgp neighbors json` with these peers, each session never dropped (or dropped as given) and up for ten
+    minutes (or `up_ms`), IPv4 only, in the shape of the live frr_bgp_neighbors capture."""
     dropped = dropped or {}
-    return json.dumps({p: {"connectionsDropped": dropped.get(p, 0), "addressFamilyInfo": {"ipv4Unicast": {}}}
-                       for p in peers})
+    return json.dumps({p: {"connectionsDropped": dropped.get(p, 0), "addressFamilyInfo": {"ipv4Unicast": {}},
+                           "bgpTimerUpMsec": up_ms, "minBtwnAdvertisementRunsTimerMsecs": 0, **extra} for p in peers})
 
 
-def applied(lab, node, prefixes, asn="65001"):
-    """An injection whose routes went in: the peers and drop counts read as apply() reads them."""
+def applied(lab, node, prefixes, asn="65001", ago=60):
+    """An injection whose routes went in `ago` seconds ago: the peers and sessions read as apply() reads them."""
     inj = RouteInjection(lab, node, prefixes, [])
     inj._wait = lambda want_present: None
     inj.asn, inj.applied = asn, True
-    inj.peers_before, inj.dropped_before = inj.established(), inj.dropped()
+    inj.peers_before, inj.sessions_before = inj.established(), inj.sessions()
+    inj.applied_at = time.monotonic() - ago
     return inj
 
 
@@ -263,9 +266,84 @@ def v2_injection(after):
 
 
 def test_the_v2_baseline_reads_live():
+    from netdryrun.faults import Session
     lab = InjectLab([v2("before", "summary")], neighbors=[v2("before", "neighbors")])
     inj = applied(lab, "ce1", ["10.100.16.0/24"], asn="65100")
-    assert (inj.peers_before, inj.dropped_before) == ({"ipv4": ["10.0.1.1"]}, {"10.0.1.1": 0})
+    assert (inj.peers_before, inj.sessions_before) == ({"ipv4": ["10.0.1.1"]}, {"10.0.1.1": Session(0, False, 13000, 0)})
+
+
+# --- round 6 on 1a597d7: a reset the drop count can't show, and routes advertised only after the checks -------------
+
+def _one_peer(before, after, listing=None, ago=60):
+    lab = InjectLab([summary({"10.0.12.2": "Established"})] * 2, neighbors=[before, after],
+                    advertised={"10.0.12.2": listing or adv(R1)})
+    inj = applied(lab, "r1", [R1], ago=ago)
+    inj.restore()
+    return inj
+
+
+def test_a_dynamic_peer_is_never_counted_as_reached():
+    """`bgp listen range`: FRR recreates the peer on reconnect, so its drop count reads 0 across a flap."""
+    inj = _one_peer(steady(["10.0.12.2"], dynamicPeer=True), steady(["10.0.12.2"], dynamicPeer=True))
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
+
+
+def test_a_drop_count_that_went_down_is_a_reset():
+    inj = _one_peer(steady(["10.0.12.2"], {"10.0.12.2": 3}), steady(["10.0.12.2"], {"10.0.12.2": 0}))
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
+
+
+@pytest.mark.parametrize("up_ms", [20000, None], ids=["shorter", "unread"])
+def test_a_session_up_for_less_than_the_injection_reset_while_the_routes_were_in(up_ms):
+    """The drop count didn't move, but the session has been up for 20 s of a 60 s injection (or its uptime doesn't
+    read): it reset in between, so the peer is quiet."""
+    after = steady(["10.0.12.2"], up_ms=up_ms) if up_ms else json.dumps(
+        {"10.0.12.2": {"connectionsDropped": 0, "addressFamilyInfo": {"ipv4Unicast": {}}}})
+    inj = _one_peer(steady(["10.0.12.2"]), after, ago=60)
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
+
+
+def test_a_session_up_since_before_the_injection_is_steady():
+    inj = _one_peer(steady(["10.0.12.2"], up_ms=5000), steady(["10.0.12.2"], up_ms=65000), ago=60)
+    assert (inj.left, inj.quiet) == (True, {})
+
+
+class LateLab(InjectLab):
+    """The peer's advertised routes: empty for the first `late` reads, then with the prefix."""
+
+    def __init__(self, late, **kw):
+        super().__init__([summary({"10.0.12.2": "Established"})] * 2, **kw)
+        self.late, self.reads = late, 0
+
+    def exec(self, node, cmd, timeout=60, input=None):
+        if cmd[-1].endswith(" advertised-routes detail json"):
+            self.reads += 1
+            self.advertised = {"10.0.12.2": adv() if self.reads <= self.late else adv(R1)}
+        return super().exec(node, cmd, timeout, input)
+
+
+def test_the_checks_wait_until_every_peer_is_sent_the_routes(monkeypatch):
+    monkeypatch.setattr("netdryrun.faults.time.sleep", lambda s: None)
+    lab = LateLab(2)
+    inj = applied(lab, "r1", [R1])
+    inj.await_delivery(settle=10)
+    assert (inj.late, lab.reads) == (set(), 3)
+    inj.restore()
+    assert (inj.left, inj.quiet) == (True, {})
+
+
+def test_a_peer_not_sent_the_routes_within_the_bound_is_quiet_even_if_they_arrive_later(monkeypatch):
+    """Advertised only after the checks ran: the checks saw nothing, so the peer is quiet though restore finds them."""
+    clock = iter(range(0, 10000, 5))
+    monkeypatch.setattr("netdryrun.faults.time.monotonic", lambda: float(next(clock)))
+    monkeypatch.setattr("netdryrun.faults.time.sleep", lambda s: None)
+    lab = LateLab(1000)
+    inj = applied(lab, "r1", [R1])
+    inj.await_delivery(settle=10)
+    assert inj.late == {"10.0.12.2"}
+    lab.late = 0
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
 
 
 @pytest.mark.parametrize("after", ["maxprefix", "linkdown", "clear"])
