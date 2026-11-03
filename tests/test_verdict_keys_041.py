@@ -626,6 +626,13 @@ def test_srl_an_as_path_without_segments_is_unknown_and_an_as_path_check_errors(
     for p in ({"prefix": "192.168.22.0/24", "as_path": ""}, {"prefix": "192.168.22.0/24", "as_path_regex": "^$"}):
         passed, detail, _ = checks._bgp_route(_Paths([bp]), p)
         assert passed is False and isinstance(detail, Unready)
+    # the same row's communities are still read strictly: without_communities fails on one it carries, and a
+    # malformed communities container is an error, unknown AS path or not
+    passed, _detail, _ = checks._bgp_route(_Paths([bp]), {"prefix": "192.168.22.0/24",
+                                                          "without_communities": ["65020:100"]})
+    assert passed is False and bp.communities == ["65020:100", "65020:200"]
+    with pytest.raises(DriverError, match="communities without a community list"):
+        srlinux.parse_attr_set(_srl_attr(**{"as-path": as_path, "communities": {"community": "65020:100"}}), SRL_ROW)
 
 
 @pytest.mark.parametrize("comms", [{}, {"community": "65020:100"}, {"community-member": ["65020:100"]},
