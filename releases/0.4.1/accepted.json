@@ -4279,37 +4279,6 @@
       "diff": "79c4a3fbc9facb87",
       "class": "message-text"
     },
-    "netdryrun.runner.x_run__mutmut_60": {
-      "reason": "message text only: the text of the 'containers not running' LabError (status error, exit 2)",
-      "diff": "9f21f8d4f120ef3d",
-      "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_61": {
-      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
-      "diff": "12c169cddaecf570",
-      "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_62": {
-      "reason": "message text only: the text of the 'containers not running' LabError (status error, exit 2)",
-      "diff": "7c9ed84f9bb0c157",
-      "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_63": {
-      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
-      "diff": "5847337f996d86a1",
-      "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_64": {
-      "reason": "message text only: the separator in the 'containers not running' LabError (status error, exit 2)",
-      "diff": "2961883117f53a6c",
-      "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_87": {
-      "reason": "report.results = run_round_robin(...) instead of +=: nothing has been added to report.results before this line (a fresh RunReport, no earlier append), so assigning the positive results equals appending them",
-      "diff": "af44920cbb493329",
-      "class": "equivalent",
-      "argument": "report.results is the RunReport's empty default list at this point on every path (only lines after 460 append to it), so the results list, its order and every verdict derived from it are identical; no failure can become a pass"
-    },
     "netdryrun.runner.x_run_scenario__mutmut_105": {
       "reason": "equivalent: results is still empty here, so binding it to pos_results equals extending it (same items returned)",
       "diff": "25894bc7a1ed8027",
@@ -4639,12 +4608,6 @@
       "reason": "message text only: the text of a ConfigError raised either way (exit 2)",
       "diff": "e6e688bbf49cce71",
       "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_260": {
-      "reason": "traceback.print_exc(file=None) prints to sys.stderr, the same stream as file=sys.stderr (the traceback module resolves None to the current sys.stderr)",
-      "diff": "203a02246fb059d7",
-      "class": "equivalent",
-      "argument": "only under --debug, after report.error is already set to the internal error (status error, exit 2); the traceback goes to the same stream either way and nothing in the report, status or exit code reads it"
     },
     "netdryrun.config.x__validate_check__mutmut_154": {
       "reason": "equivalent: next_hop was already parsed by ipaddress.ip_address, which keeps an IPv6 scope (fe80::1%eth1) and reports is_link_local for it; splitting the text on anything else gives the same address",
@@ -5388,7 +5351,7 @@
     "netdryrun.drivers.nxos.x__rib_routes__mutmut_22": {
       "class": "message-text",
       "reason": "message text only: the same exception is still raised, only its message changes (how much of the offending output it quotes)",
-      "diff": "1e7f0df1bd22623e"
+      "diff": "b31c691d95ef83af"
     },
     "netdryrun.drivers.nxos.x__bgp_prefix_rows__mutmut_9": {
       "class": "message-text",
@@ -5605,16 +5568,6 @@
       "reason": "a BGP path always has a session (parse_routing_routes requires bgp.session for every bgp row), so the fallback is never used",
       "diff": "c46faff0a380c48e"
     },
-    "netdryrun.runner.x_run__mutmut_94": {
-      "reason": "equivalent: report.results is still empty when the positives run, so `=` and `+=` give the same list",
-      "diff": "8ea0861efb2792d2",
-      "class": "equivalent"
-    },
-    "netdryrun.runner.x_run__mutmut_267": {
-      "reason": "equivalent: traceback.print_exc(file=None) prints to sys.stderr, the same stream (only with --debug)",
-      "diff": "687821cde0ae8423",
-      "class": "equivalent"
-    },
     "netdryrun.verify.intent.x__groups__mutmut_11": {
       "reason": "equivalent: int.from_bytes defaults to byteorder 'big' since Python 3.11 (the gate's Python is 3.12); on 3.10 the call raises TypeError, an error, never a pass",
       "diff": "7f99cc59d99879f3",
@@ -5624,16 +5577,6 @@
       "reason": "timing only: the node watch looks at the containers every 16 s instead of 15 s",
       "diff": "2c0af1521081c9dc",
       "class": "timing-only"
-    },
-    "netdryrun.runner.x_run__mutmut_65": {
-      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
-      "diff": "6385bc9a61bcf913",
-      "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_71": {
-      "reason": "message text only: the 'Running setup on' progress line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
-      "diff": "b152a320cd9c6f94",
-      "class": "logging"
     },
     "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_10": {
       "reason": "message text only: the text of the 'node container(s) stopped' LabError (status error, exit 2)",
@@ -5659,11 +5602,6 @@
       "reason": "message text only: which keys the one-candidate mismatch message lists; whether a candidate matches is decided on the line above",
       "diff": "7674b7cb939dfb80",
       "class": "message-text"
-    },
-    "netdryrun.runner.x_run__mutmut_268": {
-      "reason": "test gap, fails closed (0.4.1 decision): after a run the module's _sleep is None, so a second run() in the same process crashes into an error (exit 2), never a pass; kill test (run() twice in one process) is a 0.4.2 follow-up",
-      "diff": "a1889f127adb57aa",
-      "class": "safety"
     },
     "netdryrun.runner.xǁ_NodeWatchǁ__call____mutmut_1": {
       "reason": "timing only (test gap, 0.4.1 decision): with now = None, last stays None, so the watch looks at the containers on every wait instead of every 15 s; a stopped one is still an error (exit 2); kill test (injected clock) is a 0.4.2 follow-up",
@@ -5723,6 +5661,51 @@
     "netdryrun.drivers.junos.x__filtered__mutmut_15": {
       "reason": "message text only: the command reaches _leaf/_items only for the text of the DriverError (unexpected output from `...`); the same error is raised",
       "diff": "f45cf1837542d825",
+      "class": "message-text"
+    },
+    "netdryrun.runner.x_run__mutmut_66": {
+      "reason": "message text only: the text of the 'containers not running' LabError (status error, exit 2)",
+      "diff": "8beacf401808b5f1",
+      "class": "message-text"
+    },
+    "netdryrun.runner.x_run__mutmut_67": {
+      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
+      "diff": "e2914b8f60f38177",
+      "class": "message-text"
+    },
+    "netdryrun.runner.x_run__mutmut_68": {
+      "reason": "message text only: the separator in the 'containers not running' LabError (status error, exit 2)",
+      "diff": "731747c7347d467a",
+      "class": "message-text"
+    },
+    "netdryrun.runner.x_run__mutmut_69": {
+      "reason": "message text only: building the 'containers not running' text fails with TypeError instead of LabError; run() reports it as an error either way (status error, exit 2)",
+      "diff": "e566906d17c3658e",
+      "class": "message-text"
+    },
+    "netdryrun.runner.x_run__mutmut_75": {
+      "reason": "message text only: the 'Running setup on' progress line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
+      "diff": "009b8d6b7de7e4cc",
+      "class": "logging"
+    },
+    "netdryrun.runner.x_run__mutmut_98": {
+      "reason": "equivalent: report.results is still empty when the positives run, so `=` and `+=` give the same list",
+      "diff": "745f808bce9b03ae",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run__mutmut_271": {
+      "reason": "equivalent: traceback.print_exc(file=None) prints to sys.stderr, the same stream (only with --debug)",
+      "diff": "1ff2b9b44dae8138",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run__mutmut_272": {
+      "reason": "test gap, fails closed (0.4.1 decision): after a run the module's _sleep is None, so a second run() in the same process crashes into an error (exit 2), never a pass; kill test (run() twice in one process) is a 0.4.2 follow-up",
+      "diff": "c662bfb36c07c1cb",
+      "class": "safety"
+    },
+    "netdryrun.drivers.srlinux.xǁSrlDriverǁ_drop_looped__mutmut_26": {
+      "reason": "message text only: the invalid-path total in the over-count error; the same DriverError is raised (the condition itself is mutant 20, killed)",
+      "diff": "41bcf270903277e1",
       "class": "message-text"
     }
   },

@@ -164,3 +164,11 @@ def test_a_range_is_judged_only_when_both_ends_agree():
     from netdryrun.drivers.base import BgpNeighbor
     n = BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 2}, prefixes_upto={"ipv4-unicast": 3})
     assert _counted(n, "ipv4-unicast", 2, 0, 2, [])[0] is False
+
+
+def test_looped_and_unsure_paths_together_above_the_count_are_an_error():
+    """Both kinds of invalid path come off the same count, so together they can't outnumber it (looped minus unsure
+    stayed under it and went negative)."""
+    with pytest.raises(DriverError) as e:
+        _read(2, 0, {"as-loop": True}, {"as-loop": True}, {"next-hop-unresolved": True})
+    assert str(e.value).endswith("10.0.0.2 ipv4-unicast: 3 invalid routes but a count of 2 (received minus rejected)")
