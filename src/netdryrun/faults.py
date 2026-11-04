@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .lab import Lab, LabError
-from .verify.frr import adj_command, parse_adj
-from .verify.snapshot import SnapshotError
+from .verify.frr import BGP_CMDS, _best_sent, _flag, adj_command, parse_adj, parse_attrs, parse_bgp_table
+from .verify.snapshot import AsPath, SnapshotError, canon_prefix
 
 ROUTE_MAP = "NDR-INJECT"
 MAX_COUNT = 10000
@@ -158,13 +158,37 @@ class RouteInjection:
                     out[afi].append(peer)
         return out
 
+    def _as_path(self) -> AsPath:
+        """The AS path the injected routes carry in the node's own tables: the prepended ASNs, or none."""
+        return AsPath.build([("as-sequence", self.as_path)] if self.as_path else [])
+
     def advertised(self, afi: str, peer: str) -> set[str]:
-        """The prefixes the node advertises to the peer now: its adj-rib-out after outbound policy, read as strictly
-        as verify reads it (prefix family, a path for each prefix, totalPrefixCounter equal to the prefixes listed).
-        This, not bgpd's aggregate sent-prefix count, says which prefixes left (Layer 6 round 3 on 5e65852: another
-        injection's prefixes raised the count, so routes that were all filtered read as sent)."""
+        """The injected routes the node advertises to the peer now: its adj-rib-out after outbound policy, read as
+        strictly as verify reads it (prefix family, a path for each prefix, totalPrefixCounter equal to the prefixes
+        listed). This, not bgpd's aggregate sent-prefix count, says which prefixes left (Layer 6 round 3 on 5e65852).
+        A prefix counts only when a path sent for it is the injected one: originated by a network statement
+        (`sourced` and `local`, as every live capture marks one) with the injection's AS path, as the adj-rib-out
+        shows it, before the local AS is prepended for an eBGP peer (adj_out_default_ipv4_* captures: a network
+        route reads `Local`). A prefix the node advertises from another path, a learned one (the hijack case) or
+        another of its own, didn't carry the injection (round 7 on 99fe33e). Every path sent counts: all of them
+        with add-path, the best one without (FRR lists every multipath path either way, interop IOP-8)."""
         cmd = adj_command("default", afi, peer, "out")
-        return {prefix for prefix, _pid in parse_adj(self._vtysh("-c", cmd), cmd, afi, "out", add_path_tx=False)}
+        text = self._vtysh("-c", cmd)
+        parse_adj(text, cmd, afi, "out", add_path_tx=False)   # the whole listing, read strictly
+        data = json.loads(text)
+        want, out = self._as_path(), set()
+        for key, dest in (data["advertisedRoutes"].items() if data else ()):
+            prefix = canon_prefix(key, cmd)
+            paths = dest["paths"]
+            if len(paths) > 1 and not any("addpathTxId" in p for p in paths):
+                paths = [_best_sent(cmd, prefix, paths)]
+            for i, p in enumerate(paths):
+                where = f"{prefix} path {i}"
+                source, _rx, attrs, _raw = parse_attrs(cmd, p, where)
+                if (source == "local" and _flag(cmd, p, "sourced", where) and _flag(cmd, p, "local", where)
+                        and attrs.as_path == want):
+                    out.add(prefix)
+        return out
 
     def sessions(self) -> dict[str, Session]:
         """peer -> its session from `show bgp neighbors json`: the drops (bgpd's connectionsDropped; a change while the
@@ -225,12 +249,19 @@ class RouteInjection:
         self._vtysh("-f", path, timeout=300)
 
     def _missing(self, want_present: bool) -> list[str]:
-        """Injected prefixes not yet in (or, for removal, still in) the node's own BGP table."""
-        have = set()
+        """Injected prefixes whose injected path is not yet in (or, for removal, still in) the node's own BGP table:
+        a path the node originates with the injection's AS path, read as verify reads the table. The prefix alone
+        isn't enough: the node may already hold it from a neighbor, which is the hijack an injection tests (Layer 6
+        round 7 on 99fe33e)."""
+        have, want = set(), self._as_path()
         for afi in sorted({_afi(p) for p in self.prefixes}):
-            data = json.loads(self._vtysh("-c", f"show bgp {afi} unicast json") or "{}")
-            have |= set((data.get("routes") or {}))
-        return [p for p in self.prefixes if (p in have) != want_present]
+            try:
+                table = parse_bgp_table(self._vtysh("-c", BGP_CMDS[afi]), afi)
+            except SnapshotError as e:
+                raise LabError(f"inject_routes on {self.node}: {e}") from None
+            have |= {prefix for (prefix, source, _pid), path in (table["default"] if "default" in table else {}).items()
+                     if source == "local" and path.attrs.as_path == want}
+        return [p for p in self.prefixes if (canon_prefix(p) in have) != want_present]
 
     def _wait(self, want_present: bool) -> None:
         deadline = time.monotonic() + self.budget

@@ -2017,3 +2017,18 @@ def test_a_check_that_failed_in_a_never_left_scenario_stays_failed_exit_1(monkey
     assert isinstance(by["x"].detail, runner.NeverLeft) and not by["x"].passed
     assert not isinstance(by["x-broken"].detail, runner.NeverLeft) and not by["x-broken"].passed
     assert (rep.status, rep.exit_code) == ("failed", 1)
+
+
+def test_the_console_never_streams_a_pass_that_turns_inconclusive(monkeypatch):
+    """Round 7 on 99fe33e (F2): a scenario check's PASS was streamed before restore turned it inconclusive. With
+    injected routes, its result is shown once, after the delivery verdict."""
+    e = _env_never_left(monkeypatch)
+    e.run([route("a")], [_scenario(route("x"))])
+    streamed = [r for r in e.results if r.check.name == "x"]
+    assert len(streamed) == 1 and not streamed[0].passed and isinstance(streamed[0].detail, runner.NeverLeft)
+
+
+def test_a_scenario_without_injected_routes_still_streams_as_it_goes(monkeypatch):
+    e = make(monkeypatch)
+    e.run([route("a")], [Scenario("s", [Fault("link_down", "r1", "eth1")], [route("x", node="r3")])])
+    assert [r.check.name for r in e.results] == ["a", "x"]

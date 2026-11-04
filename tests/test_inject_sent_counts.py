@@ -14,27 +14,47 @@ import pytest
 
 from netdryrun.faults import RouteInjection
 from netdryrun.lab import ExecResult, LabError
+from verify_helpers import fixture
 
 FX = Path(__file__).parent / "fixtures"
-_LIVE = json.loads((FX / "frr_adj_out_multipath.txt").read_text(encoding="utf-8"))
-_DEST = _LIVE["advertisedRoutes"]["192.168.3.1/32"]
+# live edge1 adj-rib-out (FRR 10.4.1): 192.0.2.0/24 is a network statement (sourced, local, peer 0.0.0.0, AS path
+# `Local`), the shape an injected route takes; frr_adj_out_multipath's 192.168.3.1/32 is a path learned from a peer
+_LIVE = json.loads(fixture("adj_out_default_ipv4_10.0.2.2.txt"))
+_INJECTED = _LIVE["advertisedRoutes"]["192.0.2.0/24"]["paths"][0]
+_LEARNED = json.loads((FX / "frr_adj_out_multipath.txt").read_text(encoding="utf-8"))["advertisedRoutes"][
+    "192.168.3.1/32"]["paths"][0]
 
 
-def adv(*prefixes: str, total: int | None = None) -> str:
-    """An advertised-routes detail listing with these prefixes, one best path each (the live capture's shape)."""
-    if not prefixes and total is None:
+def _path(template, prefix, as_path=(), **change):
+    p = copy.deepcopy(template)
+    if template is _INJECTED and as_path:
+        p["aspath"] = {"string": " ".join(map(str, as_path)), "length": len(as_path),
+                       "segments": [{"type": "as-sequence", "list": list(as_path)}]}
+    if ":" in prefix:
+        p["nexthops"] = [{"ip": "::", "hostname": "peer", "afi": "ipv6", "scope": "global", "metric": 0,
+                          "accessible": True, "used": True}]
+    p.update(change)
+    return p
+
+
+def listing(routes: dict, total: int | None = None) -> str:
+    """An advertised-routes detail listing: prefix -> its paths, in the live capture's shape."""
+    if not routes and total is None:
         return "{}"
-    routes = {}
-    for p in prefixes:
-        dest = copy.deepcopy(_DEST)
-        dest.update(prefix=p, pathCount=1, paths=[dest["paths"][0]])
-        if ":" in p:
-            dest["paths"][0]["nexthops"] = [{"ip": "::", "hostname": "peer", "afi": "ipv6", "scope": "global",
-                                             "metric": 0, "accessible": True, "used": True}]
-        routes[p] = dest
     doc = {k: v for k, v in _LIVE.items() if k not in ("advertisedRoutes", "totalPrefixCounter")}
-    return json.dumps({**doc, "advertisedRoutes": routes,
-                       "totalPrefixCounter": len(prefixes) if total is None else total})
+    return json.dumps({**doc, "totalPrefixCounter": len(routes) if total is None else total, "advertisedRoutes": {
+        p: {"prefix": p, "pathCount": len(paths), "paths": paths} for p, paths in routes.items()}})
+
+
+def adv(*prefixes: str, total: int | None = None, as_path=()) -> str:
+    """The node advertising these prefixes as its injected routes: network-statement paths with the injection's AS
+    path (Layer 6 round 7 on 99fe33e: built from a learned path before, which is the gap itself)."""
+    return listing({p: [_path(_INJECTED, p, as_path)] for p in prefixes}, total)
+
+
+def learned(*prefixes: str) -> str:
+    """The node advertising these prefixes from a path it learned from a peer, not the injected one."""
+    return listing({p: [_path(_LEARNED, p, bestpath={"overall": True})] for p in prefixes})
 
 
 class InjectLab:
@@ -353,3 +373,70 @@ def test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them(afte
     max-prefix scenario asserts the receiver's session state, and the counts behind it are inconclusive."""
     inj = v2_injection(after)
     assert (inj.left, inj.quiet) == (False, {"10.0.1.1": ["10.100.16.0/24"]})
+
+
+# --- round 7 on 99fe33e: the advertised path must be the injected one, not the prefix from another path ------------
+
+def test_a_prefix_advertised_from_a_learned_path_did_not_carry_the_injection():
+    """The hijack case: r1 already sends 100.64.0.0/24, learned from a peer. The injected path never left (filtered,
+    or lost on best path), yet the prefix was in the listing, so the wait ended at once and restore said left."""
+    inj = r1({"10.0.12.2": learned(R1), "10.0.13.2": adv(R1)})
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
+
+
+def test_an_advertised_path_with_another_as_path_did_not_carry_the_injection():
+    lab = InjectLab([live("before"), live("after")],
+                    advertised={"10.0.12.2": adv(R1), "10.0.13.2": adv(R1, as_path=(65099,))})
+    inj = RouteInjection(lab, "r1", [R1], [65099])
+    inj._wait = lambda want_present: None
+    inj.asn, inj.applied = "65001", True
+    inj.peers_before, inj.sessions_before = inj.established(), inj.sessions()
+    inj.applied_at = time.monotonic() - 60
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})   # sent without the prepend: not the injected path
+
+
+def test_with_add_path_any_path_sent_can_be_the_injected_one():
+    both = listing({R1: [_path(_LEARNED, R1, addpathTxId=1), _path(_INJECTED, R1, addpathTxId=2)]})
+    inj = r1({"10.0.12.2": both, "10.0.13.2": adv(R1)})
+    assert (inj.left, inj.quiet) == (True, {})
+
+
+def test_without_add_path_only_the_best_path_is_sent():
+    """FRR lists every multipath path, but sends only the best without add-path: an injected path that isn't best
+    never left (interop IOP-8)."""
+    lost = listing({R1: [_path(_LEARNED, R1, bestpath={"overall": True}),
+                         _path(_INJECTED, R1, bestpath={"overall": False})]})
+    inj = r1({"10.0.12.2": lost, "10.0.13.2": adv(R1)})
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
+
+
+def _table(*learned_only: str, injected: tuple = ()) -> str:
+    """`show bgp vrf all ipv4 unicast detail json` on edge1 (live), with prefixes the node holds only as learned, and
+    prefixes it holds as its own network routes."""
+    doc = json.loads(fixture("bgp_v4_detail.txt"))
+    routes = doc["default"]["routes"]
+    own = copy.deepcopy(routes["192.0.2.0/24"])
+    other = next(copy.deepcopy(v) for v in routes.values() if not any("sourced" in p or "local" in p for p in v))
+    for p in learned_only:
+        routes[p] = copy.deepcopy(other)
+    for p in injected:
+        routes[p] = copy.deepcopy(own)
+    doc["default"].update(totalRoutes=len(routes), totalPaths=sum(len(v) for v in routes.values()))
+    return json.dumps(doc)
+
+
+class TableLab:
+    def __init__(self, text):
+        self.text = text
+
+    def exec(self, node, cmd, timeout=60, input=None):
+        return ExecResult(cmd, 0, self.text if cmd[-1] == "show bgp vrf all ipv4 unicast detail json" else "", "")
+
+
+def test_the_injection_waits_for_its_own_path_not_a_learned_one_for_the_prefix():
+    """_missing looked for the prefix in the node's table: one it already held from a neighbor read as injected."""
+    inj = RouteInjection(TableLab(_table(R1)), "r1", [R1], [])
+    assert inj._missing(want_present=True) == [R1]
+    inj = RouteInjection(TableLab(_table(injected=(R1,))), "r1", [R1], [])
+    assert inj._missing(want_present=True) == [] and inj._missing(want_present=False) == [R1]

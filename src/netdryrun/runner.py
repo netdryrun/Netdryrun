@@ -1006,6 +1006,11 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     injected: list[RouteInjection] = []
     results: list[Result] = []
     log(f"Scenario: {sc.name}")
+    # With injected routes, a check's result is shown once the delivery verdict is known: a PASS streamed now could
+    # turn inconclusive after restore, and the console must never say PASS for it (Layer 6 round 7 on 99fe33e)
+    show, held = on_result, any(f.kind == "inject_routes" for f in sc.faults)
+    if held:
+        on_result = None
     # Which links go down, decided before anything changes
     plan = []
     for f in sc.faults:
@@ -1083,7 +1088,11 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
         if downed or applied:
             log(f"Restored {len(downed)} link(s) and {applied} route injection(s); settling {settle:g}s")
             _sleep(settle)
-    return _never_left(injected, results, log)
+    results = _never_left(injected, results, log)
+    if held and show:
+        for r in results:
+            show(r)
+    return results
 
 
 def _some(prefixes: list[str]) -> str:

@@ -224,3 +224,11 @@
     - tests/test_inject_sent_counts.py
     - tests/test_verdict_runner.py
     - tests/test_verdict_drivers.py
+- id: layer6-review-7-0.4.1
+  what: False passes round 7 of the Layer 6 review found in the 0.4.1 candidate (99fe33e) - inject_routes matched
+    delivery by prefix, so a prefix the node already advertised from a learned path (the hijack case) counted as the
+    injected route delivered; and the console streamed PASS for scenario checks later turned inconclusive
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 7)
+  tests:
+    - tests/test_inject_sent_counts.py
+    - tests/test_verdict_runner.py

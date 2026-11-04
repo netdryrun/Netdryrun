@@ -93,9 +93,22 @@ class FakeLab:
             return ExecResult(cmd, 0, json.dumps({"peers": {"10.0.0.2": {"pfxSnt": len(self.table) + 1, "state": "Established"}}}), "")
         if cmd[1:3] == ["-c", "show bgp neighbors json"]:
             return ExecResult(cmd, 0, json.dumps({"10.0.0.2": {"connectionsDropped": 0}}), "")
-        if cmd[1] == "-c" and cmd[2].startswith("show bgp"):
-            return ExecResult(cmd, 0, json.dumps({"routes": {p: [] for p in self.table}}), "")
+        if cmd[1:3] == ["-c", "show bgp vrf all ipv4 unicast detail json"]:
+            return ExecResult(cmd, 0, _own_table(self.table, self.files), "")
         raise AssertionError(cmd)
+
+
+def _own_table(prefixes, files) -> str:
+    """The node's BGP table (`show bgp vrf all ipv4 unicast detail json`, live edge1 shape), with each injected prefix
+    as a network route carrying the prepend the injected config set."""
+    from test_inject_sent_counts import _INJECTED, _path
+    from verify_helpers import fixture
+    doc = json.loads(fixture("bgp_v4_detail.txt"))
+    prepend = next((tuple(int(a) for a in ln.split()[3:]) for f in files for ln in f.splitlines()
+                    if ln.strip().startswith("set as-path prepend")), ())
+    routes = {p: [_path(_INJECTED, p, prepend)] for p in prefixes}
+    doc["default"].update(routes=routes, totalRoutes=len(routes), totalPaths=len(routes))
+    return json.dumps(doc)
 
 
 def test_apply_waits_for_routes_and_restore_removes_them():
