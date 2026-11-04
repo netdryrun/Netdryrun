@@ -107,15 +107,12 @@ SCOPED_FUNCTIONS = {
     "verify.snapshot": {"ItemKey.__post_init__", "NodeSnapshot.__post_init__", "value_matches_kind",
                         "Snapshot.stability_view", "Snapshot.items"},
     "verify.report": {"to_dict", "VerifyResult.verdict", "VerifyResult.exit_code"},
-    # the delivery verdict: what was established and sent, what the peer already had, the reset rule, and the
-    # prefix-limit proof (0.4.1; coordinator: the whole path, not only the diff)
+    # the delivery verdict: what was established and sent, what the peer already had, and the reset rule (0.4.1;
+    # coordinator: the whole path, not only a diff)
     "faults": {"RouteInjection.established", "RouteInjection.sessions", "RouteInjection.advertised",
                "RouteInjection.record_listed", "RouteInjection._is_injected", "RouteInjection._own_paths",
                "RouteInjection._missing", "RouteInjection.await_delivery", "RouteInjection.apply",
-               "RouteInjection.restore", "RouteInjection.read_limits", "RouteInjection._addresses",
-               "RouteInjection._peer_limit", "RouteInjection._peer_vtysh", "RouteInjection._session_record",
-               "RouteInjection._family_limit", "RouteInjection._limit_proof", "RouteInjection._log_disagrees",
-               "_need", "_int", "_count"},
+               "RouteInjection.restore"},
 }
 SCOPED_KNOWN_LABEL = "parsers that fail closed and rendering; their full zero is a 0.4.1 gate item"
 
@@ -132,8 +129,9 @@ def gated(module: str, name: str, status: str) -> bool:
 # verify.* raised or set on 2026-10-30 (0.4 release gate) to the coverage measured then, rounded down, minus one
 COVERAGE_FLOORS = {"checks": 99, "config": 99, "runner": 98, "drivers": 99, "verify.engine": 98, "verify.intent": 97,
                    "verify.frr": 88, "verify.snapshot": 90, "verify.converge": 96, "verify.run": 83, "verify.report": 88,
-                   # faults joined in 0.4.1 at 92.9% (lines and branches, 2026-11-04), rounded down, minus one
-                   "faults": 91}
+                   # faults joined in 0.4.1 at 97.2% (lines and branches, 2026-11-05, the strict rule without the
+                   # deferred prefix-limit proof), rounded down, minus one
+                   "faults": 96}
 
 # G1 mutation closure (QUALITY-SYSTEM rule 10, class E7; found 2026-11-04: faults.py decided whether a scenario's passes
 # stand and was never mutated). Every module under src/netdryrun/ is in VERDICT_MODULES or here, with the reason it

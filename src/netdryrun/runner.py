@@ -1026,16 +1026,10 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     # BGP gate for the scenario's post-convergence checks doesn't wait for those.
     watch, over = _link_sessions(lab, links, vrfs, driver_for, log=log) if links else ([], [])
     over_links = set(over)
-    def is_frr(node: str) -> bool:   # the prefix-limit proof reads FRR's own record of a peer's reset
-        try:
-            return driver_for(node).name == "frr"
-        except (DriverError, LabError):
-            return False
     try:
         for f, ifaces in plan:
             if f.kind == "inject_routes":
-                # the prefix-limit proof only for the scenario's only fault: another could trip the limit too
-                inj = RouteInjection(lab, f.node, f.prefixes, f.as_path, alone=len(sc.faults) == 1, is_frr=is_frr)
+                inj = RouteInjection(lab, f.node, f.prefixes, f.as_path)
                 injected.append(inj)   # recorded first: restore even if applying half-fails
                 log(f"Injecting {inj.describe()}")
                 inj.apply()
@@ -1124,14 +1118,7 @@ def _never_left(injected: list[RouteInjection], results: list[Result], log=lambd
     check that failed stays failed: routes that never left can't have made it fail (Layer 6 on b03cb7a)."""
     quiet = [inj for inj in injected if inj.applied and inj.left is not True]
     if not quiet:
-        # a peer reached only by the prefix-limit proof: every pass names the reset it rests on
-        why = "; ".join(f"{peer}: {text}" for inj in injected if inj.applied
-                        for peer, text in inj.limit_proven.items())
-        if not why:
-            return results
-        log(f"  the injected routes reached a peer whose session reset: {why}")
-        return [replace(r, detail=f"{r.detail} (injected routes shown to arrive by a max-prefix reset: {why})")
-                if r.passed else r for r in results]
+        return results
     inj = quiet[0]
     if inj.quiet:   # a check on the far side of one of these peers passed on nothing (Layer 6)
         held = "; ".join(f"{peer} was not sent {_some(missing)}" for peer, missing in inj.quiet.items())
