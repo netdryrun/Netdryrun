@@ -244,3 +244,49 @@ def test_a_wheel_without_the_notice_or_with_another_one_fails(tmp_path):
 def test_an_sdist_with_a_different_notice_fails(tmp_path):
     assert gate.notice_problems(_dist(tmp_path, gate.NOTICE_TEXT, "Someone else\n")) == [
         "netdryrun-0.0.0.tar.gz: NOTICE differs from the repository's"]
+
+
+# --- G3 in the live layer's corpus copy (found by the 0.4.1 live run on 765cdbb, 2026-11-04) -------------------------
+
+def _run_py_verdict_tree(corpus_dir: Path, env: dict | None = None):
+    """corpus/run.py's _verdict_tree, run in a fresh interpreter from corpus_dir (a copy or the repo's corpus/)."""
+    code = ("import importlib.util, sys; s = importlib.util.spec_from_file_location('ndr_run', sys.argv[1]); "
+            "m = importlib.util.module_from_spec(s); s.loader.exec_module(m); print(repr(m._verdict_tree()))")
+    full = {k: v for k, v in os.environ.items() if k != "NDR_VERDICT_TREE"}
+    full.update(env or {})
+    p = subprocess.run([sys.executable, "-c", code, str(corpus_dir / "run.py")], capture_output=True, text=True,
+                       env=full, cwd=corpus_dir)
+    assert p.returncode == 0, p.stderr
+    return eval(p.stdout.strip())
+
+
+def test_run_py_in_the_live_copy_shape_does_not_crash_and_records_no_tree(tmp_path):
+    """The red fixture: the live layer copies only corpus/ into a scratch folder; run.py imported scripts/release_gate.py
+    from beside it and crashed (FileNotFoundError) before any case ran. With no tree available it records None, which
+    G3 reads as stale (fail-closed), never a tree of nothing."""
+    import shutil
+    copy = tmp_path / "corpus"
+    shutil.copytree(ROOT / "corpus", copy, ignore=shutil.ignore_patterns("results", "__pycache__"))
+    assert _run_py_verdict_tree(copy) is None
+
+
+def test_run_py_takes_the_tree_the_gate_hands_it(tmp_path):
+    import shutil
+    copy = tmp_path / "corpus"
+    shutil.copytree(ROOT / "corpus", copy, ignore=shutil.ignore_patterns("results", "__pycache__"))
+    assert _run_py_verdict_tree(copy, {"NDR_VERDICT_TREE": gate.verdict_tree()}) == gate.verdict_tree()
+
+
+def test_run_py_in_the_repo_records_the_gates_tree():
+    assert _run_py_verdict_tree(ROOT / "corpus") == gate.verdict_tree()
+
+
+def test_the_live_corpus_rerun_hands_run_py_the_verdict_tree(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(gate, "run", lambda cmd, **kw: seen.append(kw.get("env") or {}) or gate.Proc(1, "x", 0.0))
+    layer = SimpleNamespace(add=lambda *a, **k: None)
+    live = SimpleNamespace(layer=layer, work=tmp_path, python="python", assert_clean=lambda *a, **k: None)
+    args = SimpleNamespace(skip_corpus=False)
+    monkeypatch.setattr(gate, "write_out", lambda *a, **k: None)
+    gate.live_corpora(live, args)
+    assert len(seen) == 2 and all(e.get("NDR_VERDICT_TREE") == gate.verdict_tree() for e in seen)

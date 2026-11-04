@@ -166,10 +166,18 @@ def _git_commit() -> str:
     return (r.stdout.strip() or "unknown") + ("+dirty" if dirty.stdout.strip() else "")
 
 
-def _verdict_tree() -> str:
-    """The release gate's verdict_tree (scripts/release_gate.py): one definition, loaded from there."""
+def _verdict_tree() -> str | None:
+    """The release gate's verdict_tree (scripts/release_gate.py): one definition, loaded from there. The gate's live
+    layer runs a copy of corpus/ with no scripts/ or src/ beside it, so it passes the tree of the code the tested wheel
+    was built from in NDR_VERDICT_TREE. Neither available: None, which the gate's G3 reads as stale (fail-closed)."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location("ndr_release_gate", HERE.parent / "scripts" / "release_gate.py")
+    import os
+    if os.environ.get("NDR_VERDICT_TREE"):
+        return os.environ["NDR_VERDICT_TREE"]
+    gate_file = HERE.parent / "scripts" / "release_gate.py"
+    if not gate_file.exists() or not (HERE.parent / "src").is_dir():
+        return None
+    spec = importlib.util.spec_from_file_location("ndr_release_gate", gate_file)
     gate = importlib.util.module_from_spec(spec)
     sys.modules["ndr_release_gate"] = gate
     spec.loader.exec_module(gate)

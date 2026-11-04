@@ -1370,7 +1370,8 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
         cmd = [live.python, copy / "run.py", "--corpus", version, "--workdir", live.work / f"corpus-{version}"]
         if fail_fast:
             cmd += ["--expect", committed]
-        p = run(cmd, cwd=live.work, timeout=4 * 3600)
+        # the copy has no scripts/ or src/: hand run.py the verdict tree of the code the wheel was built from (G3)
+        p = run(cmd, cwd=live.work, timeout=4 * 3600, env={**os.environ, "NDR_VERDICT_TREE": verdict_tree()})
         fresh = copy / sub / "results" / "results.json"
         diffs = []
         nd = nondeterministic_cases(ROOT / "corpus" / sub)
