@@ -3361,16 +3361,6 @@
       "diff": "b0f4a07fcc19ec85",
       "class": "message-text"
     },
-    "netdryrun.drivers.x_for_node__mutmut_2": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "d47d65c7450291d1",
-      "class": "message-text"
-    },
-    "netdryrun.drivers.x_for_node__mutmut_4": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "acd403462d346b59",
-      "class": "message-text"
-    },
     "netdryrun.drivers.x_for_node__mutmut_9": {
       "reason": "message text only: the same exception is still raised, only its message changes",
       "diff": "96d459bdaec6901f",
@@ -4229,16 +4219,6 @@
       "diff": "1b9158bc9ead26f4",
       "class": "message-text"
     },
-    "netdryrun.runner.x_preflight__mutmut_13": {
-      "reason": "message text only: the node list in the unknown-node error; the same exception is raised",
-      "diff": "c54fe819218de9e1",
-      "class": "message-text"
-    },
-    "netdryrun.runner.x_preflight__mutmut_15": {
-      "reason": "message text only: the node list in the unknown-node error; the same exception is raised",
-      "diff": "5740501902a700c3",
-      "class": "message-text"
-    },
     "netdryrun.runner.x_preflight__mutmut_40": {
       "reason": "message text only: the inject_routes error text; the same exception is raised",
       "diff": "1a33a9fb709914ea",
@@ -4278,13 +4258,6 @@
       "reason": "message text only: the option name in the RunError text for a bad --settle/--hold (RunError, exit 2, either way)",
       "diff": "79c4a3fbc9facb87",
       "class": "message-text"
-    },
-    "netdryrun.runner.x_run_scenario__mutmut_105": {
-      "reason": "equivalent: results is still empty here, so binding it to pos_results equals extending it (same items returned)",
-      "diff": "25894bc7a1ed8027",
-      "class": "equivalent",
-      "argument": "Same behaviour on every input the function can receive: results is still empty here, so binding it to pos_results equals extending it (same items returned). So the verdict can't change.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x_run_scenario__mutmut_120": {
       "reason": "message text only: a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
@@ -4326,13 +4299,6 @@
       "diff": "7076bbe99146c26b",
       "class": "message-text",
       "argument": "Changes only text: the text of the 'could not restore' LabError raised either way (exit 2). The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
-    },
-    "netdryrun.runner.x_run_scenario__mutmut_42": {
-      "reason": "equivalent: with no links, _link_sessions reads nothing and returns two empty lists, the else value",
-      "diff": "ba873bc762444035",
-      "class": "equivalent",
-      "argument": "Same behaviour on every input the function can receive: with no links, _link_sessions reads nothing and returns two empty lists, the else value. So the verdict can't change.",
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x_run_scenario__mutmut_52": {
@@ -4951,11 +4917,6 @@
     "netdryrun.verify.run.x_check_changed_binds__mutmut_12": {
       "reason": "equivalent: without key=len the strings sort themselves; among bound paths that all cover the key, each is a prefix of the longer ones, so reverse order puts the longest covering bind first either way",
       "diff": "be692fe4fe60c415",
-      "class": "equivalent"
-    },
-    "netdryrun.verify.run.x_classify_nodes__mutmut_19": {
-      "reason": "equivalent: `runs` is only compared with 'frr'; None and '' both differ from it",
-      "diff": "fec00496aa1e1e33",
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_unobserved_reasons__mutmut_10": {
@@ -5822,6 +5783,32 @@
       "reason": "message text only: the separator between the NOS names in the image-mismatch DriverError; the same error is raised, so detection still fails (Layer 6 round 2 on ddfdf4a)",
       "diff": "73a6f3c5e5c43d03",
       "class": "message-text"
+    },
+    "netdryrun.runner.x_run_scenario__mutmut_113": {
+      "reason": "equivalent: results is still empty here, so binding it to pos_results equals extending it (same items returned)",
+      "diff": "8617e86a6050298b",
+      "class": "equivalent",
+      "argument": "Same behaviour on every input the function can receive: results is still empty here, so binding it to pos_results equals extending it (same items returned). So the verdict can't change.",
+      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*); re-keyed from x_run_scenario__mutmut_105 on b88adef: the same mutation on moved code (2026-11-04)"
+    },
+    "netdryrun.runner.x_run_scenario__mutmut_48": {
+      "reason": "equivalent: with no links, _link_sessions reads nothing and returns two empty lists, the else value",
+      "diff": "41578cc53490a5d8",
+      "class": "equivalent",
+      "argument": "Same behaviour on every input the function can receive: with no links, _link_sessions reads nothing and returns two empty lists, the else value. So the verdict can't change.",
+      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*); re-keyed from x_run_scenario__mutmut_42 on b88adef: the same mutation on moved code (2026-11-04)"
+    },
+    "netdryrun.verify.run.x_classify_nodes__mutmut_21": {
+      "reason": "equivalent: `runs` is only compared with 'frr'; None and '' both differ from it; re-keyed from x_classify_nodes__mutmut_19 on b88adef: the same mutation on moved code (2026-11-04)",
+      "diff": "e2be94a6a3ad537f",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run_scenario__mutmut_17": {
+      "reason": "equivalent: on_result is only tested for truth after this line; None and \"\" are both false",
+      "diff": "fdf7b629b80b5889",
+      "class": "equivalent",
+      "argument": "Same behaviour on every input the function can receive: after this line on_result is only passed to _reach_then_hold and _with_warnings, which test `if on_result:`, and tested with `if on_result:` before the blocked results; nothing compares it with None, and the caller's callback is kept in `show`. So the verdict can't change.",
+      "reviewed": "coordinator (ndr - main), 2026-11-04: checked independently on b88adef and agreed (equivalent; on_result used only at runner.py:1050, 1064, 1068, each a truth test)"
     }
   },
   "checks": {

@@ -2050,3 +2050,24 @@ def test_held_results_are_shown_before_a_failed_restore_stops_the_run(monkeypatc
                             on_result=e.results.append, driver_for=lambda n: e.drivers[n])
     [r] = [r for r in e.results if r.check.name == "x"]
     assert not r.passed and isinstance(r.detail, runner.NeverLeft)
+
+
+def test_preflight_checks_a_set_driver_on_a_node_no_check_names():
+    """Mutation on b88adef (runner.preflight_19): a set driver is checked against its node even when no check, fault
+    or setup names that node, and a setting for a node the topology doesn't have is left to the topology check."""
+    lab = FakeLab(Clock(), kinds={"r2": ("nokia_srlinux", "ghcr.io/nokia/srlinux:24.10")})
+    with pytest.raises(DriverError, match="is set to driver frr, but its kind and image say srlinux"):
+        runner.preflight(_cfg([route("a")], drivers={"r2": "frr"}), lab)
+    runner.preflight(_cfg([route("a")], drivers={"r9": "frr"}), lab)
+
+
+def test_a_failed_link_restore_shows_each_streamed_result_once(monkeypatch):
+    """Mutation on b88adef (runner.run_scenario_178): without injected routes the results were already streamed, so a
+    failed restore must not show them a second time."""
+    e = make(monkeypatch)
+    e.lab.set_link_error[("r1", "eth1", True)] = LabError("stuck")
+    sc = Scenario("s", [Fault("link_down", "r1", "eth1")], [route("x", node="r3")])
+    with pytest.raises(LabError, match="could not restore"):
+        runner.run_scenario(e.lab, sc, e.drivers, settle=1, hold=1, on_result=e.results.append,
+                            driver_for=lambda n: e.drivers[n])
+    assert [r.check.name for r in e.results] == ["x"]

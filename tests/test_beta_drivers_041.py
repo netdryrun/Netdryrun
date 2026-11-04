@@ -39,3 +39,17 @@ def test_run_warns_for_a_beta_driver_after_preflight(monkeypatch):
     e.run([route("a")], drivers_cfg={"r1": "nxos"})
     assert ("Warning: r1 uses the nxos driver, an unreleased beta: its verdicts are not covered by a released gate "
             "yet") in e.logs
+
+
+@pytest.mark.parametrize("override", ["eos", "frr"])
+def test_a_node_detected_as_a_beta_nos_refuses_another_driver(override):
+    """Mutation on b88adef (drivers.resolve_6, BetaDriver.__init___2, _beta_2): the beta NOS detection names is what a
+    set driver is checked against; an image with no NOS mark leaves nothing else to catch the mismatch."""
+    from netdryrun.drivers import BetaDriver, _detect, resolve
+    node = Node("n1", "clab-t-n1", "cisco_n9kv", "registry.local/switch:1")
+    with pytest.raises(BetaDriver) as e:
+        _detect(node)
+    assert e.value.driver == "nxos"
+    with pytest.raises(DriverError, match=f"is set to driver {override}, but its kind and image say nxos"):
+        resolve(node, override)
+    assert resolve(node, "nxos") == "nxos"
