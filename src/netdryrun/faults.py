@@ -117,11 +117,69 @@ class Session:
     mrai_ms: int | None   # advertisement interval; None when unread
 
 
+# The prefix-limit proof (0.4.1, owner decision 2026-11-04; spec: design/attributable-limit-proof.md in HQ). A peer whose
+# session reset while the routes were in counts as reached only when the peer itself says it sent the injector's
+# session a max-prefix Cease. FRR 10.4.1 (tag frr-10.4.1) sends CEASE / MAX_PREFIX (bgpd.h BGP_NOTIFY_CEASE_MAX_PREFIX)
+# from one place, bgp_maximum_prefix_overflow() in bgpd/bgp_route.c, when the session's accepted count after inbound
+# policy (peer->pcount, acceptedPrefixCounter) is over its maximum for that AFI/SAFI. Its callers: an UPDATE received
+# (bgp_route.c, always=0) and setting the limit (peer_maximum_prefix_set() in bgpd.c, always=1: a config change, which
+# the only-fault rule and the limit read at apply and at restore leave out). Two flags change what it means:
+# `warning-only` sends nothing (prefixAllowedMaxWarning), and `force` adds the routes inbound policy filtered out to
+# the count (PEER_FLAG_MAX_PREFIX_FORCE; not in the JSON, so read from the running config): either is not proven.
+# The record (bgp_vty.c): lastNotificationReason is the last notification sent or received, so lastResetDueTo must be
+# "BGP Notification send" (PEER_DOWN_NOTIFY_SEND, code 14, set when bgp_notify_send_internal() sends a Cease other
+# than an admin reset or shutdown). lastResetTimerMsecs counts whole seconds and wraps every 24 hours (gmtime hours,
+# no days), so the drop count must also have risen since apply. The strings are pinned to the versions below, from
+# the live captures in tests/fixtures (frr_maxpfx_*): any other version is not proven until it has a fixture.
+MAXPFX_REASON = "Cease/Maximum Number of Prefixes Reached"
+MAXPFX_SENT = "BGP Notification send"
+MAXPFX_CODE = 14
+PROVEN_FRR = ("10.4.1", "10.4.1_git")
+AF_KEYS = {"ipv4": "ipv4Unicast", "ipv6": "ipv6Unicast"}
+# bgp_maximum_prefix_overflow()'s log line; bgpd logs nothing unless a `log` destination is configured
+MAXPFX_LOG = re.compile(r"%MAXPFXEXCEED: No\. of (IPv[46] Unicast) prefix received from (\S+) (\d+) exceed, limit (\d+)")
+
+
+@dataclass(frozen=True)
+class PeerLimit:
+    """A peer's max-prefix limit on the injector's session, as read on the peer node before the routes went in."""
+    node: str      # the lab node at the peer's address
+    session: str   # the injector's address: the key of the session on that node
+    limit: int
+    before: int    # prefixes it had accepted on the session
+    dropped: int
+
+
+def _need(record, key: str):
+    """record[key], read strictly: a key that isn't there, or a record that isn't a mapping, is an error."""
+    if not isinstance(record, dict) or key not in record:
+        raise ValueError(f"no {key}")
+    return record[key]
+
+
+def _int(value) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"not a number: {value!r}")
+    return value
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}{'' if n == 1 else 'es' if noun.endswith('x') else 's'}"
+
+
 class RouteInjection:
     """One inject_routes fault on one node. apply() then, whatever happens, restore()."""
 
-    def __init__(self, lab: Lab, node: str, prefixes: list[str], as_path: list[int], budget: float = 60):
+    def __init__(self, lab: Lab, node: str, prefixes: list[str], as_path: list[int], budget: float = 60, *,
+                 alone: bool = False, is_frr=None):
         self.lab, self.node, self.prefixes, self.as_path, self.budget = lab, node, prefixes, as_path, budget
+        # The prefix-limit proof only for the scenario's only fault (anything else could trip a limit too), and only
+        # on peers whose node `is_frr` names (the runner's drivers); without either, never
+        self.alone, self.is_frr = alone, is_frr
+        self.limits: dict[tuple[str, str], PeerLimit] = {}         # (family, peer) -> its limit, read at apply
+        self.limits_again: dict[tuple[str, str], PeerLimit] = {}   # read again just before the routes went in
+        self.limit_proven: dict[str, str] = {}   # peer -> the max-prefix reset that showed the routes reached it
+        self._addrs: dict[str, set[str]] = {}
         self.asn = ""
         self.applied = False   # set before the config goes in: restore even if applying half-fails
         self.peers_before: dict[str, list[str]] = {}   # family -> the peers established when the routes went in
@@ -354,7 +412,9 @@ class RouteInjection:
                            "carry; inject prefixes it doesn't originate, or give the injection an as_path")
         self.peers_before = self.established()   # read before anything changes: what can't be read stops here
         self.sessions_before = self.sessions()
+        self.limits = self.read_limits()
         self.record_listed()
+        self.limits_again = self.read_limits()   # the count must not move between the two reads
         self.applied = True
         self.applied_at = time.monotonic()
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path))
@@ -389,7 +449,13 @@ class RouteInjection:
                               and s.dropped == then.dropped and since_ms is not None and s.up_ms is not None
                               and s.up_ms + 1000 >= since_ms)   # bgpd counts the uptime in whole seconds
                     got = (self.advertised(afi, peer) if steady else set()) - self.listed_before.get(peer, set())
-                    quiet.setdefault(peer, []).extend(p for p in mine if p not in got)
+                    missing = [p for p in mine if p not in got]
+                    if missing and peer in self.peers_before[afi]:   # a reset session: the prefix-limit proof
+                        why = self._limit_proof(afi, peer, mine)
+                        if why:
+                            self.limit_proven[peer] = why
+                            missing = []
+                    quiet.setdefault(peer, []).extend(missing)
             self.quiet = {peer: missing for peer, missing in sorted(quiet.items()) if missing}
             self.unsent = unsent
             self.left = not self.quiet and not self.unsent
@@ -398,6 +464,128 @@ class RouteInjection:
         finally:   # and whatever went wrong, the injected config comes out (Layer 6 round 8 on ba4095d)
             self._apply_config(config_lines(self.asn, self.prefixes, self.as_path, remove=True))
             self._wait(want_present=False)
+
+    def read_limits(self) -> dict[tuple[str, str], PeerLimit]:
+        """(family, peer) -> the peer's max-prefix limit on this node's session, for each peer established now whose
+        address is one lab node's (exactly one), that node on the frr driver, FRR 10.4.1. Nothing for a peer that
+        can't be read or doesn't qualify, and nothing at all unless this injection is the scenario's only fault."""
+        if not self.alone or self.is_frr is None:
+            return {}
+        try:
+            mine = self._addresses(self.node)
+        except (LabError, ValueError):
+            return {}
+        out = {}
+        for afi, peers in self.peers_before.items():
+            for peer in peers:
+                try:
+                    lim = self._peer_limit(afi, peer, mine)
+                except (LabError, ValueError, TypeError):
+                    lim = None
+                if lim is not None:
+                    out[(afi, peer)] = lim
+        return out
+
+    def _addresses(self, node: str) -> set[str]:
+        """The node's interface addresses (`ip -j addr`), read once per injection."""
+        if node not in self._addrs:
+            r = self.lab.exec(node, ["ip", "-j", "addr"], timeout=30)
+            if r.rc != 0:
+                raise LabError(f"`ip -j addr` failed on {node}")
+            data = json.loads(r.stdout)
+            if not isinstance(data, list):
+                raise ValueError(f"unexpected output from `ip -j addr` on {node}")
+            self._addrs[node] = {_need(a, "local") for i in data for a in _need(i, "addr_info")}
+        return self._addrs[node]
+
+    def _peer_limit(self, afi: str, peer: str, mine: set[str]) -> PeerLimit | None:
+        owners = [n for n in self.lab.nodes if n != self.node and peer in self._addresses(n)]
+        if len(owners) != 1 or not self.is_frr(owners[0]):
+            return None
+        node = owners[0]
+        version = self._peer_vtysh(node, "show version")
+        m = re.match(r"FRRouting (\S+) ", version)
+        if not m or m.group(1) not in PROVEN_FRR:
+            return None
+        rec = self._session_record(node, mine)
+        limit, accepted = self._family_limit(rec, afi)
+        # `force` counts filtered routes too, and `warning-only` never resets: on any limit of the node, not proven
+        if re.search(r"^\s*neighbor \S+ maximum-prefix .*\b(force|warning-only)\b",
+                     self._peer_vtysh(node, "show running-config"), re.M):
+            return None
+        return PeerLimit(node, rec["_session"], limit, accepted, _int(_need(rec, "connectionsDropped")))
+
+    def _peer_vtysh(self, node: str, cmd: str) -> str:
+        r = self.lab.exec(node, ["vtysh", "-c", cmd], timeout=120)
+        if r.rc != 0:
+            raise LabError(f"vtysh -c '{cmd}' failed on {node}")
+        return r.stdout
+
+    def _session_record(self, node: str, mine: set[str]) -> dict:
+        """The peer node's `show bgp neighbors json` entry for this node's session: exactly one of its neighbors is an
+        address of this node."""
+        data = json.loads(self._peer_vtysh(node, "show bgp neighbors json"))
+        keys = [k for k in data if k in mine]
+        if len(keys) != 1 or not isinstance(data[keys[0]], dict):
+            raise ValueError(f"no single session to {self.node} on {node}")
+        return {**data[keys[0]], "_session": keys[0]}
+
+    @staticmethod
+    def _family_limit(rec: dict, afi: str) -> tuple[int, int]:
+        """(limit, accepted) in the injection's family, which must be the session's only family with a limit (the
+        record doesn't say which family tripped), and not warning-only."""
+        fams = _need(rec, "addressFamilyInfo")
+        if not isinstance(fams, dict):
+            raise ValueError("addressFamilyInfo is not a mapping")
+        limited = [k for k, v in fams.items() if isinstance(v, dict) and "prefixAllowedMax" in v]
+        if limited != [AF_KEYS[afi]]:
+            raise ValueError("the injection's family is not the session's only limited family")
+        fam = _need(fams, AF_KEYS[afi])
+        if "prefixAllowedMaxWarning" in fam:   # FRR prints it, true, only for warning-only
+            raise ValueError("warning-only")
+        return _int(_need(fam, "prefixAllowedMax")), _int(_need(fam, "acceptedPrefixCounter"))
+
+    def _limit_proof(self, afi: str, peer: str, mine: list[str]) -> str | None:
+        """Why the routes reached `peer` though its session reset, or None: the peer node sent this node's session a
+        max-prefix Cease after the routes went in, its count before was at or under the limit and the injected
+        prefixes it didn't have take it over (the double read at apply equal), the drop count rose, the limit and
+        family unchanged, and a log line, if bgpd wrote one, agrees. Anything unread or unexpected: None."""
+        lim = self.limits.get((afi, peer))
+        if lim is None or lim != self.limits_again.get((afi, peer)) or self.applied_at is None:
+            return None
+        injected = len({canon_prefix(p) for p in mine} - self.listed_before.get(peer, set()))
+        if not lim.before <= lim.limit < lim.before + injected:
+            return None
+        try:
+            t0 = time.monotonic()
+            rec = self._session_record(lim.node, {lim.session})
+            if (_need(rec, "lastResetDueTo") != MAXPFX_SENT or _need(rec, "lastNotificationReason") != MAXPFX_REASON
+                    or _int(_need(rec, "lastResetCode")) != MAXPFX_CODE
+                    or _int(_need(rec, "connectionsDropped")) <= lim.dropped
+                    or self._family_limit(rec, afi)[0] != lim.limit):
+                return None
+            # the earliest the reset can have been: whole seconds, plus a second of margin
+            if t0 - (_int(_need(rec, "lastResetTimerMsecs")) + 1000) / 1000 - 1 <= self.applied_at:
+                return None
+        except (LabError, ValueError, TypeError):
+            return None
+        if self._log_disagrees(lim, afi):
+            return None
+        return (f"{lim.node} sent {self.node}'s session a max-prefix Cease ({MAXPFX_REASON}) after the routes went in: "
+                f"{_count(lim.before, 'prefix')} accepted before, limit {lim.limit}, {injected} injected")
+
+    def _log_disagrees(self, lim: PeerLimit, afi: str) -> bool:
+        """A max-prefix log line for the session, if bgpd logged one, must name the family and the limit and a count
+        over it. No log (the default: no `log` destination configured) is not a disagreement."""
+        try:
+            text = self.lab.boot_log(lim.node).stdout
+        except (LabError, AttributeError):
+            return False
+        want = "IPv4 Unicast" if afi == "ipv4" else "IPv6 Unicast"
+        for fam, host, count, limit in MAXPFX_LOG.findall(text or ""):
+            if host.split("(")[0] == lim.session and (fam != want or int(limit) != lim.limit or int(count) <= lim.limit):
+                return True
+        return False
 
     def describe(self) -> str:
         return f"{len(self.prefixes)} route(s) on {self.node}"

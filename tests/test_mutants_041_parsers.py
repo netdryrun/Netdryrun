@@ -131,7 +131,7 @@ def test_some_lists_five_prefixes_without_a_count():
 def test_the_never_left_detail_names_each_family_without_a_session():
     """runner._never_left_21: the separator between families."""
     from types import SimpleNamespace
-    inj = SimpleNamespace(applied=True, left=False, quiet={}, node="r1",
+    inj = SimpleNamespace(applied=True, left=False, quiet={}, node="r1", limit_proven={},
                           unsent={"ipv4": ["10.66.0.0/16"], "ipv6": ["2001:db8:66::/48"]})
     logs = []
     runner._never_left([inj], [], logs.append)

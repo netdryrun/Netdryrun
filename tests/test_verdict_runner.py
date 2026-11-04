@@ -12,6 +12,7 @@ import signal
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -232,10 +233,12 @@ class Env:
         env = self
 
         class Injection:
-            def __init__(self, lab_, node, prefixes, as_path):
+            def __init__(self, lab_, node, prefixes, as_path, *, alone, is_frr):
                 assert lab_ is lab
                 self.node, self.prefixes, self.as_path, self.applied, self.restored = node, prefixes, as_path, False, 0
+                self.alone, self.is_frr = alone, is_frr   # the prefix-limit proof's inputs from the runner
                 self.left, self.quiet, self.unsent = None, {}, {}   # as RouteInjection: unknown until restore reads it
+                self.limit_proven = {}
                 env.injections.append(self)
 
             def describe(self):
@@ -2071,3 +2074,45 @@ def test_a_failed_link_restore_shows_each_streamed_result_once(monkeypatch):
         runner.run_scenario(e.lab, sc, e.drivers, settle=1, hold=1, on_result=e.results.append,
                             driver_for=lambda n: e.drivers[n])
     assert [r.check.name for r in e.results] == ["x"]
+
+
+# --- the prefix-limit proof's inputs (0.4.1) ---------------------------------------------------------------------
+
+def test_the_prefix_limit_proof_is_offered_only_for_a_scenarios_only_fault(monkeypatch):
+    """Another fault in the same scenario (a link down, another node's injection) could trip a limit too."""
+    e = make(monkeypatch)
+    direct(e, _scenario(route("x", node="r3")))
+    assert e.injections[-1].alone is True
+    both = Scenario("s", [Fault("inject_routes", "r2", prefixes=["10.66.0.0/16"]), Fault("link_down", "r1", "eth1")],
+                    [route("x", node="r3")])
+    direct(e, both)
+    assert e.injections[-1].alone is False
+
+
+def test_the_prefix_limit_proof_reads_only_nodes_on_the_frr_driver(monkeypatch):
+    e = make(monkeypatch)
+    names = {"r1": "frr", "r2": "eos"}
+
+    def driver_for(node):
+        if node not in names:
+            raise DriverError(f"no driver for {node}")
+        return SimpleNamespace(name=names[node])
+    direct(e, _scenario(route("x", node="r3")), driver_for=lambda n: e.drivers[n] if n == "r3" else driver_for(n))
+    is_frr = e.injections[-1].is_frr
+    assert (is_frr("r1"), is_frr("r2"), is_frr("r9")) == (True, False, False)
+
+
+def test_a_pass_that_rests_on_a_limit_proof_names_the_reset(monkeypatch):
+    e = make(monkeypatch)
+    orig = runner.RouteInjection
+
+    class Proven(orig):
+        def restore(self):
+            super().restore()
+            self.limit_proven = {"10.0.1.1": "pe1 sent ce1's session a max-prefix Cease"}
+    monkeypatch.setattr(runner, "RouteInjection", Proven)
+    [r] = direct(e, _scenario(route("x", node="r3")))
+    assert r.passed and r.detail.endswith("(injected routes shown to arrive by a max-prefix reset: 10.0.1.1: pe1 sent "
+                                          "ce1's session a max-prefix Cease)")
+    assert "  the injected routes reached a peer whose session reset: 10.0.1.1: pe1 sent ce1's session a max-prefix " \
+           "Cease" in e.logs

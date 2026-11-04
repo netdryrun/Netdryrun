@@ -110,6 +110,7 @@ only_mutate = [
   "src/netdryrun/verify/converge.py",
   "src/netdryrun/verify/run.py",
   "src/netdryrun/verify/report.py",
+  "src/netdryrun/faults.py",
 ]
 pytest_add_cli_args_test_selection = ["tests/"]
 also_copy = [

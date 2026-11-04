@@ -59,6 +59,7 @@ def test_every_verdict_module_is_mutated_and_has_a_coverage_floor():
     only = re.findall(r'"([^"]+)"', block)
     assert set(gate.COVERAGE_FLOORS) == set(gate.VERDICT_MODULES)
     assert {"verify.engine", "verify.intent"} <= set(gate.VERDICT_MODULES)
+    assert "faults" in gate.VERDICT_MODULES   # the inject_routes delivery verdict (0.4.1)
     for name, path in gate.VERDICT_MODULES.items():
         assert (ROOT / path).exists(), path
         assert any(fnmatch.fnmatch(path, pat) or path.rstrip("/") + "/*" == pat for pat in only), (name, only)
