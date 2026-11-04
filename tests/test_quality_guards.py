@@ -254,6 +254,8 @@ def _run_py_verdict_tree(corpus_dir: Path, env: dict | None = None):
             "m = importlib.util.module_from_spec(s); s.loader.exec_module(m); print(repr(m._verdict_tree()))")
     full = {k: v for k, v in os.environ.items() if k != "NDR_VERDICT_TREE"}
     full.update(env or {})
+    # run.py imports netdryrun; the pre-push suite finds it through a relative PYTHONPATH=src, so make it absolute
+    full["PYTHONPATH"] = os.pathsep.join([str(ROOT / "src")] + [p for p in full.get("PYTHONPATH", "").split(os.pathsep) if p])
     p = subprocess.run([sys.executable, "-c", code, str(corpus_dir / "run.py")], capture_output=True, text=True,
                        env=full, cwd=corpus_dir)
     assert p.returncode == 0, p.stderr
