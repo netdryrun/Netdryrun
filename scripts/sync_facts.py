@@ -124,8 +124,11 @@ def _corpus(path: Path) -> dict:
               "dev_build": DEV_BUILDS.get(results["environment"]["generated"], "")}
     for strategy in ("netdryrun", "ping", "sessions"):
         corpus[strategy] = sum(bool(c["strategies"][strategy]["correct"]) for c in cases)
-        corpus[f"{strategy}_approved_harmful"] = sum(c["expected"] == "unsafe" and not c["strategies"][strategy]["correct"]
+        # approved: a harmful change read as safe (an inconclusive run approves nothing)
+        corpus[f"{strategy}_approved_harmful"] = sum(c["expected"] == "unsafe" and c["strategies"][strategy]["verdict"] == "safe"
                                                      for c in cases)
+    # "error" is a run that proved nothing either way (inconclusive), not a wrong verdict: counted apart
+    corpus["netdryrun_inconclusive"] = sum(c["strategies"]["netdryrun"]["verdict"] == "error" for c in cases)
     corpus["losses"] = [{"id": c["id"], "title": c["title"], "expected": c["expected"]}
                         for c in cases if not c["strategies"]["netdryrun"]["correct"]]
     corpus["nondeterministic"] = sorted(int(i.split("-", 1)[0]) for i in nd)
@@ -153,19 +156,22 @@ def blocks(f: dict) -> dict[str, str]:
         provenance = f"v1 ran on {ran(c)}; v2 on {ran(c2)}"
     historical = bool(c["dev_build"] or c2["dev_build"])
     nd2 = c2["nondeterministic"]
+    unproven = c2["netdryrun_inconclusive"]
+    inconclusive = (f" ({unproven} inconclusive, reported as not proven; {c2['netdryrun_approved_harmful']} harmful "
+                    f"{'change' if c2['netdryrun_approved_harmful'] == 1 else 'changes'} approved)" if unproven else "")
     if nd2:
-        v2_scores = (f"Netdryrun {c2['netdryrun']} of {c2['cases']} deterministic cases correct, ping-only "
+        v2_scores = (f"Netdryrun {c2['netdryrun']} of {c2['cases']} deterministic cases correct{inconclusive}, ping-only "
                      f"{c2['ping']}/{c2['cases']}, all-sessions-up {c2['sessions']}/{c2['cases']}; "
                      f"{'case' if len(nd2) == 1 else 'cases'} {_join([str(n) for n in nd2])} "
                      f"{'is' if len(nd2) == 1 else 'are'} nondeterministic in this lab and excluded from the score "
                      "(listed with its reruns)")
-        v2_short = (f"v2: **{c2['netdryrun']} of {c2['cases']}** deterministic cases (ping only "
+        v2_short = (f"v2: **{c2['netdryrun']} of {c2['cases']}** deterministic cases{inconclusive} (ping only "
                     f"{c2['ping']}/{c2['cases']}, sessions up {c2['sessions']}/{c2['cases']}); case "
                     f"{_join([str(n) for n in nd2])} is nondeterministic in this lab and not scored")
     else:
-        v2_scores = (f"Netdryrun {c2['netdryrun']}/{c2['cases']}, ping-only {c2['ping']}/{c2['cases']}, "
+        v2_scores = (f"Netdryrun {c2['netdryrun']}/{c2['cases']}{inconclusive}, ping-only {c2['ping']}/{c2['cases']}, "
                      f"all-sessions-up {c2['sessions']}/{c2['cases']}")
-        v2_short = (f"v2: **{c2['netdryrun']}/{c2['cases']}** (ping only {c2['ping']}/{c2['cases']}, sessions up "
+        v2_short = (f"v2: **{c2['netdryrun']}/{c2['cases']}**{inconclusive} (ping only {c2['ping']}/{c2['cases']}, sessions up "
                     f"{c2['sessions']}/{c2['cases']})")
     pending = f" A rerun of both on the released {v} is pending." if historical else ""
     losses = {kind: [x for x in c["losses"] if x["expected"] == kind] for kind in ("unsafe", "safe")}

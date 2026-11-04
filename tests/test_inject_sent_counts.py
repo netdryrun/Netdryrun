@@ -545,3 +545,33 @@ def test_the_wait_does_not_wait_for_a_peer_that_already_had_the_prefix(monkeypat
     inj = applied(lab, "r1", [R1])
     inj.await_delivery(settle=10)
     assert inj.late == set() and lab.asked == ["show bgp ipv4 unicast neighbors 10.0.13.2 advertised-routes detail json"]
+
+
+# --- a prefix limit that resets the session (Verdict Corpus v2, I8; known limitation since 0.4.1) ------------------
+
+def test_a_prefix_limit_reset_during_the_injection_is_inconclusive_never_passed():
+    """Corpus v2 I8 on the 0.4.1 gate (candidate 7532310): ce1 floods 200 /24s from its /16, pe1's `maximum-prefix 50
+    restart 1` shuts the session, and a minute later it is back with every prefix re-sent. A prefix-limit reset is not
+    proof that the routes reached pe1 (another node or the change itself can trip it), so pe1 is quiet, every check the
+    scenario passed becomes not passed with a NeverLeft detail, and the run is inconclusive (exit 3), never passed."""
+    from types import SimpleNamespace
+
+    from netdryrun import runner
+    flood = [f"10.100.{i}.0/24" for i in range(16, 216)]
+    pe1 = "10.0.1.1"
+    lab = InjectLab([summary({pe1: "Established"})] * 2,
+                    neighbors=[steady([pe1]), steady([pe1], {pe1: 1}, up_ms=20000)],
+                    advertised={pe1: adv(*flood)})
+    inj = applied(lab, "ce1", flood, asn="65100", ago=90)
+    inj.restore()
+    assert (inj.left, inj.quiet, lab.asked) == (False, {pe1: flood}, [])   # the re-sent listing isn't even read
+
+    check = SimpleNamespace(name="[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes")
+    passed = runner.Result(check, True, "48 prefixes", 1, 1.0, "")
+    out = runner._never_left([inj], [passed])
+    assert [r.passed for r in out] == [False] and isinstance(out[0].detail, runner.NeverLeft)
+    assert out[0].detail.startswith(f"inconclusive: the injected routes on ce1 did not all reach its BGP peers: {pe1} "
+                                    "was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, "
+                                    "10.100.20.0/24 and 195 more")
+    report = runner.RunReport(config=None, results=out)
+    assert (report.status, report.exit_code) == ("inconclusive", 3)

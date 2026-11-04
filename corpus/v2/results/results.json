@@ -1,12 +1,12 @@
 {
  "schema": "netdryrun.corpus/v1",
  "environment": {
-  "generated": "2026-10-27T19:05:43+00:00",
-  "netdryrun": "0.3.1",
+  "generated": "2026-11-04T12:01:32+00:00",
+  "netdryrun": "0.4.1",
   "containerlab": "0.81.1",
   "frr_image": "quay.io/frrouting/frr:10.4.1",
   "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-  "commit": "08059de",
+  "commit": "7532310",
   "corpus": "v2",
   "rerun_args": " --corpus v2"
  },
@@ -34,13 +34,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
-     "correct": true,
-     "failed_checks": [],
+     "verdict": "error",
+     "correct": false,
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 178
+   "seconds": 183
   },
   {
    "id": "02-redistribute-connected-pe2",
@@ -75,12 +78,14 @@
      "failed_checks": [
       "I6 customer has no BGP route for link 10.0.3.0/30",
       "I6 customer has no BGP route for link 10.0.4.0/30",
-      "I6 customer has no BGP route for pe2 loopback"
+      "I6 customer has no BGP route for pe2 loopback",
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
      ],
      "error": null
     }
    },
-   "seconds": 175
+   "seconds": 184
   },
   {
    "id": "03-test-prefix-left-in-config",
@@ -113,12 +118,14 @@
      "verdict": "unsafe",
      "correct": true,
      "failed_checks": [
-      "I7 customer has no route for 1.1.1.0/24"
+      "I7 customer has no route for 1.1.1.0/24",
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
      ],
      "error": null
     }
    },
-   "seconds": 176
+   "seconds": 183
   },
   {
    "id": "04-redundant-aggregate-typo",
@@ -148,13 +155,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
+     "verdict": "error",
      "correct": false,
-     "failed_checks": [],
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 176
+   "seconds": 184
   },
   {
    "id": "05-customer-max-prefix-removed",
@@ -194,7 +204,7 @@
      "error": null
     }
    },
-   "seconds": 137
+   "seconds": 149
   },
   {
    "id": "06-peer-import-filter-permit-all",
@@ -232,6 +242,8 @@
      "verdict": "unsafe",
      "correct": true,
      "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes",
       "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
       "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
       "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
@@ -239,7 +251,7 @@
      "error": null
     }
    },
-   "seconds": 156
+   "seconds": 164
   },
   {
    "id": "07-customer-adds-prefixes",
@@ -269,13 +281,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
-     "correct": true,
-     "failed_checks": [],
+     "verdict": "error",
+     "correct": false,
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 175
+   "seconds": 185
   },
   {
    "id": "08-customer-announces-aggregate",
@@ -305,13 +320,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
-     "correct": true,
-     "failed_checks": [],
+     "verdict": "error",
+     "correct": false,
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 175
+   "seconds": 185
   },
   {
    "id": "09-ibgp-send-community-line-removed",
@@ -342,13 +360,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
-     "correct": true,
-     "failed_checks": [],
+     "verdict": "error",
+     "correct": false,
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 176
+   "seconds": 185
   },
   {
    "id": "10-ibgp-standard-communities-disabled",
@@ -386,12 +407,14 @@
      "failed_checks": [
       "I2 peer has customer route",
       "I3 customer reaches peer",
-      "I5 peer receives 2 to 51 prefixes from us"
+      "I5 peer receives 2 to 51 prefixes from us",
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
      ],
      "error": null
     }
    },
-   "seconds": 370
+   "seconds": 374
   },
   {
    "id": "11-customer-max-prefix-warning-only",
@@ -431,7 +454,7 @@
      "error": null
     }
    },
-   "seconds": 136
+   "seconds": 147
   },
   {
    "id": "12-customer-max-prefix-raised",
@@ -462,13 +485,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
-     "correct": true,
-     "failed_checks": [],
+     "verdict": "error",
+     "correct": false,
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 175
+   "seconds": 186
   },
   {
    "id": "13-upstream-routes-tagged-as-customer",
@@ -503,12 +529,14 @@
      "correct": true,
      "failed_checks": [
       "I4 no upstream route leaked to peer",
-      "I4 no default leaked to peer"
+      "I4 no default leaked to peer",
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
      ],
      "error": null
     }
    },
-   "seconds": 175
+   "seconds": 191
   },
   {
    "id": "14-customer-gets-default-only",
@@ -552,12 +580,14 @@
       "I3 customer has upstream route",
       "I3 customer has peer route",
       "I3 customer reaches upstream",
-      "I3 customer reaches peer"
+      "I3 customer reaches peer",
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
      ],
      "error": null
     }
    },
-   "seconds": 333
+   "seconds": 341
   },
   {
    "id": "15-upstream-default-filtered",
@@ -590,12 +620,14 @@
      "verdict": "unsafe",
      "correct": true,
      "failed_checks": [
-      "I3 customer has default"
+      "I3 customer has default",
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
      ],
      "error": null
     }
    },
-   "seconds": 257
+   "seconds": 267
   },
   {
    "id": "16-customer-session-peer-group",
@@ -631,13 +663,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
-     "correct": true,
-     "failed_checks": [],
+     "verdict": "error",
+     "correct": false,
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 175
+   "seconds": 186
   },
   {
    "id": "17-customer-region-community",
@@ -668,13 +703,16 @@
      "error": null
     },
     "netdryrun": {
-     "verdict": "safe",
-     "correct": true,
-     "failed_checks": [],
+     "verdict": "error",
+     "correct": false,
+     "failed_checks": [
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+     ],
      "error": null
     }
    },
-   "seconds": 176
+   "seconds": 187
   },
   {
    "id": "18-aggregate-discard-route-removed",
@@ -711,12 +749,32 @@
       "I2 upstream has our aggregate",
       "I2 peer has our aggregate",
       "I5 upstream receives 2 to 51 prefixes from us",
-      "I5 peer receives 2 to 51 prefixes from us"
+      "I5 peer receives 2 to 51 prefixes from us",
+      "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+      "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
      ],
      "error": null
     }
    },
-   "seconds": 287
+   "seconds": 299,
+   "nondeterministic": true,
+   "runs": [
+    {
+     "ping": "safe",
+     "sessions": "safe",
+     "netdryrun": "unsafe"
+    },
+    {
+     "ping": "safe",
+     "sessions": "safe",
+     "netdryrun": "unsafe"
+    },
+    {
+     "ping": "safe",
+     "sessions": "safe",
+     "netdryrun": "unsafe"
+    }
+   ]
   }
  ]
 }

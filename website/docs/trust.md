@@ -51,6 +51,7 @@ A Netdryrun pass means the change behaved correctly in a lab. The lab runs real 
 - **Scale.** A lab has a handful of nodes and small tables, not full Internet tables or hundreds of peers.
 - **Hardware and ASIC behavior.** Containers have no forwarding hardware, so TCAM limits, hardware programming and line-rate effects are not tested.
 - **Config the NOS skipped.** A config line rejected at boot makes the run an error on FRR and Arista cEOS (each lists what it skipped), SR Linux fails containerlab's deploy on one, and SONiC is configured by checked `setup:` commands (a config bound into it is an error). On Juniper (beta) the load is not verified yet, and the report says so: add a positive check for what each changed line creates.
+- **A prefix limit that resets the session during a route injection.** Since 0.4.1, a prefix-limit reset is not accepted as proof that injected routes reached a peer, because another node or the change itself can trip it. So the flood scenario (I8) ends inconclusive when a working limit resets the session. Netdryrun reports these as not proven rather than safe. 8 safe changes in corpus v2 now read inconclusive; no harmful change is approved. A narrow attributable proof is planned for 0.4.2. See the [corpus](corpus.md) for the cases.
 - **Timing at scale.** Convergence time in a small lab says little about convergence time in a large production network.
 
 <!-- facts:trust_scope -->

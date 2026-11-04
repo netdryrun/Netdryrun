@@ -27,15 +27,15 @@ def test_the_v2_score_leaves_out_the_nondeterministic_case():
     data = json.loads((V2 / "results" / "results.json").read_text(encoding="utf-8"))
     st = render.stats(data["cases"], render.nondeterministic(V2))
     assert (st["total"], st["unsafe"], st["netdryrun"]["correct"], st["ping"]["correct"], st["sessions"]["correct"]) \
-        == (17, 10, 16, 9, 7)
+        == (17, 10, 9, 9, 7)
     assert render.stats(data["cases"])["total"] == 18   # nothing is hidden from the data itself
 
 
-def test_the_v2_results_page_lists_case_18_with_its_verdicts_and_scores_16_of_17():
+def test_the_v2_results_page_lists_case_18_with_its_verdicts_and_scores_9_of_17():
     data = json.loads((V2 / "results" / "results.json").read_text(encoding="utf-8"))
     md = render.results_markdown(data, corpus=V2, amendments=V2 / "AMENDMENTS.md")
     assert "## Summary (17 deterministic cases: 10 harmful, 7 safe; 1 nondeterministic, not scored)" in md
-    assert "| Netdryrun intent checks | **16/17** |" in md
+    assert "| Netdryrun intent checks | **9/17** | 9/10 | 0 | 0 | 8 |" in md
     row = next(line for line in md.splitlines() if line.startswith(f"| `{CASE}`"))
     assert "🎲 not scored" in row and "✅" not in row
     section = md.split("## Nondeterministic cases (not scored)")[1].split("## Netdryrun's losses")[0]
@@ -44,13 +44,15 @@ def test_the_v2_results_page_lists_case_18_with_its_verdicts_and_scores_16_of_17
     assert CASE not in losses
 
 
-def test_the_status_lines_say_16_of_17_and_name_case_18():
+def test_the_status_lines_say_9_of_17_with_8_inconclusive_and_name_case_18():
     f = sync_facts.facts()
     c2 = f["corpus_v2"]
-    assert (c2["cases"], c2["netdryrun"], c2["nondeterministic"]) == (17, 16, [18])
+    assert (c2["cases"], c2["netdryrun"], c2["nondeterministic"]) == (17, 9, [18])
+    assert (c2["netdryrun_inconclusive"], c2["netdryrun_approved_harmful"]) == (8, 0)
     b = sync_facts.blocks(f)
     for name in ("readme_status", "site_status"):
-        assert ("Netdryrun 16 of 17 deterministic cases correct, ping-only 9/17, all-sessions-up 7/17; case 18 is "
+        assert ("Netdryrun 9 of 17 deterministic cases correct (8 inconclusive, reported as not proven; 0 harmful "
+                "changes approved), ping-only 9/17, all-sessions-up 7/17; case 18 is "
                 "nondeterministic in this lab and excluded from the score (listed with its reruns)") in b[name], name
         assert "17/18" not in b[name] and "On v2 (18 cases" in b[name]
-    assert "v2: **16 of 17** deterministic cases" in b["built_accuracy"] and "17/18" not in b["built_accuracy"]
+    assert "v2: **9 of 17** deterministic cases (8 inconclusive" in b["built_accuracy"] and "17/18" not in b["built_accuracy"]
