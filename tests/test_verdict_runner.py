@@ -235,6 +235,7 @@ class Env:
             def __init__(self, lab_, node, prefixes, as_path):
                 assert lab_ is lab
                 self.node, self.prefixes, self.as_path, self.applied, self.restored = node, prefixes, as_path, False, 0
+                self.left, self.quiet, self.unsent = None, {}, {}   # as RouteInjection: unknown until restore reads it
                 env.injections.append(self)
 
             def describe(self):
@@ -2032,3 +2033,20 @@ def test_a_scenario_without_injected_routes_still_streams_as_it_goes(monkeypatch
     e = make(monkeypatch)
     e.run([route("a")], [Scenario("s", [Fault("link_down", "r1", "eth1")], [route("x", node="r3")])])
     assert [r.check.name for r in e.results] == ["a", "x"]
+
+
+def test_held_results_are_shown_before_a_failed_restore_stops_the_run(monkeypatch):
+    """Round 8 (F5): when restore failed, the results held for the delivery verdict were never shown."""
+    e = make(monkeypatch)
+    orig = runner.RouteInjection
+
+    class Failing(orig):
+        def restore(self):
+            raise LabError("stuck")
+
+    monkeypatch.setattr(runner, "RouteInjection", Failing)
+    with pytest.raises(LabError, match="could not restore"):
+        runner.run_scenario(e.lab, _scenario(route("x", node="r3")), e.drivers, settle=1, hold=1,
+                            on_result=e.results.append, driver_for=lambda n: e.drivers[n])
+    [r] = [r for r in e.results if r.check.name == "x"]
+    assert not r.passed and isinstance(r.detail, runner.NeverLeft)

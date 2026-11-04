@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .lab import Lab, LabError
-from .verify.frr import BGP_CMDS, _best_sent, _flag, adj_command, parse_adj, parse_attrs, parse_bgp_table
+from .verify.frr import BGP_CMDS, _best_sent, _dest_paths, _flag, _json, adj_command, parse_adj, parse_attrs
 from .verify.snapshot import AsPath, SnapshotError, canon_prefix
 
 ROUTE_MAP = "NDR-INJECT"
@@ -170,25 +170,62 @@ class RouteInjection:
         (`sourced` and `local`, as every live capture marks one) with the injection's AS path, as the adj-rib-out
         shows it, before the local AS is prepended for an eBGP peer (adj_out_default_ipv4_* captures: a network
         route reads `Local`). A prefix the node advertises from another path, a learned one (the hijack case) or
-        another of its own, didn't carry the injection (round 7 on 99fe33e). Every path sent counts: all of them
-        with add-path, the best one without (FRR lists every multipath path either way, interop IOP-8)."""
+        another of its own, didn't carry the injection (round 7 on 99fe33e). Without add-path the one path sent is
+        the best (FRR lists every multipath path, interop IOP-8). With add-path the listing shows the node's paths
+        with their per-family TX ids, a path denied to this peer included, so nothing in it proves which path this
+        peer got: an add-path peer proves nothing, and is quiet (round 8 on ba4095d). Both destination forms are
+        read (_dest_paths)."""
         cmd = adj_command("default", afi, peer, "out")
         text = self._vtysh("-c", cmd)
         parse_adj(text, cmd, afi, "out", add_path_tx=False)   # the whole listing, read strictly
         data = json.loads(text)
-        want, out = self._as_path(), set()
+        out = set()
         for key, dest in (data["advertisedRoutes"].items() if data else ()):
             prefix = canon_prefix(key, cmd)
-            paths = dest["paths"]
-            if len(paths) > 1 and not any("addpathTxId" in p for p in paths):
+            paths = _dest_paths(cmd, prefix, dest, prefix)
+            if any(isinstance(p, dict) and "addpathTxId" in p for p in paths):
+                return set()
+            if len(paths) > 1:
                 paths = [_best_sent(cmd, prefix, paths)]
-            for i, p in enumerate(paths):
-                where = f"{prefix} path {i}"
-                source, _rx, attrs, _raw = parse_attrs(cmd, p, where)
-                if (source == "local" and _flag(cmd, p, "sourced", where) and _flag(cmd, p, "local", where)
-                        and attrs.as_path == want):
-                    out.add(prefix)
+            if any(self._is_injected(cmd, p, f"{prefix} path {i}") for i, p in enumerate(paths)):
+                out.add(prefix)
         return out
+
+    def _is_injected(self, cmd: str, p, where: str) -> bool:
+        """The path is the injected route: originated by a network statement (`sourced` and `local`, as every live
+        capture marks one) with the injection's AS path. A redistributed or aggregated path of the node's own, or a
+        learned one, is not."""
+        source, _rx, attrs, _raw = parse_attrs(cmd, p, where)
+        return (source == "local" and _flag(cmd, p, "sourced", where) and _flag(cmd, p, "local", where)
+                and attrs.as_path == self._as_path())
+
+    def _own_paths(self, afi: str) -> dict[str, list]:
+        """prefix -> the node's own (local) paths for each injected prefix of the family, from its BGP table (`show bgp
+        vrf all <afi> unicast detail json`, every path read as verify reads it), with whether each is the injected
+        route. Several local paths for one prefix (a redistributed static, connected or kernel route, an aggregate)
+        are read, not refused (Layer 6 round 8 on ba4095d)."""
+        cmd = BGP_CMDS[afi]
+        mine = {canon_prefix(p) for p in self.prefixes if _afi(p) == afi}
+        try:
+            data = _json(cmd, self._vtysh("-c", cmd))
+            if not isinstance(data, dict):
+                raise SnapshotError(f"unexpected output from `{cmd}`")
+            inst = data["default"] if "default" in data else {"routes": {}}
+            if not isinstance(inst, dict) or not isinstance(inst.get("routes"), dict):
+                raise SnapshotError(f"unexpected output from `{cmd}`: default: no routes")
+            out: dict[str, list] = {}
+            for key, dest in inst["routes"].items():
+                prefix = canon_prefix(key, cmd)
+                if prefix not in mine:
+                    continue
+                for i, p in enumerate(_dest_paths(cmd, prefix, dest, prefix)):
+                    where = f"{prefix} path {i}"
+                    source, _rx, attrs, _raw = parse_attrs(cmd, p, where)
+                    if source == "local":
+                        out.setdefault(prefix, []).append((attrs.as_path, self._is_injected(cmd, p, where)))
+            return out
+        except SnapshotError as e:
+            raise LabError(f"inject_routes on {self.node}: {e}") from None
 
     def sessions(self) -> dict[str, Session]:
         """peer -> its session from `show bgp neighbors json`: the drops (bgpd's connectionsDropped; a change while the
@@ -253,14 +290,9 @@ class RouteInjection:
         a path the node originates with the injection's AS path, read as verify reads the table. The prefix alone
         isn't enough: the node may already hold it from a neighbor, which is the hijack an injection tests (Layer 6
         round 7 on 99fe33e)."""
-        have, want = set(), self._as_path()
+        have = set()
         for afi in sorted({_afi(p) for p in self.prefixes}):
-            try:
-                table = parse_bgp_table(self._vtysh("-c", BGP_CMDS[afi]), afi)
-            except SnapshotError as e:
-                raise LabError(f"inject_routes on {self.node}: {e}") from None
-            have |= {prefix for (prefix, source, _pid), path in (table["default"] if "default" in table else {}).items()
-                     if source == "local" and path.attrs.as_path == want}
+            have |= {prefix for prefix, paths in self._own_paths(afi).items() if any(inj for _asp, inj in paths)}
         return [p for p in self.prefixes if (canon_prefix(p) in have) != want_present]
 
     def _wait(self, want_present: bool) -> None:
@@ -287,6 +319,16 @@ class RouteInjection:
                            "inject prefixes the node does not announce yet")
         if self.as_path and re.search(rf"^route-map {ROUTE_MAP} ", running, re.M):
             raise LabError(f"inject_routes on {self.node}: route-map {ROUTE_MAP} already exists")
+        # a path of the node's own for an injected prefix, with the AS path the injection would carry (a redistributed
+        # connected route, say), can't be told from the injected one: what went in, and whether it came out again,
+        # couldn't be read (Layer 6 round 8 on ba4095d)
+        want = self._as_path()
+        own = sorted(p for afi in sorted({_afi(x) for x in self.prefixes}) for p, paths in self._own_paths(afi).items()
+                     if any(asp == want for asp, _inj in paths))
+        if own:
+            raise LabError(f"inject_routes on {self.node}: it already originates {', '.join(own[:5])} itself (a "
+                           "redistributed, aggregated or network route) with the AS path the injected routes would "
+                           "carry; inject prefixes it doesn't originate, or give the injection an as_path")
         self.peers_before = self.established()   # read before anything changes: what can't be read stops here
         self.sessions_before = self.sessions()
         self.applied = True
@@ -327,10 +369,11 @@ class RouteInjection:
             self.quiet = {peer: missing for peer, missing in sorted(quiet.items()) if missing}
             self.unsent = unsent
             self.left = not self.quiet and not self.unsent
-        except (LabError, ValueError, SnapshotError):
+        except Exception:   # whatever went wrong reading, the routes are not shown to have left
             self.left = None
-        self._apply_config(config_lines(self.asn, self.prefixes, self.as_path, remove=True))
-        self._wait(want_present=False)
+        finally:   # and whatever went wrong, the injected config comes out (Layer 6 round 8 on ba4095d)
+            self._apply_config(config_lines(self.asn, self.prefixes, self.as_path, remove=True))
+            self._wait(want_present=False)
 
     def describe(self) -> str:
         return f"{len(self.prefixes)} route(s) on {self.node}"

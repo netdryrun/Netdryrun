@@ -232,3 +232,13 @@
   tests:
     - tests/test_inject_sent_counts.py
     - tests/test_verdict_runner.py
+- id: layer6-review-8-0.4.1
+  what: Round 8 of the Layer 6 review on the 0.4.1 candidate (ba4095d), no blocker - an add-path peer's listing
+    could show the injected path with a TX id though it was denied to that peer; several local paths for an injected
+    prefix made inject_routes error; a prefix the node already originated read as injected before the config went
+    in; a bare path-list destination crashed the delivery read and left the config in; held results were lost when
+    restore failed
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 8)
+  tests:
+    - tests/test_inject_sent_counts.py
+    - tests/test_verdict_runner.py

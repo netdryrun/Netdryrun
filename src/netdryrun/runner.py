@@ -1082,7 +1082,11 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
             except LabError as e:
                 not_restored.append(str(e))
         if not_restored:
-            # A link left down or a route left injected would corrupt every later result: stop the run instead
+            # A link left down or a route left injected would corrupt every later result: stop the run instead. The
+            # results held for the delivery verdict are shown first, judged as never-left ones would be (round 8)
+            if held and show:
+                for r in _never_left(injected, results, log):
+                    show(r)
             raise LabError("could not restore after scenario: " + "; ".join(not_restored))
         applied = sum(inj.applied for inj in injected)
         if downed or applied:

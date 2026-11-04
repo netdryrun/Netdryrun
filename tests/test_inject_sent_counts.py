@@ -396,10 +396,35 @@ def test_an_advertised_path_with_another_as_path_did_not_carry_the_injection():
     assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})   # sent without the prepend: not the injected path
 
 
-def test_with_add_path_any_path_sent_can_be_the_injected_one():
+def test_an_add_path_peer_proves_nothing_and_is_quiet():
+    """Round 8 on ba4095d (F1): with add-path the listing shows the node's paths with per-family TX ids, a path denied
+    to this peer included, so the injected path listed with an id doesn't prove this peer got it."""
     both = listing({R1: [_path(_LEARNED, R1, addpathTxId=1), _path(_INJECTED, R1, addpathTxId=2)]})
     inj = r1({"10.0.12.2": both, "10.0.13.2": adv(R1)})
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
+
+
+def test_a_destination_listed_as_a_bare_path_list_is_read():
+    """Round 8 (F4): FRR may list a destination as its paths alone; advertised() crashed on it with a TypeError."""
+    bare = json.loads(adv(R1))
+    bare["advertisedRoutes"][R1] = bare["advertisedRoutes"][R1]["paths"]
+    inj = r1({"10.0.12.2": json.dumps(bare), "10.0.13.2": adv(R1)})
     assert (inj.left, inj.quiet) == (True, {})
+
+
+def test_restore_removes_the_injected_config_whatever_goes_wrong_reading():
+    """Round 8 (F4): an unexpected error while reading the delivery left the injected config in the lab."""
+    class Boom(InjectLab):
+        def exec(self, node, cmd, timeout=60, input=None):
+            if cmd[-1].endswith(" advertised-routes detail json"):
+                raise TypeError("unexpected shape")
+            return super().exec(node, cmd, timeout, input)
+    lab = Boom([live("before"), live("after")])
+    inj = applied(lab, "r1", [R1])
+    removed = []
+    inj._apply_config = removed.append
+    inj.restore()
+    assert inj.left is None and removed and any(ln.startswith("  no network 100.64.0.0/24") for ln in removed[0])
 
 
 def test_without_add_path_only_the_best_path_is_sent():
@@ -440,3 +465,45 @@ def test_the_injection_waits_for_its_own_path_not_a_learned_one_for_the_prefix()
     assert inj._missing(want_present=True) == [R1]
     inj = RouteInjection(TableLab(_table(injected=(R1,))), "r1", [R1], [])
     assert inj._missing(want_present=True) == [] and inj._missing(want_present=False) == [R1]
+
+
+def _with_redistributed(text: str, prefix: str) -> str:
+    """The table with one more local path for `prefix`: a redistributed route (sourced, not local, origin incomplete,
+    empty AS path), as a `redistribute static|connected|kernel` puts beside a network route."""
+    doc = json.loads(text)
+    routes = doc["default"]["routes"]
+    redis = copy.deepcopy(json.loads(fixture("bgp_v4_detail.txt"))["default"]["routes"]["192.0.2.0/24"][0])
+    redis.pop("local", None)
+    redis.pop("bestpath", None)
+    redis["origin"] = "incomplete"
+    routes.setdefault(prefix, []).append(redis)
+    doc["default"].update(totalRoutes=len(routes), totalPaths=sum(len(v) for v in routes.values()))
+    return json.dumps(doc)
+
+
+def test_other_local_paths_for_the_prefix_are_read_not_refused():
+    """Round 8 (F2): `redistribute static` puts the injection's own blackhole static beside its network route: two
+    local paths, which the table reader refused, so inject_routes errored on a common config."""
+    inj = RouteInjection(TableLab(_with_redistributed(_table(injected=(R1,)), R1)), "r1", [R1], [])
+    assert inj._missing(want_present=True) == []
+
+
+class ApplyLab(TableLab):
+    def exec(self, node, cmd, timeout=60, input=None):
+        if cmd[-1] == "show running-config":
+            return ExecResult(cmd, 0, "router bgp 65001\n", "")
+        return super().exec(node, cmd, timeout, input)
+
+
+def test_a_prefix_the_node_already_originates_with_the_same_as_path_is_refused():
+    """Round 8 (F3): a redistributed connected route for the prefix (empty AS path) read as the injected path before
+    the config went in, and restore then waited for it to go and timed out. Refused, with what to do instead."""
+    lab = ApplyLab(_with_redistributed(_table(), R1))
+    with pytest.raises(LabError, match="already originates 100.64.0.0/24 itself"):
+        RouteInjection(lab, "r1", [R1], []).apply()
+    assert RouteInjection(lab, "r1", [R1], [])._missing(want_present=True) == [R1]   # and it isn't the injected one
+
+
+def test_the_injection_s_as_path_tells_its_route_from_the_node_s_own():
+    inj = RouteInjection(ApplyLab(_with_redistributed(_table(), R1)), "r1", [R1], [65099])
+    assert [p for p, paths in inj._own_paths("ipv4").items() if any(a == inj._as_path() for a, _i in paths)] == []
