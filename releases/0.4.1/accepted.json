@@ -5819,6 +5819,97 @@
       "reason": "equivalent: on the brief listing (record only) a missing rt-entry-state gives ['XXXX'] instead of []; its callers only ask whether 'NotInstall' or 'Hidden' is among the words, false either way",
       "diff": "f3945fdb4b4162ca",
       "class": "equivalent"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁestablished__mutmut_13": {
+      "reason": "equivalent: data None or \"\" are both not a dict, and the next line raises the same LabError (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "6d93b619d65b647a",
+      "class": "equivalent",
+      "argument": "equivalent: data None or \"\" are both not a dict, and the next line raises the same LabError",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁadvertised__mutmut_25": {
+      "reason": "equivalent: parse_adj reads add_path_tx only as `not add_path_tx`; None and False both give True (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "7776ca4497009245",
+      "class": "equivalent",
+      "argument": "equivalent: parse_adj reads add_path_tx only as `not add_path_tx`; None and False both give True",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁadvertised__mutmut_44": {
+      "reason": "equivalent: parse_adj already canonicalised every key of the same listing; canon_prefix's where is only in its unreachable error (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "055b5cf4ac8fe849",
+      "class": "equivalent",
+      "argument": "equivalent: parse_adj already canonicalised every key of the same listing; canon_prefix's where is only in its unreachable error",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁadvertised__mutmut_46": {
+      "reason": "equivalent: parse_adj already canonicalised every key of the same listing; only the unreachable error's label changes (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "9ae32b47b16adb14",
+      "class": "equivalent",
+      "argument": "equivalent: parse_adj already canonicalised every key of the same listing; only the unreachable error's label changes",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁadvertised__mutmut_48": {
+      "reason": "equivalent: parse_adj made the same _dest_paths call on every destination and it returned; cmd is only in its errors (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "8c3034b469008d23",
+      "class": "equivalent",
+      "argument": "equivalent: parse_adj made the same _dest_paths call on every destination and it returned; cmd is only in its errors",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁadvertised__mutmut_51": {
+      "reason": "equivalent: where is only in _dest_paths' errors (the comparison uses prefix, unchanged); unreachable after parse_adj (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "b35b64257f7f75a4",
+      "class": "equivalent",
+      "argument": "equivalent: where is only in _dest_paths' errors (the comparison uses prefix, unchanged); unreachable after parse_adj",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁadvertised__mutmut_65": {
+      "reason": "equivalent: parse_adj called _best_sent on the same list under the same condition and it returned; cmd is only in its errors (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "77cf950928489e2f",
+      "class": "equivalent",
+      "argument": "equivalent: parse_adj called _best_sent on the same list under the same condition and it returned; cmd is only in its errors",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁadvertised__mutmut_66": {
+      "reason": "equivalent: prefix is only in _best_sent's error texts; unreachable after parse_adj (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "72134e749de250f1",
+      "class": "equivalent",
+      "argument": "equivalent: prefix is only in _best_sent's error texts; unreachable after parse_adj",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁrecord_listed__mutmut_22": {
+      "reason": "equivalent: cmd is only in parse_adj's error texts, and record_listed discards every error (a failed read counts as all prefixes) (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "948ca655b8b877f2",
+      "class": "equivalent",
+      "argument": "equivalent: cmd is only in parse_adj's error texts, and record_listed discards every error (a failed read counts as all prefixes)",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁrecord_listed__mutmut_25": {
+      "reason": "equivalent: parse_adj reads add_path_tx only as `not add_path_tx`; None and False both give True (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "d842b192f8bc1a76",
+      "class": "equivalent",
+      "argument": "equivalent: parse_adj reads add_path_tx only as `not add_path_tx`; None and False both give True",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁ_is_injected__mutmut_14": {
+      "reason": "equivalent: _is_injected's own parse_attrs call reads the sourced flag first, so this _flag call can't raise; cmd is only in its error (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "3f15a6867f8706d4",
+      "class": "equivalent",
+      "argument": "equivalent: _is_injected's own parse_attrs call reads the sourced flag first, so this _flag call can't raise; cmd is only in its error",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁ_is_injected__mutmut_17": {
+      "reason": "equivalent: _is_injected's own parse_attrs call reads the sourced flag first, so this _flag call can't raise; where is only in its error (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "944722c29d9d5806",
+      "class": "equivalent",
+      "argument": "equivalent: _is_injected's own parse_attrs call reads the sourced flag first, so this _flag call can't raise; where is only in its error",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.faults.xǁRouteInjectionǁsessions__mutmut_12": {
+      "reason": "equivalent: data None or \"\" are both not a dict, and the next line raises the same LabError (mutation on 50c034b, 0.4.1 strict; faults newly in the gate)",
+      "diff": "4eaa18e402b5f9b3",
+      "class": "equivalent",
+      "argument": "equivalent: data None or \"\" are both not a dict, and the next line raises the same LabError",
+      "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
     }
   },
   "checks": {

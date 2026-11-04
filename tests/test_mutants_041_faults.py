@@ -367,3 +367,49 @@ def test_a_listing_record_listed_cant_read_counts_as_having_every_prefix():
     """record_listed_22 is equivalent only because the read's error is discarded and every prefix counts as listed."""
     lab = InjectLab([live("before")], advertised_before={"10.0.12.2": "[]", "10.0.13.2": adv()})
     assert applied(lab, "r1", [R1]).listed_before == {"10.0.12.2": {R1}}
+
+
+# --- restore: the steady-session edges and the removal (mutation on 50c034b) ----------------------------------------
+
+P = "10.0.12.2"
+
+
+def _restored_at(monkeypatch, up_ms, since_s=60.0):
+    """One peer, never dropped, its session up for `up_ms` at restore; restore runs exactly `since_s` after apply."""
+    lab = InjectLab([summary({P: "Established"})] * 2, neighbors=[steady([P]), steady([P], up_ms=up_ms)],
+                    advertised={P: adv(R1)})
+    inj = applied(lab, "r1", [R1])
+    removed = []
+    inj._apply_config = removed.append
+    monkeypatch.setattr("netdryrun.faults.time.monotonic", lambda: inj.applied_at + since_s)
+    inj.restore()
+    return inj, removed
+
+
+def test_a_session_up_exactly_since_apply_less_bgpds_rounding_is_steady(monkeypatch):
+    """restore_9 (ms x 1001), _48 (- 1000), _50 (`>=` -> `>`): up 59 000 ms, 60 000 ms after apply, is the edge of
+    "up since the routes went in" with bgpd's whole seconds: steady, so the routes left."""
+    inj, _ = _restored_at(monkeypatch, 59000)
+    assert (inj.left, inj.quiet) == (True, {})
+
+
+def test_a_session_up_a_millisecond_less_than_that_reset_while_the_routes_were_in(monkeypatch):
+    """restore_49 (+ 1001): 58 999 ms is one millisecond short of the edge: quiet."""
+    inj, _ = _restored_at(monkeypatch, 58999)
+    assert (inj.left, inj.quiet) == (False, {P: [R1]})
+
+
+def test_an_injection_with_no_apply_time_never_left(monkeypatch):
+    """restore_6 (`or True`: monotonic() - None raised, so left read as unknown instead of not left)."""
+    lab = InjectLab([summary({P: "Established"})] * 2, advertised={P: adv(R1)})
+    inj = applied(lab, "r1", [R1])
+    inj.applied_at = None
+    inj._apply_config = lambda lines: None
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, {P: [R1]})
+
+
+def test_restore_removes_the_injection_under_the_nodes_bgp_instance(monkeypatch):
+    """restore_78 (the removal config's AS number)."""
+    _, removed = _restored_at(monkeypatch, 59000)
+    assert "router bgp 65001" in removed[0] and "  no network 100.64.0.0/24" in removed[0]
