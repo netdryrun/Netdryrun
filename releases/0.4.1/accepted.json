@@ -4920,8 +4920,8 @@
       "class": "equivalent"
     },
     "netdryrun.verify.run.x_unobserved_reasons__mutmut_10": {
-      "reason": "equivalent: `drv` is only tested for truth and compared with 'frr'; None and '' are both falsy",
-      "diff": "616be757ef294ab8",
+      "reason": "equivalent: `drv` is only tested for truth and compared with 'frr'; None and '' are both falsy; re-keyed on 7446aaf: the same mutation on moved code (2026-11-04)",
+      "diff": "4db71a51f3330e49",
       "class": "equivalent"
     },
     "netdryrun.drivers.junos.x__next_hop__mutmut_24": {
@@ -5710,8 +5710,8 @@
       "class": "message-text"
     },
     "netdryrun.drivers.eos.x__bgp_entries__mutmut_54": {
-      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
-      "diff": "d606d95f30122211",
+      "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a); re-keyed on 7446aaf: the same mutation on moved code (2026-11-04)",
+      "diff": "8c08923833e5bc9c",
       "class": "message-text"
     },
     "netdryrun.drivers.srlinux.x__protocol__mutmut_10": {
@@ -5809,6 +5809,16 @@
       "class": "equivalent",
       "argument": "Same behaviour on every input the function can receive: after this line on_result is only passed to _reach_then_hold and _with_warnings, which test `if on_result:`, and tested with `if on_result:` before the blocked results; nothing compares it with None, and the caller's callback is kept in `show`. So the verdict can't change.",
       "reviewed": "coordinator (ndr - main), 2026-11-04: checked independently on b88adef and agreed (equivalent; on_result used only at runner.py:1050, 1064, 1068, each a truth test)"
+    },
+    "netdryrun.drivers.junos.x__state__mutmut_6": {
+      "reason": "equivalent: _leaf only tests `required` for truth; None and False are both false",
+      "diff": "6fe70cc365f5cbf9",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.x__state__mutmut_14": {
+      "reason": "equivalent: on the brief listing (record only) a missing rt-entry-state gives ['XXXX'] instead of []; its callers only ask whether 'NotInstall' or 'Hidden' is among the words, false either way",
+      "diff": "f3945fdb4b4162ca",
+      "class": "equivalent"
     }
   },
   "checks": {
