@@ -8,6 +8,8 @@ version = "0.4.1"
 description = "Validate BGP and routing changes in a real containerlab lab: pass/fail verdict with evidence. Finds the route leaks that ping and 'BGP up' checks miss. CLI, GitHub Action and MCP server."
 readme = "README.md"
 license = "Apache-2.0"
+# NOTICE (Apache-2.0 section 4(d)) ships in the wheel and the sdist; the release gate checks both
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.10"
 authors = [{ name = "Netdryrun" }]
 keywords = [

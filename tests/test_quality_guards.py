@@ -199,3 +199,48 @@ def test_run_py_expect_names_the_first_verdict_that_differs():
                                                  "netdryrun": {"verdict": "error"}}}}
     assert run_py.expect_mismatch(row, committed, set()) == "EXPECT MISMATCH 01-no-change netdryrun: committed error, now safe"
     assert run_py.expect_mismatch(row, committed, {"01-no-change"}) is None   # nondeterministic: never a stop
+
+
+# --- NOTICE in the wheel and the sdist (Apache-2.0 section 4(d)) ----------------------------------------------------
+
+def test_the_notice_names_the_holder_and_the_trademark():
+    assert (ROOT / "NOTICE").read_text(encoding="utf-8") == (
+        "Netdryrun\nCopyright 2026 Victor Khen and Netdryrun contributors\n"
+        "\"Netdryrun\" is a trademark; see TRADEMARKS.md.\n")
+
+
+def test_the_package_lists_notice_as_a_license_file():
+    # Python 3.10 has no tomllib: the one line, read as written
+    assert 'license-files = ["LICENSE", "NOTICE"]' in (ROOT / "pyproject.toml").read_text(encoding="utf-8").splitlines()
+
+
+def _dist(tmp_path, wheel_notice, sdist_notice):
+    import io
+    import tarfile
+    import zipfile
+    with zipfile.ZipFile(tmp_path / "netdryrun-0.0.0-py3-none-any.whl", "w") as z:
+        z.writestr("netdryrun/__init__.py", "")
+        if wheel_notice is not None:
+            z.writestr("netdryrun-0.0.0.dist-info/licenses/NOTICE", wheel_notice)
+    with tarfile.open(tmp_path / "netdryrun-0.0.0.tar.gz", "w:gz") as t:
+        for name, data in (("netdryrun-0.0.0/pyproject.toml", ""), ("netdryrun-0.0.0/NOTICE", sdist_notice)):
+            if data is None:
+                continue
+            info = tarfile.TarInfo(name)
+            info.size = len(data.encode())
+            t.addfile(info, io.BytesIO(data.encode()))
+    return tmp_path
+
+
+def test_a_wheel_and_sdist_with_the_notice_pass(tmp_path):
+    assert gate.notice_problems(_dist(tmp_path, gate.NOTICE_TEXT, gate.NOTICE_TEXT)) == []
+
+
+def test_a_wheel_without_the_notice_or_with_another_one_fails(tmp_path):
+    assert gate.notice_problems(_dist(tmp_path, None, gate.NOTICE_TEXT)) == [
+        "netdryrun-0.0.0-py3-none-any.whl: no .dist-info/licenses/NOTICE"]
+
+
+def test_an_sdist_with_a_different_notice_fails(tmp_path):
+    assert gate.notice_problems(_dist(tmp_path, gate.NOTICE_TEXT, "Someone else\n")) == [
+        "netdryrun-0.0.0.tar.gz: NOTICE differs from the repository's"]

@@ -1174,16 +1174,52 @@ def layer_acceptance(args) -> Layer:
     return layer
 
 
+NOTICE_TEXT = (ROOT / "NOTICE").read_text(encoding="utf-8") if (ROOT / "NOTICE").exists() else ""
+
+
+def notice_problems(dist: Path) -> list[str]:
+    """Apache-2.0 section 4(d): the wheel (in .dist-info/licenses/) and the sdist (at its root) each carry the
+    repository's NOTICE, byte for byte."""
+    import tarfile
+    import zipfile
+    problems = []
+    for whl in sorted(dist.glob("netdryrun-*.whl")) or [None]:
+        if whl is None:
+            problems.append("no wheel built")
+            continue
+        with zipfile.ZipFile(whl) as z:
+            names = [n for n in z.namelist() if n.endswith(".dist-info/licenses/NOTICE")]
+            if not names:
+                problems.append(f"{whl.name}: no .dist-info/licenses/NOTICE")
+            elif z.read(names[0]).decode("utf-8") != NOTICE_TEXT:
+                problems.append(f"{whl.name}: NOTICE differs from the repository's")
+    for sdist in sorted(dist.glob("netdryrun-*.tar.gz")) or [None]:
+        if sdist is None:
+            problems.append("no sdist built")
+            continue
+        with tarfile.open(sdist) as t:
+            names = [m for m in t.getmembers() if m.name.count("/") == 1 and m.name.endswith("/NOTICE")]
+            if not names:
+                problems.append(f"{sdist.name}: no NOTICE at its root")
+            elif t.extractfile(names[0]).read().decode("utf-8") != NOTICE_TEXT:
+                problems.append(f"{sdist.name}: NOTICE differs from the repository's")
+    return problems
+
+
 def live_install(live: Live, args) -> bool:
-    """Build the wheel and install it in a fresh venv: everything else runs that, not the source tree."""
+    """Build the wheel and the sdist and install the wheel in a fresh venv: everything else runs that, not the source
+    tree."""
     layer, uv = live.layer, shutil.which("uv")
     dist = live.work / "dist"
-    cmd = [uv, "build", "--wheel", "--out-dir", dist] if uv else [sys.executable, "-m", "build", "--wheel", "--outdir", dist]
+    cmd = [uv, "build", "--out-dir", dist] if uv else [sys.executable, "-m", "build", "--outdir", dist]
     p = run(cmd, timeout=900)
     wheels = sorted(dist.glob("netdryrun-*.whl"))
-    layer.add_proc("build", "build the wheel", BLOCKER, cmd, p, wheels[0].name if wheels else "")
+    layer.add_proc("build", "build the wheel and the sdist", BLOCKER, cmd, p, wheels[0].name if wheels else "")
     if not wheels:
         return False
+    notice = notice_problems(dist)
+    layer.add("notice", "the wheel and the sdist carry NOTICE (Apache-2.0 section 4(d))", BLOCKER, not notice,
+              "; ".join(notice) or "both carry it")
     p = make_venv(COVERAGE_PYTHON, uv, live.venv)
     if p.code == 0:
         p = pip_install(uv, live.venv, str(wheels[0]))
