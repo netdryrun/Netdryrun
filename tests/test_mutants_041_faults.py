@@ -337,3 +337,33 @@ def test_six_prefixes_the_node_already_originates_name_the_first_five():
         "inject_routes on r1: it already originates 100.64.0.0/24, 100.64.1.0/24, 100.64.2.0/24, 100.64.3.0/24, "
         "100.64.4.0/24 itself (a redistributed, aggregated or network route) with the AS path the injected routes "
         "would carry; inject prefixes it doesn't originate, or give the injection an as_path")
+
+
+# --- pins for the equivalent mutants (an adversarial review confirmed the 15; these keep them equivalent) -----------
+
+def test_advertised_validates_the_whole_listing_before_its_own_loop():
+    """advertised_44, _46, _48, _51, _65, _66 are equivalent only because parse_adj reads the same listing first. A
+    vtysh warning is something only parse_adj rejects: with parse_adj gone or moved after the loop, this would be a
+    KeyError instead."""
+    inj = applied(InjectLab([live("before"), live("after")],
+                            advertised={"10.0.12.2": json.dumps({"warning": "Unknown command"})}), "r1", [R1])
+    with pytest.raises(SnapshotError) as e:
+        inj.advertised("ipv4", "10.0.12.2")
+    assert str(e.value) == _msg(ADJ, "vtysh warning: Unknown command")
+
+
+def test_is_injected_parses_the_path_before_reading_its_flags():
+    """_is_injected_2, _4, _14, _17 are equivalent only because parse_attrs reads the path, and its `sourced` flag,
+    first: a non-boolean `sourced` is reported with the real command and path."""
+    p = copy.deepcopy(_INJECTED)
+    p["sourced"] = "yes"
+    inj = RouteInjection(InjectLab([]), "r1", [R1], [])
+    with pytest.raises(SnapshotError) as e:
+        inj._is_injected(ADJ, p, f"{R1} path 0")
+    assert str(e.value) == _msg(ADJ, f"{R1} path 0.sourced: not a boolean: 'yes'")
+
+
+def test_a_listing_record_listed_cant_read_counts_as_having_every_prefix():
+    """record_listed_22 is equivalent only because the read's error is discarded and every prefix counts as listed."""
+    lab = InjectLab([live("before")], advertised_before={"10.0.12.2": "[]", "10.0.13.2": adv()})
+    assert applied(lab, "r1", [R1]).listed_before == {"10.0.12.2": {R1}}
