@@ -166,12 +166,35 @@ def _git_commit() -> str:
     return (r.stdout.strip() or "unknown") + ("+dirty" if dirty.stdout.strip() else "")
 
 
+def _verdict_tree() -> str:
+    """The release gate's verdict_tree (scripts/release_gate.py): one definition, loaded from there."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ndr_release_gate", HERE.parent / "scripts" / "release_gate.py")
+    gate = importlib.util.module_from_spec(spec)
+    sys.modules["ndr_release_gate"] = gate
+    spec.loader.exec_module(gate)
+    return gate.verdict_tree(HERE.parent)
+
+
+def expect_mismatch(row: dict, expected: dict, nondet: set[str]) -> str | None:
+    """--expect: the first strategy whose verdict differs from the committed results for this case, or None."""
+    if row["id"] in nondet or row["id"] not in expected:
+        return None
+    for s in STRATEGIES:
+        a = expected[row["id"]]["strategies"][s]["verdict"]
+        b = row["strategies"][s]["verdict"]
+        if a != b:
+            return f"EXPECT MISMATCH {row['id']} {s}: committed {a}, now {b}"
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--case", help="only run cases whose id starts with this")
     ap.add_argument("--keep", action="store_true", help="leave each lab running (debugging; use with --case)")
     ap.add_argument("--corpus", choices=sorted(CORPORA), default="v1", help="which corpus to run (default v1)")
     ap.add_argument("--workdir", help="where case labs are built (default ~/.cache/netdryrun/corpus[-v2])")
+    ap.add_argument("--expect", help="committed results.json: stop at the first verdict that differs (exit 3)")
     args = ap.parse_args()
     corpus = CORPORA[args.corpus]
     cases = load_cases(args.case, corpus)
@@ -184,6 +207,7 @@ def main() -> int:
         "netdryrun": __version__, "containerlab": clab.version(),
         "frr_image": next(iter(clab.nodes.values())).image, "host": platform.platform(),
         "commit": _git_commit(),
+        "verdict_tree": _verdict_tree(),   # the release gate's G3: which verdict code these results came from
     }
     if args.corpus != "v1":
         env["corpus"] = args.corpus
@@ -204,6 +228,11 @@ def main() -> int:
             print(f"   CASE ERROR: {e}", flush=True)
             return 2
         rows.append(row)
+        if args.expect:
+            miss = expect_mismatch(row, {c["id"]: c for c in json.loads(Path(args.expect).read_text(encoding="utf-8"))["cases"]}, nd)
+            if miss:
+                print(miss, flush=True)
+                return 3
         print("   " + "  ".join(f"{s}={row['strategies'][s]['verdict']}" for s in STRATEGIES)
               + f"  ({row['seconds']}s)" + (f"  nondeterministic, runs: {row['runs']}" if row.get("runs") else ""),
               flush=True)

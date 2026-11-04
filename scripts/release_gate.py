@@ -135,6 +135,105 @@ COVERAGE_FLOORS = {"checks": 99, "config": 99, "runner": 98, "drivers": 99, "ver
                    # faults joined in 0.4.1 at 92.9% (lines and branches, 2026-11-04), rounded down, minus one
                    "faults": 91}
 
+# G1 mutation closure (QUALITY-SYSTEM rule 10, class E7; found 2026-11-04: faults.py decided whether a scenario's passes
+# stand and was never mutated). Every module under src/netdryrun/ is in VERDICT_MODULES or here, with the reason it
+# is not mutated. "KNOWN GAP" marks a module a verdict passes through that should join the mutation set (0.4.2).
+MUTATION_EXEMPT = {
+    "src/netdryrun/__init__.py": "the version string only",
+    "src/netdryrun/__main__.py": "the entry point only (calls cli.main)",
+    "src/netdryrun/agent_result.py": "KNOWN GAP (0.4.2): maps a decided RunReport to the agent result; the status and "
+                                     "exit code come from runner.RunReport, which is mutated, the mapping is not",
+    "src/netdryrun/cli.py": "KNOWN GAP (0.4.2): argument handling and the process exit; the code comes from "
+                            "runner.RunReport.exit_code (mutated)",
+    "src/netdryrun/comment.py": "renders the PR comment from a decided report; decides nothing",
+    "src/netdryrun/lab.py": "the containerlab and docker exec wrapper; reads no device output for a verdict (the "
+                            "rejected-config parse is drivers.frr, mutated)",
+    "src/netdryrun/mcp_server.py": "KNOWN GAP (0.4.2): MCP tool plumbing; verdicts come from runner and agent_result",
+    "src/netdryrun/record.py": "KNOWN GAP (0.4.2): writes baseline checks; its 0.4.0 default range was a shipped false "
+                               "pass (LESSONS, Releasing 0), now pinned by tests, but the module is not mutated",
+    "src/netdryrun/report.py": "renders a decided report (console, JSON, Markdown, JUnit); decides nothing",
+    "src/netdryrun/capture/__init__.py": "the contributor capture kit, never part of a run's verdict",
+    "src/netdryrun/capture/bundle.py": "the contributor capture kit, never part of a run's verdict",
+    "src/netdryrun/capture/collect.py": "the contributor capture kit, never part of a run's verdict",
+    "src/netdryrun/capture/guard.py": "the contributor capture kit, never part of a run's verdict",
+    "src/netdryrun/capture/sanitize.py": "the contributor capture kit, never part of a run's verdict",
+    "src/netdryrun/verify/__init__.py": "a docstring only",
+}
+
+
+def mutation_closure(root: Path | None = None, verdict_modules: dict | None = None,
+                     exempt: dict | None = None) -> list[str]:
+    """G1: problems with the mutation set's closure: a module under src/netdryrun/ neither mutated nor exempt, an
+    exemption without a reason or naming no file, and a module both mutated and exempt."""
+    root = root or ROOT
+    verdict_modules = VERDICT_MODULES if verdict_modules is None else verdict_modules
+    exempt = MUTATION_EXEMPT if exempt is None else exempt
+    files = sorted(str(f.relative_to(root)).replace("\\", "/") for f in (root / "src" / "netdryrun").rglob("*.py")
+                   if "__pycache__" not in f.parts)
+
+    def mutated(f: str) -> bool:
+        return any(f == path or (path.endswith("/") and f.startswith(path)) for path in verdict_modules.values())
+    problems = [f"{f}: neither mutated (VERDICT_MODULES) nor exempt (MUTATION_EXEMPT, with a reason)"
+                for f in files if not mutated(f) and f not in exempt]
+    problems += [f"{f}: exempt but also mutated" for f in files if mutated(f) and f in exempt]
+    problems += [f"{f}: exempt, but no such file" for f in exempt if f not in files]
+    problems += [f"{f}: exempt without a reason" for f, why in exempt.items() if not (isinstance(why, str) and why.strip())]
+    return problems
+
+
+def harness_problem() -> str | None:
+    """G2 harness preflight (class E9; 2026-11-04, twice: a launcher's `&` left SIGINT ignored, and the SIGINT checks
+    and a unit test failed on the harness, not the product). None when SIGINT and SIGQUIT are at their defaults."""
+    ignored = [name for name in ("SIGINT", "SIGQUIT") if hasattr(signal, name)
+               and signal.getsignal(getattr(signal, name)) == signal.SIG_IGN]
+    if not ignored:
+        return None
+    return (f"{' and '.join(ignored)} {'is' if len(ignored) == 1 else 'are'} ignored in this process (a background job "
+            "of a non-interactive shell inherits that), so the interrupt checks would test the launcher, not "
+            "Netdryrun. Run the gate in the foreground, or reset them first: python3 -c \"import os,signal,sys; "
+            "signal.signal(signal.SIGINT, signal.SIG_DFL); signal.signal(signal.SIGQUIT, signal.SIG_DFL); "
+            "os.execvp(sys.argv[1], sys.argv[1:])\" python3 scripts/release_gate.py ...")
+
+
+# G3 reference freshness (class E8; found 2026-11-04: corpus v2's committed results predated ten rounds of verdict
+# changes, and the drift showed only three hours into the live run). corpus/run.py records the verdict_tree it ran on.
+CORPORA = {"v1": "corpus/results/results.json", "v2": "corpus/v2/results/results.json"}
+
+
+def verdict_tree(root: Path | None = None, verdict_modules: dict | None = None) -> str:
+    """sha256 of the verdict modules' sources (every VERDICT_MODULES file; a directory: its .py files), path and
+    content, line endings normalised: the verdict code a corpus result was produced by."""
+    root = root or ROOT
+    verdict_modules = VERDICT_MODULES if verdict_modules is None else verdict_modules
+    files = set()
+    for path in verdict_modules.values():
+        target = root / path
+        files |= ({f for f in target.rglob("*.py") if "__pycache__" not in f.parts} if path.endswith("/") else {target})
+    h = hashlib.sha256()
+    for f in sorted(files, key=lambda x: x.relative_to(root).as_posix()):
+        h.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return h.hexdigest()
+
+
+def stale_corpora(root: Path | None = None) -> dict[str, str]:
+    """version -> why its committed results.json is stale for this verdict code (empty: every corpus is fresh)."""
+    root = root or ROOT
+    tree, out = verdict_tree(root), {}
+    for version, path in CORPORA.items():
+        try:
+            recorded = json.loads((root / path).read_text(encoding="utf-8"))["environment"].get("verdict_tree")
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            out[version] = f"{path} unreadable ({e})"
+            continue
+        if recorded != tree:
+            since = git("log", "-1", "--format=%h", "--", path)
+            changed = git("diff", "--name-only", since, "HEAD", "--", *VERDICT_MODULES.values()) if since else None
+            mods = ", ".join(changed.split()[:8]) if changed else "unknown"
+            out[version] = (f"{path} ran on verdict code {str(recorded)[:12] if recorded else 'unrecorded'}, this is "
+                            f"{tree[:12]}; verdict modules changed since its last commit ({since or '?'}): {mods}")
+    return out
+
+
 # Files that are evidence of past runs, and advisories about past versions (which name those versions on
 # purpose; tests/test_advisory_fixtures.py keeps their fixtures honest): never rewritten, so never linted or
 # version-checked.
@@ -369,6 +468,12 @@ def example_dirs() -> list[str]:
 
 def layer_static(args) -> Layer:
     layer = Layer("static", args)
+    closure = mutation_closure()
+    layer.add("mutation-closure", "every src/netdryrun module is mutated or exempt with a reason (G1)", BLOCKER,
+              not closure, "; ".join(closure) or f"{len(VERDICT_MODULES)} mutated, {len(MUTATION_EXEMPT)} exempt")
+    stale = stale_corpora()
+    layer.add("corpus-fresh", "the committed corpus results ran on this verdict code (G3; stale ones run first in live)",
+              MAJOR, not stale, "; ".join(f"{v}: {why}" for v, why in stale.items()) or "every corpus is fresh")
 
     # ruff: the dev extra pins it, so prefer the running Python's copy over one on PATH
     ruff = [sys.executable, "-m", "ruff"] if run([sys.executable, "-m", "ruff", "--version"]).code == 0 else ["ruff"]
@@ -535,6 +640,10 @@ def candidate_checks(layer: Layer, version: str) -> None:
     pending = [ln for ln in (m.group(1) if m else "").splitlines() if ln.strip().startswith(("-", "*"))]
     layer.add("changelog-cut", f"CHANGELOG has no Unreleased entries left (all under {version})", BLOCKER,
               not pending, f"{len(pending)} entries still under Unreleased" if pending else "cut")
+    stale = stale_corpora()
+    for v in CORPORA:
+        layer.add(f"corpus-{v}-tagged-fresh", f"corpus {v}: the committed results ran on this verdict code (G3)",
+                  BLOCKER, v not in stale, stale.get(v, "fresh"))
     tags = git("tag", "-l", f"v{version}")
     layer.add("tag-unused", f"tag v{version} does not exist yet", BLOCKER,
               None if tags is None else not tags, "git unavailable" if tags is None else ("exists" if tags else "unused"))
@@ -559,6 +668,10 @@ def http_status(url: str) -> int | None:
 
 def layer_unit(args) -> Layer:
     layer = Layer("unit", args)
+    harness = harness_problem()
+    if harness:
+        layer.add("harness", "the gate runs with SIGINT and SIGQUIT at their defaults (G2)", BLOCKER, False, harness)
+        return layer
     uv = shutil.which("uv")
     if uv:
         layer.tool("uv", ["uv", "--version"])
@@ -976,6 +1089,10 @@ class Live:
 
 def layer_live(args) -> Layer:
     layer = Layer("live", args)
+    harness = harness_problem()
+    if harness:
+        layer.add("harness", "the gate runs with SIGINT and SIGQUIT at their defaults (G2)", BLOCKER, False, harness)
+        return layer
     for tool, cmd in (("containerlab", ["containerlab", "version"]),
                       ("docker", ["docker", "version", "--format", "{{.Server.Version}}"])):
         if not layer.tool(tool, cmd):
@@ -994,8 +1111,15 @@ def layer_live(args) -> Layer:
     try:
         if not live_install(live, args):
             return layer
+        stale = sorted(stale_corpora()) if not args.skip_corpus else []
+        if stale:   # G3: a drift shows in minutes, not after the examples; stop at the first verdict that differs
+            if not live_corpora(live, args, only=stale, fail_fast=True):
+                layer.add("live-stopped", "the rest of the live layer", BLOCKER, False,
+                          f"not run: a stale corpus ({', '.join(stale)}) gave a verdict that differs from its committed "
+                          "results; review the flip, refresh the results, then rerun")
+                return layer
         live_examples(live, args)
-        live_corpora(live, args)
+        live_corpora(live, args, skip=stale)
         cmd = [live.python, ROOT / "scripts" / "mcp_handshake.py", live.ndr, "mcp"]
         layer.add_proc("mcp-handshake", "MCP handshake against the installed wheel", BLOCKER, cmd, run(cmd, timeout=300))
         if args.pack:
@@ -1192,18 +1316,26 @@ def harmful_approved_check(published: list[dict], rerun: list[dict], skip=()) ->
     return not new, summary
 
 
-def live_corpora(live: Live, args) -> None:
-    """Rerun both Verdict Corpus versions from a scratch copy; every verdict must match results.json."""
+def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) -> bool:
+    """Rerun the Verdict Corpus versions (`only`, or all but `skip`) from a scratch copy; every verdict must match
+    results.json. With fail_fast (G3, a stale corpus run first), run.py stops at the first verdict that differs. False
+    when a corpus gave a verdict that differs, or didn't finish."""
     layer = live.layer
     if args.skip_corpus:
         layer.add("corpus", "Verdict Corpus reruns", BLOCKER, None, "skipped with --skip-corpus")
-        return
+        return True
     copy = live.work / "corpus"
-    shutil.copytree(ROOT / "corpus", copy)   # run.py writes its results beside itself: never into the repo
+    if not copy.exists():
+        shutil.copytree(ROOT / "corpus", copy)   # run.py writes its results beside itself: never into the repo
+    ok_all = True
     for version, sub in (("v1", ""), ("v2", "v2")):
-        cmd = [live.python, copy / "run.py", "--corpus", version, "--workdir", live.work / f"corpus-{version}"]
-        p = run(cmd, cwd=live.work, timeout=4 * 3600)
+        if (only is not None and version not in only) or version in skip:
+            continue
         committed = ROOT / "corpus" / sub / "results" / "results.json"
+        cmd = [live.python, copy / "run.py", "--corpus", version, "--workdir", live.work / f"corpus-{version}"]
+        if fail_fast:
+            cmd += ["--expect", committed]
+        p = run(cmd, cwd=live.work, timeout=4 * 3600)
         fresh = copy / sub / "results" / "results.json"
         diffs = []
         nd = nondeterministic_cases(ROOT / "corpus" / sub)
@@ -1218,6 +1350,9 @@ def live_corpora(live: Live, args) -> None:
                     b = new.get(cid, {}).get("strategies", {}).get(s, {}).get("verdict")
                     if a != b:
                         diffs.append(f"{cid} {s}: committed {a}, now {b}")
+        ok_all = ok_all and p.code == 0 and not diffs
+        if p.code == 3 and fail_fast:   # run.py --expect: stopped at the first verdict that differs
+            diffs = [ln.strip() for ln in p.out.splitlines() if ln.strip().startswith("EXPECT MISMATCH")] or diffs
         layer.add(f"corpus-{version}", f"Verdict Corpus {version}: every verdict matches the committed results.json",
                   BLOCKER, p.code == 0 and not diffs,
                   f"exit {p.code}" if p.code else (f"{len(diffs)} verdict(s) differ" if diffs else "all verdicts match"),
@@ -1244,6 +1379,7 @@ def live_corpora(live: Live, args) -> None:
                       f"Verdict Corpus {version}: no harmful change approved beyond the published known misses",
                       BLOCKER, ok, summary)
         live.assert_clean(f"corpus-{version}", f"Verdict Corpus {version}")
+    return ok_all
 
 
 def live_chaos(live: Live, args) -> None:
@@ -1830,7 +1966,9 @@ def code_differs(shas: dict[str, str | None]) -> str | None:
         if changed is None:
             return "the layers ran on different commits and git cannot compare them: " + ", ".join(
                 s[:7] for s in set(known.values()))
-        code = [f for f in changed.splitlines() if not f.startswith("releases/") and not prose_only(f)]
+        # a corpus results refresh after the live run (G3) is a record, like releases/: corpus/*/results/
+        code = [f for f in changed.splitlines() if not f.startswith("releases/") and not prose_only(f)
+                and not re.match(r"corpus/(v\d+/)?results/", f)]
         if code:
             return f"the layers ran on different code: {other[:7]} ({name}) and {ref[:7]} (static) differ in {', '.join(code[:5])}"
     return None
