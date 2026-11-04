@@ -226,7 +226,8 @@ def stale_corpora(root: Path | None = None) -> dict[str, str]:
         if recorded != tree:
             since = git("log", "-1", "--format=%h", "--", path)
             changed = git("diff", "--name-only", since, "HEAD", "--", *VERDICT_MODULES.values()) if since else None
-            mods = ", ".join(changed.split()[:8]) if changed else "unknown"
+            mods = ("unknown (git can't compare)" if changed is None else ", ".join(changed.split()[:8]) if changed
+                    else "none (results recorded before G3, no verdict_tree)")
             out[version] = (f"{path} ran on verdict code {str(recorded)[:12] if recorded else 'unrecorded'}, this is "
                             f"{tree[:12]}; verdict modules changed since its last commit ({since or '?'}): {mods}")
     return out
