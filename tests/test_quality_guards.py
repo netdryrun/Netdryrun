@@ -257,7 +257,7 @@ def _run_py_verdict_tree(corpus_dir: Path, env: dict | None = None):
     # run.py imports netdryrun; the pre-push suite finds it through a relative PYTHONPATH=src, so make it absolute
     full["PYTHONPATH"] = os.pathsep.join([str(ROOT / "src")] + [p for p in full.get("PYTHONPATH", "").split(os.pathsep) if p])
     p = subprocess.run([sys.executable, "-c", code, str(corpus_dir / "run.py")], capture_output=True, text=True,
-                       env=full, cwd=corpus_dir)
+                       env=full)   # the runner's cwd: run.py resolves from its own path, and mutmut finds its config here
     assert p.returncode == 0, p.stderr
     return eval(p.stdout.strip())
 
