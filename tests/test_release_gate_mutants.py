@@ -143,7 +143,9 @@ def test_the_published_known_misses_are_found_in_the_real_results():
     v2 = json.loads((root / "v2" / "results" / "results.json").read_text(encoding="utf-8"))["cases"]
     want_v1 = sorted(c["id"] for c in v1 if c["expected"] == "unsafe" and c["strategies"]["netdryrun"]["verdict"] == "safe")
     assert want_v1 and gate.harmful_approved(v1) == want_v1
-    assert gate.harmful_approved(v2) == ["04-redundant-aggregate-typo"]
+    # 04, v2's known miss, reads inconclusive since 0.4.1 (a prefix-limit reset proves nothing): no longer approved
+    assert gate.harmful_approved(v2) == []
+    assert next(c for c in v2 if c["id"].startswith("04-"))["strategies"]["netdryrun"]["verdict"] == "error"
     flipped = [dict(c, strategies={"netdryrun": {"verdict": "safe"}}) if c["id"].startswith("05-") else c for c in v2]
     ok, summary = gate.harmful_approved_check(v2, flipped)
     assert not ok and "05-" in summary

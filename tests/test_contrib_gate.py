@@ -188,7 +188,8 @@ def test_corpus_results_fail_on_any_changed_netdryrun_verdict():
     flipped = json.loads(json.dumps(data))
     for c in flipped["cases"]:
         v = c["strategies"]["netdryrun"]["verdict"]
-        c["strategies"]["netdryrun"]["verdict"] = {"unsafe": "safe", "safe": "unsafe"}.get(v, v)
+        # an inconclusive run (verdict "error", 8 v2 cases since 0.4.1) turning safe is a change too
+        c["strategies"]["netdryrun"]["verdict"] = {"unsafe": "safe", "safe": "unsafe", "error": "safe"}.get(v, v)
     new = committed.parent / "flipped.json"
     try:
         new.write_text(json.dumps(flipped), encoding="utf-8")
