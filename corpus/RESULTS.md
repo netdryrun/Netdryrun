@@ -6,7 +6,7 @@ Generated 2026-10-27T18:00:53+00:00 with netdryrun 0.3.1, containerlab 0.81.1, F
 
 ## Summary (30 cases: 19 harmful, 11 safe)
 
-| Strategy | Correct | Harmful changes caught | Approved a bad change | Blocked a good change | Errors |
+| Strategy | Correct | Harmful changes caught | Approved a bad change | Blocked a good change | Not proven (inconclusive or error) |
 |---|---|---|---|---|---|
 | Ping only | **20/30** | 9/19 | 10 | 0 | 0 |
 | All BGP sessions up | **15/30** | 4/19 | 15 | 0 | 0 |

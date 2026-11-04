@@ -20,7 +20,7 @@ CASE_DIR = HERE.parent / "website" / "docs" / "corpus"   # one page per case: we
 REPO = "https://github.com/netdryrun/Netdryrun"
 SPECS = {"ping": "baseline-ping.yml", "sessions": "baseline-sessions.yml", "netdryrun": "intent.yml"}
 LABELS = {"ping": "Ping only", "sessions": "All BGP sessions up", "netdryrun": "Netdryrun intent checks"}
-MARK = {"correct": "✅", "false pass": "❌ approved a bad change", "false block": "⚠️ blocked a good change", "error": "💥 error"}
+MARK = {"correct": "✅", "false pass": "❌ approved a bad change", "false block": "⚠️ blocked a good change", "error": "⏸ not proven"}
 
 # Post-run findings, appended without touching the pre-registered expected verdicts.
 AMENDMENTS = HERE / "AMENDMENTS.md"
@@ -72,7 +72,7 @@ def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, 
         (f"{h} Summary ({st['total']} deterministic cases: {st['unsafe']} harmful, {st['safe']} safe; "
          f"{len(nd)} nondeterministic, not scored)" if nd else
          f"{h} Summary ({st['total']} cases: {st['unsafe']} harmful, {st['safe']} safe)"), "",
-        "| Strategy | Correct | Harmful changes caught | Approved a bad change | Blocked a good change | Errors |",
+        "| Strategy | Correct | Harmful changes caught | Approved a bad change | Blocked a good change | Not proven (inconclusive or error) |",
         "|---|---|---|---|---|---|",
     ]
     for s, label in LABELS.items():
@@ -105,6 +105,8 @@ def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, 
         lines.append("None in this run.")
     for r in losses:
         oc = outcome(r["expected"], r["strategies"]["netdryrun"]["verdict"])
+        # an inconclusive run (or an error) proves nothing either way: it neither approved nor caught the change
+        oc = "not proven: inconclusive or error, so neither approved nor caught" if oc == "error" else oc
         lines.append(f"- **`{r['id']}` {r['title']}** ({oc}). {r.get('note') or r['rationale']}")
     if amendments.exists():
         lines += ["", f"{h} Findings after the run", "", amendments.read_text(encoding="utf-8").strip()]
