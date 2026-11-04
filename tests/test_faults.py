@@ -93,6 +93,8 @@ class FakeLab:
             return ExecResult(cmd, 0, json.dumps({"peers": {"10.0.0.2": {"pfxSnt": len(self.table) + 1, "state": "Established"}}}), "")
         if cmd[1:3] == ["-c", "show bgp neighbors json"]:
             return ExecResult(cmd, 0, json.dumps({"10.0.0.2": {"connectionsDropped": 0}}), "")
+        if cmd[1] == "-c" and cmd[2].endswith(" advertised-routes detail json"):   # no entry before the injection
+            return ExecResult(cmd, 0, "{}", "")
         if cmd[1:3] == ["-c", "show bgp vrf all ipv4 unicast detail json"]:
             return ExecResult(cmd, 0, _own_table(self.table, self.files), "")
         raise AssertionError(cmd)

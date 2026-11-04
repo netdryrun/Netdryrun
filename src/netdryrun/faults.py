@@ -128,6 +128,7 @@ class RouteInjection:
         self.sessions_before: dict[str, Session] = {}  # peer -> its session's drop count, kind and uptime then
         self.applied_at: float | None = None           # time.monotonic() when the routes went in
         self.late: set[str] = set()   # established peers not advertised every prefix before the checks ran
+        self.listed_before: dict[str, set[str]] = {}   # peer -> injected prefixes it already had an entry for
         # whether the routes left the node: True, False, or None when the advertised routes couldn't be read at restore
         self.left: bool | None = None
         self.quiet: dict[str, list[str]] = {}    # established peer -> the injected prefixes it was not sent (left False)
@@ -190,6 +191,26 @@ class RouteInjection:
             if any(self._is_injected(cmd, p, f"{prefix} path {i}") for i, p in enumerate(paths)):
                 out.add(prefix)
         return out
+
+    def record_listed(self) -> None:
+        """Before the config goes in: the injected prefixes each established peer already has an adj-rib-out entry
+        for. FRR's advertised-routes view shows the node's current table paths under an existing entry, so once the
+        injected path is in the table it reads as advertised to that peer before any UPDATE leaves; with a long
+        advertisement interval the checks run while the peer still holds the old path. Such a prefix is never read
+        as delivered to that peer (Layer 6 round 9 on 02a96a2), and a listing that can't be read counts as having
+        them all."""
+        self.listed_before = {}
+        for afi, peers in self.peers_before.items():
+            mine = {canon_prefix(p) for p in self.prefixes if _afi(p) == afi}
+            for peer in peers:
+                cmd = adj_command("default", afi, peer, "out")
+                try:
+                    had = {prefix for prefix, _pid in parse_adj(self._vtysh("-c", cmd), cmd, afi, "out",
+                                                               add_path_tx=False)} & mine
+                except (LabError, ValueError, SnapshotError):
+                    had = mine
+                if had:
+                    self.listed_before.setdefault(peer, set()).update(had)
 
     def _is_injected(self, cmd: str, p, where: str) -> bool:
         """The path is the injected route: originated by a network statement (`sourced` and `local`, as every live
@@ -258,7 +279,9 @@ class RouteInjection:
         missing one by then is late, and quiet at restore."""
         mrai = [s.mrai_ms / 1000 if s.mrai_ms is not None else 30.0 for s in self.sessions_before.values()]
         deadline = time.monotonic() + settle + 2 * max(mrai, default=30.0) + 2
-        pending = {(afi, peer) for afi, peers in self.peers_before.items() for peer in peers}
+        # a peer that already had an entry for an injected prefix can't show it delivered: no use waiting for it
+        pending = {(afi, peer) for afi, peers in self.peers_before.items() for peer in peers
+                   if not self.listed_before.get(peer)}
         while True:
             for afi, peer in sorted(pending):
                 try:
@@ -331,6 +354,7 @@ class RouteInjection:
                            "carry; inject prefixes it doesn't originate, or give the injection an as_path")
         self.peers_before = self.established()   # read before anything changes: what can't be read stops here
         self.sessions_before = self.sessions()
+        self.record_listed()
         self.applied = True
         self.applied_at = time.monotonic()
         self._apply_config(config_lines(self.asn, self.prefixes, self.as_path))
@@ -364,7 +388,7 @@ class RouteInjection:
                               and then is not None and s is not None and not then.dynamic and not s.dynamic
                               and s.dropped == then.dropped and since_ms is not None and s.up_ms is not None
                               and s.up_ms + 1000 >= since_ms)   # bgpd counts the uptime in whole seconds
-                    got = self.advertised(afi, peer) if steady else set()
+                    got = (self.advertised(afi, peer) if steady else set()) - self.listed_before.get(peer, set())
                     quiet.setdefault(peer, []).extend(p for p in mine if p not in got)
             self.quiet = {peer: missing for peer, missing in sorted(quiet.items()) if missing}
             self.unsent = unsent

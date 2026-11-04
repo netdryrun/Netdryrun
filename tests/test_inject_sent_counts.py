@@ -61,13 +61,14 @@ class InjectLab:
     """Answers the summary and neighbor commands with the next capture each, and each peer's advertised routes with
     its listing; every other command succeeds."""
 
-    def __init__(self, summaries, neighbors=None, advertised=None, summaries6=()):
+    def __init__(self, summaries, neighbors=None, advertised=None, summaries6=(), advertised_before=None):
         self.summaries, self.summaries6 = list(summaries), list(summaries6)
         # by default every peer's session is steady (never dropped) for the whole injection
         peers = sorted({p for t in [*self.summaries, *self.summaries6] for p in _peers(t)})
         self.neighbors = list(neighbors) if neighbors is not None else [steady(peers)] * 4
         self.advertised = advertised or {}
-        self.asked = []
+        self.advertised_before = advertised_before or {}   # each peer's listing before the config goes in
+        self.phase, self.asked = "after", []
 
     def exec(self, node, cmd, timeout=60, input=None):
         c = cmd[-1]
@@ -78,6 +79,8 @@ class InjectLab:
         if c == "show bgp neighbors json":
             return ExecResult(cmd, 0, self.neighbors.pop(0) if self.neighbors else "{}", "")
         if c.endswith(" advertised-routes detail json"):
+            if self.phase == "before":
+                return ExecResult(cmd, 0, self.advertised_before.get(c.split()[-4], "{}"), "")
             self.asked.append(c)
             return ExecResult(cmd, 0, self.advertised[c.split()[-4]], "")
         return ExecResult(cmd, 0, "", "")
@@ -104,6 +107,10 @@ def applied(lab, node, prefixes, asn="65001", ago=60):
     inj._wait = lambda want_present: None
     inj.asn, inj.applied = asn, True
     inj.peers_before, inj.sessions_before = inj.established(), inj.sessions()
+    if isinstance(lab, InjectLab):
+        lab.phase = "before"
+        inj.record_listed()
+        lab.phase = "after"
     inj.applied_at = time.monotonic() - ago
     return inj
 
@@ -416,7 +423,7 @@ def test_restore_removes_the_injected_config_whatever_goes_wrong_reading():
     """Round 8 (F4): an unexpected error while reading the delivery left the injected config in the lab."""
     class Boom(InjectLab):
         def exec(self, node, cmd, timeout=60, input=None):
-            if cmd[-1].endswith(" advertised-routes detail json"):
+            if cmd[-1].endswith(" advertised-routes detail json") and self.phase == "after":
                 raise TypeError("unexpected shape")
             return super().exec(node, cmd, timeout, input)
     lab = Boom([live("before"), live("after")])
@@ -507,3 +514,34 @@ def test_a_prefix_the_node_already_originates_with_the_same_as_path_is_refused()
 def test_the_injection_s_as_path_tells_its_route_from_the_node_s_own():
     inj = RouteInjection(ApplyLab(_with_redistributed(_table(), R1)), "r1", [R1], [65099])
     assert [p for p, paths in inj._own_paths("ipv4").items() if any(a == inj._as_path() for a, _i in paths)] == []
+
+
+# --- round 9 on 02a96a2: an entry the peer already had for an injected prefix ---------------------------------------
+
+def test_a_prefix_the_peer_already_had_an_entry_for_is_never_read_as_delivered():
+    """The hijack setup: r1 learned 100.64.0.0/24 from N and advertised it to 10.0.12.2 before the injection. FRR
+    then shows the injected path under that existing entry as soon as it is in the table, before any UPDATE leaves:
+    with a long advertisement interval the checks ran while the peer still held N's path."""
+    lab = InjectLab([live("before"), live("after")], advertised={"10.0.12.2": adv(R1), "10.0.13.2": adv(R1)},
+                    advertised_before={"10.0.12.2": learned(R1)})
+    inj = applied(lab, "r1", [R1])
+    assert inj.listed_before == {"10.0.12.2": {R1}}
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, {"10.0.12.2": [R1]})
+
+
+def test_a_listing_that_cant_be_read_before_the_injection_counts_as_having_them_all():
+    lab = InjectLab([live("before"), live("after")], advertised={"10.0.12.2": adv(R1), "10.0.13.2": adv(R1)},
+                    advertised_before={"10.0.13.2": "not json"})
+    inj = applied(lab, "r1", [R1])
+    inj.restore()
+    assert (inj.left, inj.quiet) == (False, {"10.0.13.2": [R1]})
+
+
+def test_the_wait_does_not_wait_for_a_peer_that_already_had_the_prefix(monkeypatch):
+    monkeypatch.setattr("netdryrun.faults.time.sleep", lambda s: (_ for _ in ()).throw(AssertionError("waited")))
+    lab = InjectLab([live("before")], advertised={"10.0.13.2": adv(R1)},
+                    advertised_before={"10.0.12.2": learned(R1)})
+    inj = applied(lab, "r1", [R1])
+    inj.await_delivery(settle=10)
+    assert inj.late == set() and lab.asked == ["show bgp ipv4 unicast neighbors 10.0.13.2 advertised-routes detail json"]

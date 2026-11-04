@@ -242,3 +242,9 @@
   tests:
     - tests/test_inject_sent_counts.py
     - tests/test_verdict_runner.py
+- id: layer6-review-9-0.4.1
+  what: Round 9 of the Layer 6 review on the 0.4.1 candidate (02a96a2) - a prefix a peer already had an adj-out entry
+    for (the hijack setup) showed the injected path as advertised before any UPDATE left
+  record: CHANGELOG.md (0.4.1, Layer 6 review, round 9)
+  tests:
+    - tests/test_inject_sent_counts.py
