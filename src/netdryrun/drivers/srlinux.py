@@ -402,8 +402,25 @@ class SrlDriver(Driver):
         answers like one with no entries, so read the instance's oper-state."""
         if vrf == "default":
             return
-        if parse_instance_state(self._cli(f"info from state /network-instance {vrf} oper-state", evidence)) is None:
+        state = parse_instance_state(self._cli(f"info from state /network-instance {vrf} oper-state", evidence))
+        if state is None:
             raise NoSuchInstance(f"network-instance {vrf!r} does not exist on {self.node} (no oper-state)")
+        if state.lower() != "up":
+            # a disabled instance (captured live: oper-state down) answers like one without the route, but nothing
+            # routes there: not settled (retried, like a booting node), and still down at the timeout the check fails,
+            # never "no routes" (red team A-0050). An ip-vrf with no links reads up (captured), so this is no false block
+            raise DriverError(f"network-instance {vrf!r} on {self.node} is oper-state {state}: not settled")
+
+    def local_addresses(self, vrf: str = "default") -> list:
+        """Every subinterface address of the node, in any network-instance (the captured form doesn't map them): a
+        ping in one VRF to an address the node owns in another is refused too (documented limit, never a pass)."""
+        from .addresses import parse_srl_addresses
+        check_vrf_name(vrf)
+        out = []
+        for fam in ("ipv4", "ipv6"):
+            cmd = f"info from state /interface * subinterface * {fam} address *"
+            out += parse_srl_addresses(self._cli(cmd, []), cmd)
+        return out
 
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

@@ -1,0 +1,28 @@
+{
+  "interface": [
+    {
+      "name": "mgmt0",
+      "subinterface": [
+        {
+          "index": 0,
+          "ipv6": {
+            "address": [
+              {
+                "ip-prefix": "3fff:172:20:20::3/64",
+                "type": "global-unicast",
+                "origin": "dhcp",
+                "status": "preferred"
+              },
+              {
+                "ip-prefix": "fe80::18a6:1ff:fe00:0/64",
+                "type": "link-local-unicast",
+                "origin": "link-layer",
+                "status": "preferred"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

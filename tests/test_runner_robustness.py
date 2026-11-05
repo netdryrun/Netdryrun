@@ -111,6 +111,10 @@ class FakeLab:
     def data_interfaces(self, node):
         return ["eth1"]
 
+    def admin_up(self, node, iface):   # the last set_link on it wins; never touched: up
+        last = [x for x in self.world.links if x[1:3] == (node, iface)]
+        return last[-1][3] if last else True
+
     def set_link(self, node, iface, up):
         self.world.links.append((self.world.t, node, iface, up))
         if not up and self.world.fault_at is None:

@@ -332,6 +332,22 @@ class Lab:
             # the container's eth4+ feed the Junos VM; downing them from Linux is untested
             raise LabError(f"failure scenarios on cJunosEvolved nodes ({node}) are not supported yet; "
                            "take the link down on the FRR/Linux side of the link instead")
+        kind = self.nodes[node].kind
+        if kind in VM_KINDS or kind.startswith("vr-"):
+            # every kind that runs its NOS as a VM behind the container: the container's interfaces only carry frames
+            # to the VM, so downing one is not a link event the NOS sees (red team B-9001, the whole set)
+            raise LabError(f"failure scenarios on {kind} nodes ({node}) are not supported: the NOS runs as a VM behind "
+                           "its container; take the link down on the FRR/Linux side of the link instead")
+
+    def admin_up(self, node: str, interface: str) -> bool:
+        """Whether the interface's admin flag is on: `UP` among the flags in `<...>` of `ip -o link show`, as an
+        exact token (LOWER_UP is another flag). Unreadable is an error, never "down"."""
+        r = self.exec(node, ["ip", "-o", "link", "show", "dev", interface], timeout=15)
+        m = re.search(r"<([^>]*)>", r.stdout or "") if r.rc == 0 else None
+        if m is None:
+            raise LabError(f"could not read the state of {interface} on {node}: "
+                           f"{' '.join((r.stderr or r.stdout).split())[:200] or f'exit code {r.rc}'}")
+        return "UP" in m.group(1).split(",")
 
     def set_link(self, node: str, interface: str, up: bool) -> ExecResult:
         self._require_linux_links(node)

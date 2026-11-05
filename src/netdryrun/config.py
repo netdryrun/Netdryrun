@@ -21,6 +21,8 @@ CHECK_TYPES = {
                                                               "as_path", "as_path_regex", "local_pref", "med", "next_hop")},
     "ping": {"required": ("node", "target"), "optional": ("source", "expect", "vrf", "count", "min_replies")},
 }
+# AS paths an as_path_regex is tried on: one that matches all of them matches every path (design round 3, R8)
+AS_PATH_PROBES = ("", "64496", "64511 64496 65551", "1 2 3", "4200000001")
 BGP_ATTRIBUTES = ("communities", "without_communities", "as_path", "as_path_regex", "local_pref", "med", "next_hop")
 COMMON_KEYS = ("type", "name", "timeout", "hold")
 BGP_STATES = ("idle", "connect", "active", "opensent", "openconfirm", "established", "down")  # down = any state except established
@@ -174,10 +176,29 @@ def _only(where: str, value: Any, afi: str) -> list[str]:
             net = ipaddress.ip_network(x, strict=False)
         except ValueError as e:
             raise ConfigError(f"{where}: only: {e}") from None
+        if "/" in x and net.network_address != ipaddress.ip_interface(x).ip:
+            # 10.1.1.77/24 would silently widen the allow-list to 10.1.1.0/24 (red team B-9004): an entry must be the
+            # network itself, as verify intents already require
+            raise ConfigError(f"{where}: only: {x} has host bits set; write the network, {net}")
         if net.version != version:
             raise ConfigError(f"{where}: only: {x} is not an {afi} prefix")
         out.add(net)
     return [str(n) for n in sorted(out)]
+
+
+def _ping_target(where: str, params: dict) -> None:
+    """A ping target must be another host the ping leaves the node for (red team B-9006): never unspecified, loopback,
+    multicast or limited broadcast, and never the source address itself. A target that is one of the pinging node's own
+    addresses is refused at run time (Driver.local_addresses)."""
+    ip = ipaddress.ip_address(params["target"].split("%")[0])
+    why = ("unspecified" if ip.is_unspecified else "a loopback address" if ip.is_loopback else
+           "a multicast address" if ip.is_multicast else
+           "the limited broadcast address" if ip == ipaddress.IPv4Address("255.255.255.255") else None)
+    if why:
+        raise ConfigError(f"{where}: target {params['target']} is {why}: a ping to it never leaves the node, so it "
+                          "says nothing about the network")
+    if params.get("source") and ipaddress.ip_address(params["source"].split("%")[0]) == ip:
+        raise ConfigError(f"{where}: target {params['target']} is the source address: the node pings itself")
 
 
 def _describe(ctype: str, p: dict[str, Any]) -> str:
@@ -420,6 +441,7 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
             raise ConfigError(f"{where}: expect must be 'success' or 'failure', got {expect!r}"
                               f"{_suggest(expect, ('success', 'failure'))}")
         params["expect"] = expect.lower()
+        _ping_target(where, params)
         if "count" in params and (not _is_int(params["count"]) or not 1 <= params["count"] <= MAX_PING_COUNT):
             raise ConfigError(f"{where}: count must be an integer from 1 to {MAX_PING_COUNT}, got {params['count']!r}")
         if "min_replies" in params:
@@ -489,9 +511,15 @@ def _validate_bgp_route(where: str, params: dict[str, Any]) -> None:
         if not isinstance(v, str) or not v:
             raise ConfigError(f"{where}: as_path_regex must be a non-empty regular expression string, got {v!r}")
         try:
-            re.compile(v)
+            rx = re.compile(v)
         except re.error as e:
             raise ConfigError(f"{where}: as_path_regex is not a valid regular expression: {e}") from None
+        matched = [probe for probe in AS_PATH_PROBES if rx.search(probe)]
+        if len(matched) == len(AS_PATH_PROBES):
+            # a stray | (or .*) matches the empty string, and so every path: the check would assert nothing
+            # (red team B-9007). ^$ stays valid: it matches only "" (the router's own routes)
+            raise ConfigError(f"{where}: as_path_regex {v!r} matches every AS path (it matched all of "
+                              f"{', '.join(repr(x) for x in matched)}), so the check would assert nothing")
 
 
 class _StrictLoader(yaml.SafeLoader):

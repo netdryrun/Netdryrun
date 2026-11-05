@@ -90,12 +90,13 @@ def test_only_is_a_post_convergence_check():
 
 
 def test_only_is_validated():
-    c = check(type="bgp_prefixes", node="r1", neighbor=NB, only=["10.0.0.1/24", "10.0.0.0/24", "9.0.0.0/8"])
+    c = check(type="bgp_prefixes", node="r1", neighbor=NB, only=["10.0.0.0/24", "10.0.0.0/24", "9.0.0.0/8"])
     assert c.params["only"] == ["9.0.0.0/8", "10.0.0.0/24"]
     assert check(type="bgp_prefixes", node="r1", neighbor=NB, afi="ipv6-unicast",
                  only=["2001:db8:0::/48"]).params["only"] == ["2001:db8::/48"]
     assert check(type="bgp_prefixes", node="r1", neighbor=NB, only=[]).params["only"] == []
-    for bad in ("10.0.0.0/24", ["nope"], [1], ["2001:db8::/48"], None):
+    # ["10.0.0.1/24"]: host bits would widen the allow-list to 10.0.0.0/24 (red team B-9004)
+    for bad in ("10.0.0.0/24", ["nope"], [1], ["2001:db8::/48"], None, ["10.0.0.1/24"]):
         with pytest.raises(ConfigError):
             check(type="bgp_prefixes", node="r1", neighbor=NB, only=bad)
     with pytest.raises(ConfigError):

@@ -99,7 +99,7 @@ def test_eos_path_dropped_under_its_count_is_an_error_not_one_path_less():
     d = json.loads(read("eos_leak_bgp.txt"))
     _eos_entry(d, "0.0.0.0/0")["bgpRoutePaths"] = []
     raises(lambda: eos.parse_bgp_paths(_obj(d), "0.0.0.0/0"), EOS + "0.0.0.0/0: totalPaths 1, but 0 paths listed")
-    no_routes = _obj({"vrfs": {"default": {"routes": {}}}})
+    no_routes = _obj({"vrfs": {"default": {"routingDisabled": False, "routes": {}}}})
     raises(lambda: eos.parse_routes(no_routes, _obj(d), "0.0.0.0/0"), EOS + "0.0.0.0/0: totalPaths 1, but 0 paths listed")
 
 

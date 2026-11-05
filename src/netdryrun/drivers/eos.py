@@ -83,6 +83,20 @@ def _vrf(command: str, data: dict, vrf: str) -> dict:
     return entry
 
 
+def _routing_vrf(command: str, data: dict, vrf: str) -> dict:
+    """A route answer's VRF entry, which must route: `routingDisabled: true` (a VRF without `ip routing`, or the default
+    VRF after `no ip routing`, captured live 2026-11-06 for IPv4 and IPv6) has no routes because nothing routes there,
+    never because a route is absent (red team A-0049). Every live route answer prints the flag: missing is unexpected."""
+    entry = _vrf(command, data, vrf)
+    disabled = entry.get("routingDisabled")
+    if disabled is not True and disabled is not False:
+        raise unexpected(command, f"vrf {vrf}: routingDisabled is {disabled!r}, not a boolean")
+    if disabled:
+        raise NoSuchInstance(f"VRF {vrf!r} has routing disabled (`{command}`): nothing routes there, so no route "
+                             "check means anything in it")
+    return entry
+
+
 def _table(command: str, entry: dict, key: str) -> dict:
     """A required map inside a VRF's answer (routes, peers, bgpRouteEntries); `{}` is a real empty one."""
     table = entry.get(key)
@@ -181,7 +195,7 @@ def _exact_entry(key: str, want) -> None:
 def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "default") -> list[Route]:
     want = ipaddress.ip_network(prefix)
     out = []
-    for key, r in _table(ROUTE_CMD, _vrf(ROUTE_CMD, _json(ROUTE_CMD, route_text), vrf), "routes").items():
+    for key, r in _table(ROUTE_CMD, _routing_vrf(ROUTE_CMD, _json(ROUTE_CMD, route_text), vrf), "routes").items():
         if not isinstance(r, dict):
             raise unexpected(ROUTE_CMD, f"{key}: {str(r)[:150]}")
         if network(ROUTE_CMD, key) == want:
@@ -202,7 +216,7 @@ def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "defaul
 @parser(ALL_ROUTES_CMD)
 def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
     out = []
-    for key, r in _table(ALL_ROUTES_CMD, _vrf(ALL_ROUTES_CMD, _json(ALL_ROUTES_CMD, text), vrf), "routes").items():
+    for key, r in _table(ALL_ROUTES_CMD, _routing_vrf(ALL_ROUTES_CMD, _json(ALL_ROUTES_CMD, text), vrf), "routes").items():
         if not isinstance(r, dict):
             raise unexpected(ALL_ROUTES_CMD, f"{key}: {str(r)[:150]}")
         net = str(network(ALL_ROUTES_CMD, key))
@@ -338,6 +352,14 @@ class EosDriver(Driver):
 
     def _cli(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["Cli", "-p", "15", "-c", command], evidence)
+
+    def local_addresses(self, vrf: str = "default") -> list:
+        from .addresses import parse_eos_interfaces
+        vrf = check_vrf_name(vrf)
+        out = []
+        for cmd in ("show ip interface | json", "show ipv6 interface | json"):
+            out += parse_eos_interfaces(self._cli(cmd, []), vrf, cmd)
+        return out
 
     def end_of_rib(self, vrf: str, neighbors: dict) -> dict[str, dict[str, str]]:
         """From `show ip|ipv6 bgp neighbors vrf <vrf> | json` (the summary has no End-of-RIB); see eos_eor."""

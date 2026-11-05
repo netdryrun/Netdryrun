@@ -1037,7 +1037,8 @@ def eos_routes(vrf="default", **routes):
         if isinstance(r, dict):
             r.setdefault("kernelProgrammed", True)
             r.setdefault("hardwareProgrammed", True)
-    return J({"vrfs": {vrf: {"routes": routes}}})
+    # every live route answer prints routingDisabled (read strictly since the 0.4.1 red team, A-0049)
+    return J({"vrfs": {vrf: {"routingDisabled": False, "routes": routes}}})
 
 
 def eos_bgp(vrf="default", entries=None):

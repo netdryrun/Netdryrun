@@ -125,7 +125,7 @@ def test_eos_vrf_missing_from_answer_raises():
 
 
 def test_eos_existing_vrf_without_the_route_is_a_real_absence():
-    route = _obj({"vrfs": {"red": {"routes": {}}}})
+    route = _obj({"vrfs": {"red": {"routingDisabled": False, "routes": {}}}})
     bgp = _obj({"vrfs": {"red": {"bgpRouteEntries": {}}}})
     assert EosDriver(Lab([("route", route), ("bgp", bgp)]), "c").routes("10.0.0.0/24", vrf="red").value == []
     # a BGP answer without the VRF can't be told from unknown output: conservative, it raises
@@ -243,7 +243,7 @@ def test_real_empty_answers_still_read_as_empty():
     assert frr.parse_bgp_paths(read("sonic_bgp_paths_empty.txt"), "10.0.0.0/24") == []
     assert frr.parse_bgp_neighbors("{}") == {}
     assert eos.parse_bgp_paths(read("eos_bgp_paths_empty.txt"), "10.99.0.0/16") == []
-    assert eos.parse_routes(_obj({"vrfs": {"default": {"routes": {}}}}), read("eos_bgp_paths_empty.txt"),
+    assert eos.parse_routes(_obj({"vrfs": {"default": {"routingDisabled": False, "routes": {}}}}), read("eos_bgp_paths_empty.txt"),
                             "10.99.0.0/16") == []
     assert srlinux.parse_routes(read("srl_rib_empty.txt"), "10.0.0.0/24", read("srl_rib_empty.txt")) == []
     assert srlinux.parse_routes(_obj({"route": []}), "10.0.0.0/24", _obj({"route": []})) == []
@@ -292,7 +292,7 @@ def test_router_own_bgp_route_is_not_a_received_route_anywhere():
     not a BGP route for the route check (it's still a path for bgp_route)."""
     lab = Lab([("route", "{}"), ("show bgp", read("frr_bgp_paths_local.txt"))])
     assert FrrDriver(lab, "r1").routes("192.168.21.0/24").value == []
-    assert eos.parse_routes(_obj({"vrfs": {"default": {"routes": {}}}}), read("eos_bgp_paths_local.txt"),
+    assert eos.parse_routes(_obj({"vrfs": {"default": {"routingDisabled": False, "routes": {}}}}), read("eos_bgp_paths_local.txt"),
                             "192.168.30.1/32") == []
     assert len(eos.parse_bgp_paths(read("eos_bgp_paths_local.txt"), "192.168.30.1/32")) == 1
 
@@ -302,7 +302,7 @@ def test_eos_invalid_received_path_counts_as_present():
     for e in bgp["vrfs"]["default"]["bgpRouteEntries"].values():
         for p in e["bgpRoutePaths"]:
             p["routeType"].update(valid=False, active=False)
-    routes = eos.parse_routes(_obj({"vrfs": {"default": {"routes": {}}}}), _obj(bgp), "192.168.20.0/24")
+    routes = eos.parse_routes(_obj({"vrfs": {"default": {"routingDisabled": False, "routes": {}}}}), _obj(bgp), "192.168.20.0/24")
     assert [(r.protocol, r.active) for r in routes] == [("bgp", False)]
 
 

@@ -616,6 +616,12 @@ class FrrDriver(Driver):
             paths = parse_bgp_paths(text, prefix, default_local_pref=default)
         return Observation(paths, ev)
 
+    def local_addresses(self, vrf: str = "default") -> list:
+        from .addresses import parse_ip_j_addr
+        vrf = check_vrf_name(vrf)
+        cmd = ["ip", "-j", "addr"] + ([] if vrf == "default" else ["show", "vrf", vrf])
+        return parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+
     def ping(self, target: str, source: str | None, count: int, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []

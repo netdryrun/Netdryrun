@@ -118,6 +118,10 @@ class FakeLab:
     def data_interfaces(self, node):
         return {"r1": ["eth1", "eth2"]}.get(node, ["eth1"])
 
+    def admin_up(self, node, iface):   # the last set_link on it wins; never touched: up
+        last = [e for e in getattr(self, "events", []) if e[0] == "link" and e[1:3] == (node, iface)]
+        return getattr(self, "stuck_up", False) or (last[-1][3] if last else True)
+
     def set_link(self, node, iface, up):
         self.events.append(("link", node, iface, up, self.clock.now))
         err = self.set_link_error.get((node, iface, up))
@@ -458,7 +462,7 @@ def test_report_started(monkeypatch):
 
 def test_drivers_get_the_configured_override(monkeypatch):
     e = make(monkeypatch, kinds={"r2": ("nokia_srlinux", "ghcr.io/nokia/srlinux:26.7.2")})
-    sc = Scenario("s", [Fault("link_down", "r1", "eth9")], [route("[s] x", node="r3")])
+    sc = Scenario("s", [Fault("link_down", "r1", "eth1")], [route("[s] x", node="r3")])
     e.run([route("a"), route("b", node="r2")], [sc], drivers_cfg={"r2": "srlinux"})
     assert ("r2", "srlinux") in e.for_node_calls and ("r1", None) in e.for_node_calls
     assert ("r3", None) in e.for_node_calls

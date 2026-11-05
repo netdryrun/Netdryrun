@@ -287,6 +287,7 @@ def live_lab(extra=()):
     """n1 answering every command with the output captured from the lab (unknown VRF NOPE, VRF EMPTY
     without BGP, VRF RED with one peer). `extra` rules come first."""
     return Lab(list(extra) + [
+        ("show ip interface brief vrf all", read("nxos_local_ip_brief.json")),   # the ping check's own-address read
         ("show bgp vrf all ipv4 unicast summary", read("nxos_bgp_vrf_list.txt")),
         ("show bgp ipv4 unicast summary vrf default", read("nxos_summary_v4.txt")),
         ("show bgp ipv6 unicast summary vrf default", read("nxos_summary_v6.txt")),

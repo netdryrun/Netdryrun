@@ -627,6 +627,13 @@ class JunosDriver(Driver):
             raise DriverError(f"refusing a Junos command with a quote: {command[:80]!r}")
         return self._exec([*VM_SSH, f"cli -c '{command} | display json | no-more'"], evidence, timeout=timeout)
 
+    def local_addresses(self, vrf: str = "default") -> list:
+        """Every interface address of the node, in any routing-instance (the captured terse form doesn't map them):
+        a ping in one instance to an address the node owns in another is refused too (documented limit)."""
+        from .addresses import parse_junos_terse
+        check_vrf_name(vrf)
+        return parse_junos_terse(self._cli("show interfaces terse", []))
+
     def _confirm_instance(self, vrf: str, table: str | None, evidence: list[dict]) -> bool:
         """Before an empty answer is trusted. True when the instance has `table`, False when it exists without
         it (no routes there); NoSuchInstance when the instance doesn't exist."""

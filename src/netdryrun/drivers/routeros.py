@@ -107,6 +107,14 @@ class RouterosDriver(Driver):
             raise DriverError(f"{prefix}: IPv6 routes are not supported on routeros yet")
         return str(net)
 
+    def local_addresses(self, vrf: str = "default") -> list:
+        from .addresses import parse_routeros_addresses
+        vrf = check_vrf_name(vrf)
+        out = []
+        for path in ("/ip/address", "/ipv6/address"):
+            out += parse_routeros_addresses(self._rows(path, []), vrf, f"GET {path}")
+        return out
+
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []

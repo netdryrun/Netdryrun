@@ -156,6 +156,11 @@ _UNREACHABLE = re.compile(r"network (is )?unreachable|no route to host|destinati
 
 def _ping(d: Driver, p: dict) -> tuple[bool, str, list]:
     count = int(p.get("count", 3))
+    own = getattr(d, "local_addresses", None)
+    if own is not None:
+        # a target the node owns never leaves it (red team B-9006); unreadable raises, so the sample is unready
+        from .drivers.addresses import refuse_own_target
+        refuse_own_target(p["node"], p["target"], own(p.get("vrf", "default")))
     obs = d.ping(p["target"], p.get("source"), count, p.get("vrf", "default"))
     sent, received = obs.value
     if sent == 0:

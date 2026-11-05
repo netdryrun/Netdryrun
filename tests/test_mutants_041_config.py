@@ -205,12 +205,14 @@ def test_hold_on_a_check_that_is_not_post_convergence_is_refused():
 # --- bgp_prefixes `only` (_only) ---------------------------------------------------------------------------
 
 def test_only_is_canonical_sorted_and_deduplicated():
-    assert _only("w", ["192.0.2.0/24", "10.0.0.5/24", "10.0.0.0/24"], "ipv4-unicast") == ["10.0.0.0/24", "192.0.2.0/24"]
+    assert _only("w", ["192.0.2.0/24", "10.0.0.0/24", "10.0.0.0/24"], "ipv4-unicast") == ["10.0.0.0/24", "192.0.2.0/24"]
+    with pytest.raises(ConfigError, match="host bits"):   # red team B-9004: never silently widened
+        _only("w", ["10.0.0.5/24"], "ipv4-unicast")
     assert _only("w", ["2001:db8:0::/48"], "ipv6-unicast") == ["2001:db8::/48"]
     assert _only("w", [], "ipv4-unicast") == []
-    c = check(type="bgp_prefixes", node="r1", neighbor=NB, only=["10.9.0.1/24", "10.8.0.0/24"])
+    c = check(type="bgp_prefixes", node="r1", neighbor=NB, only=["10.9.0.0/24", "10.8.0.0/24"])
     assert c.params["only"] == ["10.8.0.0/24", "10.9.0.0/24"]
-    c = check(type="bgp_prefixes", node="r1", neighbor=NB, afi="IPv6-Unicast", only=["2001:db8::1/64"])
+    c = check(type="bgp_prefixes", node="r1", neighbor=NB, afi="IPv6-Unicast", only=["2001:db8:0::/64"])
     assert c.params["only"] == ["2001:db8::/64"]
 
 

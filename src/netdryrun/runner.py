@@ -283,6 +283,15 @@ def preflight(config: Config, lab: Lab, *, full: bool = False) -> None:
     if full:
         for f in (f for sc in config.scenarios for f in sc.faults if f.kind != "inject_routes"):
             lab._require_linux_links(f.node)
+    for sc in config.scenarios:
+        for f in (f for f in sc.faults if f.kind == "link_down"):
+            # only an interface on a topology link is a lab link: management eth0, lo or a name not in links: would
+            # take nothing down that the checks depend on, and every scenario check would pass (red team B-9001)
+            ends = sorted({i for a, b in getattr(lab, "links", []) for n, i in (a, b) if n == f.node})
+            if f.interface not in ends:
+                raise LabError(f"scenario '{sc.name}': link_down {f.node} {f.interface}: not an interface of a link in "
+                               f"the topology (links on {f.node}: {', '.join(ends) or 'none'}); a fault on any other "
+                               "interface takes no lab link down")
 
 
 def _warn_beta(config: Config, log) -> None:
@@ -1255,6 +1264,10 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
             for iface in ifaces:
                 downed.append((f.node, iface))   # recorded first: restore even if this call half-fails
                 lab.set_link(f.node, iface, up=False)
+                if lab.admin_up(f.node, iface):
+                    # the flag, not the state column: a veth whose peer is down reads LOWERLAYERDOWN while admin-up
+                    raise LabError(f"scenario '{sc.name}': {f.node} {iface} is still administratively up after "
+                                   "`ip link set down`: the fault did not take effect")
         if links:
             _wait_fault_visible(watch, driver_for, max(c.timeout for c in sc.checks), sc, log=log)
         for inj in injected:   # the checks run once the routes left, not before (Layer 6 round 6 on 1a597d7)

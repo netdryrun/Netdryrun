@@ -583,6 +583,13 @@ class NxosDriver(Driver):
         if state.lower() != "up":
             raise NoSuchInstance(f"VRF {vrf!r} is {state} on {self.node}")
 
+    def local_addresses(self, vrf: str = "default") -> list:
+        """IPv4 only: `show ip interface brief vrf all` is the captured form. The IPv6 brief has no capture yet, so an
+        IPv6 target can't be checked: the ping check reads that as unready (it never passes on it)."""
+        from .addresses import parse_nxos_ip_brief
+        vrf = check_vrf_name(vrf)
+        return parse_nxos_ip_brief(self._nxapi("show ip interface brief vrf all", []), vrf)
+
     def end_of_rib(self, vrf: str, neighbors: dict) -> dict[str, dict[str, str]]:
         """From the text neighbor detail, per established neighbor and family (the JSON summary has no End-of-RIB);
         see nxos_eor_text. One NX-API `cli_ascii` request per neighbor and family."""

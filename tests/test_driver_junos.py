@@ -406,7 +406,8 @@ STATE = {
 
 
 def junos_lab(**override):
-    state = {**STATE, **override}
+    # the own-address read of the ping check (red team B-9006), from the live capture
+    state = {"show interfaces terse": read("junos_local_interfaces_terse.json"), **STATE, **override}
     return Lab(list(state.items()))
 
 

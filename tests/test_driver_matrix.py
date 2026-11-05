@@ -90,8 +90,8 @@ def frr_like():
     def paths(text):
         return [("longer-prefixes", fx("frr_bgp_table_header.txt")), ("show bgp", text)]
 
-    def ping(text):
-        return [("ping", text)]
+    def ping(text):   # the own-address read first (red team B-9006), from the live capture
+        return [("ip -j addr", fx("frr_local_ip_addr.json")), ("ping", text)]
     return neighbors, routes, paths, ping
 
 
@@ -106,7 +106,8 @@ def eos_rules():
         return [("show ip bgp", text)]
 
     def ping(text):
-        return [("ping", text)]
+        return [("show ip interface", fx("eos_local_ipv4.json")), ("show ipv6 interface", fx("eos_local_ipv6.json")),
+                ("ping", text)]
     return neighbors, routes, paths, ping
 
 
@@ -123,7 +124,8 @@ def srl_rules():
         return [*attrs, ("local-preference", fx("srl_neighbor_local_pref.txt")), ("local-rib", rib_text)]
 
     def ping(text):
-        return [("ip netns list", "srbase-default\n"), ("ping", text)]
+        return [("ipv4 address *", fx("srl_local_ipv4.json")), ("ipv6 address *", fx("srl_local_ipv6.json")),
+                ("ip netns list", "srbase-default\n"), ("ping", text)]
     return neighbors, routes, paths, ping
 
 
@@ -148,7 +150,7 @@ def nxos_rules():
         return [("show bgp ipv4 unicast", text)]
 
     def ping(text):
-        return [("cli_ascii ping", text)]
+        return [("show ip interface brief vrf all", fx("nxos_local_ip_brief.json")), ("cli_ascii ping", text)]
     return neighbors, routes, paths, ping
 def junos_rules():
     """Junos CLI over the cJunosEvolved container's SSH hop; `default` is the master instance."""
@@ -161,7 +163,7 @@ def junos_rules():
         return [("exact table inet.0 all extensive", text)]
 
     def ping(text):
-        return [("ping", text)]
+        return [("show interfaces terse", fx("junos_local_interfaces_terse.json")), ("ping", text)]
     return neighbors, routes, routes, ping
 
 
@@ -400,9 +402,10 @@ def _cells() -> list[Cell]:
         ros_paths("10.66.0.0/24", ros_main))
 
     p = {"type": "ping", "target": "10.20.0.1"}
-    add("routeros", "pass", "ping replies", p, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
-    add("routeros", "fail", "no replies", p, [("/ping", body(json.loads(fx("routeros_ping_fail.txt"))))])
-    add("routeros", "fail", "must fail but replies", {**p, "expect": "failure"}, [("/ping", body(json.loads(fx("routeros_ping.txt"))))])
+    add("routeros", "pass", "ping replies", p, [("/ip/address", body(json.loads(fx("routeros_local_ipv4.json")))), ("/ipv6/address", body(json.loads(fx("routeros_local_ipv6.json")))), ("/ping", body(json.loads(fx("routeros_ping.txt"))))])
+    add("routeros", "fail", "no replies", p, [("/ip/address", body(json.loads(fx("routeros_local_ipv4.json")))), ("/ipv6/address", body(json.loads(fx("routeros_local_ipv6.json")))), ("/ping", body(json.loads(fx("routeros_ping_fail.txt"))))])
+    add("routeros", "fail", "must fail but replies", {**p, "expect": "failure"},
+        [("/ip/address", body(json.loads(fx("routeros_local_ipv4.json")))), ("/ipv6/address", body(json.loads(fx("routeros_local_ipv6.json")))), ("/ping", body(json.loads(fx("routeros_ping.txt"))))])
     # ---- Cisco NX-OS (Nexus 9000v, beta): NX-API JSON from scripts/labs/nxos-cap ------------------------------
     neighbors, routes, paths, ping = nxos_rules()
     nbr, count = "10.0.1.2", 3   # f1 sends four prefixes, n1's inbound policy denies one: 3 accepted

@@ -246,3 +246,22 @@
     rt-entry-state "Active Ext") and poll 10 of the LLGR phase (LongLivedStale). HQ wt/cap-night3/junos/
     junos_nbr_rib_{gr_1,llgr_10}.txt (run.sh there)
   added: ndr/gate-fixes-0.4.1
+- files: [frr_local_ip_addr.json, sonic_local_ip_addr.json, eos_local_ipv4.json, eos_local_ipv6.json,
+          nxos_local_ip_brief.json, routeros_local_ipv4.json, routeros_local_ipv6.json, srl_local_ipv4.json,
+          srl_local_ipv6.json, junos_local_interfaces_terse.json]
+  kind: live-capture
+  source: >-
+    Each driver's own-address read, 2026-11-05/06: FRR 10.4.1 r1 `ip -j addr` (HQ wt/cap-frr, rg-capture day lab);
+    SONiC VS `ip -j addr`; cEOS `show ip interface | json` and `show ipv6 interface | json`; NX-OS 9300v NX-API `show
+    ip interface brief vrf all` (default and RED); RouterOS CHR 7.23.8 REST /ip/address and /ipv6/address; SR Linux
+    `info from state /interface * subinterface * ipv4|ipv6 address *`; cJunosEvolved `show interfaces terse | display
+    json`. HQ wt/cap-night/<driver>/ (run.sh there)
+  added: ndr/gate-fixes-0.4.1
+- files: [eos_route_default_routing_disabled.json, eos_route_red_routing_disabled.json,
+          eos_route_red_v6_routing_disabled.json, srl_instance_disabled.json, srl_instance_no_links.json]
+  kind: live-capture
+  source: >-
+    cEOS `show ip route vrf default | json` after `no ip routing`, `show ip route vrf RED | json` and `show ipv6 route
+    vrf RED | json` for a VRF without routing; SR Linux `info from state /network-instance RED oper-state` (admin-state
+    disable) and BLUE (ip-vrf with no links), 2026-11-05/06. HQ wt/cap-night/{eos,srlinux}/ (run.sh there)
+  added: ndr/gate-fixes-0.4.1

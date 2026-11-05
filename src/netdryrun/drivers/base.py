@@ -266,6 +266,11 @@ class Driver:
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         raise NotImplementedError
 
+    def local_addresses(self, vrf: str = "default") -> list:
+        """The node's own addresses in `vrf` (ipaddress interfaces), for the ping check's own-address refusal. A
+        driver that can't read them raises: unreadable is unready, never "not an own address"."""
+        raise DriverError(f"the {self.name} driver can't read {self.node}'s own addresses")
+
     def end_of_rib(self, vrf: str, neighbors: dict) -> dict[str, dict[str, str]]:
         """End-of-RIB per established neighbor of `neighbors` (a bgp_neighbors answer for `vrf`), as BgpNeighbor.eor
         describes it. Read only by the convergence gate. The default is what bgp_neighbors already parsed; a driver

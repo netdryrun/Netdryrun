@@ -39,7 +39,7 @@ NO_BGP = _obj({"vrfs": {"default": {"bgpRouteEntries": {}}}})
 
 
 def _eos_routes(rtype: str, pfx: str = "10.1.0.0/16") -> str:
-    return _obj({"vrfs": {"default": {"routes": {pfx: {"routeType": rtype, "kernelProgrammed": True,
+    return _obj({"vrfs": {"default": {"routingDisabled": False, "routes": {pfx: {"routeType": rtype, "kernelProgrammed": True,
                                                        "hardwareProgrammed": True}}}}})
 
 

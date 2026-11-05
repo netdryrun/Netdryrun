@@ -17,7 +17,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from netdryrun.drivers import DriverError, eos, frr, junos, nxos, routeros_state, srlinux
+from netdryrun.drivers import DriverError, addresses, eos, frr, junos, nxos, routeros_state, srlinux
 from netdryrun.drivers.routeros_rest import classify_reply
 
 FIX = Path(__file__).parent / "fixtures"
@@ -28,7 +28,7 @@ def read(name: str) -> str:
     return (FIX / name).read_text()
 
 
-EOS_NO_ROUTES = json.dumps({"vrfs": {"default": {"routes": {}}}})
+EOS_NO_ROUTES = json.dumps({"vrfs": {"default": {"routingDisabled": False, "routes": {}}}})
 EOS_NO_BGP = read("eos_bgp_paths_empty.txt")
 SRL_ROW = json.loads(read("srl_bgp_rib_paths.txt"))["route"][0]
 
@@ -231,6 +231,25 @@ CASES = [
     Case("frr.parse_received", lambda t: sorted(frr.parse_received(t, 4)), ["frr_received_routes.txt", "frr_received_cust.txt",
                                                                      "frr_received_cust_leak.txt"],
          frr_received_empty),
+    # the ping check's own-address reads (red team B-9006): an empty list only from an answer with no addresses
+    Case("addresses.parse_ip_j_addr", lambda t: sorted(map(str, addresses.parse_ip_j_addr(t, skip_enslaved=True))),
+         ["frr_local_ip_addr.json", "sonic_local_ip_addr.json"],
+         lambda d: isinstance(d, list) and all(isinstance(x, dict) and (not x.get("addr_info") or x.get("master"))
+                                               for x in d)),
+    Case("addresses.parse_eos_interfaces", lambda t: sorted(map(str, addresses.parse_eos_interfaces(t, "default", "x"))),
+         ["eos_local_ipv4.json", "eos_local_ipv6.json"],
+         lambda d: isinstance(d, dict) and isinstance(d.get("interfaces"), dict)),
+    Case("addresses.parse_nxos_ip_brief", lambda t: sorted(map(str, addresses.parse_nxos_ip_brief(t, "default"))),
+         ["nxos_local_ip_brief.json"],
+         lambda d: isinstance(d, dict) and isinstance((d.get("result") or {}).get("body"), dict)),
+    Case("addresses.parse_routeros_addresses",
+         lambda t: sorted(map(str, addresses.parse_routeros_addresses(addresses._load("x", t), "default", "x"))),
+         ["routeros_local_ipv4.json", "routeros_local_ipv6.json"], lambda d: isinstance(d, list)),
+    Case("addresses.parse_srl_addresses", lambda t: sorted(map(str, addresses.parse_srl_addresses(t, "x"))),
+         ["srl_local_ipv4.json", "srl_local_ipv6.json"],
+         lambda d: isinstance(d, dict) and isinstance(d.get("interface"), list)),
+    Case("addresses.parse_junos_terse", lambda t: sorted(map(str, addresses.parse_junos_terse(t))), ["junos_local_interfaces_terse.json"],
+         lambda d: isinstance(d, dict) and "interface-information" in d),
     Case("eos.parse_bgp_summary", eos.parse_bgp_summary, ["eos_bgp_summary.txt"], eos_table_empty("peers")),
     Case("eos.parse_routes[route table]", lambda t: eos.parse_routes(t, EOS_NO_BGP, "192.168.20.0/24"),
          ["eos_route.txt"], eos_table_empty("routes")),
