@@ -180,6 +180,19 @@ def _git_commit() -> str:
     return (r.stdout.strip() or "unknown") + ("+dirty" if dirty.stdout.strip() else "")
 
 
+def _image_digest(image: str) -> str | None:
+    """The image's repository digest (sha256:...), so a result names the exact FRR build, not just a tag that can be
+    re-pushed. None when Docker can't say (recorded as unknown, never guessed)."""
+    import subprocess
+    try:
+        r = subprocess.run(["docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", image],
+                           capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    out = r.stdout.strip()
+    return out if r.returncode == 0 and "@sha256:" in out else None
+
+
 def _verdict_tree() -> str | None:
     """The release gate's verdict_tree (scripts/release_gate.py): one definition, loaded from there. The gate's live
     layer runs a copy of corpus/ with no scripts/ or src/ beside it, so it passes the tree of the code the tested wheel
@@ -248,7 +261,9 @@ def main() -> int:
     env = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "netdryrun": __version__, "containerlab": clab.version(),
-        "frr_image": next(iter(clab.nodes.values())).image, "host": platform.platform(),
+        "frr_image": next(iter(clab.nodes.values())).image,
+        "frr_image_digest": _image_digest(next(iter(clab.nodes.values())).image),   # the tag alone can move
+        "host": platform.platform(),
         "commit": _git_commit(),
         "verdict_tree": _verdict_tree(),   # the release gate's G3: which verdict code these results came from
     }

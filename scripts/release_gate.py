@@ -1326,10 +1326,34 @@ NONDETERMINISTIC_PINNED = {"v1": {}, "v2": {"18-aggregate-discard-route-removed"
     "baseline": ["I2 upstream has our aggregate", "I2 peer has our aggregate",
                  "I5 upstream receives 2 to 51 prefixes from us", "I5 peer receives 2 to 51 prefixes from us"]}}}
 STATUSES = {"passed": "safe", "failed": "unsafe", "inconclusive": "error", "error": "error"}   # status -> verdict
+
+# A release may carry an exception for the "at least one catch" clause alone, pinned here to one case and one version:
+# that clause's check is then MAJOR (accepted in releases/<version>/accepted.json with its reason) for that version
+# only, and a BLOCKER on every other. Every other clause of the exemption stays a BLOCKER. Owner decision 2026-11-05.
+CATCH_EXCEPTIONS = {("v2", "18-aggregate-discard-route-removed"): {
+    "version": "0.4.1",
+    "evidence": "0 of 5 runs caught it on 94f5174, and in all 5 the aggregate was still present when checked (I2 and I5 "
+                "passed; only the I8 flood checks failed, routes never left), so the harm didn't manifest. The same I2 "
+                "checks catch a missing aggregate deterministically in v1 case 25 (unsafe in every gate run since "
+                "0.3.1). src is byte-identical to 7532310 (3 of 3 caught). Removing the race is a 0.4.2 blocker."}}
+
+
+def catch_severity(version: str, cids, release: str) -> str:
+    """MAJOR when every case missing a catch has an exception pinned to this release version, else BLOCKER."""
+    cids = list(cids)
+    ok = bool(cids) and all(CATCH_EXCEPTIONS.get((version, c), {}).get("version") == release for c in cids)
+    return MAJOR if ok else BLOCKER
 CORPUS_STRATEGIES = ("ping", "sessions", "netdryrun")
 
 
-def nondeterministic_problems(version: str, nd: dict, new: dict) -> list[str]:
+def nondeterministic_uncaught(version: str, nd: dict, new: dict) -> list[str]:
+    """The pinned cases where no run caught the harmful change: the "at least one catch" clause on its own, so that a
+    release can carry a pinned exception for it (CATCH_EXCEPTIONS) without touching the other clauses."""
+    return sorted({p.split(":", 1)[0] for p in nondeterministic_problems(version, nd, new, catch=True)
+                   if p.endswith("(the case no longer shows that Netdryrun can catch it)")})
+
+
+def nondeterministic_problems(version: str, nd: dict, new: dict, catch: bool = True) -> list[str]:
     """Why the nondeterministic exemption doesn't hold this run (an empty list: it holds). For every pinned case:
     NONDETERMINISTIC.yml lists exactly the pinned cases; the case's expected verdict is the pinned one; exactly N runs,
     each with all three strategies and a known status in `run_details`; no run's status is error (a crash is never part
@@ -1390,7 +1414,7 @@ def nondeterministic_problems(version: str, nd: dict, new: dict) -> list[str]:
                         and d.get("never_left") is True):
                     out.append(f"{cid}: run {i}: inconclusive, but not only because the scenario's routes never "
                                f"left (failed: {sorted(failed)}; never_left: {d.get('never_left')})")
-        if runs and details and decisive == 0:
+        if catch and runs and details and decisive == 0:
             out.append(f"{cid}: no run caught the harmful change (the case no longer shows that Netdryrun can catch it)")
     return out
 
@@ -1427,7 +1451,7 @@ def strategy_diffs(old: dict, new: dict, skip=()) -> list[str]:
     return diffs
 
 
-def corpus_check(version: str, results: Path) -> tuple[bool, list[str]]:
+def corpus_check(version: str, results: Path, release: str | None = None) -> tuple[bool, list[str]]:
     """The live layer's corpus assertions on a results.json, for a corpus-only refresh before it is committed (LESSONS
     Releasing 14): every strategy records a status and none is error; the nondeterministic exemption holds; no harmful change approved
     beyond the published misses; no verdict or status differs from the committed results. (ok, report lines)."""
@@ -1441,9 +1465,18 @@ def corpus_check(version: str, results: Path) -> tuple[bool, list[str]]:
     bad = status_problems(new)
     ok = not bad
     lines += [f"FAIL status: {b}" for b in bad] or ["PASS every case records a status, none an error"]
-    problems = nondeterministic_problems(version, nd, new)
+    problems = nondeterministic_problems(version, nd, new, catch=False)
     ok = ok and not problems
     lines += [f"FAIL nondeterministic exemption: {p}" for p in problems] or ["PASS nondeterministic exemption holds"]
+    uncaught = nondeterministic_uncaught(version, nd, new)
+    if uncaught and catch_severity(version, uncaught, release or package_version()) == MAJOR:
+        lines.append(f"ACCEPTED no run caught {', '.join(uncaught)} (exception pinned to this release: "
+                     + "; ".join(CATCH_EXCEPTIONS[(version, c)]["evidence"] for c in uncaught) + ")")
+    elif uncaught:
+        ok = False
+        lines.append(f"FAIL no run caught {', '.join(uncaught)} (no exception for this release)")
+    else:
+        lines.append("PASS every nondeterministic case caught in at least one run")
     h_ok, summary = harmful_approved_check(list(old.values()), list(new.values()), nd)
     ok = ok and h_ok
     lines.append(("PASS " if h_ok else "FAIL ") + summary)
@@ -1526,12 +1559,23 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
             # the verdicts are recorded, never scored: they follow the lab, not the change. The exemption itself is
             # held (nondeterministic_problems): pinned list and expected verdict, exact runs, no crash, no approval,
             # each outcome bound to the case's own checks, at least one catch
-            problems = nondeterministic_problems(version, nd, new)
+            problems = nondeterministic_problems(version, nd, new, catch=False)
             ok_all = ok_all and not problems
             layer.add(f"corpus-{version}-nondeterministic-held",
                       f"Verdict Corpus {version}: the nondeterministic exemption holds (pinned, exact runs bound to "
-                      f"the case's checks, no crash, no approval, at least one catch)",
+                      f"the case's checks, no crash, no approval)",
                       BLOCKER, not problems, "; ".join(problems) or ", ".join(sorted(nd)))
+            # the "at least one catch" clause on its own: a BLOCKER unless this release carries a pinned exception,
+            # which makes it MAJOR, to be accepted with its reason in accepted.json (never shown as a pass)
+            uncaught = nondeterministic_uncaught(version, nd, new)
+            sev = catch_severity(version, uncaught, getattr(args, "version", None)) if uncaught else BLOCKER
+            ok_all = ok_all and (not uncaught or sev == MAJOR)
+            layer.add(f"corpus-{version}-nondeterministic-caught",
+                      f"Verdict Corpus {version}: every nondeterministic case was caught in at least one run",
+                      sev, not uncaught, f"no run caught: {', '.join(uncaught)}" + (
+                          "; exception pinned for this release: " + "; ".join(
+                              CATCH_EXCEPTIONS[(version, c)]["evidence"] for c in uncaught) if sev == MAJOR else "")
+                      if uncaught else "every case caught in at least one run")
             seen = "; ".join(f"{cid}: " + ", ".join(str(r.get("netdryrun")) for r in new.get(cid, {}).get("runs", []))
                              for cid in nd)
             # every run approving a harmful case is shown as a failed INFO line: not a blocker (it happens by chance),
@@ -2227,7 +2271,7 @@ def main() -> int:
     if args.layer == "corpus-check":   # a corpus-only refresh: the live layer's corpus assertions, before committing
         if not args.results or args.corpus not in CORPORA:
             ap.error("corpus-check needs --corpus v1|v2 and --results RESULTS_JSON")
-        ok, lines = corpus_check(args.corpus, Path(args.results))
+        ok, lines = corpus_check(args.corpus, Path(args.results), args.version)
         print("\n".join(lines))
         return 0 if ok else 1
     if args.layer == "report":

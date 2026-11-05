@@ -294,7 +294,8 @@ def test_the_live_layer_applies_the_same_rules_and_returns_false_on_them(tmp_pat
     import shutil
     path = _refreshed(tmp_path, _row(*["not_proven"] * 5))   # every verdict matches, the exemption doesn't hold
     added = []
-    layer = type("L", (), {"add": lambda self, key, *a, **k: added.append((key, a[2]))})()
+    layer = type("L", (), {"add": lambda self, key, *a, **k: added.append((key, a[2])) or sev.update({key: a[1]})})()
+    sev = {}
     live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None})()
 
     def fake_run(cmd, **kw):
@@ -307,11 +308,18 @@ def test_the_live_layer_applies_the_same_rules_and_returns_false_on_them(tmp_pat
     monkeypatch.setattr(gate, "run", fake_run)
     monkeypatch.setattr(gate, "write_out", lambda *a, **k: None)
     (tmp_path / "corpus").mkdir()
-    ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False})(), only={"v2"})
+    ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": "0.4.2"})(), only={"v2"})
     held = dict(added)
     assert held["corpus-v2"] is True and held["corpus-v2-status"] is True
-    assert held["corpus-v2-nondeterministic-held"] is False
+    # every run legitimately not proven: the other clauses hold, the catch clause alone fails, a BLOCKER on 0.4.2
+    assert held["corpus-v2-nondeterministic-held"] is True
+    assert held["corpus-v2-nondeterministic-caught"] is False and sev["corpus-v2-nondeterministic-caught"] == gate.BLOCKER
     assert ok is False
+    # on 0.4.1, with the pinned exception, the same check is MAJOR (accepted with its reason at report time)
+    added.clear()
+    ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": "0.4.1"})(), only={"v2"})
+    assert dict(added)["corpus-v2-nondeterministic-caught"] is False
+    assert sev["corpus-v2-nondeterministic-caught"] == gate.MAJOR and ok is True
     # code check N2: a crash in a deterministic case, against the legacy committed "error": the status BLOCKER is red
     # and the return value says so, though every verdict matches and the exemption holds
     doc = json.loads(_refreshed(tmp_path, _row("not_proven", "caught", "caught", "caught", "caught")).read_text())
@@ -319,7 +327,7 @@ def test_the_live_layer_applies_the_same_rules_and_returns_false_on_them(tmp_pat
     s.update(status="error", error="RuntimeError: deploy failed")
     path.write_text(json.dumps(doc))
     added.clear()
-    ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False})(), only={"v2"})
+    ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": "0.4.1"})(), only={"v2"})
     held = dict(added)
     assert held["corpus-v2"] is True and held["corpus-v2-nondeterministic-held"] is True
     assert held["corpus-v2-status"] is False and ok is False
@@ -474,3 +482,59 @@ def test_expect_compares_status_when_both_sides_have_it():
     assert "committed status inconclusive, now error" in run_py.expect_mismatch(row, committed, set())
     legacy = {"c": {"strategies": {s: {"verdict": "error"} for s in run_py.STRATEGIES}}}
     assert run_py.expect_mismatch(row, legacy, set()) is None
+
+
+# --- the 0.4.1 exception for the "at least one catch" clause (owner decision 2026-11-05) --------------------------------
+
+def test_the_catch_exception_is_major_only_for_its_pinned_version():
+    assert gate.catch_severity("v2", [CID], "0.4.1") == gate.MAJOR
+    for other in ("0.4.2", "0.5.0", "0.4.0", None):
+        assert gate.catch_severity("v2", [CID], other) == gate.BLOCKER
+    assert gate.catch_severity("v2", [CID, "05-other"], "0.4.1") == gate.BLOCKER   # a case without an exception
+    assert gate.catch_severity("v2", [], "0.4.1") == gate.BLOCKER
+
+
+def test_the_catch_exception_expires_with_the_version():
+    """Every pinned exception names the version under test: on the next version bump this test fails until the
+    exception is removed, so it can't carry over (0.4.2 must remove case 18's race instead)."""
+    import re
+    version = re.search(r'^version\s*=\s*"([^"]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
+    for key, exc in gate.CATCH_EXCEPTIONS.items():
+        assert exc["version"] == version, (key, exc["version"], version)
+    accepted = json.loads((ROOT / "releases" / version / "accepted.json").read_text(encoding="utf-8"))["checks"]
+    pinned = {f"live/corpus-{v}-nondeterministic-caught" for v, _ in gate.CATCH_EXCEPTIONS}
+    assert {k for k in accepted if k.endswith("-nondeterministic-caught")} == pinned
+
+
+def test_only_the_catch_clause_is_excepted():
+    """The other clauses stay BLOCKERs on 0.4.1: an approval, a crash or an unbound run is red whatever the version."""
+    for row in (_row("approved", "not_proven", "not_proven", "not_proven", "not_proven"),
+                _row("crash", "not_proven", "not_proven", "not_proven", "not_proven"),
+                _row("lab_down", "not_proven", "not_proven", "not_proven", "not_proven")):
+        assert gate.nondeterministic_problems("v2", ND, {CID: row}, catch=False)
+    assert gate.nondeterministic_problems("v2", ND, {CID: _row(*["not_proven"] * 5)}, catch=False) == []
+    assert gate.nondeterministic_uncaught("v2", ND, {CID: _row(*["not_proven"] * 5)}) == [CID]
+    assert gate.nondeterministic_uncaught("v2", ND, {CID: _row("caught", *["not_proven"] * 4)}) == []
+
+
+def test_corpus_check_accepts_the_94f5174_shape_on_0_4_1_only(tmp_path):
+    path = _refreshed(tmp_path, _row(*["not_proven"] * 5))
+    ok, lines = gate.corpus_check("v2", path, "0.4.1")
+    assert ok and any(x.startswith("ACCEPTED no run caught 18-") for x in lines), lines
+    ok, lines = gate.corpus_check("v2", path, "0.4.2")
+    assert not ok and any("FAIL no run caught 18-" in x for x in lines), lines
+
+
+def test_run_py_records_the_frr_image_digest(monkeypatch):
+    run_py = _run_py()
+    import subprocess
+    ok = subprocess.CompletedProcess([], 0, "quay.io/frrouting/frr@sha256:97a2\n", "")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: ok)
+    assert run_py._image_digest("quay.io/frrouting/frr:10.4.1") == "quay.io/frrouting/frr@sha256:97a2"
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess([], 1, "", "no such image"))
+    assert run_py._image_digest("x") is None
+
+    def boom(*a, **k):
+        raise FileNotFoundError("docker")
+    monkeypatch.setattr(subprocess, "run", boom)
+    assert run_py._image_digest("x") is None
