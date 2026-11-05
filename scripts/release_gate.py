@@ -1332,28 +1332,56 @@ STATUSES = {"passed": "safe", "failed": "unsafe", "inconclusive": "error", "erro
 # only, and a BLOCKER on every other. Every other clause of the exemption stays a BLOCKER. Owner decision 2026-11-05.
 CATCH_EXCEPTIONS = {("v2", "18-aggregate-discard-route-removed"): {
     "version": "0.4.1",
+    # the case as it ran on 94f5174: its case file, the intent it is judged by and the lab. Any edit voids the exception
+    "pinned": ['corpus/v2/cases/18-aggregate-discard-route-removed.yml', 'corpus/v2/specs/intent.yml', 'corpus/v2/base/'],
+    "pinned_sha256": "68cb21304530abd0fe8233e86cc9c289593f8542887a839ee4d44751761fc0ce",
     "evidence": "0 of 5 runs caught it on 94f5174, and in all 5 the aggregate was still present when checked (I2 and I5 "
                 "passed; only the I8 flood checks failed, routes never left), so the harm didn't manifest. The same I2 "
                 "checks catch a missing aggregate deterministically in v1 case 25 (unsafe in every gate run since "
                 "0.3.1). src is byte-identical to 7532310 (3 of 3 caught). Removing the race is a 0.4.2 blocker."}}
 
 
-def catch_severity(version: str, cids, release: str) -> str:
-    """MAJOR when every case missing a catch has an exception pinned to this release version, else BLOCKER."""
-    cids = list(cids)
-    ok = bool(cids) and all(CATCH_EXCEPTIONS.get((version, c), {}).get("version") == release for c in cids)
-    return MAJOR if ok else BLOCKER
+def pinned_tree(root: Path, paths) -> str:
+    """sha256 of files (a path ending in / : every file under it), path and content, line endings normalised."""
+    files = set()
+    for p in paths:
+        target = root / p
+        files |= ({f for f in target.rglob("*") if f.is_file()} if p.endswith("/") else {target})
+    h = hashlib.sha256()
+    for f in sorted(files, key=lambda x: x.relative_to(root).as_posix()):
+        h.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return h.hexdigest()
+
+
+def catch_severity(version: str, cids, release, root: Path | None = None) -> str:
+    """MAJOR when every case missing a catch has an exception pinned to exactly this release version, and its case
+    file, intent and lab are byte-for-byte the ones the exception was granted on; else BLOCKER."""
+    cids, root = list(cids), root or ROOT
+    if not cids or not isinstance(release, str):
+        return BLOCKER
+    for c in cids:
+        exc = CATCH_EXCEPTIONS.get((version, c))
+        if not exc or exc.get("version") != release:
+            return BLOCKER
+        try:
+            if pinned_tree(root, exc["pinned"]) != exc["pinned_sha256"]:
+                return BLOCKER
+        except (OSError, KeyError, ValueError):
+            return BLOCKER
+    return MAJOR
 CORPUS_STRATEGIES = ("ping", "sessions", "netdryrun")
 
 
 def nondeterministic_uncaught(version: str, nd: dict, new: dict) -> list[str]:
     """The pinned cases where no run caught the harmful change: the "at least one catch" clause on its own, so that a
     release can carry a pinned exception for it (CATCH_EXCEPTIONS) without touching the other clauses."""
-    return sorted({p.split(":", 1)[0] for p in nondeterministic_problems(version, nd, new, catch=True)
-                   if p.endswith("(the case no longer shows that Netdryrun can catch it)")})
+    uncaught: list[str] = []
+    nondeterministic_problems(version, nd, new, catch=False, uncaught=uncaught)
+    return sorted(uncaught)
 
 
-def nondeterministic_problems(version: str, nd: dict, new: dict, catch: bool = True) -> list[str]:
+def nondeterministic_problems(version: str, nd: dict, new: dict, catch: bool = True,
+                              uncaught: list | None = None) -> list[str]:
     """Why the nondeterministic exemption doesn't hold this run (an empty list: it holds). For every pinned case:
     NONDETERMINISTIC.yml lists exactly the pinned cases; the case's expected verdict is the pinned one; exactly N runs,
     each with all three strategies and a known status in `run_details`; no run's status is error (a crash is never part
@@ -1414,6 +1442,8 @@ def nondeterministic_problems(version: str, nd: dict, new: dict, catch: bool = T
                         and d.get("never_left") is True):
                     out.append(f"{cid}: run {i}: inconclusive, but not only because the scenario's routes never "
                                f"left (failed: {sorted(failed)}; never_left: {d.get('never_left')})")
+        if runs and details and decisive == 0 and uncaught is not None:
+            uncaught.append(cid)
         if catch and runs and details and decisive == 0:
             out.append(f"{cid}: no run caught the harmful change (the case no longer shows that Netdryrun can catch it)")
     return out
@@ -1491,7 +1521,7 @@ def nd_always_approved(published: dict, rerun: dict) -> bool:
     """A harmful nondeterministic case that Netdryrun approved in every run of this release."""
     runs = rerun.get("runs") or []
     expected = rerun.get("expected") or published.get("expected")   # a case new in this release has no published row
-    return expected == "unsafe" and bool(runs) and all(r.get("netdryrun") == "safe" for r in runs)
+    return expected == "unsafe" and bool(runs) and all(isinstance(r, dict) and r.get("netdryrun") == "safe" for r in runs)
 
 
 def nondeterministic_cases(corpus: Path) -> dict:
@@ -1576,7 +1606,8 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
                           "; exception pinned for this release: " + "; ".join(
                               CATCH_EXCEPTIONS[(version, c)]["evidence"] for c in uncaught) if sev == MAJOR else "")
                       if uncaught else "every case caught in at least one run")
-            seen = "; ".join(f"{cid}: " + ", ".join(str(r.get("netdryrun")) for r in new.get(cid, {}).get("runs", []))
+            seen = "; ".join(f"{cid}: " + ", ".join(str(r.get("netdryrun") if isinstance(r, dict) else r)
+                                                  for r in new.get(cid, {}).get("runs") or [])
                              for cid in nd)
             # every run approving a harmful case is shown as a failed INFO line: not a blocker (it happens by chance),
             # but in plain sight

@@ -10,7 +10,9 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,7 +50,7 @@ def _row(*outcomes, expected="unsafe"):
     details, runs = [], []
     for o in outcomes:
         d = {"status": "passed", "failed_checks": [], "passed_checks": [], "never_left": False, "error": None}
-        nd = {"error": None, "inconclusive_reason": None, **NETDRYRUN[o]}
+        nd = {"error": None, "inconclusive_reason": None, **copy.deepcopy(NETDRYRUN[o])}   # fixtures mutate rows
         details.append({"ping": dict(d), "sessions": dict(d), "netdryrun": nd})
         runs.append({"ping": "safe", "sessions": "safe", "netdryrun": VERDICT[nd["status"]]})
     return {"id": CID, "expected": expected, "runs": runs, "run_details": details}
@@ -488,7 +490,7 @@ def test_expect_compares_status_when_both_sides_have_it():
 
 def test_the_catch_exception_is_major_only_for_its_pinned_version():
     assert gate.catch_severity("v2", [CID], "0.4.1") == gate.MAJOR
-    for other in ("0.4.2", "0.5.0", "0.4.0", None):
+    for other in ("0.4.2", "0.5.0", "0.4.0", None, "0.4.1rc1", " 0.4.1", "0.4.1 ", "", "0.4.1.0", "v0.4.1", 0.41):
         assert gate.catch_severity("v2", [CID], other) == gate.BLOCKER
     assert gate.catch_severity("v2", [CID, "05-other"], "0.4.1") == gate.BLOCKER   # a case without an exception
     assert gate.catch_severity("v2", [], "0.4.1") == gate.BLOCKER
@@ -538,3 +540,142 @@ def test_run_py_records_the_frr_image_digest(monkeypatch):
         raise FileNotFoundError("docker")
     monkeypatch.setattr(subprocess, "run", boom)
     assert run_py._image_digest("x") is None
+
+
+# --- adversary check of the exception (43ecdf8): it can't widen to a version, clause, case, file or edit -----------
+
+FAILING_RUNS = {   # every other clause's red state, beside an otherwise legitimate not-proven set
+    "crash": _row("crash", *["not_proven"] * 4),
+    "approved": _row("approved", *["not_proven"] * 4),
+    "unbound caught (noise)": _row("noise", *["not_proven"] * 4),
+    "caught plus a lab fault": _row("noise_with_i2", *["not_proven"] * 4),
+    "inconclusive, lab never came up": _row("lab_down", *["not_proven"] * 4),
+    "four runs": _row(*["not_proven"] * 4),
+    "six runs": _row(*["not_proven"] * 6),
+}
+
+
+def _variant(mutate):
+    row = _row(*["not_proven"] * 5)
+    mutate(row)
+    return row
+
+
+FAILING_RUNS.update({
+    "missing strategy": _variant(lambda r: r["runs"][2].pop("sessions")),
+    "missing status": _variant(lambda r: r["run_details"][3]["netdryrun"].pop("status")),
+    "never_left false": _variant(lambda r: r["run_details"][0]["netdryrun"].update(never_left=False)),
+    "failed outside the flood scenario": _variant(
+        lambda r: r["run_details"][1]["netdryrun"]["failed_checks"].append("I1 pe1-up1 session up")),
+    "baseline not passed": _variant(lambda r: r["run_details"][4]["netdryrun"]["passed_checks"].remove(I2[0])),
+    "malformed run": _variant(lambda r: r["runs"].__setitem__(0, None)),
+    "expected edited": _variant(lambda r: r.update(expected="safe")),
+})
+
+
+@pytest.mark.parametrize("name", sorted(FAILING_RUNS))
+def test_the_catch_exception_never_covers_another_clause(name, tmp_path, monkeypatch):
+    """Each other clause is red with the catch clause left out, and the live layer is not cleared on 0.4.1."""
+    row = FAILING_RUNS[name]
+    assert gate.nondeterministic_problems("v2", ND, {CID: row}, catch=False), name
+    added, sev = _live(tmp_path, monkeypatch, row, "0.4.1")
+    assert added["corpus-v2-nondeterministic-held"] is False and sev["corpus-v2-nondeterministic-held"] == gate.BLOCKER
+    assert added["_ok"] is False
+
+
+def test_the_catch_exception_never_covers_another_case():
+    assert gate.catch_severity("v2", ["05-customer-max-prefix-removed"], "0.4.1") == gate.BLOCKER
+    assert gate.catch_severity("v1", [CID], "0.4.1") == gate.BLOCKER
+    extra = gate.nondeterministic_problems("v2", {**ND, "05-customer-max-prefix-removed": {}},
+                                           {CID: _row(*["not_proven"] * 5)}, catch=False)
+    assert any("the gate pins" in x for x in extra)
+
+
+def test_an_edited_case_file_intent_or_lab_voids_the_exception(tmp_path):
+    """Adversary (5): the exception was granted on the case as it ran on 94f5174; an edit (say, I2 removed from the
+    intent) makes the same 0-catch result a BLOCKER."""
+    import shutil
+    exc = gate.CATCH_EXCEPTIONS[("v2", CID)]
+    for p in exc["pinned"]:
+        src, dst = ROOT / p, tmp_path / p
+        if p.endswith("/"):
+            shutil.copytree(src, dst)
+        else:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src, dst)
+    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.MAJOR
+    spec_file = tmp_path / "corpus" / "v2" / "specs" / "intent.yml"
+    spec_file.write_text(spec_file.read_text(encoding="utf-8").replace('name: "I2 peer has our aggregate"', 'name: "x"'),
+                         encoding="utf-8")
+    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.BLOCKER
+    spec_file.unlink()
+    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.BLOCKER
+
+
+def test_the_committed_case_still_matches_its_pin():
+    exc = gate.CATCH_EXCEPTIONS[("v2", CID)]
+    assert gate.pinned_tree(ROOT, exc["pinned"]) == exc["pinned_sha256"]
+
+
+def test_uncaught_is_read_from_the_runs_not_from_message_text():
+    """Adversary (6): a crash whose error text ends like the uncaught message is a crash, not an uncaught case."""
+    row = _row("crash", "caught", "caught", "caught", "caught")
+    row["run_details"][0]["netdryrun"]["error"] = "the case no longer shows that Netdryrun can catch it)"
+    assert gate.nondeterministic_uncaught("v2", ND, {CID: row}) == []
+    assert any("run 1 netdryrun: error" in x for x in gate.nondeterministic_problems("v2", ND, {CID: row}, catch=False))
+    assert gate.nondeterministic_uncaught("v2", ND, {CID: _row(*["not_proven"] * 5)}) == [CID]
+
+
+def _live(tmp_path, monkeypatch, case18, version):
+    """live_corpora on a v2 refresh whose case 18 is `case18`; returns ({check: ok, "_ok": result}, {check: severity})."""
+    import shutil
+    path = _refreshed(tmp_path, case18)
+    added, sev = {}, {}
+    layer = type("L", (), {"add": lambda self, key, *a, **k: added.update({key: a[2]}) or sev.update({key: a[1]})})()
+    live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None})()
+
+    def fake_run(cmd, **kw):
+        out = tmp_path / "corpus" / "v2" / "results"
+        out.mkdir(parents=True, exist_ok=True)
+        shutil.copy(path, out / "results.json")
+        return gate.Proc(0, "", 0.0)
+    monkeypatch.setattr(gate, "run", fake_run)
+    monkeypatch.setattr(gate, "write_out", lambda *a, **k: None)
+    (tmp_path / "corpus").mkdir(exist_ok=True)
+    added["_ok"] = gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": version})(), only={"v2"})
+    return added, sev
+
+
+def test_end_to_end_the_report_shows_accepted_on_0_4_1_and_blocks_otherwise(tmp_path, monkeypatch):
+    """live_corpora then render: 5 not-proven runs on 0.4.1 with the accepted entry read ACCEPTED (never PASS) and clear
+    that check; the same on 0.4.2, or a run that approved the change on 0.4.1, is NOT CLEARED."""
+    accepted = json.loads((ROOT / "releases" / "0.4.1" / "accepted.json").read_text(encoding="utf-8"))["checks"]
+    key = "corpus-v2-nondeterministic-caught"
+
+    def report(case18, version, sub):
+        d = tmp_path / sub
+        d.mkdir()
+        added, sev = _live(d, monkeypatch, case18, version)
+        checks = [(k, sev[k], "PASS" if v else "FAIL") for k, v in added.items() if k != "_ok"]
+        rec = lambda name, cs: {"title": gate.LAYERS[name], "git": {"sha": "a", "branch": "b", "dirty": False},
+                                "started": "now", "seconds": 1, "host": "h", "python": "3", "tools": {}, "sections": [],
+                                "checks": [{"id": i, "title": i, "severity": s, "status": st, "summary": "x",
+                                            "output": "", "seconds": 0, "command": ""} for i, s, st in cs]}
+        (d / "gate").mkdir()
+        for name in ("static", "unit", "mutation", "acceptance"):
+            (d / "gate" / f"{name}.json").write_text(json.dumps(rec(name, [("ok", "BLOCKER", "PASS")])))
+        (d / "gate" / "live.json").write_text(json.dumps(rec("live", checks)))
+        (d / "accepted.json").write_text(json.dumps({"checks": {f"live/{key}": accepted[f"live/{key}"]}}))
+        (d / "review.md").write_text("review")
+        text, _ = gate.render(SimpleNamespace(out=str(d), version=version, stranger_status=None))
+        return text
+
+    text = report(_row(*["not_proven"] * 5), "0.4.1", "a")
+    row = next(ln for ln in text.splitlines() if ln.startswith(f"| {key} "))
+    assert "**ACCEPTED**" in row and "**PASS**" not in row and "Owner decision" in row
+    assert f"live/{key}" not in text.split("**BLOCKER failures:**")[-1].split("**Layers")[0] \
+        if "**BLOCKER failures:**" in text else True
+    text = report(_row(*["not_proven"] * 5), "0.4.2", "b")
+    assert "**BLOCKER failures:**" in text and f"live/{key}" in text.split("**BLOCKER failures:**")[1]
+    text = report(_row("approved", *["not_proven"] * 4), "0.4.1", "c")
+    assert "live/corpus-v2-nondeterministic-held" in text.split("**BLOCKER failures:**")[1]
