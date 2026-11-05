@@ -777,10 +777,8 @@ def unit_in_container(layer: Layer) -> None:
         "set -e\n"
         "if command -v containerlab >/dev/null || command -v docker >/dev/null; then echo 'not a plain environment'; exit 90; fi\n"
         "mkdir /w && tar -C /src --exclude=./mutants --exclude=./.git --exclude=./releases -cf - . | tar -C /w -xf -\n"
-        # the acceptance matrix is read by its tests (tests/test_acceptance_script.py), and each release's accepted.json
-        # by the case-18 exception's expiry test (tests/test_case18_exemption.py); the rest of releases/ is records
+        # the acceptance matrix is read by its tests (tests/test_acceptance_script.py); the rest of releases/ is records
         "mkdir -p /w/releases && cp /src/releases/acceptance-matrix.yml /w/releases/\n"
-        "for f in /src/releases/*/accepted.json; do d=/w/${f#/src/}; mkdir -p \"${d%/*}\" && cp \"$f\" \"$d\"; done\n"
         "cd /w && pip install -q --disable-pip-version-check --root-user-action=ignore '.[dev]'\n"
         "python --version\n"
         "python -m pytest -q -p no:cacheprovider -rs\n")
@@ -1360,58 +1358,13 @@ NONDETERMINISTIC_PINNED = {"v1": {}, "v2": {"18-aggregate-discard-route-removed"
                  "I5 upstream receives 2 to 51 prefixes from us", "I5 peer receives 2 to 51 prefixes from us"]}}}
 STATUSES = {"passed": "safe", "failed": "unsafe", "inconclusive": "error", "error": "error"}   # status -> verdict
 
-# A release may carry an exception for the "at least one catch" clause alone, pinned here to one case and one version:
-# that clause's check is then MAJOR (accepted in releases/<version>/accepted.json with its reason) for that version
-# only, and a BLOCKER on every other. Every other clause of the exemption stays a BLOCKER. Owner decision 2026-11-05.
-CATCH_EXCEPTIONS = {("v2", "18-aggregate-discard-route-removed"): {
-    "version": "0.4.1",
-    # the case as it ran on 94f5174 (its case file, the intent it is judged by, the lab) and this release's corpus
-    # runner (corpus/run.py, which records each run's status). Any edit voids the exception
-    "pinned": ['corpus/v2/cases/18-aggregate-discard-route-removed.yml', 'corpus/v2/specs/intent.yml', 'corpus/v2/base/',
-               'corpus/run.py'],
-    # and the verdict code it ran on (audit F2): src/ as on 7532310, 94f5174 and 6e0a027
-    "verdict_tree": "3e62b50eadfd2de65e15f705acfcdd417676bcd185e6f6de7fac7e19ffc5812e",
-    "pinned_sha256": "ae3a98d3991cc3ea538f4818fddccf330586f0e30e1a1013d38ee3a5e2fe5e14",
-    "evidence": "0 of 5 runs caught it on 94f5174, and in all 5 the aggregate was still present when checked (I2 and I5 "
-                "passed; only the I8 flood checks failed, routes never left), so the harm didn't manifest. The same I2 "
-                "checks catch a missing aggregate deterministically in v1 case 25 (unsafe in every gate run since "
-                "0.3.1). src is byte-identical to 7532310 (3 of 3 caught). Removing the race is a 0.4.2 blocker."}}
-
-
-def pinned_tree(root: Path, paths) -> str:
-    """sha256 of files (a path ending in / : every file under it), path and content, line endings normalised."""
-    files = set()
-    for p in paths:
-        target = root / p
-        files |= ({f for f in target.rglob("*") if f.is_file()} if p.endswith("/") else {target})
-    h = hashlib.sha256()
-    for f in sorted(files, key=lambda x: x.relative_to(root).as_posix()):
-        h.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes().replace(b"\r\n", b"\n") + b"\0")
-    return h.hexdigest()
-
-
-def catch_severity(version: str, cids, release, root: Path | None = None) -> str:
-    """MAJOR when every case missing a catch has an exception pinned to exactly this release version, and its case
-    file, intent and lab are byte-for-byte the ones the exception was granted on; else BLOCKER."""
-    cids, root = list(cids), root or ROOT
-    if not cids or not isinstance(release, str):
-        return BLOCKER
-    for c in cids:
-        exc = CATCH_EXCEPTIONS.get((version, c))
-        if not exc or exc.get("version") != release:
-            return BLOCKER
-        try:
-            if pinned_tree(root, exc["pinned"]) != exc["pinned_sha256"] or verdict_tree(root) != exc["verdict_tree"]:
-                return BLOCKER
-        except (OSError, KeyError, ValueError):
-            return BLOCKER
-    return MAJOR
 CORPUS_STRATEGIES = ("ping", "sessions", "netdryrun")
 
 
 def nondeterministic_uncaught(version: str, nd: dict, new: dict) -> list[str]:
-    """The pinned cases where no run caught the harmful change: the "at least one catch" clause on its own, so that a
-    release can carry a pinned exception for it (CATCH_EXCEPTIONS) without touching the other clauses."""
+    """The pinned cases where no run caught the harmful change: the "at least one catch" clause on its own, reported
+    as its own BLOCKER beside the other clauses. No release carries an exception for it: the 0.4.1 one (never used) was
+    removed with the red-team source batch, since its evidence was tied to the old source."""
     uncaught: list[str] = []
     nondeterministic_problems(version, nd, new, catch=False, uncaught=uncaught)
     return sorted(uncaught)
@@ -1548,12 +1501,9 @@ def corpus_check(version: str, results: Path, release: str | None = None) -> tup
     ok = ok and not problems
     lines += [f"FAIL nondeterministic exemption: {p}" for p in problems] or ["PASS nondeterministic exemption holds"]
     uncaught = nondeterministic_uncaught(version, nd, new)
-    if uncaught and catch_severity(version, uncaught, release or package_version()) == MAJOR:
-        lines.append(f"ACCEPTED no run caught {', '.join(uncaught)} (exception pinned to this release: "
-                     + "; ".join(CATCH_EXCEPTIONS[(version, c)]["evidence"] for c in uncaught) + ")")
-    elif uncaught:
+    if uncaught:
         ok = False
-        lines.append(f"FAIL no run caught {', '.join(uncaught)} (no exception for this release)")
+        lines.append(f"FAIL no run caught {', '.join(uncaught)}")
     else:
         lines.append("PASS every nondeterministic case caught in at least one run")
     h_ok, summary = harmful_approved_check(list(old.values()), list(new.values()), nd)
@@ -1654,17 +1604,13 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
                       f"Verdict Corpus {version}: the nondeterministic exemption holds (pinned, exact runs bound to "
                       f"the case's checks, no crash, no approval)",
                       BLOCKER, not problems, "; ".join(problems) or ", ".join(sorted(nd)))
-            # the "at least one catch" clause on its own: a BLOCKER unless this release carries a pinned exception,
-            # which makes it MAJOR, to be accepted with its reason in accepted.json (never shown as a pass)
+            # the "at least one catch" clause on its own: a BLOCKER (no release carries an exception for it)
             uncaught = nondeterministic_uncaught(version, nd, new)
-            sev = catch_severity(version, uncaught, getattr(args, "version", None)) if uncaught else BLOCKER
-            ok_all = ok_all and (not uncaught or sev == MAJOR)
+            ok_all = ok_all and not uncaught
             layer.add(f"corpus-{version}-nondeterministic-caught",
                       f"Verdict Corpus {version}: every nondeterministic case was caught in at least one run",
-                      sev, not uncaught, f"no run caught: {', '.join(uncaught)}" + (
-                          "; exception pinned for this release: " + "; ".join(
-                              CATCH_EXCEPTIONS[(version, c)]["evidence"] for c in uncaught) if sev == MAJOR else "")
-                      if uncaught else "every case caught in at least one run")
+                      BLOCKER, not uncaught, f"no run caught: {', '.join(uncaught)}" if uncaught
+                      else "every case caught in at least one run")
             seen = "; ".join(f"{cid}: " + ", ".join(str(r.get("netdryrun") if isinstance(r, dict) else r)
                                                   for r in new.get(cid, {}).get("runs") or [])
                              for cid in nd)

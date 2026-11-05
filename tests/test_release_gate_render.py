@@ -86,8 +86,8 @@ def test_a_skipped_blocker_cannot_be_accepted(tmp_path):
 
 @pytest.mark.parametrize("check", ["corpus-v2-nondeterministic-held", "corpus-v2-nondeterministic-caught", "x"])
 def test_a_failed_blocker_cannot_be_accepted(tmp_path, check):
-    """accepted.json can't turn a failed BLOCKER into ACCEPTED, whatever its id (the 0.4.1 case-18 exception works
-    only because the gate itself made that one check MAJOR for that version)."""
+    """accepted.json can't turn a failed BLOCKER into ACCEPTED, whatever its id: only the gate itself sets a check's
+    severity."""
     args = write(tmp_path, {**PRE, "live": [(check, "BLOCKER", "FAIL")], "after-publish": [("p", "BLOCKER", "PASS")]},
                  accepted={f"live/{check}": "please"})
     text, cleared = gate.render(args)

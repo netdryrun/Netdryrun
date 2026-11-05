@@ -8,10 +8,8 @@ the new rule's own reason, so it fails on d58e5bc's code (which accepted the sta
 import copy
 import importlib.util
 import json
-import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -24,20 +22,16 @@ spec.loader.exec_module(gate)
 
 CID = "18-aggregate-discard-route-removed"
 ND = {CID: {}}
-REAL_PIN = gate.CATCH_EXCEPTIONS[("v2", CID)].get("verdict_tree")   # the release's src tree, as pinned in the gate
 
 
-@pytest.fixture(autouse=True)
-def _pin_to_the_code_under_test(monkeypatch):
-    """Behaviour tests pin the exception to the verdict tree of the code they run, which under mutation testing is the
-    mutated copy; whether the pin is the release's own tree is a fact about the repository, tested on its own below."""
-    exc = {**gate.CATCH_EXCEPTIONS[("v2", CID)], "verdict_tree": gate.verdict_tree()}
-    monkeypatch.setitem(gate.CATCH_EXCEPTIONS, ("v2", CID), exc)
-
-
-@pytest.mark.skipif(bool(os.environ.get("MUTANT_UNDER_TEST")), reason="mutation testing runs a deliberately different src")
-def test_the_pin_is_this_sources_verdict_tree():
-    assert REAL_PIN == gate.verdict_tree()
+def test_no_release_carries_a_catch_exception():
+    """The 0.4.1 exception for the "at least one catch" clause was never used and was removed with the red-team source
+    batch (its evidence was tied to the old source). A 0-catch case 18 is a BLOCKER on every version; the fix is
+    removing the race (0.4.2), never a new exception."""
+    assert not hasattr(gate, "CATCH_EXCEPTIONS") and not hasattr(gate, "catch_severity")
+    for accepted in (ROOT / "releases").glob("*/accepted.json"):
+        checks = json.loads(accepted.read_text(encoding="utf-8")).get("checks", {})
+        assert not [k for k in checks if k.endswith("-nondeterministic-caught")], accepted
 I2 = ["I2 upstream has our aggregate", "I2 peer has our aggregate"]
 I5 = ["I5 upstream receives 2 to 51 prefixes from us", "I5 peer receives 2 to 51 prefixes from us"]
 I8 = ["[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
@@ -336,11 +330,11 @@ def test_the_live_layer_applies_the_same_rules_and_returns_false_on_them(tmp_pat
     assert held["corpus-v2-nondeterministic-held"] is True
     assert held["corpus-v2-nondeterministic-caught"] is False and sev["corpus-v2-nondeterministic-caught"] == gate.BLOCKER
     assert ok is False
-    # on 0.4.1, with the pinned exception, the same check is MAJOR (accepted with its reason at report time)
+    # on 0.4.1 too: no release carries an exception for the catch clause (the 0.4.1 one was removed, never used)
     added.clear()
     ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": "0.4.1"})(), only={"v2"})
     assert dict(added)["corpus-v2-nondeterministic-caught"] is False
-    assert sev["corpus-v2-nondeterministic-caught"] == gate.MAJOR and ok is True
+    assert sev["corpus-v2-nondeterministic-caught"] == gate.BLOCKER and ok is False
     # code check N2: a crash in a deterministic case, against the legacy committed "error": the status BLOCKER is red
     # and the return value says so, though every verdict matches and the exemption holds
     doc = json.loads(_refreshed(tmp_path, _row("not_proven", "caught", "caught", "caught", "caught")).read_text())
@@ -505,30 +499,11 @@ def test_expect_compares_status_when_both_sides_have_it():
     assert run_py.expect_mismatch(row, legacy, set()) is None
 
 
-# --- the 0.4.1 exception for the "at least one catch" clause (owner decision 2026-11-05) --------------------------------
+# --- the "at least one catch" clause: its own BLOCKER, on every version ----------------------------------------------
 
-def test_the_catch_exception_is_major_only_for_its_pinned_version():
-    assert gate.catch_severity("v2", [CID], "0.4.1") == gate.MAJOR
-    for other in ("0.4.2", "0.5.0", "0.4.0", None, "0.4.1rc1", " 0.4.1", "0.4.1 ", "", "0.4.1.0", "v0.4.1", 0.41):
-        assert gate.catch_severity("v2", [CID], other) == gate.BLOCKER
-    assert gate.catch_severity("v2", [CID, "05-other"], "0.4.1") == gate.BLOCKER   # a case without an exception
-    assert gate.catch_severity("v2", [], "0.4.1") == gate.BLOCKER
-
-
-def test_the_catch_exception_expires_with_the_version():
-    """Every pinned exception names the version under test: on the next version bump this test fails until the
-    exception is removed, so it can't carry over (0.4.2 must remove case 18's race instead)."""
-    import re
-    version = re.search(r'^version\s*=\s*"([^"]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
-    for key, exc in gate.CATCH_EXCEPTIONS.items():
-        assert exc["version"] == version, (key, exc["version"], version)
-    accepted = json.loads((ROOT / "releases" / version / "accepted.json").read_text(encoding="utf-8"))["checks"]
-    pinned = {f"live/corpus-{v}-nondeterministic-caught" for v, _ in gate.CATCH_EXCEPTIONS}
-    assert {k for k in accepted if k.endswith("-nondeterministic-caught")} == pinned
-
-
-def test_only_the_catch_clause_is_excepted():
-    """The other clauses stay BLOCKERs on 0.4.1: an approval, a crash or an unbound run is red whatever the version."""
+def test_only_the_catch_clause_is_left_out_by_catch_false():
+    """catch=False leaves out the catch clause alone (it is reported on its own): an approval, a crash or an unbound run
+    is red whatever happens to the catch clause."""
     for row in (_row("approved", "not_proven", "not_proven", "not_proven", "not_proven"),
                 _row("crash", "not_proven", "not_proven", "not_proven", "not_proven"),
                 _row("lab_down", "not_proven", "not_proven", "not_proven", "not_proven")):
@@ -538,12 +513,12 @@ def test_only_the_catch_clause_is_excepted():
     assert gate.nondeterministic_uncaught("v2", ND, {CID: _row("caught", *["not_proven"] * 4)}) == []
 
 
-def test_corpus_check_accepts_the_94f5174_shape_on_0_4_1_only(tmp_path):
+@pytest.mark.parametrize("version", ["0.4.1", "0.4.2", None])
+def test_corpus_check_fails_the_94f5174_shape_on_every_version(tmp_path, version):
     path = _refreshed(tmp_path, _row(*["not_proven"] * 5))
-    ok, lines = gate.corpus_check("v2", path, "0.4.1")
-    assert ok and any(x.startswith("ACCEPTED no run caught 18-") for x in lines), lines
-    ok, lines = gate.corpus_check("v2", path, "0.4.2")
+    ok, lines = gate.corpus_check("v2", path, version)
     assert not ok and any("FAIL no run caught 18-" in x for x in lines), lines
+    assert not any(x.startswith("ACCEPTED") for x in lines), lines
 
 
 def test_run_py_records_the_frr_image_digest(monkeypatch):
@@ -561,7 +536,7 @@ def test_run_py_records_the_frr_image_digest(monkeypatch):
     assert run_py._image_digest("x") is None
 
 
-# --- adversary check of the exception (43ecdf8): it can't widen to a version, clause, case, file or edit -----------
+# --- every other clause stays its own BLOCKER (from the adversary check of 43ecdf8) -----------------------------------
 
 FAILING_RUNS = {   # every other clause's red state, beside an otherwise legitimate not-proven set
     "crash": _row("crash", *["not_proven"] * 4),
@@ -593,8 +568,8 @@ FAILING_RUNS.update({
 
 
 @pytest.mark.parametrize("name", sorted(FAILING_RUNS))
-def test_the_catch_exception_never_covers_another_clause(name, tmp_path, monkeypatch):
-    """Each other clause is red with the catch clause left out, and the live layer is not cleared on 0.4.1."""
+def test_every_other_clause_is_red_on_its_own(name, tmp_path, monkeypatch):
+    """Each other clause is red with the catch clause left out, and the live layer is not cleared."""
     row = FAILING_RUNS[name]
     assert gate.nondeterministic_problems("v2", ND, {CID: row}, catch=False), name
     added, sev = _live(tmp_path, monkeypatch, row, "0.4.1")
@@ -602,39 +577,10 @@ def test_the_catch_exception_never_covers_another_clause(name, tmp_path, monkeyp
     assert added["_ok"] is False
 
 
-def test_the_catch_exception_never_covers_another_case():
-    assert gate.catch_severity("v2", ["05-customer-max-prefix-removed"], "0.4.1") == gate.BLOCKER
-    assert gate.catch_severity("v1", [CID], "0.4.1") == gate.BLOCKER
+def test_a_case_the_gate_doesnt_pin_is_red():
     extra = gate.nondeterministic_problems("v2", {**ND, "05-customer-max-prefix-removed": {}},
                                            {CID: _row(*["not_proven"] * 5)}, catch=False)
     assert any("the gate pins" in x for x in extra)
-
-
-def test_an_edited_case_file_intent_or_lab_voids_the_exception(tmp_path):
-    """Adversary (5): the exception was granted on the case as it ran on 94f5174; an edit (say, I2 removed from the
-    intent) makes the same 0-catch result a BLOCKER."""
-    import shutil
-    exc = gate.CATCH_EXCEPTIONS[("v2", CID)]
-    for p in exc["pinned"]:
-        src, dst = ROOT / p, tmp_path / p
-        if p.endswith("/"):
-            shutil.copytree(src, dst)
-        else:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src, dst)
-    shutil.copytree(ROOT / "src", tmp_path / "src", ignore=shutil.ignore_patterns("__pycache__"))   # the verdict tree (F2)
-    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.MAJOR
-    spec_file = tmp_path / "corpus" / "v2" / "specs" / "intent.yml"
-    spec_file.write_text(spec_file.read_text(encoding="utf-8").replace('name: "I2 peer has our aggregate"', 'name: "x"'),
-                         encoding="utf-8")
-    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.BLOCKER
-    spec_file.unlink()
-    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.BLOCKER
-
-
-def test_the_committed_case_still_matches_its_pin():
-    exc = gate.CATCH_EXCEPTIONS[("v2", CID)]
-    assert gate.pinned_tree(ROOT, exc["pinned"]) == exc["pinned_sha256"]
 
 
 def test_uncaught_is_read_from_the_runs_not_from_message_text():
@@ -667,46 +613,26 @@ def _live(tmp_path, monkeypatch, case18, version):
     return added, sev
 
 
-def test_end_to_end_the_report_shows_accepted_on_0_4_1_and_blocks_otherwise(tmp_path, monkeypatch):
-    """live_corpora then render: 5 not-proven runs on 0.4.1 with the accepted entry read ACCEPTED (never PASS) and clear
-    that check; the same on 0.4.2, or a run that approved the change on 0.4.1, is NOT CLEARED."""
-    accepted = json.loads((ROOT / "releases" / "0.4.1" / "accepted.json").read_text(encoding="utf-8"))["checks"]
-    key = "corpus-v2-nondeterministic-caught"
-
-    def report(case18, version, sub):
+def test_end_to_end_a_0_catch_case_18_blocks_on_every_version(tmp_path, monkeypatch):
+    """live_corpora: 5 not-proven runs are a failed BLOCKER on the catch check, on 0.4.1 as on any version, and a run
+    that approved the change fails the held check too."""
+    for version, sub in (("0.4.1", "a"), ("0.4.2", "b")):
         d = tmp_path / sub
         d.mkdir()
-        added, sev = _live(d, monkeypatch, case18, version)
-        checks = [(k, sev[k], "PASS" if v else "FAIL") for k, v in added.items() if k != "_ok"]
-        rec = lambda name, cs: {"title": gate.LAYERS[name], "git": {"sha": "a", "branch": "b", "dirty": False},
-                                "started": "now", "seconds": 1, "host": "h", "python": "3", "tools": {}, "sections": [],
-                                "checks": [{"id": i, "title": i, "severity": s, "status": st, "summary": "x",
-                                            "output": "", "seconds": 0, "command": ""} for i, s, st in cs]}
-        (d / "gate").mkdir()
-        for name in ("static", "unit", "mutation", "acceptance"):
-            (d / "gate" / f"{name}.json").write_text(json.dumps(rec(name, [("ok", "BLOCKER", "PASS")])))
-        (d / "gate" / "live.json").write_text(json.dumps(rec("live", checks)))
-        (d / "accepted.json").write_text(json.dumps({"checks": {f"live/{key}": accepted[f"live/{key}"]}}))
-        (d / "review.md").write_text("review")
-        text, _ = gate.render(SimpleNamespace(out=str(d), version=version, stranger_status=None))
-        return text
-
-    text = report(_row(*["not_proven"] * 5), "0.4.1", "a")
-    row = next(ln for ln in text.splitlines() if ln.startswith(f"| {key} "))
-    assert "**ACCEPTED**" in row and "**PASS**" not in row and "Owner decision" in row
-    assert f"live/{key}" not in text.split("**BLOCKER failures:**")[-1].split("**Layers")[0] \
-        if "**BLOCKER failures:**" in text else True
-    text = report(_row(*["not_proven"] * 5), "0.4.2", "b")
-    assert "**BLOCKER failures:**" in text and f"live/{key}" in text.split("**BLOCKER failures:**")[1]
-    text = report(_row("approved", *["not_proven"] * 4), "0.4.1", "c")
-    assert "live/corpus-v2-nondeterministic-held" in text.split("**BLOCKER failures:**")[1]
+        added, sev = _live(d, monkeypatch, _row(*["not_proven"] * 5), version)
+        assert added["corpus-v2-nondeterministic-caught"] is False
+        assert sev["corpus-v2-nondeterministic-caught"] == gate.BLOCKER and added["_ok"] is False
+    d = tmp_path / "c"
+    d.mkdir()
+    added, sev = _live(d, monkeypatch, _row("approved", *["not_proven"] * 4), "0.4.1")
+    assert added["corpus-v2-nondeterministic-held"] is False and added["_ok"] is False
 
 
 # --- final multi-vendor audit of b88adef..6e0a027 (GPT, Grok): F1, F2, F3, F5, F12 -----------------------------------
 
 def test_audit_f1_a_non_string_check_name_is_reported_not_skipped():
     """Grok 1: `passed_checks: [1]` passed the first shape guard and the second skipped the run unreported, hiding an
-    approval; on 0.4.1 the exception then accepted "no run caught"."""
+    approval."""
     row = _row("approved", *["not_proven"] * 4)
     row["run_details"][0]["netdryrun"]["passed_checks"] = [1]
     p = gate.nondeterministic_problems("v2", ND, {CID: row}, catch=False)
@@ -721,25 +647,6 @@ def test_audit_f1_corpus_check_rejects_it_on_0_4_1(tmp_path):
     ok, lines = gate.corpus_check("v2", _refreshed(tmp_path, row), "0.4.1")
     assert not ok, lines
     assert any("malformed" in x for x in lines), lines
-
-
-def test_audit_f2_the_exception_needs_this_verdict_code(tmp_path):
-    """Grok 2 / GPT 7: the exception pinned the case and lab, not the code under test."""
-    import shutil
-    exc = gate.CATCH_EXCEPTIONS[("v2", CID)]
-    assert "corpus/run.py" in exc["pinned"]
-    for p in exc["pinned"]:
-        src, dst = ROOT / p, tmp_path / p
-        if p.endswith("/"):
-            shutil.copytree(src, dst)
-        else:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src, dst)
-    shutil.copytree(ROOT / "src", tmp_path / "src", ignore=shutil.ignore_patterns("__pycache__"))
-    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.MAJOR
-    faults = tmp_path / "src" / "netdryrun" / "faults.py"
-    faults.write_bytes(faults.read_bytes() + b"\n# one byte more\n")
-    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.BLOCKER
 
 
 def test_audit_f2_corpus_check_rejects_results_from_other_code(tmp_path):
