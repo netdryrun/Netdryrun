@@ -51,4 +51,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 05
 ```
 
-Case file: [`corpus/cases/05-description-only.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/05-description-only.yml). Published result: netdryrun 0.4.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `88cf6bb`, run on 2026-11-04.
+Case file: [`corpus/cases/05-description-only.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/05-description-only.yml). Published result: netdryrun 0.4.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `unknown`, run on 2026-11-05.
