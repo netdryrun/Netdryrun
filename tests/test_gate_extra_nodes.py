@@ -145,3 +145,34 @@ def test_a_whole_run_puts_the_warning_on_the_result(monkeypatch):
     rep = e.run([leak("n", timeout=30)], settle=1, hold=3)
     r = rep.results[0]
     assert r.passed and [w["code"] for w in r.warnings] == ["gate-session-down"]
+
+
+def _lab(addresses, links):
+    lab = FakeLab(Clock(), nodes=("r1", "r2", "r3", "r4", "ix"), kinds={"ix": ("bridge", "")}, addresses=addresses,
+                  links=links)
+    return lab
+
+
+def test_far_end_exclusion_is_only_the_declared_session_on_a_dual_stack_link():
+    """Adversary on 6d66267: declaring r1 -> 10.0.12.2 down excluded r2's IPv6, link-local and unnumbered sessions to r1."""
+    lab = _lab({("r1", "eth1"): ["10.0.12.1/30", "2001:db8:12::1/64", "fe80::1/64"],
+                ("r2", "eth1"): ["10.0.12.2/30", "2001:db8:12::2/64", "fe80::2/64"]},
+               [(("r1", "eth1"), ("r2", "eth1"))])
+    assert runner._far_ends(lab, {("r1", "default", "10.0.12.2")}) == {("r2", "default", "10.0.12.1")}
+
+
+def test_far_end_exclusion_on_a_bridge_is_only_the_peer_that_owns_the_address():
+    lab = _lab({("r1", "eth1"): ["10.0.0.1/24"], ("r2", "eth1"): ["10.0.0.2/24"], ("r3", "eth1"): ["10.0.0.3/24"],
+                ("r4", "eth1"): ["10.0.0.4/24"]},
+               [(("r1", "eth1"), ("ix", "p1")), (("r2", "eth1"), ("ix", "p2")), (("r3", "eth1"), ("ix", "p3")),
+                (("r4", "eth1"), ("ix", "p4"))])
+    assert runner._far_ends(lab, {("r1", "default", "10.0.0.4")}) == {("r4", "default", "10.0.0.1")}
+
+
+def test_a_session_down_on_purpose_gets_a_hint(monkeypatch):
+    e = make(monkeypatch, r1={"neighbors": {"default": {"10.0.12.2": "established"}}},
+             r2={"neighbors": {"default": {"192.0.2.9": "active"}}})
+    neg = leak("n", timeout=30)
+    w: dict = {}
+    gate(e, [neg], warnings=w)
+    assert "state: down" in w[id(neg)][0]["text"]

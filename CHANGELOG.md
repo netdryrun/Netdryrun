@@ -54,7 +54,7 @@ code before the fix:
   target, or one equal to `source`, is a config error; at run time a target that is one of the node's own addresses (or a
   subnet broadcast) fails the check, read per driver. Output that can't be read is retried, never "not own".
 - **An `as_path_regex` that matches every AS path is refused** (B-9007). A stray `|` matched the empty string, so the check
-  asserted nothing. A pattern that matches all five probe paths is a config error; `^$` stays valid.
+  asserted nothing. A pattern that matches every learned probe path (`.+` and `\d` too) is a config error; `^$` stays valid.
 - **An `only` entry with host bits is refused** (B-9004; see Changed).
 
 Eight false passes are fixed: one in `record` (0.3.3 and 0.4.0, the [advisory](advisories/)) and seven found by the weekly adversarial run on 2026-11-01 (RT-0021 to RT-0027 in `tests/redteam/`). 0.3.3 and 0.4.0 will be yanked from PyPI.

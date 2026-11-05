@@ -544,7 +544,10 @@ def nxos_eor_text(msg: str | None, fam: str) -> str:
         return "unknown"
     if re.search(r"^\s*Last End-of-RIB received\b", block, re.M):
         return "received"
-    gr = re.search(r"^\s*Graceful Restart capability: advertised received\s*$", msg, re.M)
+    cap = re.search(r"^\s*Graceful Restart capability:([^\n]*)$", msg, re.M)
+    if cap is None:
+        return "unknown"   # the line is in every captured detail: without it nothing is known
+    gr = cap.group(1).split() == ["advertised", "received"]
     recv = re.search(r"^\s*Address families received from peer:[ \t]*\n((?:[ \t]{3,}\S[^\n]*\n)*)", msg, re.M)
     fams = [x.strip() for x in recv.group(1).splitlines()] if recv else []
     return "pending" if gr and label in fams else "untracked"

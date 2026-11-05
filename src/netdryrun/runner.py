@@ -288,7 +288,7 @@ def preflight(config: Config, lab: Lab, *, full: bool = False) -> None:
             # only an interface on a topology link is a lab link: management eth0, lo or a name not in links: would
             # take nothing down that the checks depend on, and every scenario check would pass (red team B-9001)
             ends = sorted({i for a, b in getattr(lab, "links", []) for n, i in (a, b) if n == f.node})
-            if f.interface not in ends:
+            if f.interface not in ends and f.interface not in {_container_iface(i) for i in ends}:
                 raise LabError(f"scenario '{sc.name}': link_down {f.node} {f.interface}: not an interface of a link in "
                                f"the topology (links on {f.node}: {', '.join(ends) or 'none'}); a fault on any other "
                                "interface takes no lab link down")
@@ -758,11 +758,13 @@ def _routing_nodes(lab, driver_for) -> dict:
 
 
 def _far_ends(lab, declared: set[tuple[str, str, str]]) -> set[tuple[str, str, str]]:
-    """The other end of each session the file declares not established, where the topology shows it: the peer
-    across the link whose subnet holds the neighbor address (keyed by this node's addresses on that link), or, for
-    unnumbered BGP, the peer interface. A session the topology can't place (iBGP between loopbacks) has no far end
-    here; the gate then only warns about it there, or blocks as before on a node that carries post-convergence
-    checks (declare it there too)."""
+    """The other end of each session the file declares not established, where the topology shows it, and nothing
+    more: on the link whose subnet holds the declared neighbor address, the one peer that owns that address on its
+    interface, keyed by the declaring node's own address in that same subnet (never its other addresses on the link,
+    never the other peers on a shared segment: adversary finding on 6d66267, dual-stack and bridged links). For
+    unnumbered BGP (the neighbor named by its interface), the peer interface, only when exactly one peer is on the
+    link. A session the topology can't place (iBGP between loopbacks, a VM's interfaces) has no far end here; the gate
+    then waits for it there as for any other session (a warning on another node, a block on the check's own)."""
     out: set[tuple[str, str, str]] = set()
     for node, vrf, key in declared:
         if not key:
@@ -772,19 +774,27 @@ def _far_ends(lab, declared: set[tuple[str, str, str]]) -> set[tuple[str, str, s
             for n, iface in (a, b):
                 if n != node:
                     continue
+                peers = lab.peers_of(node, iface)
                 if key == iface:
-                    out |= {(peer, vrf, piface) for peer, piface in lab.peers_of(node, iface)}
+                    if len(peers) == 1:
+                        out.add((peers[0][0], vrf, peers[0][1]))
                     continue
                 if ip is None:
                     continue
                 try:
-                    addrs = lab.interface_addresses(node, iface)
+                    mine = [x for x in lab.interface_addresses(node, iface)
+                            if x.version == ip.version and ip in x.network and x.ip != ip]
                 except Exception:
-                    continue   # a VM's interfaces aren't readable this way; its far end is only warned about
-                if ip in {x.ip for x in addrs} or not any(ip in x.network for x in addrs):
+                    continue   # unreadable: no far end, so the far end is waited for (never excluded)
+                if len(mine) != 1:
                     continue
-                for peer, piface in lab.peers_of(node, iface):
-                    out |= {(peer, vrf, str(x.ip)) for x in addrs} | {(peer, vrf, piface)}
+                for peer, piface in peers:
+                    try:
+                        theirs = {x.ip for x in lab.interface_addresses(peer, piface)}
+                    except Exception:
+                        continue
+                    if ip in theirs:
+                        out.add((peer, vrf, str(mine[0].ip)))
     return out
 
 
@@ -920,7 +930,10 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 for fam, state in sorted(fams.items()):
                     if state == "untracked":
                         untracked.add(a)
-                    elif state != "received" and (node, vrf, _canon_ip(a)) not in eor_not_sent:
+                    elif state == "pending" or (state != "received"
+                                                and (node, vrf, _canon_ip(a)) not in eor_not_sent):
+                        # eor: not_sent excuses only what can't be read; a "pending" read is the table still
+                        # arriving, and the declaration never weakens a read (design M7)
                         waiting.append((a, fam, state))
             s["untracked"] |= untracked
             s["eor_wait"] = waiting
@@ -957,7 +970,9 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 elif s["down"]:
                     for a, state in s["down"]:
                         warn_extra(g, "gate-session-down", f"convergence: {g[0]}'s session to {a}{where} was not "
-                                   f"established ({state}) when this check ran (waited {deadline[g]:g}s)", session=a)
+                                   f"established ({state}) when this check ran (waited {deadline[g]:g}s). If it is "
+                                   f"down on purpose, add a bgp_session check on {g[0]} with state: down for it: the "
+                                   "gate then doesn't wait for it", session=a)
                 elif s["error"] or not s["answered"]:
                     warn_extra(g, "gate-unreadable", f"convergence: {g[0]}'s BGP state{where} could not be read "
                                f"by the cap ({deadline[g]:g}s): {' '.join(s['error'].split())[:200]}")
@@ -1038,6 +1053,17 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     return blocked
 
 
+def _container_iface(name: str) -> str:
+    """The container interface behind a containerlab interface alias (cEOS `Ethernet1` is `eth1`, SR Linux
+    `ethernet-1/1` is `e1-1`); any other name is itself."""
+    import re as _re
+    m = _re.fullmatch(r"Ethernet(\d+)", name)
+    if m:
+        return f"eth{m.group(1)}"
+    m = _re.fullmatch(r"ethernet-(\d+)/(\d+)", name)
+    return f"e{m.group(1)}-{m.group(2)}" if m else name
+
+
 def _check_declared_peers(declared, driver_for) -> None:
     """Each `nodes.<node>.peers.<address>.eor: not_sent` must name a BGP session the node has: one that names none is a
     config error (a typo would otherwise excuse nothing, silently). Read once the lab is up (after the positive
@@ -1046,10 +1072,18 @@ def _check_declared_peers(declared, driver_for) -> None:
     for node, vrf, addr in sorted(declared):
         by_node.setdefault((node, vrf), []).append(addr)
     for (node, vrf), addrs in by_node.items():
-        try:
-            have = {_canon_ip(k) for k in driver_for(node).bgp_neighbors(vrf).value}
-        except NoSuchInstance:
-            have = set()
+        have = None
+        for attempt in range(3):
+            try:
+                have = {_canon_ip(k) for k in driver_for(node).bgp_neighbors(vrf).value}
+                break
+            except NoSuchInstance:
+                have = set()
+                break
+            except DriverError:
+                if attempt == 2:
+                    raise
+                _sleep(POLL)
         missing = [a for a in addrs if a not in have]
         if missing:
             where = "" if vrf == "default" else f"{vrf}/"

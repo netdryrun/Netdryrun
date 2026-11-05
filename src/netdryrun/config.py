@@ -514,10 +514,12 @@ def _validate_bgp_route(where: str, params: dict[str, Any]) -> None:
             rx = re.compile(v)
         except re.error as e:
             raise ConfigError(f"{where}: as_path_regex is not a valid regular expression: {e}") from None
-        matched = [probe for probe in AS_PATH_PROBES if rx.search(probe)]
-        if len(matched) == len(AS_PATH_PROBES):
-            # a stray | (or .*) matches the empty string, and so every path: the check would assert nothing
-            # (red team B-9007). ^$ stays valid: it matches only "" (the router's own routes)
+        learned = [probe for probe in AS_PATH_PROBES if probe]
+        matched = [probe for probe in learned if rx.search(probe)]
+        if len(matched) == len(learned):
+            # a stray | (or .*, .+, \d) matches every learned path: the check would assert nothing more than
+            # "learned from a peer" (red team B-9007; design R8: every non-empty probe). ^$ stays valid: it matches
+            # only "" (the router's own routes)
             raise ConfigError(f"{where}: as_path_regex {v!r} matches every AS path (it matched all of "
                               f"{', '.join(repr(x) for x in matched)}), so the check would assert nothing")
 
@@ -645,7 +647,12 @@ def _validate_peers(where: str, node: str, peers: Any) -> set[tuple[str, str, st
         if settings.get("eor") != "not_sent":
             raise ConfigError(f"{pw}.eor: the only value is not_sent (the peer never sends End-of-RIB), got "
                               f"{settings.get('eor')!r}")
-        out.add((node, vrf.strip() or "default", str(ip)))
+        vrf = vrf.strip() or "default"
+        if not VRF_NAME.fullmatch(vrf):
+            raise ConfigError(f"{pw}: {vrf!r} is not a VRF name")
+        if "%" in addr:
+            raise ConfigError(f"{pw}: name the peer by its address without a scope (the gate keys sessions that way)")
+        out.add((node, vrf, str(ip)))
     return out
 
 

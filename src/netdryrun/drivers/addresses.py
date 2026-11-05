@@ -60,7 +60,11 @@ def parse_ip_j_addr(text: str, skip_enslaved: bool, command: str = "ip -j addr")
         for a in link.get("addr_info", []):
             if not isinstance(a, dict) or "local" not in a:
                 raise unexpected(command, str(a)[:150])
-            out.append(_iface(command, a["local"], a.get("prefixlen")))
+            addr = _iface(command, a["local"], a.get("prefixlen"))
+            # Linux answers for every address of a prefix on lo (10.9.0.1/24 dev lo makes 10.9.0.5 local): the whole
+            # prefix is the node's own, marked by LOCAL_PREFIX
+            out.append(LocalPrefix(addr) if link.get("ifname") == "lo" and addr.network.prefixlen < addr.max_prefixlen
+                       else addr)
     return out
 
 
@@ -169,11 +173,25 @@ def parse_junos_terse(text: str, command: str = "show interfaces terse") -> list
     return out
 
 
+class LocalPrefix:
+    """An address on Linux's lo whose whole prefix is local to the node."""
+
+    def __init__(self, iface):
+        self.iface = iface
+        self.ip, self.network, self.version = iface.ip, iface.network, iface.version
+
+    def __str__(self):
+        return f"{self.iface} (lo: the whole prefix is local)"
+
+
 def refuse_own_target(node: str, target: str, addrs: list) -> None:
     """The ping target must not be one of the node's own addresses, or the broadcast address of one of its IPv4
     subnets: such a ping never leaves the node (red team B-9006). A runtime error read as unready: never a pass."""
     ip = ipaddress.ip_address(str(target).split("%")[0])
     for a in addrs:
+        if isinstance(a, LocalPrefix) and ip in a.network:
+            raise DriverError(f"ping target {target} is inside {a.network}, which is on {node}'s lo: the node answers "
+                              "it itself, so the ping never leaves the node")
         if a.ip == ip:
             raise DriverError(f"ping target {target} is an address of {node} itself ({a}): the ping never leaves the "
                               "node, so it says nothing about the network")

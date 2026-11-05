@@ -170,7 +170,7 @@ def test_only_entry_with_host_bits_is_refused():
         check(type="bgp_prefixes", node="r1", neighbor="10.0.0.2", only=["10.1.1.77/24"])
 
 
-@pytest.mark.parametrize("rx", ["65001|", ".*", "|65001", "^.*$", "(65001)?", "x*"])
+@pytest.mark.parametrize("rx", ["65001|", ".*", "|65001", "^.*$", "(65001)?", "x*", ".+", r"\d", "[0-9]"])
 def test_as_path_regex_matching_every_path_is_refused(rx):
     with pytest.raises(ConfigError, match="matches every AS path"):
         check(type="bgp_route", node="r1", prefix="10.0.0.0/8", as_path_regex=rx)
@@ -179,3 +179,21 @@ def test_as_path_regex_matching_every_path_is_refused(rx):
 @pytest.mark.parametrize("rx", ["^$", "^65001", "65001$", "_?64496_?"])
 def test_narrow_as_path_regex_stays_valid(rx):
     check(type="bgp_route", node="r1", prefix="10.0.0.0/8", as_path_regex=rx)
+
+
+def test_a_prefix_on_lo_is_local_as_a_whole():
+    """Adversary on 6d66267: 10.9.0.1/24 on lo makes Linux answer 10.9.0.5 itself."""
+    text = json.dumps([{"ifname": "lo", "addr_info": [{"family": "inet", "local": "10.9.0.1", "prefixlen": 24}]},
+                       {"ifname": "eth1", "addr_info": [{"family": "inet", "local": "10.0.12.1", "prefixlen": 30}]}])
+    addrs = addresses.parse_ip_j_addr(text, True)
+    with pytest.raises(DriverError, match="lo"):
+        addresses.refuse_own_target("r1", "10.9.0.5", addrs)
+    addresses.refuse_own_target("r1", "10.0.12.2", addrs)
+
+
+def test_link_down_accepts_the_container_name_of_an_aliased_interface(monkeypatch):
+    e = make(monkeypatch)
+    e.lab.links = [(("r1", "Ethernet1"), ("r2", "eth1")), (("r2", "eth2"), ("r3", "eth1"))]
+    sc = Scenario("s", [Fault("link_down", "r1", "eth1")], [route("[s] x", node="r2")])
+    rep = e.run([route("a")], [sc])
+    assert "not an interface of a link" not in (rep.error or "")

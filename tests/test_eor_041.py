@@ -150,9 +150,30 @@ def test_unknown_is_never_settled(monkeypatch):
 
 def test_a_peer_declared_not_sent_is_not_waited_for(monkeypatch):
     e = make(monkeypatch, r1={"neighbors": {"default": {"10.0.12.2": "established"}}})
-    e.drivers["r1"] = EorDrv(e.drivers["r1"], lambda t: {"10.0.12.2": {"ipv4-unicast": "pending"}})
+    e.drivers["r1"] = EorDrv(e.drivers["r1"], lambda t: {"10.0.12.2": {"ipv4-unicast": "unknown"}})
     assert gate(e, [leak("n", timeout=30)], warnings={}, not_sent={("r1", "default", "10.0.12.2")}) == {}
     assert e.clock.now < 30
+
+
+def test_the_declaration_never_weakens_a_pending_read(monkeypatch):
+    """Adversary on 6d66267 (design M7): "pending" is a live read that the table is still arriving; a declared peer
+    still waits for it."""
+    e = make(monkeypatch, r1={"neighbors": {"default": {"10.0.12.2": "established"}}})
+    e.drivers["r1"] = EorDrv(e.drivers["r1"], lambda t: {"10.0.12.2": {"ipv4-unicast": "pending"}})
+    neg = leak("n", timeout=30)
+    assert id(neg) in gate(e, [neg], warnings={}, not_sent={("r1", "default", "10.0.12.2")})
+
+
+def test_nxos_without_the_gr_capability_line_is_unknown():
+    msg = nxos._ascii_msg((FX / "nxos_eor_pending.txt").read_text(encoding="utf-8"))
+    cut = "\n".join(x for x in msg.split("\n") if "Graceful Restart capability" not in x)
+    assert nxos.nxos_eor_text(cut, "ipv4-unicast") == "unknown"
+
+
+@pytest.mark.parametrize("key", ["fe80::1%eth1", "bad vrf/10.0.0.1"])
+def test_a_declaration_with_a_scope_or_a_bad_vrf_is_refused(tmp_path, key):
+    with pytest.raises(ConfigError):
+        _cfg(tmp_path, {"r1": {"peers": {key: {"eor": "not_sent"}}}})
 
 
 def test_pending_on_another_node_is_a_warning(monkeypatch):
