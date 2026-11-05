@@ -36,6 +36,9 @@ def _text(value, limit: int) -> str | None:
 
 def _check(r) -> dict:
     c = {"name": _text(r.check.name, 300), "passed": r.passed, "detail": _text(r.detail, 300)}
+    if r.warnings:   # never cut with the detail: each warning in full, and the top level counts them
+        c["warnings"] = [{"code": w["code"], "node": w["node"], "session": w.get("session"),
+                          "text": _text(w["text"], 1000)} for w in r.warnings]
     if not r.passed and r.attempts and r.samples_unready == r.attempts:
         # every sample failed for lack of state (the command failed, its output was unreadable, or no BGP
         # neighbors at all): a lab problem on that node is as likely as a bad change
@@ -143,6 +146,14 @@ def _evidence(r) -> dict | None:
             "excerpt": _text(str(e.get("output") or "").strip() or e.get("stderr"), 200)}
 
 
+def _warnings(rep) -> dict:
+    """Every convergence warning of the run with its check: an agent reading only `status` and `verdict` still
+    sees `warnings.count`."""
+    items = [{"check": _text(r.check.name, 300), "code": w["code"], "node": w["node"], "session": w.get("session"),
+              "text": _text(w["text"], 1000)} for r in rep.results for w in r.warnings]
+    return {"count": len(items), "items": items}
+
+
 def _failures(rep) -> list[dict]:
     failed = [r for r in rep.results if not r.passed]
     containers = _containers(rep) if failed else {}
@@ -162,6 +173,7 @@ def _summary(rep, evidence_path: str | None, tested: dict | None = None) -> dict
         "inconclusive_reason": _text(rep.inconclusive_reason, 1000),
         "lab": _text(rep.lab_name, 100),
         "checks": [_check(r) for r in rep.results],
+        "warnings": _warnings(rep),
         "failures": _failures(rep),
         "evidence_file": evidence_path,
         "verdict": VERDICTS.get(rep.status, DO_NOT_APPLY),

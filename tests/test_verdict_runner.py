@@ -431,9 +431,9 @@ def test_node_that_never_reports_bgp_neighbors_is_released_at_the_cap_with_a_war
     assert e.clock.now == 24 + 30 + 10                 # waited the cap, then the settle and the hold
     plain = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": never}})
     ref = plain.run([leak("neg", timeout=24), leak("neg2", prefix="10.77.0.0/16", timeout=12)], settle=10, hold=10)
-    for name in ("neg", "neg2"):                       # the warning is recorded on each gated check
-        assert by_name(rep)[name].detail != by_name(ref)[name].detail
-        assert by_name(rep)[name].detail.startswith(by_name(ref)[name].detail)   # the check's own detail is kept
+    for name in ("neg", "neg2"):                       # the warning is recorded on each gated check (Result.warnings)
+        assert by_name(rep)[name].detail == by_name(ref)[name].detail   # the check's own detail is unchanged
+        assert by_name(rep)[name].warnings and not by_name(ref)[name].warnings
     assert len(e.logs) == len(plain.logs) + 1
 
 
@@ -1340,7 +1340,7 @@ def test_gate_waits_for_a_node_that_reports_no_bgp_neighbors(monkeypatch):
     a, b = leak("a", timeout=9), leak("b", timeout=5)
     warnings = {}
     assert gate(e, [a, b], warnings=warnings) == {} and e.clock.now == 9
-    assert set(warnings) == {id(a), id(b)} and all(isinstance(w, str) and w for w in warnings.values())
+    assert set(warnings) == {id(a), id(b)} and all(w and w[0]["text"] and w[0]["code"] for w in warnings.values())
     # neighbors seen, then none at the cap: still released with a warning
     e = make(monkeypatch)
     e.drivers["r1"].neighbors = {"default": lambda t: {"10.0.12.2": "active"} if t < 3 else {}}
@@ -1683,7 +1683,7 @@ def test_run_scenario_far_end_without_a_driver(monkeypatch):
 
 def test_run_scenario_gate_warning_is_added_to_each_check(monkeypatch):
     """A scenario node that reports no BGP neighbors up to the cap: its post-convergence checks go ahead,
-    each with the gate's warning added to its own detail. The verdict is unchanged."""
+    each with the gate's warning on its result (Result.warnings). The verdict and the detail are unchanged."""
     def scenario():
         return Scenario("s", [Fault("link_down", "r1", "eth1")], [leak("neg", node="r3", timeout=12)])
 
@@ -1695,8 +1695,8 @@ def test_run_scenario_gate_warning_is_added_to_each_check(monkeypatch):
     ref_env.drivers["r3"].routes_ = {"default": never}
     [ref] = direct(ref_env, scenario())
     assert r.passed and ref.passed
-    assert r.detail != ref.detail and r.detail.startswith(ref.detail)
-    assert e.results[0].detail == r.detail
+    assert r.detail == ref.detail and r.warnings and not ref.warnings
+    assert e.results[0].warnings == r.warnings
 
 
 

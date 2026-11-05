@@ -656,13 +656,17 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
 # with a warning in its result that it was evaluated without BGP convergence.
 # ---------------------------------------------------------------------------------------------------------
 
-def _with_warnings(warnings: dict[int, str], on_result=None):
-    """An on_result callback that first adds the gate's warning (if any) to the result's detail, so the
-    warning is in the report and the console line of each check it concerns. The verdict is unchanged."""
+def warn(warnings: dict | None, check, code: str, node: str, text: str, session: str | None = None) -> None:
+    """Record a convergence warning for one check (the gate's dict: id(check) -> list of warnings)."""
+    if warnings is not None:
+        warnings.setdefault(id(check), []).append({"code": code, "node": node, "session": session, "text": text})
+
+
+def _with_warnings(warnings: dict[int, list[dict]], on_result=None):
+    """An on_result callback that first adds the gate's warnings (if any) to the result, so they are in every
+    output channel of each check they concern. The verdict is unchanged."""
     def add(r: Result) -> None:
-        w = warnings.get(id(r.check))
-        if w:
-            r.detail = f"{r.detail} (warning: {w})"
+        r.warnings.extend(warnings.get(id(r.check), []))
         if on_result:
             on_result(r)
     return add
@@ -820,9 +824,8 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 text = (f"{g[0]}{where} reported no BGP neighbors for {deadline[g]:g}s; the check was evaluated "
                         "without BGP convergence")
                 log(f"warning: {text}")
-                if warnings is not None:
-                    for c in groups[g]:
-                        warnings[id(c)] = text
+                for c in groups[g]:
+                    warn(warnings, c, "no-bgp-neighbors", g[0], text)
             elif s["streak"] == 0:
                 for c in groups[g]:
                     detail = (f"not evaluated: {s['detail']} after waiting {deadline[g]:g}s. A post-convergence "

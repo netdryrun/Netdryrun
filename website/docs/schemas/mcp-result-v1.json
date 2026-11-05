@@ -40,6 +40,7 @@
         "inconclusive_reason": {"$ref": "#/$defs/lab_text", "description": "What was seen when status is inconclusive, else null"},
         "lab": {"type": ["string", "null"], "description": "containerlab lab name"},
         "checks": {"type": "array", "items": {"$ref": "#/$defs/check"}, "description": "Every check, in file order"},
+        "warnings": {"type": "object", "description": "Every convergence warning of the run (0.4.1; absent in older reports). A check that passed with a warning ran before the lab's BGP state was settled everywhere: look at count", "required": ["count", "items"], "properties": {"count": {"type": "integer", "minimum": 0}, "items": {"type": "array", "items": {"type": "object", "required": ["check", "code", "node", "text"], "properties": {"check": {"type": "string"}, "code": {"type": "string"}, "node": {"type": "string"}, "session": {"type": ["string", "null"]}, "text": {"type": "string"}}}}}},
         "failures": {
           "type": "array",
           "items": {"$ref": "#/$defs/failure"},
@@ -118,7 +119,8 @@
         "name": {"$ref": "#/$defs/lab_text"},
         "passed": {"type": "boolean"},
         "detail": {"$ref": "#/$defs/lab_text", "description": "One-line result, for example \"unexpectedly present via bgp (not selected)\""},
-        "unready": {"const": true, "description": "Present on a failed check whose every sample got no usable state from its node (command failed, output unreadable, or no BGP neighbors at all): rule out a lab problem on that node before rewriting the change"}
+        "unready": {"const": true, "description": "Present on a failed check whose every sample got no usable state from its node (command failed, output unreadable, or no BGP neighbors at all): rule out a lab problem on that node before rewriting the change"},
+        "warnings": {"type": "array", "description": "Convergence warnings for this check (0.4.1; absent in older reports): they never change the verdict", "items": {"type": "object", "required": ["code", "node", "text"], "properties": {"code": {"type": "string"}, "node": {"type": "string"}, "session": {"type": ["string", "null"]}, "text": {"type": "string"}}}}
       }
     },
     "failure": {

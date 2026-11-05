@@ -31,6 +31,9 @@ class Result:
     history: list[dict] = field(default_factory=list)   # every sample: time offset, pass/fail, detail
     samples_passed: int = 0    # passing samples over the whole check (history keeps only the last 50)
     samples_unready: int = 0   # failing samples where the node gave no usable state (see Unready)
+    # convergence warnings from the BGP gate ({code, node, session, text}): they never change the verdict, and every
+    # output channel shows them (console, JSON report, Markdown and the Action, MCP result)
+    warnings: list[dict] = field(default_factory=list)
 
 
 class Unready(str):

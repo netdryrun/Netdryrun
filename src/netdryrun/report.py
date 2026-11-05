@@ -13,7 +13,14 @@ MAX_MARKDOWN = 65000  # characters; GitHub rejects a comment over 65536 (the Act
 
 
 def console_line(r: Result) -> str:
-    return f"  [{ICON[r.passed]}] {r.check.name} -- {r.detail} ({r.duration}s)"
+    line = f"  [{ICON[r.passed]}] {r.check.name} -- {r.detail} ({r.duration}s)"
+    return line + "".join(f"\n      warning: {w['text']}" for w in r.warnings)
+
+
+def all_warnings(rep: RunReport) -> list[dict]:
+    """Every convergence warning of the run, each naming its check: the top-level list of the JSON report and the
+    MCP result, so a reader of the status alone still sees that some checks ran with one."""
+    return [{"check": r.check.name, **w} for r in rep.results for w in r.warnings]
 
 
 def summary_line(rep: RunReport) -> str:
@@ -22,7 +29,9 @@ def summary_line(rep: RunReport) -> str:
     if rep.status == "inconclusive":
         return (f"INCONCLUSIVE: {rep.inconclusive_reason} ({rep.failed} of {len(rep.results)} checks failed; "
                 "this says nothing about the change)")
-    return f"{rep.status.upper()}: {rep.passed} passed, {rep.failed} failed ({len(rep.results)} checks)"
+    warned = sum(1 for r in rep.results if r.warnings)
+    tail = f"; {warned} with a convergence warning" if warned else ""
+    return f"{rep.status.upper()}: {rep.passed} passed, {rep.failed} failed ({len(rep.results)} checks{tail})"
 
 
 def to_json(rep: RunReport) -> str:
@@ -37,6 +46,7 @@ def to_json(rep: RunReport) -> str:
         "inconclusive_reason": rep.inconclusive_reason,
         "environment": rep.environment,
         "summary": {"passed": rep.passed, "failed": rep.failed, "total": len(rep.results)},
+        "warnings": {"count": len(all_warnings(rep)), "items": all_warnings(rep)},
         "checks": [
             {
                 "name": r.check.name,
@@ -49,6 +59,7 @@ def to_json(rep: RunReport) -> str:
                 "started": r.started,
                 "history": r.history,
                 "evidence": r.evidence,
+                "warnings": r.warnings,
             }
             for r in rep.results
         ],
@@ -135,6 +146,11 @@ def to_markdown(rep: RunReport) -> str:
     if rep.status == "inconclusive":
         lines += [f"> {_md_cell(rep.inconclusive_reason)}", ">",
                   "> This says nothing about the change, good or bad. Rerun once the lab comes up.", ""]
+    warned = [r for r in rep.results if r.warnings]
+    if warned:
+        lines += [f"> ⚠️ {len(warned)} check(s) ran with a convergence warning (the verdict stands; see below):", ">"]
+        lines += [f"> - {_md_cell(r.check.name)}: {_md_cell(w['text'])}" for r in warned[:10] for w in r.warnings[:3]]
+        lines += [""]
     lines += [f"**{rep.passed} passed, {rep.failed} failed** on lab {_md_code(rep.lab_name)}", "",
               "| | Check | Result | Time |", "|---|---|---|---|"]
     tail = []
