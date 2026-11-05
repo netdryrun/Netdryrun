@@ -8,7 +8,54 @@
 - **Contributor gates on every pull request** (`.github/workflows/contrib.yml`, `pull_request` only, no secrets): every commit signed off (DCO); the AI-use disclosure ticked; the known-false-pass tests (`tests/known_false_passes.yml`) run as the base branch has them against the pull request's code; a change to verdict code needs a test that fails on the base branch's code; every file in `tests/fixtures` has a recorded source (`tests/fixtures/SOURCES.yml`) and every capture bundle validates; pre-registered corpus cases, their committed results and the nondeterministic list change only with a new AMENDMENTS.md entry; lab templates have a broken variant. With the `run-labs` label, lab templates run good and bad and both corpora rerun, failing on any changed verdict.
 - **How the project is run**, in the open: a docs page, an AI-use section in CONTRIBUTING with a disclosure checkbox, CODEOWNERS, a pull request template, issue forms for wrong verdicts ("make it lie"), capture submissions and lab templates, and the lab-template format (`community/labs/`).
 
-### Fixes
+### Changed
+
+- **An `only` entry with host bits is a config error** (breaking). `only: [10.1.1.77/24]` was read as `10.1.1.0/24`, which
+  widened the allow-list without a word; write the network itself. `route` and `bgp_route` prefixes keep their documented
+  normalisation: they name one prefix and widen nothing.
+- **Convergence warnings are their own field.** A warning the BGP gate gives (a session still down on another node, prefix
+  counts still moving at the cap, a node with no BGP neighbors) is a structured `warnings` list on each check
+  (`{code, node, session, text}`) and a top-level `warnings` count and list in the JSON report and the MCP result; the
+  console, the summary line and the Markdown summary the Action posts show it too. It is no longer text inside `detail`,
+  where the MCP result's 300-character cut could drop it. A warning never changes a verdict.
+
+### Fixes from the 0.4.1 red team (2026-11-05)
+
+Nine false passes found by the red team before release, each fixed with a test on live captured output that fails on the
+code before the fix:
+
+- **The BGP gate waits for every routing node, not only the check's own** (B-9005, narrowed). A leak guard on r1 passed
+  while r2's session to r3 was still coming up; the leak arrived later. The gate now also waits, up to the same cap, for
+  every lab node with a routing driver, in the default VRF and every VRF the checks name. A session still down there at
+  the cap, counts still moving or BGP state that can't be read is a warning on every post-convergence check (not a block:
+  the check's own node still blocks as before). A session declared down is excluded at both ends. The residual limit is
+  in the [trust page](https://netdryrun.com/trust/).
+- **End-of-RIB: a table still arriving is not converged** (R3). A session can be established with counts that hold still
+  for two samples while the peer is still sending its table (a graceful restart, a slow link). Each driver now reads
+  End-of-RIB per family (FRR and SONiC, SR Linux, Arista EOS, RouterOS, Junos, and Cisco NX-OS from its neighbor text);
+  the gate waits for it, and at the cap a family still pending blocks the node's post-convergence checks. A peer that
+  never sends End-of-RIB is declared with `nodes.<node>.peers.<address>.eor: not_sent`. A session without graceful
+  restart negotiated can't be tracked: it settles by stable counts, with one warning per run.
+- **Juniper: a graceful-restart stale route is not active** (R4). Junos marks it only in `bgp-rt-flag` (`Stale Accepted`)
+  while `rt-entry-state` still reads `Active Ext` (live capture); the driver read `rt-entry-state` alone, so `route` and
+  `bgp_route` passed on a route the restarting peer may never re-send. Both are read on every path read; a kept BGP entry
+  without the flag is an error. The table-level `restart-state` Junos prints when graceful restart is configured is now
+  read (only `Complete` is settled); before, it made every route read on such a router an error. Every driver refuses a
+  path carrying LLGR_STALE (65535:6).
+- **`link_down` must name a lab link** (B-9001). `link_down` on the management `eth0` took nothing the checks depend on
+  down, and every scenario check passed. The interface must be an endpoint of a link in the topology on that node
+  (refused before deploying, naming the node's link interfaces); after the fault the interface must be administratively
+  down, or the scenario is an error. Every VM kind is refused for link faults.
+- **A VRF that doesn't route has no "absent" routes** (R5, A-0049, A-0050). Arista EOS answers a VRF with routing disabled
+  (or the default VRF after `no ip routing`) with an empty table, so `present: false` passed; `routingDisabled` is now read
+  on every route answer (IPv4 and IPv6) and refused. A disabled SR Linux network-instance is not settled (retried, then
+  failed), never "no routes".
+- **A ping that never leaves the node is refused** (B-9006). An unspecified, loopback, multicast or limited-broadcast
+  target, or one equal to `source`, is a config error; at run time a target that is one of the node's own addresses (or a
+  subnet broadcast) fails the check, read per driver. Output that can't be read is retried, never "not own".
+- **An `as_path_regex` that matches every AS path is refused** (B-9007). A stray `|` matched the empty string, so the check
+  asserted nothing. A pattern that matches all five probe paths is a config error; `^$` stays valid.
+- **An `only` entry with host bits is refused** (B-9004; see Changed).
 
 Eight false passes are fixed: one in `record` (0.3.3 and 0.4.0, the [advisory](advisories/)) and seven found by the weekly adversarial run on 2026-11-01 (RT-0021 to RT-0027 in `tests/redteam/`). 0.3.3 and 0.4.0 will be yanked from PyPI.
 
