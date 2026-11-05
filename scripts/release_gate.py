@@ -769,8 +769,10 @@ def unit_in_container(layer: Layer) -> None:
         "set -e\n"
         "if command -v containerlab >/dev/null || command -v docker >/dev/null; then echo 'not a plain environment'; exit 90; fi\n"
         "mkdir /w && tar -C /src --exclude=./mutants --exclude=./.git --exclude=./releases -cf - . | tar -C /w -xf -\n"
-        # the acceptance matrix is read by its tests (tests/test_acceptance_script.py); the rest of releases/ is records
+        # the acceptance matrix is read by its tests (tests/test_acceptance_script.py), and each release's accepted.json
+        # by the case-18 exception's expiry test (tests/test_case18_exemption.py); the rest of releases/ is records
         "mkdir -p /w/releases && cp /src/releases/acceptance-matrix.yml /w/releases/\n"
+        "for f in /src/releases/*/accepted.json; do d=/w/${f#/src/}; mkdir -p \"${d%/*}\" && cp \"$f\" \"$d\"; done\n"
         "cd /w && pip install -q --disable-pip-version-check --root-user-action=ignore '.[dev]'\n"
         "python --version\n"
         "python -m pytest -q -p no:cacheprovider -rs\n")
