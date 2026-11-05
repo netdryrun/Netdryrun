@@ -287,7 +287,8 @@ def test_the_live_corpus_rerun_hands_run_py_the_verdict_tree(tmp_path, monkeypat
     seen = []
     monkeypatch.setattr(gate, "run", lambda cmd, **kw: seen.append(kw.get("env") or {}) or gate.Proc(1, "x", 0.0))
     layer = SimpleNamespace(add=lambda *a, **k: None)
-    live = SimpleNamespace(layer=layer, work=tmp_path, python="python", assert_clean=lambda *a, **k: None)
+    live = SimpleNamespace(layer=layer, work=tmp_path, python="python", assert_clean=lambda *a, **k: None,
+                           verdict_tree=gate.verdict_tree())
     args = SimpleNamespace(skip_corpus=False)
     monkeypatch.setattr(gate, "write_out", lambda *a, **k: None)
     gate.live_corpora(live, args)

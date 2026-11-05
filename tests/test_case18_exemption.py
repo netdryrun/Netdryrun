@@ -298,7 +298,8 @@ def test_the_live_layer_applies_the_same_rules_and_returns_false_on_them(tmp_pat
     added = []
     layer = type("L", (), {"add": lambda self, key, *a, **k: added.append((key, a[2])) or sev.update({key: a[1]})})()
     sev = {}
-    live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None})()
+    live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None,
+                             "verdict_tree": gate.verdict_tree()})()
 
     def fake_run(cmd, **kw):
         version = cmd[cmd.index("--corpus") + 1]
@@ -603,6 +604,7 @@ def test_an_edited_case_file_intent_or_lab_voids_the_exception(tmp_path):
         else:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(src, dst)
+    shutil.copytree(ROOT / "src", tmp_path / "src", ignore=shutil.ignore_patterns("__pycache__"))   # the verdict tree (F2)
     assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.MAJOR
     spec_file = tmp_path / "corpus" / "v2" / "specs" / "intent.yml"
     spec_file.write_text(spec_file.read_text(encoding="utf-8").replace('name: "I2 peer has our aggregate"', 'name: "x"'),
@@ -632,7 +634,8 @@ def _live(tmp_path, monkeypatch, case18, version):
     path = _refreshed(tmp_path, case18)
     added, sev = {}, {}
     layer = type("L", (), {"add": lambda self, key, *a, **k: added.update({key: a[2]}) or sev.update({key: a[1]})})()
-    live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None})()
+    live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None,
+                             "verdict_tree": gate.verdict_tree()})()
 
     def fake_run(cmd, **kw):
         out = tmp_path / "corpus" / "v2" / "results"
@@ -679,3 +682,142 @@ def test_end_to_end_the_report_shows_accepted_on_0_4_1_and_blocks_otherwise(tmp_
     assert "**BLOCKER failures:**" in text and f"live/{key}" in text.split("**BLOCKER failures:**")[1]
     text = report(_row("approved", *["not_proven"] * 4), "0.4.1", "c")
     assert "live/corpus-v2-nondeterministic-held" in text.split("**BLOCKER failures:**")[1]
+
+
+# --- final multi-vendor audit of b88adef..6e0a027 (GPT, Grok): F1, F2, F3, F5, F12 -----------------------------------
+
+def test_audit_f1_a_non_string_check_name_is_reported_not_skipped():
+    """Grok 1: `passed_checks: [1]` passed the first shape guard and the second skipped the run unreported, hiding an
+    approval; on 0.4.1 the exception then accepted "no run caught"."""
+    row = _row("approved", *["not_proven"] * 4)
+    row["run_details"][0]["netdryrun"]["passed_checks"] = [1]
+    p = gate.nondeterministic_problems("v2", ND, {CID: row}, catch=False)
+    assert any("run 1 netdryrun: malformed status or check list" in x for x in p), p
+    assert any("run 1: malformed netdryrun record" in x for x in p), p
+
+
+def test_audit_f1_corpus_check_rejects_it_on_0_4_1(tmp_path):
+    row = _row(*["approved"] * 5)
+    for d in row["run_details"]:
+        d["netdryrun"]["passed_checks"] = [1]
+    ok, lines = gate.corpus_check("v2", _refreshed(tmp_path, row), "0.4.1")
+    assert not ok, lines
+    assert any("malformed" in x for x in lines), lines
+
+
+def test_audit_f2_the_exception_needs_this_verdict_code(tmp_path):
+    """Grok 2 / GPT 7: the exception pinned the case and lab, not the code under test."""
+    import shutil
+    exc = gate.CATCH_EXCEPTIONS[("v2", CID)]
+    assert "corpus/run.py" in exc["pinned"] and exc["verdict_tree"] == gate.verdict_tree()
+    for p in exc["pinned"]:
+        src, dst = ROOT / p, tmp_path / p
+        if p.endswith("/"):
+            shutil.copytree(src, dst)
+        else:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src, dst)
+    shutil.copytree(ROOT / "src", tmp_path / "src", ignore=shutil.ignore_patterns("__pycache__"))
+    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.MAJOR
+    faults = tmp_path / "src" / "netdryrun" / "faults.py"
+    faults.write_bytes(faults.read_bytes() + b"\n# one byte more\n")
+    assert gate.catch_severity("v2", [CID], "0.4.1", root=tmp_path) == gate.BLOCKER
+
+
+def test_audit_f2_corpus_check_rejects_results_from_other_code(tmp_path):
+    path = _refreshed(tmp_path, _row(*["caught"] * 5))
+    doc = json.loads(path.read_text())
+    for tree in ("0" * 64, None):
+        doc["environment"]["verdict_tree"] = tree
+        path.write_text(json.dumps(doc))
+        ok, lines = gate.corpus_check("v2", path, "0.4.1")
+        assert not ok and any("FAIL the results record verdict tree" in x for x in lines), lines
+
+
+def test_audit_f3_the_installed_wheels_tree_is_read_from_the_package(tmp_path):
+    """GPT 2 / Grok 3: the live layer recorded the source tree, not the installed wheel's. verdict_tree reads an
+    installed package under the source names: equal when it is the same code, different after a one-byte edit."""
+    import shutil
+    pkg = tmp_path / "site-packages" / "netdryrun"
+    shutil.copytree(ROOT / "src" / "netdryrun", pkg, ignore=shutil.ignore_patterns("__pycache__"))
+    assert gate.verdict_tree(package_dir=pkg) == gate.verdict_tree()
+    (pkg / "checks.py").write_bytes((pkg / "checks.py").read_bytes() + b"\n#\n")
+    assert gate.verdict_tree(package_dir=pkg) != gate.verdict_tree()
+    shutil.rmtree(pkg / "drivers")
+    try:
+        gate.verdict_tree(package_dir=pkg)
+        raise AssertionError("a missing verdict module must raise, never hash fewer files")
+    except FileNotFoundError:
+        pass
+
+
+def test_audit_f3_no_installed_tree_means_no_corpus_run(tmp_path, monkeypatch):
+    added, ran = {}, []
+    layer = type("L", (), {"add": lambda self, key, *a, **k: added.update({key: a[2]})})()
+    live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None,
+                             "verdict_tree": None})()
+    monkeypatch.setattr(gate, "run", lambda *a, **k: ran.append(a) or gate.Proc(0, "", 0.0))
+    (tmp_path / "corpus").mkdir()
+    assert gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": "0.4.1"})(), only={"v2"}) is False
+    assert added["corpus-v2"] is False and not ran
+
+
+def test_audit_f3_results_recording_another_tree_are_a_diff(tmp_path, monkeypatch):
+    path = _refreshed(tmp_path, _row(*["caught"] * 5))
+    doc = json.loads(path.read_text())
+    doc["environment"]["verdict_tree"] = "f" * 64   # not the installed wheel's
+    path.write_text(json.dumps(doc))
+    added = {}
+    import shutil
+    layer = type("L", (), {"add": lambda self, key, *a, **k: added.update({key: (a[2], a[4] if len(a) > 4 else "")})})()
+    live = type("Live", (), {"layer": layer, "work": tmp_path, "python": "python", "assert_clean": lambda *a, **k: None,
+                             "verdict_tree": gate.verdict_tree()})()
+
+    def fake_run(cmd, **kw):
+        out = tmp_path / "corpus" / "v2" / "results"
+        out.mkdir(parents=True, exist_ok=True)
+        shutil.copy(path, out / "results.json")
+        return gate.Proc(0, "", 0.0)
+    monkeypatch.setattr(gate, "run", fake_run)
+    monkeypatch.setattr(gate, "write_out", lambda *a, **k: None)
+    (tmp_path / "corpus").mkdir(exist_ok=True)
+    assert gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": "0.4.1"})(), only={"v2"}) is False
+    assert added["corpus-v2"][0] is False and "the results record verdict tree ffffffffffff" in added["corpus-v2"][1]
+
+
+def test_audit_f5_a_status_that_contradicts_the_verdict_is_red():
+    """Grok 5: a deterministic record with verdict unsafe and status passed."""
+    new = {"02-x": {"strategies": {"ping": {"verdict": "safe", "status": "passed"},
+                                   "sessions": {"verdict": "safe", "status": "passed"},
+                                   "netdryrun": {"verdict": "unsafe", "status": "passed"}}}}
+    assert gate.status_problems(new) == ["02-x netdryrun: verdict 'unsafe' doesn't match status 'passed'"]
+
+
+def test_audit_f12_a_results_change_between_layers_is_code(monkeypatch):
+    """Grok 7: corpus/*/results/ was treated as a record, so a results edit after the live layer moved its baseline."""
+    calls = {"merge-base": "", "diff": "corpus/v2/results/results.json\nreleases/0.4.1/GATE.md"}
+    monkeypatch.setattr(gate, "git", lambda *a: calls.get(a[0]))
+    msg = gate.code_differs({"static": "b" * 40, "live": "a" * 40})
+    assert msg and "corpus/v2/results/results.json" in msg
+    calls["diff"] = "releases/0.4.1/GATE.md\ncorpus/v2/AMENDMENTS.md"
+    assert gate.code_differs({"static": "b" * 40, "live": "a" * 40}) is None
+
+
+def test_audit_check_the_installed_package_path_is_read_strictly(tmp_path):
+    """Code check of the audit fixes (#2): the package folder is the one absolute __init__.py line, whatever else is
+    printed; none or two is unknown (and the corpus doesn't run)."""
+    init = tmp_path / "venv" / "netdryrun" / "__init__.py"
+    assert gate.installed_package_dir(f"some warning\n{init}\n") == init.parent
+    assert gate.installed_package_dir(f"{init}\nDeprecationWarning: x\n") == init.parent
+    assert gate.installed_package_dir("None\n") is None
+    assert gate.installed_package_dir("netdryrun/__init__.py\n") is None   # relative: not a path we can trust
+    assert gate.installed_package_dir(f"{init}\n{init}\n") is None
+
+
+def test_audit_check_results_changes_are_code_only_for_the_layers_that_read_them(monkeypatch):
+    """Code check of the audit fixes (#3): mutation and static never read corpus/*/results/, so a refresh there doesn't
+    rerun them; live and unit do."""
+    monkeypatch.setattr(gate, "git", lambda *a: {"merge-base": "", "diff": "corpus/v2/results/results.json"}.get(a[0]))
+    assert gate.code_differs({"static": "b" * 40, "mutation": "a" * 40}) is None
+    assert gate.code_differs({"static": "b" * 40, "unit": "a" * 40})
+    assert gate.code_differs({"static": "b" * 40, "live": "a" * 40})

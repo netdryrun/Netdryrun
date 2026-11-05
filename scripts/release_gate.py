@@ -198,18 +198,26 @@ def harness_problem() -> str | None:
 CORPORA = {"v1": "corpus/results/results.json", "v2": "corpus/v2/results/results.json"}
 
 
-def verdict_tree(root: Path | None = None, verdict_modules: dict | None = None) -> str:
+def verdict_tree(root: Path | None = None, verdict_modules: dict | None = None, package_dir: Path | None = None) -> str:
     """sha256 of the verdict modules' sources (every VERDICT_MODULES file; a directory: its .py files), path and
-    content, line endings normalised: the verdict code a corpus result was produced by."""
+    content, line endings normalised: the verdict code a corpus result was produced by. With package_dir (an installed
+    netdryrun package), the same files are read from there under the same names, so the installed wheel's tree can be
+    compared with the source's (audit F3). A missing file raises: never a tree of fewer files."""
     root = root or ROOT
     verdict_modules = VERDICT_MODULES if verdict_modules is None else verdict_modules
-    files = set()
+    files: dict[str, Path] = {}
     for path in verdict_modules.values():
-        target = root / path
-        files |= ({f for f in target.rglob("*.py") if "__pycache__" not in f.parts} if path.endswith("/") else {target})
+        base = Path(package_dir) / path.removeprefix("src/netdryrun/") if package_dir else root / path
+        if path.endswith("/"):
+            found = {path + f.relative_to(base).as_posix(): f for f in base.rglob("*.py") if "__pycache__" not in f.parts}
+            if not found:
+                raise FileNotFoundError(f"no verdict module under {base}")
+            files.update(found)
+        else:
+            files[path] = base
     h = hashlib.sha256()
-    for f in sorted(files, key=lambda x: x.relative_to(root).as_posix()):
-        h.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    for rel in sorted(files):
+        h.update(rel.encode() + b"\0" + files[rel].read_bytes().replace(b"\r\n", b"\n") + b"\0")
     return h.hexdigest()
 
 
@@ -1057,6 +1065,7 @@ class Live:
         self.ndr = venv_bin(self.venv, "netdryrun")
         self.python = venv_bin(self.venv, "python")
         self.before: set[str] = set()
+        self.verdict_tree: str | None = None   # the installed wheel's verdict tree, set by live_install (audit F3)
 
     def copy_example(self, name: str, tag: str = "") -> Path:
         dst = self.work / "examples" / f"{name}{tag}"
@@ -1207,6 +1216,13 @@ def notice_problems(dist: Path) -> list[str]:
     return problems
 
 
+def installed_package_dir(out: str) -> Path | None:
+    """The installed netdryrun package's folder from `print(netdryrun.__file__)` output (stderr merged: a warning may
+    come before or after): the one line naming an absolute `__init__.py`; none, or more than one, is None."""
+    init = [ln.strip() for ln in out.splitlines() if ln.strip().endswith("__init__.py") and Path(ln.strip()).is_absolute()]
+    return Path(init[0]).parent if len(init) == 1 else None
+
+
 def live_install(live: Live, args) -> bool:
     """Build the wheel and the sdist and install the wheel in a fresh venv: everything else runs that, not the source
     tree."""
@@ -1231,6 +1247,21 @@ def live_install(live: Live, args) -> bool:
     inside = where.code == 0 and str(live.venv) in where.out and str(ROOT) not in where.out
     layer.add("installed-not-source", "runs the installed package, not the source tree", BLOCKER, inside,
               where.out.strip()[-200:])
+    # the corpus records the verdict code that ran: the installed wheel's, which must be the source's (audit F3)
+    pkg = installed_package_dir(where.out) if where.code == 0 else None
+    try:
+        installed = verdict_tree(package_dir=pkg) if pkg else None
+    except (OSError, IndexError, ValueError) as e:
+        installed, where_err = None, str(e)
+    else:
+        where_err = ""
+    source = verdict_tree()
+    live.verdict_tree = installed if installed == source else None
+    layer.add("installed-verdict-tree", "the installed wheel's verdict modules are the source's", BLOCKER,
+              installed is not None and installed == source,
+              f"installed {str(installed)[:12]}, source {source[:12]}" + (f" ({where_err})" if where_err else ""))
+    if live.verdict_tree is None:   # a wheel already known to be other code: nothing else runs on it
+        return False
     v = run([live.ndr, "--version"], cwd=live.work)
     layer.add("installed-version", f"netdryrun --version says {args.version}", BLOCKER,
               v.out.strip() == f"netdryrun {args.version}", v.out.strip()[:200])
@@ -1334,9 +1365,13 @@ STATUSES = {"passed": "safe", "failed": "unsafe", "inconclusive": "error", "erro
 # only, and a BLOCKER on every other. Every other clause of the exemption stays a BLOCKER. Owner decision 2026-11-05.
 CATCH_EXCEPTIONS = {("v2", "18-aggregate-discard-route-removed"): {
     "version": "0.4.1",
-    # the case as it ran on 94f5174: its case file, the intent it is judged by and the lab. Any edit voids the exception
-    "pinned": ['corpus/v2/cases/18-aggregate-discard-route-removed.yml', 'corpus/v2/specs/intent.yml', 'corpus/v2/base/'],
-    "pinned_sha256": "68cb21304530abd0fe8233e86cc9c289593f8542887a839ee4d44751761fc0ce",
+    # the case as it ran on 94f5174 (its case file, the intent it is judged by, the lab) and this release's corpus
+    # runner (corpus/run.py, which records each run's status). Any edit voids the exception
+    "pinned": ['corpus/v2/cases/18-aggregate-discard-route-removed.yml', 'corpus/v2/specs/intent.yml', 'corpus/v2/base/',
+               'corpus/run.py'],
+    # and the verdict code it ran on (audit F2): src/ as on 7532310, 94f5174 and 6e0a027
+    "verdict_tree": "3e62b50eadfd2de65e15f705acfcdd417676bcd185e6f6de7fac7e19ffc5812e",
+    "pinned_sha256": "ae3a98d3991cc3ea538f4818fddccf330586f0e30e1a1013d38ee3a5e2fe5e14",
     "evidence": "0 of 5 runs caught it on 94f5174, and in all 5 the aggregate was still present when checked (I2 and I5 "
                 "passed; only the I8 flood checks failed, routes never left), so the harm didn't manifest. The same I2 "
                 "checks catch a missing aggregate deterministically in v1 case 25 (unsafe in every gate run since "
@@ -1366,7 +1401,7 @@ def catch_severity(version: str, cids, release, root: Path | None = None) -> str
         if not exc or exc.get("version") != release:
             return BLOCKER
         try:
-            if pinned_tree(root, exc["pinned"]) != exc["pinned_sha256"]:
+            if pinned_tree(root, exc["pinned"]) != exc["pinned_sha256"] or verdict_tree(root) != exc["verdict_tree"]:
                 return BLOCKER
         except (OSError, KeyError, ValueError):
             return BLOCKER
@@ -1413,8 +1448,9 @@ def nondeterministic_problems(version: str, nd: dict, new: dict, catch: bool = T
                 continue
             for s in CORPUS_STRATEGIES:
                 st = (detail.get(s) or {}).get("status")
+                lists = [(detail.get(s) or {}).get(k, []) for k in ("failed_checks", "passed_checks")]
                 if not (st is None or isinstance(st, str)) or not all(
-                        isinstance((detail.get(s) or {}).get(k, []), list) for k in ("failed_checks", "passed_checks")):
+                        isinstance(x, list) and all(isinstance(y, str) for y in x) for x in lists):
                     out.append(f"{cid}: run {i} {s}: malformed status or check list")
                     continue
                 if s not in verdicts or st is None:
@@ -1426,9 +1462,10 @@ def nondeterministic_problems(version: str, nd: dict, new: dict, catch: bool = T
                 elif STATUSES[st] != verdicts[s]:
                     out.append(f"{cid}: run {i} {s}: verdict {verdicts[s]!r} doesn't match status {st!r}")
             d = detail.get("netdryrun") or {}
-            if not all(isinstance(x, str) for k in ("failed_checks", "passed_checks") for x in (d.get(k) or [])
-                       if isinstance(d.get(k), list)) or not isinstance(d.get("status"), (str, type(None))):
-                continue   # reported above as malformed
+            if not all(isinstance(d.get(k, []), list) and all(isinstance(x, str) for x in d.get(k, []))
+                       for k in ("failed_checks", "passed_checks")) or not isinstance(d.get("status"), (str, type(None))):
+                out.append(f"{cid}: run {i}: malformed netdryrun record")   # audit F1: reported, never skipped
+                continue
             st, failed, passed = d.get("status"), set(d.get("failed_checks") or []), set(d.get("passed_checks") or [])
             if st == "passed":
                 out.append(f"{cid}: run {i}: Netdryrun approved the harmful change")
@@ -1464,6 +1501,8 @@ def status_problems(new: dict) -> list[str]:
                 out.append(f"{cid} {s}: no known status recorded ({st!r})")
             elif st == "error":
                 out.append(f"{cid} {s}: error ({rec.get('error')})")
+            elif STATUSES[st] != rec.get("verdict"):   # audit F5: a status that contradicts the verdict
+                out.append(f"{cid} {s}: verdict {rec.get('verdict')!r} doesn't match status {st!r}")
     return out
 
 
@@ -1493,9 +1532,17 @@ def corpus_check(version: str, results: Path, release: str | None = None) -> tup
     new_doc = json.loads(Path(results).read_text(encoding="utf-8"))
     old = {c["id"]: c for c in json.loads(committed.read_text(encoding="utf-8"))["cases"]}
     new = {c["id"]: c for c in new_doc["cases"]}
-    lines, ok = [], True
+    lines = []
+    # the results must come from this verdict code (audit F2): a file from other code, or with no tree, is red
+    recorded, tree = (new_doc.get("environment") or {}).get("verdict_tree"), verdict_tree()
+    if recorded != tree:
+        ok = False
+        lines.append(f"FAIL the results record verdict tree {str(recorded)[:12]}, this code's is {tree[:12]}")
+    else:
+        lines.append(f"PASS the results ran on this verdict code ({tree[:12]})")
+        ok = True
     bad = status_problems(new)
-    ok = not bad
+    ok = ok and not bad
     lines += [f"FAIL status: {b}" for b in bad] or ["PASS every case records a status, none an error"]
     problems = nondeterministic_problems(version, nd, new, catch=False)
     ok = ok and not problems
@@ -1562,8 +1609,15 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
         cmd = [live.python, copy / "run.py", "--corpus", version, "--workdir", live.work / f"corpus-{version}"]
         if fail_fast:
             cmd += ["--expect", committed]
-        # the copy has no scripts/ or src/: hand run.py the verdict tree of the code the wheel was built from (G3)
-        p = run(cmd, cwd=live.work, timeout=4 * 3600, env={**os.environ, "NDR_VERDICT_TREE": verdict_tree()})
+        # the copy has no scripts/ or src/: hand run.py the installed wheel's verdict tree (G3, audit F3); none (the
+        # wheel's tree didn't match the source, or was never read) means no corpus run
+        tree = getattr(live, "verdict_tree", None)
+        if not tree:
+            layer.add(f"corpus-{version}", f"Verdict Corpus {version}: every verdict matches the committed results.json",
+                      BLOCKER, False, "the installed wheel's verdict tree is unknown or differs from the source's")
+            ok_all = False
+            continue
+        p = run(cmd, cwd=live.work, timeout=4 * 3600, env={**os.environ, "NDR_VERDICT_TREE": tree})
         fresh = copy / sub / "results" / "results.json"
         diffs = []
         nd = nondeterministic_cases(ROOT / "corpus" / sub)
@@ -1573,6 +1627,9 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
             old = {c["id"]: c for c in json.loads(committed.read_text(encoding="utf-8"))["cases"]}
             new = {c["id"]: c for c in json.loads(fresh.read_text(encoding="utf-8"))["cases"]}
             diffs = strategy_diffs(old, new, nd)
+            recorded = json.loads(fresh.read_text(encoding="utf-8")).get("environment", {}).get("verdict_tree")
+            if recorded != tree:
+                diffs.insert(0, f"the results record verdict tree {str(recorded)[:12]}, the installed wheel's is {tree[:12]}")
         ok_all = ok_all and p.code == 0 and not diffs
         if p.code == 3 and fail_fast:   # run.py --expect: stopped at the first verdict that differs
             diffs = [ln.strip() for ln in p.out.splitlines() if ln.strip().startswith("EXPECT MISMATCH")] or diffs
@@ -2212,9 +2269,12 @@ def code_differs(shas: dict[str, str | None]) -> str | None:
         if changed is None:
             return "the layers ran on different commits and git cannot compare them: " + ", ".join(
                 s[:7] for s in set(known.values()))
-        # a corpus results refresh after the live run (G3) is a record, like releases/: corpus/*/results/
+        # corpus/*/results/ is code for the layers that read it (audit F12): the live layer compared against those
+        # files and unit tests read them, so a change after either would move the baseline unseen. Mutation and static
+        # never read them: a refresh after the live run reruns live (and unit), not the mutation layer.
+        reads_results = name in ("live", "unit")
         code = [f for f in changed.splitlines() if not f.startswith("releases/") and not prose_only(f)
-                and not re.match(r"corpus/(v\d+/)?results/", f)]
+                and (reads_results or not re.match(r"corpus/(v\d+/)?results/", f))]
         if code:
             return f"the layers ran on different code: {other[:7]} ({name}) and {ref[:7]} (static) differ in {', '.join(code[:5])}"
     return None
