@@ -1352,7 +1352,7 @@ def nondeterministic_problems(version: str, nd: dict, new: dict) -> list[str]:
         if len(runs) != pin["runs"] or len(details) != pin["runs"]:
             out.append(f"{cid}: {len(runs)} runs and {len(details)} run details recorded, the gate pins {pin['runs']}")
         decisive = 0
-        for i, (verdicts, detail) in enumerate(zip(runs, details), 1):
+        for i, (verdicts, detail) in enumerate(zip(runs, details, strict=False), 1):   # a length mismatch is reported above
             if not isinstance(verdicts, dict) or not isinstance(detail, dict) or \
                     not all(isinstance(detail.get(s, {}), dict) for s in CORPUS_STRATEGIES):
                 out.append(f"{cid}: run {i}: malformed run record")
