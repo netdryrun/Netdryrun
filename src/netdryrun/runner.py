@@ -22,7 +22,7 @@ from . import __version__
 from .checks import (Result, Unready, _sample, hold_together, inconclusive_reason, is_post_convergence,
                      never_ready_nodes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
-from .drivers import BETA_DRIVERS, DriverError, check_supported, for_node, resolve
+from .drivers import BETA_DRIVERS, DriverError, Undetectable, check_supported, for_node, resolve
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
 from .faults import RouteInjection
@@ -533,9 +533,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         if negatives or config.scenarios:
             settle, hold = _stretch_for_advertisement_intervals(lab, driver_for, config, settle, hold, log)
         if negatives:
-            gate_warnings: dict[int, str] = {}
+            gate_warnings: dict[int, list[dict]] = {}
             not_converged = _bgp_convergence_gate(negatives, config.checks, drivers, log=log,
-                                                  positive_results=report.results, warnings=gate_warnings)
+                                                  positive_results=report.results, warnings=gate_warnings,
+                                                  lab=lab, extras=_routing_nodes(lab, driver_for))
             if not positives:
                 # nothing has proven convergence yet; give the control plane time to come up
                 settle = max(settle, 30.0)
@@ -728,10 +729,66 @@ def _stretch_for_advertisement_intervals(lab, driver_for, config: Config, settle
     return settle, hold
 
 
+def _routing_nodes(lab, driver_for) -> dict:
+    """Every lab node with a routing driver: node -> its driver, or the reason it has none that can be read (a beta
+    NOS not chosen, a driver setting that doesn't match). A node no driver recognises (a Linux host, a bridge) runs no
+    routing protocol Netdryrun can see and is left out."""
+    out: dict = {}
+    for node in sorted(getattr(lab, "nodes", {}) or {}):
+        try:
+            out[node] = driver_for(node)
+        except Undetectable:
+            continue
+        except DriverError as e:
+            out[node] = str(e)
+    return out
+
+
+def _far_ends(lab, declared: set[tuple[str, str, str]]) -> set[tuple[str, str, str]]:
+    """The other end of each session the file declares not established, where the topology shows it: the peer
+    across the link whose subnet holds the neighbor address (keyed by this node's addresses on that link), or, for
+    unnumbered BGP, the peer interface. A session the topology can't place (iBGP between loopbacks) has no far end
+    here; the gate then only warns about it there, or blocks as before on a node that carries post-convergence
+    checks (declare it there too)."""
+    out: set[tuple[str, str, str]] = set()
+    for node, vrf, key in declared:
+        if not key:
+            continue
+        ip = _ip(str(key))
+        for a, b in getattr(lab, "links", []):
+            for n, iface in (a, b):
+                if n != node:
+                    continue
+                if key == iface:
+                    out |= {(peer, vrf, piface) for peer, piface in lab.peers_of(node, iface)}
+                    continue
+                if ip is None:
+                    continue
+                try:
+                    addrs = lab.interface_addresses(node, iface)
+                except Exception:
+                    continue   # a VM's interfaces aren't readable this way; its far end is only warned about
+                if ip in {x.ip for x in addrs} or not any(ip in x.network for x in addrs):
+                    continue
+                for peer, piface in lab.peers_of(node, iface):
+                    out |= {(peer, vrf, str(x.ip)) for x in addrs} | {(peer, vrf, piface)}
+    return out
+
+
 def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drivers: dict,
                           log=lambda _: None, positive_results: list[Result] = (),
-                          warnings: dict[int, str] | None = None,
-                          expected_down: set[tuple[str, str, str]] = frozenset()) -> dict[int, Result]:
+                          warnings: dict[int, list[dict]] | None = None,
+                          expected_down: set[tuple[str, str, str]] = frozenset(),
+                          lab=None, extras: dict | None = None) -> dict[int, Result]:
+    """Wait for BGP convergence before the post-convergence checks; returns the checks it blocked.
+
+    Own nodes (a node with post-convergence checks, in each VRF they name): every session up, except those declared
+    not established, with prefix counts stable over two samples; still down at the cap blocks that node's checks.
+    Other routing nodes (`extras`, design round 3 "G"): every lab node with a routing driver, in the default VRF and
+    every VRF the file's checks name, waited on up to the same cap (the longest timeout of the post-convergence
+    checks), warning-only: at the cap a session still down, counts still moving or state that can't be read there is a
+    warning on every post-convergence check, never a block. Counts still moving on an own node at the cap go ahead
+    with a warning too (W2)."""
     # A node whose positive checks never got usable state on any sample already waited out their timeout:
     # don't wait again (the run is then failed or inconclusive on those checks anyway)
     on_node: dict[str, list[Result]] = {}
@@ -742,51 +799,93 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     for c in negatives:
         if c.node not in dead:
             groups.setdefault((c.node, c.params.get("vrf", "default")), []).append(c)
-    excluded = {(c.node, c.params.get("vrf", "default"), c.params.get("neighbor")) for c in all_checks
+    declared = {(c.node, c.params.get("vrf", "default"), c.params.get("neighbor")) for c in all_checks
                 if c.type == "bgp_session" and c.params.get("state", "established") != "established"}
-    excluded |= set(expected_down)   # in a scenario: the sessions over the links it took down
+    excluded = set(declared) | set(expected_down)   # in a scenario: the sessions over the links it took down
+    if declared and lab is not None:
+        excluded |= _far_ends(lab, declared)         # a session declared down is down at both ends
     # nodes the file says run BGP: any BGP check on them, or a route check that names protocol bgp
     bgp_nodes = {c.node for c in all_checks
                  if c.type in ("bgp_session", "bgp_prefixes", "bgp_route")
                  or (c.type == "route" and str(c.params.get("protocol", "")).lower() == "bgp")}
     deadline = {g: max(c.timeout for c in cs) for g, cs in groups.items()}
-    st = {g: {"streak": 0, "counts": None, "answered": False, "empty": False, "detail": "", "history": []}
-          for g in groups}
+    cap = max(deadline.values(), default=0.0)
+    vrfs = {"default"} | {c.params["vrf"] for c in all_checks if c.params.get("vrf")}
+    extra_drivers: dict[tuple[str, str], object] = {}
+    if groups:
+        for node, drv in (extras or {}).items():
+            if node in dead:
+                continue
+            for vrf in sorted(vrfs):
+                if (node, vrf) not in groups:
+                    extra_drivers[(node, vrf)] = drv
+                    deadline[(node, vrf)] = cap
+    st = {g: {"streak": 0, "counts": None, "answered": False, "empty": False, "detail": "", "history": [],
+              "down": [], "reads": 0, "error": ""}
+          for g in list(groups) + list(extra_drivers)}
     started = _now()
     t0 = _clock()
-    pending = set(groups)
+    pending = set(groups) | set(extra_drivers)
     first = True
     blocked: dict[int, Result] = {}
+    extra_warnings: list[tuple[str, str, str | None, str]] = []   # (code, node, session, text)
+
+    def warn_extra(g, code: str, text: str, session: str | None = None) -> None:
+        log(f"warning: {text}")
+        extra_warnings.append((code, g[0], session, text))
+
     while pending:
         for g in sorted(pending):
             node, vrf = g
             s = st[g]
             t = _clock() - t0
+            where = "" if vrf == "default" else f" (vrf {vrf})"
+            is_extra = g in extra_drivers
+            s["reads"] += 1
+            if is_extra and isinstance(extra_drivers[g], str):
+                pending.discard(g)
+                warn_extra(g, "gate-unreadable", f"convergence: {node} was not watched before this check ran "
+                           f"({extra_drivers[g]})")
+                continue
             try:
-                nbrs = drivers[node].bgp_neighbors(vrf).value
+                nbrs = (extra_drivers[g] if is_extra else drivers[node]).bgp_neighbors(vrf).value
             except Exception as e:
-                if first and all(c.type == "ping" for c in groups[g]):
+                if not is_extra and first and all(c.type == "ping" for c in groups[g]):
                     pending.discard(g)   # not a BGP speaker; nothing to wait for
                     continue
-                s["streak"], s["detail"], s["empty"] = 0, Unready(f"BGP state unreadable on {node}: {e}"), False
+                if is_extra and isinstance(e, NoSuchInstance) and (vrf != "default" or node not in bgp_nodes):
+                    pending.discard(g)   # no such VRF, or no BGP on a node no check says runs it: nothing to wait for
+                    continue
+                if is_extra and not s["answered"] and s["reads"] == 1 and not isinstance(e, NoSuchInstance):
+                    pending.discard(g)   # a first read that fails is a warning, not a wait on a broken CLI
+                    warn_extra(g, "gate-unreadable", f"convergence: {node}'s BGP state{where} could not be read "
+                               f"before this check ran ({' '.join(str(e).split())[:200]})")
+                    continue
+                s["streak"], s["detail"], s["empty"], s["down"] = 0, Unready(f"BGP state unreadable on {node}: {e}"), False, []
+                s["error"] = str(e) or type(e).__name__
                 s["history"].append(_sample(t, False, s["detail"]))
                 continue
             s["answered"] = True
             s["empty"] = not nbrs
+            s["error"] = ""
             if not nbrs:
+                if is_extra and node not in bgp_nodes and s["reads"] == 1:
+                    pending.discard(g)   # a routing node with no BGP configured (static or IGP only)
+                    continue
                 # No neighbors at all is what a node answers before its BGP config is applied: not converged
                 # (a leak can arrive once it is), so keep waiting, up to the cap
-                where = "" if vrf == "default" else f" (vrf {vrf})"
-                s["streak"], s["detail"] = 0, Unready(f"no BGP neighbors at all on {node}{where}")
+                s["streak"], s["detail"], s["down"] = 0, Unready(f"no BGP neighbors at all on {node}{where}"), []
                 s["history"].append(_sample(t, False, s["detail"]))
                 continue
-            down = sorted(f"{a} ({n.state})" for a, n in nbrs.items()
+            down = sorted((a, n.state) for a, n in nbrs.items()
                           if n.state != "established" and (node, vrf, a) not in excluded)
             if down:
-                where = "" if vrf == "default" else f" (vrf {vrf})"
-                s["streak"], s["detail"] = 0, f"BGP session(s) on {node}{where} not established: {', '.join(down)}"
+                s["down"] = down
+                s["streak"], s["detail"] = 0, (f"BGP session(s) on {node}{where} not established: "
+                                               + ", ".join(f"{a} ({state})" for a, state in down))
                 s["history"].append(_sample(t, False, s["detail"]))
                 continue
+            s["down"] = []
             # received counts too, where the driver knows more were received than it counts (Junos hidden routes):
             # a route still arriving there is churn even when the accepted count holds still
             counts = {a: (dict(n.prefixes), dict(n.prefixes_upto)) for a, n in nbrs.items()}
@@ -804,12 +903,27 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 continue
             pending.discard(g)
             s = st[g]
+            where = "" if g[1] == "default" else f" (vrf {g[1]})"
+            if g in extra_drivers:
+                if s["down"]:
+                    for a, state in s["down"]:
+                        warn_extra(g, "gate-session-down", f"convergence: {g[0]}'s session to {a}{where} was not "
+                                   f"established ({state}) when this check ran (waited {deadline[g]:g}s)", session=a)
+                elif s["error"] or not s["answered"]:
+                    warn_extra(g, "gate-unreadable", f"convergence: {g[0]}'s BGP state{where} could not be read "
+                               f"by the cap ({deadline[g]:g}s): {' '.join(s['error'].split())[:200]}")
+                elif s["empty"]:
+                    warn_extra(g, "gate-no-neighbors", f"convergence: {g[0]} reported no BGP neighbors{where} by "
+                               f"the cap ({deadline[g]:g}s), although checks in the file expect BGP on it")
+                else:
+                    warn_extra(g, "gate-counts-moving", f"convergence: {g[0]}'s BGP prefix counts{where} were still "
+                               f"changing when this check ran (waited {deadline[g]:g}s)")
+                continue
             if not s["answered"]:
                 log(f"warning: {g[0]} never returned BGP state; its post-convergence checks start without the BGP gate")
             elif s["empty"] and g[0] in bgp_nodes:
                 # Still no neighbors at the cap on a node the file says runs BGP: its config never loaded, and a
                 # leak guard would pass on the empty table. Not evaluated, every sample unready.
-                where = "" if g[1] == "default" else f" (vrf {g[1]})"
                 for c in groups[g]:
                     detail = Unready(f"not evaluated: {g[0]} reported no BGP neighbors{where} by the cap "
                                      f"({deadline[g]:g}s), although checks in the file expect BGP on it. A "
@@ -820,7 +934,6 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
             elif s["empty"]:
                 # Still no neighbors at the cap, and no BGP check on the node anywhere in the file: it may not run
                 # BGP at all (static routing). Go ahead, but say so on each check
-                where = "" if g[1] == "default" else f" (vrf {g[1]})"
                 text = (f"{g[0]}{where} reported no BGP neighbors for {deadline[g]:g}s; the check was evaluated "
                         "without BGP convergence")
                 log(f"warning: {text}")
@@ -835,10 +948,20 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                     blocked[id(c)] = Result(c, False, detail, len(s["history"]), round(t, 1), started, [],
                                             s["history"][-50:], samples_passed=0,
                                             samples_unready=sum(bool(h.get("unready")) for h in s["history"]))
-            # established but prefix counts still moving at the deadline: go ahead
+            else:
+                # established but prefix counts still moving at the deadline: go ahead, with a warning (W2)
+                text = (f"convergence: {g[0]}'s BGP prefix counts{where} were still changing when this check ran "
+                        f"(waited {deadline[g]:g}s)")
+                log(f"warning: {text}")
+                for c in groups[g]:
+                    warn(warnings, c, "gate-counts-moving", g[0], text)
         if pending:
             nearest = min(deadline[g] for g in pending) - (_clock() - t0)
             _sleep(max(0.0, min(POLL, nearest)))
+    for code, node, session, text in extra_warnings:
+        for c in negatives:
+            if id(c) not in blocked:
+                warn(warnings, c, code, node, text, session=session)
     return blocked
 
 
@@ -1059,10 +1182,10 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
             # node's own table.
             for c in negatives:
                 driver_for(c.node)
-            gate_warnings: dict[int, str] = {}
+            gate_warnings: dict[int, list[dict]] = {}
             blocked = _bgp_convergence_gate(negatives, list(baseline_checks) + sc.checks, drivers, log=log,
                                             positive_results=pos_results, warnings=gate_warnings,
-                                            expected_down=over_links)
+                                            expected_down=over_links, lab=lab, extras=_routing_nodes(lab, driver_for))
             ready = [c for c in negatives if id(c) not in blocked]
             neg_results = hold_together(ready, drivers, hold=hold, on_result=_with_warnings(gate_warnings, on_result),
                                         clock=_clock, sleep=_sleep)
