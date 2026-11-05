@@ -509,6 +509,47 @@ def parse_ping_reply(text: str) -> tuple[int, int]:
 
 # -------------------------------------------------------------------------------------------- driver
 
+def _ascii_msg(text: str) -> str | None:
+    """The text of an NX-API `cli_ascii` reply ({"result": {"msg": ...}}), or None."""
+    import json
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    res = data.get("result") if isinstance(data, dict) else None
+    if isinstance(res, list) and len(res) == 1:
+        res = res[0]
+    msg = res.get("msg") if isinstance(res, dict) else None
+    return msg if isinstance(msg, str) else None
+
+
+_NX_LABELS = {"ipv4-unicast": "IPv4 Unicast", "ipv6-unicast": "IPv6 Unicast"}
+
+
+def nxos_eor_text(msg: str | None, fam: str) -> str:
+    """End-of-RIB for one family from `show bgp <afi> unicast neighbors <ip> vrf <v>` text (NX-OS 10.x, captured live
+    2026-11-06). The family's own block ("For address family: IPv4 Unicast") prints "Last End-of-RIB received ..." once
+    it arrived. That line is sticky across Closing, Idle and Active, so it is read only while "BGP state = Established".
+    Absent on an established session: pending when the graceful-restart capability was exchanged and the family is
+    among those received from the peer, else untracked. Anything else (no state line, no block): unknown."""
+    if not isinstance(msg, str) or fam not in _NX_LABELS:
+        return "unknown"
+    m = re.search(r"^\s*BGP state = (\w+)", msg, re.M)
+    if not m or m.group(1) != "Established":
+        return "unknown"
+    label = _NX_LABELS[fam]
+    blocks = re.split(r"^\s*For address family: ", msg, flags=re.M)[1:]
+    block = next((b for b in blocks if b.split("\n", 1)[0].strip() == label), None)
+    if block is None:
+        return "unknown"
+    if re.search(r"^\s*Last End-of-RIB received\b", block, re.M):
+        return "received"
+    gr = re.search(r"^\s*Graceful Restart capability: advertised received\s*$", msg, re.M)
+    recv = re.search(r"^\s*Address families received from peer:[ \t]*\n((?:[ \t]{3,}\S[^\n]*\n)*)", msg, re.M)
+    fams = [x.strip() for x in recv.group(1).splitlines()] if recv else []
+    return "pending" if gr and label in fams else "untracked"
+
+
 class NxosDriver(Driver):
     name = "nxos"
     route_protocols = frozenset(PROTOCOLS.values()) - {"hsrp"}   # hsrp is no netdryrun.yml protocol name
@@ -541,6 +582,27 @@ class NxosDriver(Driver):
             raise NoSuchInstance(f"VRF {vrf!r} does not exist on {self.node} (`show vrf {vrf}` doesn't list it)")
         if state.lower() != "up":
             raise NoSuchInstance(f"VRF {vrf!r} is {state} on {self.node}")
+
+    def end_of_rib(self, vrf: str, neighbors: dict) -> dict[str, dict[str, str]]:
+        """From the text neighbor detail, per established neighbor and family (the JSON summary has no End-of-RIB);
+        see nxos_eor_text. One NX-API `cli_ascii` request per neighbor and family."""
+        out: dict[str, dict[str, str]] = {}
+        for a, n in neighbors.items():
+            if n.state != "established":
+                continue
+            fams = [f for f in ("ipv4-unicast", "ipv6-unicast") if f in n.prefixes] or ["ipv4-unicast"]
+            res: dict[str, str] = {}
+            for fam in fams:
+                try:
+                    addr = ipaddress.ip_address(str(a))   # never a device string in a command
+                    vrf = check_vrf_name(vrf)
+                    text = self._nxapi(f"show bgp {fam.split('-')[0]} unicast neighbors {addr} vrf {vrf}", [],
+                                       method="cli_ascii")
+                    res[fam] = nxos_eor_text(_ascii_msg(text), fam)
+                except Exception:
+                    res[fam] = "unknown"
+            out[a] = res
+        return out
 
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

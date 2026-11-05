@@ -146,6 +146,12 @@ class BgpNeighbor:
     # an eBGP session (True), iBGP (False), or not known (None); `record` puts its closed-world guard on eBGP
     # neighbors and on every neighbor whose kind it doesn't know
     external: bool | None = field(default=None, compare=False)
+    # End-of-RIB from this neighbor per address family, read only by the convergence gate (design round 3, R3):
+    # "received"; "pending" (graceful restart negotiated, the neighbor's End-of-RIB not in yet: its table may still be
+    # arriving); "untracked" (graceful restart not negotiated, so no End-of-RIB to wait for); "unknown" (output this
+    # driver doesn't recognise: never read as received). Key "*" when the state covers every family. {}: not read.
+    # A parser never raises over End-of-RIB data. Not part of equality (the gate compares counts, not this).
+    eor: dict[str, str] = field(default_factory=dict, compare=False)
 
 
 @dataclass
@@ -229,6 +235,21 @@ class Observation:
 class Driver:
     name = "base"
 
+    def __init_subclass__(cls, **kw):
+        """Every driver's bgp_paths answer goes through the LLGR_STALE refusal (design round 3, R4): a path a
+        long-lived graceful restart keeps is never present or gone, whichever driver read it."""
+        super().__init_subclass__(**kw)
+        own = cls.__dict__.get("bgp_paths")
+        if own is not None and not getattr(own, "_llgr_checked", False):
+            def bgp_paths(self, prefix: str, vrf: str = "default", _own=own) -> Observation:
+                from .stale import refuse_llgr_stale
+                obs = _own(self, prefix, vrf)
+                refuse_llgr_stale(prefix, obs.value)
+                return obs
+            bgp_paths._llgr_checked = True
+            bgp_paths.__doc__ = own.__doc__
+            cls.bgp_paths = bgp_paths
+
     def __init__(self, lab: Lab, node: str):
         self.lab = lab
         self.node = node
@@ -244,6 +265,12 @@ class Driver:
 
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         raise NotImplementedError
+
+    def end_of_rib(self, vrf: str, neighbors: dict) -> dict[str, dict[str, str]]:
+        """End-of-RIB per established neighbor of `neighbors` (a bgp_neighbors answer for `vrf`), as BgpNeighbor.eor
+        describes it. Read only by the convergence gate. The default is what bgp_neighbors already parsed; a driver
+        whose End-of-RIB is in another command overrides this. Never raises: a read that fails is "unknown"."""
+        return {a: dict(n.eor) for a, n in neighbors.items() if n.state == "established"}
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
         raise NotImplementedError

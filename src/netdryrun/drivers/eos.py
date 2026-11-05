@@ -284,6 +284,49 @@ def parse_startup_config_errors(text: str) -> list[str]:
     return out
 
 
+def _eor_key(addr: str) -> str:
+    try:
+        return str(ipaddress.ip_address(str(addr).split("%")[0]))
+    except ValueError:
+        return str(addr)
+
+
+EOS_FAMILIES = {"ipv4Unicast": "ipv4-unicast", "ipv6Unicast": "ipv6-unicast"}
+
+
+def parse_eos_eor(text: str, vrf: str) -> dict[str, dict[str, str]]:
+    """{neighbor address: End-of-RIB per family} from `show ip bgp neighbors vrf <vrf> | json`. Fail-safe: output that
+    isn't the neighbor list gives {}, and end_of_rib then reads every session unknown (never received)."""
+    import json
+    try:
+        peers = json.loads(text)["vrfs"][vrf]["peerList"]
+        return {_eor_key(p["peerAddress"]): eos_eor(p) for p in peers if isinstance(p.get("peerAddress"), str)}
+    except Exception:
+        return {}
+
+
+def eos_eor(p: dict) -> dict[str, str]:
+    """End-of-RIB per family from one EOS peer (cEOS 4.3x, captured live 2026-11-06): `endOfRibs.incoming.<afi>.status`
+    read "received", then "pending" during a graceful restart, then "received". No `endOfRibs` and no graceful-restart
+    capability received from the peer: untracked. Anything else: unknown. Never raises."""
+    try:
+        eors = p.get("endOfRibs")
+        inc = eors.get("incoming") if isinstance(eors, dict) else None
+        if isinstance(inc, dict) and inc:
+            out = {}
+            for afi, v in inc.items():
+                status = v.get("status") if isinstance(v, dict) else None
+                out[EOS_FAMILIES.get(afi, afi)] = status if status in ("received", "pending") else "unknown"
+            return out
+        caps = p.get("neighborCapabilities")
+        gr = caps.get("grCaps") if isinstance(caps, dict) else None
+        if eors is None and (not isinstance(gr, dict) or not gr.get("received")):
+            return {"*": "untracked"}
+        return {"*": "unknown"}
+    except Exception:
+        return {"*": "unknown"}
+
+
 class EosDriver(Driver):
     name = "eos"
     route_protocols = frozenset({"bgp", "connected", "static", "ospf", "ospf6", "isis", "aggregate"})
@@ -295,6 +338,21 @@ class EosDriver(Driver):
 
     def _cli(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["Cli", "-p", "15", "-c", command], evidence)
+
+    def end_of_rib(self, vrf: str, neighbors: dict) -> dict[str, dict[str, str]]:
+        """From `show ip|ipv6 bgp neighbors vrf <vrf> | json` (the summary has no End-of-RIB); see eos_eor."""
+        est = [a for a, n in neighbors.items() if n.state == "established"]
+        if not est:
+            return {}
+        got: dict[str, dict[str, str]] = {}
+        try:
+            vrf = check_vrf_name(vrf)
+            got.update(parse_eos_eor(self._cli(f"show ip bgp neighbors vrf {vrf} | json", []), vrf))
+            if any(_eor_key(a) not in got for a in est):
+                got.update(parse_eos_eor(self._cli(f"show ipv6 bgp neighbors vrf {vrf} | json", []), vrf))
+        except Exception:
+            pass   # unread: every session below reads unknown
+        return {a: got.get(_eor_key(a)) or {"*": "unknown"} for a in est}
 
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

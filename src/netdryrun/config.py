@@ -30,7 +30,8 @@ VRF_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}")
 INTERFACE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]{0,14}")   # Linux: at most 15 characters, no / or :
 
 TOP_LEVEL_KEYS = ("lab", "timeout", "checks", "nodes", "scenarios")
-NODE_KEYS = ("driver", "setup")
+NODE_KEYS = ("driver", "setup", "peers")
+PEER_KEYS = ("eor",)
 DRIVER_NAMES = ("frr", "srlinux", "eos", "sonic", "junos", "nxos", "routeros")   # must match drivers.DRIVERS (a test keeps them in sync)
 SCENARIO_KEYS = ("name", "link_down", "node_isolated", "inject_routes", "checks")
 LINK_DOWN_KEYS = ("node", "interface")
@@ -133,6 +134,9 @@ class Config:
     drivers: dict[str, str] = field(default_factory=dict)  # node -> driver override
     scenarios: list["Scenario"] = field(default_factory=list)
     setup: dict[str, list[str]] = field(default_factory=dict)   # node -> commands run after deploy
+    # (node, vrf, neighbor address) whose End-of-RIB the file declares never sent (nodes.<node>.peers.<addr>.eor:
+    # not_sent): the convergence gate doesn't wait for it there. A session that does report End-of-RIB still uses it.
+    eor_not_sent: frozenset = frozenset()
 
 
 @dataclass
@@ -550,20 +554,22 @@ def load(path: str | Path) -> Config:
     if not isinstance(raw_checks, list):
         raise ConfigError(f"{path}: checks must be a list of checks")
     checks = [_validate_check(i, c, timeout) for i, c in enumerate(raw_checks)]
-    drivers, setup = _validate_nodes(str(path), data)
+    drivers, setup, eor_not_sent = _validate_nodes(str(path), data)
     scenarios: list[Scenario] = []
     if "scenarios" in data:
         if not isinstance(data["scenarios"], list) or not data["scenarios"]:
             raise ConfigError(f"{path}: scenarios must be a non-empty list of scenarios (or leave the key out)")
         scenarios = [_validate_scenario(i, sc, timeout) for i, sc in enumerate(data["scenarios"])]
-    return Config(path=path, lab=lab, timeout=timeout, checks=checks, drivers=drivers, scenarios=scenarios, setup=setup)
+    return Config(path=path, lab=lab, timeout=timeout, checks=checks, drivers=drivers, scenarios=scenarios, setup=setup,
+                  eor_not_sent=frozenset(eor_not_sent))
 
 
-def _validate_nodes(where: str, data: dict) -> tuple[dict[str, str], dict[str, list[str]]]:
+def _validate_nodes(where: str, data: dict) -> tuple[dict[str, str], dict[str, list[str]], set]:
     drivers: dict[str, str] = {}
     setup: dict[str, list[str]] = {}
+    eor_not_sent: set[tuple[str, str, str]] = set()
     if "nodes" not in data:
-        return drivers, setup
+        return drivers, setup, eor_not_sent
     nodes_cfg = data["nodes"]
     if not isinstance(nodes_cfg, dict) or not nodes_cfg:
         raise ConfigError(f"{where}: nodes must be a mapping of node name to settings (or leave the key out)")
@@ -584,7 +590,43 @@ def _validate_nodes(where: str, data: dict) -> tuple[dict[str, str], dict[str, l
             if not cmds or not all(isinstance(x, str) and x.strip() for x in cmds):
                 raise ConfigError(f"{node_where}.setup must be a list of shell commands")
             setup[k] = cmds
-    return drivers, setup
+        if "peers" in v:
+            eor_not_sent |= _validate_peers(f"{node_where}.peers", k, v["peers"])
+    return drivers, setup, eor_not_sent
+
+
+def _validate_peers(where: str, node: str, peers: Any) -> set[tuple[str, str, str]]:
+    """nodes.<node>.peers: {"<address>" or "<vrf>/<address>": {eor: not_sent}}. The address is normalised (an IPv6
+    address in any spelling is one peer); the VRF is "default" unless named."""
+    if not isinstance(peers, dict) or not peers:
+        raise ConfigError(f"{where}: must be a mapping of neighbor address (or <vrf>/<address>) to settings")
+    out = set()
+    for key, settings in peers.items():
+        pw = f"{where}.{key}"
+        if not isinstance(key, str) or not key.strip():
+            raise ConfigError(f"{pw}: a peer is named by its address, or <vrf>/<address>")
+        vrf, _, addr = key.rpartition("/") if "/" in key and not _is_network(key) else ("", "", key)
+        try:
+            ip = ipaddress.ip_address(addr.strip())
+        except ValueError:
+            raise ConfigError(f"{pw}: {addr!r} is not an IP address (name a peer by its address, or "
+                              "<vrf>/<address>)") from None
+        if not isinstance(settings, dict) or not settings:
+            raise ConfigError(f"{pw}: must be a mapping, e.g. {{eor: not_sent}}")
+        _reject_unknown(pw, settings, PEER_KEYS)
+        if settings.get("eor") != "not_sent":
+            raise ConfigError(f"{pw}.eor: the only value is not_sent (the peer never sends End-of-RIB), got "
+                              f"{settings.get('eor')!r}")
+        out.add((node, vrf.strip() or "default", str(ip)))
+    return out
+
+
+def _is_network(text: str) -> bool:
+    try:
+        ipaddress.ip_network(text, strict=False)
+        return True
+    except ValueError:
+        return False
 
 
 def _validate_scenario(i: int, raw: Any, default_timeout: float) -> Scenario:

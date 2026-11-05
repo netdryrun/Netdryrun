@@ -466,6 +466,7 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         settle: float = 10.0, hold: float = 10.0,
         on_result: Callable[[Result], None] | None = None, log: Callable[[str], None] = lambda _: None) -> RunReport:
     report = RunReport(config=config, started=_now())
+    eor_reported: set = set()   # untracked End-of-RIB warnings already given in this run (once per session)
     lab = None
     deployed = False      # this run started a deploy: only then is the lab its own to destroy
     interrupted = None    # the signal that ended the run, if any
@@ -530,13 +531,15 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         positives = [c for c in config.checks if not is_post_convergence(c)]
         negatives = [c for c in config.checks if is_post_convergence(c)]
         report.results += run_round_robin(positives, drivers, on_result=on_result, clock=_clock, sleep=_sleep)
+        _check_declared_peers(config.eor_not_sent, driver_for)
         if negatives or config.scenarios:
             settle, hold = _stretch_for_advertisement_intervals(lab, driver_for, config, settle, hold, log)
         if negatives:
             gate_warnings: dict[int, list[dict]] = {}
             not_converged = _bgp_convergence_gate(negatives, config.checks, drivers, log=log,
                                                   positive_results=report.results, warnings=gate_warnings,
-                                                  lab=lab, extras=_routing_nodes(lab, driver_for))
+                                                  lab=lab, extras=_routing_nodes(lab, driver_for),
+                                                  eor_not_sent=config.eor_not_sent, eor_reported=eor_reported)
             if not positives:
                 # nothing has proven convergence yet; give the control plane time to come up
                 settle = max(settle, 30.0)
@@ -570,7 +573,8 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             for check in sc.checks:
                 driver_for(check.node)
             report.results += run_scenario(lab, sc, drivers, settle=settle, hold=hold, on_result=on_result, log=log,
-                                           driver_for=driver_for, baseline_checks=config.checks)
+                                           driver_for=driver_for, baseline_checks=config.checks,
+                                           eor_not_sent=config.eor_not_sent, eor_reported=eor_reported)
             # Prove the network recovered (not just slept): the positive checks that passed before
             # the scenario must pass again. Checks the change already broke can't recover, so they
             # don't count. Not recovering is a finding about the network, reported as failed checks.
@@ -779,7 +783,8 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                           log=lambda _: None, positive_results: list[Result] = (),
                           warnings: dict[int, list[dict]] | None = None,
                           expected_down: set[tuple[str, str, str]] = frozenset(),
-                          lab=None, extras: dict | None = None) -> dict[int, Result]:
+                          lab=None, extras: dict | None = None, eor_not_sent: frozenset = frozenset(),
+                          eor_reported: set | None = None) -> dict[int, Result]:
     """Wait for BGP convergence before the post-convergence checks; returns the checks it blocked.
 
     Own nodes (a node with post-convergence checks, in each VRF they name): every session up, except those declared
@@ -788,7 +793,12 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     every VRF the file's checks name, waited on up to the same cap (the longest timeout of the post-convergence
     checks), warning-only: at the cap a session still down, counts still moving or state that can't be read there is a
     warning on every post-convergence check, never a block. Counts still moving on an own node at the cap go ahead
-    with a warning too (W2)."""
+    with a warning too (W2).
+
+    End-of-RIB (design round 3, R3): once every session is up, a session whose End-of-RIB is "pending" or "unknown"
+    (Driver.end_of_rib) is not settled: its table may still be arriving. At the cap that blocks the own node's checks
+    and is a warning elsewhere. A peer declared `eor: not_sent` is not waited for. A session with graceful restart not
+    negotiated ("untracked") settles by the count rule, with one warning per run and session (`eor_reported`)."""
     # A node whose positive checks never got usable state on any sample already waited out their timeout:
     # don't wait again (the run is then failed or inconclusive on those checks anyway)
     on_node: dict[str, list[Result]] = {}
@@ -821,7 +831,7 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                     extra_drivers[(node, vrf)] = drv
                     deadline[(node, vrf)] = cap
     st = {g: {"streak": 0, "counts": None, "answered": False, "empty": False, "detail": "", "history": [],
-              "down": [], "reads": 0, "error": ""}
+              "down": [], "reads": 0, "error": "", "eor_wait": [], "untracked": set()}
           for g in list(groups) + list(extra_drivers)}
     started = _now()
     t0 = _clock()
@@ -886,6 +896,31 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 s["history"].append(_sample(t, False, s["detail"]))
                 continue
             s["down"] = []
+            drv = extra_drivers[g] if is_extra else drivers[node]
+            read_eor = getattr(drv, "end_of_rib", None)
+            eor: dict = {}
+            if read_eor is not None:
+                try:
+                    eor = read_eor(vrf, nbrs) or {}
+                except Exception:   # never raises by contract; a driver that does reads unknown
+                    eor = {a: {"*": "unknown"} for a, n in nbrs.items() if n.state == "established"}
+            waiting, untracked = [], set()
+            for a, fams in sorted(eor.items()):
+                if (node, vrf, a) in excluded or not isinstance(fams, dict):
+                    continue
+                for fam, state in sorted(fams.items()):
+                    if state == "untracked":
+                        untracked.add(a)
+                    elif state != "received" and (node, vrf, _canon_ip(a)) not in eor_not_sent:
+                        waiting.append((a, fam, state))
+            s["untracked"] |= untracked
+            s["eor_wait"] = waiting
+            if waiting:
+                s["streak"], s["detail"] = 0, (f"End-of-RIB not received on {node}{where} from: "
+                                               + ", ".join(f"{a} ({'all families' if f == '*' else f}: {st_})"
+                                                           for a, f, st_ in waiting))
+                s["history"].append(_sample(t, False, s["detail"]))
+                continue
             # received counts too, where the driver knows more were received than it counts (Junos hidden routes):
             # a route still arriving there is churn even when the accepted count holds still
             counts = {a: (dict(n.prefixes), dict(n.prefixes_upto)) for a, n in nbrs.items()}
@@ -905,7 +940,12 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
             s = st[g]
             where = "" if g[1] == "default" else f" (vrf {g[1]})"
             if g in extra_drivers:
-                if s["down"]:
+                if s["eor_wait"] and not s["down"]:
+                    for a, fam, state in s["eor_wait"]:
+                        warn_extra(g, "gate-eor-pending", f"convergence: {g[0]}'s session to {a}{where} had not sent "
+                                   f"End-of-RIB ({'all families' if fam == '*' else fam}: {state}) when this check ran "
+                                   f"(waited {deadline[g]:g}s); its routes may still have been arriving", session=a)
+                elif s["down"]:
                     for a, state in s["down"]:
                         warn_extra(g, "gate-session-down", f"convergence: {g[0]}'s session to {a}{where} was not "
                                    f"established ({state}) when this check ran (waited {deadline[g]:g}s)", session=a)
@@ -939,6 +979,15 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 log(f"warning: {text}")
                 for c in groups[g]:
                     warn(warnings, c, "no-bgp-neighbors", g[0], text)
+            elif s["streak"] == 0 and s["eor_wait"] and not s["down"]:
+                for c in groups[g]:
+                    detail = (f"not evaluated: {s['detail']} after waiting {deadline[g]:g}s. A post-convergence check "
+                              "only means something once the node's neighbors have sent their whole table (End-of-RIB). "
+                              f"For a peer that never sends End-of-RIB, declare nodes.{g[0]}.peers."
+                              f"{'' if g[1] == 'default' else g[1] + '/'}<address>.eor: not_sent")
+                    blocked[id(c)] = Result(c, False, detail, len(s["history"]), round(t, 1), started, [],
+                                            s["history"][-50:], samples_passed=0,
+                                            samples_unready=sum(bool(h.get("unready")) for h in s["history"]))
             elif s["streak"] == 0:
                 for c in groups[g]:
                     detail = (f"not evaluated: {s['detail']} after waiting {deadline[g]:g}s. A post-convergence "
@@ -962,7 +1011,49 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
         for c in negatives:
             if id(c) not in blocked:
                 warn(warnings, c, code, node, text, session=session)
+    # untracked End-of-RIB: once per run and session, on the first post-convergence check that ran
+    first_ready = next((c for c in negatives if id(c) not in blocked), None)
+    for g in sorted(st):
+        for a in sorted(st[g]["untracked"]):
+            key = (g[0], g[1], a)
+            if first_ready is None or (eor_reported is not None and key in eor_reported):
+                continue
+            if eor_reported is not None:
+                eor_reported.add(key)
+            where = "" if g[1] == "default" else f" (vrf {g[1]})"
+            text = (f"convergence: {g[0]}'s session to {a}{where} doesn't negotiate graceful restart, so its "
+                    "End-of-RIB can't be tracked; the gate judged it by stable prefix counts only (a route can still "
+                    "arrive later)")
+            log(f"warning: {text}")
+            warn(warnings, first_ready, "eor-untracked", g[0], text, session=a)
     return blocked
+
+
+def _check_declared_peers(declared, driver_for) -> None:
+    """Each `nodes.<node>.peers.<address>.eor: not_sent` must name a BGP session the node has: one that names none is a
+    config error (a typo would otherwise excuse nothing, silently). Read once the lab is up (after the positive
+    checks), so a session that is configured but down still counts."""
+    by_node: dict[tuple[str, str], list[str]] = {}
+    for node, vrf, addr in sorted(declared):
+        by_node.setdefault((node, vrf), []).append(addr)
+    for (node, vrf), addrs in by_node.items():
+        try:
+            have = {_canon_ip(k) for k in driver_for(node).bgp_neighbors(vrf).value}
+        except NoSuchInstance:
+            have = set()
+        missing = [a for a in addrs if a not in have]
+        if missing:
+            where = "" if vrf == "default" else f"{vrf}/"
+            raise ConfigError(f"nodes.{node}.peers.{where}{missing[0]}: {node} has no BGP session to {missing[0]}"
+                              f"{'' if vrf == 'default' else f' in vrf {vrf}'} (its sessions: "
+                              f"{', '.join(sorted(have)) or 'none'}); eor: not_sent must name one of them")
+
+
+def _canon_ip(addr: str) -> str:
+    try:
+        return str(ipaddress.ip_address(str(addr).split("%")[0]))
+    except ValueError:
+        return str(addr)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -1120,7 +1211,8 @@ def _reach_then_hold(checks: list[Check], drivers: dict, hold: float, on_result=
 
 
 def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: float,
-                 on_result=None, log=lambda _: None, driver_for=None, baseline_checks: list[Check] = ()) -> list[Result]:
+                 on_result=None, log=lambda _: None, driver_for=None, baseline_checks: list[Check] = (),
+                 eor_not_sent: frozenset = frozenset(), eor_reported: set | None = None) -> list[Result]:
     """Inject the scenario's faults, prove they took effect, run its checks, then restore the links and
     routes and let the network re-converge. See "Scenario timing" above for the rule."""
     if driver_for is None:
@@ -1185,7 +1277,8 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
             gate_warnings: dict[int, list[dict]] = {}
             blocked = _bgp_convergence_gate(negatives, list(baseline_checks) + sc.checks, drivers, log=log,
                                             positive_results=pos_results, warnings=gate_warnings,
-                                            expected_down=over_links, lab=lab, extras=_routing_nodes(lab, driver_for))
+                                            expected_down=over_links, lab=lab, extras=_routing_nodes(lab, driver_for),
+                                            eor_not_sent=eor_not_sent, eor_reported=eor_reported)
             ready = [c for c in negatives if id(c) not in blocked]
             neg_results = hold_together(ready, drivers, hold=hold, on_result=_with_warnings(gate_warnings, on_result),
                                         clock=_clock, sleep=_sleep)

@@ -119,7 +119,7 @@ class RouterosDriver(Driver):
         paths = self._paths(table, ev) if any(s.established for s in sessions) else []
         out: dict[str, BgpNeighbor] = {}
         for s in sessions:
-            n = BgpNeighbor(s.remote_address, "established" if s.established else "active")
+            n = BgpNeighbor(s.remote_address, "established" if s.established else "active", eor=dict(s.eor))
             if s.established:
                 # prefix-count is what the session received: accepted plus filtered paths, every one listed in the
                 # table (live CHR 7.23.8). A table that lists another number was cut or misread (Layer 6 on b03cb7a)

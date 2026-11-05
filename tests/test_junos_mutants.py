@@ -136,9 +136,10 @@ def test_json_errors_name_the_command_and_the_message():
 # ---------------------------------------------------------------- routes
 
 def entry(**over) -> dict:
-    # every entry of an extensive answer prints rt-entry-state (read for NotInstall and graceful-restart Stale since 0.4.1)
+    # every entry of an extensive answer prints rt-entry-state (read for NotInstall and graceful-restart Stale since 0.4.1),
+    # and every BGP entry Junos keeps prints bgp-rt-flag (read for plain graceful-restart Stale since the 0.4.1 red team)
     e = {"protocol-name": [{"data": "BGP"}], "active-tag": [{"data": "*"}], "rt-entry-state": [{"data": "Active Ext"}],
-         "as-path": [{"data": "AS path: 65002 I"}]}
+         "as-path": [{"data": "AS path: 65002 I"}], "bgp-rt-flag": [{"data": "Accepted"}]}
     e.update(over)
     return e
 
@@ -203,7 +204,7 @@ def test_entry_errors_name_the_command():
 def test_flag_protocol_name_is_no_protocol():
     """An empty flag element reads as "" (never some placeholder text), so it is an entry without a protocol."""
     e = entry(**{"protocol-name": [{}]})
-    raises(lambda: routes(answer(rt(e))), RC + f"rt-entry without protocol-name: {e}")
+    raises(lambda: routes(answer(rt(e))), RC + f"rt-entry without protocol-name: {str(e)[:150]}")
 
 
 def test_rt_entry_errors_name_the_command():

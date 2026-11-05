@@ -55,7 +55,7 @@ _ORIGINS = {"I", "E", "?"}
 # Every element Junos 26.2 prints in these containers (tests/fixtures/junos_*.txt)
 ROUTE_INFORMATION_KEYS = frozenset({"attributes", "route-table"})
 ROUTE_TABLE_KEYS = frozenset({"table-name", "destination-count", "total-route-count", "active-route-count",
-                              "holddown-route-count", "hidden-route-count", "rt", "comment"})
+                              "holddown-route-count", "hidden-route-count", "rt", "comment", "restart-state"})
 BGP_INFORMATION_KEYS = frozenset({"attributes", "bgp-peer"})
 # Timer elements of a peer that aren't an advertisement delay (holdtime is the session's hold timer)
 KNOWN_TIMERS = frozenset({"outbound-timer", "peer-stale-route-time-configured"})
@@ -222,8 +222,39 @@ def parse_bgp_neighbors(text: str, instance: str = "master") -> dict[str, BgpNei
         key = _canon_addr(addr)
         if key in out:
             raise unexpected(NEIGHBORS_CMD, f"peer {addr} listed twice")
-        out[key] = BgpNeighbor(addr, state, prefixes, upto, adv_interval=_adv_interval(peer, addr))
+        out[key] = BgpNeighbor(addr, state, prefixes, upto, adv_interval=_adv_interval(peer, addr),
+                               eor=junos_eor(peer) if state == "established" else {})
     return out
+
+
+JUNOS_FAMILIES = {"inet-unicast": "ipv4-unicast", "inet6-unicast": "ipv6-unicast"}
+
+
+def junos_eor(peer: dict) -> dict[str, str]:
+    """End-of-RIB per family from one `show bgp neighbor` peer (cJunosEvolved 25.x, captured live 2026-11-06).
+
+    `nlri-type-session` lists the session's families, `peer-restart-nlri-negotiated` those with graceful restart, and
+    `peer-end-of-rib-received` those whose End-of-RIB arrived. Listed there: received. Not listed, with graceful restart
+    negotiated for the family: unknown (the in-flight form was never caught live, so it is not assumed to be "pending",
+    and never read as received). Graceful restart not negotiated: untracked. Never raises."""
+    def words(key: str) -> list[str] | None:
+        v = peer.get(key)
+        if v is None:
+            return []
+        if not isinstance(v, list) or not v or not isinstance(v[0], dict) or not isinstance(v[0].get("data"), str):
+            return None
+        return v[0]["data"].split()
+    try:
+        session, negotiated, got = words("nlri-type-session"), words("peer-restart-nlri-negotiated"),             words("peer-end-of-rib-received")
+        if session is None or negotiated is None or got is None or not session:
+            return {"*": "unknown"}
+        out = {}
+        for fam in session:
+            name = JUNOS_FAMILIES.get(fam, fam)
+            out[name] = "received" if fam in got else "unknown" if fam in negotiated else "untracked"
+        return out
+    except Exception:
+        return {"*": "unknown"}
 
 
 @parser(HIDDEN_CMD)
@@ -314,6 +345,13 @@ def _tables(command: str, text: str, table: str, whole: bool = False) -> list[di
         name = _leaf(command, t, "table-name")
         if name != table:  # an answer for another table must never read as this table's (empty) answer
             raise unexpected(command, f"table {name!r} in the answer for {table!r}")
+        # Printed when graceful restart is configured (routing-options graceful-restart; every poll of the night-3
+        # capture, "Complete"): the table's own restart state. Anything else is a table still being rebuilt after a
+        # restart, so nothing in it is settled
+        restart = _leaf(command, t, "restart-state", required=False)
+        if restart is not None and restart.strip() != "Complete":
+            raise DriverError(f"routing table {table} is in graceful-restart state {restart.strip()!r} (`{command}`): "
+                              "not settled")
         listed = _items(command, t, "rt")
         if whole:
             shown = sum(len(_items(command, rt, "rt-entry")) for rt in listed)
@@ -413,10 +451,23 @@ def _matching(command: str, text: str, prefix: str, table: str) -> list[dict]:
 def _refuse_stale(command: str, prefix: str, e: dict) -> None:
     """A graceful-restart stale route (a restarting peer's, kept until it re-sends it or the stale timer ends) is
     neither present nor gone yet: the read stops with "not settled", as on FRR, EOS, NX-OS and SR Linux (acceptance
-    A-4). Every exact extensive answer prints rt-entry-state; without it a stale route couldn't be told from an active
-    one. The token's spelling (Stale, LongLivedStale) is Junos's documented one, not yet seen in a live restart."""
+    A-4). Junos marks it in two places: rt-entry-state (LongLivedStale, seen live in the LLGR phase) and, for plain
+    graceful restart, only in bgp-rt-flag ("Stale Accepted" while rt-entry-state still reads "Active Ext", captured live
+    2026-11-06: reading rt-entry-state alone passed checks on a stale route). Every token of both is read; any token
+    containing "stale" refuses. Every exact extensive answer prints rt-entry-state, and every BGP entry Junos keeps
+    (not hidden) prints bgp-rt-flag (each capture): without either, a stale route couldn't be told from an active one,
+    so a missing one is an error."""
     state = _leaf(command, e, "rt-entry-state")
-    stale = any("stale" in token.lower() for token in state.split())
+    tokens = state.split()
+    flags = e.get("bgp-rt-flag")
+    if flags is None:
+        if _protocol(command, e) == "bgp" and not _hidden(command, e):
+            raise unexpected(command, f"{prefix}: a BGP route without bgp-rt-flag (a stale mark couldn't be read)")
+    elif not isinstance(flags, list) or not all(isinstance(f, dict) and isinstance(f.get("data"), str) for f in flags):
+        raise unexpected(command, f"{prefix}: bgp-rt-flag {str(flags)[:80]}")
+    else:
+        tokens += [w for f in flags for w in f["data"].split()]
+    stale = any("stale" in token.lower() for token in tokens)
     refuse_if_stale(prefix, _leaf(command, e, "gateway", required=False), stale)
 
 

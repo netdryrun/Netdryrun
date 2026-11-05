@@ -40,9 +40,10 @@ Validation is strict, and every problem is an error (exit code `2`) before anyth
 | `lab` | yes | | Path to the containerlab topology file, relative to `netdryrun.yml`. The topology must have a `name`. |
 | `timeout` | no | `120` | Seconds a check may wait (see [convergence semantics](#convergence-semantics)). A positive number, at most `86400`. Each check can override it. |
 | `checks` | yes | | List of checks. At least one is required. |
-| `nodes` | no | | A mapping of node name to settings. Each node accepts only `driver` and `setup`. |
+| `nodes` | no | | A mapping of node name to settings. Each node accepts only `driver`, `setup` and `peers`. |
 | `nodes.<node>.driver` | no | detected | Force the driver for a node: `frr`, `srlinux`, `eos`, `sonic` or `junos` (Juniper cJunosEvolved, beta). See [drivers](#drivers). |
 | `nodes.<node>.setup` | no | | Shell commands run inside the node after deploy, before any check. Each is retried every 5 s until it succeeds (the NOS may still be booting), within a shared 300 s budget. For NOSes that are configured after boot, such as SONiC. |
+| `nodes.<node>.peers` | no | | Per-neighbor settings, keyed by the neighbor's address (`<vrf>/<address>` outside the default VRF). The only setting is `eor: not_sent`, for a peer that never sends End-of-RIB: the convergence gate then doesn't wait for its End-of-RIB (it still waits for the session and stable prefix counts). A session that does report End-of-RIB still uses it. A peer the node has no BGP session with is an error at run time. See [convergence semantics](#convergence-semantics). |
 | `scenarios` | no | | A non-empty list of [failure scenarios](#failure-scenarios). |
 
 No other top-level key is accepted.

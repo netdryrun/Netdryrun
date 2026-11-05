@@ -95,8 +95,49 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         kind = str(n.get("peer-type", "")).lower()
         external = True if kind == "ebgp" else False if kind == "ibgp" else None
         _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state.lower(), prefixes, adv_interval=adv,
-                                                       external=external))
+                                                       external=external,
+                                                       eor=srl_eor(n) if state.lower() == "established" else {}))
     return out
+
+
+def srl_eor(n: dict) -> dict[str, str]:
+    """End-of-RIB per family from one SR Linux neighbor (25.x, captured live 2026-11-05/06).
+
+    Graceful restart is negotiated when GRACEFUL_RESTART is in both `advertised-capabilities` and
+    `received-capabilities`; `received-end-of-rib` lists the families whose End-of-RIB arrived. A family that is up
+    and listed: received. Up, not listed, with graceful restart negotiated for it: unknown (the in-flight form was never
+    caught live, so it is not assumed to be "pending", and never read as received). Graceful restart not negotiated:
+    untracked."""
+    try:
+        adv, rcv = n.get("advertised-capabilities"), n.get("received-capabilities")
+        got = n.get("received-end-of-rib", [])
+        if not isinstance(adv, list) or not isinstance(rcv, list) or not isinstance(got, list):
+            return {"*": "unknown"}
+        if "GRACEFUL_RESTART" not in adv or "GRACEFUL_RESTART" not in rcv:
+            return {"*": "untracked"}
+        gr = n.get("graceful-restart") if isinstance(n.get("graceful-restart"), dict) else {}
+
+        def names(side: str) -> set[str] | None:
+            cap = gr.get(side)
+            if not isinstance(cap, dict) or not isinstance(cap.get("afi-safi"), list):
+                return None
+            return {str(x.get("name")) for x in cap["afi-safi"] if isinstance(x, dict)}
+
+        theirs, ours = names("neighbor-capability"), names("local-capability")
+        gr_families = theirs & ours if theirs is not None and ours is not None else None
+        up = [str(af.get("afi-safi-name")) for af in n.get("afi-safi", []) or []
+              if isinstance(af, dict) and str(af.get("oper-state", "")).lower() == "up"]
+        out = {}
+        for fam in up:
+            if fam in got:
+                out[fam] = "received"
+            elif gr_families is None or fam in gr_families:
+                out[fam] = "unknown"
+            else:
+                out[fam] = "untracked"
+        return out or {"*": "unknown"}
+    except Exception:
+        return {"*": "unknown"}
 
 
 COUNTED_FAMILIES = ("ipv4-unicast", "ipv6-unicast")

@@ -20,3 +20,16 @@ def strict_bool(command: str, value: object) -> bool:
 def refuse_if_stale(prefix: str, peer: object, stale: bool) -> None:
     if stale:
         raise DriverError(f"{prefix}: BGP path from {peer or '?'} is stale (graceful restart in progress): not settled")
+
+
+# RFC 9494: a path a long-lived graceful restart keeps past the restart time carries LLGR_STALE. Read from the
+# communities of every driver that reads them (stated as untested live: the night labs' LLGR phase saw the stale marks,
+# not the community, on the NOSes that print one)
+LLGR_STALE = "65535:6"
+
+
+def refuse_llgr_stale(prefix: str, paths) -> None:
+    for p in paths or []:
+        if LLGR_STALE in p.communities:
+            raise DriverError(f"{prefix}: BGP path from {getattr(p, 'neighbor', None) or '?'} carries LLGR_STALE "
+                              "(65535:6): long-lived graceful restart in progress, not settled")

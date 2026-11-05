@@ -514,6 +514,10 @@ FAIL_SAFE = [
     ("eos.parse_startup_config_errors", eos.parse_startup_config_errors,
      ["eos_startup_config_errors_clean.txt", "eos_startup_config_errors_one.txt", "eos_startup_config_errors_two.txt"],
      lambda r: isinstance(r, list) and all(isinstance(x, str) and x.startswith("line ") for x in r)),
+    # eos.parse_eos_eor: {} -> end_of_rib reads every session "unknown", which the gate never treats as settled
+    ("eos.parse_eos_eor", lambda t: eos.parse_eos_eor(t, "default"), ["eos_eor_received.txt", "eos_eor_pending.txt"],
+     lambda r: isinstance(r, dict) and all(isinstance(k, str) and isinstance(v, dict) and all(
+         x in ("received", "pending", "untracked", "unknown") for x in v.values()) for k, v in r.items())),
     ("srlinux.parse_instance_state", lambda t: srlinux.parse_instance_state(t), ["srl_neighbor_local_pref.txt"],
      lambda r: r is None or isinstance(r, str)),
     # nxos.parse_vrf_state: None -> the driver raises "VRF ... does not exist"

@@ -216,3 +216,33 @@
     (vtysh in a plain container with zebra and bgpd). No max-prefix log line: the container
     log had none (no `log` config) and /var/log/frr doesn't exist. Script: wt/rg-capture-maxpfx.py (HQ)
   added: ndr/gate-fixes-0.4.1
+- files: [frr_eor_pending.json, frr_eor_received.json, frr_eor_gr_off.json]
+  kind: live-capture
+  source: >-
+    quay.io/frrouting/frr:10.4.1, two-node lab, 2026-11-05: r1 `show bgp neighbors json` with graceful restart
+    negotiated (helper/restarter) while a 3000-route table arrived over a rate-limited link (poll 3: established,
+    End-of-RIB pending) and after it (poll 20: received); and with graceful restart off on both ends. HQ
+    wt/cap-frr/frr_eor_pending_{3,20}.json and wt/cap-eor/frr_eor_gr-off_received.json
+  added: ndr/gate-fixes-0.4.1
+- files: [srl_eor_gr_on.json, srl_eor_gr_baseline.txt, eos_eor_received.txt, eos_eor_pending.txt, eos_eor_gr_default.json,
+          routeros_eor_pending.txt, routeros_eor_received.txt, junos_eor_received.txt, nxos_eor_received.txt,
+          nxos_eor_pending.txt, nxos_eor_idle_sticky.txt]
+  kind: live-capture
+  source: >-
+    The capture-fixture labs (scripts/capture_fixtures.sh: SR Linux, cEOS, RouterOS CHR 7.23.8, cJunosEvolved,
+    NX-OS 9300v), 2026-11-05/06, an FRR 10.4.1 peer with a graceful-restart restarter config (restart-time 30, LLGR
+    300, 3000 extra routes) whose bgpd was killed under watchfrr over a 24 kbit/s link, each NOS polled every 2 s.
+    SR Linux neighbor state (GR on); EOS `show ip bgp neighbors <ip> vrf default | json` polls 5 (received) and 6
+    (pending) and the GR-default detail; RouterOS REST /routing/bgp/session polls 5 (remote.eor "", pending) and 8
+    ("ip"); Junos `show bgp neighbor <ip> | display json` before the restart; NX-OS NX-API cli_ascii `show bgp ipv4
+    unicast neighbors 10.0.1.2 vrf default` before (received), poll 5 (established, no End-of-RIB line: pending) and
+    poll 3 (Idle with the sticky line). HQ wt/cap-night/, wt/cap-night2/, wt/cap-night3/ (run.sh in each)
+  added: ndr/gate-fixes-0.4.1
+- files: [junos_route_stale_gr.txt, junos_route_stale_llgr.txt]
+  kind: live-capture
+  source: >-
+    cJunosEvolved (capture-fixture lab), 2026-11-06, `show route 192.168.20.0/24 exact table inet.0 all extensive |
+    display json` while the FRR peer restarted gracefully: poll 1 of the plain-GR phase (bgp-rt-flag "Stale Accepted",
+    rt-entry-state "Active Ext") and poll 10 of the LLGR phase (LongLivedStale). HQ wt/cap-night3/junos/
+    junos_nbr_rib_{gr_1,llgr_10}.txt (run.sh there)
+  added: ndr/gate-fixes-0.4.1

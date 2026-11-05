@@ -238,8 +238,48 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         adv = as_int(NEIGHBORS_CMD, mrai) / 1000 if mrai is not None else None
         external = True if info.get("nbrExternalLink") is True else False if info.get("nbrInternalLink") is True else None
         # "Idle (Admin)" -> "idle": the first word is the FSM state
-        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv, external=external))
+        _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv, external=external,
+                                                       eor=frr_eor(info) if state == "established" else {}))
     return out
+
+
+def frr_eor(info: dict) -> dict[str, str]:
+    """End-of-RIB per family from one neighbor of `show bgp neighbors json` (FRR 10.4.1, captured live 2026-11-05).
+
+    With graceful restart negotiated, each family has `gracefulRestartInfo.<afi>.endOfRibStatus.endOfRibRecv`: false
+    while the table is in flight, true once End-of-RIB arrived; the top-level `gracefulRestartInfo.endOfRibRecv` map
+    lists the families already received and is a cross-check (the two disagreeing reads unknown). Graceful restart off
+    (local mode `Disable`, remote `NotApplicable`): no per-family block, untracked. Anything else: unknown."""
+    try:
+        g = info.get("gracefulRestartInfo")
+        if not isinstance(g, dict):
+            return {"*": "unknown"}
+        local = str(g.get("localGrMode", "")).rstrip("*")
+        remote = str(g.get("remoteGrMode", "")).rstrip("*")
+        if local == "Disable" or remote == "NotApplicable":
+            return {"*": "untracked"}
+        if local not in ("Helper", "Restart") or remote not in ("Helper", "Restart"):
+            return {"*": "unknown"}
+        recv_map = g.get("endOfRibRecv")
+        if not isinstance(recv_map, dict):
+            return {"*": "unknown"}
+        out = {}
+        for afi, block in g.items():
+            if not isinstance(block, dict) or "endOfRibStatus" not in block:
+                continue
+            status = block["endOfRibStatus"]
+            recv = status.get("endOfRibRecv") if isinstance(status, dict) else None
+            listed = recv_map.get(afi)
+            name = AFI_NAMES.get(afi, afi)
+            if recv is True and listed is True:
+                out[name] = "received"
+            elif recv is False and listed is None:
+                out[name] = "pending"
+            else:
+                out[name] = "unknown"
+        return out or {"*": "unknown"}
+    except Exception:
+        return {"*": "unknown"}
 
 
 def _route_table(command: str, text: str) -> dict[ipaddress._BaseNetwork, list[dict]]:

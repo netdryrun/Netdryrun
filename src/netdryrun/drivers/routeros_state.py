@@ -31,6 +31,7 @@ class Session:
     established: bool
     received_count: int | None      # prefix-count: RECEIVED, not accepted
     afi: str = "ip"                  # remote.afi: ip | ipv6 | ...
+    eor: tuple = ()                  # End-of-RIB per family, as (family, state) pairs (see ros_eor)
 
 
 @dataclass(frozen=True)
@@ -99,8 +100,37 @@ def parse_sessions(rows) -> list[Session]:
             raise unexpected(req, f"established session {r['name']!r} without a prefix-count")
         else:
             count = None
-        out.append(Session(str(r["name"]), host, as_int(req, r["remote.as"]), vrf, established, count, str(r["remote.afi"])))
+        out.append(Session(str(r["name"]), host, as_int(req, r["remote.as"]), vrf, established, count, str(r["remote.afi"]),
+                           tuple(sorted(ros_eor(r).items())) if established else ()))
     return out
+
+
+ROS_FAMILIES = {"ip": "ipv4-unicast", "ipv6": "ipv6-unicast"}
+
+
+def ros_eor(r: dict) -> dict[str, str]:
+    """End-of-RIB per family from one `/routing/bgp/session` row (CHR 7.23.8, captured live 2026-11-06).
+
+    `remote.eor` lists the families whose End-of-RIB arrived ("ip"); it is "" on a session just established while the
+    table is still arriving (0, then 1015, then 2026 routes, then "ip"). That empty form means pending only when graceful
+    restart is negotiated (`gr` in both `local.capabilities` and `remote.capabilities`); otherwise untracked. A value
+    other than "" and known family names, or capabilities that aren't text, read unknown. Never raises."""
+    try:
+        local, remote, eor = r.get("local.capabilities"), r.get("remote.capabilities"), r.get("remote.eor", "")
+        if not isinstance(local, str) or not isinstance(remote, str) or not isinstance(eor, str):
+            return {"*": "unknown"}
+        if "gr" not in local.split(",") or "gr" not in remote.split(","):
+            return {"*": "untracked"}
+        got = [x for x in eor.split(",") if x]
+        if any(x not in ROS_FAMILIES for x in got):
+            return {"*": "unknown"}
+        fam = str(r.get("remote.afi", "ip"))
+        wanted = [f for f in fam.split(",") if f] or ["ip"]
+        if any(f not in ROS_FAMILIES for f in wanted):
+            return {"*": "unknown"}
+        return {ROS_FAMILIES[f]: "received" if f in got else "pending" for f in wanted}
+    except Exception:
+        return {"*": "unknown"}
 
 
 @parser("/routing/bgp/connection")
