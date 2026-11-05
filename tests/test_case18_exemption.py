@@ -133,6 +133,17 @@ def test_a_malformed_run_record_is_a_finding_not_a_traceback():
     assert any("run 2: malformed run record" in x for x in p) and any("run 3: malformed run record" in x for x in p), p
 
 
+def test_a_wrong_typed_status_or_check_list_is_a_finding(monkeypatch):
+    """Code check N3: a list as a status, or a number as a check list, is a finding, not a traceback."""
+    row = _row(*["caught"] * 5)
+    row["run_details"][0]["netdryrun"]["status"] = ["failed"]
+    row["run_details"][1]["ping"]["failed_checks"] = 5
+    p = _problems(row)
+    assert any("run 1 netdryrun: malformed status or check list" in x for x in p), p
+    assert any("run 2 ping: malformed status or check list" in x for x in p), p
+    assert gate.status_problems({"c": {"strategies": {"ping": {"status": ["x"]}}}})[0].startswith("c ping: no known status")
+
+
 def test_the_run_count_is_exact():
     """A8: exactly the pinned count, not a floor."""
     assert gate.NONDETERMINISTIC_PINNED["v2"][CID]["runs"] == 5
@@ -216,9 +227,15 @@ def test_the_contributor_gate_compares_status_too(tmp_path):
     old.write_text(json.dumps(doc("inconclusive")))
     new.write_text(json.dumps(doc("error")))
     problems, _ = contrib.corpus_results(old, new, set())
-    assert problems and "(inconclusive)" in problems[0] and "(error)" in problems[0]
+    assert any("(inconclusive)" in p and "(error)" in p for p in problems), problems
     new.write_text(json.dumps(doc("inconclusive")))
     assert contrib.corpus_results(old, new, set()) == ([], [])
+    # code check N1: a crash against a legacy committed "error" (no status) is a problem on the contributor path too
+    old.write_text(json.dumps({"cases": [{"id": "c", "strategies": {"netdryrun": {"verdict": "error"}}}]}))
+    new.write_text(json.dumps({"cases": [{"id": "c", "strategies": {"netdryrun": {
+        "verdict": "error", "status": "error", "error": "boom"}}}]}))
+    problems, _ = contrib.corpus_results(old, new, set())
+    assert problems == ["c: netdryrun reported an error in this run (boom)"]
 
 
 # --- corpus-check: the live layer's corpus assertions for a refresh (A5) ------------------------------------------------
@@ -295,6 +312,17 @@ def test_the_live_layer_applies_the_same_rules_and_returns_false_on_them(tmp_pat
     assert held["corpus-v2"] is True and held["corpus-v2-status"] is True
     assert held["corpus-v2-nondeterministic-held"] is False
     assert ok is False
+    # code check N2: a crash in a deterministic case, against the legacy committed "error": the status BLOCKER is red
+    # and the return value says so, though every verdict matches and the exemption holds
+    doc = json.loads(_refreshed(tmp_path, _row("not_proven", "caught", "caught", "caught", "caught")).read_text())
+    s = next(c for c in doc["cases"] if c["id"].startswith("01-"))["strategies"]["netdryrun"]
+    s.update(status="error", error="RuntimeError: deploy failed")
+    path.write_text(json.dumps(doc))
+    added.clear()
+    ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False})(), only={"v2"})
+    held = dict(added)
+    assert held["corpus-v2"] is True and held["corpus-v2-nondeterministic-held"] is True
+    assert held["corpus-v2-status"] is False and ok is False
 
 
 def test_corpus_check_fails_a_flip(tmp_path):

@@ -165,6 +165,11 @@ def corpus_results(old_path: Path, new_path: Path, nondeterministic: set[str] | 
     before = {c["id"]: c["strategies"]["netdryrun"] for c in old["cases"]}
     after = {c["id"]: c["strategies"]["netdryrun"] for c in new["cases"]}
     problems, notes = [], []
+    # Netdryrun reporting an error is never a verdict to compare: a committed "error" from before statuses were
+    # recorded may be an inconclusive run, so equality can't see a slide into a crash (release gate status_problems)
+    for case, b in sorted(after.items()):
+        if isinstance(b, dict) and b.get("status") == "error":
+            problems.append(f"{case}: netdryrun reported an error in this run ({b.get('error')})")
     for case, a in before.items():
         b = after.get(case)
         same = b is not None and a["verdict"] == b["verdict"] and             not ("status" in a and "status" in b and a["status"] != b["status"])

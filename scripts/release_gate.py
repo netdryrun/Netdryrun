@@ -1359,6 +1359,10 @@ def nondeterministic_problems(version: str, nd: dict, new: dict) -> list[str]:
                 continue
             for s in CORPUS_STRATEGIES:
                 st = (detail.get(s) or {}).get("status")
+                if not (st is None or isinstance(st, str)) or not all(
+                        isinstance((detail.get(s) or {}).get(k, []), list) for k in ("failed_checks", "passed_checks")):
+                    out.append(f"{cid}: run {i} {s}: malformed status or check list")
+                    continue
                 if s not in verdicts or st is None:
                     out.append(f"{cid}: run {i} {s}: no verdict or no status recorded")
                 elif st not in STATUSES:
@@ -1368,6 +1372,9 @@ def nondeterministic_problems(version: str, nd: dict, new: dict) -> list[str]:
                 elif STATUSES[st] != verdicts[s]:
                     out.append(f"{cid}: run {i} {s}: verdict {verdicts[s]!r} doesn't match status {st!r}")
             d = detail.get("netdryrun") or {}
+            if not all(isinstance(x, str) for k in ("failed_checks", "passed_checks") for x in (d.get(k) or [])
+                       if isinstance(d.get(k), list)) or not isinstance(d.get("status"), (str, type(None))):
+                continue   # reported above as malformed
             st, failed, passed = d.get("status"), set(d.get("failed_checks") or []), set(d.get("passed_checks") or [])
             if st == "passed":
                 out.append(f"{cid}: run {i}: Netdryrun approved the harmful change")
@@ -1397,7 +1404,7 @@ def status_problems(new: dict) -> list[str]:
         for s in CORPUS_STRATEGIES:
             rec = (c.get("strategies") or {}).get(s)
             st = rec.get("status") if isinstance(rec, dict) else None
-            if st not in STATUSES:
+            if not isinstance(st, str) or st not in STATUSES:
                 out.append(f"{cid} {s}: no known status recorded ({st!r})")
             elif st == "error":
                 out.append(f"{cid} {s}: error ({rec.get('error')})")
