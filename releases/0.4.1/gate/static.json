@@ -2,10 +2,10 @@
  "layer": "static",
  "title": "Layer 1: static",
  "version": "0.4.1",
- "started": "2026-11-05 07:06:39 UTC",
- "seconds": 2.1,
+ "started": "2026-11-05 11:07:29 UTC",
+ "seconds": 1.8,
  "git": {
-  "sha": "6e0a0277eada081407828d4577dd9bc539628c1e",
+  "sha": "1fce62ab4d3dea8bd29f3ca9277b46a6a58085df",
   "dirty": false,
   "branch": "HEAD"
  },
@@ -43,10 +43,10 @@
    "title": "ruff (config in pyproject.toml)",
    "severity": "BLOCKER",
    "status": "PASS",
-   "seconds": 0.1,
+   "seconds": 0.0,
    "summary": "All checks passed!",
    "output": "All checks passed!",
-   "command": "/home/ndr/rg041i/.venv/bin/python -m ruff check --output-format concise ."
+   "command": "/home/ndr/rg041j/.venv/bin/python -m ruff check --output-format concise ."
   },
   {
    "id": "actionlint",
@@ -93,10 +93,10 @@
    "title": "public facts match the source (sync_facts.py --check)",
    "severity": "BLOCKER",
    "status": "PASS",
-   "seconds": 0.6,
+   "seconds": 0.5,
    "summary": "facts: in sync (version 0.4.1, 0 problem(s))",
    "output": "facts: in sync (version 0.4.1, 0 problem(s))",
-   "command": "/home/ndr/rg041i/.venv/bin/python scripts/sync_facts.py --check"
+   "command": "/home/ndr/rg041j/.venv/bin/python scripts/sync_facts.py --check"
   },
   {
    "id": "versions",

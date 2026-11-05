@@ -15,7 +15,7 @@ Written by `scripts/release_gate.py` (see [RELEASING.md](../../RELEASING.md)). D
 
 | Layer | Commit | Ran | Time | Result |
 |---|---|---|---|---|
-| [Layer 1: static](#layer-1-static) | `6e0a0277ea` | 2026-11-05 07:06:39 UTC | 2.1 s | 18 PASS |
+| [Layer 1: static](#layer-1-static) | `1fce62ab4d` | 2026-11-05 11:07:29 UTC | 1.8 s | 18 PASS |
 | [Layer 2: unit tests on every supported Python](#layer-2-unit-tests-on-every-supported-python) | `6e0a0277ea` | 2026-11-05 07:06:41 UTC | 7.4 min | 7 PASS |
 | [Layer 4: mutation testing](#layer-4-mutation-testing) | `6e0a0277ea` | 2026-11-05 07:14:23 UTC | 9.3 min | 12 PASS |
 | [Layer 5: live matrix on the built package](#layer-5-live-matrix-on-the-built-package) | `6e0a0277ea` | 2026-11-05 07:25:15 UTC | 180.7 min | 3 ACCEPTED, 62 PASS |
@@ -24,7 +24,7 @@ Written by `scripts/release_gate.py` (see [RELEASING.md](../../RELEASING.md)). D
 
 ## Layer 1: static
 
-Commit `6e0a0277eada081407828d4577dd9bc539628c1e` on `HEAD`; 2026-11-05 07:06:39 UTC; 2.1 s; Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64); Python 3.12.16; --strict.
+Commit `1fce62ab4d3dea8bd29f3ca9277b46a6a58085df` on `HEAD`; 2026-11-05 11:07:29 UTC; 1.8 s; Linux 6.18.54.1-microsoft-standard-WSL2 (x86_64); Python 3.12.16; --strict.
 
 Tools: actionlint 1.7.7; ruff 0.17.3; shellcheck 0.8.0.
 
@@ -32,12 +32,12 @@ Tools: actionlint 1.7.7; ruff 0.17.3; shellcheck 0.8.0.
 |---|---|---|---|---|
 | every src/netdryrun module is mutated or exempt with a reason (G1) | BLOCKER | **PASS** | 0.0 s | 12 mutated, 15 exempt |
 | the committed corpus results ran on this verdict code (G3; stale ones run first in live) | MAJOR | **PASS** | 0.0 s | every corpus is fresh |
-| ruff (config in pyproject.toml) | BLOCKER | **PASS** | 0.1 s | All checks passed! |
+| ruff (config in pyproject.toml) | BLOCKER | **PASS** | 0.0 s | All checks passed! |
 | actionlint on every workflow (with shellcheck) | BLOCKER | **PASS** | 0.2 s | clean |
 | shellcheck, error level, 22 scripts | BLOCKER | **PASS** | 0.2 s | clean |
 | shellcheck, warning level, 22 scripts | MAJOR | **PASS** | 0.2 s | clean |
 | no empty ${{ }} in action.yml or workflows | BLOCKER | **PASS** | 0.0 s | none |
-| public facts match the source (sync_facts.py --check) | BLOCKER | **PASS** | 0.6 s | facts: in sync (version 0.4.1, 0 problem(s)) |
+| public facts match the source (sync_facts.py --check) | BLOCKER | **PASS** | 0.5 s | facts: in sync (version 0.4.1, 0 problem(s)) |
 | every version reference says 0.4.1 | BLOCKER | **PASS** | 0.1 s | 47 references agree |
 | pyproject.toml declares Python 3.10 to 3.14, the versions tested | MAJOR | **PASS** | 0.0 s | requires-python and classifiers agree |
 | every example has a documented expected result and exit code | MAJOR | **PASS** | 0.0 s | 13 examples |
