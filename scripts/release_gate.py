@@ -1308,23 +1308,143 @@ def harmful_approved(cases: list[dict], skip=()) -> list[str]:
 
 
 # The cases each corpus may exempt from the verdict diff: adding one to NONDETERMINISTIC.yml takes a change here too.
-NONDETERMINISTIC_PINNED = {"v1": [], "v2": ["18-aggregate-discard-route-removed"]}
+# Each is pinned with its expected verdict (not read from the case file, which could be edited), the exact run count,
+# and the checks that bind each outcome to the case's own cause (0.4.1 case-18 rule design, findings A1, A6, A8):
+#   caught_by        a run that caught the change failed every one of these ...
+#   caught_only      ... and nothing outside these (a lab fault that also fails caught_by is not a catch)
+#   not_proven_only  a run that proved nothing failed only these (the scenario whose routes never provably left) ...
+#   baseline         ... and passed every one of these
+CASE18_I8 = ["[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+             "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"]
+NONDETERMINISTIC_PINNED = {"v1": {}, "v2": {"18-aggregate-discard-route-removed": {
+    "expected": "unsafe", "runs": 5,
+    "caught_by": ["I2 upstream has our aggregate", "I2 peer has our aggregate"],
+    "caught_only": ["I2 upstream has our aggregate", "I2 peer has our aggregate",
+                    "I5 upstream receives 2 to 51 prefixes from us", "I5 peer receives 2 to 51 prefixes from us",
+                    *CASE18_I8],
+    "not_proven_only": CASE18_I8,
+    "baseline": ["I2 upstream has our aggregate", "I2 peer has our aggregate",
+                 "I5 upstream receives 2 to 51 prefixes from us", "I5 peer receives 2 to 51 prefixes from us"]}}}
+STATUSES = {"passed": "safe", "failed": "unsafe", "inconclusive": "error", "error": "error"}   # status -> verdict
+CORPUS_STRATEGIES = ("ping", "sessions", "netdryrun")
 
 
 def nondeterministic_problems(version: str, nd: dict, new: dict) -> list[str]:
-    """Why the nondeterministic exemption doesn't hold this run: a list that differs from the pinned one, a case
-    that didn't run its repeats, or any run that ended in error (an error is never part of the race)."""
+    """Why the nondeterministic exemption doesn't hold this run (an empty list: it holds). For every pinned case:
+    NONDETERMINISTIC.yml lists exactly the pinned cases; the case's expected verdict is the pinned one; exactly N runs,
+    each with all three strategies and a known status in `run_details`; no run's status is error (a crash is never part
+    of the race). For the netdryrun strategy of an expected-unsafe case: no run approved it; a run that caught it failed
+    the pinned checks for this case's cause; a run that proved nothing failed only the pinned scenario checks, passed
+    the baseline, and is inconclusive because those routes never left (not because the lab never came up); and at
+    least one run caught it. Only expected-unsafe cases have a rule: an expected-safe pinned case is red until it has one."""
+    pinned = NONDETERMINISTIC_PINNED.get(version, {})
     out = []
-    if sorted(nd) != sorted(NONDETERMINISTIC_PINNED.get(version, [])):
-        out.append(f"NONDETERMINISTIC.yml lists {sorted(nd)}, the gate pins {NONDETERMINISTIC_PINNED.get(version, [])}")
-    for cid in sorted(nd):
-        runs = new.get(cid, {}).get("runs") or []
-        if len(runs) < 2:
-            out.append(f"{cid}: {len(runs)} runs recorded, not the repeats")
-        bad = [f"run {i + 1} {s}" for i, r in enumerate(runs) for s, v in r.items() if v not in ("safe", "unsafe")]
-        if bad:
-            out.append(f"{cid}: error in {', '.join(bad)}")
+    if sorted(nd) != sorted(pinned):
+        out.append(f"NONDETERMINISTIC.yml lists {sorted(nd)}, the gate pins {sorted(pinned)}")
+    for cid, pin in sorted(pinned.items()):
+        row = new.get(cid) or {}
+        if pin["expected"] != "unsafe":
+            out.append(f"{cid}: pinned expected {pin['expected']!r}: the gate has a rule only for expected-unsafe cases")
+            continue
+        if row.get("expected") != pin["expected"]:
+            out.append(f"{cid}: expected {row.get('expected')!r} in the case file, the gate pins {pin['expected']!r}")
+        runs, details = row.get("runs") or [], row.get("run_details") or []
+        if len(runs) != pin["runs"] or len(details) != pin["runs"]:
+            out.append(f"{cid}: {len(runs)} runs and {len(details)} run details recorded, the gate pins {pin['runs']}")
+        decisive = 0
+        for i, (verdicts, detail) in enumerate(zip(runs, details), 1):
+            if not isinstance(verdicts, dict) or not isinstance(detail, dict) or \
+                    not all(isinstance(detail.get(s, {}), dict) for s in CORPUS_STRATEGIES):
+                out.append(f"{cid}: run {i}: malformed run record")
+                continue
+            for s in CORPUS_STRATEGIES:
+                st = (detail.get(s) or {}).get("status")
+                if s not in verdicts or st is None:
+                    out.append(f"{cid}: run {i} {s}: no verdict or no status recorded")
+                elif st not in STATUSES:
+                    out.append(f"{cid}: run {i} {s}: unknown status {st!r}")
+                elif st == "error":
+                    out.append(f"{cid}: run {i} {s}: error ({(detail.get(s) or {}).get('error')})")
+                elif STATUSES[st] != verdicts[s]:
+                    out.append(f"{cid}: run {i} {s}: verdict {verdicts[s]!r} doesn't match status {st!r}")
+            d = detail.get("netdryrun") or {}
+            st, failed, passed = d.get("status"), set(d.get("failed_checks") or []), set(d.get("passed_checks") or [])
+            if st == "passed":
+                out.append(f"{cid}: run {i}: Netdryrun approved the harmful change")
+            elif st == "failed":
+                if set(pin["caught_by"]) <= failed and failed <= set(pin["caught_only"]):
+                    decisive += 1
+                else:
+                    out.append(f"{cid}: run {i}: unsafe, but not only for this case's cause "
+                               f"(missing: {sorted(set(pin['caught_by']) - failed)}; "
+                               f"outside the case: {sorted(failed - set(pin['caught_only']))})")
+            elif st == "inconclusive":
+                if not (failed and failed <= set(pin["not_proven_only"]) and set(pin["baseline"]) <= passed
+                        and d.get("never_left") is True):
+                    out.append(f"{cid}: run {i}: inconclusive, but not only because the scenario's routes never "
+                               f"left (failed: {sorted(failed)}; never_left: {d.get('never_left')})")
+        if runs and details and decisive == 0:
+            out.append(f"{cid}: no run caught the harmful change (the case no longer shows that Netdryrun can catch it)")
     return out
+
+
+def status_problems(new: dict) -> list[str]:
+    """Every case and strategy whose status is missing, unknown or error (case map by id). Netdryrun reporting an error
+    (it couldn't run) is never a verdict to compare: it is red in any case, whatever the committed file says, since a
+    committed "error" verdict from before statuses were recorded may be an inconclusive run."""
+    out = []
+    for cid, c in sorted(new.items()):
+        for s in CORPUS_STRATEGIES:
+            rec = (c.get("strategies") or {}).get(s)
+            st = rec.get("status") if isinstance(rec, dict) else None
+            if st not in STATUSES:
+                out.append(f"{cid} {s}: no known status recorded ({st!r})")
+            elif st == "error":
+                out.append(f"{cid} {s}: error ({rec.get('error')})")
+    return out
+
+
+def strategy_diffs(old: dict, new: dict, skip=()) -> list[str]:
+    """Every case and strategy whose result differs between two corpus results (case maps by id): the verdict, and the
+    status when both records have one (an inconclusive run and a crash share the verdict "error"). Cases in `skip`
+    (nondeterministic) are left out."""
+    diffs = []
+    for cid in sorted((set(old) | set(new)) - set(skip)):
+        for s in CORPUS_STRATEGIES:
+            a = old.get(cid, {}).get("strategies", {}).get(s, {})
+            b = new.get(cid, {}).get("strategies", {}).get(s, {})
+            if a.get("verdict") != b.get("verdict"):
+                diffs.append(f"{cid} {s}: committed {a.get('verdict')}, now {b.get('verdict')}")
+            elif "status" in a and "status" in b and a["status"] != b["status"]:
+                diffs.append(f"{cid} {s}: committed status {a['status']}, now {b['status']}")
+    return diffs
+
+
+def corpus_check(version: str, results: Path) -> tuple[bool, list[str]]:
+    """The live layer's corpus assertions on a results.json, for a corpus-only refresh before it is committed (LESSONS
+    Releasing 14): every strategy records a status and none is error; the nondeterministic exemption holds; no harmful change approved
+    beyond the published misses; no verdict or status differs from the committed results. (ok, report lines)."""
+    sub = "" if version == "v1" else version
+    committed = ROOT / "corpus" / sub / "results" / "results.json"
+    nd = nondeterministic_cases(ROOT / "corpus" / sub)
+    new_doc = json.loads(Path(results).read_text(encoding="utf-8"))
+    old = {c["id"]: c for c in json.loads(committed.read_text(encoding="utf-8"))["cases"]}
+    new = {c["id"]: c for c in new_doc["cases"]}
+    lines, ok = [], True
+    bad = status_problems(new)
+    ok = not bad
+    lines += [f"FAIL status: {b}" for b in bad] or ["PASS every case records a status, none an error"]
+    problems = nondeterministic_problems(version, nd, new)
+    ok = ok and not problems
+    lines += [f"FAIL nondeterministic exemption: {p}" for p in problems] or ["PASS nondeterministic exemption holds"]
+    h_ok, summary = harmful_approved_check(list(old.values()), list(new.values()), nd)
+    ok = ok and h_ok
+    lines.append(("PASS " if h_ok else "FAIL ") + summary)
+    diffs = strategy_diffs(old, new, nd)
+    ok = ok and not diffs
+    where = committed.relative_to(ROOT).as_posix()
+    lines += [f"FAIL differs from {where}: {d}" for d in diffs] or [f"PASS every verdict matches {where}"]
+    return ok, lines
 
 
 def nd_always_approved(published: dict, rerun: dict) -> bool:
@@ -1380,12 +1500,7 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
         if p.code == 0:
             old = {c["id"]: c for c in json.loads(committed.read_text(encoding="utf-8"))["cases"]}
             new = {c["id"]: c for c in json.loads(fresh.read_text(encoding="utf-8"))["cases"]}
-            for cid in sorted((set(old) | set(new)) - set(nd)):
-                for s in ("ping", "sessions", "netdryrun"):
-                    a = old.get(cid, {}).get("strategies", {}).get(s, {}).get("verdict")
-                    b = new.get(cid, {}).get("strategies", {}).get(s, {}).get("verdict")
-                    if a != b:
-                        diffs.append(f"{cid} {s}: committed {a}, now {b}")
+            diffs = strategy_diffs(old, new, nd)
         ok_all = ok_all and p.code == 0 and not diffs
         if p.code == 3 and fail_fast:   # run.py --expect: stopped at the first verdict that differs
             diffs = [ln.strip() for ln in p.out.splitlines() if ln.strip().startswith("EXPECT MISMATCH")] or diffs
@@ -1393,12 +1508,22 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
                   BLOCKER, p.code == 0 and not diffs,
                   f"exit {p.code}" if p.code else (f"{len(diffs)} verdict(s) differ" if diffs else "all verdicts match"),
                   "\n".join(diffs) or tail(p.out), p.seconds, cmdline(["python", "corpus/run.py", "--corpus", version]))
+        if p.code == 0 and fresh.exists():
+            # every case records Netdryrun's own status, and none is error: a committed "error" verdict from before
+            # statuses were recorded may be an inconclusive run, so verdict equality can't see a slide into a crash
+            bad = status_problems(new)
+            ok_all = ok_all and not bad
+            layer.add(f"corpus-{version}-status", f"Verdict Corpus {version}: every case records a status, none an error",
+                      BLOCKER, not bad, f"{len(bad)} problem(s)" if bad else "all recorded, no error", "\n".join(bad))
         if p.code == 0 and (nd or NONDETERMINISTIC_PINNED.get(version)):
-            # the verdicts are recorded, never a blocker: they follow the lab, not the change. The exemption
-            # itself is held: the pinned list, the repeats ran, and no run ended in error
+            # the verdicts are recorded, never scored: they follow the lab, not the change. The exemption itself is
+            # held (nondeterministic_problems): pinned list and expected verdict, exact runs, no crash, no approval,
+            # each outcome bound to the case's own checks, at least one catch
             problems = nondeterministic_problems(version, nd, new)
+            ok_all = ok_all and not problems
             layer.add(f"corpus-{version}-nondeterministic-held",
-                      f"Verdict Corpus {version}: the nondeterministic exemption holds (pinned list, repeats ran, no error)",
+                      f"Verdict Corpus {version}: the nondeterministic exemption holds (pinned, exact runs bound to "
+                      f"the case's checks, no crash, no approval, at least one catch)",
                       BLOCKER, not problems, "; ".join(problems) or ", ".join(sorted(nd)))
             seen = "; ".join(f"{cid}: " + ", ".join(str(r.get("netdryrun")) for r in new.get(cid, {}).get("runs", []))
                              for cid in nd)
@@ -1411,6 +1536,7 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
                       + (f"; every run approved the harmful change: {', '.join(approved)}" if approved else ""))
         if p.code == 0 and fresh.exists():
             ok, summary = harmful_approved_check(list(old.values()), list(new.values()), nd)
+            ok_all = ok_all and ok
             layer.add(f"corpus-{version}-harmful-approved",
                       f"Verdict Corpus {version}: no harmful change approved beyond the published known misses",
                       BLOCKER, ok, summary)
@@ -2049,7 +2175,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog="Layers: " + ", ".join(RUNNERS) + ". See RELEASING.md.")
-    ap.add_argument("layer", choices=[*RUNNERS, "all", "report"])
+    ap.add_argument("layer", choices=[*RUNNERS, "all", "report", "corpus-check"])
     ap.add_argument("publish_version", nargs="?", help="after-publish: the version just published")
     ap.add_argument("--version", help="the release under test (default: pyproject.toml's version)")
     ap.add_argument("--out", help="report folder (default releases/<version>)")
@@ -2066,6 +2192,8 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2, help="mutation: parallel workers")
     ap.add_argument("--mutation-timeout", type=float, default=4 * 3600, help="mutation: seconds (default 4 h)")
     ap.add_argument("--examples", help="live: only these examples (comma-separated)")
+    ap.add_argument("--corpus", help="corpus-check: which corpus (v1 or v2)")
+    ap.add_argument("--results", help="corpus-check: the refreshed results.json to check")
     ap.add_argument("--skip-corpus", action="store_true", help="live: skip the corpus reruns (recorded as SKIP)")
     ap.add_argument("--pack", help="live: a check pack's verify script, run with NDR=<installed netdryrun>")
     ap.add_argument("--pin-accepted", action="store_true",
@@ -2089,6 +2217,12 @@ def main() -> int:
     if bad:
         ap.error(f"unknown module(s) {bad}; choose from {list(VERDICT_MODULES)}")
 
+    if args.layer == "corpus-check":   # a corpus-only refresh: the live layer's corpus assertions, before committing
+        if not args.results or args.corpus not in CORPORA:
+            ap.error("corpus-check needs --corpus v1|v2 and --results RESULTS_JSON")
+        ok, lines = corpus_check(args.corpus, Path(args.results))
+        print("\n".join(lines))
+        return 0 if ok else 1
     if args.layer == "report":
         text, cleared = render(args)
         state = "CLEARED" if cleared else "READY TO PUBLISH" if "**READY TO PUBLISH**" in text else "not cleared"

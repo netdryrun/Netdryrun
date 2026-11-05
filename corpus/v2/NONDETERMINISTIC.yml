@@ -3,9 +3,12 @@
 #
 # - Excluded from every score (RESULTS.md, the corpus page, the README and site status lines), and listed with
 #   every Netdryrun verdict seen so far.
-# - corpus/run.py runs each one 3 times and records all three verdicts per strategy in results.json ("runs").
-# - The release gate records the distribution as a known item: a verdict change here is never a blocker. A verdict
-#   change on any other case still is.
+# - corpus/run.py runs each one 5 times and records every verdict per strategy in results.json ("runs"), with each
+#   run's own status and checks beside them ("run_details").
+# - The release gate pins each case here with its expected verdict and run count (NONDETERMINISTIC_PINNED). The verdict
+#   itself is never scored, but the exemption is held (since 0.4.1): no run crashes, no run approves a harmful case, a
+#   run that proves nothing does so only because its flood scenario's routes never left, and at least one run catches
+#   it. A verdict change on any other case still blocks a release.
 #
 # A deterministic replacement (same intent, race removed) goes into a later corpus version, with its expected
 # verdict committed before it runs.

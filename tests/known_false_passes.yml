@@ -121,8 +121,11 @@
   tests:
     - tests/test_verify_corpus.py
 - id: corpus-v2-18-discard-route
-  what: Corpus v2 case 18 (discard route for the aggregate deleted) was approved on a development build. It is
-    listed in corpus/v2/NONDETERMINISTIC.yml, so the live job reports its verdict and does not fail on it
+  what: Corpus v2 case 18 (discard route for the aggregate deleted) was approved on a development build, and in the
+    0.4.0 release gate in all three runs (safe, safe, safe; the 0.3.3 gate approved it in one of three). The gate's
+    exemption accepted a safe run, showing it only as an INFO line. It is listed in corpus/v2/NONDETERMINISTIC.yml, so
+    the live job reports its verdict and does not fail on it; since 0.4.1 the race's other branch reads inconclusive
+    (the strict delivery rule)
   record: corpus/v2/AMENDMENTS.md
   corpus: [v2/18-aggregate-discard-route-removed]
   tests: []

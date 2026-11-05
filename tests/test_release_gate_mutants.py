@@ -177,16 +177,7 @@ def _nd_row(*runs):
     return {"runs": [dict(zip(("ping", "sessions", "netdryrun"), r, strict=True)) for r in runs]}
 
 
-def test_the_nondeterministic_exemption_holds_only_as_pinned():
-    cid = "18-aggregate-discard-route-removed"
-    nd = {cid: {}}
-    ok = {cid: _nd_row(("safe", "safe", "unsafe"), ("safe", "safe", "safe"), ("safe", "safe", "unsafe"))}
-    assert gate.nondeterministic_problems("v2", nd, ok) == []
-    assert "pins" in gate.nondeterministic_problems("v2", {**nd, "05-x": {}}, ok)[0]   # a case added to the yml only
-    assert "pins" in gate.nondeterministic_problems("v1", nd, ok)[0]
-    assert "runs recorded" in gate.nondeterministic_problems("v2", nd, {})[0]   # missing from the results
-    err = {cid: _nd_row(("safe", "safe", "unsafe"), ("safe", "safe", "error"), ("safe", "safe", "unsafe"))}
-    assert "error in run 2 netdryrun" in gate.nondeterministic_problems("v2", nd, err)[0]
+# The exemption rule itself (pinned cases, exact runs, status, the case's own checks): tests/test_case18_exemption.py
 
 
 def test_keep_reaches_only_the_last_run_of_a_nondeterministic_case(monkeypatch, tmp_path, capsys):
@@ -213,7 +204,7 @@ def test_keep_reaches_only_the_last_run_of_a_nondeterministic_case(monkeypatch, 
     monkeypatch.setattr(run_py, "_git_commit", lambda: "test")   # no git in the plain-container unit run
     monkeypatch.setattr(sys, "argv", ["run.py", "--corpus", "v2", "--case", "18-", "--keep", "--workdir", str(tmp_path)])
     assert run_py.main() == 0
-    assert calls == [False, False, True]
+    assert calls == [False, False, False, False, True]
 
 
 def test_a_harmful_nondeterministic_case_approved_in_every_run_is_shown():

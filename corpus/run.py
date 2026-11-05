@@ -32,12 +32,13 @@ import yaml
 from netdryrun import __version__
 from netdryrun.config import load
 from netdryrun.lab import Lab
-from netdryrun.runner import run
+from netdryrun.runner import NeverLeft, run
 
 HERE = Path(__file__).resolve().parent
 CORPORA = {"v1": HERE, "v2": HERE / "v2"}   # v1 lives at the top of corpus/ and is frozen
 STRATEGIES = {"ping": "baseline-ping.yml", "sessions": "baseline-sessions.yml", "netdryrun": "intent.yml"}
-NONDETERMINISTIC_RUNS = 3   # a case whose verdict follows a race in the lab runs this many times (NONDETERMINISTIC.yml)
+NONDETERMINISTIC_RUNS = 5   # a case whose verdict follows a race in the lab runs this many times (NONDETERMINISTIC.yml);
+                            # the release gate pins the same count per case (NONDETERMINISTIC_PINNED) and holds it exactly
 
 
 class CaseError(ValueError):
@@ -99,14 +100,27 @@ def evaluate(case: dict, root: Path, keep: bool, corpus: Path = HERE) -> dict:
     t0 = time.monotonic()
     try:
         lab.deploy()
-        row["strategies"] = {}
+        row["strategies"], row["_details"] = {}, {}
         for name, spec in STRATEGIES.items():
             rep = run(load(work / spec), deploy=False, settle=10, hold=10)
             verdict = {"passed": "safe", "failed": "unsafe"}.get(rep.status, "error")
+            failed = [r for r in rep.results if not r.passed]
+            # `verdict` keeps the vocabulary of every committed results file (inconclusive and error both read
+            # "error"); `status` is Netdryrun's own (passed, failed, inconclusive, error), so the release gate can
+            # tell a run that proved nothing from one that crashed
             row["strategies"][name] = {
                 "verdict": verdict,
+                "status": rep.status,
                 "correct": verdict == case["expected"],
-                "failed_checks": [r.check.name for r in rep.results if not r.passed],
+                "failed_checks": [r.check.name for r in failed],
+                "error": rep.error or None,
+            }
+            row["_details"][name] = {
+                "status": rep.status,
+                "failed_checks": [r.check.name for r in failed],
+                "passed_checks": [r.check.name for r in rep.results if r.passed],
+                "inconclusive_reason": rep.inconclusive_reason if rep.status == "inconclusive" else None,
+                "never_left": bool(failed) and all(isinstance(r.detail, NeverLeft) for r in failed),
                 "error": rep.error or None,
             }
     finally:
@@ -185,15 +199,36 @@ def _verdict_tree() -> str | None:
 
 
 def expect_mismatch(row: dict, expected: dict, nondet: set[str]) -> str | None:
-    """--expect: the first strategy whose verdict differs from the committed results for this case, or None."""
+    """--expect: the first strategy whose verdict differs from the committed results for this case, or None. When both
+    records carry `status`, it must match too (an inconclusive run and a crash share the verdict "error")."""
     if row["id"] in nondet or row["id"] not in expected:
         return None
     for s in STRATEGIES:
-        a = expected[row["id"]]["strategies"][s]["verdict"]
-        b = row["strategies"][s]["verdict"]
-        if a != b:
-            return f"EXPECT MISMATCH {row['id']} {s}: committed {a}, now {b}"
+        a, b = expected[row["id"]]["strategies"][s], row["strategies"][s]
+        if a["verdict"] != b["verdict"]:
+            return f"EXPECT MISMATCH {row['id']} {s}: committed {a['verdict']}, now {b['verdict']}"
+        if "status" in a and "status" in b and a["status"] != b["status"]:
+            return f"EXPECT MISMATCH {row['id']} {s}: committed status {a['status']}, now {b['status']}"
     return None
+
+
+def evaluate_run(case: dict, root: Path, keep: bool, corpus: Path) -> dict:
+    """One run of a nondeterministic case. A crash (anything but a case-file error or an interrupt) is recorded as status
+    "error" for every strategy, with its message, so the other runs still finish and the gate sees it (red). Only
+    nondeterministic cases come here: a deterministic case's crash still stops the whole run (exit not 0), as before."""
+    try:
+        return evaluate(case, root, keep, corpus)
+    except CaseError:
+        raise
+    except Exception as e:   # noqa: BLE001 - recorded, never swallowed: status "error" fails every gate rule
+        msg = f"{type(e).__name__}: {e}"
+        rec = {"verdict": "error", "status": "error", "correct": False, "failed_checks": [], "error": msg}
+        det = {"status": "error", "failed_checks": [], "passed_checks": [], "inconclusive_reason": None,
+               "never_left": False, "error": msg}
+        row = {k: case.get(k) for k in ("id", "title", "category", "expected", "rationale", "source", "note")}
+        row.update(edits=[], seconds=0, strategies={s: dict(rec) for s in STRATEGIES},
+                   _details={s: dict(det) for s in STRATEGIES})
+        return row
 
 
 def main() -> int:
@@ -227,11 +262,15 @@ def main() -> int:
         try:
             n = NONDETERMINISTIC_RUNS if case["id"] in nd else 1
             # --keep keeps only the last run's lab: an earlier one left running would collide with the next deploy
-            runs = [evaluate(case, root, args.keep and i == n - 1, corpus) for i in range(n)]
+            one = evaluate_run if n > 1 else evaluate
+            runs = [one(case, root, args.keep and i == n - 1, corpus) for i in range(n)]
+            details = [r.pop("_details", {}) for r in runs]
             row = runs[0]
             if n > 1:   # the first run stays the row's verdict; every run is kept
                 row["nondeterministic"] = True
                 row["runs"] = [{s: r["strategies"][s]["verdict"] for s in STRATEGIES} for r in runs]
+                # beside `runs` (whose shape the gate and the renderer read): each run's own status and checks
+                row["run_details"] = details
         except CaseError as e:
             print(f"   CASE ERROR: {e}", flush=True)
             return 2

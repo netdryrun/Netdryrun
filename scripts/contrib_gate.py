@@ -158,13 +158,19 @@ def corpus_results(old_path: Path, new_path: Path, nondeterministic: set[str] | 
     listed as nondeterministic (corpus/<v>/NONDETERMINISTIC.yml next to the committed results), which is a note."""
     old, new = (json.loads(Path(p).read_text(encoding="utf-8")) for p in (old_path, new_path))
     skip = _nondeterministic(Path(old_path)) if nondeterministic is None else nondeterministic
-    before = {c["id"]: c["strategies"]["netdryrun"]["verdict"] for c in old["cases"]}
-    after = {c["id"]: c["strategies"]["netdryrun"]["verdict"] for c in new["cases"]}
+    # the verdict, and the status when both records have one: an inconclusive run and a crash share the verdict "error"
+    def result(c: dict) -> str:
+        s = c["strategies"]["netdryrun"]
+        return s["verdict"] + (f" ({s['status']})" if "status" in s else "")
+    before = {c["id"]: c["strategies"]["netdryrun"] for c in old["cases"]}
+    after = {c["id"]: c["strategies"]["netdryrun"] for c in new["cases"]}
     problems, notes = [], []
-    for case, verdict in before.items():
-        got = after.get(case)
-        line = f"{case}: netdryrun verdict {verdict} in the committed results, {got} in this run"
-        if got == verdict:
+    for case, a in before.items():
+        b = after.get(case)
+        same = b is not None and a["verdict"] == b["verdict"] and             not ("status" in a and "status" in b and a["status"] != b["status"])
+        got = result({"strategies": {"netdryrun": b}}) if b is not None else None
+        line = f"{case}: netdryrun verdict {result({'strategies': {'netdryrun': a}})} in the committed results, {got} in this run"
+        if same:
             continue
         (notes if case in skip else problems).append(line + (" (nondeterministic case, not scored)" if case in skip else ""))
     return problems, notes
