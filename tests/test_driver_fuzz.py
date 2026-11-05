@@ -133,8 +133,11 @@ def nxos_body_empty(d) -> bool:
 
 def nxos_bgp_route_side_empty(d) -> bool:
     """The BGP side of a route check: `"result": null` is BGP not configured in a VRF whose RIB answered
-    (live, VRF EMPTY), so no BGP paths."""
-    return (isinstance(d, dict) and "result" in d and d["result"] is None and "error" not in d) or nxos_body_empty(d)
+    (live, VRF EMPTY), so no BGP paths. A one-element list is the same reply in JSON-RPC's batch form, which the
+    parser unwraps (`nxos._reply`) like `nxos_body_empty` does (found by this fuzzer on 0.4.1's gate: the oracle
+    called `[{"result": null}]` malformed while the parser, by design, reads it as `{"result": null}`)."""
+    one = d[0] if isinstance(d, list) and len(d) == 1 else d
+    return (isinstance(one, dict) and "result" in one and one["result"] is None and "error" not in one) or nxos_body_empty(d)
 def junos_neighbors_empty(d) -> bool:
     try:
         (info,) = d["bgp-information"]
