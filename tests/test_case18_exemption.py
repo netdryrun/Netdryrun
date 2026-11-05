@@ -8,6 +8,7 @@ the new rule's own reason, so it fails on d58e5bc's code (which accepted the sta
 import copy
 import importlib.util
 import json
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,6 +24,20 @@ spec.loader.exec_module(gate)
 
 CID = "18-aggregate-discard-route-removed"
 ND = {CID: {}}
+REAL_PIN = gate.CATCH_EXCEPTIONS[("v2", CID)].get("verdict_tree")   # the release's src tree, as pinned in the gate
+
+
+@pytest.fixture(autouse=True)
+def _pin_to_the_code_under_test(monkeypatch):
+    """Behaviour tests pin the exception to the verdict tree of the code they run, which under mutation testing is the
+    mutated copy; whether the pin is the release's own tree is a fact about the repository, tested on its own below."""
+    exc = {**gate.CATCH_EXCEPTIONS[("v2", CID)], "verdict_tree": gate.verdict_tree()}
+    monkeypatch.setitem(gate.CATCH_EXCEPTIONS, ("v2", CID), exc)
+
+
+@pytest.mark.skipif(bool(os.environ.get("MUTANT_UNDER_TEST")), reason="mutation testing runs a deliberately different src")
+def test_the_pin_is_this_sources_verdict_tree():
+    assert REAL_PIN == gate.verdict_tree()
 I2 = ["I2 upstream has our aggregate", "I2 peer has our aggregate"]
 I5 = ["I5 upstream receives 2 to 51 prefixes from us", "I5 peer receives 2 to 51 prefixes from us"]
 I8 = ["[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
@@ -246,6 +261,9 @@ def _refreshed(tmp_path, case18):
     doc = json.loads((ROOT / "corpus" / "v2" / "results" / "results.json").read_text(encoding="utf-8"))
     back = {"safe": "passed", "unsafe": "failed", "error": "inconclusive"}
     doc = copy.deepcopy(doc)
+    # a refresh records the tree of the code that ran it: the code under test here, which under mutation testing is
+    # the mutated copy, not the code the committed results came from (audit F2 checks this field)
+    doc["environment"]["verdict_tree"] = gate.verdict_tree()
     for c in doc["cases"]:
         for s in c["strategies"].values():
             s["status"] = back[s["verdict"]]
@@ -709,7 +727,7 @@ def test_audit_f2_the_exception_needs_this_verdict_code(tmp_path):
     """Grok 2 / GPT 7: the exception pinned the case and lab, not the code under test."""
     import shutil
     exc = gate.CATCH_EXCEPTIONS[("v2", CID)]
-    assert "corpus/run.py" in exc["pinned"] and exc["verdict_tree"] == gate.verdict_tree()
+    assert "corpus/run.py" in exc["pinned"]
     for p in exc["pinned"]:
         src, dst = ROOT / p, tmp_path / p
         if p.endswith("/"):
