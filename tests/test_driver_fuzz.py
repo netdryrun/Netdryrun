@@ -55,7 +55,11 @@ def _is_net(k) -> bool:
 
 
 def frr_route_table_empty(d) -> bool:
-    return isinstance(d, dict) and all(_is_net(k) and isinstance(v, list) and v for k, v in d.items())
+    # the default prefix with an empty list is zebra's "no default route at all" (live capture
+    # frr_route_default_absent.json): a real empty answer once Docker's management default is removed (0.4.1, B3)
+    return isinstance(d, dict) and all(_is_net(k) and isinstance(v, list)
+                                       and (v or ipaddress.ip_network(k, strict=False).prefixlen == 0)
+                                       for k, v in d.items())
 
 
 def frr_bgp_empty(d) -> bool:
