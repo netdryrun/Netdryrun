@@ -184,7 +184,7 @@ def test_evidence_write_does_not_follow_a_planted_symlink(monkeypatch, lab):
 
 async def _tools() -> dict[str, str]:
     params = StdioServerParameters(command=sys.executable, args=["-m", "netdryrun", "mcp"], env=dict(os.environ))
-    async with stdio_client(params) as (r, w):
+    async with stdio_client(params, errlog=sys.stderr) as (r, w):   # at call time: see tests/test_mcp.py
         async with ClientSession(r, w) as s:
             await s.initialize()
             return {t.name: (t.description, getattr(t, "input_schema", None) or t.inputSchema) for t in (await s.list_tools()).tools}

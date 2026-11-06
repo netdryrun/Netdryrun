@@ -1127,11 +1127,11 @@
       "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
     },
     "netdryrun.checks.x__ping__mutmut_72": {
-      "reason": "message text only: the stderr quoted in the 'ping did not run' detail",
-      "diff": "b96d73dec294704d",
-      "class": "message-text",
-      "argument": "Changes only text: the stderr quoted in the 'ping did not run' detail. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
+      "reason": "text used for a missing output key; 'XXXX' matches no unreachable pattern",
+      "diff": "049546eeabc26a8e",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: text used for a missing output key; 'XXXX' matches no unreachable pattern. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'XXXX' isolated by newlines matches no unreachable pattern and cannot join one across a newline"
     },
     "netdryrun.checks.x__ping__mutmut_73": {
       "reason": "message text only: the stderr quoted in the 'ping did not run' detail",
@@ -1176,11 +1176,11 @@
       "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
     },
     "netdryrun.checks.x__ping__mutmut_86": {
-      "reason": "message text only: the detail text of a check result, same verdict and evidence",
-      "diff": "5511d05a5b0e53e9",
-      "class": "message-text",
-      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
+      "reason": "default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect)",
+      "diff": "16e31d3358d3b692",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect). With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: missing expect: None != 'failure' exactly as 'success' != 'failure', so the unreachable result returns False in both"
     },
     "netdryrun.checks.x__ping__mutmut_87": {
       "reason": "message text only: the detail text of a check result, same verdict and evidence",
@@ -3367,11 +3367,11 @@
       "class": "message-text"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_129": {
-      "reason": "message text only: the detail text of a failing gate sample; it is still an Unready detail, so the sample stays unready",
-      "diff": "f558f63faac9328b",
-      "class": "message-text",
-      "argument": "Changes only text: the detail text of a failing gate sample; it is still an Unready detail, so the sample stays unready. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
+      "reason": "the initial detail is never read: every failing sample sets it before it is used (and it is only message text)",
+      "diff": "05ead526b4f38c87",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial detail is never read: every failing sample sets it before it is used (and it is only message text). With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: initial detail never reaches a reader (see 127) and is message text only"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_153": {
       "reason": "message text only: the VRF part of the no-neighbors detail text; it is still an Unready detail",
@@ -3556,11 +3556,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_276": {
-      "reason": "message text only: the text of the no-BGP-neighbors warning (logged and added to the detail); the check still goes ahead with the same verdict",
-      "diff": "7c369a785d830131",
-      "class": "message-text",
-      "argument": "Changes only text: the text of the no-BGP-neighbors warning (logged and added to the detail); the check still goes ahead with the same verdict. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "reason": "the error is only tested for truth after an answer; None and '' are both false, and its text is read only when it is true",
+      "diff": "440cee6b4537c076",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the error is only tested for truth after an answer; None and '' are both false, and its text is read only when it is true. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: after an answer answered stays True, so 976 is taken only if error is truthy (a later 894 string); None and '' both fall through, and .split() runs only on the truthy string"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_277": {
       "reason": "message text only: the text of the no-BGP-neighbors warning (logged and added to the detail); the check still goes ahead with the same verdict",
@@ -3815,11 +3815,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_86": {
-      "reason": "equivalent: the initial streak is never read: every answer sets it, and the first established sample gets 1 because counts != None",
-      "diff": "248f84716693174d",
+      "reason": "the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do",
+      "diff": "bce64bb748fa2c1f",
       "class": "equivalent",
-      "argument": "Same behaviour on every input the function can receive: the initial streak is never read: every answer sets it, and the first established sample gets 1 because counts != None. So the verdict can't change.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "argument": "The mutant behaves identically: the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'xxxx' != 'bgp', same as ''"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_87": {
       "reason": "equivalent: the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes",
@@ -3850,11 +3850,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_94": {
-      "reason": "equivalent: the initial empty flag is never read: every answer sets it, and it is read only for a node that answered",
-      "diff": "fdc205023ae84cff",
+      "reason": "the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an empty sequence",
+      "diff": "4ddf04082ad484a7",
       "class": "equivalent",
-      "argument": "Same behaviour on every input the function can receive: the initial empty flag is never read: every answer sets it, and it is read only for a node that answered. So the verdict can't change.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "argument": "The mutant behaves identically: the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an empty sequence. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: cap is read only at 851 inside 'if groups:', where deadline has the groups' keys and is non-empty, so the default is never used"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_95": {
       "reason": "equivalent: the initial detail is never read: every failing sample sets it before it is used (and it is only message text)",
@@ -3871,11 +3871,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_97": {
-      "reason": "equivalent: the initial detail is never read: every failing sample sets it before it is used (and it is only message text)",
-      "diff": "91915468578d18ce",
+      "reason": "the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an empty sequence",
+      "diff": "a385f6690dfdbf6f",
       "class": "equivalent",
-      "argument": "Same behaviour on every input the function can receive: the initial detail is never read: every failing sample sets it before it is used (and it is only message text). So the verdict can't change.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "argument": "The mutant behaves identically: the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an empty sequence. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 94: max default unused whenever cap is read"
     },
     "netdryrun.runner.x__link_sessions__mutmut_12": {
       "reason": "message text only: the text of the LabError raised either way when BGP state can't be read before a fault (exit 2)",
@@ -4260,11 +4260,11 @@
       "class": "message-text"
     },
     "netdryrun.runner.x_run_scenario__mutmut_120": {
-      "reason": "message text only: a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
-      "diff": "dc9fb2f7e81bb3fd",
-      "class": "logging",
-      "argument": "Changes only a line passed to log(): a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it. log() output reaches no result field, status or exit code, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "reason": "results is the empty list created at the top of run_scenario until this line, so assigning pos_results equals extending it",
+      "diff": "fd4571743f5a67e3",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: results is the empty list created at the top of run_scenario until this line, so assigning pos_results equals extending it. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: results is the fresh empty list until 1316; aliasing pos_results (a fresh list from _reach_then_hold) only matters for the later in-place +=, which runs after the gate's last read of pos_results"
     },
     "netdryrun.runner.x_run_scenario__mutmut_169": {
       "reason": "message text only: the text of the 'could not restore' LabError raised either way (exit 2)",
@@ -5505,8 +5505,8 @@
       "class": "equivalent"
     },
     "netdryrun.config.x__only__mutmut_23": {
-      "reason": "equivalent: ipaddress.ip_network(x, strict=None) vs strict=False; ipaddress only tests `if strict:` (IPv4Network and IPv6Network), and None is falsy like False, so every input gives the same network or the same ValueError",
-      "diff": "912bd434519a2068",
+      "reason": "ipaddress.ip_network only tests strict for truth; None and False are both false",
+      "diff": "91b09dc3aa3956b8",
       "class": "equivalent"
     },
     "netdryrun.drivers.eos.x__summary__mutmut_100": {
@@ -5600,8 +5600,8 @@
       "class": "equivalent"
     },
     "netdryrun.drivers.junos.x__refuse_stale__mutmut_25": {
-      "reason": "equivalent: _leaf only tests `if required`, and None and False are both false",
-      "diff": "800030de4ff7e26d",
+      "reason": "the command passed to _hidden only names the command in an error for a missing rt-entry-state, which _refuse_stale has already read",
+      "diff": "f8fc326b1f4027db",
       "class": "equivalent"
     },
     "netdryrun.drivers.junos.x__active__mutmut_14": {
@@ -5910,6 +5910,478 @@
       "class": "equivalent",
       "argument": "equivalent: data None or \"\" are both not a dict, and the next line raises the same LabError",
       "reviewed": "adversarial review (a fresh reviewer, 2026-11-04) found no counterexample; pinned by tests/test_mutants_041_faults.py"
+    },
+    "netdryrun.checks.x__ping__mutmut_65": {
+      "reason": "separator between evidence entries; no unreachable pattern contains a newline or 'XX', so no match can span or appear at a boundary",
+      "diff": "c07f2650c2c65ea6",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: separator between evidence entries; no unreachable pattern contains a newline or 'XX', so no match can span or appear at a boundary. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: _UNREACHABLE has no newline/\\s or X, so no match can span the separator and XX can neither create nor break a match inside one entry; group(0) is message text only"
+    },
+    "netdryrun.checks.x__ping__mutmut_67": {
+      "reason": "text used for a missing output key; 'None' matches no unreachable pattern",
+      "diff": "50260b9e708bb287",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: text used for a missing output key; 'None' matches no unreachable pattern. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: missing output becomes 'None' between newline separators; no pattern matches 'None' or spans a newline, so match/no-match is identical"
+    },
+    "netdryrun.checks.x__ping__mutmut_69": {
+      "reason": "text used for a missing output key; 'None' matches no unreachable pattern",
+      "diff": "7dd95c2943cdec4e",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: text used for a missing output key; 'None' matches no unreachable pattern. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: get('output',) defaults to None, rendered 'None', isolated by newlines; matches no pattern and no pattern crosses a newline"
+    },
+    "netdryrun.checks.x__ping__mutmut_74": {
+      "reason": "text used for a missing stderr key; 'None' matches no unreachable pattern",
+      "diff": "7d98e120df20d21b",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: text used for a missing stderr key; 'None' matches no unreachable pattern. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: missing stderr becomes 'None' between newlines; matches no pattern, no pattern spans a newline"
+    },
+    "netdryrun.checks.x__ping__mutmut_76": {
+      "reason": "text used for a missing stderr key; 'None' matches no unreachable pattern",
+      "diff": "1b0487a08339178d",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: text used for a missing stderr key; 'None' matches no unreachable pattern. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: get('stderr',) defaults to None -> 'None', isolated by newlines; no match change"
+    },
+    "netdryrun.checks.x__ping__mutmut_79": {
+      "reason": "text used for a missing stderr key; 'XXXX' matches no unreachable pattern",
+      "diff": "8c23350ef3073250",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: text used for a missing stderr key; 'XXXX' matches no unreachable pattern. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'XXXX' isolated by newlines; matches no pattern, cannot extend one"
+    },
+    "netdryrun.checks.x__ping__mutmut_88": {
+      "reason": "default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect)",
+      "diff": "38f246d0c5cdbd5d",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect). With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: get('expect',) is None; only equality with 'failure' is tested, same False branch as default 'success'"
+    },
+    "netdryrun.checks.x__ping__mutmut_91": {
+      "reason": "default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect)",
+      "diff": "3e52e5bfc83152db",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect). With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'XXsuccessXX' != 'failure', same branch as 'success'; line 177's default is untouched"
+    },
+    "netdryrun.checks.x__ping__mutmut_92": {
+      "reason": "default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect)",
+      "diff": "ec42fed2f6ebbf40",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect). With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'SUCCESS' != 'failure' (case-sensitive ==), same branch as 'success'"
+    },
+    "netdryrun.config.x__is_network__mutmut_2": {
+      "reason": "ipaddress.ip_network only tests strict for truth; None and False are both false",
+      "diff": "162a2b4eca354a7e",
+      "class": "equivalent"
+    },
+    "netdryrun.config.x__validate_peers__mutmut_23": {
+      "reason": "the middle of the fallback tuple is unpacked into _ and never read",
+      "diff": "b2a71cf83bc18bc3",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁ__init_subclass____mutmut_10": {
+      "reason": "the getattr default is only tested for truth; None and False are both false",
+      "diff": "c63af0e4f77d62b8",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁlocal_addresses__mutmut_1": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "e40caeaa037a2e62",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.base.xǁDriverǁlocal_addresses__mutmut_2": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "3af7763b6089e8b8",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.eos.xǁEosDriverǁbgp_paths__mutmut_1": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "26892a988f5dc044",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.eos.xǁEosDriverǁbgp_paths__mutmut_2": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "3279cade9ea450fa",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_15": {
+      "reason": "the default of a missing GR mode only has to be no mode name; None, '' and 'XXXX' all read unknown",
+      "diff": "d8a8718ee70be957",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_17": {
+      "reason": "the default of a missing GR mode only has to be no mode name; None, '' and 'XXXX' all read unknown",
+      "diff": "d6c4d8389da01a34",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_21": {
+      "reason": "the default of a missing GR mode only has to be no mode name; None, '' and 'XXXX' all read unknown",
+      "diff": "8e27912592986ee0",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_22": {
+      "reason": "rstrip of 'X' and '*' instead of '*': no FRR GR mode (Helper, Restart, Disable, NotApplicable) ends in X",
+      "diff": "62b4ba3c8dfb7788",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_28": {
+      "reason": "the default of a missing GR mode only has to be no mode name; None, '' and 'XXXX' all read unknown",
+      "diff": "5f9ad7f9395d011f",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_30": {
+      "reason": "the default of a missing GR mode only has to be no mode name; None, '' and 'XXXX' all read unknown",
+      "diff": "5a18ac289c42ecf9",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_34": {
+      "reason": "the default of a missing GR mode only has to be no mode name; None, '' and 'XXXX' all read unknown",
+      "diff": "154991d6a3af5f39",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.x_frr_eor__mutmut_35": {
+      "reason": "rstrip of 'X' and '*' instead of '*': no FRR GR mode (Helper, Restart, Disable, NotApplicable) ends in X",
+      "diff": "2e3f685d854ab61c",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.xǁFrrDriverǁbgp_paths__mutmut_1": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "4a851109b95705b4",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.frr.xǁFrrDriverǁbgp_paths__mutmut_2": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "245906627ee2da58",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.x__refuse_stale__mutmut_63": {
+      "reason": "_leaf only tests required for truth; None and False are both false",
+      "diff": "b53ac466a168f822",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.x__tables__mutmut_89": {
+      "reason": "_leaf only tests required for truth; None and False are both false",
+      "diff": "cf2803331c0e0bd6",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁbgp_paths__mutmut_1": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "a27632bd57c856cd",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁbgp_paths__mutmut_2": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "614f8921b4c546d5",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁlocal_addresses__mutmut_1": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "baf3fe0cb4fed484",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁlocal_addresses__mutmut_2": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "ced11bb54fff7ef6",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.nxos.x_nxos_eor_text__mutmut_45": {
+      "reason": "only the first piece of the split is used, and it is the same for any maxsplit",
+      "diff": "a297133b8ae33651",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.nxos.x_nxos_eor_text__mutmut_48": {
+      "reason": "only the first piece of the split is used, and it is the same for any maxsplit",
+      "diff": "910e982b96c8e597",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.nxos.xǁNxosDriverǁbgp_paths__mutmut_1": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "4b9225225b8a727e",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.nxos.xǁNxosDriverǁbgp_paths__mutmut_2": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "11cc6ca98cb09b98",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.nxos.xǁNxosDriverǁlocal_addresses__mutmut_1": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "52dba40a45c96c36",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.nxos.xǁNxosDriverǁlocal_addresses__mutmut_2": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "cb1bc418202ea2fa",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_1": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "60457cc7ae6a3a99",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_2": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "1a379792350634cb",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.x_srl_eor__mutmut_71": {
+      "reason": "a missing afi-safi list reads [] either way (None or [] is [])",
+      "diff": "901b4c8c82623162",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.x_srl_eor__mutmut_73": {
+      "reason": "a missing afi-safi list reads [] either way (None or [] is [])",
+      "diff": "76d26c5786f5de38",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.x_srl_eor__mutmut_80": {
+      "reason": "a missing oper-state is not 'up' either way ('', 'None' and 'xxxx' all differ from 'up')",
+      "diff": "6d62e7c0513dcefe",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.x_srl_eor__mutmut_82": {
+      "reason": "a missing oper-state is not 'up' either way ('', 'None' and 'xxxx' all differ from 'up')",
+      "diff": "f8d81fa0462c0f75",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.x_srl_eor__mutmut_85": {
+      "reason": "a missing oper-state is not 'up' either way ('', 'None' and 'xxxx' all differ from 'up')",
+      "diff": "3883fcc23b951704",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.xǁSrlDriverǁbgp_paths__mutmut_1": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "ed927c38517957c6",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.xǁSrlDriverǁbgp_paths__mutmut_2": {
+      "reason": "the driver's own default VRF is never used: the LLGR wrapper (Driver.__init_subclass__) always passes the VRF on, defaulting to \"default\"",
+      "diff": "8e6c63a451cd3d48",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.xǁSrlDriverǁlocal_addresses__mutmut_1": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "81bfc4cd83f64533",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.srlinux.xǁSrlDriverǁlocal_addresses__mutmut_2": {
+      "reason": "the default VRF is never used: the only caller (checks._ping) always passes the check's VRF",
+      "diff": "e4f5fd4ef9439712",
+      "class": "equivalent"
+    },
+    "netdryrun.drivers.stale.x_refuse_llgr_stale__mutmut_9": {
+      "reason": "every path is a BgpPath, which always has a neighbor attribute, so the getattr default is never used",
+      "diff": "34423c156f236b58",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_118": {
+      "reason": "the initial streak is never read: every answer sets it, and the first established sample gets 1 because counts != None",
+      "diff": "024df85dd9181207",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial streak is never read: every answer sets it, and the first established sample gets 1 because counts != None. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: streak is read at 949 (where initial 1 still yields 1 since counts dict != None) and at cap only for answered own nodes, and every answered sample writes streak; unanswered/discarded paths never read it"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_119": {
+      "reason": "the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes",
+      "diff": "4839f8938ec7b579",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: s['counts'] is read only via short-circuit when streak is truthy, which only line 949 sets and line 950 immediately writes 'counts'; no other reader, so no KeyError and no change"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_120": {
+      "reason": "the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes",
+      "diff": "bab03bbe749159ca",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 119: 'counts' read only after streak>0, which is always preceded by the write at 950"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_124": {
+      "reason": "the initial empty flag is never read: every answer sets it, and it is read only for a node that answered",
+      "diff": "f040b5b2a9d851d2",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial empty flag is never read: every answer sets it, and it is read only for a node that answered. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'empty' is read only at 979/988/998, all behind an answered check (976/986); every answer writes it at 898 (893 also writes it), so the initial key is never read"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_125": {
+      "reason": "the initial empty flag is never read: every answer sets it, and it is read only for a node that answered",
+      "diff": "1c9c97f28c53afbd",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial empty flag is never read: every answer sets it, and it is read only for a node that answered. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 124: empty read only for answered groups, written on every answer"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_126": {
+      "reason": "the initial empty flag is never read: every answer sets it, and it is read only for a node that answered",
+      "diff": "f5241a82005c4524",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial empty flag is never read: every answer sets it, and it is read only for a node that answered. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: initial True never read: extras reach 979 and own nodes 988/998 only when answered, and 898 overwrites it on every answer"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_127": {
+      "reason": "the initial detail is never read: every failing sample sets it before it is used (and it is only message text)",
+      "diff": "5c2c91841966c151",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial detail is never read: every failing sample sets it before it is used (and it is only message text). With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: detail read at cap only when streak==0 on an answered own node; streak 0 there is always last written by 893/906/913/941, which also write detail; extras never read detail"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_128": {
+      "reason": "the initial detail is never read: every failing sample sets it before it is used (and it is only message text)",
+      "diff": "f5a59f3373df9892",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial detail is never read: every failing sample sets it before it is used (and it is only message text). With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 127: every streak=0 write also writes detail, so the initial key is never read"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_132": {
+      "reason": "the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it",
+      "diff": "82186af34f634eb4",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: every group is read once in the first pass before any cap check, and every non-discarding path writes down (893/906/912/917); readers 965/970/1006 only see written values"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_133": {
+      "reason": "the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it",
+      "diff": "8741e2875e2a4f82",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 132: down always written before the cap branch reads it"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_137": {
+      "reason": "the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it",
+      "diff": "988aa27214f0eeff",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: error read only at extras cap (976/978); every non-discarded extra read writes error at 894 or 899 in the first pass before the cap; own nodes never read it"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_138": {
+      "reason": "the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it",
+      "diff": "7eb40e8ba3cd7a67",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 137"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_139": {
+      "reason": "the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it",
+      "diff": "f16e5b44189cc7f7",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: initial 'XXXX' overwritten (894/899) before any cap read, so never read"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_344": {
+      "reason": "the down list is only tested for truth; None and [] are both false",
+      "diff": "3210df7bb1edfff9",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the down list is only tested for truth; None and [] are both false. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: down only tested for truth (965/970/1006) and iterated only when truthy; None and [] both falsy"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_441": {
+      "reason": "the streak is only compared with >= 2 and == 0, and a streak that grows by 2 instead of 1 crosses both on the same sample",
+      "diff": "7b622f6d9610662b",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the streak is only compared with >= 2 and == 0, and a streak that grows by 2 instead of 1 crosses both on the same sample. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: streak is compared only with >=2 and ==0; mutant goes 1->3 where real goes 1->2, discarding on the same sample, and a mismatch resets to 1 in both"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_470": {
+      "reason": "`first` is only tested for truth; None and False are both false",
+      "diff": "ba041a45b872f132",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: `first` is only tested for truth; None and False are both false. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: first read only at 882 as a truth test; None and False both falsy"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_57": {
+      "reason": "_far_ends of no declared sessions, or of a lab that is None (no links), is empty, so the exclusion set is the same",
+      "diff": "230e2ad084538235",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: _far_ends of no declared sessions, or of a lab that is None (no links), is empty, so the exclusion set is the same. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: _far_ends(lab, empty) loops over nothing; _far_ends(None, declared) uses getattr(None,'links',[]) and _ip catches ValueError, so both return empty with no side effects"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_611": {
+      "reason": "Result.samples_passed defaults to 0, the value passed explicitly",
+      "diff": "e57f9119d959fdf3",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: Result.samples_passed defaults to 0, the value passed explicitly. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: Result.samples_passed defaults to 0, the explicit value"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_693": {
+      "reason": "Result.samples_passed defaults to 0, the value passed explicitly",
+      "diff": "9328f72f772e43e6",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: Result.samples_passed defaults to 0, the value passed explicitly. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: Result.samples_passed defaults to 0, the explicit value"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_748": {
+      "reason": "Result.samples_passed defaults to 0, the value passed explicitly",
+      "diff": "3420ed22b5ca4eeb",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: Result.samples_passed defaults to 0, the value passed explicitly. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: Result.samples_passed defaults to 0, the explicit value"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_81": {
+      "reason": "the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do",
+      "diff": "04b28384da0bc346",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: str(None).lower()=='none' != 'bgp', same as '' for a missing protocol"
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_83": {
+      "reason": "the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do",
+      "diff": "2a2cb359ce336ed9",
+      "class": "equivalent",
+      "argument": "The mutant behaves identically: the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do. With the same behaviour it can't turn a failure into a pass.",
+      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: get('protocol',) is None -> 'none' != 'bgp', same as ''"
+    },
+    "netdryrun.runner.x__check_declared_peers__mutmut_10": {
+      "reason": "range(4) instead of range(3): the attempt == 2 branch raises before a fourth attempt can run",
+      "diff": "22704d5e3f46b02e",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x__check_declared_peers__mutmut_8": {
+      "reason": "the initial value of `have` is never read: every path assigns it or raises before it is used",
+      "diff": "1e205a77103ea9c9",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x__far_ends__mutmut_30": {
+      "reason": "break instead of continue skips only the other end of the same link, which is another node's (a link joins two nodes); on a cable looped back to one node it can only exclude fewer sessions, so the gate waits longer, never passes earlier",
+      "diff": "dc9e8e90965b2800",
+      "class": "safety"
+    },
+    "netdryrun.runner.x__far_ends__mutmut_32": {
+      "reason": "break instead of continue skips only the other end of the same link, which is another node's (a link joins two nodes); on a cable looped back to one node it can only exclude fewer sessions, so the gate waits longer, never passes earlier",
+      "diff": "b41f9c3c8008052d",
+      "class": "safety"
+    },
+    "netdryrun.runner.x__far_ends__mutmut_43": {
+      "reason": "break instead of continue skips only the other end of the same link, which is another node's (a link joins two nodes); on a cable looped back to one node it can only exclude fewer sessions, so the gate waits longer, never passes earlier",
+      "diff": "6aad29ef3903b988",
+      "class": "safety"
+    },
+    "netdryrun.runner.x__far_ends__mutmut_46": {
+      "reason": "break instead of continue skips only the other end of the same link, which is another node's (a link joins two nodes); on a cable looped back to one node it can only exclude fewer sessions, so the gate waits longer, never passes earlier",
+      "diff": "8c45accf7ec2c761",
+      "class": "safety"
+    },
+    "netdryrun.runner.x__routing_nodes__mutmut_6": {
+      "reason": "`getattr(lab, \"nodes\", None) or {}` gives {} for a lab without nodes, as the {} default does",
+      "diff": "191e38b4f376565e",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run__mutmut_13": {
+      "reason": "`deployed` is only tested for truth; None and False are both false",
+      "diff": "b9afda045d2c648c",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run__mutmut_292": {
+      "reason": "traceback.print_exc(file=None) prints to stderr, as the default does",
+      "diff": "fe650b43af0c1acb",
+      "class": "equivalent"
+    },
+    "netdryrun.runner.x_run__mutmut_99": {
+      "reason": "report.results starts empty, so assigning the round-robin results equals extending it",
+      "diff": "84534e9bc63ff48a",
+      "class": "equivalent"
     }
   },
   "checks": {

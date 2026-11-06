@@ -174,7 +174,7 @@ def test_the_skill_carries_the_one_sentence_definition():
 async def _call(calls: list[tuple[str, dict]]) -> tuple[dict, list[str]]:
     # the same environment as the tests (the MCP client otherwise passes only a minimal one)
     params = StdioServerParameters(command=sys.executable, args=["-m", "netdryrun", "mcp"], env=dict(os.environ))
-    async with stdio_client(params) as (r, w):
+    async with stdio_client(params, errlog=sys.stderr) as (r, w):   # at call time: see tests/test_mcp.py
         async with ClientSession(r, w) as s:
             await s.initialize()
             tools = {t.name: t.description for t in (await s.list_tools()).tools}

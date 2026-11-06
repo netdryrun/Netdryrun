@@ -18,7 +18,9 @@ EXAMPLE = str(Path(__file__).parents[1] / "examples" / "frr-bgp")
 async def _call(tool: str, args: dict) -> tuple[list[str], str]:
     # the same environment as the tests (the MCP client otherwise passes only a minimal one)
     params = StdioServerParameters(command=sys.executable, args=["-m", "netdryrun", "mcp"], env=dict(os.environ))
-    async with stdio_client(params) as (r, w):
+    # errlog at call time: stdio_client's default is the sys.stderr of the moment mcp was imported, which is a closed
+    # capture stream when pytest runs twice in one process (mutmut's stats run, then its clean run)
+    async with stdio_client(params, errlog=sys.stderr) as (r, w):
         async with ClientSession(r, w) as s:
             await s.initialize()
             tools = [t.name for t in (await s.list_tools()).tools]
