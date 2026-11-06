@@ -257,6 +257,24 @@
     `info from state /interface * subinterface * ipv4|ipv6 address *`; cJunosEvolved `show interfaces terse | display
     json`. HQ wt/cap-night/<driver>/ (run.sh there)
   added: ndr/gate-fixes-0.4.1
+- files: [nxos_local_ip_detail.json, nxos_local_ipv6_detail.json, nxos_local_ipv6_brief.json,
+          nxos_local_ip_brief_secondary.json]
+  kind: live-capture
+  source: >-
+    NX-OS 9300v (n9kv 10.x, vrnetlab) NX-API, 2026-11-06, after adding a secondary IPv4 address, an IPv6 address in
+    VRF RED and one in default (red team round 4, RT-0044/RT-0045): `show ip interface vrf all`, `show ipv6 interface
+    vrf all`, `show ipv6 interface brief vrf all` and `show ip interface brief vrf all` (the brief form leaves the
+    secondary out). HQ wt/cap-nxos6/ (nxos_config.txt and capture.log there)
+  added: ndr/gate-fixes-0.4.1
+- files: [mgmt_frr_ip_route.txt, mgmt_busybox_ip_route.txt]
+  kind: live-capture
+  source: >-
+    `ip -4|-6 route show table all` in a container on a Docker network with IPv4 and IPv6 (172.31.99.0/24,
+    3fff:172:31:99::/64, the shape of containerlab's management network), 2026-11-06, for the management-path fix (red
+    team round 4, B3): FRR 10.4.1 (iproute2) before and after deleting Docker's defaults, then with a multipath default
+    and a static route via the management gateway added; alpine 3.20 (busybox `ip`), every table and the main table.
+    HQ wt/cap-mgmt/ (cap.sh there)
+  added: ndr/gate-fixes-0.4.1
 - files: [eos_route_default_routing_disabled.json, eos_route_red_routing_disabled.json,
           eos_route_red_v6_routing_disabled.json, srl_instance_disabled.json, srl_instance_no_links.json]
   kind: live-capture

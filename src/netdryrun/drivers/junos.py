@@ -479,6 +479,27 @@ def parse_routes(text: str, prefix: str, table: str = "inet.0") -> list[Route]:
             for e in entries if not _filtered(ROUTE_CMD, e)]
 
 
+# Junos management interfaces: cJunosEvolved re0:mgmt-0, vMX/vSRX fxp0, em0 on some platforms (B3, design R2)
+JUNOS_MGMT = re.compile(r"^(re\d+:mgmt-\d+|fxp\d+|em\d+)(\.\d+)?$")
+
+
+def parse_management_routes(text: str, table: str = "inet.0", mgmt: re.Pattern = JUNOS_MGMT) -> list[str]:
+    """`show route table T` (the whole table): every active entry with a next hop out of a management interface,
+    other than the interface's own connected and local routes, as text: a route out of the lab over the management
+    network (red team round 4, B3; code adversary 5: any prefix, as on Linux, not only the defaults)."""
+    out = []
+    for rt in _tables(ALL_ROUTES_CMD, text, table, whole=True):
+        for e in _entries(ALL_ROUTES_CMD, rt, counted=False):
+            proto = _protocol(ALL_ROUTES_CMD, e)
+            if not _active(ALL_ROUTES_CMD, e) or proto in ("connected", "local"):
+                continue
+            vias = [_leaf(ALL_ROUTES_CMD, h, "via", required=False) for h in _items(ALL_ROUTES_CMD, e, "nh")]
+            mg = [v for v in vias if v and mgmt.match(v)]
+            if mg:
+                out.append(f"{_destination(ALL_ROUTES_CMD, rt)} ({table}, {proto}) via {', '.join(mg)}")
+    return out
+
+
 @parser(ALL_ROUTES_CMD)
 def parse_all_routes(text: str, table: str = "inet.0") -> list[Route]:
     rts = _tables(ALL_ROUTES_CMD, text, table, whole=True)
@@ -626,6 +647,8 @@ class JunosDriver(Driver):
             raise DriverError(f"refusing a Junos command with a quote: {command[:80]!r}")
         return self._exec([*VM_SSH, f"cli -c '{command} | display json | no-more'"], evidence, timeout=timeout)
 
+    own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
+
     def local_addresses(self, vrf: str = "default") -> list:
         """Every interface address of the node, in any routing-instance (the captured terse form doesn't map them):
         a ping in one instance to an address the node owns in another is refused too (documented limit)."""
@@ -722,6 +745,19 @@ class JunosDriver(Driver):
         vrf = self._vrf(vrf)
         ev: list[dict] = []
         return Observation(self._route_query(prefix, vrf, parse_bgp_paths, ev), ev)
+
+    def management_routes(self, vrf: str = "default") -> list[str]:
+        """Every active route in the VRF's IPv4 and IPv6 tables that leaves a management interface (B3, R2)."""
+        vrf = self._vrf(vrf)
+        ev: list[dict] = []
+        out: list[str] = []
+        for family in (4, 6):
+            table = _table(vrf, family)
+            try:
+                out += parse_management_routes(self._cli(f"show route table {table}", ev), table)
+            except NoSuchTable:
+                self._no_table(vrf, table, ev)
+        return out
 
     def all_routes(self, vrf: str = "default", family: int = 4) -> Observation:
         vrf = self._vrf(vrf)

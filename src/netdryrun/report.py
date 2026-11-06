@@ -192,6 +192,8 @@ def to_junit(rep: RunReport) -> str:
     tag = "error" if rep.status == "inconclusive" else "failure"
     for r in rep.results:
         body = "" if r.passed else f"<{tag} message={quoteattr(r.detail)}>{escape(json.dumps(r.evidence, indent=1)[:20000])}</{tag}>"
+        if r.warnings:   # JUnit readers see the convergence warnings too (round 4, audit K10); the status is unchanged
+            body += "<system-out>" + escape("\n".join(f"warning: {w['text']}" for w in r.warnings)) + "</system-out>"
         cases.append(f'  <testcase classname="netdryrun.{r.check.type}" name={quoteattr(r.check.name)} time="{r.duration}">{body}</testcase>')
     errors = 1 if rep.error else 0
     if rep.error:

@@ -140,8 +140,9 @@
     - tests/test_srl_loop_count.py
     - tests/test_redteam.py
 - id: advisory-0.4.0-further-false-passes
-  what: The 15 further false passes in 0.4.0 and earlier, published together (prefix without a length, IPv6 default afi,
-    families not carried, verify pins, FRR/SONiC/SR Linux/EOS/Junos driver cases, inject_routes never sent)
+  what: The 17 further false passes in 0.4.0 and earlier, published together (prefix without a length, IPv6 default afi,
+    families not carried, verify pins, FRR/SONiC/SR Linux/EOS/Junos driver cases, inject_routes never sent, pings and
+    default routes over Docker's management network)
   record: advisories/0.4.0-further-false-passes/README.md
   trust: "0.4.0 and earlier"
   tests:
@@ -154,6 +155,13 @@
     - tests/test_srl_loop_count.py
     - tests/test_inject_sent_counts.py
     - tests/test_redteam.py
+    - tests/test_mgmt.py
+- id: b3-management-path
+  what: A ping with no lab route passed over Docker's management default route (FRR/SONiC eth0, containerlab's cEOS
+    static default), and `route 0.0.0.0/0` passed on that route (second 0.4.1 red team, B3; every released version)
+  record: advisories/0.4.0-further-false-passes/README.md (cases 16 and 17), CHANGELOG.md (0.4.1)
+  tests:
+    - tests/test_mgmt.py
 - id: layer6-review-0.4.1
   what: False passes the Layer 6 review found in the 0.4.1 candidate (b03cb7a) - a with null pin met by a received-only
     route that can't show it (INTENT MATCHED with allow_anywhere), inject_routes counted as sent when one peer got the

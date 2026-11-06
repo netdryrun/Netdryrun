@@ -1309,9 +1309,19 @@ def test_gate_skips_nodes_whose_positive_checks_never_got_state(monkeypatch):
 
 def test_gate_ping_only_node_without_bgp_is_not_waited_for(monkeypatch):
     e = make(monkeypatch)
-    e.drivers["r1"].neighbors_error = DriverError("no bgpd")
+    e.drivers["r1"].neighbors_error = NoSuchInstance("no BGP instance")
     p = chk("ping", "p", target="10.9.9.9", expect="failure", timeout=60)
     assert gate(e, [p]) == {} and e.clock.now == 0 and not e.logs
+
+
+def test_gate_ping_only_node_whose_read_fails_otherwise_is_waited_for_then_warned(monkeypatch):
+    # red team round 4, B2 (design m4): a bgpd still starting is an unready sample, never "no BGP here"
+    e = make(monkeypatch)
+    e.drivers["r1"].neighbors_error = DriverError("no bgpd")
+    p = chk("ping", "p", target="10.9.9.9", expect="failure", timeout=60)
+    w: dict = {}
+    assert runner._bgp_convergence_gate([p], [p], e.drivers, log=e.logs.append, warnings=w) == {} and e.clock.now >= 60
+    assert [x["code"] for x in w[id(p)]] == ["gate-unreadable"]
 
 
 def test_gate_node_that_errors_first_but_has_other_checks_is_waited_for(monkeypatch):
@@ -1518,7 +1528,7 @@ def test_gate_down_group_does_not_stop_the_round(monkeypatch):
 
 def test_gate_discarded_ping_node_does_not_stop_the_round(monkeypatch):
     e = make(monkeypatch)
-    e.drivers["r1"].neighbors_error = DriverError("no bgpd")              # sorted first, ping-only: discarded
+    e.drivers["r1"].neighbors_error = NoSuchInstance("no BGP instance")   # sorted first, ping-only: discarded
     e.drivers["r2"].neighbors = {"default": {"10.0.12.1": "established"}}
     p = chk("ping", "p", target="10.9.9.9", expect="failure", timeout=60)
     assert gate(e, [p, leak("b", node="r2", timeout=30)]) == {}

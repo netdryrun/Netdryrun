@@ -6,6 +6,7 @@ after convergence and must hold for a whole window.
 """
 from __future__ import annotations
 
+import ipaddress
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -14,7 +15,8 @@ from datetime import datetime, timezone
 
 from .config import BGP_ATTRIBUTES, Check, community_name
 from .drivers import Driver
-from .drivers.base import protocol_matches
+from .drivers.base import DriverError, protocol_matches
+from .mgmt import ManagementPathError
 
 REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
 
@@ -158,9 +160,22 @@ def _ping(d: Driver, p: dict) -> tuple[bool, str, list]:
     count = int(p.get("count", 3))
     own = getattr(d, "local_addresses", None)
     if own is not None:
+        fam = ipaddress.ip_address(str(p["target"]).split("%")[0]).version
+        if fam not in getattr(d, "own_address_families", frozenset({4, 6})):
+            raise DriverError(f"{p['node']}'s own IPv{fam} addresses can't be read on the {getattr(d, 'name', '?')} "
+                              f"driver, so a ping to {p['target']} can't be shown to leave the node")
         # a target the node owns never leaves it (red team B-9006); unreadable raises, so the sample is unready
         from .drivers.addresses import refuse_own_target
-        refuse_own_target(p["node"], p["target"], own(p.get("vrf", "default")))
+        addrs = own(p.get("vrf", "default"))
+        refuse_own_target(p["node"], p["target"], addrs)
+        if p.get("source"):
+            # the source must be one of the node's own lab addresses: a management or foreign source can send the
+            # request over the lab and take the reply back over another path (red team round 4, B3 e1/R4)
+            src = ipaddress.ip_address(str(p["source"]).split("%")[0])
+            if not any(getattr(a, "ip", None) == src or getattr(getattr(a, "iface", None), "ip", None) == src
+                       for a in addrs):
+                raise DriverError(f"ping source {p['source']} is not an address of {p['node']} in vrf "
+                                  f"{p.get('vrf', 'default')}")
     obs = d.ping(p["target"], p.get("source"), count, p.get("vrf", "default"))
     sent, received = obs.value
     if sent == 0:
@@ -274,6 +289,8 @@ def is_post_convergence(check: Check) -> bool:
 def _evaluate(check: Check, driver: Driver) -> tuple[bool, str, list]:
     try:
         return EVALUATORS[check.type](driver, check.params)
+    except ManagementPathError:
+        raise   # a route out over the management network ends the run (exit 2): never an unready sample (B3, R5)
     except Exception as e:  # a crashed check is a failed check, with the reason kept
         # the state command failed or its output was unreadable: the node gave no usable state
         return False, Unready(f"error: {e}"), []

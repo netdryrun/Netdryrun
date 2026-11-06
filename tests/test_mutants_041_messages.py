@@ -108,8 +108,8 @@ def test_a_scenario_logs_the_bgp_gate_warning(monkeypatch):
     logs = []
     runner.run_scenario(e.lab, _scenario(route("x", node="r3", present=False, timeout=6)), e.drivers, settle=1,
                         hold=1, driver_for=lambda n: e.drivers[n], log=logs.append)
-    assert ("warning: r3 never returned BGP state; its post-convergence checks start without the BGP gate"
-            in logs)
+    assert ("warning: convergence: r3's BGP state could not be read by the cap (6s); the check was evaluated without "
+            "the BGP gate" in logs)
 
 
 def test_a_failed_restore_logs_why_the_held_results_are_inconclusive(monkeypatch):

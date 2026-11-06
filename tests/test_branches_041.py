@@ -73,8 +73,8 @@ def test_eos_and_nxos_drivers_read_their_own_addresses():
     d = EosDriver(Lab([("show ip interface", fx("eos_local_ipv4.json")),
                        ("show ipv6 interface", fx("eos_local_ipv6.json"))]), "r1")
     assert ipaddress.ip_interface("10.0.200.1/30") in d.local_addresses()
-    n = NxosDriver(Lab([("show ip interface brief vrf all", fx("nxos_local_ip_brief.json"))]), "n1")
-    assert [str(a) for a in n.local_addresses("RED")] == ["10.0.2.1/32"]
+    n = NxosDriver(Lab([("show ip interface vrf all", fx("nxos_local_ip_detail.json")), ("show ipv6 interface vrf all", fx("nxos_local_ipv6_detail.json"))]), "n1")
+    assert [str(a) for a in n.local_addresses("RED")] == ["10.0.2.1/30", "2001:db8:2::1/64", "fe80::e63:5bff:fe00:1b08/64"]
 
 
 # ------------------------------------------------------------------------------------------- End-of-RIB readers

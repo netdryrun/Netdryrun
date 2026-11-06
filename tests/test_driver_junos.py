@@ -484,7 +484,9 @@ def test_must_fail_on_junos(raw, override):
     {**BR, "prefix": "10.20.0.0/24", "communities": ["65002:100", "65002:1:2"], "as_path": "65002", "med": 50,
      "local_pref": 100, "next_hop": "10.0.1.2"},
     {**BR, "prefix": "10.30.0.0/24", "present": False}, {**BR, "prefix": "0.0.0.0/0", "as_path": "65002"},
-    {**PING, "target": "10.20.0.1", "source": "10.255.0.1"}, {**PING, "target": "10.88.0.1", "expect": "failure"},
+    # the source is one of j1's own addresses in the address capture (lo0): a source the node doesn't own is not
+    # evaluated (red team round 4, B3 R4)
+    {**PING, "target": "10.20.0.1", "source": "192.168.10.1"}, {**PING, "target": "10.88.0.1", "expect": "failure"},
 ], ids=lambda r: f"{r['type']}-{r.get('neighbor') or r.get('prefix') or r.get('target')}")
 def test_matrix_harness_can_pass(raw):
     """The same harness passes real healthy state, so the must-fail cases fail for the right reason."""

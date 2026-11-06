@@ -107,6 +107,8 @@ class RouterosDriver(Driver):
             raise DriverError(f"{prefix}: IPv6 routes are not supported on routeros yet")
         return str(net)
 
+    own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
+
     def local_addresses(self, vrf: str = "default") -> list:
         from .addresses import parse_routeros_addresses
         vrf = check_vrf_name(vrf)

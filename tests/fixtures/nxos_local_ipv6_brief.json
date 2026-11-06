@@ -1,0 +1,35 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_intf":	{
+				"ROW_intf":	[{
+						"vrf-name-out":	"default",
+						"intf-name":	"Ethernet1/1",
+						"proto-state":	"up",
+						"link-state":	"up",
+						"admin-state":	"up",
+						"prefix":	"2001:db8:1::1",
+						"linklocal-addr":	"fe80::e63:5bff:fe00:1b08"
+					}, {
+						"vrf-name-out":	"management",
+						"intf-name":	"mgmt0",
+						"proto-state":	"up",
+						"link-state":	"up",
+						"admin-state":	"up",
+						"prefix":	"2001:db8::2",
+						"linklocal-addr":	"fe80::e00:e8ff:fe63:5b00"
+					}, {
+						"vrf-name-out":	"RED",
+						"intf-name":	"Ethernet1/2",
+						"proto-state":	"up",
+						"link-state":	"up",
+						"admin-state":	"up",
+						"prefix":	"2001:db8:2::1",
+						"linklocal-addr":	"fe80::e63:5bff:fe00:1b08"
+					}]
+			}
+		}
+	},
+	"id":	1
+}

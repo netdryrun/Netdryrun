@@ -57,6 +57,40 @@ code before the fix:
   asserted nothing. A pattern that matches every learned probe path (`.+` and `\d` too) is a config error; `^$` stays valid.
 - **An `only` entry with host bits is refused** (B-9004; see Changed).
 
+### Fixes from the second 0.4.1 red team and audit (2026-11-06)
+
+Each fixed with a test that fails on the code before the fix (`tests/test_redteam_fixes_041_round4.py`,
+`tests/test_mgmt.py`):
+
+- **A ping with no lab route no longer passes over Docker's management network** (B3, a false pass in every released
+  version; [advisory](advisories/0.4.0-further-false-passes/) cases 16 and 17). Docker gives every Linux container a
+  default route over eth0, and containerlab's cEOS config adds one over Management0: with the lab's route gone, the
+  ping left through it and anything the Docker host reaches answered; `route 0.0.0.0/0` without `protocol:` passed on
+  it too. After `setup:` and before the first check, Netdryrun now deletes exactly that route (Linux and SONiC nodes in
+  the node, cEOS in its config; logged per node in the report's `environment.nodes.<node>.management_default`). Any
+  other route over a management interface, a route that comes back (checked before and after every FRR, SONiC and cEOS ping, and
+  around each phase and scenario), a ping target or source in the management network, a check on a node in the Docker
+  host's namespace, or routes that can't be read end the run as an error (exit 2). Internet access from lab nodes now
+  works only during `setup:`. A ping `source` must be one of the node's own addresses.
+
+- **Every own address a ping can't leave the node for is read** (RT-0044, RT-0045, RT-0046, RT-0047). Cisco NX-OS read
+  IPv4 primaries only, so a ping to the node's own IPv6 or secondary address passed; it now reads `show ip interface vrf
+  all` and `show ipv6 interface vrf all` (live capture), with masks, so a subnet broadcast is refused there too. An
+  Arista EOS `ip address virtual` (and its secondaries) is the node's own. The IPv6 subnet-router anycast address of an
+  own prefix is refused on every driver. Each driver declares the address families its read covers; a target of
+  another family is not evaluated, never passed.
+- **The gate doesn't give up on a ping-only node at its first failed read** (B2). Any failed read other than "no BGP
+  instance" is an unready sample, retried up to the cap.
+- **A node the file says runs BGP whose state is never readable is not evaluated** (B1). Its post-convergence checks
+  fail as not evaluated at the cap, every sample unready; before, they ran without the gate. On a node with no BGP
+  check they run with a `gate-unreadable` warning.
+- **A family whose End-of-RIB isn't tracked is said so.** A session carrying routes in a family its End-of-RIB read
+  doesn't list (graceful restart not negotiated for that family) settles by stable counts with the once-per-run
+  `eor-untracked` warning, instead of silently.
+- **Address output of another shape is an error, never "no addresses".** The own-address parsers (FRR and SONiC `ip -j
+  addr`, Arista EOS, SR Linux, Cisco NX-OS) refuse entries they don't know.
+- **JUnit reports carry the convergence warnings** in each testcase's `<system-out>`; the status is unchanged.
+
 Eight false passes are fixed: one in `record` (0.3.3 and 0.4.0, the [advisory](advisories/)) and seven found by the weekly adversarial run on 2026-11-01 (RT-0021 to RT-0027 in `tests/redteam/`). 0.3.3 and 0.4.0 will be yanked from PyPI.
 
 - **`record` no longer lets a small leak pass** (found by our end-to-end test, the synthetic stranger, on 2026-10-31; [example](examples/frr-customer-leak)). From 0.3.3 it recorded each neighbor's prefix count as a range, today's count up to 20% more (at least 2): a change that let one foreign prefix through a customer's broken inbound filter stayed in range, and `netdryrun run` exited 0. Now each eBGP neighbor's `bgp_prefixes` check also lists the prefixes it sends today under the new key `only`, and any other prefix from it fails, even within the range or replacing a listed one. iBGP neighbors keep the range alone. `only` is read on FRR and SONiC (`show bgp <afi> unicast neighbors <address> routes json`, captured on FRR 10.4.1); on the other drivers, and for a neighbor with more than 500 prefixes, `record` writes the exact count instead and a warning in the file (a change that replaces a prefix still passes there). A baseline recorded with 0.3.3 or 0.4.0 has no `only` lists: record it again. Trade-off: growth you expect from an eBGP neighbor (a customer's new block) now fails the recorded file until you add the prefix to `only`.

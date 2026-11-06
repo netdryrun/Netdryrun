@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 
 from .base import DriverError, unexpected
 
@@ -53,11 +54,12 @@ def parse_ip_j_addr(text: str, skip_enslaved: bool, command: str = "ip -j addr")
         raise unexpected(command, str(data)[:150])
     out = []
     for link in data:
-        if not isinstance(link, dict) or not isinstance(link.get("addr_info", []), list):
+        # every live link prints addr_info ([] without addresses): one without it is unexpected, never "no addresses"
+        if not isinstance(link, dict) or not isinstance(link.get("addr_info"), list):
             raise unexpected(command, str(link)[:150])
         if skip_enslaved and link.get("master"):
             continue
-        for a in link.get("addr_info", []):
+        for a in link["addr_info"]:
             if not isinstance(a, dict) or "local" not in a:
                 raise unexpected(command, str(a)[:150])
             addr = _iface(command, a["local"], a.get("prefixlen"))
@@ -82,16 +84,107 @@ def parse_eos_interfaces(text: str, vrf: str, command: str) -> list:
         if i["vrf"] != vrf:
             continue
         ia = i.get("interfaceAddress")
-        if isinstance(ia, dict):   # IPv4
-            for a in [ia.get("primaryIp"), *(ia.get("secondaryIpsOrderedList") or [])]:
-                if isinstance(a, dict) and a.get("address") not in (None, "0.0.0.0"):
+        if ia is not None:   # IPv4
+            if not isinstance(ia, dict):
+                raise unexpected(command, f"{name}: interfaceAddress {str(ia)[:80]}")
+            # an `ip address virtual` (anycast gateway) is the node's own as much as its primary (red team round 4,
+            # RT-0046); "0.0.0.0" is how cEOS prints an unset one (eos_local_ipv4.json)
+            singles = [ia.get("primaryIp"), ia.get("virtualIp")]
+            lists = [ia.get("secondaryIpsOrderedList"), ia.get("virtualSecondaryIpsOrderedList")]
+            if any(x is not None and not isinstance(x, list) for x in lists):
+                raise unexpected(command, f"{name}: an address list that isn't a list")
+            for a in singles + [x for lst in lists if lst for x in lst]:
+                if a is None:
+                    continue
+                if not isinstance(a, dict) or "address" not in a:
+                    raise unexpected(command, f"{name}: address entry {str(a)[:80]}")
+                if a["address"] != "0.0.0.0":
                     out.append(_iface(command, a["address"], a.get("maskLen")))
-        for a in i.get("addresses") or []:   # IPv6
-            if isinstance(a, dict) and a.get("address"):
-                out.append(_iface(command, a["address"], str(a.get("subnet", "/128")).split("/")[-1]))
+        addrs6 = i.get("addresses")
+        if addrs6 is not None and not isinstance(addrs6, list):
+            raise unexpected(command, f"{name}: addresses {str(addrs6)[:80]}")
+        for a in addrs6 or []:   # IPv6
+            if not isinstance(a, dict) or not a.get("address"):
+                raise unexpected(command, f"{name}: IPv6 address entry {str(a)[:80]}")
+            out.append(_iface(command, a["address"], str(a.get("subnet", "/128")).split("/")[-1]))
         ll = i.get("linkLocal")
-        if isinstance(ll, dict) and ll.get("address"):
-            out.append(_iface(command, ll["address"], 64))
+        if ll is not None:
+            if not isinstance(ll, dict):
+                raise unexpected(command, f"{name}: linkLocal {str(ll)[:80]}")
+            if ll.get("address"):
+                out.append(_iface(command, ll["address"], 64))
+    return out
+
+
+def _nxos_rows(command: str, text: str) -> list:
+    data = _load(command, text)
+    if isinstance(data, dict) and "result" in data and data["result"] is None:
+        return []   # NX-API's "printed nothing" (no address of this family anywhere; nxos_*_emptyvrf_null.txt)
+    try:
+        body = data["result"]["body"]
+    except (KeyError, TypeError):
+        raise unexpected(command, str(data)[:150]) from None
+    rows = (body.get("TABLE_intf") or {}).get("ROW_intf") if isinstance(body, dict) else None
+    if isinstance(rows, dict):
+        rows = [rows]
+    if not isinstance(rows, list):
+        raise unexpected(command, str(body)[:150])
+    for r in rows:
+        if not isinstance(r, dict) or not isinstance(r.get("vrf-name-out"), str):
+            raise unexpected(command, f"row {str(r)[:80]}")
+    return rows
+
+
+def _rows_of(command: str, table, key: str) -> list:
+    rows = (table or {}).get(key) if isinstance(table, (dict, type(None))) else None
+    if table is not None and rows is None:
+        raise unexpected(command, f"{key}: {str(table)[:80]}")
+    if isinstance(rows, dict):
+        rows = [rows]
+    if rows is not None and not isinstance(rows, list):
+        raise unexpected(command, f"{key}: {str(rows)[:80]}")
+    return rows or []
+
+
+@_strict
+def parse_nxos_ip_detail(text: str, vrf: str, command: str = "show ip interface vrf all") -> list:
+    """NX-API `show ip interface vrf all` (n9kv 10.x, captured 2026-11-06): each interface's primary `prefix`/`masklen`
+    and its secondaries (TABLE_secondary_address rows with prefixN/masklenN), which the brief form leaves out (red team
+    round 4, RT-0045). The masks make subnet broadcasts refusable too."""
+    out = []
+    for r in _nxos_rows(command, text):
+        if r["vrf-name-out"] != vrf:
+            continue
+        if not r.get("prefix") or "masklen" not in r:
+            raise unexpected(command, f"{r.get('intf-name')}: no prefix or masklen")
+        out.append(_iface(command, r["prefix"], r["masklen"]))
+        for sec in _rows_of(command, r.get("TABLE_secondary_address"), "ROW_secondary_address"):
+            if not isinstance(sec, dict):
+                raise unexpected(command, f"{r.get('intf-name')}: secondary {str(sec)[:80]}")
+            pairs = [(k, "masklen" + k[len("prefix"):]) for k in sec if re.fullmatch(r"prefix\d+", k)]
+            if not pairs or any(m not in sec for _, m in pairs):
+                raise unexpected(command, f"{r.get('intf-name')}: secondary {str(sec)[:80]}")
+            out += [_iface(command, sec[k], sec[m]) for k, m in pairs]
+    return out
+
+
+@_strict
+def parse_nxos_ipv6_detail(text: str, vrf: str, command: str = "show ipv6 interface vrf all") -> list:
+    """NX-API `show ipv6 interface vrf all` (captured 2026-11-06): every address of TABLE_addr (`addr` with its prefix
+    length) and the interface's link-local address."""
+    out = []
+    for r in _nxos_rows(command, text):
+        if r["vrf-name-out"] != vrf:
+            continue
+        addrs = _rows_of(command, r.get("TABLE_addr"), "ROW_addr")
+        if not addrs and not r.get("linklocal-addr"):   # link-local only (`use-link-local-only`) has no TABLE_addr
+            raise unexpected(command, f"{r.get('intf-name')}: no TABLE_addr")
+        for a in addrs:
+            if not isinstance(a, dict) or not isinstance(a.get("addr"), str):
+                raise unexpected(command, f"{r.get('intf-name')}: address {str(a)[:80]}")
+            out.append(_iface(command, a["addr"]))
+        if r.get("linklocal-addr"):
+            out.append(_iface(command, r["linklocal-addr"], 64))
     return out
 
 
@@ -108,8 +201,16 @@ def parse_nxos_ip_brief(text: str, vrf: str, command: str = "show ip interface b
         rows = [rows]
     if not isinstance(rows, list):
         raise unexpected(command, str(body)[:150])
-    return [_iface(command, r["prefix"], 32) for r in rows
-            if isinstance(r, dict) and r.get("vrf-name-out") == vrf and r.get("prefix")]
+    out = []
+    for r in rows:
+        if not isinstance(r, dict) or not isinstance(r.get("vrf-name-out"), str):
+            raise unexpected(command, f"row {str(r)[:80]}")
+        if r["vrf-name-out"] != vrf:
+            continue
+        if not r.get("prefix"):
+            raise unexpected(command, f"{r.get('intf-name')}: no prefix")
+        out.append(_iface(command, r["prefix"], 32))
+    return out
 
 
 @_strict
@@ -137,9 +238,16 @@ def parse_srl_addresses(text: str, command: str) -> list:
         raise unexpected(command, str(data)[:150])
     out = []
     for i in ifs:
-        for sub in (i.get("subinterface") or []) if isinstance(i, dict) else []:
+        if not isinstance(i, dict) or not isinstance(i.get("subinterface", []), list):
+            raise unexpected(command, f"interface {str(i)[:80]}")
+        for sub in i.get("subinterface", []):
+            if not isinstance(sub, dict):
+                raise unexpected(command, f"subinterface {str(sub)[:80]}")
             for fam in ("ipv4", "ipv6"):
-                for a in ((sub.get(fam) or {}).get("address") or []) if isinstance(sub, dict) else []:
+                block = sub.get(fam, {})
+                if not isinstance(block, dict) or not isinstance(block.get("address", []), list):
+                    raise unexpected(command, f"{fam} block {str(block)[:80]}")
+                for a in block.get("address", []):
                     if not isinstance(a, dict) or "ip-prefix" not in a:
                         raise unexpected(command, str(a)[:150])
                     out.append(_iface(command, a["ip-prefix"]))
@@ -195,5 +303,8 @@ def refuse_own_target(node: str, target: str, addrs: list) -> None:
         if a.ip == ip:
             raise DriverError(f"ping target {target} is an address of {node} itself ({a}): the ping never leaves the "
                               "node, so it says nothing about the network")
+        if a.version == 6 and a.network.prefixlen < 127 and a.network.network_address == ip:
+            raise DriverError(f"ping target {target} is the subnet-router anycast address of {node}'s prefix {a.network}: "
+                              "the node answers it itself, so the ping never leaves the node")
         if a.version == 4 and a.network.prefixlen < 31 and a.network.broadcast_address == ip:
             raise DriverError(f"ping target {target} is the broadcast address of {node}'s subnet {a.network}")

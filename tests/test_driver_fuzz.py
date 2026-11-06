@@ -8,6 +8,7 @@ DriverError as a lab problem, anything else as a crash.
 """
 import ipaddress
 import json
+import re
 import random
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
@@ -242,6 +243,12 @@ CASES = [
     Case("addresses.parse_nxos_ip_brief", lambda t: sorted(map(str, addresses.parse_nxos_ip_brief(t, "default"))),
          ["nxos_local_ip_brief.json"],
          lambda d: isinstance(d, dict) and isinstance((d.get("result") or {}).get("body"), dict)),
+    Case("addresses.parse_nxos_ip_detail", lambda t: sorted(map(str, addresses.parse_nxos_ip_detail(t, "default"))),
+         ["nxos_local_ip_detail.json"], lambda d: isinstance(d, dict) and (isinstance((d.get("result") or {}).get("body"), dict)
+                                         or ("result" in d and d["result"] is None))),
+    Case("addresses.parse_nxos_ipv6_detail", lambda t: sorted(map(str, addresses.parse_nxos_ipv6_detail(t, "RED"))),
+         ["nxos_local_ipv6_detail.json"], lambda d: isinstance(d, dict) and (isinstance((d.get("result") or {}).get("body"), dict)
+                                         or ("result" in d and d["result"] is None))),
     Case("addresses.parse_routeros_addresses",
          lambda t: sorted(map(str, addresses.parse_routeros_addresses(addresses._load("x", t), "default", "x"))),
          ["routeros_local_ipv4.json", "routeros_local_ipv6.json"], lambda d: isinstance(d, list)),
@@ -306,6 +313,10 @@ CASES = [
          ["junos_route_v6.txt"], junos_routes_empty),
     Case("junos.parse_routes[instance]", lambda t: junos.parse_routes(t, "10.40.0.0/24", "RED.inet.0"),
          ["junos_route_red.txt"], junos_routes_empty),
+    # no capture has a route out of a management interface: the connected capture, with its lab interface as the pattern
+    Case("junos.parse_management_routes",
+         lambda t: junos.parse_management_routes(t, mgmt=re.compile(r"et-")),
+         ["junos_route_table.txt"], junos_route_empty),
     Case("junos.parse_all_routes", lambda t: junos.parse_all_routes(t), ["junos_route_table.txt"], junos_route_empty),
     Case("junos.parse_bgp_paths", lambda t: junos.parse_bgp_paths(t, "10.20.0.0/24"), ["junos_route_paths.txt"],
          junos_bgp_paths_empty),

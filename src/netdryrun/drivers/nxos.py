@@ -586,12 +586,15 @@ class NxosDriver(Driver):
         if state.lower() != "up":
             raise NoSuchInstance(f"VRF {vrf!r} is {state} on {self.node}")
 
+    own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
+
     def local_addresses(self, vrf: str = "default") -> list:
-        """IPv4 only: `show ip interface brief vrf all` is the captured form. The IPv6 brief has no capture yet, so an
-        IPv6 target can't be checked: the ping check reads that as unready (it never passes on it)."""
-        from .addresses import parse_nxos_ip_brief
+        """Both families from the detail forms (`show ip interface vrf all`, `show ipv6 interface vrf all`): the brief
+        form lists primaries only, without masks (red team round 4, RT-0044/RT-0045; captured 2026-11-06)."""
+        from .addresses import parse_nxos_ip_detail, parse_nxos_ipv6_detail
         vrf = check_vrf_name(vrf)
-        return parse_nxos_ip_brief(self._nxapi("show ip interface brief vrf all", []), vrf)
+        return (parse_nxos_ip_detail(self._nxapi("show ip interface vrf all", []), vrf)
+                + parse_nxos_ipv6_detail(self._nxapi("show ipv6 interface vrf all", []), vrf))
 
     def end_of_rib(self, vrf: str, neighbors: dict) -> dict[str, dict[str, str]]:
         """From the text neighbor detail, per established neighbor and family (the JSON summary has no End-of-RIB);

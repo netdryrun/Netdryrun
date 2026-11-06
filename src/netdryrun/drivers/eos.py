@@ -350,6 +350,8 @@ class EosDriver(Driver):
     def _cli(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["Cli", "-p", "15", "-c", command], evidence)
 
+    own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
+
     def local_addresses(self, vrf: str = "default") -> list:
         from .addresses import parse_eos_interfaces
         vrf = check_vrf_name(vrf)
@@ -408,6 +410,9 @@ class EosDriver(Driver):
         ev: list[dict] = []
         fam = "ipv6 " if ipaddress.ip_address(target).version == 6 else ""
         cmd = f"ping {fam}vrf {vrf} {target} repeat {count}" + (f" source {source}" if source else "")
+        from ..mgmt import check_node   # no route out over Management0, before and after (B3, R5)
+        check_node(self.lab, self.node, f"before the ping to {target}")
         r = self.lab.exec(self.node, ["Cli", "-p", "15", "-c", cmd], timeout=count * 2 + 15)
         ev.append({"node": self.node, "cmd": f"Cli -c {cmd}", "rc": r.rc, "output": r.stdout[-5000:], "stderr": r.stderr[-1000:]})
+        check_node(self.lab, self.node, f"after the ping to {target}")
         return Observation(parse_ping(r.stdout), ev)

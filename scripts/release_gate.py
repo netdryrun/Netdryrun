@@ -85,6 +85,9 @@ VERDICT_MODULES = {
     # stand (runner._never_left). It was outside mutation through Layer 6 rounds 2-9 (found 2026-11-04 with the
     # prefix-limit proof); scoped to the delivery verdict path
     "faults": "src/netdryrun/faults.py",
+    # the management path (0.4.1, red team round 4, B3): whether a route out of the lab over Docker's management
+    # network is removed or ends the run decides whether a ping's pass means the lab carried it
+    "mgmt": "src/netdryrun/mgmt.py",
 }
 
 # Coverage floors (percent of lines and branches). A ratchet: raise a floor when coverage rises,
@@ -131,7 +134,9 @@ COVERAGE_FLOORS = {"checks": 99, "config": 99, "runner": 98, "drivers": 99, "ver
                    "verify.frr": 88, "verify.snapshot": 90, "verify.converge": 96, "verify.run": 83, "verify.report": 88,
                    # faults joined in 0.4.1 at 97.2% (lines and branches, 2026-11-05, the strict rule without the
                    # deferred prefix-limit proof), rounded down, minus one
-                   "faults": 96}
+                   "faults": 96,
+                   # mgmt joined in 0.4.1 (red team round 4, B3); floor set from its first measured coverage
+                   "mgmt": 98}
 
 # G1 mutation closure (QUALITY-SYSTEM rule 10, class E7; found 2026-11-04: faults.py decided whether a scenario's passes
 # stand and was never mutated). Every module under src/netdryrun/ is in VERDICT_MODULES or here, with the reason it

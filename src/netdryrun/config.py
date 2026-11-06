@@ -191,6 +191,10 @@ def _ping_target(where: str, params: dict) -> None:
     multicast or limited broadcast, and never the source address itself. A target that is one of the pinging node's own
     addresses is refused at run time (Driver.local_addresses)."""
     ip = ipaddress.ip_address(params["target"].split("%")[0])
+    if getattr(ip, "ipv4_mapped", None) is not None:
+        # ::ffff:a.b.c.d is an IPv4 target in IPv6 form: the node's own IPv4 addresses would never be compared with it
+        raise ConfigError(f"{where}: target {params['target']} is an IPv4-mapped IPv6 address: write the IPv4 address "
+                          f"{ip.ipv4_mapped}")
     why = ("unspecified" if ip.is_unspecified else "a loopback address" if ip.is_loopback else
            "a multicast address" if ip.is_multicast else
            "the limited broadcast address" if ip == ipaddress.IPv4Address("255.255.255.255") else None)

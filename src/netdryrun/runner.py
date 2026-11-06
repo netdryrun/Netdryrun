@@ -26,7 +26,8 @@ from .drivers import BETA_DRIVERS, DriverError, Undetectable, check_supported, f
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
 from .faults import RouteInjection
-from .lab import Lab, LabError
+from . import mgmt
+from .lab import NXOS_KINDS, VM_KINDS, Lab, LabError
 
 # Every wait in a run goes through these two names (looked up at call time), so tests can drive a whole
 # run on a fake clock.
@@ -275,6 +276,22 @@ def preflight(config: Config, lab: Lab, *, full: bool = False) -> None:
             resolve(lab.nodes[node], config.drivers.get(node))
     for c in all_checks:
         check_supported(lab, c, config.drivers.get(c.node))
+        node = lab.nodes[c.node]
+        # a check in the management VRF or instance tests Docker's network, not the lab's (B3, R2)
+        if (c.params.get("vrf") == "management" and node.kind in NXOS_KINDS) or \
+                (c.params.get("vrf") == "mgmt" and node.kind in ("nokia_srlinux", "srl")):
+            raise LabError(f"check '{c.name}' reads vrf {c.params['vrf']} on {c.node}: that is its management "
+                           "network (Docker's), not a lab VRF")
+        if node.kind in VM_KINDS or node.kind.startswith("vr-"):
+            try:
+                drv = resolve(node, config.drivers.get(c.node))
+            except Exception:
+                drv = None
+            if drv in ("frr", "sonic"):
+                # the frr/sonic drivers would run in the vrnetlab launcher's namespace, which keeps Docker's
+                # default route, not in the VM (B3 adjacent, R12)
+                raise LabError(f"node {c.node} is a VM kind ({node.kind}): the {drv} driver would read and ping from "
+                               "the container that launches the VM, not from the router")
     for f in (f for sc in config.scenarios for f in sc.faults if f.kind == "inject_routes"):
         driver = resolve(lab.nodes[f.node], config.drivers.get(f.node))
         if driver != "frr":
@@ -526,6 +543,23 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             for node, cmds in config.setup.items():
                 log(f"Running setup on {node}...")
                 lab.run_setup(node, cmds, log=log)
+        # After setup:, before the first check: no route out of the lab over the management network (red team round
+        # 4, B3; design e, option A): Docker's default route is deleted, any other is a run error
+        every_check = config.checks + [c for sc in config.scenarios for c in sc.checks]
+        state = mgmt.prepare(lab, every_check, log=log, sleep=_sleep)
+        for n in sorted({c.node for c in every_check}):
+            try:
+                drv = resolve(lab.nodes[n], config.drivers.get(n))
+            except Exception:
+                continue   # no driver: for_node says so when the check runs
+            mgmt.require_covered(lab, state, n, drv)
+        env_nodes = report.environment.setdefault("nodes", {})
+        for name, m in state.items():
+            env_nodes.setdefault(name, {})["management_default"] = mgmt.describe(m, lab.nodes[name].kind)
+        if any(m.removed for m in state.values()):
+            # zebra withdraws a redistributed kernel default asynchronously: let routing settle before any check (R6)
+            log(f"Management default routes removed; settling {settle:g}s before the checks...")
+            _sleep(settle)
 
         drivers = {}
 
@@ -540,6 +574,7 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         positives = [c for c in config.checks if not is_post_convergence(c)]
         negatives = [c for c in config.checks if is_post_convergence(c)]
         report.results += run_round_robin(positives, drivers, on_result=on_result, clock=_clock, sleep=_sleep)
+        mgmt.recheck(lab, "after the positive checks")
         _check_declared_peers(config.eor_not_sent, driver_for)
         if negatives or config.scenarios:
             settle, hold = _stretch_for_advertisement_intervals(lab, driver_for, config, settle, hold, log)
@@ -555,8 +590,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             log(f"Convergence checks done; settling {settle:g}s before post-convergence checks...")
             _sleep(settle)
             ready = [c for c in negatives if id(c) not in not_converged]
+            mgmt.recheck(lab, "before the post-convergence checks")
             report.results += hold_together(ready, drivers, hold=hold, on_result=_with_warnings(gate_warnings, on_result),
                                             clock=_clock, sleep=_sleep)
+            mgmt.recheck(lab, "after the post-convergence checks")
             for r in not_converged.values():
                 report.results.append(r)
                 if on_result:
@@ -581,9 +618,11 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         for sc in scenarios:
             for check in sc.checks:
                 driver_for(check.node)
+            mgmt.recheck(lab, f"before scenario '{sc.name}'")
             report.results += run_scenario(lab, sc, drivers, settle=settle, hold=hold, on_result=on_result, log=log,
                                            driver_for=driver_for, baseline_checks=config.checks,
                                            eor_not_sent=config.eor_not_sent, eor_reported=eor_reported)
+            mgmt.recheck(lab, f"after scenario '{sc.name}'")
             # Prove the network recovered (not just slept): the positive checks that passed before
             # the scenario must pass again. Checks the change already broke can't recover, so they
             # don't count. Not recovering is a finding about the network, reported as failed checks.
@@ -834,9 +873,11 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     if declared and lab is not None:
         excluded |= _far_ends(lab, declared)         # a session declared down is down at both ends
     # nodes the file says run BGP: any BGP check on them, or a route check that names protocol bgp
-    bgp_nodes = {c.node for c in all_checks
-                 if c.type in ("bgp_session", "bgp_prefixes", "bgp_route")
-                 or (c.type == "route" and str(c.params.get("protocol", "")).lower() == "bgp")}
+    bgp_checks = [c for c in all_checks if c.type in ("bgp_session", "bgp_prefixes", "bgp_route")
+                  or (c.type == "route" and str(c.params.get("protocol", "")).lower() == "bgp")]
+    bgp_nodes = {c.node for c in bgp_checks}
+    # and the VRFs they say it runs BGP in: a node's other VRFs may have no BGP at all (round 4 code adversary, 1)
+    bgp_groups = {(c.node, c.params.get("vrf", "default")) for c in bgp_checks}
     deadline = {g: max(c.timeout for c in cs) for g, cs in groups.items()}
     cap = max(deadline.values(), default=0.0)
     vrfs = {"default"} | {c.params["vrf"] for c in all_checks if c.params.get("vrf")}
@@ -879,8 +920,12 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
             try:
                 nbrs = (extra_drivers[g] if is_extra else drivers[node]).bgp_neighbors(vrf).value
             except Exception as e:
-                if not is_extra and first and all(c.type == "ping" for c in groups[g]):
-                    pending.discard(g)   # not a BGP speaker; nothing to wait for
+                if (not is_extra and first and g not in bgp_groups and isinstance(e, NoSuchInstance)
+                        and all(c.type == "ping" for c in groups[g])):
+                    # a ping-only node no check says runs BGP, with no BGP instance at all: nothing to wait for. Any
+                    # other failed read (a bgpd still starting) is an unready sample like any node's, and a node never
+                    # readable by the cap is warned or blocked there (red team round 4, B2, design m4)
+                    pending.discard(g)
                     continue
                 if is_extra and isinstance(e, NoSuchInstance) and (vrf != "default" or node not in bgp_nodes):
                     pending.discard(g)   # no such VRF, or no BGP on a node no check says runs it: nothing to wait for
@@ -927,6 +972,11 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
             for a, fams in sorted(eor.items()):
                 if (node, vrf, a) in excluded or not isinstance(fams, dict):
                     continue
+                carried = {f for f, n in getattr(nbrs.get(a), "prefixes", {}).items() if n}
+                if "*" not in fams and carried - set(fams):
+                    # routes in a family the End-of-RIB read doesn't list: graceful restart wasn't negotiated for it,
+                    # so its End-of-RIB can't be tracked: judged by stable counts, warned once (round 4, h)
+                    untracked.add(a)
                 for fam, state in sorted(fams.items()):
                     if state == "untracked":
                         untracked.add(a)
@@ -983,8 +1033,22 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                     warn_extra(g, "gate-counts-moving", f"convergence: {g[0]}'s BGP prefix counts{where} were still "
                                f"changing when this check ran (waited {deadline[g]:g}s)")
                 continue
-            if not s["answered"]:
-                log(f"warning: {g[0]} never returned BGP state; its post-convergence checks start without the BGP gate")
+            if not s["answered"] and g in bgp_groups:
+                # never readable on a node the file says runs BGP: nothing showed it converged, so its post-convergence
+                # checks are not evaluated, as with no neighbors at all (red team round 4, B1)
+                for c in groups[g]:
+                    detail = Unready(f"not evaluated: {g[0]}'s BGP state{where} could not be read by the cap "
+                                     f"({deadline[g]:g}s): {' '.join(s['error'].split())[:200]}. A post-convergence "
+                                     "check means nothing before the node's BGP state shows it converged")
+                    blocked[id(c)] = Result(c, False, detail, len(s["history"]), round(t, 1), started, [],
+                                            s["history"][-50:], samples_passed=0,
+                                            samples_unready=len(s["history"]))
+            elif not s["answered"]:
+                text = (f"convergence: {g[0]}'s BGP state{where} could not be read by the cap ({deadline[g]:g}s); the "
+                        "check was evaluated without the BGP gate")
+                log(f"warning: {text}")
+                for c in groups[g]:
+                    warn(warnings, c, "gate-unreadable", g[0], text)
             elif s["empty"] and g[0] in bgp_nodes:
                 # Still no neighbors at the cap on a node the file says runs BGP: its config never loaded, and a
                 # leak guard would pass on the empty table. Not evaluated, every sample unready.

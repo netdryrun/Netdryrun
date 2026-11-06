@@ -1,0 +1,161 @@
+{
+	"jsonrpc":	"2.0",
+	"result":	{
+		"body":	{
+			"TABLE_intf":	{
+				"ROW_intf":	[{
+						"vrf-name-out":	"default",
+						"intf-name":	"Ethernet1/1",
+						"iod":	5,
+						"proto-state":	"up",
+						"link-state":	"up",
+						"admin-state":	"up",
+						"prefix":	"2001:db8:1::/64",
+						"linklocal-addr":	"fe80::e63:5bff:fe00:1b08",
+						"linklocal-configured":	"FALSE",
+						"linklocal-state":	"VALID",
+						"mrouting-enabled":	"disabled",
+						"report-linklocal-enabled":	"disabled",
+						"forwarding-enabled":	"disabled",
+						"mgroup-locally-joined":	"TRUE",
+						"mcast-sgentries-joined":	"FALSE",
+						"mtu":	1500,
+						"urpf-mode":	"none",
+						"ipv6-lstype":	"none",
+						"stats-last-reset":	"never",
+						"upkt-fwd":	0,
+						"upkt-orig":	5,
+						"upkt-consumed":	5,
+						"ubyte-fwd":	0,
+						"ubyte-orig":	578,
+						"ubyte-consumed":	448,
+						"mpkt-fwd":	0,
+						"mpkt-orig":	7,
+						"mpkt-consumed":	2,
+						"mbyte-fwd":	0,
+						"mbyte-orig":	614,
+						"mbyte-consumed":	128,
+						"TABLE_addr":	{
+							"ROW_addr":	{
+								"addr":	"2001:db8:1::1/64"
+							}
+						},
+						"TABLE_maddr":	{
+							"ROW_maddr":	[{
+									"m-addr":	"ff02::2"
+								}, {
+									"m-addr":	"ff02::1"
+								}, {
+									"m-addr":	"ff02::1:ff00:1"
+								}, {
+									"m-addr":	"ff02::1:ff00:1b08"
+								}, {
+									"m-addr":	"ff02::1:ff00:0"
+								}]
+						}
+					}, {
+						"vrf-name-out":	"management",
+						"intf-name":	"mgmt0",
+						"iod":	2,
+						"proto-state":	"up",
+						"link-state":	"up",
+						"admin-state":	"up",
+						"prefix":	"2001:db8::/64",
+						"linklocal-addr":	"fe80::e00:e8ff:fe63:5b00",
+						"linklocal-configured":	"FALSE",
+						"linklocal-state":	"VALID",
+						"mrouting-enabled":	"disabled",
+						"report-linklocal-enabled":	"disabled",
+						"forwarding-enabled":	"disabled",
+						"mgroup-locally-joined":	"TRUE",
+						"mcast-sgentries-joined":	"FALSE",
+						"mtu":	1500,
+						"urpf-mode":	"none",
+						"ipv6-lstype":	"none",
+						"stats-last-reset":	"never",
+						"upkt-fwd":	0,
+						"upkt-orig":	0,
+						"upkt-consumed":	0,
+						"ubyte-fwd":	0,
+						"ubyte-orig":	0,
+						"ubyte-consumed":	0,
+						"mpkt-fwd":	0,
+						"mpkt-orig":	20,
+						"mpkt-consumed":	0,
+						"mbyte-fwd":	0,
+						"mbyte-orig":	1784,
+						"mbyte-consumed":	0,
+						"TABLE_addr":	{
+							"ROW_addr":	{
+								"addr":	"2001:db8::2/64"
+							}
+						},
+						"TABLE_maddr":	{
+							"ROW_maddr":	[{
+									"m-addr":	"ff02::2"
+								}, {
+									"m-addr":	"ff02::1"
+								}, {
+									"m-addr":	"ff02::1:ff00:2"
+								}, {
+									"m-addr":	"ff02::1:ff63:5b00"
+								}, {
+									"m-addr":	"ff02::1:ff00:0"
+								}]
+						}
+					}, {
+						"vrf-name-out":	"RED",
+						"intf-name":	"Ethernet1/2",
+						"iod":	6,
+						"proto-state":	"up",
+						"link-state":	"up",
+						"admin-state":	"up",
+						"prefix":	"2001:db8:2::/64",
+						"linklocal-addr":	"fe80::e63:5bff:fe00:1b08",
+						"linklocal-configured":	"FALSE",
+						"linklocal-state":	"VALID",
+						"mrouting-enabled":	"disabled",
+						"report-linklocal-enabled":	"disabled",
+						"forwarding-enabled":	"disabled",
+						"mgroup-locally-joined":	"TRUE",
+						"mcast-sgentries-joined":	"FALSE",
+						"mtu":	1500,
+						"urpf-mode":	"none",
+						"ipv6-lstype":	"none",
+						"stats-last-reset":	"never",
+						"upkt-fwd":	0,
+						"upkt-orig":	0,
+						"upkt-consumed":	0,
+						"ubyte-fwd":	0,
+						"ubyte-orig":	0,
+						"ubyte-consumed":	0,
+						"mpkt-fwd":	0,
+						"mpkt-orig":	7,
+						"mpkt-consumed":	0,
+						"mbyte-fwd":	0,
+						"mbyte-orig":	614,
+						"mbyte-consumed":	0,
+						"TABLE_addr":	{
+							"ROW_addr":	{
+								"addr":	"2001:db8:2::1/64"
+							}
+						},
+						"TABLE_maddr":	{
+							"ROW_maddr":	[{
+									"m-addr":	"ff02::2"
+								}, {
+									"m-addr":	"ff02::1"
+								}, {
+									"m-addr":	"ff02::1:ff00:1"
+								}, {
+									"m-addr":	"ff02::1:ff00:1b08"
+								}, {
+									"m-addr":	"ff02::1:ff00:0"
+								}]
+						}
+					}]
+			}
+		}
+	},
+	"id":	1
+}

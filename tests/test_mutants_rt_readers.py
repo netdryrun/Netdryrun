@@ -293,9 +293,9 @@ def test_junos_and_nxos_own_address_commands_exactly():
     lab = Lab([("show interfaces terse", fx("junos_local_interfaces_terse.json"))])
     JunosDriver(lab, "j1").local_addresses()
     assert lab.lines()[0].endswith("cli -c 'show interfaces terse | display json | no-more'")
-    lab = Lab([("show ip interface brief vrf all", fx("nxos_local_ip_brief.json"))])
+    lab = Lab([("show ip interface vrf all", fx("nxos_local_ip_detail.json")), ("show ipv6 interface vrf all", fx("nxos_local_ipv6_detail.json"))])
     NxosDriver(lab, "n1").local_addresses()
-    assert " cli show ip interface brief vrf all " in lab.lines()[0] + " "
+    assert " cli show ip interface vrf all " in lab.lines()[0] + " " and " cli show ipv6 interface vrf all " in lab.lines()[1] + " "
 
 
 def test_routeros_own_address_paths_and_vrf_exactly():

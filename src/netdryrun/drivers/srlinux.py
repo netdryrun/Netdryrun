@@ -411,6 +411,8 @@ class SrlDriver(Driver):
             # never "no routes" (red team A-0050). An ip-vrf with no links reads up (captured), so this is no false block
             raise DriverError(f"network-instance {vrf!r} on {self.node} is oper-state {state}: not settled")
 
+    own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
+
     def local_addresses(self, vrf: str = "default") -> list:
         """Every subinterface address of the node, in any network-instance (the captured form doesn't map them): a
         ping in one VRF to an address the node owns in another is refused too (documented limit, never a pass)."""

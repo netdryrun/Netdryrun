@@ -266,6 +266,11 @@ class Driver:
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         raise NotImplementedError
 
+    # The address families local_addresses reads (4, 6). A ping target of another family can't be checked against the
+    # node's own addresses, so the ping check reads it unready (red team round 4, RT-0044: a driver that read IPv4 only
+    # let an IPv6 own address pass). Empty: no read at all.
+    own_address_families: frozenset = frozenset()
+
     def local_addresses(self, vrf: str = "default") -> list:
         """The node's own addresses in `vrf` (ipaddress interfaces), for the ping check's own-address refusal. A
         driver that can't read them raises: unreadable is unready, never "not an own address"."""

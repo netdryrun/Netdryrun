@@ -328,7 +328,10 @@ def test_sessions_expected_down_and_non_bgp_nodes_dont_block_the_gate(tmp_path, 
               chk("ping", "h1 cannot reach", node="h1", target="10.9.9.9", expect="failure")]
     rep = runner.run(cfg(tmp_path, checks), deploy=False, settle=10, hold=10)
     assert rep.status == "passed", [(r.check.name, r.detail) for r in rep.results]
-    assert w.t < 60   # the ping-only host did not make the run wait for its timeout
+    # "bgpd is not running" is also what a bgpd still starting prints: the ping-only host is waited for up to the cap,
+    # then the ping runs with a warning (red team round 4, B2, design m4); only "no BGP instance" skips the wait
+    ping = next(r for r in rep.results if r.check.name == "h1 cannot reach")
+    assert [x["code"] for x in ping.warnings] == ["gate-unreadable"]
 
 
 # --------------------------------------------------------------------------- M1: signals clean up

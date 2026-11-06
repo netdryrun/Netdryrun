@@ -16,6 +16,13 @@ class LabError(RuntimeError):
     pass
 
 
+# The helper that reads and changes a node's routes from outside when the node's image has no `ip` (nginx, distroless):
+# the official alpine image (busybox `ip`), pinned by digest (alpine:3.20, pulled 2026-04-16). It joins only the node's
+# network namespace, with NET_ADMIN only, a read-only root and --rm (research/adoption/alpine-netns-helper.md). Air-gapped
+# hosts pre-pull it: `docker pull <this>`.
+NETNS_HELPER_IMAGE = "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+
+
 # containerlab kinds of a RouterOS (CHR) node: a VM inside the container
 ROUTEROS_KINDS = ("mikrotik_ros", "vr-ros", "vr-mikrotik_ros")
 # containerlab kinds for the Cisco Nexus 9000v (a VM inside the container, vrnetlab)
@@ -396,3 +403,25 @@ class Lab:
     def exec(self, node: str, cmd: list[str], timeout: float = 60, input: str | None = None) -> ExecResult:
         flags = ["-i"] if input is not None else []
         return _run(["docker", "exec", *flags, self.nodes[node].container, *cmd], timeout=timeout, input=input)
+
+    def exec_root(self, node: str, cmd: list[str], timeout: float = 60) -> ExecResult:
+        """As root, whatever USER the image sets: the management route is read and removed as root (mgmt.py)."""
+        return _run(["docker", "exec", "-u", "0", self.nodes[node].container, *cmd], timeout=timeout)
+
+    def netns_exec(self, node: str, cmd: list[str], timeout: float = 60) -> ExecResult:
+        """`cmd` in the pinned helper, inside the node's network namespace and nothing else of it (mgmt.py)."""
+        return _run(["docker", "run", "--rm", "--network", f"container:{self.nodes[node].container}",
+                     "--cap-drop", "ALL", "--cap-add", "NET_ADMIN", "--read-only",
+                     "--security-opt", "no-new-privileges", NETNS_HELPER_IMAGE, *cmd], timeout=timeout)
+
+    def docker_inspect(self, node: str) -> dict:
+        """The node's container as `docker inspect` prints it. Not readable is an error, never "no networks"."""
+        c = self.nodes[node].container
+        r = _run(["docker", "inspect", c], timeout=60, errors="replace")
+        try:
+            data = json.loads(r.stdout) if r.rc == 0 else None
+        except ValueError:
+            data = None
+        if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], dict):
+            raise LabError(f"`docker inspect {c}` failed (rc={r.rc}): {(r.stderr or r.stdout).strip()[-200:]}")
+        return data[0]

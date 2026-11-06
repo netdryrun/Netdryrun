@@ -44,6 +44,26 @@
 
 **15. `inject_routes`: routes that never left the injecting node were not noticed.** 0.3.1 and later, FRR injectors. The scenario BGP gate waits for prefix counts to stop changing, which counts that never changed do at once: with an outbound filter on the injecting node, or no session carrying the family, a `max:` or `present: false` check elsewhere passed on routes that were never sent. *Until 0.4.1:* pair each such scenario with a positive check that the injected routes reach a node they should reach (`bgp_prefixes min:` on the injecting node's neighbor). *0.4.1:* the injecting node's sent-prefix counts are read before and during the injection, and a scenario whose routes never left is inconclusive (exit 3), never a pass.
 
+## The lab: Docker's management network
+
+**16. A ping with no lab route left the lab over the management network** (second 0.4.1 red team, B3). 0.1.0 and later,
+FRR and SONiC (every Linux container), and Arista cEOS deployed without a full startup-config. Docker gives each
+container a default route over its management interface (`default via 172.20.20.1 dev eth0`), and containerlab's
+built-in cEOS config adds `ip route 0.0.0.0/0 <management gateway>` in VRF default. A change that removed the lab's
+route to a target left that route in place: the ping went out over the management network, Docker masqueraded it, and
+any address the Docker host reaches (the host itself, its LAN, the internet) answered, so `ping expect: success` passed.
+*Until 0.4.1:* delete the management default route in each node (`ip route del default dev eth0` in `setup:` on Linux
+nodes; `no ip route 0.0.0.0/0 <gateway>` in the cEOS startup-config), and pair each ping with a `route` check for the
+target's prefix with `protocol:` set. *0.4.1:* after `setup:` and before the first check, Netdryrun deletes exactly
+Docker's (and containerlab's cEOS) default route via the management gateway; any other route over a management
+interface, a route that comes back (checked around every ping and phase), a ping target or source in the management
+network, or routes it can't read end the run as an error (exit 2), never a pass.
+
+**17. `route 0.0.0.0/0` passed on Docker's own default route.** 0.1.0 and later, FRR and SONiC (a `route` check on
+`0.0.0.0/0` or `::/0` without `protocol:`), and cEOS (also with `protocol: static`) on containerlab's management default.
+The check passed whether or not the lab had a default route. *Until 0.4.1:* set `protocol:` on default-route checks
+(`bgp`, or the protocol the lab uses). *0.4.1:* the management default is gone before the checks (case 16).
+
 ## Found another way it can pass without looking?
 
 [Open a corpus case](https://github.com/netdryrun/netdryrun/issues/new?template=corpus-case.yml): it becomes a permanent must-fail test, credited to you. Or write to [security@netdryrun.com](mailto:security@netdryrun.com).

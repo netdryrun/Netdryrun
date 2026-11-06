@@ -128,7 +128,8 @@ def test_extra_eor_pending_warning_exactly(monkeypatch):
     e = make(monkeypatch, r1={"neighbors": {"default": {"10.0.12.2": "established"}}},
              r2={"neighbors": {"default": {"10.0.23.3": "established", "10.0.23.4": "established"}}})
     e.drivers["r2"] = EorDrv(e.drivers["r2"], lambda t, v: {"10.0.23.3": {"*": "unknown"},
-                                                           "10.0.23.4": {"ipv6-unicast": "pending"}})
+                                                           "10.0.23.4": {"ipv4-unicast": "received",
+                                                                         "ipv6-unicast": "pending"}})
     neg = leak("n", timeout=12)
     blocked, w = gate(e, [neg], extras={"r2": e.drivers["r2"]})
     assert warns(w, neg) == [

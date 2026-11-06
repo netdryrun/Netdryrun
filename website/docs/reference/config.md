@@ -42,7 +42,7 @@ Validation is strict, and every problem is an error (exit code `2`) before anyth
 | `checks` | yes | | List of checks. At least one is required. |
 | `nodes` | no | | A mapping of node name to settings. Each node accepts only `driver`, `setup` and `peers`. |
 | `nodes.<node>.driver` | no | detected | Force the driver for a node: `frr`, `srlinux`, `eos`, `sonic` or `junos` (Juniper cJunosEvolved, beta). See [drivers](#drivers). |
-| `nodes.<node>.setup` | no | | Shell commands run inside the node after deploy, before any check. Each is retried every 5 s until it succeeds (the NOS may still be booting), within a shared 300 s budget. For NOSes that are configured after boot, such as SONiC. |
+| `nodes.<node>.setup` | no | | Shell commands run inside the node after deploy, before any check. Each is retried every 5 s until it succeeds (the NOS may still be booting), within a shared 300 s budget. For NOSes that are configured after boot, such as SONiC. The only step with internet access: Docker's management default route is deleted right after it (see [the management network](#the-management-network)). |
 | `nodes.<node>.peers` | no | | Per-neighbor settings, keyed by the neighbor's address (`<vrf>/<address>` outside the default VRF). The only setting is `eor: not_sent`, for a peer that never sends End-of-RIB: the convergence gate then doesn't wait when its End-of-RIB can't be read (it still waits for the session, stable prefix counts, and an End-of-RIB the node reports pending). The address is written without an IPv6 scope. A session that does report End-of-RIB still uses it. A peer the node has no BGP session with is an error at run time. See [convergence semantics](#convergence-semantics). |
 | `scenarios` | no | | A non-empty list of [failure scenarios](#failure-scenarios). |
 
@@ -145,6 +145,9 @@ A route is present in (or absent from) the routing table.
 - **Absent** means no matching route at all, active or not. A BGP path that was received from a neighbor still counts as present, valid or not, selected or not (for example a leaked default losing to a local one), so `present: false` fails. This is how the [failing example](../index.md#a-failing-run) is caught. Every driver reads the BGP table for this as well as the routing table; there, only paths received from a neighbor count, not the router's own (network statements, redistribution, SR Linux's static and interface routes).
 - `protocol` must be a name the drivers report. `ebgp` and `ibgp` are refused: drivers report both as `bgp`. A name outside the list would match nothing and silently pass `present: false`.
 - `present: false` makes it a post-convergence check.
+- A route that is selected and installed is present even when its BGP path carries LLGR_STALE (65535:6, a long-lived
+  graceful-restart stale path): `route` reads the routing table. `bgp_route` refuses such a path as not settled (0.4.1).
+  To check that a route is not only installed but freshly learned, use `bgp_route`.
 
 ```yaml
 - type: route
@@ -163,7 +166,7 @@ Attributes of the BGP **best path** for a prefix: communities, AS path, local pr
 | `communities` | no | | The best path must carry **all** of these. Standard (`'65000:100'`), large (`'65000:1:2'`) or well-known names (`no-export`, `no-advertise`, `no-peer`, `blackhole`, `graceful-shutdown`, `accept-own`, `llgr-stale`, `no-llgr`, `no-export-subconfed`, and from 0.4.1 `internet` (0:0), `accept-own-nexthop`, `route-filter-translated-v4`, `route-filter-v4`, `route-filter-translated-v6`, `route-filter-v6`) |
 | `without_communities` | no | | The best path must carry **none** of these. Same forms as `communities`. From 0.4.1 a path carrying a community the device prints by a name Netdryrun can't turn into a number (a `bgp community alias`, a name it doesn't know) fails the check: it could be one of these. 0.4.0 and earlier kept such names as text, so FRR's `internet`, `accept-own-nexthop` and `route-filter-translated-v4` never matched `0:0`, `65535:8` and `65535:2`, and the check passed. Refused before deploying on Juniper (beta), whose output leaves the communities out of a path with none, so a missing list can't be told from one it didn't print (0.4.1) |
 | `as_path` | no | | Exact AS path, ASNs separated by spaces: `"65002 65003"`. `""` is the empty path of a locally originated route. AS sets are written `{65004,65005}` |
-| `as_path_regex` | no | | Python regular expression searched in the AS path string, for example `"^65002 "` (learned from 65002) or `"(^| )65666( |$)"` (passes through 65666). It runs with no time limit, so avoid nested repeats such as `(\d+ ?)+$` that can backtrack for minutes. A best path whose AS path the device didn't print is an error for `as_path` and `as_path_regex`, never the empty path that `^$` matches (0.4.1). A pattern that matches every learned AS path (a stray `|`, `.*`, `.+`, `\d`) is refused: it is tried on four sample paths, and one that matches all of them would assert nothing more than "learned from a peer" (0.4.1; `^$` stays valid) |
+| `as_path_regex` | no | | Python regular expression searched in the AS path string, for example `"^65002 "` (learned from 65002) or `"(^| )65666( |$)"` (passes through 65666). It runs with no time limit, so avoid nested repeats such as `(\d+ ?)+$` that can backtrack for minutes. A best path whose AS path the device didn't print is an error for `as_path` and `as_path_regex`, never the empty path that `^$` matches (0.4.1). A pattern that matches every learned AS path (a stray `|`, `.*`, `.+`, `\d`) is refused: it is tried on four sample paths, and one that matches all of them would assert nothing more than "learned from a peer" (0.4.1; `^$` stays valid). The probe catches the common accidents, not every pattern that matches broadly: the check asserts exactly what the pattern says, so write one that names the AS numbers you mean |
 | `local_pref` | no | | Exact local preference |
 | `med` | no | | Exact MED. A path with no MED attribute fails the check, even `med: 0`: with `bgp bestpath med missing-as-worst` a missing MED is the worst, not 0. On Arista EOS, `med: 0` is refused before the lab boots (exit `2`): cEOS prints MED 0 for a path received with no MED, so the two can't be told apart; a non-zero MED is checked as usual |
 | `next_hop` | no | | Exact next hop address. A link-local address is refused: devices report it without its interface, and two sessions can share one, so the check couldn't say which path it tests |
@@ -201,7 +204,7 @@ Reachability from a node.
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `target` | yes | | Destination IP address. From 0.4.1 it must be a host the ping leaves the node for: an unspecified, loopback, multicast or limited-broadcast address, or the `source` itself, is refused before the lab deploys, and a target that is one of the node's own addresses (or a subnet's broadcast address) fails the check |
+| `target` | yes | | Destination IP address. From 0.4.1 it must be a host the ping leaves the node for: an unspecified, loopback, multicast or limited-broadcast address, the `source` itself, or an IPv4-mapped IPv6 address (`::ffff:10.0.0.1`: write the IPv4 address) is refused before the lab deploys, and at run time a target the node answers itself fails the check (see below) |
 | `source` | no | | Source IP address (passed as `ping -I`) |
 | `expect` | no | `success` | `success` or `failure` |
 | `count` | no | `3` | Packets to send. An integer from 1 to 1000. |
@@ -211,6 +214,18 @@ Reachability from a node.
 - `expect: failure` passes only with 0 replies, and is a post-convergence check.
 - `expect: failure` also passes when ping reports the destination unreachable without sending anything: "Network unreachable" (or "Network is unreachable"), "No route to host" or "Destination unreachable" (0.3.1 and later). With no route at all, ping prints one of these and no statistics.
 - If ping did not run at all for any other reason (bad source address, missing VRF), the check fails with an error. It never counts as a successful "failure".
+- **Never over the management network** (0.4.1): a target or source in it is a run error, and a ping whose node has a
+  route over its management interface ends the run (see [the management network](#the-management-network)). `source`
+  must be one of the node's own addresses in the check's VRF, or the check is not evaluated.
+- **A target the node answers itself fails the check** (0.4.1): one of the node's own addresses in the check's VRF, IPv4
+  or IPv6 (primary, secondary and link-local; on Arista EOS also `ip address virtual` and its secondaries), the broadcast
+  address of one of its IPv4 subnets (shorter than /31), or the IPv6 subnet-router anycast address of one of its IPv6
+  prefixes (the prefix with all host bits zero, shorter than /127; RFC 4291 2.6.1). The anycast refusal applies on every
+  driver, also on a NOS that doesn't answer that address: it fails closed. Each driver reads the node's addresses with
+  its own command; output it can't read is retried, then not evaluated, never "not own". A target of an address family
+  the driver can't read the node's addresses for is not evaluated either.
+- Not read as own: VRRP, VARP (`ip virtual-router address`) and HSRP virtual addresses (on every driver), IPv6
+  anycast addresses (NX-OS `ipv6 address ... anycast`) and anycast gateways other than EOS `ip address virtual`. Don't ping a first-hop redundancy address from a node that may hold it.
 
 ```yaml
 - type: ping
@@ -308,7 +323,7 @@ Networks need time to converge, and some checks are trivially true before they d
 They run in this order:
 
 1. Every positive check has finished.
-2. **Every BGP session on the node is up.** Positive checks only prove convergence for the sessions and routes you happened to check, and a leak can arrive later over a session nobody checked. So for each node (and VRF) that carries a post-convergence check, Netdryrun waits until every configured BGP neighbor there is `established`, with unchanged prefix counts, on 2 consecutive samples. Neighbors that a `bgp_session` check expects in another state (for example `state: down`) don't count. The wait is capped at the largest `timeout` of that node's post-convergence checks. If a session there never comes up, those checks fail as **not evaluated**, naming the session: a down session is a finding, as everywhere else. If a session is down on purpose, add a `bgp_session` check with `state: down` for it. (A node that never answers with BGP state, or whose positive checks never got usable state, is not waited for; prefix counts still changing at the cap don't block.) A node that answers with **no BGP neighbors at all** is not converged: that is what a node answers before its BGP config is applied, and a leak can arrive once it is. Netdryrun keeps waiting, up to the cap. If the node still reports no neighbors then and the file says it runs BGP (a `bgp_session`, `bgp_prefixes` or `bgp_route` check on it, or a `route` check with `protocol: bgp`), its post-convergence checks fail as **not evaluated** ("reported no BGP neighbors by the cap"), every sample unready, so a leak guard can't pass on a router whose BGP config never loaded (from 0.3.2; when nothing anywhere gave usable state, the run is inconclusive). A node with no BGP check anywhere in the file may not run BGP at all: its post-convergence checks run anyway, each with a warning in its result ("reported no BGP neighbors for N s; the check was evaluated without BGP convergence"), and the verdict is unchanged. So a node that doesn't run BGP adds one `timeout` of waiting before its post-convergence checks. 0.3.1 and later.
+2. **Every BGP session on the node is up.** Positive checks only prove convergence for the sessions and routes you happened to check, and a leak can arrive later over a session nobody checked. So for each node (and VRF) that carries a post-convergence check, Netdryrun waits until every configured BGP neighbor there is `established`, with unchanged prefix counts, on 2 consecutive samples. Neighbors that a `bgp_session` check expects in another state (for example `state: down`) don't count. The wait is capped at the largest `timeout` of that node's post-convergence checks. If a session there never comes up, those checks fail as **not evaluated**, naming the session: a down session is a finding, as everywhere else. If a session is down on purpose, add a `bgp_session` check with `state: down` for it. Prefix counts still changing at the cap don't block. A node whose BGP state can't be read is waited for up to the cap like any other. If it was never readable by then and the file says it runs BGP (as defined below), its post-convergence checks fail as **not evaluated** ("could not be read by the cap"), every sample unready: nothing showed it converged (0.4.1; earlier, such a node was not waited for). On a node with no BGP check in the file, they run with a warning ("could not be read by the cap; the check was evaluated without the BGP gate"). A ping-only node with no BGP instance at all, and a node whose positive checks never got usable state (they already waited out their timeout), are not waited for. A node that answers with **no BGP neighbors at all** is not converged: that is what a node answers before its BGP config is applied, and a leak can arrive once it is. Netdryrun keeps waiting, up to the cap. If the node still reports no neighbors then and the file says it runs BGP (a `bgp_session`, `bgp_prefixes` or `bgp_route` check on it, or a `route` check with `protocol: bgp`), its post-convergence checks fail as **not evaluated** ("reported no BGP neighbors by the cap"), every sample unready, so a leak guard can't pass on a router whose BGP config never loaded (from 0.3.2; when nothing anywhere gave usable state, the run is inconclusive). A node with no BGP check anywhere in the file may not run BGP at all: its post-convergence checks run anyway, each with a warning in its result ("reported no BGP neighbors for N s; the check was evaluated without BGP convergence"), and the verdict is unchanged. So a node that doesn't run BGP adds one `timeout` of waiting before its post-convergence checks. 0.3.1 and later.
 
    **From 0.4.1, the gate also waits for the rest of the lab, and for End-of-RIB.**
 
@@ -318,6 +333,33 @@ They run in this order:
    - *What is still not waited for:* a route can take one advertisement interval per hop after every session is up and every End-of-RIB is in, so a leak that crosses several peers with long intervals can still arrive after the windows. Raise `--settle` above the longest interval times the number of hops. A full fix is planned for 0.4.2.
 3. A settle delay (`--settle`, default 10 seconds; at least 30 seconds if the file has no positive checks, because nothing else has shown that the network converged). From 0.4, `--settle` and `--hold` stretch to the longest BGP advertisement interval any session in the lab reports, plus 2 seconds: a peer sends at most once per interval, so a route can arrive that late. **On Arista EOS the advertisement delay (`neighbor ... out-delay`) is not read yet** (fix scheduled: 0.4.2): if you configure one, raise `--settle` and `--hold` above it, or a leak sent after the windows can pass a negative check.
 4. Each one must then hold for the hold window (`--hold` or the check's `hold`, default 10 seconds), sampled every 3 seconds. A violation at any sample fails the check immediately.
+
+### The management network
+
+Docker gives every Linux container a default route over its management interface (`default via 172.20.20.1 dev eth0`
+on containerlab's `clab` network), and containerlab's built-in cEOS config adds `ip route 0.0.0.0/0 <gateway>` in VRF
+default. A route there is not a lab path: a ping over it leaves the lab, Docker masquerades it, and anything the Docker
+host reaches answers. Production has no such route, so from 0.4.1, after deploy, startup config and every `setup:`
+command, and before the first check, Netdryrun deletes exactly that route (IPv4 and IPv6) on each Linux and SONiC node
+(in the node, as root) and each cEOS node (in its config, once the startup config has loaded), then waits `--settle` once so routing can react. A default
+route the lab configured itself is never touched. The report says what was removed on each node
+(`environment.nodes.<node>.management_default`).
+
+The run ends as an **error (exit 2)**, never a pass, when: any other route uses a management interface (a static route
+via the management gateway, a default with a `proto`, a multipath default with a management leg); routes can't be read
+or changed (for a Linux image without `ip`, Netdryrun reads and changes its routes from a pinned alpine helper container that joins only the node's network namespace; on a host that can't pull it, the error names the `docker pull` to run); a route over the management interface comes back
+(checked before and after every ping on FRR, SONiC and cEOS, after the positive checks, around the hold and around each
+scenario); a ping's `target` or `source` is in a management network, or scoped to a management interface; a check reads
+a node in the Docker host's namespace (`network-mode: host`); or a check reads the management VRF (NX-OS `management`,
+SR Linux `mgmt`). The frr and sonic drivers are refused on VM kinds, where they would run in the container that launches
+the VM.
+
+So internet access from lab nodes works only during `setup:`, and a ping to an internet address can't pass. Nodes with
+`network-mode: host` or `container:` are not touched. On a lab Netdryrun didn't deploy, the route is deleted too and not
+restored.
+
+Known limit: a vrnetlab VM node (NX-OS, RouterOS, Junos VMs) used as a transit router is not read for a management route
+inside the VM.
 
 ### Config that fails to load
 

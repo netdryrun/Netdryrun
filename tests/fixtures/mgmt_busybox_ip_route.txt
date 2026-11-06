@@ -1,0 +1,24 @@
+default via 172.31.99.1 dev eth0 
+172.31.99.0/24 dev eth0 scope link  src 172.31.99.2 
+local 127.0.0.0/8 dev lo table local scope host  src 127.0.0.1 
+local 127.0.0.1 dev lo table local scope host  src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local scope link  src 127.0.0.1 
+local 172.31.99.2 dev eth0 table local scope host  src 172.31.99.2 
+broadcast 172.31.99.255 dev eth0 table local scope link  src 172.31.99.2 
+rc=0
+--- v6
+3fff:172:31:99::/64 dev eth0  metric 256 
+fe80::/64 dev eth0  metric 256 
+default via 3fff:172:31:99::1 dev eth0  metric 1024 
+local ::1 dev lo table local  metric 0 
+local 3fff:172:31:99::2 dev eth0 table local  metric 0 
+multicast ff00::/8 dev eth0 table local  metric 256 
+rc=0
+--- main
+default via 172.31.99.1 dev eth0 
+172.31.99.0/24 dev eth0 scope link  src 172.31.99.2 
+--- main v6
+3fff:172:31:99::/64 dev eth0  metric 256 
+fe80::/64 dev eth0  metric 256 
+default via 3fff:172:31:99::1 dev eth0  metric 1024 
+multicast ff00::/8 dev eth0  metric 256 

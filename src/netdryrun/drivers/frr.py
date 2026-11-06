@@ -613,6 +613,8 @@ class FrrDriver(Driver):
             paths = parse_bgp_paths(text, prefix, default_local_pref=default)
         return Observation(paths, ev)
 
+    own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
+
     def local_addresses(self, vrf: str = "default") -> list:
         from .addresses import parse_ip_j_addr
         vrf = check_vrf_name(vrf)
@@ -628,6 +630,9 @@ class FrrDriver(Driver):
         cmd.append(target)
         if vrf != "default":
             cmd = ["ip", "vrf", "exec", vrf, *cmd]
+        from ..mgmt import check_node   # no route out over the management network, before and after (B3, R5)
+        check_node(self.lab, self.node, f"before the ping to {target}")
         r = self.lab.exec(self.node, cmd, timeout=count * 2 + 10)
         ev.append({"node": self.node, "cmd": " ".join(cmd), "rc": r.rc, "output": r.stdout[-5000:], "stderr": r.stderr[-1000:]})
+        check_node(self.lab, self.node, f"after the ping to {target}")
         return Observation(parse_ping(r.stdout), ev)

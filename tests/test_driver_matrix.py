@@ -150,7 +150,7 @@ def nxos_rules():
         return [("show bgp ipv4 unicast", text)]
 
     def ping(text):
-        return [("show ip interface brief vrf all", fx("nxos_local_ip_brief.json")), ("cli_ascii ping", text)]
+        return [("show ip interface vrf all", fx("nxos_local_ip_detail.json")), ("show ipv6 interface vrf all", fx("nxos_local_ipv6_detail.json")), ("cli_ascii ping", text)]
     return neighbors, routes, paths, ping
 def junos_rules():
     """Junos CLI over the cJunosEvolved container's SSH hop; `default` is the master instance."""

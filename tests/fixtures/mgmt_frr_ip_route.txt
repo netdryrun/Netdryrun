@@ -1,0 +1,44 @@
+default via 172.31.99.1 dev eth0 
+172.31.99.0/24 dev eth0 proto kernel scope link src 172.31.99.2 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 172.31.99.2 dev eth0 table local proto kernel scope host src 172.31.99.2 
+broadcast 172.31.99.255 dev eth0 table local proto kernel scope link src 172.31.99.2 
+--- v6
+3fff:172:31:99::/64 dev eth0 proto kernel metric 256 pref medium
+fe80::/64 dev eth0 proto kernel metric 256 pref medium
+default via 3fff:172:31:99::1 dev eth0 metric 1024 pref medium
+local ::1 dev lo table local proto kernel metric 0 pref medium
+local 3fff:172:31:99::2 dev eth0 table local proto kernel metric 0 pref medium
+multicast ff00::/8 dev eth0 table local proto kernel metric 256 pref medium
+--- del
+rc=0
+rc=0
+--- after v4
+172.31.99.0/24 dev eth0 proto kernel scope link src 172.31.99.2 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 172.31.99.2 dev eth0 table local proto kernel scope host src 172.31.99.2 
+broadcast 172.31.99.255 dev eth0 table local proto kernel scope link src 172.31.99.2 
+--- after v6
+3fff:172:31:99::/64 dev eth0 proto kernel metric 256 pref medium
+fe80::/64 dev eth0 proto kernel metric 256 pref medium
+local ::1 dev lo table local proto kernel metric 0 pref medium
+local 3fff:172:31:99::2 dev eth0 table local proto kernel metric 0 pref medium
+multicast ff00::/8 dev eth0 table local proto kernel metric 256 pref medium
+--- multipath
+default proto static 
+	nexthop via 10.9.0.2 dev dummy0 weight 1 
+	nexthop via 172.31.99.1 dev eth0 weight 1 
+10.9.0.0/30 dev dummy0 proto kernel scope link src 10.9.0.1 
+10.77.0.0/16 via 172.31.99.1 dev eth0 proto static 
+172.31.99.0/24 dev eth0 proto kernel scope link src 172.31.99.2 
+local 10.9.0.1 dev dummy0 table local proto kernel scope host src 10.9.0.1 
+broadcast 10.9.0.3 dev dummy0 table local proto kernel scope link src 10.9.0.1 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 172.31.99.2 dev eth0 table local proto kernel scope host src 172.31.99.2 
+broadcast 172.31.99.255 dev eth0 table local proto kernel scope link src 172.31.99.2 

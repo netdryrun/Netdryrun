@@ -68,6 +68,8 @@ netdryrun run examples/sonic-frr        # SONiC + FRR, should pass
 
 `examples/arista-frr` needs a cEOS image you download from Arista and import yourself; see the [examples page](examples.md#arista-frr).
 
+**Images to pre-pull on a host without registry access.** Besides your lab's own images, Netdryrun uses one image itself, from 0.4.1: `alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc` (official alpine 3.20). It runs only for a Linux node whose image has no `ip` command (Debian nginx, distroless), to delete Docker's management default route from outside ([why](reference/config.md#the-management-network)). Pre-pull it with `docker pull alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc`; without it such a run stops with that hint (exit 2).
+
 Each run deploys the lab, runs the checks, prints one line per check and destroys the lab. The first run of an example takes longer while its images are pulled.
 
 ### Expected results
