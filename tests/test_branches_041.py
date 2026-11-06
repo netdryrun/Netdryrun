@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from netdryrun import runner
-from netdryrun.drivers import addresses, eos, frr, junos, nxos, routeros_state, srlinux
+from netdryrun.drivers import addresses, eos, frr, nxos, routeros_state, srlinux
 from netdryrun.drivers.base import BgpNeighbor, DriverError, NoSuchInstance
 from netdryrun.drivers.eos import EosDriver
 from netdryrun.drivers.nxos import NxosDriver
