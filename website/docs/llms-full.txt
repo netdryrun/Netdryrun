@@ -4976,6 +4976,8 @@ These findings came after the v2 run. The table above is left exactly as pre-reg
 
 **Case 18 on the 0.4.1 gate run of candidate `6e0a027`: 3 of 5 runs caught the change.** The other 2 were not proven: the aggregate was still present when checked (only the flood scenario's checks failed, its routes never provably left), so there was nothing to catch. No run crashed or approved it. On an earlier candidate of the same code (94f5174) 0 of 5 caught it, all 5 the same way. The same check catches a missing aggregate deterministically in v1 case 25. A run where no case-18 run catches the change blocks the release, on every version: no exception applies. Removing the race is a 0.4.2 blocker. If the aggregate disappears after the checks read it, no point-in-time check can see it. That run's results are kept with the 0.4.1 gate record (`releases/0.4.1/corpus-v1-results.json` and `corpus-v2-results.json`, from the gate's live layer on candidate `6e0a027`, with each run's status, the verdict code and the exact FRR image); every verdict in them matches the results shown here, which are the `88cf6bb` refresh.
 
+**Refreshed on 0.4.1 candidate `1c9be41` (2026-11-06), after the 0.4.1 red-team fixes:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code. Case 18 was caught in 3 of 5 runs (the other 2 not proven, none crashed or approved it).
+
 
 ---
 Source: https://netdryrun.com/how-its-built/

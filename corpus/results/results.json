@@ -1,13 +1,14 @@
 {
   "schema": "netdryrun.corpus/v1",
   "environment": {
-    "generated": "2026-11-04T18:08:11+00:00",
+    "generated": "2026-11-06T06:05:03+00:00",
     "netdryrun": "0.4.1",
     "containerlab": "0.81.1",
     "frr_image": "quay.io/frrouting/frr:10.4.1",
+    "frr_image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
     "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-    "commit": "88cf6bb",
-    "verdict_tree": "3e62b50eadfd2de65e15f705acfcdd417676bcd185e6f6de7fac7e19ffc5812e"
+    "commit": "1c9be41",
+    "verdict_tree": "f42989e8a5583c7a0dd899d054816263670e6f08c36bf86ff95c49dd8fb5d131"
   },
   "cases": [
     {
@@ -22,24 +23,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 70
+      "seconds": 60
     },
     {
       "id": "02-med-to-upstream",
@@ -58,24 +62,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 63
+      "seconds": 59
     },
     {
       "id": "03-prepend-to-peer",
@@ -94,24 +101,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 62
+      "seconds": 59
     },
     {
       "id": "04-tag-community-upstream",
@@ -130,24 +140,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 59
+      "seconds": 62
     },
     {
       "id": "05-description-only",
@@ -167,24 +180,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 68
     },
     {
       "id": "06-customer-adds-prefix",
@@ -203,18 +219,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": false,
           "failed_checks": [
             "I5 upstream receives exactly our 2 prefixes",
@@ -223,7 +242,7 @@
           "error": null
         }
       },
-      "seconds": 61
+      "seconds": 63
     },
     {
       "id": "07-tighten-max-prefix",
@@ -243,18 +262,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
@@ -279,24 +301,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 69
+      "seconds": 60
     },
     {
       "id": "09-customer-localpref",
@@ -316,18 +341,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
@@ -353,18 +381,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I4 no peer route leaked to upstream",
@@ -373,7 +404,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 59
     },
     {
       "id": "11-peer-export-filter-removed",
@@ -397,18 +428,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I4 no upstream route leaked to peer",
@@ -438,24 +472,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 61
+      "seconds": 63
     },
     {
       "id": "13-upstream-asn-typo",
@@ -475,6 +512,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches upstream"
@@ -483,6 +521,7 @@
         },
         "sessions": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "pe1-up1 up"
@@ -491,6 +530,7 @@
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I1 pe1-up1 session up",
@@ -505,7 +545,7 @@
           "error": null
         }
       },
-      "seconds": 392
+      "seconds": 395
     },
     {
       "id": "14-peer-session-shutdown",
@@ -524,6 +564,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches peer"
@@ -532,6 +573,7 @@
         },
         "sessions": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "pe2-peer1 up"
@@ -540,6 +582,7 @@
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I1 pe2-peer1 session up",
@@ -554,7 +597,7 @@
           "error": null
         }
       },
-      "seconds": 393
+      "seconds": 396
     },
     {
       "id": "15-customer-filter-too-strict",
@@ -574,6 +617,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches upstream",
@@ -583,12 +627,14 @@
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I2 upstream has customer route",
@@ -601,7 +647,7 @@
           "error": null
         }
       },
-      "seconds": 252
+      "seconds": 251
     },
     {
       "id": "16-mass-withdrawal",
@@ -621,6 +667,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches upstream"
@@ -629,12 +676,14 @@
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I2 upstream has customer route",
@@ -645,7 +694,7 @@
           "error": null
         }
       },
-      "seconds": 250
+      "seconds": 251
     },
     {
       "id": "17-default-leaked-to-peer",
@@ -664,18 +713,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I4 no default leaked to peer",
@@ -684,7 +736,7 @@
           "error": null
         }
       },
-      "seconds": 61
+      "seconds": 60
     },
     {
       "id": "18-redistribute-connected",
@@ -703,24 +755,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 63
     },
     {
       "id": "19-nexthop-self-removed",
@@ -740,6 +795,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches peer"
@@ -748,12 +804,14 @@
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I3 customer reaches peer"
@@ -761,7 +819,7 @@
           "error": null
         }
       },
-      "seconds": 220
+      "seconds": 229
     },
     {
       "id": "20-ibgp-shutdown",
@@ -780,6 +838,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches peer"
@@ -788,6 +847,7 @@
         },
         "sessions": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "pe1-pe2 up"
@@ -796,6 +856,7 @@
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I1 pe1-pe2 iBGP up",
@@ -808,7 +869,7 @@
           "error": null
         }
       },
-      "seconds": 337
+      "seconds": 433
     },
     {
       "id": "21-customer-max-prefix-removed",
@@ -828,24 +889,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 61
     },
     {
       "id": "22-customer-leaks-third-party",
@@ -864,24 +928,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 59
+      "seconds": 65
     },
     {
       "id": "23-fat-finger-third-party-origin",
@@ -900,24 +967,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 59
+      "seconds": 67
     },
     {
       "id": "24-customer-blackholed",
@@ -937,6 +1007,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches upstream",
@@ -946,12 +1017,14 @@
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I3 customer reaches upstream",
@@ -960,7 +1033,7 @@
           "error": null
         }
       },
-      "seconds": 220
+      "seconds": 227
     },
     {
       "id": "25-aggregate-typo",
@@ -980,18 +1053,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I2 upstream has our aggregate",
@@ -1002,7 +1078,7 @@
           "error": null
         }
       },
-      "seconds": 184
+      "seconds": 173
     },
     {
       "id": "26-route-map-order-bug",
@@ -1021,18 +1097,21 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I4 no upstream route leaked to peer",
@@ -1042,7 +1121,7 @@
           "error": null
         }
       },
-      "seconds": 74
+      "seconds": 60
     },
     {
       "id": "27-local-asn-typo",
@@ -1062,6 +1141,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches peer"
@@ -1070,6 +1150,7 @@
         },
         "sessions": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "pe1-pe2 up",
@@ -1079,6 +1160,7 @@
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I1 pe1-pe2 iBGP up",
@@ -1094,7 +1176,7 @@
           "error": null
         }
       },
-      "seconds": 418
+      "seconds": 398
     },
     {
       "id": "28-customer-import-policy-removed",
@@ -1114,6 +1196,7 @@
       "strategies": {
         "ping": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "customer reaches upstream",
@@ -1123,12 +1206,14 @@
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "unsafe",
+          "status": "failed",
           "correct": true,
           "failed_checks": [
             "I2 upstream has customer route",
@@ -1141,7 +1226,7 @@
           "error": null
         }
       },
-      "seconds": 266
+      "seconds": 256
     },
     {
       "id": "29-graceful-restart",
@@ -1160,24 +1245,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": true,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 75
+      "seconds": 60
     },
     {
       "id": "30-peer-import-filter-removed",
@@ -1201,24 +1289,27 @@
       "strategies": {
         "ping": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "sessions": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         },
         "netdryrun": {
           "verdict": "safe",
+          "status": "passed",
           "correct": false,
           "failed_checks": [],
           "error": null
         }
       },
-      "seconds": 73
+      "seconds": 60
     }
   ]
 }

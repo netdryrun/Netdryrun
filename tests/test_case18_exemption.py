@@ -344,7 +344,10 @@ def test_the_live_layer_applies_the_same_rules_and_returns_false_on_them(tmp_pat
     added.clear()
     ok = gate.live_corpora(live, type("A", (), {"skip_corpus": False, "version": "0.4.1"})(), only={"v2"})
     held = dict(added)
-    assert held["corpus-v2"] is True and held["corpus-v2-nondeterministic-held"] is True
+    # since the 1c9be41 refresh the committed results record each status (inconclusive here), so the crash is also a
+    # status flip against them; the legacy committed "error" (no status) is covered by
+    # test_corpus_check_fails_a_deterministic_crash_against_a_legacy_committed_error
+    assert held["corpus-v2"] is False and held["corpus-v2-nondeterministic-held"] is True
     assert held["corpus-v2-status"] is False and ok is False
 
 
