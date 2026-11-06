@@ -250,36 +250,33 @@ def frr_eor(info: dict) -> dict[str, str]:
     while the table is in flight, true once End-of-RIB arrived; the top-level `gracefulRestartInfo.endOfRibRecv` map
     lists the families already received and is a cross-check (the two disagreeing reads unknown). Graceful restart off
     (local mode `Disable`, remote `NotApplicable`): no per-family block, untracked. Anything else: unknown."""
-    try:
-        g = info.get("gracefulRestartInfo")
-        if not isinstance(g, dict):
-            return {"*": "unknown"}
-        local = str(g.get("localGrMode", "")).rstrip("*")
-        remote = str(g.get("remoteGrMode", "")).rstrip("*")
-        if local == "Disable" or remote == "NotApplicable":
-            return {"*": "untracked"}
-        if local not in ("Helper", "Restart") or remote not in ("Helper", "Restart"):
-            return {"*": "unknown"}
-        recv_map = g.get("endOfRibRecv")
-        if not isinstance(recv_map, dict):
-            return {"*": "unknown"}
-        out = {}
-        for afi, block in g.items():
-            if not isinstance(block, dict) or "endOfRibStatus" not in block:
-                continue
-            status = block["endOfRibStatus"]
-            recv = status.get("endOfRibRecv") if isinstance(status, dict) else None
-            listed = recv_map.get(afi)
-            name = AFI_NAMES.get(afi, afi)
-            if recv is True and listed is True:
-                out[name] = "received"
-            elif recv is False and listed is None:
-                out[name] = "pending"
-            else:
-                out[name] = "unknown"
-        return out or {"*": "unknown"}
-    except Exception:
+    g = info.get("gracefulRestartInfo")
+    if not isinstance(g, dict):
         return {"*": "unknown"}
+    local = str(g.get("localGrMode", "")).rstrip("*")
+    remote = str(g.get("remoteGrMode", "")).rstrip("*")
+    if local == "Disable" or remote == "NotApplicable":
+        return {"*": "untracked"}
+    if local not in ("Helper", "Restart") or remote not in ("Helper", "Restart"):
+        return {"*": "unknown"}
+    recv_map = g.get("endOfRibRecv")
+    if not isinstance(recv_map, dict):
+        return {"*": "unknown"}
+    out = {}
+    for afi, block in g.items():
+        if not isinstance(block, dict) or "endOfRibStatus" not in block:
+            continue
+        status = block["endOfRibStatus"]
+        recv = status.get("endOfRibRecv") if isinstance(status, dict) else None
+        listed = recv_map.get(afi)
+        name = AFI_NAMES.get(afi, afi)
+        if recv is True and listed is True:
+            out[name] = "received"
+        elif recv is False and listed is None:
+            out[name] = "pending"
+        else:
+            out[name] = "unknown"
+    return out or {"*": "unknown"}
 
 
 def _route_table(command: str, text: str) -> dict[ipaddress._BaseNetwork, list[dict]]:

@@ -115,22 +115,19 @@ def ros_eor(r: dict) -> dict[str, str]:
     table is still arriving (0, then 1015, then 2026 routes, then "ip"). That empty form means pending only when graceful
     restart is negotiated (`gr` in both `local.capabilities` and `remote.capabilities`); otherwise untracked. A value
     other than "" and known family names, or capabilities that aren't text, read unknown. Never raises."""
-    try:
-        local, remote, eor = r.get("local.capabilities"), r.get("remote.capabilities"), r.get("remote.eor", "")
-        if not isinstance(local, str) or not isinstance(remote, str) or not isinstance(eor, str):
-            return {"*": "unknown"}
-        if "gr" not in local.split(",") or "gr" not in remote.split(","):
-            return {"*": "untracked"}
-        got = [x for x in eor.split(",") if x]
-        if any(x not in ROS_FAMILIES for x in got):
-            return {"*": "unknown"}
-        fam = str(r.get("remote.afi", "ip"))
-        wanted = [f for f in fam.split(",") if f] or ["ip"]
-        if any(f not in ROS_FAMILIES for f in wanted):
-            return {"*": "unknown"}
-        return {ROS_FAMILIES[f]: "received" if f in got else "pending" for f in wanted}
-    except Exception:
+    local, remote, eor = r.get("local.capabilities"), r.get("remote.capabilities"), r.get("remote.eor", "")
+    if not isinstance(local, str) or not isinstance(remote, str) or not isinstance(eor, str):
         return {"*": "unknown"}
+    if "gr" not in local.split(",") or "gr" not in remote.split(","):
+        return {"*": "untracked"}
+    got = [x for x in eor.split(",") if x]
+    if any(x not in ROS_FAMILIES for x in got):
+        return {"*": "unknown"}
+    fam = str(r.get("remote.afi", "ip"))
+    wanted = [f for f in fam.split(",") if f] or ["ip"]
+    if any(f not in ROS_FAMILIES for f in wanted):
+        return {"*": "unknown"}
+    return {ROS_FAMILIES[f]: "received" if f in got else "pending" for f in wanted}
 
 
 @parser("/routing/bgp/connection")

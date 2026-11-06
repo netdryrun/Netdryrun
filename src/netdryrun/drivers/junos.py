@@ -244,17 +244,16 @@ def junos_eor(peer: dict) -> dict[str, str]:
         if not isinstance(v, list) or not v or not isinstance(v[0], dict) or not isinstance(v[0].get("data"), str):
             return None
         return v[0]["data"].split()
-    try:
-        session, negotiated, got = words("nlri-type-session"), words("peer-restart-nlri-negotiated"),             words("peer-end-of-rib-received")
-        if session is None or negotiated is None or got is None or not session:
-            return {"*": "unknown"}
-        out = {}
-        for fam in session:
-            name = JUNOS_FAMILIES.get(fam, fam)
-            out[name] = "received" if fam in got else "unknown" if fam in negotiated else "untracked"
-        return out
-    except Exception:
+    session = words("nlri-type-session")
+    negotiated = words("peer-restart-nlri-negotiated")
+    got = words("peer-end-of-rib-received")
+    if session is None or negotiated is None or got is None or not session:
         return {"*": "unknown"}
+    out = {}
+    for fam in session:
+        name = JUNOS_FAMILIES.get(fam, fam)
+        out[name] = "received" if fam in got else "unknown" if fam in negotiated else "untracked"
+    return out
 
 
 @parser(HIDDEN_CMD)

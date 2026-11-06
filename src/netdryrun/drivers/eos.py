@@ -323,22 +323,19 @@ def eos_eor(p: dict) -> dict[str, str]:
     """End-of-RIB per family from one EOS peer (cEOS 4.3x, captured live 2026-11-06): `endOfRibs.incoming.<afi>.status`
     read "received", then "pending" during a graceful restart, then "received". No `endOfRibs` and no graceful-restart
     capability received from the peer: untracked. Anything else: unknown. Never raises."""
-    try:
-        eors = p.get("endOfRibs")
-        inc = eors.get("incoming") if isinstance(eors, dict) else None
-        if isinstance(inc, dict) and inc:
-            out = {}
-            for afi, v in inc.items():
-                status = v.get("status") if isinstance(v, dict) else None
-                out[EOS_FAMILIES.get(afi, afi)] = status if status in ("received", "pending") else "unknown"
-            return out
-        caps = p.get("neighborCapabilities")
-        gr = caps.get("grCaps") if isinstance(caps, dict) else None
-        if eors is None and (not isinstance(gr, dict) or not gr.get("received")):
-            return {"*": "untracked"}
-        return {"*": "unknown"}
-    except Exception:
-        return {"*": "unknown"}
+    eors = p.get("endOfRibs")
+    inc = eors.get("incoming") if isinstance(eors, dict) else None
+    if isinstance(inc, dict) and inc:
+        out = {}
+        for afi, v in inc.items():
+            status = v.get("status") if isinstance(v, dict) else None
+            out[EOS_FAMILIES.get(afi, afi)] = status if status in ("received", "pending") else "unknown"
+        return out
+    caps = p.get("neighborCapabilities")
+    gr = caps.get("grCaps") if isinstance(caps, dict) else None
+    if eors is None and (not isinstance(gr, dict) or not gr.get("received")):
+        return {"*": "untracked"}
+    return {"*": "unknown"}
 
 
 class EosDriver(Driver):
