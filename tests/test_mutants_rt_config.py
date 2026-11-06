@@ -186,3 +186,14 @@ def test_as_path_regex_that_isnt_a_non_empty_string_is_refused_exactly(v):
     with pytest.raises(ConfigError, match=r"^checks\[0\]: as_path_regex must be a non-empty regular expression "
                                           r"string, got " + re.escape(repr(v)) + "$"):
         _validate_check(0, {"type": "bgp_route", "node": "r1", "prefix": "10.0.0.0/8", "as_path_regex": v}, 30)
+
+
+def test_a_nodes_error_names_the_config_file(tmp_path):
+    from netdryrun.config import load
+    (tmp_path / "t.clab.yml").write_text("name: t\ntopology: {nodes: {r1: {kind: linux}}}\n")
+    cfg = tmp_path / "netdryrun.yml"
+    cfg.write_text("lab: t.clab.yml\nnodes: {r1: {driver: nope}}\n"
+                   "checks: [{type: route, node: r1, prefix: 10.0.0.0/8, present: false}]\n")
+    with pytest.raises(ConfigError) as e:
+        load(cfg)
+    assert str(e.value).startswith(f"{cfg}: nodes.r1.driver: unknown driver 'nope'")
