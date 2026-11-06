@@ -254,7 +254,7 @@ def test_a_lab_without_docker_is_left_alone():
 
 
 def test_the_real_lab_can_read_docker():
-    assert callable(getattr(Lab, "docker_inspect")) and callable(getattr(Lab, "exec_root"))
+    assert callable(Lab.docker_inspect) and callable(Lab.exec_root) and callable(Lab.netns_exec)
 
 
 # ------------------------------------------------------------------------------------------- re-checks
