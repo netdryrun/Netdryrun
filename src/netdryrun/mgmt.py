@@ -219,11 +219,44 @@ def _scan_linux(lab: Lab, m: Mgmt) -> list[LinuxRoute]:
     return routes
 
 
+_ADDR_HEAD = re.compile(r"^\d+:\s+([^:@\s]+)(?:@\S+)?:")
+_ADDR = re.compile(r"^\s*inet6?\s+(\S+)")
+
+
+def parse_ip_addr(text: str) -> dict[str, list]:
+    """`ip addr show` (iproute2 or busybox): each device's addresses, as interfaces."""
+    out: dict[str, list] = {}
+    dev = None
+    for line in text.splitlines():
+        h = _ADDR_HEAD.match(line)
+        if h:
+            dev = h.group(1)
+            out.setdefault(dev, [])
+            continue
+        a = _ADDR.match(line)
+        if a and dev is not None:
+            try:
+                out[dev].append(ipaddress.ip_interface(a.group(1)))
+            except ValueError:
+                raise LabError(f"`ip addr show` printed an address it doesn't explain: {line.strip()[:120]!r}") from None
+    return out
+
+
 def _linux_devices(lab: Lab, m: Mgmt) -> None:
-    """The devices holding the management subnets: the device of each connected management route (eth0 normally)."""
+    """The devices holding the management subnets: the device of each connected management route (eth0 normally),
+    else the device holding a management address (SONiC VS takes eth0 down at boot, which drops its connected and
+    default routes but keeps the address: live capture 2026-11-07, sonic_mgmt_eth0_down.txt)."""
     for r in _scan_linux(lab, m):
         if not r.via and r.proto in ("kernel", "") and _in_mgmt_subnet(r.prefix, m) and r.dev:
             m.devices.add(r.dev)
+    if not m.devices and m.subnets:
+        rc, out, err = _ip(lab, m, ["addr", "show"])
+        if rc != 0:
+            raise LabError(f"{m.node}: its addresses can't be read (`ip addr show` rc={rc}: "
+                           f"{(err or out).strip()[-200:] or 'no output'})")
+        for dev, addrs in parse_ip_addr(out).items():
+            if any(a.ip in s for a in addrs for s in m.subnets):
+                m.devices.add(dev)
     if not m.devices and m.subnets:
         raise LabError(f"{m.node}: no interface holds its management subnet ({', '.join(map(str, m.subnets))}), so its "
                        "management device can't be told apart from a lab interface")

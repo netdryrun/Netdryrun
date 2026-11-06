@@ -1,0 +1,8 @@
+2: eth0@if1018: <BROADCAST,MULTICAST,PROMISC> mtu 9122 qdisc noqueue state DOWN group default  link-netnsid 0
+    inet 172.20.20.2/24 brd 172.20.20.255 scope global eth0
+       valid_lft forever preferred_lft forever
+fe80::/64 dev dummy proto kernel metric 256 pref medium
+fe80::/64 dev Bridge proto kernel metric 256 pref medium
+Name              Table
+-----------------------
+No VRF has been configured

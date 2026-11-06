@@ -281,13 +281,17 @@ def frr_eor(info: dict) -> dict[str, str]:
 
 def _route_table(command: str, text: str) -> dict[ipaddress._BaseNetwork, list[dict]]:
     """zebra's `show ip route ... json`: {prefix: [entry, ...]}. `{}` is a real empty answer; any key
-    that isn't a prefix (a warning, output keyed by VRF name) is unexpected."""
+    that isn't a prefix (a warning, output keyed by VRF name) is unexpected. The default prefix with an empty list is
+    zebra's answer when no default route exists at all (FRR 10.4.1, live capture frr_route_default_absent.json): no
+    route, as `{}`. Once Docker's management default is removed (0.4.1, B3) a lab node can have none."""
     data = load_json(command, text)
     if not isinstance(data, dict):
         raise unexpected(command, text)
     table = {}
     for key, entries in data.items():
         net = network(command, key)
+        if entries == [] and net.prefixlen == 0:
+            continue
         if not isinstance(entries, list) or not entries:
             raise unexpected(command, f"{key}: {str(entries)[:150]}")
         for e in entries:

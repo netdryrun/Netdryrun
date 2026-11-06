@@ -275,6 +275,26 @@
     and a static route via the management gateway added; alpine 3.20 (busybox `ip`), every table and the main table.
     HQ wt/cap-mgmt/ (cap.sh there)
   added: ndr/gate-fixes-0.4.1
+- files: [frr_route_default_absent.json, frr_route_default_absent_v6.json]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 with zebra and bgpd and no default route at all (no kernel default either), 2026-11-07: `show ip route
+    0.0.0.0/0 json` and `show ipv6 route ::/0 json` print the default prefix with an empty list. Found by the corpus
+    refresh of bd76896, where every `route 0.0.0.0/0 present: false` check read unready once Docker's management default
+    was removed. HQ wt/cap-mgmt/nodefault.sh and nodefault.txt
+  added: ndr/gate-fixes-0.4.1
+- files: [eos_route_default_absent.json, eos_route_v6_default_absent.json, eos_bgp_default_absent.json,
+          eos_bgp_v6_default_absent.json, sonic_route_default_absent.json, sonic_bgp_default_absent.json,
+          sonic_mgmt_eth0_down.txt]
+  kind: live-capture
+  source: >-
+    No default route at all, the state option A (B3) creates, 2026-11-07 (coordinator, rule 1): cEOS 4.36.3M with
+    `router bgp 65000` and no default (`show ip[v6] route vrf default <default> | json`, `show ip[v6] bgp <default>
+    vrf default | json`); docker-sonic-vs master.1258173-c10162df4 (`show ip route 0.0.0.0/0 json`, `show bgp ipv4
+    unicast 0.0.0.0/0 json` without a BGP instance), and its eth0 240 s after deploy (`ip -4 addr show eth0`, `ip -6
+    route show table all` without table local): SONiC VS takes eth0 down at boot, which drops the connected and default
+    routes but keeps the address. HQ wt/cap-mgmt/nodef/ (nodef2.sh, out2/)
+  added: ndr/gate-fixes-0.4.1
 - files: [eos_route_default_routing_disabled.json, eos_route_red_routing_disabled.json,
           eos_route_red_v6_routing_disabled.json, srl_instance_disabled.json, srl_instance_no_links.json]
   kind: live-capture

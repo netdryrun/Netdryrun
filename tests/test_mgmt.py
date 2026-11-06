@@ -67,6 +67,7 @@ class RouteLab:
         self.tables = {n: {4: v4, 6: v6} for n in self.nodes}
         self.inspect = inspect or {}
         self.fail = fail or {}
+        self.addrs = {n: "" for n in self.nodes}       # `ip addr show`: asked only when no route holds the subnet
         self.calls: list[tuple] = []
         self.events: list[tuple] = []
 
@@ -81,6 +82,8 @@ class RouteLab:
                 return ExecResult(cmd, rc, "", "boom")
         if cmd[0] == "sysctl":
             return ExecResult(cmd, 1, "", "sysctl: error setting key: Read-only file system")
+        if cmd[1:3] == ["addr", "show"]:
+            return ExecResult(cmd, 0, self.addrs[node], "")
         fam = 6 if "-6" in cmd else 4
         if cmd[2:4] == ["route", "show"]:
             return ExecResult(cmd, 0, self.tables[node][fam], "")
@@ -668,3 +671,92 @@ def test_recheck_reads_eos_and_junos_nodes_too():
     finally:
         mgmt.check_junos = real
     assert called == [("j1", "after scenario 's'")]
+
+
+# ------------------------------------------------------------------------------------------- no default route at all
+
+@pytest.mark.parametrize("fixture,prefix", [("frr_route_default_absent.json", "0.0.0.0/0"),
+                                            ("frr_route_default_absent_v6.json", "::/0")])
+def test_frr_no_default_route_at_all_reads_absent(fixture, prefix):
+    """Corpus refresh of bd76896: with Docker's default gone, zebra answers the default prefix with an empty list, and
+    every `route 0.0.0.0/0 present: false` check (corpus I4) read unready, a false failure in every case."""
+    from netdryrun.drivers.frr import parse_routes
+    assert parse_routes((FX / fixture).read_text(encoding="utf-8"), prefix, "{}") == []
+
+
+def test_frr_an_empty_list_for_any_other_prefix_is_still_unexpected():
+    from netdryrun.drivers.base import DriverError
+    from netdryrun.drivers.frr import parse_routes
+    with pytest.raises(DriverError, match=r"10.9.0.0/16: \[\]"):
+        parse_routes('{"10.9.0.0/16": []}', "10.9.0.0/16", "{}")
+    with pytest.raises(DriverError, match=r"0.0.0.0/0: \{\}"):
+        parse_routes('{"0.0.0.0/0": {}}', "0.0.0.0/0", "{}")
+
+
+# ------------------------------------------------------------------------------------------- no default at all, per driver
+
+def _sonic_eth0_down():
+    """SONiC VS 240 s after deploy (live): eth0 down, its address kept, its connected and default routes gone."""
+    lines = (FX / "sonic_mgmt_eth0_down.txt").read_text(encoding="utf-8").splitlines()
+    return "\n".join(lines[:3]), "\n".join(ln for ln in lines[3:] if ln.startswith("fe80"))
+
+
+def test_sonic_eth0_taken_down_is_found_by_its_address_and_needs_no_removal():
+    addr, v6 = _sonic_eth0_down()
+    lab = RouteLab(nodes=["s1"], kinds={"s1": ("sonic-vs", "docker-sonic-vs")}, v4="", v6=v6,
+                   inspect={"s1": {"HostConfig": {"NetworkMode": "clab"}, "NetworkSettings": {"Networks": {"clab": {
+                       "IPAddress": "172.20.20.2", "IPPrefixLen": 24, "Gateway": "172.20.20.1",
+                       "GlobalIPv6Address": "3fff:172:20:20::2", "GlobalIPv6PrefixLen": 64,
+                       "IPv6Gateway": "3fff:172:20:20::1"}}}}})
+    lab.addrs["s1"] = addr
+    m = mgmt.prepare(lab, [])["s1"]
+    assert m.devices == {"eth0"} and m.removed == [] and mgmt.describe(m, "sonic-vs") == "none"
+    assert ("s1", ("ip", "addr", "show")) in lab.calls
+    lab.tables["s1"][4] = "default via 172.20.20.1 dev eth0"          # eth0 back up with Docker's default
+    with pytest.raises(ManagementPathError):
+        mgmt.check_node(lab, "s1", "before the ping to 10.0.0.9")
+
+
+def test_parse_ip_addr_exact():
+    addr, _ = _sonic_eth0_down()
+    assert mgmt.parse_ip_addr(addr) == {"eth0": [ipaddress.ip_interface("172.20.20.2/24")]}
+    assert mgmt.parse_ip_addr("1: lo: <LOOPBACK>\n    inet 127.0.0.1/8 scope host lo\n    inet6 ::1/128 scope host\n"
+                              "3: eth1@if9: <UP>\n") == {
+        "lo": [ipaddress.ip_interface("127.0.0.1/8"), ipaddress.ip_interface("::1/128")], "eth1": []}
+    with pytest.raises(LabError, match="an address it doesn't explain"):
+        mgmt.parse_ip_addr("2: eth0: <UP>\n    inet nonsense")
+
+
+def test_no_address_in_the_management_subnet_either_is_an_error():
+    lab = RouteLab(v4="", v6="")
+    lab.addrs["r1"] = "2: eth0@if3: <UP>\n    inet 10.0.0.2/24 scope global eth0\n"
+    with pytest.raises(LabError, match="no interface holds its management subnet"):
+        mgmt.prepare(lab, [])
+
+
+def test_unreadable_addresses_are_an_error_exact():
+    lab = RouteLab(v4="", v6="")
+    real = lab.exec_root
+    lab.exec_root = lambda node, cmd, timeout=60: (ExecResult(cmd, 1, "", "ip: bad") if cmd[1:3] == ["addr", "show"]
+                                                   else real(node, cmd, timeout))
+    with pytest.raises(LabError) as e:
+        mgmt.prepare(lab, [])
+    assert str(e.value) == "r1: its addresses can't be read (`ip addr show` rc=1: ip: bad)"
+
+
+@pytest.mark.parametrize("route,bgp,prefix", [
+    ("eos_route_default_absent.json", "eos_bgp_default_absent.json", "0.0.0.0/0"),
+    ("eos_route_v6_default_absent.json", "eos_bgp_v6_default_absent.json", "::/0"),
+])
+def test_eos_no_default_route_at_all_reads_absent(route, bgp, prefix):
+    """cEOS 4.36.3M with BGP configured and no default route at all (live, 2026-11-07, after option A)."""
+    from netdryrun.drivers.eos import parse_routes
+    assert parse_routes((FX / route).read_text(encoding="utf-8"), (FX / bgp).read_text(encoding="utf-8"), prefix,
+                        "default") == []
+
+
+def test_sonic_no_default_route_at_all_reads_absent():
+    """docker-sonic-vs (FRR inside) without a default route and without a BGP instance (live, 2026-11-07)."""
+    from netdryrun.drivers.frr import parse_routes
+    assert parse_routes((FX / "sonic_route_default_absent.json").read_text(encoding="utf-8"), "0.0.0.0/0",
+                        (FX / "sonic_bgp_default_absent.json").read_text(encoding="utf-8")) == []
