@@ -1,0 +1,27 @@
+--- hwsku
+lrwxrwxrwx 1 root root 58 Nov  6 23:43 /usr/share/sonic/hwsku -> /usr/share/sonic/device/x86_64-kvm_x86_64-r0/Force10-S6000
+lrwxrwxrwx 1 root root 44 Nov  6 23:43 /usr/share/sonic/platform -> /usr/share/sonic/device/x86_64-kvm_x86_64-r0
+--- lanemap.ini
+eth1:25,26,27,28
+eth2:29,30,31,32
+--- sonic-db-cli PORT lanes
+Ethernet0: 25,26,27,28
+Ethernet4: 29,30,31,32
+Ethernet8: 33,34,35,36
+--- sonic-db-cli CONFIG_DB keys PORT|*
+PORT|Ethernet0
+PORT|Ethernet4
+PORT|Ethernet8
+PORT|Ethernet12
+PORT|Ethernet16
+PORT|Ethernet20
+--- port_config.ini (active hwsku)
+# name          lanes             alias             index       speed
+Ethernet0       25,26,27,28       fortyGigE0/0      0           40000
+Ethernet4       29,30,31,32       fortyGigE0/4      1           40000
+--- ip -br link eth1 eth2
+eth1@if2038      DOWN           aa:c1:ab:94:74:96 <BROADCAST,MULTICAST,NOARP,PROMISC> 
+eth2@if2040      DOWN           aa:c1:ab:f7:c7:7c <BROADCAST,MULTICAST,NOARP,PROMISC> 
+--- eth0 and default
+eth0@if2036      UP             9e:16:55:48:61:02 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+default via 172.20.20.1 dev eth0 

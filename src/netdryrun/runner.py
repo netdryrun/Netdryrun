@@ -305,7 +305,9 @@ def preflight(config: Config, lab: Lab, *, full: bool = False) -> None:
             # only an interface on a topology link is a lab link: management eth0, lo or a name not in links: would
             # take nothing down that the checks depend on, and every scenario check would pass (red team B-9001)
             ends = sorted({i for a, b in getattr(lab, "links", []) for n, i in (a, b) if n == f.node})
-            if f.interface not in ends and f.interface not in {_container_iface(i) for i in ends}:
+            kind = lab.nodes[f.node].kind if f.node in lab.nodes else ""
+            if f.interface not in ends and _container_iface(f.interface, kind) not in ends \
+                    and f.interface not in {_container_iface(i, kind) for i in ends}:
                 raise LabError(f"scenario '{sc.name}': link_down {f.node} {f.interface}: not an interface of a link in "
                                f"the topology (links on {f.node}: {', '.join(ends) or 'none'}); a fault on any other "
                                "interface takes no lab link down")
@@ -1117,11 +1119,20 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     return blocked
 
 
-def _container_iface(name: str) -> str:
-    """The container interface behind a containerlab interface alias (cEOS `Ethernet1` is `eth1`, SR Linux
-    `ethernet-1/1` is `e1-1`); any other name is itself."""
+SONIC_KINDS = ("sonic-vs", "sonic_vs")
+
+
+def _container_iface(name: str, kind: str = "") -> str:
+    """The container interface behind a NOS interface name (cEOS `Ethernet1` is `eth1`, SR Linux `ethernet-1/1` is
+    `e1-1`); any other name is itself. SONiC VS (`kind: sonic-vs`) names its ports after their first lane, four lanes
+    each: `Ethernet0` is on `eth1`, `Ethernet4` on `eth2` (live capture 2026-11-07, sonic_vs_port_map.txt: CONFIG_DB
+    lanes of Ethernet0 = 25,26,27,28 = lanemap.ini's eth1). The run confirms it on the node before the fault
+    (Lab.sonic_port_device): this is only what preflight can know without the node."""
     import re as _re
     m = _re.fullmatch(r"Ethernet(\d+)", name)
+    if m and kind in SONIC_KINDS:
+        n = int(m.group(1))
+        return f"eth{n // 4 + 1}" if n % 4 == 0 else name
     if m:
         return f"eth{m.group(1)}"
     m = _re.fullmatch(r"ethernet-(\d+)/(\d+)", name)
@@ -1360,6 +1371,13 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
                 inj.apply()
                 continue
             for iface in ifaces:
+                if lab.nodes[f.node].kind in SONIC_KINDS and hasattr(lab, "sonic_port_device"):
+                    # the port must sit on the lab link preflight mapped it to, read from the node itself
+                    want = _container_iface(iface, lab.nodes[f.node].kind)
+                    got = lab.sonic_port_device(f.node, iface)
+                    if got != want:
+                        raise LabError(f"scenario '{sc.name}': {f.node} {iface} is on {got}, not on the lab link "
+                                       f"{want}: the fault would take another link down")
                 downed.append((f.node, iface))   # recorded first: restore even if this call half-fails
                 lab.set_link(f.node, iface, up=False)
                 if lab.admin_up(f.node, iface):

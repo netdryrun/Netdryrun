@@ -16,6 +16,25 @@ class LabError(RuntimeError):
     pass
 
 
+def sonic_device_for_lanes(lanemap: str, lanes: str, node: str = "", port: str = "") -> str:
+    """lanemap.ini (`eth1:25,26,27,28` per line) and a port's CONFIG_DB lanes (`25,26,27,28`): the device with exactly
+    those lanes. Any other line, or no single match, is an error."""
+    want = [x.strip() for x in lanes.strip().split(",")]
+    found = []
+    for line in lanemap.splitlines():
+        if not line.strip():
+            continue
+        dev, sep, rest = line.strip().partition(":")
+        if not sep or not dev or not rest:
+            raise LabError(f"{node}: lanemap.ini line {line.strip()[:80]!r} isn't `device:lanes`")
+        if [x.strip() for x in rest.split(",")] == want:
+            found.append(dev)
+    if len(found) != 1:
+        raise LabError(f"{node}: {port} (lanes {','.join(want)}) maps to {len(found)} devices in lanemap.ini"
+                       + (f": {', '.join(found)}" if found else ""))
+    return found[0]
+
+
 # The helper that reads and changes a node's routes from outside when the node's image has no `ip` (nginx, distroless):
 # the official alpine image (busybox `ip`), pinned by digest (alpine:3.20, pulled 2026-04-16). It joins only the node's
 # network namespace, with NET_ADMIN only, a read-only root and --rm (research/adoption/alpine-netns-helper.md). Air-gapped
@@ -407,6 +426,16 @@ class Lab:
     def exec_root(self, node: str, cmd: list[str], timeout: float = 60) -> ExecResult:
         """As root, whatever USER the image sets: the management route is read and removed as root (mgmt.py)."""
         return _run(["docker", "exec", "-u", "0", self.nodes[node].container, *cmd], timeout=timeout)
+
+    def sonic_port_device(self, node: str, port: str) -> str:
+        """The container interface a SONiC VS port sits on, read from the node: the port's lanes in CONFIG_DB and the
+        HwSKU's lanemap.ini (`eth1:25,26,27,28`). Unreadable, or no device with exactly those lanes, is an error."""
+        lm = self.exec(node, ["cat", "/usr/share/sonic/hwsku/lanemap.ini"], timeout=30)
+        db = self.exec(node, ["sonic-db-cli", "CONFIG_DB", "hget", f"PORT|{port}", "lanes"], timeout=30)
+        if lm.rc != 0 or db.rc != 0 or not db.stdout.strip():
+            raise LabError(f"{node}: the port map for {port} can't be read (lanemap.ini rc={lm.rc}, CONFIG_DB "
+                           f"rc={db.rc}: {(db.stderr or lm.stderr or db.stdout).strip()[-150:] or 'no lanes'})")
+        return sonic_device_for_lanes(lm.stdout, db.stdout, node, port)
 
     def netns_exec(self, node: str, cmd: list[str], timeout: float = 60) -> ExecResult:
         """`cmd` in the pinned helper, inside the node's network namespace and nothing else of it (mgmt.py)."""

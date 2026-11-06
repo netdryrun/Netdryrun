@@ -295,6 +295,14 @@
     route show table all` without table local): SONiC VS takes eth0 down at boot, which drops the connected and default
     routes but keeps the address. HQ wt/cap-mgmt/nodef/ (nodef2.sh, out2/)
   added: ndr/gate-fixes-0.4.1
+- files: [sonic_vs_port_map.txt]
+  kind: live-capture
+  source: >-
+    docker-sonic-vs master.1258173-c10162df4 with two lab links (eth1, eth2), 100 s after deploy, 2026-11-07: the active
+    HwSKU (Force10-S6000), its lanemap.ini, CONFIG_DB lanes of Ethernet0/4/8, the active port_config.ini head, and the
+    state of eth1, eth2 and eth0 with the default route. The map from SONiC port to lab link (Ethernet0 on eth1).
+    HQ wt/cap-mgmt/sonicmap.sh and nodef/map/
+  added: ndr/gate-fixes-0.4.1
 - files: [eos_route_default_routing_disabled.json, eos_route_red_routing_disabled.json,
           eos_route_red_v6_routing_disabled.json, srl_instance_disabled.json, srl_instance_no_links.json]
   kind: live-capture

@@ -478,6 +478,17 @@ def example_dirs() -> list[str]:
 # Layer 1: static
 # --------------------------------------------------------------------------------------------
 
+def examples_validate(root: Path = ROOT) -> list[str]:
+    """Each examples/*/netdryrun.yml through `netdryrun validate`; the ones that fail, with the first error line."""
+    bad = []
+    for d in sorted(p.parent for p in (root / "examples").glob("*/netdryrun.yml")):
+        p = run([sys.executable, "-m", "netdryrun", "validate", str(d)], cwd=root, timeout=120)
+        if p.code != 0:
+            first = next((ln for ln in p.out.splitlines() if ln.strip()), "no output")
+            bad.append(f"{d.name}: {first[:200]}")
+    return bad
+
+
 def layer_static(args) -> Layer:
     layer = Layer("static", args)
     closure = mutation_closure()
@@ -553,6 +564,13 @@ def layer_static(args) -> Layer:
         + [f"expected result without an exit code: {', '.join(unpaired)}"] * bool(unpaired)
     layer.add("examples-documented", "every example has a documented expected result and exit code", MAJOR,
               not bad, "; ".join(bad) or f"{len(dirs)} examples", json.dumps(docs, indent=1), time.monotonic() - t0)
+
+    # every shipped example passes `netdryrun validate` (preflight included, no deploy): sonic-frr's scenario named a
+    # SONiC port the 0.4.1 link_down rule couldn't map, so the shipped example refused to run (found 2026-11-07)
+    t1 = time.monotonic()
+    invalid = examples_validate()
+    layer.add("examples-validate", "every shipped example passes `netdryrun validate` (preflight, no deploy)", BLOCKER,
+              not invalid, "; ".join(invalid) or f"{len(example_dirs())} examples", "", time.monotonic() - t1)
 
     # the live layer removes leftovers by this prefix only, so a lab we ship under another name would leak
     topos = sorted(p for d in ("examples", "corpus") for p in (ROOT / d).rglob("*.clab.yml"))
