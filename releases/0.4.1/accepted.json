@@ -3383,11 +3383,11 @@
       "class": "message-text"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_129": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_119 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
-      "diff": "6f3a3885b081404f",
+      "reason": "Re-pin of the accepted 119/129 (same change; the st line gained the \"routeros\" key): the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes.",
+      "diff": "e0828f1209b46070",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_119 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: s['counts'] is read only at line 1005 behind the streak truth test, and streak is truthy only after the established branch has assigned counts."
+      "argument": "Re-pin of the accepted 119/129 (same change; the st line gained the \"routeros\" key): the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: s[\"counts\"] is read only behind `s[\"streak\"] and`, and only the counts path makes streak nonzero and it writes counts on the same sample, so the missing key is never looked up."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_153": {
       "reason": "message text only: the VRF part of the no-neighbors detail text; it is still an Unready detail",
@@ -5212,11 +5212,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_311": {
-      "reason": "equivalent: Result.samples_passed defaults to 0, the value passed explicitly",
-      "diff": "bf66f2883f075999",
+      "reason": "Re-pin of the accepted 276/289 (same change, code moved): the error is only tested for truth after an answer; None and '' are both false, and its text is read only when it is true.",
+      "diff": "72452936d1ebc9d4",
       "class": "equivalent",
-      "argument": "Same behaviour on every input the function can receive: Result.samples_passed defaults to 0, the value passed explicitly. So the verdict can't change.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "argument": "Re-pin of the accepted 276/289 (same change, code moved): the error is only tested for truth after an answer; None and '' are both false, and its text is read only when it is true.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: After an answer, error is read only for truth (`s[\"error\"] or not s[\"answered\"]`), and None and \"\" are both false; .split() is reached only when error is truthy or never answered, and then error holds an exception text, which is never empty."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_318": {
       "reason": "report precision only: the duration of a not-evaluated result rounded to 2 decimals instead of 1; same verdict",
@@ -5254,11 +5254,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_379": {
-      "reason": "equivalent: Result.samples_passed defaults to 0, the value passed explicitly",
-      "diff": "4a31f2c30ee73505",
+      "reason": "Re-pin of the accepted 344/357 (same change, code moved): the down list is only tested for truth; None and [] are both false.",
+      "diff": "9fe1f0eaf61807db",
       "class": "equivalent",
-      "argument": "Same behaviour on every input the function can receive: Result.samples_passed defaults to 0, the value passed explicitly. So the verdict can't change.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "argument": "Re-pin of the accepted 344/357 (same change, code moved): the down list is only tested for truth; None and [] are both false.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: down is read only for truth at the cap and iterated only inside `elif s[\"down\"]`, so None and [] act the same."
     },
     "netdryrun.drivers.nxos.x__reply__mutmut_27": {
       "class": "equivalent",
@@ -6245,11 +6245,11 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: detail read at cap only when streak==0 on an answered own node; streak 0 there is always last written by 893/906/913/941, which also write detail; extras never read detail"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_128": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_118 (same change, code moved): the initial streak is never read: every answer sets it, and the first established sample gets 1 beca",
-      "diff": "b454e00bd0d3cd7b",
+      "reason": "Re-pin of the accepted 118/128 (same change; the st line gained the \"routeros\" key): the initial streak is never read: every answer sets it, and the first established sample gets 1 because counts != None.",
+      "diff": "5a2b6d2702f163f1",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_118 (same change, code moved): the initial streak is never read: every answer sets it, and the first established sample gets 1 beca",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Line 1005 sets streak to 1 on the first established sample either way (counts never equals the initial None), and every pending path assigns streak before the deadline loop reads it."
+      "argument": "Re-pin of the accepted 118/128 (same change; the st line gained the \"routeros\" key): the initial streak is never read: every answer sets it, and the first established sample gets 1 because counts != None.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Every non-discarding read writes streak (error/no-neighbors/down/EoR-wait set 0, the counts path computes it with counts==None false giving 1), so the initial value is never read; the new RouterOS EoR code does not touch streak."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_132": {
       "reason": "the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it",
@@ -6266,25 +6266,25 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 132: down always written before the cap branch reads it"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_137": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_127 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
-      "diff": "8e63d003b0a7956d",
+      "reason": "Re-pin of the accepted 127/137 (same change; the st line gained the \"routeros\" key): the initial detail is never read: every failing sample sets it before the cap reads it, and a group that settles never reads it.",
+      "diff": "182cce1b45e685a8",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_127 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: detail is read only at 1078/1087 (answered, streak 0), and every path that leaves streak 0 assigns detail first; the blocked detail is a fresh plain str."
+      "argument": "Re-pin of the accepted 127/137 (same change; the st line gained the \"routeros\" key): the initial detail is never read: every failing sample sets it before the cap reads it, and a group that settles never reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: detail is read only in the streak==0 cap branches after answered, and every answered path leaving streak 0 (and every error path) writes detail; _sample reads it only right after a write."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_138": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_128 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
-      "diff": "ba0bbefbceb8a096",
+      "reason": "Re-pin of the accepted 128/138 (same change; the st line gained the \"routeros\" key): the initial detail is never read: every failing sample sets it before the cap reads it, and a group that settles never reads it.",
+      "diff": "e1cdacb4d4452290",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_128 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: detail is read only at 1078/1087 (answered, streak 0), and every path that leaves streak 0 assigns detail first; the blocked detail is a fresh plain str."
+      "argument": "Re-pin of the accepted 128/138 (same change; the st line gained the \"routeros\" key): the initial detail is never read: every failing sample sets it before the cap reads it, and a group that settles never reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 137."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_139": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_129 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
-      "diff": "f82c08a03a2443d8",
+      "reason": "Re-pin of the accepted 129/139 (same change; the st line gained the \"routeros\" key): the initial detail is never read: every failing sample sets it before the cap reads it, and a group that settles never reads it.",
+      "diff": "f5b53db6dfcc4792",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_129 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: detail is read only at 1078/1087 (answered, streak 0), and every path that leaves streak 0 assigns detail first; the blocked detail is a fresh plain str."
+      "argument": "Re-pin of the accepted 129/139 (same change; the st line gained the \"routeros\" key): the initial detail is never read: every failing sample sets it before the cap reads it, and a group that settles never reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 137: the initial \"XXXX\" is always overwritten before any read."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_344": {
       "reason": "the down list is only tested for truth; None and [] are both false",
@@ -6329,11 +6329,11 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: Result.samples_passed defaults to 0, the explicit value"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_748": {
-      "reason": "Result.samples_passed defaults to 0, the value passed explicitly",
-      "diff": "3420ed22b5ca4eeb",
+      "reason": "Re-pin of the accepted 611/706 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "diff": "2e41f0a713bcd706",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: Result.samples_passed defaults to 0, the value passed explicitly. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: Result.samples_passed defaults to 0, the explicit value"
+      "argument": "Re-pin of the accepted 611/706 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 682: the dataclass default is 0."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_81": {
       "reason": "The protocol is compared with 'bgp' after str().lower(): a default of None ('none'), omitted, or 'XXXX' is not 'bgp', exactly as '' isn't.",
@@ -6498,67 +6498,67 @@
       "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: cap is read only at line 898 inside 'if groups:', where deadline is non-empty, so max() never uses its default."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_130": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_120 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
-      "diff": "eb994241bdcaf272",
+      "reason": "Re-pin of the accepted 120/130 (same change; the st line gained the \"routeros\" key): the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes.",
+      "diff": "6df658e43b8b2691",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_120 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: s['counts'] is read only at line 1005 behind the streak truth test, and streak is truthy only after the established branch has assigned counts."
+      "argument": "Re-pin of the accepted 120/130 (same change; the st line gained the \"routeros\" key): the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 129: counts is read only after a nonzero streak, which only the counts-writing path creates."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_134": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_124 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
-      "diff": "711a80250d526a7a",
+      "reason": "Re-pin of the accepted 124/134 (same change; the st line gained the \"routeros\" key): the initial empty flag is never read: every answer sets it, and a read error sets it to False before the cap reads it.",
+      "diff": "1ff67cf84447ca15",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_124 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: 'empty' is read only at lines 1035/1058/1068, all after a not-answered branch, and line 949 sets it on every answer."
+      "argument": "Re-pin of the accepted 124/134 (same change; the st line gained the \"routeros\" key): the initial empty flag is never read: every answer sets it, and a read error sets it to False before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: empty is read at the cap only after the not-answered branches (extras: after error/not-answered), and answered=True is always set together with empty; the error path also writes it."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_135": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_125 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
-      "diff": "d72d4603a99863c2",
+      "reason": "Re-pin of the accepted 125/135 (same change; the st line gained the \"routeros\" key): the initial empty flag is never read: every answer sets it, and a read error sets it to False before the cap reads it.",
+      "diff": "fdafe3370cc3e238",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_125 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: 'empty' is read only at lines 1035/1058/1068, all after a not-answered branch, and line 949 sets it on every answer."
+      "argument": "Re-pin of the accepted 125/135 (same change; the st line gained the \"routeros\" key): the initial empty flag is never read: every answer sets it, and a read error sets it to False before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 134: every cap read of empty is reached only once an answer has written it."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_136": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_126 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
-      "diff": "b87b84f35f35ed99",
+      "reason": "Re-pin of the accepted 126/136 (same change; the st line gained the \"routeros\" key): the initial empty flag is never read: every answer sets it, and a read error sets it to False before the cap reads it.",
+      "diff": "2ceb86c7616546d9",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_126 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: 'empty' is read only at lines 1035/1058/1068, all after a not-answered branch, and line 949 sets it on every answer."
+      "argument": "Re-pin of the accepted 126/136 (same change; the st line gained the \"routeros\" key): the initial empty flag is never read: every answer sets it, and a read error sets it to False before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 134: the initial True is overwritten by the first answer before any cap read, and no answer means the not-answered branches are taken first."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_142": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_132 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
-      "diff": "f8bec8da35b4ab35",
+      "reason": "Re-pin of the accepted 132/142 (same change; the st line gained the \"routeros\" key): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it.",
+      "diff": "a0b1dff52fa86bfb",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_132 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns 'down' (944, 957, 963, 968) before the reads at 1021/1026/1076 (1076 short-circuits on eor_wait)."
+      "argument": "Re-pin of the accepted 132/142 (same change; the st line gained the \"routeros\" key): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Every non-discarding read path (error, no neighbors, down, settled) writes down before the cap, and every group reaching the cap was read at least once in the first sweep."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_143": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_133 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
-      "diff": "33ea5be520cb389d",
+      "reason": "Re-pin of the accepted 133/143 (same change; the st line gained the \"routeros\" key): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it.",
+      "diff": "956e2114416af076",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_133 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns 'down' (944, 957, 963, 968) before the reads at 1021/1026/1076 (1076 short-circuits on eor_wait)."
+      "argument": "Re-pin of the accepted 133/143 (same change; the st line gained the \"routeros\" key): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 142."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_147": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_137 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
-      "diff": "ad1c09e03e48a727",
+      "reason": "Re-pin of the accepted 137/147 (same change; the st line gained the \"routeros\" key): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it.",
+      "diff": "fbfe26f42b1ace9e",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_137 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns error (945 or 950) before 1032/1034/1047 read it."
+      "argument": "Re-pin of the accepted 137/147 (same change; the st line gained the \"routeros\" key): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: error is written on every non-discarding read (str(e) or the type name on errors, \"\" on answers), and the cap reads it only after such reads (own groups: only when never answered, so the error text was set)."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_148": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_138 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
-      "diff": "005c5fa5dbd3d783",
+      "reason": "Re-pin of the accepted 138/148 (same change; the st line gained the \"routeros\" key): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it.",
+      "diff": "9b255956da090c8e",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_138 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns error (945 or 950) before 1032/1034/1047 read it."
+      "argument": "Re-pin of the accepted 138/148 (same change; the st line gained the \"routeros\" key): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 147."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_149": {
-      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_139 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
-      "diff": "0dd172653298663a",
+      "reason": "Re-pin of the accepted 139/149 (same change; the st line gained the \"routeros\" key): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it.",
+      "diff": "554aecfbceebede0",
       "class": "equivalent",
-      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_139 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
-      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns error (945 or 950) before 1032/1034/1047 read it."
+      "argument": "Re-pin of the accepted 139/149 (same change; the st line gained the \"routeros\" key): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 147: the initial \"XXXX\" is never read."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_499": {
       "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_470 (same change, code moved): `first` is only tested for truth; None and False are both false",
@@ -6895,6 +6895,83 @@
       "class": "equivalent",
       "argument": "repair=None behaves as repair=False.",
       "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: repair is only used as 'not repair', and None is falsy like False."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_512": {
+      "reason": "Re-pin of the accepted 441/470 (same change, code moved): the streak is only compared with >= 2 and == 0, and a streak that grows by 2 instead of 1 crosses both on the same sample.",
+      "diff": "a15f2e1137c18e5b",
+      "class": "equivalent",
+      "argument": "Re-pin of the accepted 441/470 (same change, code moved): the streak is only compared with >= 2 and == 0, and a streak that grows by 2 instead of 1 crosses both on the same sample.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: streak is compared only with >=2, ==0 and for truth; the mutant's values 1, then 3+, cross >=2 on the same sample as the original's 1, 2, and a value of 1 at the cap is the same in both."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_541": {
+      "reason": "Re-pin of the accepted 254/499 (same change, code moved): `first` is only tested for truth; None and False are both false.",
+      "diff": "2862785d7738fb2b",
+      "class": "equivalent",
+      "argument": "Re-pin of the accepted 254/499 (same change, code moved): `first` is only tested for truth; None and False are both false.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: first is read only for truth in the ping-only discard condition; None and False are both false."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_682": {
+      "reason": "Re-pin of the accepted 611/640 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "diff": "505371466c08fe54",
+      "class": "equivalent",
+      "argument": "Re-pin of the accepted 611/640 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Result is a plain dataclass with samples_passed: int = 0 and no __post_init__, so omitting samples_passed=0 builds the same object."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_830": {
+      "reason": "Re-pin of the accepted 693/788 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "diff": "712147578d51c23c",
+      "class": "equivalent",
+      "argument": "Re-pin of the accepted 693/788 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 682: the dataclass default is 0."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_885": {
+      "reason": "Re-pin of the accepted 748 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "diff": "19721ab4e7fa8b12",
+      "class": "equivalent",
+      "argument": "Re-pin of the accepted 748 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Same as 682: the dataclass default is 0."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_171": {
+      "reason": "The cache is keyed by None, so every lookup misses and _routeros_peer is read again each time. The mutant excuses a session only when the current read places the RouterOS peer, a subset of the original's cases (a cached placement or the current read), so it is never more lenient; when the second call that fills s['routeros'] reads None after the first placed it, only the warning's wording changes, never the verdict. Cost only: more reads.",
+      "diff": "8e51015e8c797b43",
+      "class": "safety",
+      "argument": "The cache is keyed by None, so every lookup misses and _routeros_peer is read again each time. The mutant excuses a session only when the current read places the RouterOS peer, a subset of the original's cases (a cached placement or the current read), so it is never more lenient; when the second call that fills s['routeros'] reads None after the first placed it, only the warning's wording changes, never the verdict. Cost only: more reads.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: Keys are tuples so get(None) always misses and every call reads again; the mutant excuses only when the current read places the peer, a subset of the original (cached placement or current read), so it is never more lenient. One gap in the argument: the second call that fills s[\"routeros\"][a] can now return None after the first placed the peer, which changes only the warning wording (graceful restart instead of RouterOS), never the verdict."
+    },
+    "netdryrun.runner.x__routeros_peer__mutmut_1": {
+      "reason": "The default of `vrf` is reached only when a caller omits it, and the only product caller, _bgp_convergence_gate, always passes the session's VRF; so in the product the default is never used and the mutant can't change a run (in a direct call, a RouterOS VRF literally named XXdefaultXX could differ: no product path makes that call).",
+      "diff": "6e02fede2ef303c6",
+      "class": "equivalent",
+      "argument": "The default of `vrf` is reached only when a caller omits it, and the only product caller, _bgp_convergence_gate, always passes the session's VRF; so in the product the default is never used and the mutant can't change a run (in a direct call, a RouterOS VRF literally named XXdefaultXX could differ: no product path makes that call).",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: The only product caller (the gate's routeros_peer) always passes vrf, so the default is reached only from unit tests; the claim that every input gives the same result is too strong (a driver whose \"XXdefaultXX\" table holds the address would place the peer), but no product verdict can change."
+    },
+    "netdryrun.runner.x__routeros_peer__mutmut_2": {
+      "reason": "As mutmut_1 with \"DEFAULT\": the default is reached only when a caller omits vrf, and the only product caller (_bgp_convergence_gate) always passes it, so no run can change (a direct call with a RouterOS VRF named DEFAULT could differ; no product path makes one).",
+      "diff": "f3b082b5277425fc",
+      "class": "equivalent",
+      "argument": "As mutmut_1 with \"DEFAULT\": the default is reached only when a caller omits vrf, and the only product caller (_bgp_convergence_gate) always passes it, so no run can change (a direct call with a RouterOS VRF named DEFAULT could differ; no product path makes one).",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: As with mutmut_1, the default is dead in the product because the gate always passes vrf; the claim for every input is again too strong (a RouterOS VRF actually named DEFAULT that holds the address would be read, and it sorts before \"default\"), but no product verdict can change."
+    },
+    "netdryrun.runner.x__routeros_peer__mutmut_74": {
+      "reason": "`drv is None and isinstance(drv, str)` is never true, so a None or str driver reaches drv.local_addresses(v), which raises AttributeError on both; the except Exception around it skips to the next table, and with no table answering the function returns None, as the original's early return does.",
+      "diff": "86f5d2b74254a27f",
+      "class": "equivalent",
+      "argument": "`drv is None and isinstance(drv, str)` is never true, so a None or str driver reaches drv.local_addresses(v), which raises AttributeError on both; the except Exception around it skips to the next table, and with no table answering the function returns None, as the original's early return does.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: The guard can no longer be true, but None and str both lack local_addresses, so the AttributeError is caught per table and the function returns None as the early return did; other driver types are unaffected."
+    },
+    "netdryrun.mgmt.x__await_answer__mutmut_7": {
+      "reason": "`last` is read only in the raise after the budget, and that line is reached only after an except branch has set `last = str(e)` on the same iteration; the initial value is never read.",
+      "diff": "d75d5edeb3fcc1fc",
+      "class": "equivalent",
+      "argument": "`last` is read only in the raise after the budget, and that line is reached only after an except branch has set `last = str(e)` on the same iteration; the initial value is never read.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: The raise that reads last runs only after the except (LabError, DriverError) branch set last on the same iteration: success returns, and every other exception (including ManagementPathError and NoSuchInstance) propagates first."
+    },
+    "netdryrun.mgmt.x_prepare__mutmut_58": {
+      "reason": "prepare_eos takes `log` but never reads it (its body has no log call: it raises or records on m), so passing None changes nothing.",
+      "diff": "6b91b559e3f28561",
+      "class": "equivalent",
+      "argument": "prepare_eos takes `log` but never reads it (its body has no log call: it raises or records on m), so passing None changes nothing.",
+      "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: prepare_eos never reads log (its body and check_eos have no log call or pass-through), so passing None changes nothing."
     }
   },
   "checks": {
