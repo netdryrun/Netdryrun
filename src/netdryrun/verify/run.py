@@ -145,7 +145,12 @@ def expand_bind(src: str) -> str:
 
 
 def _real(p: Path) -> Path:
-    return Path(os.path.realpath(p))
+    """The real path. A path no file can have (a NUL byte from a bind or a side) is a verify input error, never a
+    crash (Hypothesis on config.load, 2026-11-07)."""
+    try:
+        return Path(os.path.realpath(p))
+    except ValueError as e:
+        raise VerifyInputError(f"{str(p)!r} is not a usable path ({e})") from None
 
 
 def _within(p: Path, root: Path) -> bool:

@@ -344,3 +344,11 @@ def test_arbitrary_text_is_loaded_or_refused_never_crashes(labdir, text):
         load(p)
     except ConfigError:
         pass
+
+
+
+@pytest.mark.parametrize("lab", ["\x00", "a\x00b.clab.yml", "x" * 5000])
+def test_a_lab_path_no_file_can_have_is_a_config_error(labdir, lab):
+    """Hypothesis found `lab: "\x00"` crashed load() with a ValueError (embedded null byte) on Python 3.13."""
+    with pytest.raises(ConfigError, match="is not a usable path|not found"):
+        _load(labdir, {"lab": lab, "checks": [{"type": "bgp_session", "node": "r1", "neighbor": "10.0.0.2"}]})

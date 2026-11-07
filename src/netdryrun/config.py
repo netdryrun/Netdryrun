@@ -578,8 +578,12 @@ def load(path: str | Path) -> Config:
     if "lab" not in data:
         raise ConfigError(f"{path}: missing 'lab' (path to the containerlab topology file)")
     _string(str(path), "lab", data["lab"])
-    lab = (path.parent / data["lab"]).resolve()
-    if not lab.is_file():
+    try:
+        lab = (path.parent / data["lab"]).resolve()
+        found = lab.is_file()
+    except (ValueError, OSError) as e:   # a NUL byte, a name too long: a path no file can have (Hypothesis, 2026-11-07)
+        raise ConfigError(f"{path}: lab {data['lab']!r} is not a usable path ({e})") from None
+    if not found:
         raise ConfigError(f"{path}: lab file {lab} not found")
     timeout = _seconds(str(path), "timeout", data["timeout"]) if "timeout" in data else 120.0
     raw_checks = data.get("checks")

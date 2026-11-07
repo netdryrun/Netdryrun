@@ -270,3 +270,39 @@ def test_the_encap_ip_key_csum_seq_flags_take_no_value():
     assert mgmt._pairs(["encap", "ip", "id", "1", "key", "csum", "seq", "via", "172.20.20.1", "dev", "eth0"]) == \
         {"via": "172.20.20.1", "dev": "eth0"}
     assert mgmt._pairs(["key", "dev", "eth0"]) == {"dev": "eth0"}
+
+
+# ------------------------------------------------------------------------------------------- gate (B1 result, first read)
+
+def test_b1_result_fields_exact(monkeypatch):
+    from test_verdict_runner import chk, leak
+    e = make(monkeypatch)
+    e.drivers["r1"].neighbors_error = DriverError("E" * 300)
+    neg = leak("n", timeout=6)
+    sess = chk("bgp_session", "s", neighbor="10.0.12.2", state="established", timeout=6)
+    blocked = runner._bgp_convergence_gate([neg], [neg, sess], e.drivers, log=e.logs.append, warnings={})
+    r = blocked[id(neg)]
+    assert r.duration == round(e.clock.now, 1) and isinstance(r.started, str) and r.started and r.evidence == []
+    assert r.attempts == len(r.history) == r.samples_unready and r.samples_passed == 0
+    assert isinstance(r.history, list) and len(r.history) <= 50
+    assert ("E" * 200 + ". A post-convergence check") in str(r.detail) and "E" * 201 not in str(r.detail)
+
+
+def test_b1_history_keeps_the_last_50_samples(monkeypatch):
+    from test_verdict_runner import chk, leak
+    e = make(monkeypatch)
+    e.drivers["r1"].neighbors_error = DriverError("cli timeout")
+    neg = leak("n", timeout=600)
+    sess = chk("bgp_session", "s", neighbor="10.0.12.2", state="established", timeout=600)
+    r = runner._bgp_convergence_gate([neg], [neg, sess], e.drivers, log=e.logs.append, warnings={})[id(neg)]
+    assert r.attempts > 50 and len(r.history) == 50 and r.history[-1]["t"] >= r.history[0]["t"]
+
+
+def test_a_ping_only_node_that_loses_its_bgp_instance_later_is_still_waited_for(monkeypatch):
+    from netdryrun.drivers.base import NoSuchInstance
+    from test_verdict_runner import chk
+    e = make(monkeypatch, r1={"neighbors": {"default": {"10.0.12.2": "established"}}})
+    e.drivers["r1"].neighbors_error = lambda t: NoSuchInstance("gone") if t >= 3 else None
+    p = chk("ping", "p", target="10.9.9.9", expect="failure", timeout=60)
+    runner._bgp_convergence_gate([p], [p], e.drivers, log=e.logs.append, warnings={})
+    assert e.clock.now >= 60          # the first read answered: a later "no instance" is an unready sample, not a skip

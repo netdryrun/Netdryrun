@@ -58,7 +58,10 @@ _WINDOWS_PATH = re.compile(r"^([A-Za-z]):[\\/](.*)$")
 def _host_path(path: str) -> str:
     r"""A Windows path (C:\lab or C:/lab) as this server sees it. With Claude Code on Windows and the server in
     WSL, the agent's file tools use C:\... while the server needs /mnt/c/...; accepting both lets the agent
-    pass the one path it knows. Other paths are returned unchanged."""
+    pass the one path it knows. Other paths are returned unchanged. A NUL byte is no path at all: a config error,
+    never a crash (Hypothesis on config.load, 2026-11-07; every path an agent passes comes through here)."""
+    if "\x00" in str(path):
+        raise ConfigError(f"{str(path)!r} contains a NUL byte, so it isn't a path")
     m = _WINDOWS_PATH.match(str(path))
     if os.name != "posix" or not m:
         return path
@@ -308,11 +311,14 @@ def _side(spec: str) -> str:
 def verify_change(topology: str, before: str, after: str, intent: str, guards: str | None = None) -> str:
     from .verify.run import verify
 
-    topo = Path(_host_path(topology)).resolve()
-    inline = _inline_intent(intent)
-    intent_path = "" if inline else _host_path(intent)
-    guards = _host_path(guards) if guards else None
-    b, a = _side(before), _side(after)
+    try:
+        topo = Path(_host_path(topology)).resolve()
+        inline = _inline_intent(intent)
+        intent_path = "" if inline else _host_path(intent)
+        guards = _host_path(guards) if guards else None
+        b, a = _side(before), _side(after)
+    except ConfigError as e:
+        return _verify_error(str(e))
     err = _outside_root(topo, *[x for x in (b, a) if Path(x).is_dir()], *[x for x in (intent_path, guards) if x])
     if err:
         return _verify_error(err)

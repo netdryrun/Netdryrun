@@ -3062,19 +3062,25 @@
       "class": "message-text"
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_10": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "7d96088b6aa52080",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_10 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "diff": "51316b35fd3d3655",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_10 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: The TypeError from the missing argument becomes a DriverError through the @parser wrapper on both callers; message text only."
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_13": {
-      "reason": "message text only: the command name passed only for error messages (and a missing one becomes a TypeError that the parser wrapper turns into the same DriverError)",
-      "diff": "3dddfbc78098915e",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_13 (same change, code moved): message text only: the command name passed only for error messages (and a missing one becomes a Type",
+      "diff": "3a53e80bafa475a7",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_13 (same change, code moved): message text only: the command name passed only for error messages (and a missing one becomes a Type",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: network() uses command only in its error message; same network or same DriverError."
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_2": {
-      "reason": "message text only: the command name passed only for error messages (and a missing one becomes a TypeError that the parser wrapper turns into the same DriverError)",
-      "diff": "e9e85b6faee88aa7",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_2 (same change, code moved): message text only: the command name passed only for error messages (and a missing one becomes a Type",
+      "diff": "25f5d75e72669ffb",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_2 (same change, code moved): message text only: the command name passed only for error messages (and a missing one becomes a Type",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: load_json uses command only in error messages; the same parse or the same DriverError results."
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_20": {
       "reason": "message text only: the same exception is still raised, only its message changes",
@@ -3102,9 +3108,11 @@
       "class": "message-text"
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_25": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "e4e57e58b1e77789",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_20 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "diff": "6882a8a62f95cd50",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_20 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Same DriverError; only the message text changes."
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_29": {
       "reason": "message text only: the same exception is still raised, only its message changes",
@@ -3112,9 +3120,11 @@
       "class": "message-text"
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_30": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "f5840f1596252e1c",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_25 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "diff": "0099a36bef2bc106",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_25 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Only the length of the snippet in the error message changes."
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_31": {
       "reason": "message text only: the same exception is still raised, only its message changes",
@@ -3137,19 +3147,25 @@
       "class": "message-text"
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_7": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "9a3c76562c5914e5",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_7 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "diff": "b4ab9b1e58868db2",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_7 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Same DriverError from unexpected(); only the message text changes."
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_8": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "7245ec5215625baf",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_8 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "diff": "fabed2e8d3a677bb",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_8 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Same DriverError from unexpected(); only the snippet text changes."
     },
     "netdryrun.drivers.frr.x__route_table__mutmut_9": {
-      "reason": "message text only: the same exception is still raised, only its message changes",
-      "diff": "e9e8548b935149b6",
-      "class": "message-text"
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_9 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "diff": "f71d1495abff6eb2",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_9 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: unexpected(text) raises TypeError, but both callers (parse_routes, parse_all_routes) are @parser-wrapped, which turns it into a DriverError; message text only."
     },
     "netdryrun.drivers.frr.xǁFrrDriverǁ_confirm_vrf__mutmut_12": {
       "reason": "message text only: the text of the NoSuchInstance raised either way",
@@ -3367,11 +3383,11 @@
       "class": "message-text"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_129": {
-      "reason": "the initial detail is never read: every failing sample sets it before it is used (and it is only message text)",
-      "diff": "05ead526b4f38c87",
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_119 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
+      "diff": "6f3a3885b081404f",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the initial detail is never read: every failing sample sets it before it is used (and it is only message text). With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: initial detail never reaches a reader (see 127) and is message text only"
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_119 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: s['counts'] is read only at line 1005 behind the streak truth test, and streak is truthy only after the established branch has assigned counts."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_153": {
       "reason": "message text only: the VRF part of the no-neighbors detail text; it is still an Unready detail",
@@ -3619,11 +3635,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_289": {
-      "reason": "message text only: the explanation in a not-evaluated detail; the result is still failed and unready",
-      "diff": "ed0fdc196accc201",
-      "class": "message-text",
-      "argument": "Changes only text: the explanation in a not-evaluated detail; the result is still failed and unready. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_276 (same change, code moved): the error is only tested for truth after an answer; None and '' are both false, and its text is read",
+      "diff": "5f15eb53e7eadb84",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_276 (same change, code moved): the error is only tested for truth after an answer; None and '' are both false, and its text is read",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: error is tested only for truth at 1032; its text at 1034 and 1047 is read only when not answered, and answered is never reset, so None is never split."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_310": {
       "reason": "equivalent: Result.samples_passed defaults to 0, the value passed explicitly",
@@ -3780,11 +3796,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_357": {
-      "reason": "message text only: the text of a not-evaluated detail; the result is still failed with the same samples and counts",
-      "diff": "b648e9f51cad4d8d",
-      "class": "message-text",
-      "argument": "Changes only text: the text of a not-evaluated detail; the result is still failed with the same samples and counts. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_344 (same change, code moved): the down list is only tested for truth; None and [] are both false",
+      "diff": "8b53ce36f22b752b",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_344 (same change, code moved): the down list is only tested for truth; None and [] are both false",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: down is only tested for truth (1021, 1026, 1076) and iterated only when truthy, so None behaves as []."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_378": {
       "reason": "equivalent: Result.samples_passed defaults to 0, the value passed explicitly",
@@ -3815,11 +3831,11 @@
       "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_86": {
-      "reason": "the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do",
-      "diff": "bce64bb748fa2c1f",
+      "reason": "As 81.",
+      "diff": "260f20091c91398c",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'xxxx' != 'bgp', same as ''"
+      "argument": "As 81.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: str(None) and 'XXXX' lowercased are never 'bgp', exactly as '' isn't."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_87": {
       "reason": "equivalent: the initial counts are never read: they are compared only once the streak is > 0, which only an established sample that also sets counts makes",
@@ -5961,11 +5977,11 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: get('expect',) is None; only equality with 'failure' is tested, same False branch as default 'success'"
     },
     "netdryrun.checks.x__ping__mutmut_91": {
-      "reason": "default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect)",
-      "diff": "3e52e5bfc83152db",
+      "reason": "Every element of local_addresses is an ip_interface or a LocalPrefix, both with .ip, so getattr without a default never raises.",
+      "diff": "6c187cafb6415bbc",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect). With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: 'XXsuccessXX' != 'failure', same branch as 'success'; line 177's default is untouched"
+      "argument": "Every element of local_addresses is an ip_interface or a LocalPrefix, both with .ip, so getattr without a default never raises.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: refuse_own_target has already read a.ip on every element (or raised DriverError first) before this line, so getattr without a default cannot raise here."
     },
     "netdryrun.checks.x__ping__mutmut_92": {
       "reason": "default for a missing expect; any value but 'failure' means success, as 'success' does (config always sets expect)",
@@ -6229,11 +6245,11 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: detail read at cap only when streak==0 on an answered own node; streak 0 there is always last written by 893/906/913/941, which also write detail; extras never read detail"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_128": {
-      "reason": "the initial detail is never read: every failing sample sets it before it is used (and it is only message text)",
-      "diff": "f5a59f3373df9892",
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_118 (same change, code moved): the initial streak is never read: every answer sets it, and the first established sample gets 1 beca",
+      "diff": "b454e00bd0d3cd7b",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the initial detail is never read: every failing sample sets it before it is used (and it is only message text). With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 127: every streak=0 write also writes detail, so the initial key is never read"
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_118 (same change, code moved): the initial streak is never read: every answer sets it, and the first established sample gets 1 beca",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Line 1005 sets streak to 1 on the first established sample either way (counts never equals the initial None), and every pending path assigns streak before the deadline loop reads it."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_132": {
       "reason": "the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it before the cap reads it",
@@ -6250,25 +6266,25 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 132: down always written before the cap branch reads it"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_137": {
-      "reason": "the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it",
-      "diff": "988aa27214f0eeff",
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_127 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
+      "diff": "8e63d003b0a7956d",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: error read only at extras cap (976/978); every non-discarded extra read writes error at 894 or 899 in the first pass before the cap; own nodes never read it"
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_127 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: detail is read only at 1078/1087 (answered, streak 0), and every path that leaves streak 0 assigns detail first; the blocked detail is a fresh plain str."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_138": {
-      "reason": "the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it",
-      "diff": "7eb40e8ba3cd7a67",
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_128 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
+      "diff": "ba0bbefbceb8a096",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: same as 137"
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_128 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: detail is read only at 1078/1087 (answered, streak 0), and every path that leaves streak 0 assigns detail first; the blocked detail is a fresh plain str."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_139": {
-      "reason": "the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it",
-      "diff": "f16e5b44189cc7f7",
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_129 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
+      "diff": "f82c08a03a2443d8",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the initial error is never read: every read of a group sets it (the error text, or '' on an answer) before the cap reads it. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: initial 'XXXX' overwritten (894/899) before any cap read, so never read"
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_129 (same change, code moved): the initial detail is never read: every failing sample sets it before it is used (and it is only mes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: detail is read only at 1078/1087 (answered, streak 0), and every path that leaves streak 0 assigns detail first; the blocked detail is a fresh plain str."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_344": {
       "reason": "the down list is only tested for truth; None and [] are both false",
@@ -6285,18 +6301,18 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: streak is compared only with >=2 and ==0; mutant goes 1->3 where real goes 1->2, discarding on the same sample, and a mismatch resets to 1 in both"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_470": {
-      "reason": "`first` is only tested for truth; None and False are both false",
-      "diff": "ba041a45b872f132",
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_441 (same change, code moved): the streak is only compared with >= 2 and == 0, and a streak that grows by 2 instead of 1 crosses bo",
+      "diff": "1e182ef291925dbe",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: `first` is only tested for truth; None and False are both false. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: first read only at 882 as a truth test; None and False both falsy"
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_441 (same change, code moved): the streak is only compared with >= 2 and == 0, and a streak that grows by 2 instead of 1 crosses bo",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: streak is compared only with >=2 and ==0, and the group is discarded at its first value >=2, so 3 instead of 2 changes nothing."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_57": {
-      "reason": "_far_ends of no declared sessions, or of a lab that is None (no links), is empty, so the exclusion set is the same",
-      "diff": "230e2ad084538235",
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_57 (same change, code moved): _far_ends of no declared sessions, or of a lab that is None (no links), is empty, so the exclusion s",
+      "diff": "e9c2220fcd486c15",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: _far_ends of no declared sessions, or of a lab that is None (no links), is empty, so the exclusion set is the same. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: _far_ends(lab, empty) loops over nothing; _far_ends(None, declared) uses getattr(None,'links',[]) and _ip catches ValueError, so both return empty with no side effects"
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_57 (same change, code moved): _far_ends of no declared sessions, or of a lab that is None (no links), is empty, so the exclusion s",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: _far_ends with an empty declared set loops over nothing, and with lab None getattr(None,'links',[]) is empty and _ip never raises, so it adds nothing."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_611": {
       "reason": "Result.samples_passed defaults to 0, the value passed explicitly",
@@ -6320,18 +6336,18 @@
       "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: Result.samples_passed defaults to 0, the explicit value"
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_81": {
-      "reason": "the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do",
-      "diff": "04b28384da0bc346",
+      "reason": "The protocol is compared with 'bgp' after str().lower(): a default of None ('none'), omitted, or 'XXXX' is not 'bgp', exactly as '' isn't.",
+      "diff": "16cb6b5a1554f924",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: str(None).lower()=='none' != 'bgp', same as '' for a missing protocol"
+      "argument": "The protocol is compared with 'bgp' after str().lower(): a default of None ('none'), omitted, or 'XXXX' is not 'bgp', exactly as '' isn't.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: str(None) and 'XXXX' lowercased are never 'bgp', exactly as '' isn't."
     },
     "netdryrun.runner.x__bgp_convergence_gate__mutmut_83": {
-      "reason": "the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do",
-      "diff": "2a2cb359ce336ed9",
+      "reason": "As 81.",
+      "diff": "5a5da7a2e5e8a3cb",
       "class": "equivalent",
-      "argument": "The mutant behaves identically: the default of a missing protocol only has to differ from 'bgp'; None, '' and any other text all do. With the same behaviour it can't turn a failure into a pass.",
-      "reviewed": "adversarial (fresh Claude reviewer), 22e1f95 triage, 2026-11-06: AGREE: get('protocol',) is None -> 'none' != 'bgp', same as ''"
+      "argument": "As 81.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: str(None) and 'XXXX' lowercased are never 'bgp', exactly as '' isn't."
     },
     "netdryrun.runner.x__check_declared_peers__mutmut_10": {
       "reason": "range(4) instead of range(3): the attempt == 2 branch raises before a fourth attempt can run",
@@ -6382,6 +6398,363 @@
       "reason": "report.results starts empty, so assigning the round-robin results equals extending it",
       "diff": "84534e9bc63ff48a",
       "class": "equivalent"
+    },
+    "netdryrun.checks.x__ping__mutmut_150": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_65 (same change, code moved): separator between evidence entries; no unreachable pattern contains a newline or 'XX', so no match c",
+      "diff": "4331a42f7b49c06d",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_65 (same change, code moved): separator between evidence entries; no unreachable pattern contains a newline or 'XX', so no match c",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: No _UNREACHABLE alternative contains a newline or the letter x (re.I), so the separator can neither create nor split a match; matches and verdicts are identical."
+    },
+    "netdryrun.checks.x__ping__mutmut_152": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_67 (same change, code moved): text used for a missing output key; 'None' matches no unreachable pattern",
+      "diff": "e3e05a848dd4c81f",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_67 (same change, code moved): text used for a missing output key; 'None' matches no unreachable pattern",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: The default text ('None' or 'XXXX') for a missing key is newline-delimited and contains no unreachable phrase, so the regex result is unchanged."
+    },
+    "netdryrun.checks.x__ping__mutmut_154": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_69 (same change, code moved): text used for a missing output key; 'None' matches no unreachable pattern",
+      "diff": "81ced1a9af429bc4",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_69 (same change, code moved): text used for a missing output key; 'None' matches no unreachable pattern",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: The default text ('None' or 'XXXX') for a missing key is newline-delimited and contains no unreachable phrase, so the regex result is unchanged."
+    },
+    "netdryrun.checks.x__ping__mutmut_157": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_72 (same change, code moved): text used for a missing output key; 'XXXX' matches no unreachable pattern",
+      "diff": "fdb30346e68a3063",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_72 (same change, code moved): text used for a missing output key; 'XXXX' matches no unreachable pattern",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: The default text ('None' or 'XXXX') for a missing key is newline-delimited and contains no unreachable phrase, so the regex result is unchanged."
+    },
+    "netdryrun.checks.x__ping__mutmut_159": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_74 (same change, code moved): text used for a missing stderr key; 'None' matches no unreachable pattern",
+      "diff": "b6238dde54d2c081",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_74 (same change, code moved): text used for a missing stderr key; 'None' matches no unreachable pattern",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: The default text ('None' or 'XXXX') for a missing key is newline-delimited and contains no unreachable phrase, so the regex result is unchanged."
+    },
+    "netdryrun.checks.x__ping__mutmut_161": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_76 (same change, code moved): text used for a missing stderr key; 'None' matches no unreachable pattern",
+      "diff": "84a0f49f619395f5",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_76 (same change, code moved): text used for a missing stderr key; 'None' matches no unreachable pattern",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: The default text ('None' or 'XXXX') for a missing key is newline-delimited and contains no unreachable phrase, so the regex result is unchanged."
+    },
+    "netdryrun.checks.x__ping__mutmut_164": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_79 (same change, code moved): text used for a missing stderr key; 'XXXX' matches no unreachable pattern",
+      "diff": "d178672fe8a0aa28",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_79 (same change, code moved): text used for a missing stderr key; 'XXXX' matches no unreachable pattern",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: The default text ('None' or 'XXXX') for a missing key is newline-delimited and contains no unreachable phrase, so the regex result is unchanged."
+    },
+    "netdryrun.checks.x__ping__mutmut_171": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_86 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "diff": "625079f83d12767c",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_86 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: config always sets params['expect'] (lowercased 'success' or 'failure') for a ping, and any default other than 'failure' takes the same branch anyway."
+    },
+    "netdryrun.checks.x__ping__mutmut_173": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_88 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "diff": "84378018a3f1613a",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_88 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: config always sets params['expect'] (lowercased 'success' or 'failure') for a ping, and any default other than 'failure' takes the same branch anyway."
+    },
+    "netdryrun.checks.x__ping__mutmut_176": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_91 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "diff": "5d47de402eca1493",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_91 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: config always sets params['expect'] (lowercased 'success' or 'failure') for a ping, and any default other than 'failure' takes the same branch anyway."
+    },
+    "netdryrun.checks.x__ping__mutmut_177": {
+      "reason": "Re-pin of netdryrun.checks.x__ping__mutmut_92 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "diff": "210184fa45ccf9b2",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.checks.x__ping__mutmut_92 (same change, code moved): default for a missing expect; any value but 'failure' means success, as 'success' does (config alway",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: config always sets params['expect'] (lowercased 'success' or 'failure') for a ping, and any default other than 'failure' takes the same branch anyway."
+    },
+    "netdryrun.drivers.frr.x__route_table__mutmut_39": {
+      "reason": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_34 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "diff": "3cefb4f5a634823b",
+      "class": "message-text",
+      "argument": "Re-pin of netdryrun.drivers.frr.x__route_table__mutmut_34 (same change, code moved): message text only: the same exception is still raised, only its message changes",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Only the length of the snippet in the error message changes."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_104": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_94 (same change, code moved): the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an",
+      "diff": "187723d8cd7f3072",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_94 (same change, code moved): the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: cap is read only at line 898 inside 'if groups:', where deadline is non-empty, so max() never uses its default."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_107": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_97 (same change, code moved): the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an",
+      "diff": "34ec5363db3d736a",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_97 (same change, code moved): the cap is only read for extra nodes, which exist only when there are groups, so max() never sees an",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: cap is read only at line 898 inside 'if groups:', where deadline is non-empty, so max() never uses its default."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_130": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_120 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
+      "diff": "eb994241bdcaf272",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_120 (same change, code moved): the initial counts are never read: they are compared only once the streak is > 0, which only an esta",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: s['counts'] is read only at line 1005 behind the streak truth test, and streak is truthy only after the established branch has assigned counts."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_134": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_124 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
+      "diff": "711a80250d526a7a",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_124 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: 'empty' is read only at lines 1035/1058/1068, all after a not-answered branch, and line 949 sets it on every answer."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_135": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_125 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
+      "diff": "d72d4603a99863c2",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_125 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: 'empty' is read only at lines 1035/1058/1068, all after a not-answered branch, and line 949 sets it on every answer."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_136": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_126 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
+      "diff": "b87b84f35f35ed99",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_126 (same change, code moved): the initial empty flag is never read: every answer sets it, and it is read only for a node that answ",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: 'empty' is read only at lines 1035/1058/1068, all after a not-answered branch, and line 949 sets it on every answer."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_142": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_132 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
+      "diff": "f8bec8da35b4ab35",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_132 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns 'down' (944, 957, 963, 968) before the reads at 1021/1026/1076 (1076 short-circuits on eor_wait)."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_143": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_133 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
+      "diff": "33ea5be520cb389d",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_133 (same change, code moved): the initial down list is never read: every read of a group (error, no neighbors, sessions) sets it b",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns 'down' (944, 957, 963, 968) before the reads at 1021/1026/1076 (1076 short-circuits on eor_wait)."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_147": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_137 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
+      "diff": "ad1c09e03e48a727",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_137 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns error (945 or 950) before 1032/1034/1047 read it."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_148": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_138 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
+      "diff": "005c5fa5dbd3d783",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_138 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns error (945 or 950) before 1032/1034/1047 read it."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_149": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_139 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
+      "diff": "0dd172653298663a",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_139 (same change, code moved): the initial error is never read: every read of a group sets it (the error text, or '' on an answer) ",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Every read path that keeps a group pending assigns error (945 or 950) before 1032/1034/1047 read it."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_499": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_470 (same change, code moved): `first` is only tested for truth; None and False are both false",
+      "diff": "31569e04a09ed175",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_470 (same change, code moved): `first` is only tested for truth; None and False are both false",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: first is only read as a truth value at line 929."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_640": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_611 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly",
+      "diff": "7a47e9e4b5131858",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_611 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Only the explicit samples_passed=0 is dropped; Result's default is 0 and history stays the positional argument."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_706": {
+      "reason": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_611 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly",
+      "diff": "62a41804a35334fa",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x__bgp_convergence_gate__mutmut_611 (same change, code moved): Result.samples_passed defaults to 0, the value passed explicitly",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Only the explicit samples_passed=0 is dropped; Result's default is 0 and history stays the positional argument."
+    },
+    "netdryrun.runner.x_run__mutmut_147": {
+      "reason": "Re-pin of netdryrun.runner.x_run__mutmut_99 (same change, code moved): report.results starts empty, so assigning the round-robin results equals extending it",
+      "diff": "15aa0c08ad10d0ba",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x_run__mutmut_99 (same change, code moved): report.results starts empty, so assigning the round-robin results equals extending it",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: report.results is the empty default_factory list until line 578 and run_round_robin returns a fresh list nobody else holds, so assigning equals extending."
+    },
+    "netdryrun.runner.x_run__mutmut_376": {
+      "reason": "Re-pin of netdryrun.runner.x_run__mutmut_292 (same change, code moved): traceback.print_exc(file=None) prints to stderr, as the default does",
+      "diff": "38cb36d3f70dc9f7",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x_run__mutmut_292 (same change, code moved): traceback.print_exc(file=None) prints to stderr, as the default does",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: traceback.print_exc(file=None) writes to sys.stderr, the same stream."
+    },
+    "netdryrun.runner.x_run_scenario__mutmut_140": {
+      "reason": "Re-pin of netdryrun.runner.x_run_scenario__mutmut_120 (same change, code moved): results is the empty list created at the top of run_scenario until this line, so assigning pos_resul",
+      "diff": "99449f1e5e390acb",
+      "class": "equivalent",
+      "argument": "Re-pin of netdryrun.runner.x_run_scenario__mutmut_120 (same change, code moved): results is the empty list created at the top of run_scenario until this line, so assigning pos_resul",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: results is still the empty list at line 1402; aliasing pos_results is harmless because the gate reads positive_results before the later += and nothing else reads pos_results."
+    },
+    "netdryrun.checks.x__ping__mutmut_21": {
+      "reason": "ipaddress.ip_address accepts a scoped IPv6 address (`fe80::1%eth1`, Python 3.9+), so without the split the family is the same; an IPv4 target has no '%'.",
+      "diff": "40d8d6717b4dcef7",
+      "class": "equivalent",
+      "argument": "ipaddress.ip_address accepts a scoped IPv6 address (`fe80::1%eth1`, Python 3.9+), so without the split the family is the same; an IPv4 target has no '%'.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: config canonicalizes target with str(ip_address()) and a scope must match INTERFACE_NAME (no whitespace); Python>=3.10 reads a scoped IPv6 address with the same version."
+    },
+    "netdryrun.checks.x__ping__mutmut_25": {
+      "reason": "Same as 21: the split on 'XX%XX' leaves a scoped address whole, which ip_address still reads with the same version.",
+      "diff": "161318619081f10b",
+      "class": "equivalent",
+      "argument": "Same as 21: the split on 'XX%XX' leaves a scoped address whole, which ip_address still reads with the same version.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: As 21: the target never contains 'XX%XX', and ip_address reads the scoped canonical form with the same version on Python>=3.10."
+    },
+    "netdryrun.checks.x__ping__mutmut_95": {
+      "reason": "LocalPrefix sets self.ip = iface.ip, so the second disjunct (iface.ip == src) is true only when the first (a.ip == src) already is: changing it can't change the any().",
+      "diff": "fff52d008820950a",
+      "class": "equivalent",
+      "argument": "LocalPrefix sets self.ip = iface.ip, so the second disjunct (iface.ip == src) is true only when the first (a.ip == src) already is: changing it can't change the any().",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: ip_interface has no .iface and LocalPrefix.ip is iface.ip, so the second disjunct is true only when the first already is; dropping it cannot change any()."
+    },
+    "netdryrun.checks.x__ping__mutmut_100": {
+      "reason": "As 95: the second disjunct repeats the first for every element kind.",
+      "diff": "341e922f827a047e",
+      "class": "equivalent",
+      "argument": "As 95: the second disjunct repeats the first for every element kind.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: ip_interface has no .iface and LocalPrefix.ip is iface.ip, so the second disjunct is true only when the first already is; dropping it cannot change any()."
+    },
+    "netdryrun.checks.x__ping__mutmut_105": {
+      "reason": "As 95.",
+      "diff": "3d99eb106091e53a",
+      "class": "equivalent",
+      "argument": "As 95.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: ip_interface has no .iface and LocalPrefix.ip is iface.ip, so the second disjunct is true only when the first already is; dropping it cannot change any()."
+    },
+    "netdryrun.checks.x__ping__mutmut_106": {
+      "reason": "As 95.",
+      "diff": "46a0875707dfb1ae",
+      "class": "equivalent",
+      "argument": "As 95.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: ip_interface has no .iface and LocalPrefix.ip is iface.ip, so the second disjunct is true only when the first already is; dropping it cannot change any()."
+    },
+    "netdryrun.checks.x__ping__mutmut_107": {
+      "reason": "As 95.",
+      "diff": "cece534d6336e4da",
+      "class": "equivalent",
+      "argument": "As 95.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: ip_interface has no .iface and LocalPrefix.ip is iface.ip, so the second disjunct is true only when the first already is; dropping it cannot change any()."
+    },
+    "netdryrun.checks.x__ping__mutmut_108": {
+      "reason": "As 95.",
+      "diff": "9b9d01241e085c1c",
+      "class": "equivalent",
+      "argument": "As 95.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: ip_interface has no .iface and LocalPrefix.ip is iface.ip, so the second disjunct is true only when the first already is; dropping it cannot change any()."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_788": {
+      "reason": "As 639: samples_passed=0 is Result's default.",
+      "diff": "7284d3d37fdf8047",
+      "class": "equivalent",
+      "argument": "As 639: samples_passed=0 is Result's default.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Only the explicit samples_passed=0 is dropped; Result's default is 0 and history stays the positional argument."
+    },
+    "netdryrun.runner.x__bgp_convergence_gate__mutmut_843": {
+      "reason": "As 639.",
+      "diff": "f13719a55e6d5885",
+      "class": "equivalent",
+      "argument": "As 639.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: Only the explicit samples_passed=0 is dropped; Result's default is 0 and history stays the positional argument."
+    },
+    "netdryrun.drivers.junos.x_parse_management_routes__mutmut_15": {
+      "reason": "counted is read only as a truth value in _entries; None and False are both false.",
+      "diff": "74dbf07c97c1500f",
+      "class": "equivalent",
+      "argument": "counted is read only as a truth value in _entries; None and False are both false.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: counted is passed as required to _leaf, which tests it only for truth."
+    },
+    "netdryrun.drivers.junos.x_parse_management_routes__mutmut_41": {
+      "reason": "required is read only as a truth value in _leaf; None and False are both false.",
+      "diff": "208821522572016b",
+      "class": "equivalent",
+      "argument": "required is read only as a truth value in _leaf; None and False are both false.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: required is only tested for truth in _leaf."
+    },
+    "netdryrun.drivers.junos.xǁJunosDriverǁmanagement_routes__mutmut_7": {
+      "reason": "_table maps family 6 to inet6.0 and anything else to inet.0, so 5 reads the same table as 4.",
+      "diff": "506bf23b4d91bba7",
+      "class": "equivalent",
+      "argument": "_table maps family 6 to inet6.0 and anything else to inet.0, so 5 reads the same table as 4.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: _table gives inet6.0 only for 6 and inet.0 otherwise, and family is used nowhere else in the loop."
+    },
+    "netdryrun.runner.x__container_iface__mutmut_1": {
+      "reason": "Every caller passes the node kind explicitly (runner.py preflight and run_scenario), so the default is never used.",
+      "diff": "1b6b423a1837273f",
+      "class": "equivalent",
+      "argument": "Every caller passes the node kind explicitly (runner.py preflight and run_scenario), so the default is never used.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: All three callers (lines 309, 310, 1380) pass kind explicitly."
+    },
+    "netdryrun.runner.x_preflight__mutmut_76": {
+      "reason": "drv is only compared with membership in ('frr', 'sonic'); None and '' are both outside it.",
+      "diff": "520ec63ffc6625ae",
+      "class": "equivalent",
+      "argument": "drv is only compared with membership in ('frr', 'sonic'); None and '' are both outside it.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: drv is read only by the membership test in ('frr', 'sonic')."
+    },
+    "netdryrun.runner.x_preflight__mutmut_122": {
+      "reason": "preflight refuses any node not in the topology before this loop (unknown nodes), so f.node is always in lab.nodes.",
+      "diff": "da804b520bce7c3c",
+      "class": "equivalent",
+      "argument": "preflight refuses any node not in the topology before this loop (unknown nodes), so f.node is always in lab.nodes.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: wanted includes every fault node and unknown nodes raise at line 269, so f.node is always in lab.nodes and the else branch is dead."
+    },
+    "netdryrun.runner.x_preflight__mutmut_124": {
+      "reason": "Unreachable for the same reason as 122.",
+      "diff": "f0c91323f815695d",
+      "class": "equivalent",
+      "argument": "Unreachable for the same reason as 122.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: wanted includes every fault node and unknown nodes raise at line 269, so f.node is always in lab.nodes and the else branch is dead."
+    },
+    "netdryrun.runner.x_run__mutmut_112": {
+      "reason": "report.environment['nodes'] is set when the run starts (one entry per lab node), so setdefault's default is never used.",
+      "diff": "108ca71798ed6eb3",
+      "class": "equivalent",
+      "argument": "report.environment['nodes'] is set when the run starts (one entry per lab node), so setdefault's default is never used.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: report.environment['nodes'] is set at line 512, before line 558, so the setdefault default is never used."
+    },
+    "netdryrun.runner.x_run__mutmut_114": {
+      "reason": "As 112.",
+      "diff": "87b2532f516f0c13",
+      "class": "equivalent",
+      "argument": "As 112.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: report.environment['nodes'] is set at line 512, before line 558, so the setdefault default is never used."
+    },
+    "netdryrun.runner.x_run__mutmut_119": {
+      "reason": "Every node in the management state is a lab node, already in environment['nodes'], so the default is never used.",
+      "diff": "e08eb6aaaa54e77e",
+      "class": "equivalent",
+      "argument": "Every node in the management state is a lab node, already in environment['nodes'], so the default is never used.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: mgmt.prepare keys state by lab.nodes names, all of which are already in environment['nodes']."
+    },
+    "netdryrun.runner.x_run__mutmut_121": {
+      "reason": "As 119.",
+      "diff": "d82f32129e384c2f",
+      "class": "equivalent",
+      "argument": "As 119.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: mgmt.prepare keys state by lab.nodes names, all of which are already in environment['nodes']."
+    },
+    "netdryrun.runner.x_run__mutmut_332": {
+      "reason": "This line runs only for a node with routes deleted again, which has a kind (linux or eos); describe reads the kind only for 'not applicable'.",
+      "diff": "9a56f23be41f7d53",
+      "class": "equivalent",
+      "argument": "This line runs only for a node with routes deleted again, which has a kind (linux or eos); describe reads the kind only for 'not applicable'.",
+      "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: readded is set only by check_linux/check_eos (m.kind truthy), so describe never reaches the 'not applicable ({kind})' branch; at most environment text."
     }
   },
   "checks": {
