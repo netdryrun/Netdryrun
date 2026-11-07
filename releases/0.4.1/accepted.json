@@ -6940,14 +6940,14 @@
     },
     "netdryrun.runner.x__routeros_peer__mutmut_1": {
       "reason": "The default of `vrf` is reached only when a caller omits it, and the only product caller, _bgp_convergence_gate, always passes the session's VRF; so in the product the default is never used and the mutant can't change a run (in a direct call, a RouterOS VRF literally named XXdefaultXX could differ: no product path makes that call).",
-      "diff": "6e02fede2ef303c6",
+      "diff": "3e0d4b874fce8b77",
       "class": "equivalent",
       "argument": "The default of `vrf` is reached only when a caller omits it, and the only product caller, _bgp_convergence_gate, always passes the session's VRF; so in the product the default is never used and the mutant can't change a run (in a direct call, a RouterOS VRF literally named XXdefaultXX could differ: no product path makes that call).",
       "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: The only product caller (the gate's routeros_peer) always passes vrf, so the default is reached only from unit tests; the claim that every input gives the same result is too strong (a driver whose \"XXdefaultXX\" table holds the address would place the peer), but no product verdict can change."
     },
     "netdryrun.runner.x__routeros_peer__mutmut_2": {
       "reason": "As mutmut_1 with \"DEFAULT\": the default is reached only when a caller omits vrf, and the only product caller (_bgp_convergence_gate) always passes it, so no run can change (a direct call with a RouterOS VRF named DEFAULT could differ; no product path makes one).",
-      "diff": "f3b082b5277425fc",
+      "diff": "bf50b83cdc47a865",
       "class": "equivalent",
       "argument": "As mutmut_1 with \"DEFAULT\": the default is reached only when a caller omits vrf, and the only product caller (_bgp_convergence_gate) always passes it, so no run can change (a direct call with a RouterOS VRF named DEFAULT could differ; no product path makes one).",
       "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: As with mutmut_1, the default is dead in the product because the gate always passes vrf; the claim for every input is again too strong (a RouterOS VRF actually named DEFAULT that holds the address would be read, and it sorts before \"default\"), but no product verdict can change."
