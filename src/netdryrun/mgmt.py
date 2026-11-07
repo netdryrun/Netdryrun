@@ -84,6 +84,7 @@ class LinuxRoute:
     proto: str
     table: str
     family: int
+    multipath: bool = False     # a head with `nexthop` legs right after it, or one of those legs
 
 
 def parse_ip_route(text: str, family: int) -> list[LinuxRoute]:
@@ -99,9 +100,9 @@ def parse_ip_route(text: str, family: int) -> list[LinuxRoute]:
             if head is None or tok[0] != "nexthop":
                 raise LabError(f"`ip route` printed a line it doesn't explain: {raw.strip()[:120]!r}")
             kv = _pairs(tok[1:])
+            out[head["index"]].multipath = True
             out.append(LinuxRoute(raw.strip(), head["rtype"], head["prefix"], kv.get("dev", ""), kv.get("via", ""),
-                                  head["proto"], head["table"], family))
-            head["legs"] += 1
+                                  head["proto"], head["table"], family, multipath=True))
             continue
         rtype = tok[0] if tok[0] in _TYPES else "unicast"
         rest = tok[1:] if tok[0] in _TYPES else tok
@@ -109,14 +110,14 @@ def parse_ip_route(text: str, family: int) -> list[LinuxRoute]:
             raise LabError(f"`ip route` printed a route without a destination: {raw[:120]!r}")
         kv = _pairs(rest[1:])
         head = {"rtype": rtype, "prefix": rest[0], "proto": kv.get("proto", ""), "table": kv.get("table", "main"),
-                "legs": 0}
+                "index": len(out)}
         out.append(LinuxRoute(raw.strip(), rtype, rest[0], kv.get("dev", ""), kv.get("via", ""), head["proto"],
                               head["table"], family))
     return out
 
 
 _FLAGS = frozenset({"onlink", "linkdown", "dead", "pervasive", "offload", "trap", "rt_offload", "rt_trap", "notify",
-                    "cache", "lock", "rt_offload_failed", "unresolved"})
+                    "cache", "lock", "rt_offload_failed", "unresolved", "key", "csum", "seq"})
 # the keys that end an `encap <type> ...` block (whose own fields vary by type: mpls labels, seg6 segments, ip ttl ...)
 _KEYS = frozenset({"via", "dev", "proto", "table", "scope", "src", "metric", "pref", "weight", "nhid", "mtu", "expires",
                    "realm", "error", "advmss", "hoplimit"})
@@ -155,10 +156,12 @@ def _in_mgmt_subnet(prefix: str, m: Mgmt) -> bool:
 def classify_linux(routes: list[LinuxRoute], m: Mgmt) -> tuple[list[LinuxRoute], list[LinuxRoute]]:
     """(Docker's own defaults, to delete; every other route out over a management device, a run error)."""
     docker, other = [], []
-    multipath = {(r.family, r.prefix, r.table) for r in routes if r.line.startswith("nexthop")}
     for r in routes:
-        if not r.dev and r.rtype == "unicast" and not r.line.startswith("nexthop") and \
-                (r.family, r.prefix, r.table) not in multipath:
+        # a head counts as multipath only when legs follow it: another route of the same prefix and table without a
+        # device (`default nhid N`, a second default at another metric) is refused, never taken for a head
+        if not r.dev and r.rtype == "unicast" and not (r.multipath and not r.line.startswith("nexthop")):
+            # only a multipath head may print no device (its legs carry them); a leg whose device can't be read
+            # (an `encap` field the parser doesn't know) is refused, never dropped (adversary on the multipath fix)
             # a route printing no device (a nexthop object `nhid N`, an unparsed form) may leave over eth0: refused
             other.append(r)
             continue
@@ -172,7 +175,7 @@ def classify_linux(routes: list[LinuxRoute], m: Mgmt) -> tuple[list[LinuxRoute],
             continue
         is_default = r.prefix in ("default", "0.0.0.0/0", "::/0")
         if (is_default and r.via and ipaddress.ip_address(r.via) in m.gateways and r.proto in ("", "boot")
-                and r.table == "main" and (r.family, r.prefix, r.table) not in multipath):
+                and r.table == "main" and not r.multipath):
             docker.append(r)
         else:
             other.append(r)
