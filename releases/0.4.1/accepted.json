@@ -6755,6 +6755,146 @@
       "class": "equivalent",
       "argument": "This line runs only for a node with routes deleted again, which has a kind (linux or eos); describe reads the kind only for 'not applicable'.",
       "reviewed": "adversarial (fresh Claude reviewer), 9758c87 triage, 2026-11-07: AGREE: readded is set only by check_linux/check_eos (m.kind truthy), so describe never reaches the 'not applicable ({kind})' branch; at most environment text."
+    },
+    "netdryrun.mgmt.x__eos__mutmut_7": {
+      "reason": "Lab.exec's own default timeout is 60, the value passed explicitly.",
+      "diff": "e5dd473040d1c60d",
+      "class": "equivalent",
+      "argument": "Lab.exec's own default timeout is 60, the value passed explicitly.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: Lab.exec's default timeout is 60 (lab.py:422), the same value the original passes."
+    },
+    "netdryrun.mgmt.x__eos_key__mutmut_7": {
+      "reason": "ip_network's strict is only tested for truth: None is false, as False is.",
+      "diff": "f4fceb29a6ac8bc3",
+      "class": "equivalent",
+      "argument": "ip_network's strict is only tested for truth: None is false, as False is.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: ipaddress only tests strict for truth, so None masks host bits as False does (checked: 10.1.1.5/24 -> 10.1.1.0/24)."
+    },
+    "netdryrun.mgmt.x__in_mgmt_subnet__mutmut_3": {
+      "reason": "As _eos_key: strict=None behaves as strict=False.",
+      "diff": "0fb7dc13c28aee54",
+      "class": "equivalent",
+      "argument": "As _eos_key: strict=None behaves as strict=False.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: Same as _eos_key: strict=None reads as False, for both IPv4 and IPv6."
+    },
+    "netdryrun.mgmt.x__scan_eos__mutmut_2": {
+      "reason": "The family only picks the command (6 is IPv6, anything else IPv4) and the error text, which tests family == 6: 5 behaves as 4.",
+      "diff": "3926f004e47d70a5",
+      "class": "equivalent",
+      "argument": "The family only picks the command (6 is IPv6, anything else IPv4) and the error text, which tests family == 6: 5 behaves as 4.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: fam only selects the command (fam == 6) and classify_eos's error text, so 5 gives the same IPv4 command and verdict as 4."
+    },
+    "netdryrun.mgmt.x__scan_eos__mutmut_6": {
+      "reason": "classify_eos reads family only for its error text (family == 6): any other value reads as IPv4, as 4 does.",
+      "diff": "ed093e1e54e4b28a",
+      "class": "equivalent",
+      "argument": "classify_eos reads family only for its error text (family == 6): any other value reads as IPv4, as 4 does.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: classify_eos reads family only in its LabError message text, so None changes nothing it returns or raises."
+    },
+    "netdryrun.mgmt.x__scan_linux__mutmut_72": {
+      "reason": "The `continue` is in the IPv6 (last) iteration of a two-item loop: `break` ends the loop at the same point.",
+      "diff": "4c095d3398951c81",
+      "class": "equivalent",
+      "argument": "The `continue` is in the IPv6 (last) iteration of a two-item loop: `break` ends the loop at the same point.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: The continue only runs when fam == 6, the last iteration, so break leaves the loop with the same routes and no extra parse."
+    },
+    "netdryrun.mgmt.x_check_eos__mutmut_55": {
+      "reason": "repair is only tested for truth: None is false, as False is.",
+      "diff": "72d3f26d221ac0d9",
+      "class": "equivalent",
+      "argument": "repair is only tested for truth: None is false, as False is.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: repair is only used as 'not repair', and None is falsy like False."
+    },
+    "netdryrun.mgmt.x_check_linux__mutmut_33": {
+      "reason": "As check_eos: repair=None behaves as repair=False.",
+      "diff": "3532c7db2ba0f603",
+      "class": "equivalent",
+      "argument": "As check_eos: repair=None behaves as repair=False.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: repair is only used as 'not repair', and None is falsy like False."
+    },
+    "netdryrun.mgmt.x_check_node__mutmut_12": {
+      "reason": "covering() looks the node up with state.get(node): for a node not in state it returns None, the value the else branch gives.",
+      "diff": "c2fe56e8dcb8ff92",
+      "class": "equivalent",
+      "argument": "covering() looks the node up with state.get(node): for a node not in state it returns None, the value the else branch gives.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: For a node not in state, covering() does state.get(node) and returns None, so _check is skipped as in the original."
+    },
+    "netdryrun.mgmt.x_classify_eos__mutmut_38": {
+      "reason": "The default only matters for a via without an interface: str(None) ('None') matches no Management name, as '' doesn't.",
+      "diff": "acd2e11c531ee188",
+      "class": "equivalent",
+      "argument": "The default only matters for a via without an interface: str(None) ('None') matches no Management name, as '' doesn't.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: str(None) == 'None' does not match ^Management\\d+, and neither does '', so mg is the same."
+    },
+    "netdryrun.mgmt.x_classify_eos__mutmut_40": {
+      "reason": "As 38: get() without a default returns None, 'None' matches no Management name.",
+      "diff": "56d6925644c816c5",
+      "class": "equivalent",
+      "argument": "As 38: get() without a default returns None, 'None' matches no Management name.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: get() with no default returns None, and 'None' does not match EOS_MGMT, like ''."
+    },
+    "netdryrun.mgmt.x_classify_eos__mutmut_43": {
+      "reason": "As 38: 'XXXX' matches no Management name.",
+      "diff": "ec8135fb555198d2",
+      "class": "equivalent",
+      "argument": "As 38: 'XXXX' matches no Management name.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: 'XXXX' does not match EOS_MGMT, like ''."
+    },
+    "netdryrun.mgmt.x_parse_ip_route__mutmut_46": {
+      "reason": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. e\"], head[\"prefix\"], kv.get(\"dev\", None), kv.get(\"via\", \"\"),",
+      "diff": "381e80937d14f702",
+      "class": "equivalent",
+      "argument": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. e\"], head[\"prefix\"], kv.get(\"dev\", None), kv.get(\"via\", \"\"),",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: A leg's dev is only tested for truth or set membership; m.devices never holds '' (both sources need a non-empty name), and legs never reach _delete_linux (multipath is excluded from docker)."
+    },
+    "netdryrun.mgmt.x_parse_ip_route__mutmut_48": {
+      "reason": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. rtype\"], head[\"prefix\"], kv.get(\"dev\", ), kv.get(\"via\", \"\"),",
+      "diff": "4b5e77dcf0291c62",
+      "class": "equivalent",
+      "argument": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. rtype\"], head[\"prefix\"], kv.get(\"dev\", ), kv.get(\"via\", \"\"),",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: Same as 46: a missing dev defaults to None, which is falsy and in no device set."
+    },
+    "netdryrun.mgmt.x_parse_ip_route__mutmut_53": {
+      "reason": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. e\"], head[\"prefix\"], kv.get(\"dev\", \"\"), kv.get(\"via\", None),",
+      "diff": "092f61d221668e6a",
+      "class": "equivalent",
+      "argument": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. e\"], head[\"prefix\"], kv.get(\"dev\", \"\"), kv.get(\"via\", None),",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: A leg's via is only tested for truth before ip_address() is called, and legs are never docker routes, so they are never deleted by via."
+    },
+    "netdryrun.mgmt.x_parse_ip_route__mutmut_55": {
+      "reason": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. rtype\"], head[\"prefix\"], kv.get(\"dev\", \"\"), kv.get(\"via\", ),",
+      "diff": "6205e37a2fa974f7",
+      "class": "equivalent",
+      "argument": "A leg's dev and via defaults (when the leg line names none) are only tested for truth and membership: None or no default reads as falsy and is in no device set, as '' is. rtype\"], head[\"prefix\"], kv.get(\"dev\", \"\"), kv.get(\"via\", ),",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: Same as 53: a missing via defaults to None, which is falsy."
+    },
+    "netdryrun.mgmt.x_prepare__mutmut_41": {
+      "reason": "prepare_eos never reads its log argument.",
+      "diff": "c1d09fd8bece274c",
+      "class": "equivalent",
+      "argument": "prepare_eos never reads its log argument.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: prepare_eos never reads its log parameter."
+    },
+    "netdryrun.mgmt.x_prepare_eos__mutmut_85": {
+      "reason": "repair is only tested for truth: None is false, as False is.",
+      "diff": "cc66915f33fe93df",
+      "class": "equivalent",
+      "argument": "repair is only tested for truth: None is false, as False is.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: repair is only used as 'not repair', and None is falsy like False."
+    },
+    "netdryrun.mgmt.x_prepare_linux__mutmut_60": {
+      "reason": "prepare_linux runs once per node on a fresh Mgmt whose removed list is empty, so assigning equals extending.",
+      "diff": "f382edb7cdf91000",
+      "class": "equivalent",
+      "argument": "prepare_linux runs once per node on a fresh Mgmt whose removed list is empty, so assigning equals extending.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: prepare_linux's only caller is prepare(), on a fresh Mgmt from docker_mgmt whose removed list is empty and unshared, and nothing before line 292 appends to it."
+    },
+    "netdryrun.mgmt.x_prepare_linux__mutmut_65": {
+      "reason": "repair=None behaves as repair=False.",
+      "diff": "1128b874467bf52a",
+      "class": "equivalent",
+      "argument": "repair=None behaves as repair=False.",
+      "reviewed": "adversarial (fresh Claude reviewer), c5c1391 triage, 2026-11-07: AGREE: repair is only used as 'not repair', and None is falsy like False."
     }
   },
   "checks": {
