@@ -15,8 +15,10 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+import time
 from dataclasses import dataclass, field
 
+from .drivers.base import DriverError
 from .lab import NETNS_HELPER_IMAGE, Lab, LabError
 
 LINUX_KINDS = ("linux", "sonic-vs", "sonic_vs")
@@ -463,6 +465,47 @@ def check_junos(lab: Lab, m: Mgmt, when: str) -> None:
 
 # ------------------------------------------------------------------------------------------------- the run
 
+READY_BUDGET = 300.0   # the setup budget (Lab.run_setup): a NOS still booting after deploy gets this long to answer
+READY_STEP = 5.0
+
+
+def _await_answer(read, node: str, sleep, budget: float | None = None, clock=time.monotonic) -> None:
+    """Before a node's first management read: wait until it answers at all. A VM NOS (cJunosEvolved boots for
+    minutes after deploy; live 2026-11-08: j1's first `show route` timed out) or a cEOS CLI still starting isn't a
+    finding. Retried every READY_STEP s until `budget` has passed, counted both as the time slept and on the clock
+    (a read that times out takes up to 60 s itself: adversary on the readiness diff); never an answer is a run error
+    (exit 2). A route out over the management network is a finding and a missing instance is the file's error: both
+    raised at once, never retried."""
+    from .drivers.base import NoSuchInstance
+    budget = READY_BUDGET if budget is None else budget
+    start, waited, last = clock(), 0.0, ""
+    while True:
+        try:
+            read()
+            return
+        except (ManagementPathError, NoSuchInstance):
+            raise
+        except (LabError, DriverError) as e:
+            last = str(e)
+        spent = max(waited, clock() - start)
+        if spent >= budget:
+            raise LabError(f"{last} (no answer in {spent:.0f}s after setup, a budget of {budget:g}s, so {node}'s "
+                           "route out over the management network can't be checked before the checks)")
+        sleep(READY_STEP)
+        waited += READY_STEP
+
+
+def _junos_answers(lab: Lab, node: str) -> None:
+    """The readiness probe on Junos: the default instance only, which always exists, so a VRF the file names wrongly
+    is never waited on (check_junos then reads every instance once, unretried)."""
+    from .drivers.base import NoSuchInstance
+    from .drivers.junos import JunosDriver
+    try:
+        JunosDriver(lab, node).management_routes("default")
+    except NoSuchInstance as e:
+        # the default instance always exists: a booting rpd that says otherwise is not ready yet (retried)
+        raise DriverError(f"{node}: its default instance reads as missing ({e}): not ready yet") from None
+
 def prepare(lab: Lab, checks: list, log=lambda _: None, sleep=None) -> dict[str, Mgmt]:
     """Before the first check: every lab container's management network read, Docker's (containerlab's) default route
     deleted where the lab's routing table holds it, and the checks refused that would ping over management."""
@@ -480,13 +523,20 @@ def prepare(lab: Lab, checks: list, log=lambda _: None, sleep=None) -> dict[str,
             continue                     # the Docker host's own namespace: never touched (R1); checks on it refused
         if m.mode.startswith("container:") or m.mode == "none":
             continue                     # shares another container's namespace (handled there), or has none
+        wait = sleep or time.sleep
+        # Readiness (live 2026-11-08): a NOS whose CLI starts after its container does gets READY_BUDGET to answer
+        # its first read. Linux kinds (FRR, SONiC VS) aren't waited for: `ip` in a running container answers at once,
+        # so a failure there isn't boot timing, and its hint (no `ip`, no helper image) comes without delay.
+        # NX-OS and RouterOS have no management-route step here, so nothing of theirs is read in prepare.
         if node.kind in LINUX_KINDS:
             prepare_linux(lab, m, log)
         elif node.kind in EOS_KINDS:
-            prepare_eos(lab, m, log, sleep or __import__("time").sleep)
+            _await_answer(lambda n=name: _eos_config(lab, n, "startup"), name, wait)
+            prepare_eos(lab, m, log, wait)
         elif node.kind in JUNOS_KINDS:
             m.kind = "junos"
             m.vrfs |= {c.params.get("vrf", "default") for c in checks if c.node == name}
+            _await_answer(lambda n=name: _junos_answers(lab, n), name, wait)
             check_junos(lab, m, "before the checks")
         log(f"{name}: management default route "
             + (f"removed ({'; '.join(m.removed)})" if m.removed else "none" if m.kind else

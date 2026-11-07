@@ -22,3 +22,11 @@ def _no_real_lab(monkeypatch):
             raise RuntimeError(f"a unit test tried to run a real lab command: {' '.join(map(str, cmd))[:200]}")
         return real(cmd, *args, **kwargs)
     monkeypatch.setattr(lab, "_run", guarded)
+
+
+@pytest.fixture(autouse=True)
+def _no_readiness_wait(monkeypatch):
+    """mgmt.prepare waits up to READY_BUDGET for a booting NOS; unit tests' fakes answer at once or never, so they get
+    no wait (the readiness tests set their own budget)."""
+    from netdryrun import mgmt
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 0.0)

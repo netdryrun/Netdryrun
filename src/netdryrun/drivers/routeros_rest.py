@@ -88,16 +88,26 @@ def as_bool(request: str, value: object) -> bool:
 HELPER = r"""import base64
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 
 method, path, cred = sys.argv[1], sys.argv[2], sys.argv[3]
 HEALTH = os.environ.get("MT_HEALTH", "/health")
-try:
-    health = open(HEALTH).read().strip()
-except OSError as e:
-    sys.stderr.write("RouterOS readiness unknown: vrnetlab health file %s unreadable: %r" % (HEALTH, e) + chr(10))
-    sys.exit(3)
+for attempt in range(3):
+    # an empty file is vrnetlab rewriting it (live 2026-11-08: one '' read mid-run, "0 running" before and after):
+    # read again, 2 s apart, up to 3 reads; still empty is "not ready" as before
+    try:
+        health = open(HEALTH).read().strip()
+    except OSError as e:
+        sys.stderr.write("RouterOS readiness unknown: vrnetlab health file %s unreadable: %r" % (HEALTH, e) + chr(10))
+        sys.exit(3)
+    if health or attempt == 2:
+        break
+    try:
+        time.sleep(float(os.environ.get("MT_HEALTH_RETRY", "2")))
+    except ValueError:
+        time.sleep(2)
 if health != "0 running":
     sys.stderr.write("RouterOS is not ready (still booting, or its config not uploaded yet): vrnetlab health is %r"
                      % health[:80] + chr(10))

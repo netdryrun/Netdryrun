@@ -128,7 +128,7 @@ The [hidden-leak lab](#srl-hidden-leak) on **Juniper cJunosEvolved** (beta drive
 - Good configs: `PASSED: 10 passed, 0 failed (10 checks)`, exit code `0`.
 - The leak: `FAILED: 8 passed, 2 failed (10 checks)`, exit code `1`. Only the two guards on `r1` fail: the default via BGP, and the default in the BGP table.
 
-The CHR image can't be redistributed. Download the CHR VMDK from mikrotik.com yourself and build the vrnetlab image; the [README](https://github.com/netdryrun/Netdryrun/blob/main/examples/mikrotik/README.md) shows how. The host needs KVM, and the VM uses 256 MB of RAM. The REST API answers before the startup config is imported, so the checks wait up to `timeout: 600`. A line RouterOS rejects at boot ends the run with exit code `2` instead of a verdict.
+The CHR image can't be redistributed. Download the CHR VMDK from mikrotik.com yourself and build the vrnetlab image; the [README](https://github.com/netdryrun/Netdryrun/blob/main/examples/mikrotik/README.md) shows how. The host needs KVM, and the VM uses 256 MB of RAM. The REST API answers before the startup config is imported, so the checks wait up to `timeout: 600`. A line RouterOS rejects at boot ends the run with exit code `2` instead of a verdict. RouterOS 7.x never sends End-of-RIB, so FRR's session to `r1` is judged by stable prefix counts; the run says so in one warning.
 
 ## nxos-frr
 

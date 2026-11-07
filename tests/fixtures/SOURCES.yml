@@ -311,3 +311,10 @@
     vrf RED | json` for a VRF without routing; SR Linux `info from state /network-instance RED oper-state` (admin-state
     disable) and BLUE (ip-vrf with no links), 2026-11-05/06. HQ wt/cap-night/{eos,srlinux}/ (run.sh there)
   added: ndr/gate-fixes-0.4.1
+- files: [frr_eor_toward_routeros_watch.txt]
+  kind: live-capture
+  source: >-
+    Every 20 s through one run of examples/mikrotik (RouterOS 7.23.8 CHR, FRR 10.4.1, 2026-11-08): r1's vrnetlab
+    /health and frr1's `show bgp neighbors 10.0.100.1 json` (state, graceful-restart modes, ipv4 End-of-RIB fields)
+    for its RouterOS peer. HQ wt/rg-mikrotik-rerun/ (wt/rg-mikrotik-rerun.sh)
+  added: ndr/gate-fixes-0.4.1

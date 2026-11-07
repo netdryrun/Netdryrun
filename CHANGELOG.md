@@ -71,7 +71,17 @@ Each fixed with a test that fails on the code before the fix (`tests/test_redtea
   other route over a management interface, a route that comes back (checked before and after every FRR, SONiC and cEOS ping, and
   around each phase and scenario), a ping target or source in the management network, a check on a node in the Docker
   host's namespace, or routes that can't be read end the run as an error (exit 2). Internet access from lab nodes now
-  works only during `setup:`. A ping `source` must be one of the node's own addresses.
+  works only during `setup:`. A ping `source` must be one of the node's own addresses. A Junos (cJunosEvolved) or cEOS
+  node whose CLI isn't answering yet after `setup:` gets up to 300 s (the setup budget, on the clock) for this first
+  read; one that never answers is an error (exit 2) naming the node and the last error (live 2026-11-08: a
+  cJunosEvolved still booting).
+
+- **A RouterOS peer's End-of-RIB isn't waited for** (live 2026-11-08). RouterOS 7.x never sends End-of-RIB (it receives
+  it), so a neighbor's End-of-RIB from a RouterOS node stayed pending and the gate waited out its cap: the mikrotik
+  example took about 11 minutes instead of 2. Where the topology places the peer on a link to a RouterOS node in the lab
+  that owns the neighbor address, a pending End-of-RIB from it is judged by stable prefix counts, with one warning
+  naming it, as for a session without graceful restart. A RouterOS peer that can't be placed is still waited for. The RouterOS driver also reads vrnetlab's health file up
+  to three times, 2 s apart, when it is empty (vrnetlab rewriting it), before reading the router as not ready.
 
 - **Every own address a ping can't leave the node for is read** (RT-0044, RT-0045, RT-0046, RT-0047). Cisco NX-OS read
   IPv4 primaries only, so a ping to the node's own IPv6 or secondary address passed; it now reads `show ip interface vrf

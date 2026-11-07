@@ -299,8 +299,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 _HEALTH_OK = Path(__file__).parent / "fixtures" / "routeros_health_running.txt"
 
 
-def _run_helper(port, *args, health=_HEALTH_OK):
-    env = {"MT_TARGET": f"http://127.0.0.1:{port}", "MT_HEALTH": str(health), "SYSTEMROOT": "C:\\Windows", "PATH": ""}
+def _run_helper(port, *args, health=_HEALTH_OK, retry="0"):
+    env = {"MT_TARGET": f"http://127.0.0.1:{port}", "MT_HEALTH": str(health), "SYSTEMROOT": "C:\\Windows", "PATH": "",
+           "MT_HEALTH_RETRY": retry}
     return subprocess.run([sys.executable, "-I", "-c", HELPER, *args], capture_output=True, text=True, env=env, timeout=30)
 
 
@@ -336,6 +337,48 @@ def test_the_helper_asks_nothing_until_vrnetlab_says_the_router_is_up(tmp_path, 
         health.write_text(content)
     r = _run_helper(1, "GET", "/routing/table", "admin:admin", health=health)
     assert r.returncode == 3 and r.stdout == "" and why in r.stderr
+
+
+def test_an_empty_health_file_is_read_three_times_then_not_ready(tmp_path):
+    """vrnetlab rewrites /health; one empty read mid-run (live 2026-11-08) is read again, 2 s apart, 3 reads in all."""
+    import time
+    health = tmp_path / "health"
+    health.write_text("")
+    t = time.monotonic()
+    r = _run_helper(1, "GET", "/routing/table", "admin:admin", health=health, retry="1")
+    took = time.monotonic() - t
+    assert r.returncode == 3 and "not ready" in r.stderr and "''" in r.stderr
+    assert 2.0 <= took < 2.9        # two waits of 1 s: three reads, no wait after the third (start-up slack < 0.9 s)
+    assert 'os.environ.get("MT_HEALTH_RETRY", "2")' in HELPER and "range(3)" in HELPER   # 2 s, 3 reads in a real lab
+
+
+def test_an_empty_health_file_rewritten_to_running_goes_ahead(tmp_path):
+    srv = http.server.HTTPServer(("127.0.0.1", 0), _Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    health = tmp_path / "health"
+    health.write_text("")
+    threading.Timer(0.4, lambda: health.write_text("0 running")).start()
+    try:
+        r = _run_helper(srv.server_port, "GET", "/ip/route", "admin:admin", "", health=health, retry="1.5")
+        assert r.returncode == 0 and r.stdout == '200\n[{"a":"1"}]'
+    finally:
+        srv.shutdown()
+
+
+def test_a_bad_retry_value_still_ends_not_ready(tmp_path):
+    health = tmp_path / "health"
+    health.write_text("")
+    r = _run_helper(1, "GET", "/routing/table", "admin:admin", health=health, retry="x")
+    assert r.returncode == 3 and "not ready" in r.stderr
+
+
+def test_a_not_running_health_isnt_read_again(tmp_path):
+    import time
+    health = tmp_path / "health"
+    health.write_text("1 starting")
+    t = time.monotonic()
+    r = _run_helper(1, "GET", "/routing/table", "admin:admin", health=health, retry="3")
+    assert r.returncode == 3 and "1 starting" in r.stderr and time.monotonic() - t < 3
 
 
 def test_vrfs_for_record_are_the_valid_tables_but_main():

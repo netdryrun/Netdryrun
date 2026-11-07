@@ -27,7 +27,7 @@ from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
 from .faults import RouteInjection
 from . import mgmt
-from .lab import NXOS_KINDS, VM_KINDS, Lab, LabError
+from .lab import NXOS_KINDS, ROUTEROS_KINDS, VM_KINDS, Lab, LabError
 
 # Every wait in a run goes through these two names (looked up at call time), so tests can drive a whole
 # run on a fake clock.
@@ -843,6 +843,55 @@ def _far_ends(lab, declared: set[tuple[str, str, str]]) -> set[tuple[str, str, s
     return out
 
 
+def _routeros_peer(lab, node: str, key: str, driver_of=lambda n: None, vrf: str = "default") -> str | None:
+    """The RouterOS node at the far end of `node`'s session to `key`, where the topology and the node itself show it,
+    else None.
+
+    RouterOS 7.x never sends End-of-RIB (local.eor is empty in every RouterOS capture, 7.23: it does receive it), so a
+    peer's "pending" End-of-RIB toward it never clears (live 2026-11-08: the mikrotik example waited out the 600 s cap).
+    Placed like _far_ends, and only as surely: the link on which `node` has an address in the same subnet as `key`,
+    with every peer on it a RouterOS node, exactly one such node over all of `node`'s links, and that node owning
+    `key` itself (its own address read through its driver, `driver_of`: a router behind it, bridged through it or in
+    a wide subnet is not it; adversary on the RouterOS diff). An address that can't be read, a RouterOS node without
+    a readable driver, a link-local neighbor (every link has fe80::/64), a shared segment with any other kind, or a
+    session the topology can't place (iBGP between loopbacks) gives None, so that session's End-of-RIB is waited for
+    as for any other."""
+    ip = _ip(str(key))
+    nodes = getattr(lab, "nodes", None) or {}
+    if ip is None or "%" in str(key) or ip.is_link_local or not any(nd.kind in ROUTEROS_KINDS
+                                                                    for nd in nodes.values()):
+        return None
+    found: set[str] = set()
+    for a, b in getattr(lab, "links", []):
+        for n, iface in (a, b):
+            if n != node:
+                continue
+            try:
+                mine = [x for x in lab.interface_addresses(node, iface)
+                        if x.version == ip.version and ip in x.network and x.ip != ip]
+            except Exception:
+                return None
+            if not mine:
+                continue
+            peers = lab.peers_of(node, iface)
+            if not peers or any(getattr(nodes.get(p), "kind", None) not in ROUTEROS_KINDS for p, _ in peers):
+                return None
+            found |= {p for p, _ in peers}
+    if len(found) != 1:
+        return None
+    ros = next(iter(found))
+    drv = driver_of(ros)
+    if drv is None or isinstance(drv, str):
+        return None
+    for v in sorted({"default", vrf}):
+        try:
+            if any(getattr(x, "ip", None) == ip for x in drv.local_addresses(v)):
+                return ros
+        except Exception:
+            continue
+    return None
+
+
 def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drivers: dict,
                           log=lambda _: None, positive_results: list[Result] = (),
                           warnings: dict[int, list[dict]] | None = None,
@@ -862,7 +911,8 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     End-of-RIB (design round 3, R3): once every session is up, a session whose End-of-RIB is "pending" or "unknown"
     (Driver.end_of_rib) is not settled: its table may still be arriving. At the cap that blocks the own node's checks
     and is a warning elsewhere. A peer declared `eor: not_sent` is not waited for. A session with graceful restart not
-    negotiated ("untracked") settles by the count rule, with one warning per run and session (`eor_reported`)."""
+    negotiated ("untracked") settles by the count rule, with one warning per run and session (`eor_reported`). So does
+    a "pending" End-of-RIB from a RouterOS peer in the lab (_routeros_peer): RouterOS 7.x never sends one."""
     # A node whose positive checks never got usable state on any sample already waited out their timeout:
     # don't wait again (the run is then failed or inconclusive on those checks anyway)
     on_node: dict[str, list[Result]] = {}
@@ -897,7 +947,7 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                     extra_drivers[(node, vrf)] = drv
                     deadline[(node, vrf)] = cap
     st = {g: {"streak": 0, "counts": None, "answered": False, "empty": False, "detail": "", "history": [],
-              "down": [], "reads": 0, "error": "", "eor_wait": [], "untracked": set()}
+              "down": [], "reads": 0, "error": "", "eor_wait": [], "untracked": set(), "routeros": {}}
           for g in list(groups) + list(extra_drivers)}
     started = _now()
     t0 = _clock()
@@ -905,6 +955,17 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
     first = True
     blocked: dict[int, Result] = {}
     extra_warnings: list[tuple[str, str, str | None, str]] = []   # (code, node, session, text)
+
+    ros_cache: dict[tuple[str, str, str], str | None] = {}
+
+    def routeros_peer(node: str, vrf: str, a: str) -> str | None:
+        if lab is None:
+            return None
+        if ros_cache.get((node, vrf, a)) is None:
+            # only a placement is kept: a read that failed (REST not up yet) is tried again on the next sample
+            ros_cache[(node, vrf, a)] = _routeros_peer(lab, node, a, lambda n: drivers.get(n) or (extras or {}).get(n),
+                                                       vrf)
+        return ros_cache[(node, vrf, a)]
 
     def warn_extra(g, code: str, text: str, session: str | None = None) -> None:
         log(f"warning: {text}")
@@ -986,6 +1047,11 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
                 for fam, state in sorted(fams.items()):
                     if state == "untracked":
                         untracked.add(a)
+                    elif state == "pending" and routeros_peer(node, vrf, a):
+                        # RouterOS 7.x never sends End-of-RIB: "pending" toward it never clears (live 2026-11-08), so
+                        # it is judged like a session without graceful restart: stable counts, warned once
+                        untracked.add(a)
+                        s["routeros"][a] = routeros_peer(node, vrf, a)
                     elif state == "pending" or (state != "received"
                                                 and (node, vrf, _canon_ip(a)) not in eor_not_sent):
                         # eor: not_sent excuses only what can't be read; a "pending" read is the table still
@@ -1115,7 +1181,10 @@ def _bgp_convergence_gate(negatives: list[Check], all_checks: list[Check], drive
             if eor_reported is not None:
                 eor_reported.add(key)
             where = "" if g[1] == "default" else f" (vrf {g[1]})"
-            text = (f"convergence: {g[0]}'s session to {a}{where} doesn't negotiate graceful restart, so its "
+            ros = st[g]["routeros"].get(a)
+            why = (f"is to {ros}, a RouterOS node (RouterOS 7.x doesn't send End-of-RIB)" if ros else
+                   "doesn't negotiate graceful restart")
+            text = (f"convergence: {g[0]}'s session to {a}{where} {why}, so its "
                     "End-of-RIB can't be tracked; the gate judged it by stable prefix counts only (a route can still "
                     "arrive later)")
             log(f"warning: {text}")

@@ -695,12 +695,13 @@ def test_check_junos_reads_every_vrf_sorted_and_says_so_exact(monkeypatch):
 def test_prepare_junos_vrfs_and_when_exact(monkeypatch):
     got = []
     monkeypatch.setattr(mgmt, "check_junos", lambda lab, m, when: got.append((m.kind, set(m.vrfs), when)))
+    monkeypatch.setattr(mgmt, "_junos_answers", lambda lab, node: got.append(("probe", node)))
     lab = RouteLab(nodes=["j1", "r9"], kinds={"j1": ("juniper_cjunosevolved", "cj")})
     checks = [chk("route", "a", node="j1", prefix="10.0.0.0/8", vrf="RED"), chk("route", "b", node="j1", prefix="1.0.0.0/8"),
               chk("route", "c", node="r9", prefix="1.0.0.0/8", vrf="BLUE")]
     logs: list[str] = []
     mgmt.prepare(lab, checks, log=logs.append)
-    assert got == [("junos", {"default", "RED"}, "before the checks")]
+    assert got == [("probe", "j1"), ("junos", {"default", "RED"}, "before the checks")]
     assert logs[0] == "j1: management default route none"
 
 
@@ -737,6 +738,7 @@ def test_prepare_skips_host_container_and_none_and_continues():
 def test_prepare_passes_the_given_sleep(monkeypatch):
     got = []
     monkeypatch.setattr(mgmt, "prepare_eos", lambda lab, m, log, sleep: got.append(sleep))
+    monkeypatch.setattr(mgmt, "_eos_config", lambda lab, node, which: "")   # the readiness read answers at once
     s = lambda x: None   # noqa: E731
     mgmt.prepare(RouteLab(kinds={"r1": ("ceos", "c")}), [], sleep=s)
     mgmt.prepare(RouteLab(kinds={"r1": ("arista_ceos", "c")}), [])
@@ -889,3 +891,150 @@ def test_recheck_and_check_node_exact(monkeypatch):
     mgmt.check_node(lab, "h", "P")
     assert got[-1] == ("b", "P")
     mgmt.recheck(Node("x", "c", "linux", "i"), "W")        # an object without state: nothing to read
+
+
+
+# ------------------------------------------------------------------------------------------- readiness (live 2026-11-08)
+
+class Flaky:
+    """A first read that fails `fails` times with a run error, then answers."""
+
+    def __init__(self, fails, exc=None):
+        self.n, self.fails = 0, fails
+        self.exc = exc or LabError("j1: `show route` timed out")
+
+    def __call__(self):
+        self.n += 1
+        if self.n <= self.fails:
+            raise self.exc
+
+
+def test_a_booting_node_is_waited_for_in_5s_steps(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    slept: list = []
+    read = Flaky(3)
+    mgmt._await_answer(read, "j1", slept.append)
+    assert slept == [5.0, 5.0, 5.0] and read.n == 4
+
+
+def test_a_driver_error_is_waited_for_too(monkeypatch):
+    from netdryrun.drivers.base import DriverError
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    slept: list = []
+    mgmt._await_answer(Flaky(1, DriverError("cli not up")), "j1", slept.append)
+    assert slept == [5.0]
+
+
+def test_a_node_that_never_answers_is_a_run_error_after_the_budget(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 12.0)
+    slept: list = []
+    read = Flaky(10 ** 6)
+    with pytest.raises(LabError) as e:
+        mgmt._await_answer(read, "j1", slept.append, clock=lambda: 0.0)
+    assert slept == [5.0, 5.0, 5.0] and read.n == 4
+    assert str(e.value) == ("j1: `show route` timed out (no answer in 15s after setup, a budget of 12s, so j1's route "
+                            "out over the management network can't be checked before the checks)")
+
+
+def test_the_budget_is_on_the_clock_when_each_read_takes_time(monkeypatch):
+    """Adversary on the readiness diff: a `show route` that times out takes 60 s itself; 300 s is 300 s of clock."""
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    now = [0.0]
+    slept: list = []
+
+    def slow():
+        now[0] += 60.0
+        raise LabError("j1: `show route` timed out")
+    with pytest.raises(LabError, match=r"no answer in 300s after setup, a budget of 300s"):
+        mgmt._await_answer(slow, "j1", slept.append, clock=lambda: now[0])
+    assert slept == [5.0] * 4                     # reads at 60, 120, 180, 240, 300 s of clock: four waits between
+
+
+def test_a_missing_instance_is_never_waited_for(monkeypatch):
+    from netdryrun.drivers.base import NoSuchInstance
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    with pytest.raises(NoSuchInstance):
+        mgmt._await_answer(Flaky(1, NoSuchInstance("no RED")), "j1", lambda s: pytest.fail("must not wait"))
+
+
+def test_an_explicit_budget_wins(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    slept: list = []
+    with pytest.raises(LabError):
+        mgmt._await_answer(Flaky(10 ** 6), "j1", slept.append, budget=5.0)
+    assert slept == [5.0]
+
+
+def test_a_route_out_is_never_retried(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    read = Flaky(1, ManagementPathError("route out"))
+    with pytest.raises(ManagementPathError):
+        mgmt._await_answer(read, "j1", lambda s: pytest.fail("must not wait"))
+    assert read.n == 1
+
+
+def test_any_other_exception_is_not_swallowed(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    with pytest.raises(KeyError):
+        mgmt._await_answer(Flaky(1, KeyError("x")), "j1", lambda s: pytest.fail("must not wait"))
+
+
+def test_junos_prepare_waits_for_its_default_instance_then_checks_once(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    probes, checks = [], []
+
+    def probe(lab, node):
+        probes.append(node)
+        if len(probes) < 3:
+            raise LabError("j1: `show route` timed out")
+    monkeypatch.setattr(mgmt, "_junos_answers", probe)
+    monkeypatch.setattr(mgmt, "check_junos", lambda lab, m, when: checks.append((m.node, set(m.vrfs), when)))
+    slept: list = []
+    lab = RouteLab(nodes=["j1"], kinds={"j1": ("juniper_cjunosevolved", "cj")})
+    mgmt.prepare(lab, [chk("route", "a", node="j1", prefix="10.0.0.0/8", vrf="RED")], sleep=slept.append)
+    assert slept == [5.0, 5.0] and probes == ["j1"] * 3
+    assert checks == [("j1", {"default", "RED"}, "before the checks")]       # every instance read once, unretried
+
+
+def test_a_default_instance_read_as_missing_is_not_ready_yet(monkeypatch):
+    """Verifier on the readiness fixes: a booting rpd can make the default instance read as missing; it always
+    exists, so the probe retries instead of failing at boot."""
+    from netdryrun.drivers import junos
+    from netdryrun.drivers.base import DriverError, NoSuchInstance
+
+    def missing(self, vrf):
+        raise NoSuchInstance("routing-instance 'default' does not exist on j1")
+    monkeypatch.setattr(junos.JunosDriver, "management_routes", missing)
+    with pytest.raises(DriverError, match="j1: its default instance reads as missing") as e:
+        mgmt._junos_answers(RouteLab(nodes=["j1"], kinds={"j1": ("juniper_cjunosevolved", "cj")}), "j1")
+    assert not isinstance(e.value, NoSuchInstance)
+
+
+def test_the_junos_probe_reads_the_default_instance(monkeypatch):
+    from netdryrun.drivers import junos
+    seen = []
+    monkeypatch.setattr(junos.JunosDriver, "management_routes", lambda self, vrf: seen.append((self.node, vrf)) or [])
+    mgmt._junos_answers(RouteLab(nodes=["j1"], kinds={"j1": ("juniper_cjunosevolved", "cj")}), "j1")
+    assert seen == [("j1", "default")]
+
+
+def test_eos_prepare_waits_for_its_cli(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    lab = EosLab()
+    real, n = lab.exec, [0]
+
+    def exec_(node, cmd, timeout=60, input=None):
+        n[0] += 1
+        if n[0] <= 2:
+            raise LabError("e1: Cli: not ready")
+        return real(node, cmd, timeout, input)
+    lab.exec = exec_
+    slept: list = []
+    m = mgmt.prepare(lab, [], sleep=slept.append)["r1"]
+    assert slept == [5.0, 5.0] and len(lab.sent) == 1 and m.removed
+
+
+def test_linux_kinds_are_not_waited_for(monkeypatch):
+    monkeypatch.setattr(mgmt, "READY_BUDGET", 300.0)
+    with pytest.raises(LabError, match="its routes can't be read"):
+        mgmt.prepare(RouteLab(fail={"route show": 1}), [], sleep=lambda s: pytest.fail("must not wait"))
