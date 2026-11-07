@@ -1,6 +1,6 @@
 # Verdict Corpus results
 
-Generated 2026-11-06T06:05:03+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `1c9be41`. Rerun everything with `python corpus/run.py`.
+Generated 2026-11-07T00:13:31+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `0fd1fb6`. Rerun everything with `python corpus/run.py`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of `corpus/cases/`). Losses are kept and shown at the same size as the catches.
 
@@ -11,6 +11,8 @@ Generated 2026-11-06T06:05:03+00:00 with netdryrun 0.4.1, containerlab 0.81.1, F
 | Ping only | **20/30** | 9/19 | 10 | 0 | 0 |
 | All BGP sessions up | **15/30** | 4/19 | 15 | 0 | 0 |
 | Netdryrun intent checks | **24/30** | 14/19 | 5 | 1 | 0 |
+
+Any change to these numbers since the pre-registered run is explained under [Findings after the run](#findings-after-the-run).
 
 ## Every case
 
@@ -65,3 +67,5 @@ These findings came after the run. The table above is left exactly as pre-regist
 **Cases 18, 23, 21 and 30 are real misses.** 18 and 23 are gaps in the intent spec (no check for unexpected routes reaching the customer or the upstream). 21 and 30 are latent risks that no steady-state check can see; they need a failure-injection scenario where the customer or peer actually misbehaves. These stay as losses.
 
 **Refreshed on 0.4.1 candidate `1c9be41` (2026-11-06), after the 0.4.1 red-team fixes:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
+
+**Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3, Docker's management default route removed in every Linux node before the checks):** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.

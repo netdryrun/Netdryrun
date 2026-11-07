@@ -5,3 +5,5 @@ These findings came after the run. The table above is left exactly as pre-regist
 **Cases 18, 23, 21 and 30 are real misses.** 18 and 23 are gaps in the intent spec (no check for unexpected routes reaching the customer or the upstream). 21 and 30 are latent risks that no steady-state check can see; they need a failure-injection scenario where the customer or peer actually misbehaves. These stay as losses.
 
 **Refreshed on 0.4.1 candidate `1c9be41` (2026-11-06), after the 0.4.1 red-team fixes:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
+
+**Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3, Docker's management default route removed in every Linux node before the checks):** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.

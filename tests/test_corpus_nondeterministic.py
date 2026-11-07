@@ -27,7 +27,7 @@ def test_the_v2_score_leaves_out_the_nondeterministic_case():
     data = json.loads((V2 / "results" / "results.json").read_text(encoding="utf-8"))
     st = render.stats(data["cases"], render.nondeterministic(V2))
     assert (st["total"], st["unsafe"], st["netdryrun"]["correct"], st["ping"]["correct"], st["sessions"]["correct"]) \
-        == (17, 10, 9, 9, 7)
+        == (17, 10, 9, 8, 7)   # ping 8/17 since the 0fd1fb6 refresh: case 14 (corpus/v2/AMENDMENTS.md)
     assert render.stats(data["cases"])["total"] == 18   # nothing is hidden from the data itself
 
 
@@ -52,7 +52,7 @@ def test_the_status_lines_say_9_of_17_with_8_inconclusive_and_name_case_18():
     b = sync_facts.blocks(f)
     for name in ("readme_status", "site_status"):
         assert ("Netdryrun 9 of 17 deterministic cases correct (8 inconclusive, reported as not proven; 0 harmful "
-                "changes approved), ping-only 9/17, all-sessions-up 7/17; case 18 is "
+                "changes approved), ping-only 8/17, all-sessions-up 7/17; case 18 is "
                 "nondeterministic in this lab and excluded from the score (listed with its reruns)") in b[name], name
         assert "17/18" not in b[name] and "On v2 (18 cases" in b[name]
     assert "v2: **9 of 17** deterministic cases (8 inconclusive" in b["built_accuracy"] and "17/18" not in b["built_accuracy"]

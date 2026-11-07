@@ -1,14 +1,14 @@
 {
   "schema": "netdryrun.corpus/v1",
   "environment": {
-    "generated": "2026-11-06T06:05:03+00:00",
+    "generated": "2026-11-07T00:13:31+00:00",
     "netdryrun": "0.4.1",
     "containerlab": "0.81.1",
     "frr_image": "quay.io/frrouting/frr:10.4.1",
     "frr_image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
     "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-    "commit": "1c9be41",
-    "verdict_tree": "f42989e8a5583c7a0dd899d054816263670e6f08c36bf86ff95c49dd8fb5d131"
+    "commit": "0fd1fb6",
+    "verdict_tree": "c807e06664934b833c6e5297b5a59056a84d4f4f7670bbd84c16460aee590f86"
   },
   "cases": [
     {
@@ -43,7 +43,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 73
     },
     {
       "id": "02-med-to-upstream",
@@ -82,7 +82,7 @@
           "error": null
         }
       },
-      "seconds": 59
+      "seconds": 74
     },
     {
       "id": "03-prepend-to-peer",
@@ -121,7 +121,7 @@
           "error": null
         }
       },
-      "seconds": 59
+      "seconds": 75
     },
     {
       "id": "04-tag-community-upstream",
@@ -160,7 +160,7 @@
           "error": null
         }
       },
-      "seconds": 62
+      "seconds": 73
     },
     {
       "id": "05-description-only",
@@ -200,7 +200,7 @@
           "error": null
         }
       },
-      "seconds": 68
+      "seconds": 73
     },
     {
       "id": "06-customer-adds-prefix",
@@ -242,7 +242,7 @@
           "error": null
         }
       },
-      "seconds": 63
+      "seconds": 74
     },
     {
       "id": "07-tighten-max-prefix",
@@ -282,7 +282,7 @@
           "error": null
         }
       },
-      "seconds": 71
+      "seconds": 73
     },
     {
       "id": "08-upstream-timers",
@@ -321,7 +321,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 73
     },
     {
       "id": "09-customer-localpref",
@@ -361,7 +361,7 @@
           "error": null
         }
       },
-      "seconds": 59
+      "seconds": 74
     },
     {
       "id": "10-transit-export-filter-removed",
@@ -404,7 +404,7 @@
           "error": null
         }
       },
-      "seconds": 59
+      "seconds": 73
     },
     {
       "id": "11-peer-export-filter-removed",
@@ -452,7 +452,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 73
     },
     {
       "id": "12-ibgp-send-community-dropped",
@@ -492,7 +492,7 @@
           "error": null
         }
       },
-      "seconds": 63
+      "seconds": 73
     },
     {
       "id": "13-upstream-asn-typo",
@@ -545,7 +545,7 @@
           "error": null
         }
       },
-      "seconds": 395
+      "seconds": 417
     },
     {
       "id": "14-peer-session-shutdown",
@@ -597,7 +597,7 @@
           "error": null
         }
       },
-      "seconds": 396
+      "seconds": 414
     },
     {
       "id": "15-customer-filter-too-strict",
@@ -647,7 +647,7 @@
           "error": null
         }
       },
-      "seconds": 251
+      "seconds": 274
     },
     {
       "id": "16-mass-withdrawal",
@@ -694,7 +694,7 @@
           "error": null
         }
       },
-      "seconds": 251
+      "seconds": 274
     },
     {
       "id": "17-default-leaked-to-peer",
@@ -736,7 +736,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 73
     },
     {
       "id": "18-redistribute-connected",
@@ -775,7 +775,7 @@
           "error": null
         }
       },
-      "seconds": 63
+      "seconds": 73
     },
     {
       "id": "19-nexthop-self-removed",
@@ -819,7 +819,7 @@
           "error": null
         }
       },
-      "seconds": 229
+      "seconds": 244
     },
     {
       "id": "20-ibgp-shutdown",
@@ -869,7 +869,7 @@
           "error": null
         }
       },
-      "seconds": 433
+      "seconds": 444
     },
     {
       "id": "21-customer-max-prefix-removed",
@@ -909,7 +909,7 @@
           "error": null
         }
       },
-      "seconds": 61
+      "seconds": 73
     },
     {
       "id": "22-customer-leaks-third-party",
@@ -948,7 +948,7 @@
           "error": null
         }
       },
-      "seconds": 65
+      "seconds": 73
     },
     {
       "id": "23-fat-finger-third-party-origin",
@@ -987,7 +987,7 @@
           "error": null
         }
       },
-      "seconds": 67
+      "seconds": 73
     },
     {
       "id": "24-customer-blackholed",
@@ -1033,7 +1033,7 @@
           "error": null
         }
       },
-      "seconds": 227
+      "seconds": 244
     },
     {
       "id": "25-aggregate-typo",
@@ -1078,7 +1078,7 @@
           "error": null
         }
       },
-      "seconds": 173
+      "seconds": 185
     },
     {
       "id": "26-route-map-order-bug",
@@ -1121,7 +1121,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 73
     },
     {
       "id": "27-local-asn-typo",
@@ -1176,7 +1176,7 @@
           "error": null
         }
       },
-      "seconds": 398
+      "seconds": 414
     },
     {
       "id": "28-customer-import-policy-removed",
@@ -1226,7 +1226,7 @@
           "error": null
         }
       },
-      "seconds": 256
+      "seconds": 274
     },
     {
       "id": "29-graceful-restart",
@@ -1265,7 +1265,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 84
     },
     {
       "id": "30-peer-import-filter-removed",
@@ -1309,7 +1309,7 @@
           "error": null
         }
       },
-      "seconds": 60
+      "seconds": 73
     }
   ]
 }

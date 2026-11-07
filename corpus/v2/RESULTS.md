@@ -1,6 +1,6 @@
 # Verdict Corpus v2 results
 
-Generated 2026-11-06T07:16:56+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `1c9be41`. Rerun everything with `python corpus/run.py --corpus v2`.
+Generated 2026-11-07T01:34:20+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `0fd1fb6`. Rerun everything with `python corpus/run.py --corpus v2`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of `corpus/v2/cases/`). Losses are kept and shown at the same size as the catches.
 
@@ -8,9 +8,11 @@ Generated 2026-11-06T07:16:56+00:00 with netdryrun 0.4.1, containerlab 0.81.1, F
 
 | Strategy | Correct | Harmful changes caught | Approved a bad change | Blocked a good change | Not proven (inconclusive or error) |
 |---|---|---|---|---|---|
-| Ping only | **9/17** | 2/10 | 8 | 0 | 0 |
+| Ping only | **8/17** | 1/10 | 9 | 0 | 0 |
 | All BGP sessions up | **7/17** | 0/10 | 10 | 0 | 0 |
 | Netdryrun intent checks | **9/17** | 9/10 | 0 | 0 | 8 |
+
+Any change to these numbers since the pre-registered run is explained under [Findings after the run](#findings-after-the-run).
 
 ## Every case
 
@@ -29,7 +31,7 @@ Generated 2026-11-06T07:16:56+00:00 with netdryrun 0.4.1, containerlab 0.81.1, F
 | `11-customer-max-prefix-warning-only` [Customer maximum-prefix changed to warning-only](cases/11-customer-max-prefix-warning-only.yml) | latent-risk | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
 | `12-customer-max-prefix-raised` [Customer maximum-prefix raised from 50 to 100](cases/12-customer-max-prefix-raised.yml) | hygiene | safe | ✅ | ✅ | ⏸ not proven | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
 | `13-upstream-routes-tagged-as-customer` [Upstream import policy tags routes with the customer community (copy-paste error)](cases/13-upstream-routes-tagged-as-customer.yml) | route-leak | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I4 no upstream route leaked to peer; I4 no default leaked to peer; [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
-| `14-customer-gets-default-only` [Customer export policy restricted to the default route](cases/14-customer-gets-default-only.yml) | policy-bug | unsafe | ✅ | ❌ approved a bad change | ✅ | I3 customer has upstream route; I3 customer has peer route; I3 customer reaches upstream; I3 customer reaches peer; [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
+| `14-customer-gets-default-only` [Customer export policy restricted to the default route](cases/14-customer-gets-default-only.yml) | policy-bug | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I3 customer has upstream route; I3 customer has peer route; [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
 | `15-upstream-default-filtered` [Default route from the upstream filtered on import](cases/15-upstream-default-filtered.yml) | policy-bug | unsafe | ❌ approved a bad change | ❌ approved a bad change | ✅ | I3 customer has default; [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
 | `16-customer-session-peer-group` [Customer session moved into a CUSTOMERS peer-group](cases/16-customer-session-peer-group.yml) | refactor | safe | ✅ | ✅ | ⏸ not proven | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
 | `17-customer-region-community` [Add an informational region community to customer routes](cases/17-customer-region-community.yml) | hygiene | safe | ✅ | ✅ | ⏸ not proven | [customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes; [customer floods 200 prefixes] I8 peer still receives at most 51 prefixes |
@@ -75,3 +77,7 @@ These findings came after the v2 run. The table above is left exactly as pre-reg
 **Case 18 on the 0.4.1 gate run of candidate `6e0a027`: 3 of 5 runs caught the change.** The other 2 were not proven: the aggregate was still present when checked (only the flood scenario's checks failed, its routes never provably left), so there was nothing to catch. No run crashed or approved it. On an earlier candidate of the same code (94f5174) 0 of 5 caught it, all 5 the same way. The same check catches a missing aggregate deterministically in v1 case 25. A run where no case-18 run catches the change blocks the release, on every version: no exception applies. Removing the race is a 0.4.2 blocker. If the aggregate disappears after the checks read it, no point-in-time check can see it. That run's results are kept with the 0.4.1 gate record (`releases/0.4.1/corpus-v1-results.json` and `corpus-v2-results.json`, from the gate's live layer on candidate `6e0a027`, with each run's status, the verdict code and the exact FRR image); every verdict in them matches the results shown here, which are the `88cf6bb` refresh.
 
 **Refreshed on 0.4.1 candidate `1c9be41` (2026-11-06), after the 0.4.1 red-team fixes:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code. Case 18 was caught in 3 of 5 runs (the other 2 not proven, none crashed or approved it).
+
+**Case 14: the ping baseline no longer catches it (0.4.1 refresh, candidate `0fd1fb6`, 2026-11-07).** Before 0.4.1 the ping-only strategy got this case right by accident. ce1's ping went out over Docker's management default route (a kernel route at distance 0, which beats the lab's BGP default) to a target that doesn't exist outside the lab, so it failed. From 0.4.1, Netdryrun removes Docker's management default in every Linux node before the checks: a ping over it left the lab and could pass on any address the Docker host reaches (a false pass in every released version, B3 in the [0.4.0 advisory](../../advisories/0.4.0-further-false-passes/), cases 16 and 17). Now the customer's ping uses the lab's BGP default and passes, so a ping-only check can't see a change that leaves the customer only the default route. This is honest: the ping baseline drops from 9/17 to 8/17 (harmful changes caught 2/10 to 1/10). Netdryrun still catches case 14 with its route checks (I3); its two "customer reaches" pings now pass, as they should. The case file and its expected verdict are unchanged.
+
+**Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3):** apart from case 14's ping baseline above, no verdict or status changed. Case 18 was caught in 2 of 5 runs (the other 3 not proven, none crashed or approved it).

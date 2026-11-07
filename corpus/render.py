@@ -59,7 +59,10 @@ def stats(rows: list[dict], skip=()) -> dict:
     return out
 
 
-def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, amendments: Path = AMENDMENTS) -> str:
+def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, amendments: Path = AMENDMENTS,
+                     anchor: str | None = None) -> str:
+    """anchor: an explicit id for the findings heading (the site page holds v1 and v2, so the default
+    `#findings-after-the-run` would name v1's on both); GitHub's markdown has no explicit ids, so RESULTS.md omits it."""
     rows, env = data["cases"], data["environment"]
     nd = nondeterministic(corpus)
     st = stats(rows, nd)
@@ -78,6 +81,9 @@ def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, 
     for s, label in LABELS.items():
         x = st[s]
         lines.append(f"| {label} | **{x['correct']}/{st['total']}** | {x['caught']}/{st['unsafe']} | {x['false_pass']} | {x['false_block']} | {x['error']} |")
+    if amendments.exists():
+        lines += ["", "Any change to these numbers since the pre-registered run is explained under "
+                      f"[Findings after the run](#{anchor or 'findings-after-the-run'})."]
     lines += ["", f"{h} Every case", "", "| Case | Category | Expected | Ping only | Sessions up | Netdryrun | What Netdryrun flagged |",
               "|---|---|---|---|---|---|---|"]
     for r in rows:
@@ -109,7 +115,8 @@ def results_markdown(data: dict, link=None, h: str = "##", corpus: Path = HERE, 
         oc = "not proven: inconclusive or error, so neither approved nor caught" if oc == "error" else oc
         lines.append(f"- **`{r['id']}` {r['title']}** ({oc}). {r.get('note') or r['rationale']}")
     if amendments.exists():
-        lines += ["", f"{h} Findings after the run", "", amendments.read_text(encoding="utf-8").strip()]
+        lines += ["", f"{h} Findings after the run" + (f" {{#{anchor}}}" if anchor else ""), "",
+                  amendments.read_text(encoding="utf-8").strip()]
     return "\n".join(lines) + "\n"
 
 
@@ -267,7 +274,8 @@ def render_v2() -> None:
                                    + results_markdown(data, lambda i: f"cases/{i}.yml", corpus=V2, amendments=amend),
                                    encoding="utf-8", newline="\n")
     intro = (V2 / "SITE.md").read_text(encoding="utf-8").strip()
-    body = results_markdown(data, lambda i: f"{REPO}/blob/main/corpus/v2/cases/{i}.yml", h="###", corpus=V2, amendments=amend)
+    body = results_markdown(data, lambda i: f"{REPO}/blob/main/corpus/v2/cases/{i}.yml", h="###", corpus=V2, amendments=amend,
+                            anchor="corpus-v2-findings")
     body = body.replace("`corpus/v2/cases/`", f"[`corpus/v2/cases/`]({REPO}/tree/main/corpus/v2/cases)")
     head = SITE_PAGE.read_text(encoding="utf-8").split(V2_MARKER)[0].rstrip("\n")
     SITE_PAGE.write_text(head + "\n\n" + V2_MARKER + "\n\n" + intro + "\n\n" + body, encoding="utf-8", newline="\n")
@@ -284,7 +292,7 @@ def main() -> None:
     data = json.loads((HERE / "results" / "results.json").read_text(encoding="utf-8"))
     (HERE / "RESULTS.md").write_text("# Verdict Corpus results\n\n" + results_markdown(data, lambda i: f"cases/{i}.yml"),
                                      encoding="utf-8", newline="\n")
-    body = results_markdown(data, lambda i: f"corpus/{i}.md")
+    body = results_markdown(data, lambda i: f"corpus/{i}.md", anchor="corpus-v1-findings")
     page = SITE_PAGE.read_text(encoding="utf-8")
     marker = "<!-- RESULTS -->"
     head = page.split(marker)[0]

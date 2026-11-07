@@ -61,4 +61,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 27
 ```
 
-Case file: [`corpus/cases/27-local-asn-typo.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/27-local-asn-typo.yml). Published result: netdryrun 0.4.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `88cf6bb`, run on 2026-11-04.
+Case file: [`corpus/cases/27-local-asn-typo.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/27-local-asn-typo.yml). Published result: netdryrun 0.4.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `0fd1fb6`, run on 2026-11-07.
