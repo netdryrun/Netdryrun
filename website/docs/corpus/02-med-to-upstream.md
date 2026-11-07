@@ -49,4 +49,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 02
 ```
 
-Case file: [`corpus/cases/02-med-to-upstream.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/02-med-to-upstream.yml). Published result: netdryrun 0.4.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `0fd1fb6`, run on 2026-11-07.
+Case file: [`corpus/cases/02-med-to-upstream.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/02-med-to-upstream.yml). Published result: netdryrun 0.4.1, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `26ea109`, run on 2026-11-07.

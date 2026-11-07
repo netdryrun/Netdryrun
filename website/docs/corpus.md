@@ -28,7 +28,7 @@ There are two runs. v1's cases and expected verdicts are frozen as first publish
 
 <!-- RESULTS -->
 
-Generated 2026-11-07T00:13:31+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `0fd1fb6`. Rerun everything with `python corpus/run.py`.
+Generated 2026-11-07T12:35:31+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `26ea109`. Rerun everything with `python corpus/run.py`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/cases)). Losses are kept and shown at the same size as the catches.
 
@@ -98,6 +98,8 @@ These findings came after the run. The table above is left exactly as pre-regist
 
 **Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3, Docker's management default route removed in every Linux node before the checks):** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
 
+**Refreshed on the final 0.4.1 candidate `26ea109` (2026-11-07), after the remaining 0.4.1 fixes (routes with no default at all, SONiC port names, a management default back mid-run, multipath legs, paths with a NUL byte):** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
+
 <!-- CORPUS-V2 -->
 
 ## Corpus v2
@@ -113,7 +115,7 @@ v2 changes two lines in the base lab so the customer's max-prefix limit can actu
 
 **Pre-registration:** all 18 cases and their expected verdicts were committed and pushed in [`322cc4e`](https://github.com/netdryrun/Netdryrun/commit/322cc4ede21492c3914a0a53b67268bea7abf7d6) (2026-10-27 04:02 UTC), before any v2 case was deployed. Rerun it with `python corpus/run.py --corpus v2`.
 
-Generated 2026-11-07T01:34:20+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `0fd1fb6`. Rerun everything with `python corpus/run.py --corpus v2`.
+Generated 2026-11-07T13:58:07+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `26ea109`. Rerun everything with `python corpus/run.py --corpus v2`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/v2/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/v2/cases)). Losses are kept and shown at the same size as the catches.
 
@@ -194,3 +196,5 @@ These findings came after the v2 run. The table above is left exactly as pre-reg
 **Case 14: the ping baseline no longer catches it (0.4.1 refresh, candidate `0fd1fb6`, 2026-11-07).** Before 0.4.1 the ping-only strategy got this case right by accident. ce1's ping went out over Docker's management default route (a kernel route at distance 0, which beats the lab's BGP default) to a target that doesn't exist outside the lab, so it failed. From 0.4.1, Netdryrun removes Docker's management default in every Linux node before the checks: a ping over it left the lab and could pass on any address the Docker host reaches (a false pass in every released version, B3 in the [0.4.0 advisory](../../advisories/0.4.0-further-false-passes/), cases 16 and 17). Now the customer's ping uses the lab's BGP default and passes, so a ping-only check can't see a change that leaves the customer only the default route. This is honest: the ping baseline drops from 9/17 to 8/17 (harmful changes caught 2/10 to 1/10). Netdryrun still catches case 14 with its route checks (I3); its two "customer reaches" pings now pass, as they should. The case file and its expected verdict are unchanged.
 
 **Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3):** apart from case 14's ping baseline above, no verdict or status changed. Case 18 was caught in 2 of 5 runs (the other 3 not proven, none crashed or approved it).
+
+**Refreshed on the final 0.4.1 candidate `26ea109` (2026-11-07):** no verdict or status changed (corpus-check passed). Case 18 was caught in 3 of 5 runs (the other 2 not proven, none crashed or approved it).
