@@ -179,7 +179,7 @@ def test_eos_ping_rechecks_its_own_node_after_the_ping_exact():
 
     def exec_(node, cmd, timeout=60, input=None):
         if cmd[-1].startswith("ping "):
-            lab.running = lab.startup                  # the route comes back during the ping
+            lab.running = "hostname e1\nip route 10.77.0.0/16 172.31.99.1\n"   # a route out, added during it
             return ExecResult(cmd, 0, "3 packets transmitted, 3 received, 0% packet loss", "")
         return real(node, cmd, timeout, input)
     lab.exec = exec_

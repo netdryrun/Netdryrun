@@ -660,7 +660,7 @@ def test_prepare_eos_rechecks_exact():
 def test_check_eos_lists_config_and_table_exact():
     lab = EosLab()
     with pytest.raises(ManagementPathError) as e:
-        mgmt.check_eos(lab, m_of(), "W")
+        mgmt.check_eos(lab, m_of(), "W", repair=False)
     assert str(e.value).startswith(
         "r1 has a route out over the management network (W): ip route 0.0.0.0/0 172.31.99.1; ipv6 route ::0/0 "
         "3fff:172:31:99::1; 0.0.0.0/0 (vrf default) via 172.31.99.1; ::/0 (vrf default) via 3fff:172:31:99::1.")

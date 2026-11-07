@@ -639,6 +639,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
                 if sc is not config.scenarios[-1]:
                     log(f"The network did not recover after scenario '{sc.name}'; later scenarios skipped")
                 break
+        for name, m in state.items():   # a route found back and deleted again during the run is recorded too
+            if m.readded:
+                env_nodes[name]["management_default"] = mgmt.describe(m, lab.nodes[name].kind)
+                log(f"{name}: management default route was back and removed again: {'; '.join(m.readded)}")
         by_node = config_load_by_node(lab, _driver_of(config), deployed=deploy)
         _config_load(lab, driver_for, report, by_node)
         rejected = rejected_config_message(by_node)

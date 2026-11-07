@@ -262,21 +262,21 @@ def test_the_real_lab_can_read_docker():
 
 # ------------------------------------------------------------------------------------------- re-checks
 
-def test_a_default_back_before_a_ping_ends_the_run():
+def test_a_route_out_before_a_ping_ends_the_run():
     lab = RouteLab()
     mgmt.prepare(lab, [])
-    lab.tables["r1"][4] = FRR_V4                          # re-added (a DHCP client, a user exec)
+    lab.tables["r1"][4] = FRR_V4_AFTER + "\n10.77.0.0/16 via 172.31.99.1 dev eth0 proto static"   # a user exec adds a route over the management network
     lab.exec = lambda node, cmd, timeout=60, input=None: pytest.fail("the ping must not run")
     with pytest.raises(ManagementPathError, match="before the ping to 10.0.0.9"):
         FrrDriver(lab, "r1").ping("10.0.0.9", None, 3)
 
 
-def test_a_default_back_after_a_ping_ends_the_run():
+def test_a_route_out_after_a_ping_ends_the_run():
     lab = RouteLab()
     mgmt.prepare(lab, [])
 
     def ping(node, cmd, timeout=60, input=None):
-        lab.tables["r1"][6] = FRR_V6                      # a router advertisement during the ping
+        lab.tables["r1"][6] = FRR_V6_AFTER + "\n2001:db8::/32 via 3fff:172:31:99::1 dev eth0 proto static"
         return ExecResult(cmd, 0, "3 packets transmitted, 3 received, 0% packet loss", "")
     lab.exec = ping
     with pytest.raises(ManagementPathError, match="after the ping to 10.0.0.9"):
@@ -294,7 +294,7 @@ def test_the_error_is_never_an_unready_sample():
 def test_recheck_covers_every_touched_node():
     lab = RouteLab(nodes=["r1", "r2"])
     mgmt.prepare(lab, [])
-    lab.tables["r2"][4] = FRR_V4
+    lab.tables["r2"][4] = FRR_V4_AFTER + "\n10.77.0.0/16 via 172.31.99.1 dev eth0 proto static"
     with pytest.raises(ManagementPathError, match="r2 has a route out .*(before scenario 's')"):
         mgmt.recheck(lab, "before scenario 's'")
 
@@ -390,11 +390,11 @@ def test_eos_another_static_over_management_in_the_config_is_a_run_error(line):
         mgmt.prepare(lab, [])
 
 
-def test_eos_a_route_back_before_a_ping_ends_the_run():
+def test_eos_a_route_out_before_a_ping_ends_the_run():
     from netdryrun.drivers.eos import EosDriver
     lab = EosLab()
     mgmt.prepare(lab, [])
-    lab.running = CLAB_EOS
+    lab.running = "hostname e1\nip route 10.77.0.0/16 172.31.99.1\n"
     with pytest.raises(ManagementPathError, match="before the ping to 10.0.0.9"):
         EosDriver(lab, "r1").ping("10.0.0.9", None, 3)
 
@@ -425,10 +425,10 @@ def test_run_removes_the_route_after_setup_and_before_the_first_check(monkeypatc
     assert any("settling" in x for x in e.logs)
 
 
-def test_run_ends_with_an_error_when_the_route_comes_back(monkeypatch):
+def test_run_ends_with_an_error_when_a_route_out_appears(monkeypatch):
     e = make(monkeypatch)
     rl = _route_lab(e)
-    e.drivers["r1"].on_call = lambda: rl.tables["r1"].__setitem__(4, FRR_V4)
+    e.drivers["r1"].on_call = lambda: rl.tables["r1"].__setitem__(4, FRR_V4_AFTER + "\n10.77.0.0/16 via 172.31.99.1 dev eth0 proto static")
     rep = e.run([route("a")])
     assert rep.status == "error" and "after the positive checks" in rep.error
 
@@ -516,7 +516,7 @@ def test_a_node_sharing_a_namespace_is_covered_by_its_owner_by_name_or_id():
     lab = RouteLab(nodes=["r1", "h1"], inspect={"r1": {**INSPECT, "Id": "0123456789abcdef"}, "h1": shared})
     state = mgmt.prepare(lab, [chk("ping", "p", node="h1", target="10.0.0.9")])
     mgmt.require_covered(lab, state, "h1", "frr")
-    lab.tables["r1"][4] = FRR_V4
+    lab.tables["r1"][4] = FRR_V4_AFTER + "\n10.77.0.0/16 via 172.31.99.1 dev eth0 proto static"
     with pytest.raises(ManagementPathError, match="r1 has a route out"):
         mgmt.check_node(lab, "h1", "before the ping to 10.0.0.9")
 
@@ -576,9 +576,11 @@ def test_a_node_without_ip_is_read_and_changed_through_the_helper():
     assert ("r1", ("ip", "-4", "route", "del", "default", "via", GW4, "dev", "eth0")) in lab.helper_calls
     assert mgmt.describe(m, "linux").endswith("(read from outside: no `ip` in the image)")
     assert any("no sysctl in the image" in x for x in logs)
-    lab.tables["r1"][4] = BB_V4                           # and the re-check reads through the helper too
-    with pytest.raises(ManagementPathError):
-        mgmt.check_node(lab, "r1", "before the ping to 10.0.0.9")
+    lab.tables["r1"][4] = BB_V4                           # and the re-check reads and deletes through the helper too
+    n = len(lab.helper_calls)
+    mgmt.check_node(lab, "r1", "before the ping to 10.0.0.9")
+    assert ("r1", ("ip", "-4", "route", "del", "default", "via", GW4, "dev", "eth0")) in lab.helper_calls[n:]
+    assert m.readded == ["default via 172.31.99.1 dev eth0 (before the ping to 10.0.0.9)"]
 
 
 def test_an_air_gapped_host_without_the_helper_image_gets_the_pull_hint():
@@ -658,7 +660,7 @@ def test_network_mode_none_and_other_kinds_are_not_applicable():
 def test_recheck_reads_eos_and_junos_nodes_too():
     lab = EosLab()
     mgmt.prepare(lab, [])
-    lab.running = CLAB_EOS
+    lab.running = "hostname e1\nip route 10.77.0.0/16 172.31.99.1\n"
     with pytest.raises(ManagementPathError, match="before the hold"):
         mgmt.recheck(lab, "before the hold")
     called = []
@@ -713,8 +715,9 @@ def test_sonic_eth0_taken_down_is_found_by_its_address_and_needs_no_removal():
     assert m.devices == {"eth0"} and m.removed == [] and mgmt.describe(m, "sonic-vs") == "none"
     assert ("s1", ("ip", "addr", "show")) in lab.calls
     lab.tables["s1"][4] = "default via 172.20.20.1 dev eth0"          # eth0 back up with Docker's default
-    with pytest.raises(ManagementPathError):
-        mgmt.check_node(lab, "s1", "before the ping to 10.0.0.9")
+    mgmt.check_node(lab, "s1", "before the ping to 10.0.0.9")         # deleted again, recorded, no error
+    assert m.readded == ["default via 172.20.20.1 dev eth0 (before the ping to 10.0.0.9)"]
+    assert "default via" not in lab.tables["s1"][4]
 
 
 def test_parse_ip_addr_exact():
@@ -760,3 +763,85 @@ def test_sonic_no_default_route_at_all_reads_absent():
     from netdryrun.drivers.frr import parse_routes
     assert parse_routes((FX / "sonic_route_default_absent.json").read_text(encoding="utf-8"), "0.0.0.0/0",
                         (FX / "sonic_bgp_default_absent.json").read_text(encoding="utf-8")) == []
+
+
+# ------------------------------------------------------------------------------------------- Docker's route back again
+
+def test_dockers_default_back_before_a_ping_is_deleted_again_and_the_ping_runs():
+    """SONiC VS can bring eth0 up again with Docker's default (live, ~100 s after deploy): the check before each ping
+    deletes it again on the same terms (management device + Docker's gateway) and records it; the ping then runs."""
+    lab = RouteLab()
+    m = mgmt.prepare(lab, [])["r1"]
+    lab.tables["r1"][4] = FRR_V4
+    pinged = []
+    lab.exec = lambda node, cmd, timeout=60, input=None: pinged.append(cmd) or ExecResult(
+        cmd, 0, "3 packets transmitted, 3 received, 0% packet loss", "")
+    FrrDriver(lab, "r1").ping("10.0.0.9", None, 3)
+    assert pinged and m.readded == ["default via 172.31.99.1 dev eth0 (before the ping to 10.0.0.9)"]
+    assert "default via" not in lab.tables["r1"][4]
+    assert mgmt.describe(m, "linux").endswith(
+        "; back and removed again: default via 172.31.99.1 dev eth0 (before the ping to 10.0.0.9)")
+
+
+def test_dockers_default_back_with_a_failed_delete_ends_the_run():
+    lab = RouteLab()
+    mgmt.prepare(lab, [])
+    lab.tables["r1"][4] = FRR_V4
+    real = lab.exec_root
+    lab.exec_root = lambda node, cmd, timeout=60: (ExecResult(cmd, 2, "", "RTNETLINK answers: No such process")
+                                                   if "del" in cmd else real(node, cmd, timeout))
+    with pytest.raises(ManagementPathError, match="could not be deleted"):
+        mgmt.check_node(lab, "r1", "before the ping to 10.0.0.9")
+
+
+def test_dockers_default_that_stays_after_the_second_delete_ends_the_run():
+    lab = RouteLab()
+    mgmt.prepare(lab, [])
+    lab.tables["r1"][4] = FRR_V4
+    real = lab.exec_root
+    lab.exec_root = lambda node, cmd, timeout=60: (ExecResult(cmd, 0, "", "") if "del" in cmd
+                                                   else real(node, cmd, timeout))
+    with pytest.raises(ManagementPathError, match=r"\(W, after deleting it again\): default via 172.31.99.1"):
+        mgmt.check_node(lab, "r1", "W")
+
+
+def test_dockers_default_back_with_another_route_is_never_repaired():
+    lab = RouteLab()
+    mgmt.prepare(lab, [])
+    lab.tables["r1"][4] = FRR_V4 + "\n10.77.0.0/16 via 172.31.99.1 dev eth0 proto static"
+    with pytest.raises(ManagementPathError, match="10.77.0.0/16"):
+        mgmt.recheck(lab, "W")
+    assert "default via 172.31.99.1 dev eth0" in lab.tables["r1"][4]       # nothing deleted
+
+
+def test_eos_containerlabs_line_back_is_deleted_again():
+    lab = EosLab()
+    m = mgmt.prepare(lab, [])["r1"]
+    lab.running = CLAB_EOS
+    mgmt.recheck(lab, "before the hold")
+    assert m.readded == ["ip route 0.0.0.0/0 172.31.99.1 (before the hold)",
+                         "ipv6 route ::0/0 3fff:172:31:99::1 (before the hold)"]
+    assert lab.sent[-1] == "configure\nno ip route 0.0.0.0/0 172.31.99.1\nno ipv6 route ::0/0 3fff:172:31:99::1\nend"
+
+
+def test_eos_a_table_default_without_the_config_line_is_a_run_error():
+    class TableOnly(EosLab):
+        def exec(self, node, cmd, timeout=60, input=None):
+            if cmd[-1] == "show ip route vrf all | json":
+                return ExecResult(cmd, 0, json.dumps({"vrfs": {"default": {"routes": {"0.0.0.0/0": {
+                    "routeType": "static", "vias": [{"nexthopAddr": GW4, "interface": "Management0"}]}}}}}), "")
+            return super().exec(node, cmd, timeout, input)
+    lab = TableOnly(running="hostname e1\n", startup="hostname e1\n")
+    with pytest.raises(ManagementPathError, match="0.0.0.0/0 \\(vrf default\\) via 172.31.99.1"):
+        mgmt.prepare(lab, [])
+
+
+def test_run_records_a_route_deleted_again(monkeypatch):
+    e = make(monkeypatch)
+    rl = _route_lab(e)
+    e.drivers["r1"].on_call = lambda: rl.tables["r1"].__setitem__(4, FRR_V4)
+    rep = e.run([route("a")])
+    assert rep.status == "passed"
+    assert "back and removed again: default via 172.31.99.1 dev eth0 (after the positive checks)" in \
+        rep.environment["nodes"]["r1"]["management_default"]
+    assert any(x.startswith("r1: management default route was back and removed again: ") for x in e.logs)

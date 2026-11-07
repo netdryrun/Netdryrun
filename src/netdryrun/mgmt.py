@@ -41,6 +41,7 @@ class Mgmt:
     gateways: list = field(default_factory=list)
     devices: set = field(default_factory=set)
     removed: list = field(default_factory=list)  # the routes this run deleted, as they printed
+    readded: list = field(default_factory=list)  # Docker's or containerlab's route found back and deleted again
     kind: str = ""                              # "linux", "eos", "junos" or "" (not touched)
     cid: str = ""                               # the container's id (a `container:<id>` network mode names it)
     vrfs: set = field(default_factory=lambda: {"default"})   # Junos: the instances read
@@ -284,20 +285,31 @@ def prepare_linux(lab: Lab, m: Mgmt, log) -> None:
     docker, other = classify_linux(_scan_linux(lab, m), m)
     if other:
         raise ManagementPathError(_offending(m.node, other, "before the checks"))
+    _delete_linux(lab, m, docker)
+    m.removed += [r.line for r in docker]
+    check_linux(lab, m, "after deleting Docker's default route", repair=False)
+
+
+def _delete_linux(lab: Lab, m: Mgmt, docker: list) -> None:
     for r in docker:
         flag = "-6" if r.family == 6 else "-4"
         rc, out, err = _ip(lab, m, [flag, "route", "del", "default", "via", r.via, "dev", r.dev])
         if rc != 0:
             raise ManagementPathError(f"{m.node}: Docker's default route ({r.line}) could not be deleted "
                                       f"(rc={rc}: {(err or out).strip()[-200:]}); the run won't ping over it")
-        m.removed.append(r.line)
-    check_linux(lab, m, "after deleting Docker's default route")
 
 
-def check_linux(lab: Lab, m: Mgmt, when: str) -> None:
+def check_linux(lab: Lab, m: Mgmt, when: str, repair: bool = True) -> None:
+    """No route out over the management device. Docker's own default found back (a NOS that brings its management
+    interface up again: SONiC VS at about 100 s after deploy, live 2026-11-07) is deleted again on the same terms and
+    recorded, before the ping or phase that called this; anything else, or a failed delete, is a run error."""
     docker, other = classify_linux(_scan_linux(lab, m), m)
-    if docker or other:
+    if other or (docker and not repair):
         raise ManagementPathError(_offending(m.node, docker + other, when))
+    if docker:
+        _delete_linux(lab, m, docker)
+        m.readded += [f"{r.line} ({when})" for r in docker]
+        check_linux(lab, m, f"{when}, after deleting it again", repair=False)
 
 
 # ------------------------------------------------------------------------------------------------- cEOS
@@ -416,15 +428,21 @@ def prepare_eos(lab: Lab, m: Mgmt, log, sleep) -> None:
     if ours:
         _eos(lab, m.node, "\n".join(["configure", *(f"no {ln}" for ln in ours), "end"]))
         m.removed += ours
-    check_eos(lab, m, "after deleting containerlab's default route")
+    check_eos(lab, m, "after deleting containerlab's default route", repair=False)
 
 
-def check_eos(lab: Lab, m: Mgmt, when: str) -> None:
+def check_eos(lab: Lab, m: Mgmt, when: str, repair: bool = True) -> None:
+    """As check_linux: containerlab's own config line found back is deleted again and recorded; a routing-table entry
+    without that config line, any other route over Management, or a failed delete is a run error."""
     ours, other = eos_config_routes(_eos_config(lab, m.node, "running"), m)
     t_ours, t_other = _scan_eos(lab, m)
-    found = ours + other + [f"{p} (vrf {v}) via {g}" for v, p, g in t_ours] + t_other
-    if found:
+    if other or t_other or (ours and not repair) or (t_ours and not ours):
+        found = ours + other + [f"{p} (vrf {v}) via {g}" for v, p, g in t_ours] + t_other
         raise ManagementPathError(_offending(m.node, found, when))
+    if ours:
+        _eos(lab, m.node, "\n".join(["configure", *(f"no {ln}" for ln in ours), "end"]))
+        m.readded += [f"{ln} ({when})" for ln in ours]
+        check_eos(lab, m, f"{when}, after deleting it again", repair=False)
 
 
 # ------------------------------------------------------------------------------------------------- Junos
@@ -483,7 +501,8 @@ def describe(m: Mgmt, kind: str) -> str:
     if not m.kind:
         return f"not applicable ({kind})"
     how = " (read from outside: no `ip` in the image)" if m.via == "helper" else ""
-    return (("removed: " + "; ".join(m.removed)) if m.removed else "none") + how
+    back = f"; back and removed again: {'; '.join(m.readded)}" if m.readded else ""
+    return (("removed: " + "; ".join(m.removed)) if m.removed else "none") + how + back
 
 
 def _owner(lab: Lab, state: dict, m: Mgmt) -> Mgmt | None:
