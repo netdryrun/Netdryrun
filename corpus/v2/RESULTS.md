@@ -1,6 +1,6 @@
 # Verdict Corpus v2 results
 
-Generated 2026-11-08T02:00:33+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `cb580bc`. Rerun everything with `python corpus/run.py --corpus v2`.
+Generated 2026-11-08T21:06:56+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `8bc84c3`. Rerun everything with `python corpus/run.py --corpus v2`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of `corpus/v2/cases/`). Losses are kept and shown at the same size as the catches.
 
@@ -83,3 +83,7 @@ These findings came after the v2 run. The table above is left exactly as pre-reg
 **Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3):** apart from case 14's ping baseline above, no verdict or status changed. Case 18 was caught in 2 of 5 runs (the other 3 not proven, none crashed or approved it).
 
 **Refreshed on the final 0.4.1 candidate `26ea109` (2026-11-07):** no verdict or status changed (corpus-check passed). Case 18 was caught in 3 of 5 runs (the other 2 not proven, none crashed or approved it).
+
+**Refreshed on the final 0.4.1 candidate `cb580bc` (2026-11-08):** case 18 was caught in 2 of 5 runs (the other 3 not proven, none crashed or approved it). Its recorded verdict moves from unsafe to error (not proven) with the run majority; the same race as before (a 0.4.2 BLOCKER: remove it), not a change in these fixes, which touch no node kind case 18 uses. No other verdict or status changed (corpus-check passed).
+
+**Refreshed on the final 0.4.1 candidate `8bc84c3` (2026-11-09), after the angle-5 red-team fixes, RT-0048 published as an accepted documented limit, and the mutation kill tests:** the first full v2 run caught case 18 in 0 of 5 runs (all 5 not proven: the flood scenario's routes never left, and the aggregate stayed announced; none crashed or approved it), so corpus-check failed its "caught in at least one run" clause. The gate, the case and its exemption were left unchanged, and v2 was rerun in full on the same commit: that run caught case 18 in 2 of 5, so **2 of 10 on `8bc84c3`**. These results are the full rerun's; the first run is kept as evidence. Case 18's recorded verdict (the first of its five runs) moves from error (not proven) to unsafe; the same race as before (a 0.4.2 BLOCKER). No other verdict or status changed (corpus-check passed).

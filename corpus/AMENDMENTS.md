@@ -11,3 +11,5 @@ These findings came after the run. The table above is left exactly as pre-regist
 **Refreshed on the final 0.4.1 candidate `26ea109` (2026-11-07), after the remaining 0.4.1 fixes (routes with no default at all, SONiC port names, a management default back mid-run, multipath legs, paths with a NUL byte):** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
 
 **Refreshed on the final 0.4.1 candidate `cb580bc` (2026-11-08), after the readiness wait for Junos and cEOS management reads, End-of-RIB from RouterOS peers judged by stable counts, and the RouterOS health re-read:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
+
+**Refreshed on the final 0.4.1 candidate `8bc84c3` (2026-11-09), after the angle-5 red-team fixes, RT-0048 published as an accepted documented limit, and the mutation kill tests:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
