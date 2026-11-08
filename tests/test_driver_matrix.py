@@ -87,8 +87,9 @@ def frr_like():
     def routes(route_text, bgp_text):
         return [("show ip route", route_text), ("show bgp", bgp_text)]
 
-    def paths(text):
-        return [("longer-prefixes", fx("frr_bgp_table_header.txt")), ("show bgp", text)]
+    def paths(text):   # a community check also reads bgpd's config for `bgp community alias` lines (RT-0049)
+        return [("longer-prefixes", fx("frr_bgp_table_header.txt")), ("running-config bgpd", fx("frr_running_config_bgpd.txt")),
+                ("show bgp", text)]
 
     def ping(text):   # the own-address read first (red team B-9006), from the live capture
         return [("ip -j addr", fx("frr_local_ip_addr.json")), ("ping", text)]

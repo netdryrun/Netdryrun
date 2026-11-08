@@ -288,6 +288,9 @@ class NextHop:
         _require(self.resolved_via == canon_set(self.resolved_via), "next hop: resolvers not canonical")
 
 
+STORED_DEFAULT = "netdryrun.stored_default"   # a field a stored snapshot may leave out (its default applies)
+
+
 @dataclass(frozen=True)
 class RibEntry:
     """One zebra RIB entry for a prefix (one protocol may have several, e.g. statics with two distances)."""
@@ -301,6 +304,9 @@ class RibEntry:
     table: int | None
     failed: bool
     nexthops: tuple[NextHop, ...]
+    # an install still in progress: the lab isn't settled (converge reads again), so a stored snapshot never has one;
+    # snapshots stored before 0.4.1's angle-5 fixes have no such field: absent there reads False (STORED_DEFAULT)
+    queued: bool = field(default=False, metadata={STORED_DEFAULT: True})
 
     def __post_init__(self):
         _require(self.nexthops == canon_set(self.nexthops), "RIB entry: next hops not canonical (ECMP is a set)")
@@ -593,12 +599,13 @@ def decode(tp, data, where: str):
         names = [f.name for f in fields(tp) if f.init]
         derived = [f.name for f in fields(tp) if not f.init]     # computed by the class; checked when stored
         unknown = sorted(set(data) - set(names) - set(derived))
-        missing = [n for n in names if n not in data]
+        optional = {f.name for f in fields(tp) if f.metadata.get(STORED_DEFAULT)}
+        missing = [n for n in names if n not in data and n not in optional]
         if unknown or missing:
             raise SnapshotError(f"{where}: {tp.__name__} has unknown field(s) {unknown} / missing field(s) {missing}")
         hints = typing.get_type_hints(tp)
         try:
-            value = tp(**{n: decode(hints[n], data[n], f"{where}.{n}") for n in names})
+            value = tp(**{n: decode(hints[n], data[n], f"{where}.{n}") for n in names if n in data})
         except TypeError as e:
             raise SnapshotError(f"{where}: {e}") from None
         for n in derived:

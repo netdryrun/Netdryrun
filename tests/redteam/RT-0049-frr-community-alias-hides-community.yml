@@ -1,0 +1,96 @@
+id: RT-0049
+title: 'bgp_route without_communities [''65020:777''] passes on FRR while the best path carries 65020:777: with `bgp community
+  alias 65020:777 65020:100` bgpd prints the alias in place of the value, and an alias shaped like a community is read as
+  that community (the unreadable-name guard only catches aliases that don''t look like numbers)'
+found: "2026-11-08, red-team agent d87/A (offline, crafted output); angle-5 red team on d87aa3e, verified by a fresh verifier; live confirmation pending"
+fixed_in: null
+kind: driver
+driver: frr
+check:
+  type: bgp_route
+  node: r1
+  prefix: 192.168.22.0/24
+  without_communities:
+  - 65020:777
+outputs:
+- needle: running-config
+  output: |
+    router bgp 65010
+     bgp community alias 65020:777 65020:100
+    exit
+- needle: longer-prefixes
+  fixture: frr_bgp_table_header.txt
+- needle: show bgp
+  output: |
+    {
+      "prefix": "192.168.22.0/24",
+      "version": 3,
+      "advertisedTo": {
+        "10.1.1.2": {
+          "hostname": "r2"
+        }
+      },
+      "pathCount": 1,
+      "paths": [
+        {
+          "aspath": {
+            "string": "65020",
+            "segments": [
+              {
+                "type": "as-sequence",
+                "list": [
+                  65020
+                ]
+              }
+            ],
+            "length": 1
+          },
+          "origin": "IGP",
+          "metric": 0,
+          "valid": true,
+          "version": 3,
+          "bestpath": {
+            "bestpathFromAs": 65020,
+            "overall": true,
+            "selectionReason": "First path received"
+          },
+          "community": {
+            "string": "65020:100",
+            "list": [
+              "65020:100"
+            ]
+          },
+          "lastUpdate": {
+            "epoch": 1793544648,
+            "string": "Sun Nov  1 14:50:48 2026"
+          },
+          "nexthops": [
+            {
+              "ip": "10.1.1.2",
+              "hostname": "r2",
+              "afi": "ipv4",
+              "metric": 0,
+              "accessible": true,
+              "used": true
+            }
+          ],
+          "peer": {
+            "peerId": "10.1.1.2",
+            "routerId": "10.1.1.2",
+            "hostname": "r2",
+            "domainname": "localdomain",
+            "type": "external"
+          }
+        }
+      ]
+    }
+meant: The best path for 192.168.22.0/24 on r1 must not carry community 65020:777.
+why_false: 'The path carries 65020:777. With `bgp community alias 65020:777 65020:100` bgpd prints the alias in its place;
+  the alias has the shape of a community, so canon_communities keeps it as 65020:100, it is not ''unreadable'', and without_communities
+  passes. The same trick passes `communities: [''65020:100'']` on a path that doesn''t carry 65020:100.'
+why_nos_prints: frr_bgp_paths_comm_alias.txt (FRR 10.4.1 live) shows bgpd printing an alias in community.string and community.list
+  in place of the value; bgpd checks that the community side of `bgp community alias` is a community, not that the alias isn't
+  one.
+reproduce: 'Lab ndr-fpcap shape: r2 tags 192.168.22.0/24 with 65020:777; on r1 `bgp community alias 65020:777 65020:100`;
+  `show bgp ipv4 unicast 192.168.22.0/24 json` prints 65020:100; the without_communities check passes. (Plausibility: needs
+  an alias that looks like a number; low, but it defeats the documented alias guard.)'

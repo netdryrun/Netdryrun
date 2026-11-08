@@ -537,6 +537,9 @@ FAIL_SAFE = [
     # routeros_state.parse_version: None -> the version is reported as unknown
     ("routeros_state.parse_version", lambda t: routeros_state.parse_version(classify_reply("GET /x", 200, t).obj),
      ["routeros_resource.txt"], lambda r: r is None or isinstance(r, str)),
+    # frr.parse_community_aliases: a set of alias names; text with no `bgp community alias` line gives none
+    ("frr.parse_community_aliases", frr.parse_community_aliases, ["frr_running_config_bgpd.txt"],
+     lambda r: isinstance(r, set) and all(isinstance(x, str) and x for x in r)),
     ("frr.parse_vrfs", lambda t: frr.parse_vrfs(t), ["frr_route.txt"],
      lambda r: isinstance(r, dict) and all(isinstance(k, str) and isinstance(v, bool) for k, v in r.items())),
     ("frr.parse_ping", frr.parse_ping, ["frr_ping.txt", "srl_ping.txt", "eos_ping.txt"], _ping_ok),

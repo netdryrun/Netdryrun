@@ -13,6 +13,7 @@ def test_render_has_review_header_and_warnings():
 
 def test_attribute_check_pins_best_path():
     from netdryrun.drivers.base import BgpPath, Observation
+    from netdryrun.config import WELL_KNOWN_COMMUNITIES, community_name
     from netdryrun.record import _attribute_check
 
     class Drv:
@@ -24,8 +25,9 @@ def test_attribute_check_pins_best_path():
             ], [])
 
     c = _attribute_check(Drv(), "r1", "192.168.20.0/24")
+    wk = sorted({community_name(v) for v in WELL_KNOWN_COMMUNITIES.values()} - {"no-export"})
     assert c == {"type": "bgp_route", "node": "r1", "prefix": "192.168.20.0/24", "as_path": "65020",
-                 "local_pref": 200, "communities": ["65020:100", "no-export", "65020:1:1"]}
+                 "local_pref": 200, "communities": ["65020:100", "no-export", "65020:1:1"], "without_communities": wk}
 
 
 # ------------------------------------------------------------------------- 0.3.3 (c): ranges, truncation, guards

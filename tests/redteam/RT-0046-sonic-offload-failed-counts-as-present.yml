@@ -1,0 +1,71 @@
+id: RT-0046
+title: 'route present passes on SONiC for a route the ASIC failed to program: fpmsyncd/orchagent report the failure back and
+  zebra prints offloadFailed: true (installed stays true: the FPM hand-off worked); the FRR parser reads selected, installed
+  and failed only'
+found: "2026-11-08, red-team agent d87/A (offline, crafted output); angle-5 red team on d87aa3e, verified by a fresh verifier; live confirmation pending"
+fixed_in: null
+kind: driver
+driver: sonic
+check:
+  type: route
+  node: sonic1
+  prefix: 192.168.20.0/24
+  protocol: bgp
+outputs:
+- needle: show ip route
+  output: |
+    {
+      "192.168.20.0/24": [
+        {
+          "protocol": "bgp",
+          "selected": true,
+          "destSelected": true,
+          "distance": 20,
+          "metric": 0,
+          "installed": true,
+          "nexthopGroupId": 22,
+          "vrfId": 0,
+          "vrfName": "default",
+          "uptime": "00:01:36",
+          "prefix": "192.168.20.0/24",
+          "prefixLen": 24,
+          "table": 254,
+          "internalStatus": 16,
+          "internalFlags": 264,
+          "internalNextHopNum": 1,
+          "internalNextHopActiveNum": 1,
+          "internalNextHopFibInstalledNum": 1,
+          "installedNexthopGroupId": 22,
+          "receivedNexthopGroupId": 22,
+          "nexthops": [
+            {
+              "flags": 3,
+              "fib": true,
+              "ip": "10.0.40.2",
+              "afi": "ipv4",
+              "interfaceIndex": 3,
+              "interfaceName": "Ethernet0",
+              "active": true,
+              "rmapSource": "192.168.40.1",
+              "weight": 1
+            }
+          ],
+          "flags": 264,
+          "status": 16,
+          "offloadFailed": true
+        }
+      ]
+    }
+- needle: show bgp
+  fixture: sonic_bgp_paths.txt
+meant: sonic1 forwards 192.168.20.0/24 over the BGP route.
+why_false: 'zebra says the hardware programming failed (offloadFailed: true): the route is not in the ASIC, so the switch
+  does not forward it. The FRR parser treats selected + installed (+ not failed) as forwarding; on SONiC installed only means
+  handed to fpmsyncd.'
+why_nos_prints: 'FRR zebra prints offloaded / offloadFailed / trapped from the dataplane''s offload feedback (zebra_vty.c
+  route JSON). The SONiC fixture sonic_route.txt (live SONiC VS) prints offloaded: true on a programmed route, so this SONiC
+  build feeds ASIC results back to zebra; a failed orchagent programming flips it to offloadFailed while installed stays true.'
+reproduce: 'examples/sonic-frr: make orchagent fail the route (e.g. exhaust the VS CRM ipv4 route resource with `crm config
+  thresholds`/a large static batch, or point the route at a next hop whose neighbor orchagent can''t resolve) and read `vtysh
+  -c ''show ip route 192.168.20.0/24 json''`: offloadFailed true, installed true; `route sonic1 192.168.20.0/24 protocol:
+  bgp` passes.'

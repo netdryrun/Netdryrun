@@ -169,7 +169,12 @@ class RouterosDriver(Driver):
         prefix = self._v4_prefix(prefix)
         ev: list[dict] = []
         table = self._confirm_table(vrf, ev)
-        received = [p for p in self._paths(table, ev, prefix) if p.kind == "bgp" and p.prefix == prefix and not p.filtered]
+        rows = self._paths(table, ev, prefix)
+        received = [p for p in rows if p.kind == "bgp" and p.prefix == prefix and not p.filtered]
+        # RouterOS lists the node's own advertised prefix only as bgp-output-<peer> rows, one per peer it goes to
+        # (routeros_routes_main.txt, live 7.23.8): an own path in the BGP table, which `present: false` must see
+        # (angle-5 design review on d87aa3e, RT-0051); never a received path
+        own = sorted({p.out_peer for p in rows if p.kind == "bgp-output" and p.prefix == prefix and p.out_peer})
         addresses = {}
         if received:
             addresses = {s.name: s.remote_address for s in parse_sessions(self._rows("/routing/bgp/session", ev))}
@@ -186,6 +191,9 @@ class RouterosDriver(Driver):
                 large_communities=canon_communities(p.large_communities),
                 neighbor=addresses.get(p.session or ""),
             ))
+        for peer in own:
+            out.append(BgpPath(best=False, as_path=None, next_hop=None, local_pref=None, med=None,
+                               neighbor=peer, local_candidate=True, local_origin="advertised by the node to " + peer))
         return Observation(out, ev)
 
     def nos_version(self) -> str | None:

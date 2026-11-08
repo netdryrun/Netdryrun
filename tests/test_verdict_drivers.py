@@ -408,14 +408,22 @@ def test_frr_routes_commands():
     ({"protocol": "bgp", "selected": True}, False),              # zebra leaves installed out when it isn't (RT-0021)
     ({"protocol": "bgp", "selected": True, "failed": True}, False),   # the FIB install failed
     ({"protocol": "bgp", "selected": True, "installed": True, "failed": True}, False),
-    ({"protocol": "bgp", "selected": "yes", "installed": True}, False),   # only a real true counts
-    ({"protocol": "bgp", "selected": True, "installed": "yes"}, False),
     ({"protocol": "bgp", "selected": True, "installed": False}, False),
     ({"protocol": "bgp", "installed": True}, False),
     ({"protocol": "bgp", "selected": False, "installed": True}, False),
 ])
 def test_frr_route_active(entry, active):
     assert frr.parse_routes(route_json("10.1.0.0/16", entry), "10.1.0.0/16") == [Route("10.1.0.0/16", "bgp", active)]
+
+
+@pytest.mark.parametrize("entry", [{"protocol": "bgp", "selected": "yes", "installed": True},
+                                   {"protocol": "bgp", "selected": True, "installed": "yes"},
+                                   {"protocol": "bgp", "selected": True, "installed": True, "offloadFailed": 1}])
+def test_frr_route_flag_that_isnt_a_boolean_is_an_error(entry):
+    """Only a real true counts, and a flag zebra prints with another value is output this driver doesn't know
+    (zebra_forwards, angle-5 d87aa3e C5): never read as a plain "not active"."""
+    with pytest.raises(DriverError):
+        frr.parse_routes(route_json("10.1.0.0/16", entry), "10.1.0.0/16")
 
 
 def test_frr_routes_keep_every_entry_and_refuse_another_prefix():
@@ -802,7 +810,7 @@ def test_srl_parse_attr_set():
         True, "65002 65003", "2001:db8::2", 200, 9, ["65000:10"], ["1:2:3"], "10.0.0.2", False)
     own = {"neighbor": "0.0.0.0", "best-route": False, "stale-route": False, "origin-protocol": "static", "attr-id": 5}
     bare = srlinux.parse_attr_set(J({"index": "5"}), own, 150)
-    assert bare == BgpPath(False, None, None, 150, None, [], [], "0.0.0.0", True)   # no as-path: unknown
+    assert bare == BgpPath(False, None, None, 150, None, [], [], "0.0.0.0", True, "static")   # no as-path: unknown
     assert srlinux.parse_attr_set(J({"index": "7"}), row).local_pref is None
     for wrong in ({"x": 1, "index": "7"}, {"index": "8"}, {"attr-set": [{"index": "7"}]}):   # round 6 on 1a597d7
         with pytest.raises(DriverError, match="not attr-set 7"):
@@ -816,7 +824,7 @@ def test_srl_parse_attr_set():
 def test_srl_unread_path():
     assert srlinux.unread_path({"best-route": True, "neighbor": "10.0.0.3", "origin-protocol": "bgp"}) == \
         BgpPath(True, None, None, None, None, [], [], "10.0.0.3", False)
-    assert srlinux.unread_path({"best-route": False, "stale-route": False, "origin-protocol": "local"}) == BgpPath(False, None, None, None, None, [], [], None, True)
+    assert srlinux.unread_path({"best-route": False, "stale-route": False, "origin-protocol": "local"}) == BgpPath(False, None, None, None, None, [], [], None, True, "local")
 
 
 def test_srl_find_and_instance_state():

@@ -57,6 +57,47 @@ code before the fix:
   asserted nothing. A pattern that matches every learned probe path (`.+` and `\d` too) is a config error; `^$` stays valid.
 - **An `only` entry with host bits is refused** (B-9004; see Changed).
 
+### Fixes from the 0.4.1 candidate's red team (2026-11-08)
+
+Two isolated attackers and a fresh verifier on the final candidate; each class closed on every driver, each case a
+test that failed on the candidate (`tests/test_redteam_angle5_d87.py`, RT-0044 to RT-0052). All were in 0.4.0 as well
+([advisory](advisories/0.4.0-further-false-passes/), cases 18 to 23).
+
+- **OSPF and RIP names follow the prefix's family on every driver** (RT-0044, RT-0045). An OSPFv3 route carrying IPv4
+  (RFC 5838) was reported as `ospf6` on Junos, SR Linux, EOS and NX-OS, a name validate refuses for IPv4, so
+  `protocol: ospf present: false` passed with the route installed. OSPF of any version is now `ospf` on IPv4 and `ospf6`
+  on IPv6 (likewise `rip`/`ripng`), in one place for every driver; the detail keeps the device's own name.
+- **`bgp_route present: false` sees the node's own paths on every driver** (RT-0048, RT-0051). SR Linux (its own static
+  and interface routes in the BGP RIB) and RouterOS (`bgp-output` rows for an advertised own prefix) passed while the
+  node advertised the prefix. The node's own path now fails `present: false`, as on FRR, EOS and NX-OS; on SR Linux and
+  Junos, which can't show whether an own route is advertised, an own route for the prefix fails it closed.
+- **Repeated YAML merge keys are errors** (RT-0050). Two `<<` keys in one mapping, or merge sources sharing a key, kept
+  one value silently and could drop a guard.
+- **`record --attributes` forbids the well-known communities a path doesn't carry** (RT-0052), where the driver can read
+  communities; elsewhere the recorded file says what isn't pinned.
+- **Every zebra failure flag takes a route out of forwarding; SONiC needs `offloaded`** (RT-0046, RT-0047). `failed`,
+  `offloadFailed`, `queued` and (for BGP and static routes) `trapped`, read by one function for the `route` check and
+  `verify`; `verify` waits while an install is queued. On SONiC a BGP or static route is active only with
+  `offloaded: true` (sonic-vs printed it even with orchagent stopped: pair such checks with a `ping`).
+- **FRR community aliases** (RT-0049): a community check reads the node's `bgp community alias` lines; on a node with
+  any alias, no printed community can be trusted (an alias can look like any community, with leading zeros or a
+  well-known name), so a community check there fails whenever the path carries any community.
+
+- **`record` exits 1 when the baseline misses a routing node** (acceptance on the candidate). A node whose state
+  couldn't be read, with no driver, or still booting was left out with a warning and `record` exited 0, so a change on
+  it passed the recorded baseline (SR Linux: a read error on paths both looped and rejected, now fixed; Junos: the VM
+  still booting at the 45 s wait). The file is still written, starting with `BASELINE MISSES A NODE`. `record --deploy`
+  now waits for VM nodes to answer before its `--wait`, and `--driver NODE=DRIVER` records a beta NOS. Any other
+  gap (an `INCOMPLETE BASELINE` line other than the two size caps) also exits 1; a node no driver recognises counts as
+  missing unless it is a bridge or a plain Linux host, and so does one answering "no BGP instance" unless named with
+  `--no-bgp`.
+- **Arista EOS: a `route` check on a node without BGP** (found live on the candidate). cEOS answers every BGP read there
+  with `{"errors": ["BGP inactive"]}` (rc 1), which made every `route` check on such a node an error. That exact
+  answer now means "no BGP on the node"; any other failure stays an error.
+- **SR Linux: paths both looped and rejected no longer break the BGP read** (acceptance on the candidate). An import
+  policy that rejects AS-looped paths made "2 invalid routes but a count of 1" an error on every BGP read of the node;
+  such paths may already be in rejected-routes, so the count is a range from 0.
+
 ### Fixes from the second 0.4.1 red team and audit (2026-11-06)
 
 Each fixed with a test that fails on the code before the fix (`tests/test_redteam_fixes_041_round4.py`,

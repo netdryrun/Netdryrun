@@ -64,6 +64,31 @@ network, or routes it can't read end the run as an error (exit 2), never a pass.
 The check passed whether or not the lab had a default route. *Until 0.4.1:* set `protocol:` on default-route checks
 (`bgp`, or the protocol the lab uses). *0.4.1:* the management default is gone before the checks (case 16).
 
+## Found by the 0.4.1 release candidate's red team (8 November 2026)
+
+Two isolated attackers and a fresh verifier on the final 0.4.1 candidate found these; each was in 0.4.0 too.
+
+**18. OSPFv3 carrying IPv4 never matched `protocol: ospf`** (RT-0044, RT-0045). 0.2.0 and later, Juniper (beta), SR Linux, Arista EOS and Cisco NX-OS (beta). An OSPFv3 route for an IPv4 prefix (RFC 5838 address family) was reported as `ospf6`, so `route <IPv4 prefix> protocol: ospf present: false` passed with the route installed. *Until 0.4.1:* add a `route` check without `protocol` for IPv4 prefixes that must be absent. *0.4.1:* OSPF and RIP names follow the prefix's family on every driver, so OSPFv3 carrying IPv4 is `ospf`.
+
+**19. `bgp_route present: false` passed on a prefix the node advertised itself** (RT-0048, RT-0051). 0.3.0 and later, SR Linux and RouterOS (beta). SR Linux lists its own static and interface routes in the BGP RIB and the driver set them aside; RouterOS lists an advertised own prefix only as `bgp-output` rows, which the driver didn't read. FRR, EOS and NX-OS failed the same check. *Until 0.4.1:* check the prefix on the neighbor that would receive it. *0.4.1:* the node's own path fails `present: false` on every driver; where the NOS can't show whether it is advertised (SR Linux, Junos) an own route fails it closed.
+
+**20. Two YAML merge keys in one mapping dropped a guard** (RT-0050). 0.3.0 and later, every driver. With `<<: *guard` and `<<: *other` in one check, YAML keeps only one, and the strict loader didn't compare merge keys; merge sources that shared a key also kept one silently. *Until 0.4.1:* write each check's keys out, or use one `<<:`. *0.4.1:* a repeated `<<` and merge sources sharing a key are errors (exit 2).
+
+**21. A baseline from `record --attributes` passed a best path that gained no-export or blackhole** (RT-0052). 0.3.0 and later, every driver. It wrote today's communities as a set the path must carry, not one it must equal, and nothing when the path had none. *Until 0.4.1:* add `without_communities: [no-export, no-advertise, blackhole]` to recorded `bgp_route` checks by hand. *0.4.1:* `record --attributes` also forbids every well-known community the path doesn't carry (where the driver can read communities).
+
+**22. FRR and SONiC: a route the dataplane failed to program counted as present** (RT-0046, RT-0047). 0.1.0 and later, FRR and SONiC. zebra's `offloadFailed`, `queued` and `trapped` flags were not read, and on SONiC a BGP or static route the ASIC never programmed (no `offloaded`, for example with orchagent stopped) counted as active. *Until 0.4.1:* add a `ping` through routes that must forward. *0.4.1:* every zebra failure flag takes a route out of forwarding, and on SONiC BGP and static routes need `offloaded: true`.
+
+**23. FRR: a community alias shaped like a community hid the real one** (RT-0049). 0.3.0 and later, FRR and SONiC. With `bgp community alias 65020:777 65020:100`, bgpd prints `65020:100` in place of 65020:777, so `without_communities: ['65020:777']` passed. *Until 0.4.1:* don't alias communities on nodes you check (a community-shaped alias, one with leading zeros or a well-known name all read as a real community). *0.4.1:* a community check reads the node's alias lines, and on a node with any alias every community check fails, saying the communities can't be read.
+
+**How each was confirmed (8 November 2026).** Live on the lab machine, on the fix: SR Linux's own exported static
+(case 19), cEOS printing routeType `OSPFv3` on an IPv4 route (case 18), an FRR community alias (case 23), and SONiC
+BGP and static routes with `offloaded` (case 22: sonic-vs printed `offloaded` even with orchagent stopped, so that
+build doesn't produce the uninstalled state; the rule stays, fail-closed). From captured output only: RouterOS's
+`bgp-output` rows (case 19, from a live 7.23.8 capture), Junos's own static (case 19, from a live capture), OSPFv3
+carrying IPv4 on Junos and SR Linux (case 18: crafted output; the SR Linux lab formed no OSPF route and the Junos lab
+stopped at the memory guard), `offloadFailed` (case 22, never seen live) and the YAML and `record` cases (20, 21),
+which need no device.
+
 ## Found another way it can pass without looking?
 
 [Open a corpus case](https://github.com/netdryrun/netdryrun/issues/new?template=corpus-case.yml): it becomes a permanent must-fail test, credited to you. Or write to [security@netdryrun.com](mailto:security@netdryrun.com).

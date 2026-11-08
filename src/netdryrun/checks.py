@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from .config import BGP_ATTRIBUTES, Check, community_name
 from .drivers import Driver
-from .drivers.base import DriverError, protocol_matches
+from .drivers.base import DriverError, Observation, is_bgp, protocol_matches
 from .mgmt import ManagementPathError
 
 REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
@@ -128,6 +128,15 @@ def _counted(n, afi: str, count: int, low: int, high: int | None, evidence: list
     return False, f"{span}: can't tell whether the bound holds", evidence
 
 
+def _via(r) -> str:
+    """A route's protocol for a detail; a family-paired name (ospf, ospf6, rip, ripng) carries the device's own name
+    too when it differs, so the evidence keeps the version (OSPF3 reported as ospf on IPv4: angle-5, d87aa3e)."""
+    raw = getattr(r, "raw_protocol", "")
+    if r.protocol in ("ospf", "ospf6", "rip", "ripng") and raw and raw.lower() != r.protocol:
+        return f"{r.protocol} ({raw})"
+    return r.protocol
+
+
 def _route(d: Driver, p: dict) -> tuple[bool, str, list]:
     obs = d.routes(p["prefix"], p.get("vrf", "default"))
     want_proto = str(p.get("protocol", "")).lower()
@@ -137,17 +146,17 @@ def _route(d: Driver, p: dict) -> tuple[bool, str, list]:
     # disagree on what a check means (config validation already insists on a real boolean)
     if p.get("present") is not False:
         if active:
-            return True, f"active via {active[0].protocol}", obs.evidence
+            return True, f"active via {_via(active[0])}", obs.evidence
         if p.get("active") is False and matching:
             # present in the routing table, selected or not (e.g. a BGP default losing to a local one)
-            return True, f"present via {matching[0].protocol} (not selected)", obs.evidence
-        seen = ", ".join(f"{r.protocol}{'' if r.active else ' (inactive)'}" for r in obs.value) or "nothing"
+            return True, f"present via {_via(matching[0])} (not selected)", obs.evidence
+        seen = ", ".join(f"{_via(r)}{'' if r.active else ' (inactive)'}" for r in obs.value) or "nothing"
         return False, f"not active{' via ' + want_proto if want_proto else ''}; seen: {seen}", obs.evidence
     # Absent means not in the routing table at all: a received-but-not-selected route
     # (e.g. a leaked default losing to a local one) is still a leak.
     if matching:
         r = matching[0]
-        return False, f"unexpectedly present via {r.protocol}{'' if r.active else ' (not selected)'}", obs.evidence
+        return False, f"unexpectedly present via {_via(r)}{'' if r.active else ' (not selected)'}", obs.evidence
     return True, "absent", obs.evidence
 
 
@@ -220,14 +229,48 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
     local = [x for x in obs.value if x.local_candidate]
     paths = [x for x in obs.value if not x.local_candidate]
     if p.get("present") is False:
+        # no path at all for the prefix in the BGP table, the node's own included (angle-5 red team on d87aa3e,
+        # RT-0048, RT-0051: SR Linux and RouterOS passed while the node advertised its own route; FRR failed)
         if paths:
             return False, f"unexpectedly in the BGP table ({len(paths)} path(s); {_describe_path(paths[0])})", obs.evidence
+        if local:
+            what = local[0].local_origin
+            if what.startswith("advertised"):
+                why = f"the node's own route for {p['prefix']} is in its BGP table, {what}"
+            else:
+                why = (f"the node's own {what + ' ' if what else ''}route for {p['prefix']} is in its BGP table, and the NOS lists it there "
+                       "whether it is advertised or not, so present: false can't pass (check the prefix on the "
+                       "neighbor instead)")
+            return False, why, obs.evidence
+        if not getattr(d, "lists_own_bgp_paths", True):
+            own = d.routes(p["prefix"], p.get("vrf", "default"))
+            mine = [r for r in own.value if r.active and not is_bgp(r.protocol)]
+            if mine:
+                return False, (f"the node has its own {mine[0].protocol} route for {p['prefix']}, which {d.name} doesn't "
+                               "list in the BGP table even when it is advertised, so present: false can't pass (check "
+                               "the prefix on the neighbor instead)"), obs.evidence + own.evidence
+            return True, "no BGP path, and no own route for the prefix", obs.evidence + own.evidence
         return True, "no BGP path", obs.evidence
     if not paths:
+        if local and local[0].local_origin.startswith("advertised"):
+            return False, (f"no BGP path: only the router's own route, {local[0].local_origin} (check the route on a "
+                           "neighbor instead)"), obs.evidence
         if local:
             return False, ("no BGP path: only the router's own route, which the NOS lists in the BGP table whether "
                            "it is advertised or not (check the route on a neighbor instead)"), obs.evidence
         return False, "no BGP path", obs.evidence
+    if (p.get("communities") or p.get("without_communities")) and hasattr(d, "community_aliases"):
+        # `bgp community alias <community> <alias>` (FRR): bgpd prints the alias in place of the value, and an alias
+        # shaped like a community (or a well-known name, or with leading zeros) reads as some other community
+        # (angle-5 red team on d87aa3e, RT-0049; code review: comparing alias names missed canonical forms). With any
+        # alias on the node, no printed community can be trusted: every one reads as unreadable, so a community
+        # check there fails, never passes
+        aliases = d.community_aliases()
+        if aliases.value:
+            paths = [replace(x, communities=[f"aliased? {c}" for c in x.communities],
+                             large_communities=[f"aliased? {c}" for c in x.large_communities])
+                     for x in paths]
+            obs = Observation(obs.value, obs.evidence + aliases.evidence)
     best = next((x for x in paths if x.best), None)
     if best is None:
         why = "the router's own route is best" if any(x.best for x in local) else "next hop unreachable?"

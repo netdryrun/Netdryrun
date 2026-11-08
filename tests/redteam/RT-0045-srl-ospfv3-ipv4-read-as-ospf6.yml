@@ -1,0 +1,59 @@
+id: RT-0045
+title: 'route protocol ospf present: false passes on SR Linux with an OSPFv3 IPv4 route (ospf version 3, address-family ipv4-unicast)
+  installed: route-type ospfv3 is mapped to ospf6 for every family, and validate refuses ospf6 for an IPv4 prefix'
+found: "2026-11-08, red-team agent d87/A (offline, crafted output); angle-5 red team on d87aa3e, verified by a fresh verifier; live confirmation pending"
+fixed_in: null
+kind: driver
+driver: srlinux
+check:
+  type: route
+  node: r1
+  prefix: 10.99.0.0/24
+  protocol: ospf
+  present: false
+outputs:
+- needle: route-table
+  output: |
+    {
+      "route": [
+        {
+          "ipv4-prefix": "10.99.0.0/24",
+          "id": 0,
+          "route-type": "ospfv3",
+          "route-owner": "ospf_mgr",
+          "origin-network-instance": "default",
+          "leakable": false,
+          "leaked": false,
+          "metric": 20,
+          "preference": 10,
+          "active": true,
+          "route-limit-exceeded": false,
+          "last-app-update": "2026-10-26T18:27:42.049Z (a second ago)",
+          "next-hop-group": "44970325",
+          "next-hop-group-network-instance": "default",
+          "resilient-hash": false,
+          "dynamic-load-balancing": false,
+          "fib-programming": {
+            "suppressed": false,
+            "last-successful-operation-type": "add",
+            "last-successful-operation-timestamp": "2026-10-26T18:27:42.050Z (a second ago)",
+            "pending-operation-type": "none",
+            "last-failed-operation-type": "none"
+          }
+        }
+      ]
+    }
+- needle: bgp-rib
+  output: |
+    {
+    }
+meant: r1 has no OSPF-learned route for 10.99.0.0/24.
+why_false: 'An OSPFv3 route for the IPv4 prefix is active and in the FIB. The driver maps route-type ospfv3 to ospf6 for every
+  family; validate refuses ospf6 for an IPv4 prefix, and `protocol: ospf` matches only ospfv2, so the guard can never see
+  an OSPFv3-learned IPv4 route.'
+why_nos_prints: SR Linux runs OSPFv3 with `address-family ipv4-unicast` (RFC 5838) and its route-table prints route-type ospfv3
+  for the routes it installs (same route-type vocabulary as srl_route.txt, which prints bgp/static plainly). Output built
+  on srl_route.txt with route-type ospfv3, route-owner ospf_mgr.
+reproduce: 'Two SR Linux nodes (kind nokia_srlinux), network-instance default, `protocols ospf instance o3 version ospf-v3
+  address-family ipv4-unicast`, area 0 on the link; the peer advertises 10.99.0.0/24 (loopback). Check `route r1 10.99.0.0/24
+  protocol: ospf present: false` passes.'

@@ -1,0 +1,29 @@
+{
+    "vrfs": {
+        "default": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "10.99.3.2/32": {
+                    "hardwareProgrammed": true,
+                    "routeType": "OSPFv3",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "routeSubtype": "IntraArea",
+                    "preference": 110,
+                    "metric": 20,
+                    "routeAction": "forward",
+                    "directlyConnected": false,
+                    "vias": [
+                        {
+                            "nexthopAddr": "10.0.34.2",
+                            "interface": "Ethernet1"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,8 @@
+Building configuration...
+
+Current configuration:
+!
+hostname 5b91ed48146b
+domainname localdomain
+!
+end

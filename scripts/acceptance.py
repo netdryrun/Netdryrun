@@ -270,6 +270,11 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
         setup["bad"][spec["node"]]["setup"][-1] = spec["setup_last"].replace(*spec["drop_match_setup"])
     neighbor, node = spec["neighbor"], spec["node"]
     legit = spec.get("legit", "192.168.20.0/24")
+    # the example's own settings: a beta NOS's driver and the example's timeout (a VM boots for minutes). Without
+    # them record left the node out and the baseline ran with timeout 120 (acceptance on d87aa3e: nxos, routeros)
+    ex_nodes = cfg_good.get("nodes") or {}
+    drivers = [f"--driver={n}={v['driver']}" for n, v in sorted(ex_nodes.items()) if isinstance(v, dict) and v.get("driver")]
+    ex_timeout = cfg_good.get("timeout")
     with LabLock(ctx.args.lock, r.id):
         try:
             # 1. record the baseline on the good lab (a lab configured after boot is booted and set up first)
@@ -282,18 +287,27 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 if p.code != 0:
                     raise RuntimeError(f"the good lab did not come up for record: exit {p.code}\n{p.out[-3000:]}")
                 time.sleep(20)
-                p = sh([ctx.ndr, "record", good / "topology.clab.yml", "--out", good / "netdryrun.yml", "--force"], timeout=1800)
+                p = sh([ctx.ndr, "record", good / "topology.clab.yml", "--out", good / "netdryrun.yml", "--force", *drivers],
+                       timeout=1800)
                 destroy(good / "topology.clab.yml")
             else:
+                # record --deploy waits for VM nodes to answer before its --wait (0.4.1)
                 p = sh([ctx.ndr, "record", good / "topology.clab.yml", "--deploy", "--out", good / "netdryrun.yml",
-                        "--force"], timeout=3600)
+                        "--force", *drivers], timeout=3600)
             if p.code != 0:
                 raise RuntimeError(f"record failed: exit {p.code}\n{p.out[-3000:]}")
             recorded = yaml.safe_load((good / "netdryrun.yml").read_text())
-            if setup:
-                recorded["nodes"] = setup["good"]
+            for n, v in ex_nodes.items():   # the example's node settings (setup, driver), merged over record's
+                if isinstance(v, dict):
+                    recorded.setdefault("nodes", {}).setdefault(n, {}).update(v)
+            if ex_timeout and ex_timeout > recorded.get("timeout", 0):
+                recorded["timeout"] = ex_timeout
+            (good / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
+            if setup:   # merged over the example's settings (driver), never replacing them (code review of the batch)
+                base_nodes = json.loads(json.dumps(recorded.get("nodes", {})))
+                recorded["nodes"] = {**base_nodes, **{n: {**base_nodes.get(n, {}), **v} for n, v in setup["good"].items()}}
                 (good / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
-                recorded["nodes"] = setup["bad"]
+                recorded["nodes"] = {**base_nodes, **{n: {**base_nodes.get(n, {}), **v} for n, v in setup["bad"].items()}}
             (bad / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
             r.seconds += time.monotonic() - t0
             notes = [f"record: {len(recorded['checks'])} checks"]
@@ -301,11 +315,25 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
             expect_run(ctx, r, good, 0, None, "--keep")
             if r.status != PASS:
                 notes.append("the baseline fails on the good lab")
+                r.note = "; ".join(notes)   # the note was lost on this early return (acceptance on d87aa3e)
                 return
             # 3. the vendor output traps on the kept lab: each T- check fails, each S- check passes
             traps = good / "traps.yml"
-            traps.write_text(yaml.safe_dump({"lab": "topology.clab.yml", "timeout": 20, **({"nodes": setup["good"]} if setup else {}),
-                                             "checks": traps_for(ctx, node, neighbor, legit)}, sort_keys=False))
+            trap_checks = traps_for(ctx, node, neighbor, legit)
+            run_error_traps = [c for c in trap_checks if c["name"] in spec.get("run_error_traps", [])]
+            trap_checks = [c for c in trap_checks if c not in run_error_traps]
+            node_cfg = {"nodes": recorded["nodes"]} if recorded.get("nodes") else {}
+            for c in run_error_traps:   # a run error by design on this driver: alone, it must end in exit 2
+                lone = good / f"trap-{c['name']}.yml"
+                lone.write_text(yaml.safe_dump({"lab": "topology.clab.yml", "timeout": 20, **node_cfg, "checks": [c]},
+                                               sort_keys=False))
+                pe = ctx.run(lone, cmd="check")
+                if pe.code != 2 or "Traceback" in pe.out or "routing-instance" not in pe.out:
+                    r.status = FAIL
+                    notes.append(f"{c['name']}: exit {pe.code}, expected 2 (a run error on {drv})")
+                    r.evidence = pe.out[-4000:]
+            traps.write_text(yaml.safe_dump({"lab": "topology.clab.yml", "timeout": 20, **node_cfg,
+                                             "checks": trap_checks}, sort_keys=False))
             p = ctx.run(traps, cmd="check")
             rep = json.loads(Path(next(k for k in reversed(list(ctx.exits)))).read_text())
             wrong = [c["name"] for c in rep.get("checks", []) if c["name"].startswith("T-") and c["passed"]] + \
@@ -378,7 +406,10 @@ def readme_in_container(ctx: Ctx, r: Result, eu: dict) -> None:
         steps.append(cmd)
         want.append(1 if "should fail" in line.lower() else 0)
     sh(["git", "clone", "-q", "--bare", ctx.src, box / "repo.git"], timeout=600)
-    script = ["set +e", "export PATH=$HOME/.local/bin:$PATH", "codes=()"]
+    # the bare clone is bind-mounted from the lab machine's user into a root container: git refuses it as "dubious
+    # ownership" (acceptance on d87aa3e). A user cloning from GitHub never meets this; trust the mounted clone only
+    script = ["set +e", "export PATH=$HOME/.local/bin:$PATH", f"git config --global --add safe.directory {box / 'repo.git'}",
+              "codes=()"]
     for s in steps:
         script.append(f"{s}; codes+=($?); echo \"== step exit ${{codes[-1]}}: {s.replace(chr(34), '')}\"")
     # own topology: a lab that is not the README's example: frr-customer-leak with its good config
@@ -426,19 +457,33 @@ def mistake(ctx: Ctx, r: Result, m: dict) -> None:
             if m.get("edit"):
                 apply(d / m["file"], [m["edit"]])
         cmd = [ctx.ndr, "run", path, "--no-step-summary"]
-        if m.get("as_user"):     # no access to the Docker socket
-            cmd = ["sudo", "-n", "-u", m["as_user"], "env", f"HOME={ctx.work}", *map(str, cmd)]
+        if m.get("as_user") and os.getuid() == 0:
+            raise AssertionError("no-docker-permission can't be reproduced as root (root reaches Docker anyway)")
+        if m.get("as_user"):     # no access to the Docker socket: this user without its supplementary groups
+            # (docker among them). `nobody` couldn't read the install under the lab user's home, so netdryrun never
+            # started (acceptance on d87aa3e); the same user minus the docker group is the mistake itself
+            cmd = ["sudo", "-n", "setpriv", f"--reuid={os.getuid()}", f"--regid={os.getgid()}", "--clear-groups",
+                   "env", f"HOME={Path.home()}", *map(str, cmd)]
         if m.get("hide_kvm"):    # what a machine without KVM looks like to the netdryrun process
+            # /dev/kvm can't be removed or covered in place (a mount point; a bind of /dev/null is still a character
+            # device: acceptance on d87aa3e), so this mount namespace gets a /dev of its own without it
             cmd = ["sudo", "-n", "unshare", "-m", "sh", "-c",
-                   'mount -t tmpfs none /dev/kvm 2>/dev/null || mount --bind /dev/null /dev/kvm; rm -f /dev/kvm 2>/dev/null; '
-                   'test ! -c /dev/kvm && exec "$@"', "sh", *map(str, cmd)]
+                   "mkdir -p /run/ndr-nokvm && mount -t tmpfs none /run/ndr-nokvm && "
+                   "cp -a /dev/null /dev/zero /dev/random /dev/urandom /dev/tty /run/ndr-nokvm/ && "
+                   "ln -s /proc/self/fd /run/ndr-nokvm/fd && mount --bind /run/ndr-nokvm /dev && "
+                   'test ! -e /dev/kvm && exec "$@"', "sh", *map(str, cmd)]
         p = sh(cmd, timeout=1800, env=env)
         left = sorted(set(leftovers()) - before)
         for x in left:
             sh(["docker", "rm", "-f", x], timeout=120)
     last = next((ln for ln in reversed(p.out.strip().splitlines()) if ln.strip()), "")
     r.seconds, r.expected, r.got = p.seconds, "exit 2, a message, no lab left", f"exit {p.code}: {last[:160]}"
-    r.status = PASS if p.code == 2 and "Traceback" not in p.out and not left and last else FAIL
+    # the mistake's own message, not any exit 2 (code review of the 0.4.1 batch: a run stopped by something else, a
+    # /dev without stdin, a containerlab group check, passed as the mistake)
+    said = re.search(m["expect"], p.out, re.I) if m.get("expect") else True
+    r.status = PASS if p.code == 2 and "Traceback" not in p.out and not left and last and said else FAIL
+    if not said:
+        r.got += f" (no {m['expect']!r} in the output)"
     r.note = f"left behind: {', '.join(left)}" if left else ""
     if r.status != PASS:
         r.evidence = p.out[-4000:]
@@ -575,6 +620,10 @@ def templates(ctx: Ctx, r: Result) -> None:
                 continue
             n += 1
             (out / ".github" / "workflows" / f"w{n}.yml").write_text(wf)
+    gi = sh(["git", "init", "-q"], cwd=out, timeout=60)   # actionlint finds workflows from a repository root only
+    if gi.code != 0:
+        r.status, r.note = FAIL, f"git init in {out} failed: {gi.out[-300:]}"
+        return
     p = sh([lint, "-no-color"], cwd=out, timeout=300)
     if p.code not in (0, 1):
         r.status, r.note = NOT_COVERED, f"actionlint failed to run: exit {p.code}"
@@ -845,10 +894,17 @@ async def main():
             shutil.rmtree(d, ignore_errors=True); shutil.copytree(src / "examples/agent-demo", d)
             if diff:
                 subprocess.run(["patch", "-s", "-p1", "-d", str(d)], input=(src / "examples/agent-demo" / diff).read_bytes(), check=True)
+        # a directory as `before` uses only explicit guards (reference/verify.md, standing guards): pass the base
+        # side's netdryrun.yml, as an agent with directory sides must
+        guards = before / "netdryrun.yml"
+        if not guards.exists():
+            problems.append(f"verify_change: no {guards} to pass as the standing guards")
         v = await call("verify_change", topology=str(before / "topology.clab.yml"), before=str(before), after=str(after),
-                       intent=sys.argv[6])
+                       intent=sys.argv[6], guards=str(guards))
         if v.get("status") not in ("matched", "failed", "no_change"):
             problems.append(f"verify_change: status {v.get('status')}: {str(v)[:300]}")
+        if v.get("guards_source") != "explicit":
+            problems.append(f"verify_change: guards_source {v.get('guards_source')!r}, not the explicit guards")
     print("RESULTS " + json.dumps(results))
     print("VERIFY " + json.dumps({k: v.get(k) for k in ("status", "verdict")}))
     print("PROBLEMS " + json.dumps(problems))

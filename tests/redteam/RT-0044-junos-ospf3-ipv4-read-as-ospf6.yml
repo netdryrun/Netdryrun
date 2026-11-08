@@ -1,0 +1,236 @@
+id: RT-0044
+title: 'route protocol ospf present: false passes on Junos with an OSPFv3 (realm ipv4-unicast) IPv4 route installed: the driver
+  maps protocol-name OSPF3 to ospf6 whatever the family, and validate refuses ospf6 for an IPv4 prefix, so no protocol name
+  can match an OSPFv3-learned IPv4 route'
+found: "2026-11-08, red-team agent d87/A (offline, crafted output); angle-5 red team on d87aa3e, verified by a fresh verifier; live confirmation pending"
+fixed_in: null
+kind: driver
+driver: junos
+check:
+  type: route
+  node: r1
+  prefix: 10.99.0.0/24
+  protocol: ospf
+  present: false
+outputs:
+- needle: show route
+  output: |
+    {
+      "route-information": [
+        {
+          "attributes": {
+            "xmlns": "http://xml.juniper.net/junos/26.2R0/junos-routing"
+          },
+          "route-table": [
+            {
+              "table-name": [
+                {
+                  "data": "inet.0"
+                }
+              ],
+              "destination-count": [
+                {
+                  "data": "11"
+                }
+              ],
+              "total-route-count": [
+                {
+                  "data": "13"
+                }
+              ],
+              "active-route-count": [
+                {
+                  "data": "9"
+                }
+              ],
+              "holddown-route-count": [
+                {
+                  "data": "0"
+                }
+              ],
+              "hidden-route-count": [
+                {
+                  "data": "2"
+                }
+              ],
+              "rt": [
+                {
+                  "attributes": {
+                    "junos:style": "detail"
+                  },
+                  "rt-destination": [
+                    {
+                      "data": "10.99.0.0"
+                    }
+                  ],
+                  "rt-prefix-length": [
+                    {
+                      "data": "24"
+                    }
+                  ],
+                  "rt-entry-count": [
+                    {
+                      "data": "1",
+                      "attributes": {
+                        "junos:format": "1 entry"
+                      }
+                    }
+                  ],
+                  "rt-announced-count": [
+                    {
+                      "data": "1"
+                    }
+                  ],
+                  "rt-state": [
+                    {}
+                  ],
+                  "tsi": [
+                    {
+                      "data": "KRT in-kernel 10.99.0.0/24 -> {10.0.1.2}",
+                      "attributes": {
+                        "junos:indent": "0"
+                      }
+                    },
+                    {
+                      "attributes": {
+                        "junos:indent": "0"
+                      }
+                    }
+                  ],
+                  "rt-entry": [
+                    {
+                      "active-tag": [
+                        {
+                          "data": "*"
+                        }
+                      ],
+                      "current-active": [
+                        {
+                          "data": [
+                            null
+                          ]
+                        }
+                      ],
+                      "last-active": [
+                        {
+                          "data": [
+                            null
+                          ]
+                        }
+                      ],
+                      "protocol-name": [
+                        {
+                          "data": "OSPF3"
+                        }
+                      ],
+                      "preference": [
+                        {
+                          "data": "10"
+                        }
+                      ],
+                      "rt-entry-state": [
+                        {
+                          "data": "Active Int"
+                        }
+                      ],
+                      "local-as": [
+                        {
+                          "data": "65001"
+                        }
+                      ],
+                      "age": [
+                        {
+                          "data": "4:23",
+                          "attributes": {
+                            "junos:seconds": "263"
+                          }
+                        }
+                      ],
+                      "validation-state": [
+                        {
+                          "data": "unverified"
+                        }
+                      ],
+                      "task-name": [
+                        {
+                          "data": "OSPF3 I/O./var/run/ppmd_control"
+                        }
+                      ],
+                      "announce-bits": [
+                        {
+                          "data": "1"
+                        }
+                      ],
+                      "announce-tasks": [
+                        {
+                          "data": "0-KRT "
+                        }
+                      ],
+                      "as-path": [
+                        {
+                          "data": "AS path: I"
+                        }
+                      ],
+                      "bgp-path-attributes": [
+                        {
+                          "attr-as-path-effective": [
+                            {
+                              "aspath-effective-string": [
+                                {
+                                  "data": "AS path: "
+                                }
+                              ],
+                              "attr-value": [
+                                {
+                                  "data": "I"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "thread-name": [
+                        {
+                          "data": "junos-main"
+                        }
+                      ],
+                      "nh": [
+                        {
+                          "selected-next-hop": [
+                            {
+                              "data": [
+                                null
+                              ]
+                            }
+                          ],
+                          "to": [
+                            {
+                              "data": "10.0.1.2"
+                            }
+                          ],
+                          "via": [
+                            {
+                              "data": "et-0/0/0.0"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+meant: r1 has no OSPF-learned route for 10.99.0.0/24 (the IPv4 prefix must not leak into OSPF).
+why_false: 'An OSPF route for the prefix is installed and forwarding (active-tag *, KRT in-kernel). It was learned by OSPFv3
+  running the ipv4-unicast realm (RFC 5838); the driver names it ospf6, validate refuses `protocol: ospf6` for an IPv4 prefix
+  (config.py: ''OSPFv3 ... IPv6 only''), so no protocol name the user may write can ever match it and present: false holds.'
+why_nos_prints: 'Junos prints protocol-name OSPF3 for every route ospf3 installs, inet.0 routes of `protocols ospf3 realm
+  ipv4-unicast` included (show route: [OSPF3/10]). Output built on junos_route_static.txt (cjunosevolved 26.2R1.7-EVO, same
+  extensive JSON shape) with protocol-name OSPF3; JunosDriver PROTOCOLS maps ospf3 -> ospf6 without looking at the family.'
+reproduce: 'examples/junos-frr: on the Junos node `set protocols ospf3 realm ipv4-unicast area 0 interface et-0/0/0.0`, peer
+  a FRR/second Junos node running OSPFv3 IPv4 AF (or a second cJunos) that originates 10.99.0.0/24; check `route r1 10.99.0.0/24
+  protocol: ospf present: false` passes while `show route 10.99.0.0/24` shows [OSPF3/10].'

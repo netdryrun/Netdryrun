@@ -159,16 +159,36 @@ def _cmd_record(args) -> int:
     except LabError as e:
         print(f"lab error: {e}", file=sys.stderr)
         return 2
+    from .drivers import DRIVERS
+    drivers: dict[str, str] = {}
+    for spec in args.driver or []:
+        node, sep, name = spec.partition("=")
+        if not sep or not node or not name:
+            print(f"error: --driver {spec!r}: write NODE=DRIVER, for example n1=nxos", file=sys.stderr)
+            return 2
+        if name not in DRIVERS:
+            print(f"error: --driver {spec!r}: unknown driver {name!r}; one of {', '.join(sorted(DRIVERS))}",
+                  file=sys.stderr)
+            return 2
+        if node in drivers:
+            print(f"error: --driver names {node} twice", file=sys.stderr)
+            return 2
+        drivers[node] = name
     try:
         if args.deploy:
             print(f"Deploying lab {lab.name}, then waiting {args.wait:g}s for the network to converge...", flush=True)
             lab.deploy()
+            _await_vm_nodes(lab, drivers)
             time.sleep(args.wait)
         mode = "exact" if args.exact_prefixes else "min" if args.min_prefixes else "range"
         data, warnings = record(topo, include_routes=not args.no_routes, prefix_mode=mode, attributes=args.attributes,
-                                guards=not args.no_guards, log=lambda m: print(m, flush=True))
+                                guards=not args.no_guards, log=lambda m: print(m, flush=True), drivers=drivers,
+                                no_bgp_ok=frozenset(args.no_bgp or []))
     except LabError as e:
         print(f"lab error: {e}", file=sys.stderr)
+        return 2
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
         return 2
     finally:
         if args.deploy:
@@ -185,8 +205,43 @@ def _cmd_record(args) -> int:
         print(f"warning: {w}")
     for w in (w for w in warnings if w.startswith("INCOMPLETE BASELINE")):
         print(f"\n*** {w} ***", file=sys.stderr)
+    from .record import baseline_gaps
+    gaps = baseline_gaps(warnings)
+    if gaps:
+        print(f"\nerror: the baseline in {out} has {len(gaps)} gap(s) (the lines above): a change there would pass "
+              "it. Record again once every node answers (--deploy waits for VM nodes; --driver NODE=DRIVER for a "
+              "beta NOS), or add checks for them by hand. Exit code 1.", file=sys.stderr)
+        return 1
     print(f"Recorded {len(data['checks'])} checks to {out}. Review it, then: netdryrun run {out.parent}")
     return 0
+
+
+def _await_vm_nodes(lab, drivers: dict[str, str]) -> None:
+    """After `record --deploy`: a VM NOS boots for minutes after its container starts. Wait, as before the checks
+    (mgmt.READY_BUDGET), until each VM node's driver answers a BGP read; never answering is a lab error (exit 2).
+    The convergence wait (--wait) starts after."""
+    import time
+
+    from . import mgmt
+    from .drivers import DriverError, for_node
+    from .lab import VM_KINDS
+    from .drivers.base import NoSuchInstance
+
+    def answers(d) -> None:
+        try:
+            d.bgp_neighbors("default")
+        except NoSuchInstance:
+            pass   # it answered: there is no BGP instance on it (record says so)
+    for name, node in sorted(lab.nodes.items()):
+        if node.kind not in VM_KINDS and not node.kind.startswith("vr-"):
+            continue
+        try:
+            drv = for_node(lab, name, drivers.get(name))
+        except DriverError:
+            continue   # no driver chosen for it: record says so
+        print(f"Waiting for {name} to answer (up to {mgmt.READY_BUDGET:g}s)...", flush=True)
+        mgmt._await_answer(lambda d=drv: answers(d), name, time.sleep,
+                           what=f"{name} can't be recorded")
 
 
 VERIFY_EXIT_CODES = """exit codes:
@@ -367,7 +422,13 @@ def main(argv: list[str] | None = None) -> int:
     p_rec.add_argument("topology", help="containerlab topology file of the lab to record")
     p_rec.add_argument("--out", metavar="FILE", help="where to write (default: netdryrun.yml next to the topology)")
     p_rec.add_argument("--deploy", action="store_true", help="deploy the lab first and destroy it afterwards")
-    p_rec.add_argument("--wait", type=_seconds, default=45.0, help="with --deploy: seconds to let BGP converge (default 45)")
+    p_rec.add_argument("--wait", type=_seconds, default=45.0, help="with --deploy: seconds to let BGP converge (default "
+                       "45), after every VM node answers")
+    p_rec.add_argument("--no-bgp", action="append", metavar="NODE",
+                       help="a node that runs no BGP: its 'no BGP instance' answer is expected, not a gap (repeat per node)")
+    p_rec.add_argument("--driver", action="append", metavar="NODE=DRIVER",
+                       help="the driver for a node detection doesn't choose (a beta NOS: n1=nxos, r1=routeros); repeat "
+                            "it per node; written into the recorded file's nodes:")
     counts = p_rec.add_mutually_exclusive_group()
     counts.add_argument("--exact-prefixes", action="store_true",
                         help="pin prefix counts exactly (default: today's count as min, max with 20%% headroom, "

@@ -1,0 +1,10 @@
+id: RT-0051
+title: "bgp_route present: false passes on RouterOS for a prefix the node advertises to every peer: RouterOS lists its own
+  advertised prefix only as bgp-output-<peer> rows (routeros_routes_main.txt, live 7.23.8), and bgp_paths kept the rows
+  received over BGP only"
+found: "2026-11-08, design review of the angle-5 fixes on d87aa3e (fresh adversary), from the live fixture"
+fixed_in: null
+kind: pinned
+tests:
+  - tests/test_redteam_angle5_d87.py::test_routeros_own_advertised_prefix_fails_bgp_route_absent
+  - tests/test_redteam_angle5_d87.py::test_routeros_own_advertised_prefix_is_not_a_received_path

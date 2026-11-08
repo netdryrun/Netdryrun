@@ -7,3 +7,5 @@ from .frr import FrrDriver
 
 class SonicDriver(FrrDriver):
     name = "sonic"
+    # BGP and static routes are active only once the ASIC programmed them (`offloaded: true`): frr._route
+    offload = True

@@ -475,7 +475,7 @@ def parse_routes(text: str, prefix: str, table: str = "inet.0") -> list[Route]:
     """Every route for exactly `prefix` in `table`, hidden ones included, minus BGP routes rejected by import
     policy. NoSuchTable when the table doesn't exist (the driver then reads the instance)."""
     entries = _matching(ROUTE_CMD, text, prefix, table)
-    return [Route(prefix, _protocol(ROUTE_CMD, e), _active(ROUTE_CMD, e))
+    return [Route(prefix, _protocol(ROUTE_CMD, e), _active(ROUTE_CMD, e), raw_protocol=_leaf(ROUTE_CMD, e, "protocol-name"))
             for e in entries if not _filtered(ROUTE_CMD, e)]
 
 
@@ -504,7 +504,8 @@ def parse_management_routes(text: str, table: str = "inet.0", mgmt: re.Pattern =
 def parse_all_routes(text: str, table: str = "inet.0") -> list[Route]:
     rts = _tables(ALL_ROUTES_CMD, text, table, whole=True)
     # the terse listing has no per-route count; the table's totals are checked instead
-    return [Route(str(_destination(ALL_ROUTES_CMD, rt)), _protocol(ALL_ROUTES_CMD, e), _active(ALL_ROUTES_CMD, e))
+    return [Route(str(_destination(ALL_ROUTES_CMD, rt)), _protocol(ALL_ROUTES_CMD, e), _active(ALL_ROUTES_CMD, e),
+                  raw_protocol=_leaf(ALL_ROUTES_CMD, e, "protocol-name"))
             for rt in rts for e in _entries(ALL_ROUTES_CMD, rt, counted=False)]
 
 
@@ -635,6 +636,9 @@ class JunosDriver(Driver):
     # (Layer 6 round 2 on eaa323c, as on RouterOS and NX-OS). Extended communities are left out on purpose: no
     # netdryrun.yml community names one (config.parse_community takes standard, large and well-known only)
     unsupported_bgp_attributes = frozenset({"without_communities"})
+    # Junos doesn't list its own static, direct or aggregate routes in the BGP table, even when an export policy
+    # advertises them (junos.md): `bgp_route present: false` fails closed on an own route (checks._bgp_route)
+    lists_own_bgp_paths = False
 
     def _vrf(self, vrf: str) -> str:
         vrf = check_vrf_name(vrf)

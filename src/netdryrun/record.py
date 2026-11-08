@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ipaddress
 import math
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,8 +18,8 @@ import yaml
 
 from . import __version__
 from .checks import Unready, _evaluate
-from .config import Check, community_name
-from .drivers import DriverError, detect, for_node
+from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
+from .drivers import DriverError, Undetectable, detect, for_node, resolve
 from .drivers.base import NoSuchInstance, is_bgp
 from .lab import Lab, LabError
 
@@ -39,8 +40,34 @@ def prefix_range(count: int) -> dict:
     return {"min": count, "max": count + max(2, math.ceil(count / 5))}
 
 
+# A routing node that ended with no recorded check, or whose BGP state couldn't be read: the baseline can't see a
+# change there, so `record` exits 1 (acceptance 0.4.1 on d87aa3e: srl1's read failed, record exited 0, and a must-fail
+# change on srl1 passed the baseline; j1 was still booting and recorded nothing)
+MISSING_NODE = "BASELINE MISSES A NODE"
+NOT_ROUTERS = frozenset({"bridge", "ovs-bridge", "host", "ext-container"})
+
+
+def baseline_gaps(warnings: list[str]) -> list[str]:
+    """The warnings that make `record` exit 1: a node missing from the baseline, and every INCOMPLETE BASELINE line
+    from a read that failed or a state that couldn't be recorded (code review of the 0.4.1 batch: one session recorded
+    on a node kept exit 0 while its prefix counts or routes were left out). The two size caps ("only the first ...")
+    are limits of the format, said in the file, not gaps in what was read."""
+    return [w for w in warnings
+            if w.startswith(MISSING_NODE) or (w.startswith("INCOMPLETE BASELINE") and "only the first" not in w)]
+
+
+def _runs_a_router(lab, name: str) -> bool | None:
+    """A linux container whose image no driver recognises: does it run FRR (vtysh)? None when it can't be asked."""
+    try:
+        r = lab.exec(name, ["sh", "-c", "command -v vtysh birdc gobgp bgpctl"], timeout=15)
+    except Exception:
+        return None
+    return bool(r.stdout.strip())   # `command -v` prints each one found (its rc is that of the last name)
+
+
 def record(topology: Path, include_routes: bool = True, prefix_mode: str = "range", attributes: bool = False,
-           guards: bool = True, log=lambda _: None, sleep=time.sleep) -> tuple[dict, list[str]]:
+           guards: bool = True, log=lambda _: None, sleep=time.sleep,
+           drivers: dict[str, str] | None = None, no_bgp_ok: frozenset = frozenset()) -> tuple[dict, list[str]]:
     """Return (netdryrun.yml data, warnings) for the running lab described by `topology`.
     prefix_mode: "range" (default: prefix_range), "exact", or "min".
     With `attributes`, each recorded BGP route also gets a bgp_route check pinning its best path's
@@ -55,15 +82,38 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     lab = Lab(topology)
     warnings: list[str] = []
     checks: list[dict] = []
+    drivers = drivers or {}
+    unknown = sorted(set(drivers) - set(lab.nodes))
+    if unknown:
+        raise ValueError(f"--driver names nodes not in the topology: {', '.join(unknown)}")
     link_subnets = _link_subnets(lab, warnings) if guards else []
+    routing: list[str] = []
+    no_bgp: set[str] = set()
     for name, node in lab.nodes.items():
         try:
-            detect(node)
-        except DriverError as e:   # no driver, or a beta one (used only when a netdryrun.yml names it)
-            warnings.append(f"INCOMPLETE BASELINE: {name}: no driver ({e}); nothing on it is recorded: add checks "
-                            "by hand")
+            resolve(node, drivers[name]) if name in drivers else detect(node)
+        except Undetectable as e:
+            # a bridge or a host has no routing state; any other node no driver recognises may well route (an XRv,
+            # an SR OS, FRR under its own image name): it is a node the baseline misses, never silently skipped
+            # (code review of the 0.4.1 batch, B1)
+            if node.kind in NOT_ROUTERS:
+                continue
+            if node.kind == "linux":
+                routes = _runs_a_router(lab, name)
+                if routes is False:
+                    continue   # a plain host: no vtysh in it
+                # routes is None: whether it runs a routing stack couldn't be checked: counted as missing
+            routing.append(name)
+            warnings.append(f"INCOMPLETE BASELINE: {name}: no driver ({e}); nothing on it is recorded: pass "
+                            f"--driver {name}=<driver>, or add checks by hand")
             continue
-        drv = for_node(lab, name)
+        except DriverError as e:   # a beta driver not chosen (--driver), or a setting that doesn't match the node
+            routing.append(name)
+            warnings.append(f"INCOMPLETE BASELINE: {name}: no driver ({e}); nothing on it is recorded: pass "
+                            f"--driver {name}=<driver>, or add checks by hand")
+            continue
+        routing.append(name)
+        drv = for_node(lab, name, drivers[name]) if name in drivers else for_node(lab, name)
         log(f"recording {name} ({drv.name})")
         if drv.name == "sonic":
             warnings.append(f"{name}: SONiC is configured after boot; add its commands under nodes.{name}.setup "
@@ -75,13 +125,24 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
             warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
         for vrf in vrfs:
             checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
-                                  link_subnets if guards and vrf == "default" else None, sleep)
+                                  link_subnets if guards and vrf == "default" else None, sleep, no_bgp)
+    for name in routing:
+        if name in no_bgp and name in no_bgp_ok:
+            continue   # the user said it runs no BGP (--no-bgp): its "no BGP instance" answer is the expected state
+        if not any(c.get("node") == name for c in checks):
+            # "no BGP instance" is also what a NOS answers while its BGP is still starting (FRR before bgpd loads its
+            # config, cEOS "BGP inactive", SONiC before setup): never a reason to leave a node out silently (code
+            # review of the batch, M1)
+            warnings.append(f"{MISSING_NODE}: {name}: no check is recorded on it (its state couldn't be read, or it "
+                            "has none yet: a VM still booting?), so the baseline can't see a change there")
     data = {"lab": topology.name, "timeout": 120, "checks": checks}
+    if drivers:
+        data["nodes"] = {n: {"driver": d} for n, d in sorted(drivers.items())}
     return data, warnings
 
 
 def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: bool, prefix_mode: str,
-                attributes: bool, link_subnets: list[str] | None, sleep) -> list[dict]:
+                attributes: bool, link_subnets: list[str] | None, sleep, no_bgp: set | None = None) -> list[dict]:
     """One VRF of one node: its sessions, routes and (with `link_subnets`) guards."""
     at = {} if vrf == "default" else {"vrf": vrf}
     where = name if vrf == "default" else f"{name} (vrf {vrf})"
@@ -90,6 +151,8 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
     except NoSuchInstance as e:
         if vrf == "default":
             warnings.append(f"{where}: could not read BGP state ({e}); skipped")
+            if no_bgp is not None:
+                no_bgp.add(name)
         return []   # a VRF without a BGP instance: no session or BGP route to record
     except DriverError as e:
         warnings.append(f"INCOMPLETE BASELINE: {where}: could not read BGP state ({e}), so no session, prefix count or "
@@ -119,7 +182,7 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
                 checks.append({"type": "route", "node": name, "prefix": r.prefix, "protocol": "bgp", **at})
                 if attributes:
                     try:
-                        c = _attribute_check(drv, name, r.prefix, vrf)
+                        c = _attribute_check(drv, name, r.prefix, vrf, warnings)
                     except DriverError as e:
                         warnings.append(f"INCOMPLETE BASELINE: {where}: could not read BGP attributes of {r.prefix} "
                                         f"({e}), so they are not recorded: fix the read and record again, or add a "
@@ -289,17 +352,50 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
     return kept
 
 
-def _attribute_check(drv, node: str, prefix: str, vrf: str = "default") -> dict | None:
-    best = next((p for p in drv.bgp_paths(prefix, vrf=vrf).value if p.best), None)
+_COMMUNITY_NUMBER = re.compile(r"\d+:\d+(:\d+)?")
+
+
+def _attribute_check(drv, node: str, prefix: str, vrf: str = "default", warnings: list | None = None) -> dict | None:
+    """The best path's AS path, local preference and communities, and every well-known community it doesn't carry
+    as without_communities: a baseline that wrote only today's communities (a subset test) passed a path that gained
+    no-export or blackhole (angle-5 red team on d87aa3e, RT-0052). Where the driver refuses without_communities, or
+    a community on the path couldn't be read as a number, the key isn't written and a warning says so."""
+    paths = drv.bgp_paths(prefix, vrf=vrf).value
+    best = next((p for p in paths if p.best and not p.local_candidate), None)
     if best is None:
+        if warnings is not None and any(p.best and p.local_candidate for p in paths):
+            warnings.append(f"{node}: {prefix}: no bgp_route check: its best path is the node's own route, which isn't "
+                            "a BGP path (check it on a neighbor)")
         return None
     c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf})}
     if best.as_path is not None:
         c["as_path"] = best.as_path
     if best.local_pref is not None:
         c["local_pref"] = best.local_pref
-    if best.all_communities():
-        c["communities"] = [community_name(x) for x in best.all_communities()]
+    carried = best.all_communities()
+    aliases = getattr(drv, "community_aliases", None)
+    if carried and aliases is not None and aliases().value:
+        if warnings is not None:
+            warnings.append(f"{node}: {prefix}: communities are not recorded: the node renames them with `bgp community "
+                            "alias`, so the printed values can't be trusted")
+        return c
+    if carried:
+        c["communities"] = [community_name(x) for x in carried]
+    unreadable = [x for x in carried if not _COMMUNITY_NUMBER.fullmatch(x)]
+    if "without_communities" in getattr(drv, "unsupported_bgp_attributes", frozenset()):
+        if warnings is not None:
+            warnings.append(f"{node}: {prefix}: a community added to the best path is not caught: the "
+                            f"{getattr(drv, 'name', 'node')} driver can't tell a missing community list from an empty "
+                            "one, so without_communities is not recorded")
+    elif unreadable:
+        if warnings is not None:
+            warnings.append(f"{node}: {prefix}: a community added to the best path is not caught: "
+                            f"{', '.join(unreadable)} couldn't be read as a number, so without_communities is not "
+                            "recorded")
+    else:
+        have = set(carried)
+        c["without_communities"] = sorted({community_name(v) for v in WELL_KNOWN_COMMUNITIES.values()
+                                           if v not in have})
     return c
 
 
@@ -313,7 +409,8 @@ def render(data: dict, warnings: list[str]) -> str:
     ]
     # one comment line per warning: device output in a warning must not add YAML (a setup command) to the file
     head += [f"# warning: {' '.join(str(w).split())}" for w in warnings]
-    incomplete = [" ".join(str(w).split()) for w in warnings if str(w).startswith("INCOMPLETE BASELINE")]
+    incomplete = [" ".join(str(w).split()) for w in warnings
+                  if str(w).startswith(("INCOMPLETE BASELINE", MISSING_NODE))]
     if incomplete:   # first in the file, so nobody commits a partial baseline without seeing it
         head = [f"# {w}" for w in incomplete] + ["#"] + head
     return "\n".join(head) + "\n" + yaml.safe_dump(data, sort_keys=False, width=200)

@@ -309,13 +309,60 @@ ZEBRA_TYPES = frozenset({"system", "kernel", "connected", "local", "static", "ri
                          "nhg", "srte", "table-direct"})
 
 
-def _route(prefix: str, e: dict, command: str = ROUTE_CMD) -> Route:
+# zebra's flags that say an installed route doesn't forward (yet): a FIB install that failed, a dataplane (ASIC)
+# offload that failed, an install still queued, and a route trapped to the CPU. zebra prints each only when true.
+# `trapped` is normal for the router's own addresses on an ASIC dataplane, so it counts for BGP and static routes
+# only (angle-5 red team on d87aa3e, RT-0046; design redteam-041-angle5-fixes, C5 revision 2)
+ZEBRA_FAILURE_FLAGS = ("failed", "offloadFailed", "queued", "trapped")
+_TRAPPED_COUNTS = frozenset({"bgp", "static"})   # trapped is normal for the router's own and IGP-internal routes
+
+
+def zebra_forwards(command: str, e: dict, selected: bool = True) -> bool:
+    """Does this zebra route entry forward: selected and installed, with no failure flag set? One test for every
+    reader of zebra's route JSON (the drivers and verify, which keeps selection apart: `selected=False` leaves it
+    out). A flag that is set to anything but a boolean is an error."""
+    for key in ("selected", "installed", *ZEBRA_FAILURE_FLAGS):
+        if key in e and not isinstance(e[key], bool):
+            raise unexpected(command, f"{key}: not a boolean: {str(e[key])[:40]!r}")
+    if (selected and e.get("selected") is not True) or e.get("installed") is not True:
+        return False
+    proto = str(e["protocol"]).lower()
+    # each flag by name, so the defaulted-key scan (tests/test_verdict_keys_041.py) sees every read
+    failing = (e.get("failed") is True or e.get("offloadFailed") is True or e.get("queued") is True
+               or (e.get("trapped") is True and proto in _TRAPPED_COUNTS))
+    return not failing
+
+
+# On SONiC the ASIC programs BGP and static routes after zebra installs them, and the shipped sonic-vs build prints
+# `offloaded: true` once it has (sonic_route.txt, live): without it the route isn't forwarding in the switch, for
+# example while orchagent is stopped (angle-5 red team on d87aa3e, RT-0047; design C5, M4)
+OFFLOADED_TYPES = frozenset({"bgp", "static"})
+
+
+RUNNING_CONFIG_CMD = "show running-config bgpd"
+_ALIAS = re.compile(r"^\s*bgp community alias\s+(\S+)\s+(\S+)\s*$", re.M)
+
+
+@parser(RUNNING_CONFIG_CMD)
+def parse_community_aliases(text: str) -> set[str]:
+    """The alias names of `bgp community alias <community> <alias>` lines in bgpd's running config. An answer that
+    isn't a whole configuration ("Current configuration:" ... "end") is an error, never "no aliases"."""
+    lines = [ln.rstrip() for ln in text.strip().splitlines()]
+    if "Current configuration:" not in lines or not lines or lines[-1] != "end":
+        raise unexpected(RUNNING_CONFIG_CMD, text.strip()[:150] or "no output")
+    return {m.group(2) for m in _ALIAS.finditer(text)}
+
+
+def _route(prefix: str, e: dict, command: str = ROUTE_CMD, offload: bool = False) -> Route:
     # zebra prints `installed: true` on every route in the FIB and leaves the key out otherwise (a FIB install
     # that failed prints `failed: true` instead): no key is not installed (red team RT-0021)
     if e["protocol"].lower() not in ZEBRA_TYPES:
         raise unexpected(command, f"protocol {e['protocol']!r} is not one this driver maps to a protocol")
-    return Route(prefix, e["protocol"].lower(),
-                 e.get("selected") is True and e.get("installed") is True and not e.get("failed"))
+    proto = e["protocol"].lower()
+    if "offloaded" in e and not isinstance(e["offloaded"], bool):
+        raise unexpected(command, f"offloaded: not a boolean: {str(e['offloaded'])[:40]!r}")
+    active = zebra_forwards(command, e) and not (offload and proto in OFFLOADED_TYPES and e.get("offloaded") is not True)
+    return Route(prefix, proto, active)
 
 
 @parser(RECEIVED_CMD)
@@ -429,7 +476,7 @@ def _learned(p: dict) -> bool:
 
 
 @parser(ROUTE_CMD)
-def parse_routes(text: str, prefix: str, bgp_text: str | None = None) -> list[Route]:
+def parse_routes(text: str, prefix: str, bgp_text: str | None = None, offload: bool = False) -> list[Route]:
     """Routing-table entries for `prefix`, plus a not-installed BGP route when the BGP table has a path
     learned from a neighbor that zebra doesn't hold (invalid next hop, not selected): it was received,
     so it counts as present, as on EOS and SR Linux. zebra answers for exactly the prefix asked, `{}` without it
@@ -439,7 +486,7 @@ def parse_routes(text: str, prefix: str, bgp_text: str | None = None) -> list[Ro
     for net in table:
         if net != want:
             raise unexpected(ROUTE_CMD, f"a route for {net} in the answer for {want}")
-    out = [_route(prefix, e) for entries in table.values() for e in entries]
+    out = [_route(prefix, e, offload=offload) for entries in table.values() for e in entries]
     if bgp_text is not None:
         paths = _bgp_paths_for_route_check(bgp_text, prefix)   # read even when zebra has it: a stale path is an error
         if not any(r.protocol == "bgp" for r in out) and any(_learned(p) for p in paths):
@@ -459,8 +506,8 @@ def _bgp_paths_for_route_check(text: str, prefix: str) -> list[dict]:
 
 
 @parser(ALL_ROUTES_CMD)
-def parse_all_routes(text: str) -> list[Route]:
-    return [_route(str(net), e, ALL_ROUTES_CMD) for net, entries in _route_table(ALL_ROUTES_CMD, text).items()
+def parse_all_routes(text: str, offload: bool = False) -> list[Route]:
+    return [_route(str(net), e, ALL_ROUTES_CMD, offload) for net, entries in _route_table(ALL_ROUTES_CMD, text).items()
             for e in entries]
 
 
@@ -520,6 +567,7 @@ def parse_ping(text: str) -> tuple[int, int]:
 
 class FrrDriver(Driver):
     name = "frr"
+    offload = False   # plain FRR has no ASIC: offload isn't part of reading a route (SonicDriver sets it)
     # zebra's route types; EVPN and VPN routes are bgp there, and a BGP aggregate is bgp too
     route_protocols = frozenset({"bgp", "connected", "local", "static", "kernel", "ospf", "ospf6", "isis", "rip",
                                  "ripng", "eigrp", "babel", "nhrp", "table", "sharp", "pbr", "openfabric"})
@@ -562,7 +610,7 @@ class FrrDriver(Driver):
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         text = self._vtysh(f"show {fam} route{vrf_part} {prefix} json", ev)
         bgp = self._vtysh(f"show bgp{vrf_part} {afi} unicast {prefix} json", ev)
-        routes = parse_routes(text, prefix, bgp)
+        routes = parse_routes(text, prefix, bgp, offload=self.offload)
         if not routes:
             self._confirm_vrf(vrf, ev)
         return Observation(routes, ev)
@@ -578,7 +626,7 @@ class FrrDriver(Driver):
         ev: list[dict] = []
         fam = "ipv6" if family == 6 else "ip"
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
-        routes = parse_all_routes(self._vtysh(f"show {fam} route{vrf_part} json", ev))
+        routes = parse_all_routes(self._vtysh(f"show {fam} route{vrf_part} json", ev), offload=self.offload)
         if not routes:
             self._confirm_vrf(vrf, ev)
         return Observation(routes, ev)
@@ -616,6 +664,12 @@ class FrrDriver(Driver):
                 self._vtysh(f"show bgp{vrf_part} ipv4 unicast 255.255.255.255/32 longer-prefixes json", ev))
             paths = parse_bgp_paths(text, prefix, default_local_pref=default)
         return Observation(paths, ev)
+
+    def community_aliases(self) -> Observation:
+        """The alias names of the node's `bgp community alias` lines (bgpd's running config, FRR 10.4.1). bgpd prints
+        an alias in place of the community, so a community check reads them as unreadable (checks._bgp_route)."""
+        ev: list[dict] = []
+        return Observation(parse_community_aliases(self._vtysh(RUNNING_CONFIG_CMD, ev)), ev)
 
     own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
 

@@ -151,8 +151,11 @@ def test_unsupported_bgp_attributes_are_all_named(tmp_path, monkeypatch):
 # --- EOS route types ---------------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("rtype", ["OSPF3", "ospf3 intra area", "OSPFv3 External Type 2"])
-def test_eos_ospfv3_route_types_are_ospf6_even_in_an_ipv4_shaped_prefix(rtype):
-    assert eos._protocol(rtype, "10.0.0.0/24") == "ospf6"
+def test_eos_ospfv3_route_types_follow_the_prefix_family(rtype):
+    """By family (angle-5 red team on d87aa3e, RT-0044/0045's EOS cousin): OSPFv3 carrying IPv4 is ospf, the name
+    validate tells the user to write for an IPv4 prefix; it was ospf6, which no IPv4 check could name."""
+    assert eos._protocol(rtype, "10.0.0.0/24") == "ospf"
+    assert eos._protocol(rtype, "2001:db8::/48") == "ospf6"
 
 
 @pytest.mark.parametrize("rtype", ["ISIS Level 1 Leaked", "isisLevel2External"])

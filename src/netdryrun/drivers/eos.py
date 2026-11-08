@@ -9,6 +9,7 @@ EOS keys every answer by VRF (`{"vrfs": {name: ...}}`). A VRF missing from that 
 """
 from __future__ import annotations
 
+import json
 import re
 
 import ipaddress
@@ -32,7 +33,7 @@ def _protocol(rtype: str, prefix: str, command: str = "show ip route <prefix> | 
     the raw name through, which no `protocol` matched, so `present: false` on it passed (acceptance 0.4.1)."""
     raw, rtype = rtype, rtype.lower().replace(" ", "")
     if rtype.startswith("ospf"):
-        return "ospf6" if ":" in prefix or rtype.startswith(("ospfv3", "ospf3")) else "ospf"
+        return "ospf6" if ":" in prefix else "ospf"   # by family: OSPFv3 carrying IPv4 is ospf (Route normalises it too)
     if rtype.startswith("isis"):
         return "isis"
     if "aggregate" in rtype:   # aggregate, bgpAggregate: a name that never matched would pass present: false
@@ -191,20 +192,26 @@ def _exact_entry(key: str, want) -> None:
         raise unexpected(BGP_CMD, f"an entry for {key} in the answer for {want}")
 
 
+BGP_INACTIVE = {"errors": ["BGP inactive"]}   # cEOS with no BGP configured, rc 1 (eos_bgp_inactive.txt, live)
+
+
 @parser(ROUTE_CMD)
-def parse_routes(route_text: str, bgp_text: str, prefix: str, vrf: str = "default") -> list[Route]:
+def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default") -> list[Route]:
     want = ipaddress.ip_network(prefix)
     out = []
     for key, r in _table(ROUTE_CMD, _routing_vrf(ROUTE_CMD, _json(ROUTE_CMD, route_text), vrf), "routes").items():
         if not isinstance(r, dict):
             raise unexpected(ROUTE_CMD, f"{key}: {str(r)[:150]}")
         if network(ROUTE_CMD, key) == want:
-            out.append(Route(prefix, _protocol(str(must(ROUTE_CMD, r, "routeType")), prefix), _programmed(ROUTE_CMD, r)))
+            out.append(Route(prefix, _protocol(str(must(ROUTE_CMD, r, "routeType")), prefix), _programmed(ROUTE_CMD, r),
+                             raw_protocol=str(r["routeType"])))
     # A BGP path can be "best" inside BGP and still not be installed (a static or connected route with
     # a better preference wins the routing table). Unless BGP is the installed route, every BGP path
     # learned from a neighbor, valid or not, is "present but not selected": a leak that must still fail
     # `present: false`.
     has_installed_bgp = any(r.protocol == "bgp" for r in out)
+    if bgp_text is None:   # the node runs no BGP (EosDriver._bgp_cli)
+        return out
     for key, e in _bgp_entries(BGP_CMD, bgp_text, vrf).items():
         _exact_entry(key, want)
         if not has_installed_bgp and any(_learned(p) for p in e["bgpRoutePaths"]):
@@ -221,7 +228,7 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
             raise unexpected(ALL_ROUTES_CMD, f"{key}: {str(r)[:150]}")
         net = str(network(ALL_ROUTES_CMD, key))
         out.append(Route(net, _protocol(str(must(ALL_ROUTES_CMD, r, "routeType")), net, ALL_ROUTES_CMD),
-                         _programmed(ALL_ROUTES_CMD, r)))
+                         _programmed(ALL_ROUTES_CMD, r), raw_protocol=str(r["routeType"])))
     return out
 
 
@@ -350,6 +357,29 @@ class EosDriver(Driver):
     def _cli(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["Cli", "-p", "15", "-c", command], evidence)
 
+    def _bgp_cli(self, command: str, evidence: list[dict]) -> str:
+        """A BGP read. On a node with no BGP configured, cEOS answers every one of them with exactly
+        `{"errors": ["BGP inactive"]}` and rc 1 (cEOS 4.36.3M, eos_bgp_inactive.txt, live 2026-11-08): that, and only
+        that, is NoSuchInstance (no BGP here); any other failure stays an error. A `route` check on such a node was an
+        error on every sample (live, angle-5 lab A)."""
+        argv = ["Cli", "-p", "15", "-c", command]
+        r = self.lab.exec(self.node, argv, timeout=60)
+        if r.rc == 1:
+            try:
+                answer = json.loads(r.stdout)
+            except ValueError:
+                answer = None
+            if answer == BGP_INACTIVE:
+                evidence.append({"node": self.node, "cmd": " ".join(argv), "rc": r.rc, "output": r.stdout[-2000:],
+                                 "stderr": r.stderr[-2000:]})
+                raise NoSuchInstance(f"BGP is not configured on {self.node} (`{command}`: BGP inactive)")
+        evidence.append({"node": self.node, "cmd": " ".join(argv), "rc": r.rc, "output": r.stdout[-20000:],
+                         "stderr": r.stderr[-2000:]})
+        if r.rc != 0:
+            msg = (r.stderr or r.stdout).strip().splitlines()
+            raise DriverError(f"`{' '.join(argv)}` failed on {self.node} (rc={r.rc}): {msg[-1] if msg else 'no output'}")
+        return r.stdout
+
     own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
 
     def local_addresses(self, vrf: str = "default") -> list:
@@ -379,10 +409,10 @@ class EosDriver(Driver):
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []
         out: dict[str, BgpNeighbor] = {}
-        parse_bgp_summary(self._cli(f"show ip bgp summary vrf {vrf} | json", ev), vrf, "ipv4-unicast", out)
+        parse_bgp_summary(self._bgp_cli(f"show ip bgp summary vrf {vrf} | json", ev), vrf, "ipv4-unicast", out)
         # A failing IPv6 summary (error, timeout, unreadable output) raises: swallowing it made every
         # IPv6 prefix count read 0, which passes `max` and `exact: 0`.
-        parse_bgp_summary(self._cli(f"show ipv6 bgp summary vrf {vrf} | json", ev), vrf, "ipv6-unicast", out)
+        parse_bgp_summary(self._bgp_cli(f"show ipv6 bgp summary vrf {vrf} | json", ev), vrf, "ipv6-unicast", out)
         return Observation(out, ev)
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
@@ -390,14 +420,23 @@ class EosDriver(Driver):
         ev: list[dict] = []
         fam = "ipv6" if ipaddress.ip_network(prefix).version == 6 else "ip"
         rt = self._cli(f"show {fam} route vrf {vrf} {prefix} | json", ev)
-        bgp = self._cli(f"show {fam} bgp {prefix} vrf {vrf} | json", ev)
+        try:
+            bgp = self._bgp_cli(f"show {fam} bgp {prefix} vrf {vrf} | json", ev)
+        except NoSuchInstance:
+            bgp = None   # no BGP on the node: no BGP path (the routing table answer above confirmed the VRF)
         return Observation(parse_routes(rt, bgp, prefix, vrf), ev)
 
     def bgp_paths(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []
         fam = "ipv6" if ipaddress.ip_network(prefix).version == 6 else "ip"
-        return Observation(parse_bgp_paths(self._cli(f"show {fam} bgp {prefix} vrf {vrf} | json", ev), prefix, vrf), ev)
+        try:
+            text = self._bgp_cli(f"show {fam} bgp {prefix} vrf {vrf} | json", ev)
+        except NoSuchInstance:
+            # no BGP on the node: no BGP path, once the VRF itself is shown to exist (its routing table answers)
+            parse_routes(self._cli(f"show {fam} route vrf {vrf} {prefix} | json", ev), None, prefix, vrf)
+            return Observation([], ev)
+        return Observation(parse_bgp_paths(text, prefix, vrf), ev)
 
     def all_routes(self, vrf: str = "default", family: int = 4) -> Observation:
         vrf = check_vrf_name(vrf)

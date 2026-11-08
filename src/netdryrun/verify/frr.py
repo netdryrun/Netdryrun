@@ -482,8 +482,16 @@ def parse_routes(text: str, afi: str) -> dict[str, dict[tuple[str, str], tuple[R
                 proto = _str(cmd, e["protocol"], f"{where}.protocol").lower()
                 if proto not in PROTOCOLS:
                     raise _bad(cmd, f"{where}: unknown protocol {proto!r}")
+                from ..drivers.frr import zebra_forwards
+                try:
+                    # installed and forwarding: the drivers' own test (failed, offloadFailed, queued, trapped), so
+                    # verify and the checks can't disagree (angle-5, d87aa3e, C5)
+                    fib = zebra_forwards(cmd, e, selected=False)
+                except DriverError as err:
+                    raise _bad(cmd, f"{where}: {err}") from None
                 entry = RibEntry(protocol=proto, instance=_opt_int(cmd, e, "instance", where),
-                                 selected=_flag(cmd, e, "selected", where), fib=_flag(cmd, e, "installed", where),
+                                 selected=_flag(cmd, e, "selected", where),
+                                 fib=fib, queued=_flag(cmd, e, "queued", where),
                                  distance=_int(cmd, e["distance"], f"{where}.distance"),
                                  metric=_int(cmd, e["metric"], f"{where}.metric"),
                                  tag=_opt_int(cmd, e, "tag", where), table=_opt_int(cmd, e, "table", where),

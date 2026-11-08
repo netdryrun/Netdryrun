@@ -154,11 +154,26 @@ class BgpNeighbor:
     eor: dict[str, str] = field(default_factory=dict, compare=False)
 
 
+# Protocol names that come in a pair, one per address family: OSPF of any version on an IPv4 prefix is ospf (OSPFv2,
+# or OSPFv3 carrying IPv4, RFC 5838), on IPv6 ospf6; RIP on IPv4 is rip, on IPv6 ripng. A driver that named OSPFv3 by
+# its version alone reported an IPv4 route as ospf6, which validate refuses for IPv4, so `protocol: ospf present:
+# false` never matched it and passed (angle-5 red team on d87aa3e, RT-0044, RT-0045; Junos, SR Linux, EOS, NX-OS).
+_FAMILY_NAMES = {"ospf": ("ospf", "ospf6"), "ospf6": ("ospf", "ospf6"), "rip": ("rip", "ripng"), "ripng": ("rip", "ripng")}
+
+
 @dataclass
 class Route:
     prefix: str
-    protocol: str   # lower-case, e.g. "bgp", "connected", "static"
+    protocol: str   # lower-case, e.g. "bgp", "connected", "static"; family-paired names follow the prefix's family
     active: bool
+    raw_protocol: str = field(default="", compare=False)   # the device's own name, kept for the evidence
+
+    def __post_init__(self):
+        pair = _FAMILY_NAMES.get(self.protocol)
+        if pair is not None:
+            # every prefix a driver reports is a network: one that isn't is a driver bug, never an unnamed route
+            v4, v6 = pair
+            self.protocol = v4 if ipaddress.ip_network(self.prefix, strict=False).version == 4 else v6
 
 
 # BGP route types a driver keeps apart from plain bgp (SR Linux): `protocol: bgp` matches them too, so a guard
@@ -189,7 +204,9 @@ class BgpPath:
     neighbor: str | None = None
     # The router's own non-BGP route listed in its BGP table, possibly not advertised at all (SR Linux lists
     # its static and interface routes this way). Counts for best-path checks, not for `present: false`.
-    local_candidate: bool = False
+    local_candidate: bool = False   # the node's own row (a positive check skips it; present: false fails on it)
+    # what the node's own row is, for a detail: "static", "advertised by the node to 192.0.2.2" (local_candidate rows)
+    local_origin: str = ""
 
     def all_communities(self) -> list[str]:
         return self.communities + self.large_communities
@@ -270,6 +287,11 @@ class Driver:
     # node's own addresses, so the ping check reads it unready (red team round 4, RT-0044: a driver that read IPv4 only
     # let an IPv6 own address pass). Empty: no read at all.
     own_address_families: frozenset = frozenset()
+    # Does the NOS list the node's own BGP paths (network statements, redistribution, aggregates) in its BGP table?
+    # FRR, SONiC, EOS and NX-OS list them as paths; RouterOS lists the advertised ones (bgp-output rows); SR Linux
+    # lists its own routes whether advertised or not (local_candidate). Junos lists none, even exported: there
+    # `bgp_route present: false` can't tell "not in BGP" from "the node's own route, exported" (checks._bgp_route)
+    lists_own_bgp_paths: bool = True
 
     def local_addresses(self, vrf: str = "default") -> list:
         """The node's own addresses in `vrf` (ipaddress interfaces), for the ping check's own-address refusal. A

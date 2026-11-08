@@ -80,7 +80,7 @@ def test_more_looped_routes_than_received_is_an_error():
     with pytest.raises(DriverError) as e:
         srlinux.SrlDriver(lab_, "srl1").bgp_neighbors()
     assert str(e.value) == (f"unexpected output from `{srlinux.NEIGHBORS_CMD}`: "
-                            "10.0.100.2 ipv4-unicast: 2 invalid routes but a count of 1 (received minus rejected)")
+                            "10.0.100.2 ipv4-unicast: 2 looped routes but a count of 1 (received minus rejected)")
 
 
 def _two_neighbors(first_received: int, second_family_up: bool = True) -> str:
@@ -166,9 +166,9 @@ def test_a_range_is_judged_only_when_both_ends_agree():
     assert _counted(n, "ipv4-unicast", 2, 0, 2, [])[0] is False
 
 
-def test_looped_and_unsure_paths_together_above_the_count_are_an_error():
-    """Both kinds of invalid path come off the same count, so together they can't outnumber it (looped minus unsure
-    stayed under it and went negative)."""
-    with pytest.raises(DriverError) as e:
-        _read(2, 0, {"as-loop": True}, {"as-loop": True}, {"next-hop-unresolved": True})
-    assert str(e.value).endswith("10.0.0.2 ipv4-unicast: 3 invalid routes but a count of 2 (received minus rejected)")
+def test_unsure_paths_above_the_count_clip_the_range_at_zero():
+    """An unsure path may already be in rejected-routes (both flags: acceptance 0.4.1 on d87aa3e, an import policy
+    that rejects looped routes, 2 such paths with a count of 1), so looped plus unsure can outnumber the count: the
+    range runs from 0, never below it, and never an error that breaks every BGP read on the node."""
+    assert _read(2, 0, {"as-loop": True}, {"as-loop": True}, {"next-hop-unresolved": True}) == (0, 0)
+    assert _read(1, 0, {"as-loop": True, "rejected-route": True}, {"as-loop": True, "rejected-route": True}) == (0, 1)

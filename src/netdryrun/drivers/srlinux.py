@@ -308,7 +308,7 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
         if network(ROUTE_CMD, r[key]) != want:   # the command names the prefix as a key: only it can be listed
             raise unexpected(ROUTE_CMD, f"a route for {r[key]} in the answer for {want}")
         rtype = str(must(ROUTE_CMD, r, "route-type")).lower()
-        out.append(Route(prefix, _protocol(rtype, ROUTE_CMD), _in_fib(ROUTE_CMD, prefix, r)))
+        out.append(Route(prefix, _protocol(rtype, ROUTE_CMD), _in_fib(ROUTE_CMD, prefix, r), raw_protocol=rtype))
     rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error
     if bgp_rib_text is not None and not any(is_bgp(r.protocol) and r.active for r in out):
         if any(_bgp_learned(r) for r in rib):
@@ -350,6 +350,7 @@ def parse_attr_set(text: str, row: dict, default_local_pref: int | None = None) 
         large_communities=canon_communities(comms.get("large-community")),
         neighbor=row.get("neighbor"),
         local_candidate=not _bgp_learned(row),
+        local_origin="" if _bgp_learned(row) else str(row["origin-protocol"]),
     )
 
 
@@ -383,7 +384,8 @@ def _ip_or_none(addr) -> str | None:
 def unread_path(row: dict) -> BgpPath:
     """A path whose attributes were not read (only the first path's are: the best one if any)."""
     return BgpPath(best=_best(row), as_path=None, next_hop=None, local_pref=None, med=None,
-                   neighbor=row.get("neighbor"), local_candidate=not _bgp_learned(row))
+                   neighbor=row.get("neighbor"), local_candidate=not _bgp_learned(row),
+                   local_origin="" if _bgp_learned(row) else str(row["origin-protocol"]))
 
 
 class SrlDriver(Driver):
@@ -441,11 +443,16 @@ class SrlDriver(Driver):
                 looped, unsure = loops.get(key, (0, 0))
                 if afi not in n.prefixes or not looped + unsure:
                     continue
-                if looped + unsure > n.prefixes[afi]:
-                    raise unexpected(NEIGHBORS_CMD, f"{n.address} {afi}: {looped + unsure} invalid routes but a count "
+                if looped > n.prefixes[afi]:
+                    # a path flagged as-loop alone is always in received minus rejected (live capture): more of them
+                    # than the count is output this driver doesn't understand
+                    raise unexpected(NEIGHBORS_CMD, f"{n.address} {afi}: {looped} looped routes but a count "
                                                     f"of {n.prefixes[afi]} (received minus rejected)")
                 top = n.prefixes[afi] - looped
-                n.prefixes[afi] = top - unsure
+                # an unsure path may already be in rejected-routes (both flags: acceptance 0.4.1 on d87aa3e, an import
+                # policy that rejects looped routes: 2 such paths with a count of 1), so it can't take the count
+                # below 0; raising there broke every BGP read on the node and `record` left it out of the baseline
+                n.prefixes[afi] = max(0, top - unsure)
                 if unsure:   # each unsure path may or may not be counted: judged only where the whole range agrees
                     n.prefixes_upto[afi] = top
 
@@ -545,5 +552,5 @@ def parse_all_routes(text: str, key: str = "ipv4-prefix") -> list[Route]:
             raise unexpected(cmd, str(r)[:150])
         rtype = str(must(cmd, r, "route-type")).lower()
         net = str(network(cmd, r[key]))
-        out.append(Route(net, _protocol(rtype, cmd), _in_fib(cmd, net, r)))
+        out.append(Route(net, _protocol(rtype, cmd), _in_fib(cmd, net, r), raw_protocol=rtype))
     return out

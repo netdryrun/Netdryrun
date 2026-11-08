@@ -318,3 +318,35 @@
     /health and frr1's `show bgp neighbors 10.0.100.1 json` (state, graceful-restart modes, ipv4 End-of-RIB fields)
     for its RouterOS peer. HQ wt/rg-mikrotik-rerun/ (wt/rg-mikrotik-rerun.sh)
   added: ndr/gate-fixes-0.4.1
+- files: [frr_running_config_bgpd.txt]
+  kind: live-capture
+  source: >-
+    quay.io/frrouting/frr:10.4.1 (FRRouting 10.4.1_git), a throwaway container (no network, no BGP config), 2026-11-08:
+    `vtysh -c "show running-config bgpd"`, the command the FRR driver reads for `bgp community alias` lines. HQ
+    wt/rg-aliasprobe.sh; wt/redteam-d87/frr-community-alias-capture.txt
+  added: ndr/gate-fixes-0.4.1
+- files: [eos_route_ospfv3_ipv4.txt]
+  kind: live-capture
+  source: >-
+    cEOS 4.36.3M, two nodes peering OSPFv3 with `address-family ipv4` (RFC 5838), 2026-11-08, on e1:
+    `Cli -p 15 -c "show ip route 10.99.3.2/32 | json"` (routeType OSPFv3 on an IPv4 prefix). HQ wt/a5-live/a (lab A)
+  added: ndr/gate-fixes-0.4.1
+- files: [sonic_route_static_offloaded.json, sonic_route_static_orchagent_stopped.json]
+  kind: live-capture
+  source: >-
+    docker-sonic-vs master.1258173-c10162df4 (examples/sonic-frr), 2026-11-08: `vtysh -c "show ip route <p> json"` for a
+    static added with orchagent running (10.77.0.0/24) and one added after `supervisorctl stop orchagent`
+    (10.78.0.0/24); both print offloaded true. HQ wt/a5-live/b (lab B)
+  added: ndr/gate-fixes-0.4.1
+- files: [frr_running_config_bgpd_alias.txt]
+  kind: live-capture
+  source: >-
+    quay.io/frrouting/frr:10.4.1 (examples/frr-bgp, r1 with `bgp community alias 65020:777 65020:100`), 2026-11-08:
+    `vtysh -c "show running-config bgpd"`. HQ wt/a5-live/c (lab C)
+  added: ndr/gate-fixes-0.4.1
+- files: [eos_bgp_inactive.txt]
+  kind: live-capture
+  source: >-
+    cEOS 4.36.3M with no BGP configured (one node, a loopback only), 2026-11-08: `Cli -p 15 -c "show ip bgp
+    10.99.3.2/32 vrf default | json"`, rc 1; the same answer for the IPv6, summary and VRF RED reads. HQ wt/a5-live/e
+  added: ndr/gate-fixes-0.4.1

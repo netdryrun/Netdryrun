@@ -469,7 +469,8 @@ READY_BUDGET = 300.0   # the setup budget (Lab.run_setup): a NOS still booting a
 READY_STEP = 5.0
 
 
-def _await_answer(read, node: str, sleep, budget: float | None = None, clock=time.monotonic) -> None:
+def _await_answer(read, node: str, sleep, budget: float | None = None, clock=time.monotonic,
+                  what: str | None = None) -> None:
     """Before a node's first management read: wait until it answers at all. A VM NOS (cJunosEvolved boots for
     minutes after deploy; live 2026-11-08: j1's first `show route` timed out) or a cEOS CLI still starting isn't a
     finding. Retried every READY_STEP s until `budget` has passed, counted both as the time slept and on the clock
@@ -489,8 +490,9 @@ def _await_answer(read, node: str, sleep, budget: float | None = None, clock=tim
             last = str(e)
         spent = max(waited, clock() - start)
         if spent >= budget:
-            raise LabError(f"{last} (no answer in {spent:.0f}s after setup, a budget of {budget:g}s, so {node}'s "
-                           "route out over the management network can't be checked before the checks)")
+            raise LabError(f"{last} (no answer in {spent:.0f}s after setup, a budget of {budget:g}s, so "
+                           + (what or f"{node}'s route out over the management network can't be checked before the "
+                              "checks") + ")")
         sleep(READY_STEP)
         waited += READY_STEP
 

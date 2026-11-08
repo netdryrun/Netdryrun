@@ -1,0 +1,60 @@
+id: RT-0048
+title: 'bgp_route prefix 0.0.0.0/0 present: false passes on SR Linux while the node''s export policy advertises its own static
+  default to every peer: the local-RIB row (origin-protocol static, best-route true) is set aside as a local candidate for
+  present: false too, and the driver never reads adj-rib-out or the export policy (FRR lists the same redistributed route
+  as a BGP path and fails)'
+found: "2026-11-08, red-team agent d87/A (offline, crafted output); angle-5 red team on d87aa3e, verified by a fresh verifier; live confirmation pending"
+fixed_in: null
+kind: driver
+driver: srlinux
+check:
+  type: bgp_route
+  node: r1
+  prefix: 0.0.0.0/0
+  present: false
+outputs:
+- needle: attr-set
+  output: |
+    {
+      "index": "4",
+      "origin": "igp",
+      "atomic-aggregate": false,
+      "next-hop": "10.0.100.2",
+      "as-path": {}
+    }
+- needle: bgp-rib
+  output: |
+    {
+      "route": [
+        {
+          "prefix": "0.0.0.0/0",
+          "neighbor": "0.0.0.0",
+          "origin-protocol": "static",
+          "path-id": 0,
+          "last-modified": "2026-10-26T22:16:07.400Z (19 seconds ago)",
+          "used-route": true,
+          "unused-weight-only": false,
+          "valid-route": true,
+          "best-route": true,
+          "backup-route": false,
+          "stale-route": false,
+          "fib-disabled": false,
+          "pending-delete": false,
+          "group-best": true,
+          "tie-break-reason": "none",
+          "attr-id": "4"
+        }
+      ]
+    }
+meant: 'r1 does not put a default route into BGP (no BGP path for 0.0.0.0/0 on r1, received or originated): the usual guard
+  against redistributing a static default to peers.'
+why_false: 'r1''s export policy advertises its static default to every peer, so 0.0.0.0/0 is a BGP route of r1. SR Linux lists
+  it in the local-RIB (origin-protocol static, best-route true); the driver sets every such row aside as a local candidate,
+  for present: false as well, and reads neither adj-rib-out nor the export policy. On FRR the same redistributed route is
+  a BGP path and present: false fails. The docs (config.md bgp_route rules) only speak of positive checks for the router''s
+  own routes.'
+why_nos_prints: 'srl_leak_rib.txt (live SR Linux) row 1: the router''s own static default in the BGP local-RIB, neighbor 0.0.0.0,
+  origin-protocol static, best-route true; the row is printed whether or not it is exported.'
+reproduce: 'examples/srl-frr: on the SR Linux node add `static-routes route 0.0.0.0/0 next-hop-group blackhole` and an export
+  policy accepting protocol static towards the FRR peer; the FRR peer shows 0.0.0.0/0 from r1 (`show bgp ipv4 unicast 0.0.0.0/0`),
+  while `bgp_route r1 0.0.0.0/0 present: false` passes.'

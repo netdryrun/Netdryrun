@@ -322,3 +322,24 @@ Closed on first read: A2, A4, A8, A9, A10, A11. Partly closed: A1, A3, A5, A6, A
 **Decision (coordinator, 2026-11-05): fix before the release.** F1, F2, F3, F5 and F12 are fixed, each with a red fixture that fails on `6e0a027`'s code and passes on the fix (proved by running the new tests against a `git archive` of `6e0a027`: 9 failed there, 9 pass here). F4 (contributor gate) and F11 (`sync_facts`) are 0.4.2. The fixes change `scripts/`, so unit, mutation, live and acceptance run again on the fixed commit.
 
 **Fresh adversary check of the fixes (rule 9, diff and the findings only, 2026-11-05):** F1, F2, F3, F5, F12 CLOSED, no BLOCKER or MAJOR regression; F3's edge cases (a module missing from the wheel, an extra driver file, a namespace or editable install, `__pycache__`) all fail closed. Its minors: (1) a tree mismatch now stops the live layer at once (fixed); (2) the package-path parsing is now one tested function (fixed); (3) results changes are code only for the layers that read them (fixed); (4) the F2 hash check can't prove who produced a file (stated above); (5) the recorded-tree check after the corpus run echoes what the gate handed in (harmless; the real guard is `installed-verdict-tree`); (6) the tree covers `VERDICT_MODULES` only, as G3 defines it; (7) a nondeterministic case's row-level strategies (run 1) aren't checked against `runs[0]` (forged files only; 0.4.2).
+
+## Angle-5 red team on `d87aa3e` (2026-11-08) and the batch that fixes it
+
+Two isolated attackers (drivers; checks, config, record, verify) and a fresh verifier on an export of `d87aa3e`: 9
+candidates, all reproduced offline (`tests/redteam/RT-0044` to `RT-0050`). Design `design/redteam-041-angle5-fixes.md`
+(QUALITY-SYSTEM rule 9): three passes by a fresh adversary; pass 1 added a RouterOS case from a live fixture
+(`RT-0051`). Code: two fresh adversaries on the diff (one BLOCKER each, fixed and re-checked: FRR aliases compared before
+canonicalisation; `record` skipping routing nodes no driver recognises).
+
+| Case | Confirmed | How |
+|---|---|---|
+| OSPFv3 carrying IPv4 (RT-0044/45, EOS cousin) | EOS live; Junos and SR Linux from crafted output | cEOS 4.36.3M prints `OSPFv3` (`eos_route_ospfv3_ipv4.txt`); the SR Linux lab formed no OSPF route; the Junos lab stopped at the memory guard |
+| Own BGP paths (RT-0048, RT-0051) | SR Linux live; RouterOS and Junos from live captures | lab A (`s1` fails `present: false` on its exported static); `routeros_routes_main.txt`; `junos_route_static.txt` |
+| Repeated merge keys (RT-0050), record communities (RT-0052) | no device needed | `validate`; unit tests |
+| zebra flags (RT-0046), SONiC offload (RT-0047) | SONiC live: BGP and static carry `offloaded`, even with orchagent stopped; `offloadFailed` never seen | lab B; RT-0047 kept as a fail-closed guard |
+| FRR community alias (RT-0049) | live | lab C, `frr_running_config_bgpd_alias.txt` |
+
+Acceptance on `d87aa3e` (Job-2 reader): one new BLOCKER, SR Linux paths both looped and rejected broke the BGP read and
+`record` left the node out with exit 0 (fixed: the count range clips at 0; `record` exits 1 on any read gap). Live on
+cEOS: a `route` check on a node without BGP was an error (fixed: the exact `BGP inactive` answer). The other failures
+were harness problems, fixed in `scripts/acceptance.py`.

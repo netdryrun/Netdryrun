@@ -1,0 +1,68 @@
+id: RT-0047
+title: 'route present passes on SONiC for a route zebra handed to fpmsyncd but the ASIC never confirmed: with route offload
+  feedback on (sonic_route.txt prints offloaded: true for a programmed route) a route without offloaded is not in the ASIC
+  yet (orchagent stopped or stuck), and the driver reads installed alone'
+found: "2026-11-08, red-team agent d87/A (offline, crafted output); angle-5 red team on d87aa3e, verified by a fresh verifier; not reproduced live: docker-sonic-vs master.1258173 printed offloaded true even for a static added with orchagent stopped (wt/a5-live/b, 2026-11-08); kept as a fail-closed guard"
+fixed_in: null
+kind: driver
+driver: sonic
+check:
+  type: route
+  node: sonic1
+  prefix: 192.168.20.0/24
+  protocol: bgp
+outputs:
+- needle: show ip route
+  output: |
+    {
+      "192.168.20.0/24": [
+        {
+          "protocol": "bgp",
+          "selected": true,
+          "destSelected": true,
+          "distance": 20,
+          "metric": 0,
+          "installed": true,
+          "nexthopGroupId": 22,
+          "vrfId": 0,
+          "vrfName": "default",
+          "uptime": "00:01:36",
+          "prefix": "192.168.20.0/24",
+          "prefixLen": 24,
+          "table": 254,
+          "internalStatus": 16,
+          "internalFlags": 264,
+          "internalNextHopNum": 1,
+          "internalNextHopActiveNum": 1,
+          "internalNextHopFibInstalledNum": 1,
+          "installedNexthopGroupId": 22,
+          "receivedNexthopGroupId": 22,
+          "nexthops": [
+            {
+              "flags": 3,
+              "fib": true,
+              "ip": "10.0.40.2",
+              "afi": "ipv4",
+              "interfaceIndex": 3,
+              "interfaceName": "Ethernet0",
+              "active": true,
+              "rmapSource": "192.168.40.1",
+              "weight": 1
+            }
+          ],
+          "flags": 264,
+          "status": 16
+        }
+      ]
+    }
+- needle: show bgp
+  fixture: sonic_bgp_paths.txt
+meant: sonic1 forwards 192.168.20.0/24 over the BGP route.
+why_false: 'The route was handed to fpmsyncd (installed) but the ASIC never confirmed it (no offloaded flag, while every programmed
+  route on this build prints offloaded: true). With orchagent stopped or stuck the route is in zebra and the kernel, not in
+  the switch''s forwarding plane, and the check passes on two samples.'
+why_nos_prints: 'Same JSON as sonic_route.txt (live SONiC VS) without the offloaded key: zebra leaves it out until the dataplane
+  acknowledges the route (ZEBRA_FLAG_OFFLOADED).'
+reproduce: 'examples/sonic-frr: `docker exec sonic1 supervisorctl stop orchagent` (swss container), then let the peer advertise
+  192.168.20.0/24 (or clear the session); `show ip route 192.168.20.0/24 json` shows installed true, no offloaded; the route
+  check passes while traffic through the switch is dropped.'

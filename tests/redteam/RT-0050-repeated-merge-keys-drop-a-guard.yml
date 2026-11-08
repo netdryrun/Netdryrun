@@ -1,0 +1,34 @@
+id: RT-0050
+title: >-
+  A check mapping with two `<<:` merge keys is accepted, and the second silently overrides the first: a check written
+  as "the no-default-route guard, on r3" (`<<: *guard`) followed by `<<: *r2route` validates as
+  `route 10.0.0.0/24 via bgp is present` on r3, so the 0.0.0.0/0 guard on r3 never runs and the run can pass
+found: "2026-11-08, red-team d87 B; angle-5 red team on d87aa3e, verified by a fresh verifier; live confirmation pending"
+fixed_in: null
+kind: config
+# The check as meant: config._StrictLoader promises "SafeLoader that refuses duplicate mapping keys. PyYAML keeps the
+# last one silently, so a second `checks:` block (or `present: true` ... `present: false`) would drop the first without
+# a word". YAML 1.1/1.2 forbid a repeated key in one mapping, `<<` included.
+# What happens: construct_mapping skips every key tagged merge before its duplicate test (`continue   # <<: *anchor
+# merges are allowed`), so two `<<` keys are never compared; PyYAML's flatten_mapping then concatenates both merged
+# maps and the later `present`, `prefix` and `protocol` win. `netdryrun validate` prints
+#   - [route] r3: route 10.0.0.0/24 via bgp is present
+# for the third check and exits 0 (run on 2026-11-08 against this tree). A merged map and an explicit key are fine
+# (explicit wins, documented); two merged maps that set the same key are the "drop the first without a word" case.
+# Not NOS output: a config-loading case. Reproduce with `netdryrun validate` on this file (no lab needed); with a lab
+# where r3 receives 0.0.0.0/0 via BGP and 10.0.0.0/24, `netdryrun run` passes all three checks.
+topology: |
+  name: t
+  topology:
+    nodes:
+      r1: {kind: linux, image: frrouting/frr:v10.4.1}
+      r2: {kind: linux, image: frrouting/frr:v10.4.1}
+      r3: {kind: linux, image: frrouting/frr:v10.4.1}
+config: |
+  lab: topology.clab.yml
+  checks:
+    - &guard {type: route, node: r1, prefix: 0.0.0.0/0, protocol: bgp, present: false}
+    - &r2route {type: route, node: r2, prefix: 10.0.0.0/24, protocol: bgp, present: true}
+    - node: r3
+      <<: *guard
+      <<: *r2route

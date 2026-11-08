@@ -91,6 +91,8 @@ drivers:
       example: junos-frr
       node: j1
       neighbor: 10.0.100.2
+      # a routing-instance that doesn't exist is a run error on Junos by design (exit 2), a failing check elsewhere
+      run_error_traps: [T-vrf-missing]
       file: configs/j1.cfg
       filter:
         - ["    policy-statement ACCEPT-ALL {", "    policy-statement CUST-IN {\n        term cust {\n            from {\n                route-filter 192.168.20.0/24 exact;\n            }\n            then accept;\n        }\n        term rest {\n            then reject;\n        }\n    }\n    policy-statement ACCEPT-ALL {"]
@@ -137,8 +139,8 @@ enduser:
     - {id: missing-image, example: frr-bgp, edit: ["image: quay.io/frrouting/frr:10.4.1", "image: quay.io/frrouting/frr:0.0.0-does-not-exist"], file: topology.clab.yml}
     - {id: typo-in-netdryrun-yml, example: frr-bgp, edit: ["checks:", "chekcs:"], file: netdryrun.yml}
     - {id: wrong-path, path: /nonexistent/lab}
-    - {id: no-docker-permission, example: frr-bgp, as_user: nobody}
-    - {id: no-kvm, example: nxos-frr, hide_kvm: true}
+    - {id: no-docker-permission, example: frr-bgp, as_user: nobody, expect: 'docker\.sock|permission denied'}
+    - {id: no-kvm, example: nxos-frr, hide_kvm: true, expect: '/dev/kvm'}
 
 # Angle 3
 integrator:

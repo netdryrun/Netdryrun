@@ -1,0 +1,10 @@
+id: RT-0052
+title: "A baseline from `record --attributes` passed a best path that gained no-export or blackhole: it wrote today's
+  communities as a subset test (and nothing when the path had none), while the docs said it pins the communities"
+found: "2026-11-08, angle-5 red team on d87aa3e (attacker B), verified by a fresh verifier"
+fixed_in: null
+kind: pinned
+tests:
+  - tests/test_redteam_angle5_d87.py::test_record_attributes_forbids_every_well_known_community_not_carried_today
+  - tests/test_redteam_angle5_d87.py::test_record_attributes_keeps_the_communities_it_carries_out_of_the_forbidden_list
+  - tests/test_redteam_angle5_d87.py::test_record_attributes_never_writes_a_key_the_driver_refuses

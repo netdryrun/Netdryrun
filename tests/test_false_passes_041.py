@@ -236,7 +236,7 @@ def test_protocol_bgp_matches_evpn_and_vpn_routes_and_bgp_evpn_only_its_own():
 @pytest.mark.parametrize("rtype,prefix,proto", [
     ("ospfIntraArea", "2001:db8::/48", "ospf6"), ("ospfExternalType2", "2001:db8::/48", "ospf6"),
     ("ospfIntraArea", "10.0.0.0/24", "ospf"), ("ospfNssaExternalType2", "10.0.0.0/24", "ospf"),
-    ("ospfv3IntraArea", "10.0.0.0/24", "ospf6"), ("isisLevel2", "10.0.0.0/24", "isis"),
+    ("ospfv3IntraArea", "10.0.0.0/24", "ospf"), ("isisLevel2", "10.0.0.0/24", "isis"),   # by family (angle-5)
     ("eBGP", "10.0.0.0/24", "bgp"), ("dropRoute", "10.0.0.0/24", "static"), ("bgpAggregate", "10.0.0.0/24", "aggregate")])
 def test_eos_route_types(rtype, prefix, proto):
     assert eos._protocol(rtype, prefix) == proto

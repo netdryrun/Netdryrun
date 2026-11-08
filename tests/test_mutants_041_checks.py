@@ -165,8 +165,16 @@ DESC = "as-path '65001', next hop 10.0.0.1, local-pref 100, MED 0, communities n
 
 
 def test_bgp_route_absent_passes_with_its_text():
-    d = Fake(paths=[path(local=True)])
+    d = Fake(paths=[])
     assert _bgp_route(d, {"prefix": "10.1.0.0/16", "present": False}) == (True, "no BGP path", [{"cmd": "show"}])
+
+
+def test_bgp_route_absent_fails_on_an_own_row_with_its_text():
+    d = Fake(paths=[path(local=True)])
+    assert _bgp_route(d, {"prefix": "10.1.0.0/16", "present": False}) == (
+        False, "the node's own route for 10.1.0.0/16 is in its BGP table, and the NOS lists it there whether it is "
+               "advertised or not, so present: false can't pass (check the prefix on the neighbor instead)",
+        [{"cmd": "show"}])
 
 
 def test_bgp_route_only_a_local_route_fails_with_its_reason():

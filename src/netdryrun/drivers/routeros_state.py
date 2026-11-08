@@ -60,6 +60,7 @@ class RoutingRoute:
     communities: list[str] = field(default_factory=list)
     large_communities: list[str] = field(default_factory=list)
     link_local: bool = False
+    out_peer: str | None = None     # bgp-output rows: the peer the node advertises its own route to
 
 
 def _vrf(table: str | None) -> str:
@@ -225,6 +226,7 @@ def parse_routing_routes(rows) -> list[RoutingRoute]:
             communities=[c for c in str(r.get("bgp.communities", "")).split(",") if c],
             large_communities=[c for c in str(r.get("bgp.large-communities", "")).split(",") if c],
             link_local=link_local,
+            out_peer=str(belongs)[len("bgp-output-"):].split("@")[0] if kind == "bgp-output" else None,
         ))
     return out
 

@@ -532,12 +532,55 @@ class _StrictLoader(yaml.SafeLoader):
     """SafeLoader that refuses duplicate mapping keys. PyYAML keeps the last one silently, so a second
     `checks:` block (or `present: true` ... `present: false`) would drop the first without a word."""
 
+    MERGE = "tag:yaml.org,2002:merge"
+
+    def _keys(self, node) -> set:
+        """Every key a mapping node gives, its own merges included (for the merge-source overlap test)."""
+        out: set = set()
+        if not isinstance(node, yaml.MappingNode):
+            return out
+        for key_node, value_node in node.value:
+            if key_node.tag == self.MERGE:
+                for src in (value_node.value if isinstance(value_node, yaml.SequenceNode) else [value_node]):
+                    out |= self._keys(src)
+            else:
+                try:
+                    out.add(self.construct_object(key_node, deep=True))
+                except TypeError:
+                    pass
+        return out
+
     def construct_mapping(self, node, deep=False):
         if isinstance(node, yaml.MappingNode):
+            merges = [(k, v) for k, v in node.value if k.tag == self.MERGE]
+            if len(merges) > 1:
+                # PyYAML keeps the last `<<` and drops the first, keys and all: a guard written as `<<: *guard`
+                # then `<<: *other` vanished (angle-5 red team on d87aa3e, RT-0050)
+                raise yaml.constructor.ConstructorError(
+                    "while reading a mapping", node.start_mark,
+                    f"two `<<` merge keys in one mapping (first on line {merges[0][0].start_mark.line + 1}): YAML keeps "
+                    "only one of them; write one `<<: [*a, *b]` with sources that don't share a key, or the keys "
+                    "themselves", merges[1][0].start_mark)
+            for _, value in merges:
+                if isinstance(value, yaml.SequenceNode):
+                    # YAML keeps the first source's value for a key two sources share, without a word
+                    seen_src: dict = {}
+                    for src in value.value:
+                        for k in self._keys(src):
+                            try:
+                                if k in seen_src:
+                                    raise yaml.constructor.ConstructorError(
+                                        "while reading a mapping", node.start_mark,
+                                        f"merge sources share the key {k!r} (lines {seen_src[k] + 1} and "
+                                        f"{src.start_mark.line + 1}): YAML would keep one value without a word; "
+                                        "write that key explicitly", value.start_mark)
+                                seen_src[k] = src.start_mark.line
+                            except TypeError:
+                                continue
             seen: dict[Any, int] = {}
             for key_node, _ in node.value:
-                if key_node.tag == "tag:yaml.org,2002:merge":
-                    continue   # `<<: *anchor` merges are allowed, and explicit keys override them
+                if key_node.tag == self.MERGE:
+                    continue   # one `<<` merge is allowed, and explicit keys override it
                 key = self.construct_object(key_node, deep=True)
                 try:
                     first = seen.get(key)

@@ -69,4 +69,6 @@ def test_a_node_without_a_driver_is_an_incomplete_baseline(monkeypatch):
     from pathlib import Path
     _, warnings = rec.record(Path("t.clab.yml"))
     assert any(w.startswith("INCOMPLETE BASELINE: r1: no driver (no driver)") and w.endswith(
-        "nothing on it is recorded: add checks by hand") for w in warnings)
+        "nothing on it is recorded: pass --driver r1=<driver>, or add checks by hand") for w in warnings)
+    # and the routing node with nothing recorded makes `record` exit 1 (acceptance 0.4.1 on d87aa3e)
+    assert any(w.startswith(rec.MISSING_NODE + ": r1: no check is recorded on it") for w in warnings)
