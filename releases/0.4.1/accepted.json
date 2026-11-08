@@ -939,23 +939,9 @@
       "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
       "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
     },
-    "netdryrun.checks.x__bgp_route__mutmut_34": {
-      "reason": "message text only: the detail text of a check result, same verdict and evidence",
-      "diff": "dd0093f965de7715",
-      "class": "message-text",
-      "argument": "Changes only text: the detail text of a check result, same verdict and evidence. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
-    },
     "netdryrun.checks.x__bgp_route__mutmut_59": {
       "reason": "message text only: the text of a failure detail, the verdict is unchanged",
       "diff": "950d73f5e77adb05",
-      "class": "message-text",
-      "argument": "Changes only text: the text of a failure detail, the verdict is unchanged. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-      "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
-    },
-    "netdryrun.checks.x__bgp_route__mutmut_71": {
-      "reason": "message text only: the text of a failure detail, the verdict is unchanged",
-      "diff": "4fb7326c94111cf8",
       "class": "message-text",
       "argument": "Changes only text: the text of a failure detail, the verdict is unchanged. The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
       "reviewed": "adversarial (ChatGPT), round 2: confirmed (research/model-reviews/release-0.3.3/adversarial-round2)"
@@ -2401,51 +2387,6 @@
       "diff": "1677e5aee66a4236",
       "class": "message-text"
     },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_1": {
-      "reason": "equivalent: construction depth; keys are scalars and the constructed mapping is the same",
-      "diff": "6a6ebc4580c3e05d",
-      "class": "equivalent"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_11": {
-      "reason": "equivalent: construction depth; keys are scalars and the constructed mapping is the same",
-      "diff": "2c3e5f41f0391525",
-      "class": "equivalent"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_12": {
-      "reason": "equivalent: construction depth; keys are scalars and the constructed mapping is the same",
-      "diff": "c27ca04a05df391d",
-      "class": "equivalent"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_15": {
-      "reason": "equivalent: after an unhashable key SafeLoader refuses the mapping anyway, so stopping the duplicate scan there changes nothing",
-      "diff": "c385664d1ea4aa1c",
-      "class": "equivalent"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_17": {
-      "reason": "message text only: the text or position of the duplicate-key error, still a ConfigError",
-      "diff": "6ab645810bf14441",
-      "class": "message-text"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_18": {
-      "reason": "message text only: the text or position of the duplicate-key error, still a ConfigError",
-      "diff": "add7e2910435ee30",
-      "class": "message-text"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_20": {
-      "reason": "message text only: the text or position of the duplicate-key error, still a ConfigError",
-      "diff": "dd097ebc90235510",
-      "class": "message-text"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_24": {
-      "reason": "message text only: the text or position of the duplicate-key error, still a ConfigError",
-      "diff": "7d4c7589cd2e1b80",
-      "class": "message-text"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_25": {
-      "reason": "message text only: the text or position of the duplicate-key error, still a ConfigError",
-      "diff": "54a1068af7238e2c",
-      "class": "message-text"
-    },
     "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_26": {
       "reason": "message text only: the text or position of the duplicate-key error, still a ConfigError",
       "diff": "26cf6eeed59a14a7",
@@ -2459,11 +2400,6 @@
     "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_33": {
       "reason": "equivalent: construction depth; keys are scalars and the constructed mapping is the same",
       "diff": "845eb5235c2026fa",
-      "class": "equivalent"
-    },
-    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_9": {
-      "reason": "equivalent: construction depth; keys are scalars and the constructed mapping is the same",
-      "diff": "fb6d428b7177ce17",
       "class": "equivalent"
     },
     "netdryrun.drivers.base.x_as_int__mutmut_1": {
@@ -5700,11 +5636,6 @@
       "diff": "0db759c8824eb595",
       "class": "message-text"
     },
-    "netdryrun.drivers.nxos.x__rib_routes__mutmut_29": {
-      "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
-      "diff": "2f7d77e9ec15866b",
-      "class": "message-text"
-    },
     "netdryrun.drivers.frr.x__route__mutmut_5": {
       "reason": "message text only: the command named in the unmapped-route-type DriverError; the same error is raised, so the read still fails (Layer 6 on b03cb7a)",
       "diff": "76d0aea0cc26efcb",
@@ -6972,6 +6903,69 @@
       "class": "equivalent",
       "argument": "prepare_eos takes `log` but never reads it (its body has no log call: it raises or records on m), so passing None changes nothing.",
       "reviewed": "adversarial (fresh Claude reviewer), 5d36e9b triage, 2026-11-08: AGREE: prepare_eos never reads log (its body and check_eos have no log call or pass-through), so passing None changes nothing."
+    },
+    "netdryrun.checks.x__bgp_route__mutmut_107": {
+      "reason": "After the alias block rebinds obs, only obs.evidence is read again (the return tuples); obs.value is never read after this line, since local, paths and best were computed from it before. So Observation(None, ...) changes nothing returned.",
+      "diff": "86a07fc97f79b904",
+      "class": "equivalent",
+      "argument": "After the alias block rebinds obs, only obs.evidence is read again (the return tuples); obs.value is never read after this line, since local, paths and best were computed from it before. So Observation(None, ...) changes nothing returned.",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: Read checks.py 267-301: after the rebinding only obs.evidence is read (every return); obs.value is never read again, so Observation(None, ...) returns identical tuples."
+    },
+    "netdryrun.checks.x__via__mutmut_4": {
+      "reason": "The getattr default only applies when the route has no raw_protocol attribute; raw is then None instead of \"\", and both are falsy, so `... and raw and ...` is False either way and _via returns r.protocol.",
+      "diff": "f7d3b94a4d4f8f73",
+      "class": "equivalent",
+      "argument": "The getattr default only applies when the route has no raw_protocol attribute; raw is then None instead of \"\", and both are falsy, so `... and raw and ...` is False either way and _via returns r.protocol.",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: The default applies only when raw_protocol is missing (Route always has it, default \"\"); None and \"\" are both falsy, so the 'and raw' guard short-circuits the same and r.protocol is returned."
+    },
+    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_46": {
+      "reason": "The keys k come from _keys, a set, so every one is hashable; `k in seen_src` (a dict) can never raise TypeError. The except branch is dead, so continue vs break never runs.",
+      "diff": "34b70732c0346d58",
+      "class": "equivalent",
+      "argument": "The keys k come from _keys, a set, so every one is hashable; `k in seen_src` (a dict) can never raise TypeError. The except branch is dead, so continue vs break never runs.",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: k comes from a set, so it is hashable; with SafeLoader scalars (str/int/float/bool/None/bytes/date/datetime) the dict lookup's == never raises TypeError (aware vs naive datetime == returns False), so the except branch is dead."
+    },
+    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_74": {
+      "reason": "SafeConstructor calls construct_mapping without deep (deep=False), so deep=None passes the same falsy value. Only _keys and the duplicate scan call construct_object(deep=True), and only for a key node; a mapping key reaching here is unhashable either way and refused.",
+      "diff": "8cfb4ea26294b074",
+      "class": "equivalent",
+      "argument": "SafeConstructor calls construct_mapping without deep (deep=False), so deep=None passes the same falsy value. Only _keys and the duplicate scan call construct_object(deep=True), and only for a key node; a mapping key reaching here is unhashable either way and refused.",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: Nothing in the SafeLoader path calls construct_mapping(deep=True): construct_yaml_object (constructor.py:420) is registered only for Full/Unsafe, and no YAMLObject or add_constructor in netdryrun or the venv targets SafeLoader. deep=None is treated like False; identical on every doc tested."
+    },
+    "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_76": {
+      "reason": "As construct_mapping mutmut_74 (deep omitted = False).",
+      "diff": "fcbc2014d0f3b38b",
+      "class": "equivalent",
+      "argument": "As construct_mapping mutmut_74 (deep omitted = False).",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: Same as construct_mapping_74: deep is always False here, so omitting it changes nothing; identical on every doc tested."
+    },
+    "netdryrun.drivers.base.xǁRouteǁ__post_init____mutmut_9": {
+      "reason": "ipaddress.ip_network(strict=None): strict is only tested for truth, and None is falsy, exactly as False (host bits are masked in both; killed by test_a_prefix_with_host_bits_is_still_named_by_its_family for strict=True and omitted).",
+      "diff": "bb887f3336c2dd83",
+      "class": "equivalent",
+      "argument": "ipaddress.ip_network(strict=None): strict is only tested for truth, and None is falsy, exactly as False (host bits are masked in both; killed by test_a_prefix_with_host_bits_is_still_named_by_its_family for strict=True and omitted).",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: ipaddress tests strict only with 'if strict:'. Python 3.12 gives an identical result for strict=None and strict=False on str/int/tuple/bytes/network inputs, v4 and v6, with host bits set."
+    },
+    "netdryrun.drivers.eos.xǁEosDriverǁ_bgp_cli__mutmut_16": {
+      "reason": "Lab.exec's own default timeout is 60 (lab.py: def exec(self, node, cmd, timeout: float = 60, ...)), the value passed explicitly; the only Lab the driver gets in production is that class.",
+      "diff": "f8b42921d7895848",
+      "class": "equivalent",
+      "argument": "Lab.exec's own default timeout is 60 (lab.py: def exec(self, node, cmd, timeout: float = 60, ...)), the value passed explicitly; the only Lab the driver gets in production is that class.",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: Every lab a driver can get (lab.Lab, capture RecordingLab, which passes timeout through, and ReplayLab, which ignores it) has exec(timeout: float = 60); there is no Lab subclass and no other exec implementation in src."
+    },
+    "netdryrun.drivers.eos.xǁEosDriverǁ_bgp_cli__mutmut_22": {
+      "reason": "answer is only compared with BGP_INACTIVE (a dict); \"\" and None both differ from it, so the NoSuchInstance branch is skipped either way and the rc 1 answer stays a DriverError.",
+      "diff": "1e135c36969fa39d",
+      "class": "equivalent",
+      "argument": "answer is only compared with BGP_INACTIVE (a dict); \"\" and None both differ from it, so the NoSuchInstance branch is skipped either way and the rc 1 answer stays a DriverError.",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: BGP_INACTIVE is the dict {'errors': ['BGP inactive']}; neither None nor \"\" equals it, answer is not used again, and rc 1 then raises the same DriverError."
+    },
+    "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_36": {
+      "reason": "addresses is read only inside `for p in received`; when received is non-empty it is rebound to the session dict first. With received empty the loop doesn't run, so None vs {} is never read.",
+      "diff": "c7697a5f5b431294",
+      "class": "equivalent",
+      "argument": "addresses is read only inside `for p in received`; when received is non-empty it is rebound to the session dict first. With received empty the loop doesn't run, so None vs {} is never read.",
+      "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: addresses is read only inside 'for p in received', and when received is non-empty it is first rebound to a dict; when received is empty the loop body never runs."
     }
   },
   "checks": {
