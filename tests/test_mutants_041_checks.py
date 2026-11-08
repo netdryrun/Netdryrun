@@ -169,12 +169,12 @@ def test_bgp_route_absent_passes_with_its_text():
     assert _bgp_route(d, {"prefix": "10.1.0.0/16", "present": False}) == (True, "no BGP path", [{"cmd": "show"}])
 
 
-def test_bgp_route_absent_fails_on_an_own_row_with_its_text():
+def test_bgp_route_absent_on_an_own_row_says_the_documented_limit():
     d = Fake(paths=[path(local=True)])
+    d.name = "srlinux"
     assert _bgp_route(d, {"prefix": "10.1.0.0/16", "present": False}) == (
-        False, "the node's own route for 10.1.0.0/16 is in its BGP table, and the NOS lists it there whether it is "
-               "advertised or not, so present: false can't pass (check the prefix on the neighbor instead)",
-        [{"cmd": "show"}])
+        True, "no BGP path (received); a prefix this node originates itself isn't checked on srlinux: guard it on the "
+              "neighbor that would receive it", [{"cmd": "show"}])
 
 
 def test_bgp_route_only_a_local_route_fails_with_its_reason():

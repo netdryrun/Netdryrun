@@ -45,7 +45,14 @@ CASES = _cases()
 
 
 def _params(kind):
-    return [pytest.param(case, id=p.stem) for p, case in CASES if case["kind"] == kind and not case.get("retired")]
+    return [pytest.param(case, id=p.stem) for p, case in CASES
+            if case["kind"] == kind and not case.get("retired") and not case.get("accepted_limit")]
+
+
+def _limits():
+    out = [pytest.param(case, id=p.stem) for p, case in CASES if case.get("accepted_limit") and not case.get("retired")]
+    assert all(c.values[0]["kind"] == "driver" for c in out), "an accepted limit must be a driver case"
+    return out
 
 
 class FakeClock:
@@ -126,6 +133,27 @@ def test_check_case_does_not_pass(case):
 
 @pytest.mark.parametrize("case", _params("driver"))
 def test_driver_case_does_not_pass(case):
+    r = _run_driver_case(case)
+    assert r is None or r.passed is False, f"{case['id']}: passed: {r.detail}"
+
+
+@pytest.mark.parametrize("case", _limits())
+def test_accepted_limits_are_published_and_still_behave_as_documented(case):
+    """A false pass the owner accepted as a documented limit (owner decision 2026-11-08): it stays in the corpus, its
+    record names where it is published, the mitigation and the release that fixes it, and the case still passes, so
+    the fix can't land without this file changing (and the limit can't widen unnoticed)."""
+    lim = case["accepted_limit"]
+    assert lim["decided"] and lim["mitigation"] and lim["fix_in"], case["id"]
+    for doc, needles in lim["published"].items():
+        text = (ROOT / doc).read_text(encoding="utf-8")
+        for needle in ([needles] if isinstance(needles, str) else needles):
+            assert needle in text, f"{case['id']}: {doc} doesn't say {needle!r}"
+    r = _run_driver_case(case)
+    assert r is not None and r.passed is True, f"{case['id']}: the documented limit no longer holds: {r and r.detail}"
+    assert lim["detail"] in r.detail, f"{case['id']}: the pass doesn't say the limit: {r.detail}"
+
+
+def _run_driver_case(case):
     rules = []
     for o in case["outputs"]:
         text = (FIXTURES / o["fixture"]).read_text(encoding="utf-8") if "fixture" in o else o.get("output", "")
@@ -133,14 +161,14 @@ def test_driver_case_does_not_pass(case):
     try:
         check = _validate_check(0, dict(case["check"]), 20)
     except ConfigError:
-        return   # refused before anything runs (exit 2): never a pass
+        return None   # refused before anything runs (exit 2): never a pass
     driver = DRIVERS[case["driver"]](Lab(rules), check.node)
     clock = FakeClock()
     if is_post_convergence(check):
         [r] = hold_together([check], {check.node: driver}, hold=10, clock=clock, sleep=clock.sleep)
     else:
         r = run_check(check, driver, clock=clock, sleep=clock.sleep)
-    assert r.passed is False, f"{case['id']}: passed: {r.detail}"
+    return r
 
 
 def _test_functions(path: Path) -> set[str]:

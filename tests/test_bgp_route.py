@@ -120,12 +120,12 @@ def test_present_false_means_no_path_at_all():
     assert ev([], present=False)[0]
     ok, detail, _ = ev([path(best=False)], present=False)  # not best, still in the table: still a leak
     assert not ok and "unexpectedly in the BGP table" in detail
-    # the router's own static listed in the BGP table (SR Linux) fails present: false: the NOS lists it whether it is
-    # advertised or not, so "not in BGP" can't be shown (angle-5 red team on d87aa3e, RT-0048: it passed while
-    # exported)...
+    # the router's own static listed in the BGP table (SR Linux, whether exported or not) is not a received path:
+    # present: false passes and says what it didn't check (accepted documented limit RT-0048, owner 2026-11-08: a
+    # fail-closed rule failed the shipped leak guards on a node with its own static default)...
     local = path(as_path="", next_hop="0.0.0.0", local_candidate=True)
     ok, detail, _ = ev([local], present=False)
-    assert not ok and "own" in detail and "can't pass" in detail
+    assert ok and "a prefix this node originates itself isn't checked" in detail
     ok, _, _ = ev([local, path(best=False)], present=False)
     assert not ok
     # ...nor for a best-path check: SR Linux lists it, best, whether it is advertised or not (red team RT-0026)

@@ -261,3 +261,12 @@
   record: CHANGELOG.md (0.4.1, Layer 6 review, round 9)
   tests:
     - tests/test_inject_sent_counts.py
+- id: srl-junos-own-exported-prefix
+  what: On SR Linux and Juniper, `bgp_route present false` doesn't see a prefix the node itself originates and exports
+    (SR Linux lists its own routes whether exported or not, Junos lists none); angle-5 red team on the 0.4.1 candidate
+  status: accepted-documented-limit
+  cases: [RT-0048]
+  decided: "owner, 2026-11-08: ship 0.4.1 and publish it as a limit; mitigation: guard on the neighbor; fix in 0.4.2"
+  record: advisories/0.4.0-further-false-passes/README.md (case 19), website/docs/trust.md
+  tests:
+    - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented

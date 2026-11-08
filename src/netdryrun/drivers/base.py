@@ -204,7 +204,7 @@ class BgpPath:
     neighbor: str | None = None
     # The router's own non-BGP route listed in its BGP table, possibly not advertised at all (SR Linux lists
     # its static and interface routes this way). Counts for best-path checks, not for `present: false`.
-    local_candidate: bool = False   # the node's own row (a positive check skips it; present: false fails on it)
+    local_candidate: bool = False   # the node's own row (a positive check skips it; see checks._bgp_route)
     # what the node's own row is, for a detail: "static", "advertised by the node to 192.0.2.2" (local_candidate rows)
     local_origin: str = ""
 
@@ -289,8 +289,9 @@ class Driver:
     own_address_families: frozenset = frozenset()
     # Does the NOS list the node's own BGP paths (network statements, redistribution, aggregates) in its BGP table?
     # FRR, SONiC, EOS and NX-OS list them as paths; RouterOS lists the advertised ones (bgp-output rows); SR Linux
-    # lists its own routes whether advertised or not (local_candidate). Junos lists none, even exported: there
-    # `bgp_route present: false` can't tell "not in BGP" from "the node's own route, exported" (checks._bgp_route)
+    # lists its own routes whether advertised or not (local_candidate). Junos lists none, even exported. On those
+    # two, `bgp_route present: false` doesn't see a prefix the node originates and exports: a documented limit until
+    # the adj-rib-out is read (0.4.2); the pass detail says so (checks._bgp_route)
     lists_own_bgp_paths: bool = True
 
     def local_addresses(self, vrf: str = "default") -> list:

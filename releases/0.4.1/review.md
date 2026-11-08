@@ -334,7 +334,7 @@ canonicalisation; `record` skipping routing nodes no driver recognises).
 | Case | Confirmed | How |
 |---|---|---|
 | OSPFv3 carrying IPv4 (RT-0044/45, EOS cousin) | EOS live; Junos and SR Linux from crafted output | cEOS 4.36.3M prints `OSPFv3` (`eos_route_ospfv3_ipv4.txt`); the SR Linux lab formed no OSPF route; the Junos lab stopped at the memory guard |
-| Own BGP paths (RT-0048, RT-0051) | SR Linux live; RouterOS and Junos from live captures | lab A (`s1` fails `present: false` on its exported static); `routeros_routes_main.txt`; `junos_route_static.txt` |
+| Own BGP paths (RT-0051 RouterOS fixed; RT-0048 SR Linux and Junos: **false pass / accepted documented limit**) | RouterOS from a live capture; SR Linux live (lab A: the exported static reads "not checked") | `routeros_routes_main.txt`; the fail-closed rule for SR Linux and Junos failed the shipped leak guards in the rule-10 rehearsal on `5183a6d` and was reverted (owner: "Ship, publish as limits"); published in config.md, junos.md, trust.md and the advisory with the neighbor-side mitigation; 0.4.2 reads the adj-rib-out (SR Linux `rib-out-post` captured live) |
 | Repeated merge keys (RT-0050), record communities (RT-0052) | no device needed | `validate`; unit tests |
 | zebra flags (RT-0046), SONiC offload (RT-0047) | SONiC live: BGP and static carry `offloaded`, even with orchagent stopped; `offloadFailed` never seen | lab B; RT-0047 kept as a fail-closed guard |
 | FRR community alias (RT-0049) | live | lab C, `frr_running_config_bgpd_alias.txt` |

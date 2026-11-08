@@ -67,10 +67,12 @@ test that failed on the candidate (`tests/test_redteam_angle5_d87.py`, RT-0044 t
   (RFC 5838) was reported as `ospf6` on Junos, SR Linux, EOS and NX-OS, a name validate refuses for IPv4, so
   `protocol: ospf present: false` passed with the route installed. OSPF of any version is now `ospf` on IPv4 and `ospf6`
   on IPv6 (likewise `rip`/`ripng`), in one place for every driver; the detail keeps the device's own name.
-- **`bgp_route present: false` sees the node's own paths on every driver** (RT-0048, RT-0051). SR Linux (its own static
-  and interface routes in the BGP RIB) and RouterOS (`bgp-output` rows for an advertised own prefix) passed while the
-  node advertised the prefix. The node's own path now fails `present: false`, as on FRR, EOS and NX-OS; on SR Linux and
-  Junos, which can't show whether an own route is advertised, an own route for the prefix fails it closed.
+- **RouterOS: `bgp_route present: false` sees the node's own advertised prefix** (RT-0051): RouterOS lists it only as
+  `bgp-output` rows, one per peer, which the driver didn't read. **SR Linux and Juniper: accepted as a documented limit
+  for 0.4.1** (RT-0048, owner decision): `bgp_route present: false` doesn't see a prefix the node itself originates and
+  exports (SR Linux lists its own routes whether exported or not, Junos lists none); the check's pass says so. Mitigation: guard the prefix on the
+  neighbor that would receive it. A fail-closed rule was tried and reverted: it failed the shipped leak guards on a node
+  with its own static default. 0.4.2 reads the adj-rib-out.
 - **Repeated YAML merge keys are errors** (RT-0050). Two `<<` keys in one mapping, or merge sources sharing a key, kept
   one value silently and could drop a guard.
 - **`record --attributes` forbids the well-known communities a path doesn't carry** (RT-0052), where the driver can read

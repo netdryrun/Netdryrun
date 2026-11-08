@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from .config import BGP_ATTRIBUTES, Check, community_name
 from .drivers import Driver
-from .drivers.base import DriverError, Observation, is_bgp, protocol_matches
+from .drivers.base import DriverError, Observation, protocol_matches
 from .mgmt import ManagementPathError
 
 REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
@@ -229,27 +229,20 @@ def _bgp_route(d: Driver, p: dict) -> tuple[bool, str, list]:
     local = [x for x in obs.value if x.local_candidate]
     paths = [x for x in obs.value if not x.local_candidate]
     if p.get("present") is False:
-        # no path at all for the prefix in the BGP table, the node's own included (angle-5 red team on d87aa3e,
-        # RT-0048, RT-0051: SR Linux and RouterOS passed while the node advertised its own route; FRR failed)
         if paths:
             return False, f"unexpectedly in the BGP table ({len(paths)} path(s); {_describe_path(paths[0])})", obs.evidence
-        if local:
-            what = local[0].local_origin
-            if what.startswith("advertised"):
-                why = f"the node's own route for {p['prefix']} is in its BGP table, {what}"
-            else:
-                why = (f"the node's own {what + ' ' if what else ''}route for {p['prefix']} is in its BGP table, and the NOS lists it there "
-                       "whether it is advertised or not, so present: false can't pass (check the prefix on the "
-                       "neighbor instead)")
-            return False, why, obs.evidence
-        if not getattr(d, "lists_own_bgp_paths", True):
-            own = d.routes(p["prefix"], p.get("vrf", "default"))
-            mine = [r for r in own.value if r.active and not is_bgp(r.protocol)]
-            if mine:
-                return False, (f"the node has its own {mine[0].protocol} route for {p['prefix']}, which {d.name} doesn't "
-                               "list in the BGP table even when it is advertised, so present: false can't pass (check "
-                               "the prefix on the neighbor instead)"), obs.evidence + own.evidence
-            return True, "no BGP path, and no own route for the prefix", obs.evidence + own.evidence
+        advertised = [x for x in local if x.local_origin.startswith("advertised")]
+        if advertised:
+            # RouterOS lists an own prefix only as bgp-output rows, one per peer it is advertised to: an own path
+            # advertised (angle-5 design review on d87aa3e, RT-0051)
+            return False, (f"the node's own route for {p['prefix']} is in its BGP table, {advertised[0].local_origin}"), \
+                obs.evidence
+        if local or not getattr(d, "lists_own_bgp_paths", True):
+            # Documented limit (owner decision 2026-11-08, RT-0048): SR Linux lists the node's own routes whether it
+            # exports them or not, and Junos lists none, so a prefix the node itself originates and exports isn't
+            # seen here. Read the adj-rib-out to close it (0.4.2); until then the guard belongs on the neighbor
+            return True, (f"no BGP path (received); a prefix this node originates itself isn't checked on {getattr(d, 'name', 'this NOS')}: "
+                          "guard it on the neighbor that would receive it"), obs.evidence
         return True, "no BGP path", obs.evidence
     if not paths:
         if local and local[0].local_origin.startswith("advertised"):

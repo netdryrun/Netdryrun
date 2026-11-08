@@ -637,7 +637,7 @@ class JunosDriver(Driver):
     # netdryrun.yml community names one (config.parse_community takes standard, large and well-known only)
     unsupported_bgp_attributes = frozenset({"without_communities"})
     # Junos doesn't list its own static, direct or aggregate routes in the BGP table, even when an export policy
-    # advertises them (junos.md): `bgp_route present: false` fails closed on an own route (checks._bgp_route)
+    # advertises them (junos.md): a documented limit of `bgp_route present: false` (checks._bgp_route)
     lists_own_bgp_paths = False
 
     def _vrf(self, vrf: str) -> str:

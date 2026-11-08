@@ -173,32 +173,49 @@ class _Own:
         return Observation(list(self._routes), [{"cmd": "route"}])
 
 
-def test_junos_own_static_fails_bgp_route_absent_closed():
-    """junos_route_static.txt (live): 10.99.0.0/24 is a static on the node and nothing in BGP; Junos never lists its
-    own routes in the BGP table, even exported, so `present: false` can't pass there."""
+def test_the_examples_leak_guard_passes_on_a_node_with_its_own_static_default():
+    """junos-frr and srl-hidden-leak guard `bgp_route 0.0.0.0/0 present: false` on a node with its own static default
+    it doesn't export: the guard must pass there (the rule-10 rehearsal on 5183a6d failed both with a fail-closed
+    rule, reverted: owner 2026-11-08). The pass says what it didn't check (accepted documented limit RT-0048)."""
     from netdryrun.checks import _bgp_route
     d = _Own("junos", junos.parse_bgp_paths(_fx("junos_route_static.txt"), "10.99.0.0/24"),
              junos.parse_routes(_fx("junos_route_static.txt"), "10.99.0.0/24"), lists_own=False)
-    ok, detail, ev = _bgp_route(d, {"prefix": "10.99.0.0/24", "present": False, "vrf": "RED"})
-    assert not ok and "own static route" in detail and "junos" in detail
-    assert d.calls == [("10.99.0.0/24", "RED")] and ev == [{"cmd": "bgp"}, {"cmd": "route"}]
-
-
-def test_junos_without_an_own_route_passes_bgp_route_absent():
-    from netdryrun.checks import _bgp_route
-    d = _Own("junos", [], junos.parse_routes(_fx("junos_route_empty.txt"), "10.99.0.0/24"), lists_own=False)
-    assert _bgp_route(d, {"prefix": "10.99.0.0/24", "present": False})[:2] == (
-        True, "no BGP path, and no own route for the prefix")
-
-
-def test_junos_own_route_that_isnt_active_doesnt_block_but_a_bgp_path_fails():
-    from netdryrun.checks import _bgp_route
-    d = _Own("junos", [], [Route("10.99.0.0/24", "static", False)], lists_own=False)
-    assert _bgp_route(d, {"prefix": "10.99.0.0/24", "present": False})[0] is True
-    d = _Own("junos", [BgpPath(best=True, as_path="65002", next_hop="10.0.0.2", local_pref=100, med=None)],
-             [Route("10.99.0.0/24", "static", True)], lists_own=False)
     ok, detail, _ = _bgp_route(d, {"prefix": "10.99.0.0/24", "present": False})
+    assert ok and "a prefix this node originates itself isn't checked" in detail and d.calls == []      # no routing-table read any more
+    srl = _Own("srlinux", [BgpPath(best=True, as_path=None, next_hop="0.0.0.0", local_pref=None, med=None,
+                                   local_candidate=True, local_origin="static")])
+    ok, detail, _ = _bgp_route(srl, {"prefix": "0.0.0.0/0", "present": False})
+    assert ok and "a prefix this node originates itself isn't checked" in detail
+
+
+def test_a_received_leak_still_fails_beside_the_nodes_own_route():
+    """The leak the examples catch: a received path for the prefix fails present: false, own route or not."""
+    from netdryrun.checks import _bgp_route
+    srl = _Own("srlinux", [BgpPath(best=True, as_path=None, next_hop="0.0.0.0", local_pref=None, med=None,
+                                   local_candidate=True, local_origin="static"),
+                           BgpPath(best=False, as_path="65020", next_hop="10.0.100.2", local_pref=100, med=None)])
+    ok, detail, _ = _bgp_route(srl, {"prefix": "0.0.0.0/0", "present": False})
     assert not ok and "unexpectedly in the BGP table" in detail
+
+
+def test_a_driver_that_lists_its_own_paths_passes_plainly_when_there_are_none():
+    from netdryrun.checks import _bgp_route
+    d = _Own("frr", [])
+    assert _bgp_route(d, {"prefix": "10.99.0.0/24", "present": False})[:2] == (True, "no BGP path")
+
+
+def test_every_junos_pass_says_the_limit():
+    from netdryrun.checks import _bgp_route
+    ok, detail, _ = _bgp_route(_Own("junos", [], lists_own=False), {"prefix": "10.99.0.0/24", "present": False})
+    assert ok and "a prefix this node originates itself isn't checked on junos" in detail
+
+
+def test_a_received_path_fails_on_junos():
+    from netdryrun.checks import _bgp_route
+    d = _Own("junos", [BgpPath(best=True, as_path="65002", next_hop="10.0.0.2", local_pref=100, med=None)],
+             lists_own=False)
+    ok, detail, _ = _bgp_route(d, {"prefix": "10.99.0.0/24", "present": False})
+    assert not ok and "unexpectedly in the BGP table" in detail and d.calls == []
 
 
 @pytest.mark.parametrize("name,fixture,prefix", [("nxos", "nxos_bgp_local.txt", "192.168.10.1/32"),

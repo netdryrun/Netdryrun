@@ -328,9 +328,9 @@ def test_bgp_route_reads_the_checks_vrf():
     assert d.calls[0] == ("bgp_paths", "10.1.0.0/16", "blue")
 
 
-def test_bgp_route_absent_fails_on_the_nodes_own_row_too():
-    # the node's own row in its BGP table fails present: false (angle-5 red team on d87aa3e, RT-0048)
-    assert ok(_bgp_route, Fake(paths={"default": [P(local_candidate=True)]}), {"prefix": "p", "present": False}) is False
+def test_bgp_route_absent_ignores_only_local_candidates():
+    # the node's own row (SR Linux) is not a received path: accepted documented limit RT-0048 (owner 2026-11-08)
+    assert ok(_bgp_route, Fake(paths={"default": [P(local_candidate=True)]}), {"prefix": "p", "present": False}) is True
     assert ok(_bgp_route, Fake(paths={"default": [P(best=False)]}), {"prefix": "p", "present": False}) is False
     assert ok(_bgp_route, Fake(paths={"default": [P(local_candidate=True), P(best=False)]}),
               {"prefix": "p", "present": False}) is False

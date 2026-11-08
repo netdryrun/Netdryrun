@@ -66,3 +66,23 @@ def test_every_red_team_case_is_run():
     assert any("tests/test_redteam.py" in (e.get("tests") or []) for e in ENTRIES)
     assert len(list((ROOT / "tests" / "redteam").glob("RT-*.yml"))) >= 9
     assert re.search(r"glob\(\"RT-\*", (ROOT / "tests" / "test_redteam.py").read_text(encoding="utf-8"))
+
+
+def test_an_accepted_limit_is_published_and_pinned():
+    """A false pass the owner accepted as a documented limit (2026-11-08) carries its status and decision, and is
+    pinned by the red-team corpus's accepted-limit test, which checks every place it is published."""
+    statuses = {e.get("status", "fixed") for e in ENTRIES}
+    assert statuses <= {"fixed", "accepted-documented-limit"}, statuses
+    accepted_cases = set()
+    for e in ENTRIES:
+        if e.get("status") == "accepted-documented-limit":
+            assert e.get("decided") and e.get("cases"), e["id"]
+            accepted_cases |= set(e["cases"])
+            assert "tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented" in e["tests"]
+            assert "trust.md" in e["record"], e["id"]
+    # every red-team case marked accepted_limit is exactly one an accepted entry names, and the set is pinned: a
+    # second accepted limit needs this line changed in review (code review of the limit, MAJOR 1)
+    import yaml as _yaml
+    marked = {_yaml.safe_load(p.read_text(encoding="utf-8"))["id"] for p in (ROOT / "tests" / "redteam").glob("RT-*.yml")
+              if _yaml.safe_load(p.read_text(encoding="utf-8")).get("accepted_limit")}
+    assert marked == accepted_cases == {"RT-0048"}, (marked, accepted_cases)
