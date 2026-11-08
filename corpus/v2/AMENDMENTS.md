@@ -25,3 +25,5 @@ These findings came after the v2 run. The table above is left exactly as pre-reg
 **Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3):** apart from case 14's ping baseline above, no verdict or status changed. Case 18 was caught in 2 of 5 runs (the other 3 not proven, none crashed or approved it).
 
 **Refreshed on the final 0.4.1 candidate `26ea109` (2026-11-07):** no verdict or status changed (corpus-check passed). Case 18 was caught in 3 of 5 runs (the other 2 not proven, none crashed or approved it).
+
+**Refreshed on the final 0.4.1 candidate `cb580bc` (2026-11-08):** case 18 was caught in 2 of 5 runs (the other 3 not proven, none crashed or approved it). Its recorded verdict moves from unsafe to error (not proven) with the run majority; the same race as before (a 0.4.2 BLOCKER: remove it), not a change in these fixes, which touch no node kind case 18 uses. No other verdict or status changed (corpus-check passed).

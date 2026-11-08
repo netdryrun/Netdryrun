@@ -9,3 +9,5 @@ These findings came after the run. The table above is left exactly as pre-regist
 **Refreshed on 0.4.1 candidate `0fd1fb6` (2026-11-07), after the second 0.4.1 red team, its audit and the management-path fix (B3, Docker's management default route removed in every Linux node before the checks):** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
 
 **Refreshed on the final 0.4.1 candidate `26ea109` (2026-11-07), after the remaining 0.4.1 fixes (routes with no default at all, SONiC port names, a management default back mid-run, multipath legs, paths with a NUL byte):** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
+
+**Refreshed on the final 0.4.1 candidate `cb580bc` (2026-11-08), after the readiness wait for Junos and cEOS management reads, End-of-RIB from RouterOS peers judged by stable counts, and the RouterOS health re-read:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
