@@ -4867,7 +4867,7 @@ There are two runs. v1's cases and expected verdicts are frozen as first publish
 
 
 
-Generated 2026-11-07T12:35:31+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `26ea109`. Rerun everything with `python corpus/run.py`.
+Generated 2026-11-08T00:35:38+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `cb580bc`. Rerun everything with `python corpus/run.py`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/cases)). Losses are kept and shown at the same size as the catches.
 
@@ -4954,7 +4954,7 @@ v2 changes two lines in the base lab so the customer's max-prefix limit can actu
 
 **Pre-registration:** all 18 cases and their expected verdicts were committed and pushed in [`322cc4e`](https://github.com/netdryrun/Netdryrun/commit/322cc4ede21492c3914a0a53b67268bea7abf7d6) (2026-10-27 04:02 UTC), before any v2 case was deployed. Rerun it with `python corpus/run.py --corpus v2`.
 
-Generated 2026-11-07T13:58:07+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `26ea109`. Rerun everything with `python corpus/run.py --corpus v2`.
+Generated 2026-11-08T02:00:33+00:00 with netdryrun 0.4.1, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `cb580bc`. Rerun everything with `python corpus/run.py --corpus v2`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of [`corpus/v2/cases/`](https://github.com/netdryrun/Netdryrun/tree/main/corpus/v2/cases)). Losses are kept and shown at the same size as the catches.
 
