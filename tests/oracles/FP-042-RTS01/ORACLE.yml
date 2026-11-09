@@ -1,4 +1,4 @@
-id: RT-S01
+id: FP-042-RTS01
 bug: >-
   `netdryrun record --attributes` on SR Linux records the best path of a route its iBGP peer originates without
   `as_path` and without a warning: SR Linux prints that path's attr-set with no `as-path` container, the driver reads
@@ -19,4 +19,4 @@ evidence:
   - tests/fixtures/srl_rt_s01_frr1.conf
   - tests/fixtures/srl_rt_s01_record_041.yml
   - tests/fixtures/SOURCES.yml
-  - tests/test_oracle_guards_rt_s01.py
+  - tests/test_oracle_guards_fp_042_rts01.py

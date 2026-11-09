@@ -1,15 +1,15 @@
-"""Guards for oracle RT-S01: they pass before and after its fix.
+"""Guards for oracle FP-042-RTS01 (red team RT-S01): they pass before and after its fix.
 
-The fast-fix gate runs tests/oracles/RT-S01/ and needs every test there to fail on the fix's parent, so the guards
+The fast-fix gate runs tests/oracles/FP-042-RTS01/ and needs every test there to fail on the fix's parent, so the guards
 live here, in the unit suite. This file is in the oracle's `evidence:`, so the fix can't change it. Helpers and the
-captured data come from the oracle's own module (tests/oracles/RT-S01/).
+captured data come from the oracle's own module (tests/oracles/FP-042-RTS01/).
 """
 import importlib.util
 import json
 from pathlib import Path
 
-_PATH = Path(__file__).resolve().parent / "oracles" / "RT-S01" / "test_oracle_rt_s01.py"
-_SPEC = importlib.util.spec_from_file_location("oracle_rt_s01", _PATH)
+_PATH = Path(__file__).resolve().parent / "oracles" / "FP-042-RTS01" / "test_oracle_fp_042_rts01.py"
+_SPEC = importlib.util.spec_from_file_location("oracle_fp_042_rts01", _PATH)
 o = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(o)
 

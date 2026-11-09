@@ -1,4 +1,4 @@
-"""Oracle RT-S01: `record --attributes` on SR Linux drops the AS path of a route its iBGP peer originates, silently.
+"""Oracle FP-042-RTS01 (red team RT-S01): `record --attributes` on SR Linux drops the AS path of a route its iBGP peer originates, silently.
 
 What the lab showed (tests/fixtures/srl_rt_s01_capture.txt):
 - **Lab:** SR Linux 26.7.2 (srl1) and FRR 10.4.1 (frr1), both in AS 65010, iBGP over 10.0.100.0/30. frr1 originates
@@ -17,13 +17,13 @@ empty AS path (`as_path: ""`, the path SR Linux printed). Otherwise `record` get
 the route and its AS path. Either way, nothing recorded may pass once the path has become 64666.
 
 The spec's third test, a local preference the driver can't read, has no ground in this capture: every captured
-attr-set prints `local-pref` 100. The guards in tests/test_oracle_guards_rt_s01.py pin that it is recorded as 100.
+attr-set prints `local-pref` 100. The guards in tests/test_oracle_guards_fp_042_rts01.py pin that it is recorded as 100.
 
 Everything goes through the real SrlDriver, `record._attribute_check` and `checks.run_check`, fed srl1's captured
 answers. A command that wasn't captured answers rc 1.
 
 The tests here fail on the parent. The guards, which pass before and after the fix, are in
-tests/test_oracle_guards_rt_s01.py (listed in ORACLE.yml `evidence:`).
+tests/test_oracle_guards_fp_042_rts01.py (listed in ORACLE.yml `evidence:`).
 """
 import re
 from pathlib import Path
