@@ -108,7 +108,17 @@
     "Juniper (beta): Every deploy installs Junos in the VM: about 4 minutes to a CLI on a quiet 20-thread host, up to 19 minutes with a CPU-heavy job beside it. Set `CPTX_NUM_IF` (see the example) and a check `timeout` that covers the boot.",
     "Juniper (beta): startup config: Netdryrun doesn't verify that the startup config loaded on Junos yet (the report says `not verified on junos`). Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.1.",
     "Juniper (beta): graceful restart: a route Junos marks stale (`Stale` or `LongLivedStale` in its state) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The token is Junos's documented spelling; a live restart hasn't shown it yet (the example's FRR is a graceful-restart helper, not a restarter, so j1 drops a dead peer's routes at once). Mitigation: leave graceful restart off in the lab.",
-    "Juniper (beta): `netdryrun record` reads the whole table in Junos's terse form, which doesn't show `NotInstall`, so it can record a static with `no-install` as an active route. The recorded check then fails on it (a route check reads the extensive answer, where `NotInstall` makes the route inactive), never passes."
+    "Juniper (beta): `netdryrun record` reads the whole table in Junos's terse form, which doesn't show `NotInstall`, so it can record a static with `no-install` as an active route. The recorded check then fails on it (a route check reads the extensive answer, where `NotInstall` makes the route inactive), never passes.",
+    "Cisco NX-OS (beta): Each NX-OS node is a VM inside its container: NX-API answered 5 to 7 minutes after deploy in our runs, and the node needs KVM, 4 vCPUs and about 9 GiB of memory (8 GB for the VM). Give checks a `timeout` of at least 900 s.",
+    "Cisco NX-OS (beta): Failure scenarios (`link_down`, `node_isolated`) on an NX-OS node are refused: the container's interfaces only carry frames to the VM. Take the link down on the other side of the link.",
+    "Cisco NX-OS (beta): `med: 0` is refused before deploying: NX-OS prints MED 0 for a path received with no MED, so the two can't be told apart. Check a non-zero MED, or that route on another platform.",
+    "Cisco NX-OS (beta): graceful restart: a path the router marks stale (a restarting peer's route, kept until it re-sends it or the stale timer ends) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The mark is read from the NOS's own field (`pathstaled`); a live graceful restart has not been captured on this NOS to confirm the field turns true during one. Mitigation: leave graceful restart off in the lab.",
+    "Cisco NX-OS (beta): startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.",
+    "MikroTik RouterOS (beta): Each RouterOS node is a VM inside its container: the REST API answers about a minute after deploy, and the startup config is imported after that (an import stops at its first error), so give checks a `timeout` of at least 600 s. One CHR node per lab until MikroTik confirms more are allowed.",
+    "MikroTik RouterOS (beta): IPv6 sessions and routes, ping inside a VRF, and failure scenarios (`link_down`, `node_isolated`) are refused with a clear message, not answered.",
+    "MikroTik RouterOS (beta): `bgp_prefixes` counts prefixes the router received AND policy accepted (derived from the routing route table): the session's own `prefix-count` includes rejected prefixes and is not used.",
+    "MikroTik RouterOS (beta): A path without a LOCAL_PREF attribute reports local_pref as unknown, never as the default: a `local_pref` check on it fails.",
+    "MikroTik RouterOS (beta): graceful restart, add-path, multipath and max-prefix behaviour are not captured yet: a route row with a key the parser does not know stops the read with an error."
   ],
   "platforms": [
     {
@@ -130,6 +140,14 @@
     {
       "driver": "junos",
       "name": "Juniper cJunosEvolved (beta, bring your own image)"
+    },
+    {
+      "driver": "nxos",
+      "name": "Cisco NX-OS (Nexus 9000v, beta, bring your own image)"
+    },
+    {
+      "driver": "routeros",
+      "name": "MikroTik RouterOS 7 (CHR, beta, bring your own image)"
     }
   ],
   "mcp": {

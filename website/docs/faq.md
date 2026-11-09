@@ -7,7 +7,7 @@ description: Frequently asked questions about Netdryrun. What it is, how to test
 
 ## What is Netdryrun?
 
-Netdryrun™ is an open-source (Apache-2.0) tool that dry-runs a network change in a real containerlab virtual lab before it reaches production. It boots your topology with the changed configs, waits for routing to converge, checks BGP sessions, prefix counts, routes, BGP best-path attributes and ping reachability against a `netdryrun.yml` file, and returns a pass/fail verdict with the commands and raw output as evidence. Supported network operating systems: <!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image)<!-- /facts:faq_platforms -->. It runs as a CLI, a GitHub Action and an MCP server for AI agents. See [Getting started](getting-started.md).
+Netdryrun™ is an open-source (Apache-2.0) tool that dry-runs a network change in a real containerlab virtual lab before it reaches production. It boots your topology with the changed configs, waits for routing to converge, checks BGP sessions, prefix counts, routes, BGP best-path attributes and ping reachability against a `netdryrun.yml` file, and returns a pass/fail verdict with the commands and raw output as evidence. Supported network operating systems: <!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image), Juniper cJunosEvolved (beta, bring your own image), Cisco NX-OS (Nexus 9000v, beta, bring your own image) and MikroTik RouterOS 7 (CHR, beta, bring your own image)<!-- /facts:faq_platforms -->. It runs as a CLI, a GitHub Action and an MCP server for AI agents. See [Getting started](getting-started.md).
 
 ## How do I test a BGP change before it reaches production?
 
@@ -54,13 +54,13 @@ They work together. See [When to use what](when-to-use-what.md) for a longer, ne
 
 ## Which network operating systems are supported?
 
-<!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image)<!-- /facts:faq_platforms -->. Labs can mix them: the examples pair each one with FRR. See [drivers](reference/config.md#drivers) for what each driver supports.
+<!-- facts:faq_platforms -->FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image), Juniper cJunosEvolved (beta, bring your own image), Cisco NX-OS (Nexus 9000v, beta, bring your own image) and MikroTik RouterOS 7 (CHR, beta, bring your own image)<!-- /facts:faq_platforms -->. Labs can mix them: the examples pair each one with FRR. See [drivers](reference/config.md#drivers) for what each driver supports.
 
-## Why not Cisco or Juniper?
+## Why only beta for Cisco and Juniper?
 
-Not in a release yet. Their lab images need a vendor account and can't be redistributed. Netdryrun's CI and examples must run for anyone, so every image they use has to be free to pull: FRR, SR Linux and SONiC VS are. Arista cEOS is free to download with an account but can't be redistributed, so its example needs you to import your own image.
+Juniper cJunosEvolved (from 0.4) and Cisco NX-OS (from 0.4.1) ship as beta drivers, chosen per node. Their lab images need a vendor account and can't be redistributed. Netdryrun's CI and examples must run for anyone, so every image they use has to be free to pull: FRR, SR Linux and SONiC VS are. Arista cEOS is free to download with an account but can't be redistributed, so its example needs you to import your own image.
 
-Cisco and Juniper images (for example IOS XRd, Cisco 8000 emulator, cRPD, vJunos) need an account, a license or both, and several are virtual machines that containerlab runs through vrnetlab. Drivers for them follow the same bring-your-own-image model as cEOS: Juniper (cJunosEvolved) and Cisco NX-OS (Nexus 9000v) come first, as beta, and IOS XE and IOS XR later. If you need one, say so in an [issue](https://github.com/netdryrun/Netdryrun/issues).
+Cisco and Juniper images (for example IOS XRd, Cisco 8000 emulator, cRPD, vJunos) need an account, a license or both, and several are virtual machines that containerlab runs through vrnetlab. Drivers for them follow the same bring-your-own-image model as cEOS: Juniper (cJunosEvolved) and Cisco NX-OS (Nexus 9000v) are in beta now; IOS XE and IOS XR come later, once someone with a Cisco contract can validate them live. If you need one, say so in an [issue](https://github.com/netdryrun/Netdryrun/issues).
 
 ## Does it work on Windows?
 
