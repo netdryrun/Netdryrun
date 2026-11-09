@@ -273,13 +273,22 @@
 - id: advisory-0.4.1-known-false-passes
   what: Four narrow checks that can pass without seeing the problem in 0.4.1 and earlier (EOS non-BGP route not
     selected, SR Linux EVPN type-5 in an ip-vrf, FRR/SONiC ping to the VRF device's own address; red team on the final
-    0.4.1 candidate); case 4 (SR Linux record --attributes) is the next entry
+    0.4.1 candidate); case 3 (RT-0053) is fixed in 0.4.3 (entry rt-0053-vrf-device); case 4 (SR Linux record
+    --attributes) is entry rt-s01-record-as-path
   status: accepted-documented-limit
-  cases: [RT-0053, RT-0056, RT-0058, RT-0063]
+  cases: [RT-0056, RT-0058, RT-0063]
   decided: "owner, 2026-11-09: ship 0.4.1 and publish the four as known limits; fix in 0.4.2 (GHSA-ggcf-664f-c9ff)"
   record: advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
   tests:
     - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
+- id: rt-0053-vrf-device
+  what: On FRR and SONiC a ping in a VRF to an address on the VRF device itself passed (the own-address read listed
+    only the interfaces enslaved to the VRF); advisory 0.4.1 case 3, fixed in 0.4.3 through oracle FP-043-VRFDEV
+  record: advisories/0.4.1-known-false-passes/README.md (case 3), CHANGELOG.md (0.4.3)
+  tests:
+    - tests/oracles/FP-043-VRFDEV/test_oracle_fp_043_vrfdev.py
+    - tests/test_oracle_guards_fp_043_vrfdev.py
+    - tests/test_redteam.py
 - id: rt-s01-record-as-path
   what: On SR Linux, `record --attributes` leaves out an AS path it can't read (an iBGP peer's own route) without a
     warning, so the baseline passes a later change of that path (regression in 0.4.1; fixed for 0.4.2, where the

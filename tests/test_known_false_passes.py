@@ -94,4 +94,4 @@ def test_an_accepted_limit_is_published_and_pinned():
     import yaml as _yaml
     marked = {_yaml.safe_load(p.read_text(encoding="utf-8"))["id"] for p in (ROOT / "tests" / "redteam").glob("RT-*.yml")
               if _yaml.safe_load(p.read_text(encoding="utf-8")).get("accepted_limit")}
-    assert marked == accepted_cases == {"RT-0048", "RT-0053", "RT-0056", "RT-0058", "RT-0063"}, (marked, accepted_cases)
+    assert marked == accepted_cases == {"RT-0048", "RT-0056", "RT-0058", "RT-0063"}, (marked, accepted_cases)

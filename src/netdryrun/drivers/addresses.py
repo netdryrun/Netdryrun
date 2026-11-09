@@ -72,6 +72,18 @@ def parse_ip_j_addr(text: str, skip_enslaved: bool, command: str = "ip -j addr")
 
 
 @_strict
+def parse_vrf_device_addr(text: str, vrf: str, command: str) -> list:
+    """`ip -j addr show dev <vrf>`: the VRF device's own addresses. `show vrf X` lists only the interfaces enslaved to
+    X, never X itself, yet the kernel answers a ping in X to an address on X locally (FP-043-VRFDEV, RT-0053). The
+    answer must be exactly that one device; anything else is unexpected output, never "no addresses"."""
+    data = _load(command, text)
+    if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], dict) or data[0].get("ifname") != vrf:
+        raise unexpected(command, str(data)[:150])
+    # a plain device, not lo: only its addresses are the node's own, not the rest of their subnets
+    return parse_ip_j_addr(text, skip_enslaved=False, command=command)
+
+
+@_strict
 def parse_eos_interfaces(text: str, vrf: str, command: str) -> list:
     """`show ip interface | json` and `show ipv6 interface | json` (cEOS): each interface names its `vrf`."""
     data = _load(command, text)

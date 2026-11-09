@@ -265,14 +265,17 @@ def test_frr_own_address_commands_exactly():
     got = d.local_addresses()
     assert lab.lines() == ["ip -j addr"]
     assert ipaddress.ip_interface("172.20.20.2/24") in got
-    d.local_addresses("red")
-    assert lab.lines()[-1] == "ip -j addr show vrf red"
+    with pytest.raises(DriverError):   # the fixture is no answer to `show dev red`: refused, never "no addresses"
+        d.local_addresses("red")
+    assert lab.lines()[-2:] == ["ip -j addr show vrf red", "ip -j addr show dev red"]
 
 
 def test_frr_named_vrf_keeps_enslaved_interfaces_and_errors_name_the_command():
     vrf_answer = json.dumps([{"ifname": "eth2", "master": "red", "addr_info": [{"local": "10.1.0.1", "prefixlen": 30}]}])
-    d = FrrDriver(Lab([("ip -j addr show vrf red", vrf_answer), ("ip -j addr", "[{\"addr_info\": [5]}]")]), "r1")
-    assert [str(a) for a in d.local_addresses("red")] == ["10.1.0.1/30"]
+    dev_answer = json.dumps([{"ifname": "red", "addr_info": [{"local": "10.9.9.9", "prefixlen": 32}]}])
+    d = FrrDriver(Lab([("ip -j addr show vrf red", vrf_answer), ("ip -j addr show dev red", dev_answer),
+                       ("ip -j addr", "[{\"addr_info\": [5]}]")]), "r1")
+    assert [str(a) for a in d.local_addresses("red")] == ["10.1.0.1/30", "10.9.9.9/32"]
     with pytest.raises(DriverError) as x:
         d.local_addresses()
     assert str(x.value) == "unexpected output from `ip -j addr`: 5"

@@ -727,10 +727,15 @@ class FrrDriver(Driver):
     own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
 
     def local_addresses(self, vrf: str = "default") -> list:
-        from .addresses import parse_ip_j_addr
+        from .addresses import parse_ip_j_addr, parse_vrf_device_addr
         vrf = check_vrf_name(vrf)
         cmd = ["ip", "-j", "addr"] + ([] if vrf == "default" else ["show", "vrf", vrf])
-        return parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+        out = parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+        if vrf != "default":
+            # `show vrf X` leaves out the VRF device itself, whose addresses the kernel answers in X (FP-043-VRFDEV)
+            dev = ["ip", "-j", "addr", "show", "dev", vrf]
+            out += parse_vrf_device_addr(self._exec(dev, []), vrf, " ".join(dev))
+        return out
 
     def ping(self, target: str, source: str | None, count: int, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
