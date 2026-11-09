@@ -21,7 +21,7 @@ A verifier that says "passed" without really checking is worse than no verifier.
 
 How it was tested: static checks, the unit suite, mutation testing, both verdict corpora, live labs on every example across 7 network OSes, our end-to-end new-user test, and a red team on the final candidate. One layer, the scripted end-user walk-through, was not run on the final commit; the [release review](https://github.com/netdryrun/Netdryrun/blob/main/releases/0.4.1/review.md) says why.
 
-Found after release by the same new-user test on a fresh GitHub runner (both fail safe: an error, never a wrong pass; both fixed in 0.4.2):
+Found after release by the same new-user test on a fresh GitHub runner (both fail safe: an error, never a wrong pass; both fixed in 0.4.2, except that `record` on a BGP-unnumbered fabric still exits 1, naming each interface-named session it can't record yet):
 
 - **SR Linux on containerlab 0.83:** `netdryrun run examples/srl-frr` stops with exit 2, "runs in the namespace of … which is not a lab node". The check that keeps a run from testing the host refuses SR Linux's network namespace there. We're confirming which containerlab versions are affected; the FRR examples run normally.
 - **FRR 10.2 with `record`:** it can't read one of FRR's replies, exits 1 and lists each guard it couldn't write. Until the fix, add those guards by hand.

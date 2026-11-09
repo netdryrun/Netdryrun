@@ -19,9 +19,18 @@
     link-local addresses only, and the node has a BGP session over that interface.
   - Everything else stays a gap: no such session, an interface whose addresses can't be read, or no driver.
   - An address token that can't be parsed is now an error instead of being dropped, so a global address can't read as
-    "none".
+    "none". A point-to-point address (`inet A peer B/31`) reads as its subnet, and only IPv6 fe80::/10 makes a link
+    unnumbered: an IPv4 169.254.0.0/16 link is numbered and guarded.
+  - **Sessions over those links are a named gap.** FRR names a BGP-unnumbered session by its interface (`eth1`), which
+    a check can't name yet, so `record` can't write its `bgp_session` or `bgp_prefixes` check. 0.4.1 left it out with a
+    plain warning; 0.4.2 writes an INCOMPLETE BASELINE line naming the node and the session, so `record` exits 1 on an
+    unnumbered fabric. Checks that name an interface-named session are planned for 0.4.3.
 
-  Oracle `tests/oracles/FP-042-UNNUMBERED`, from the same capture.
+  Oracles `tests/oracles/FP-042-UNNUMBERED` and `tests/oracles/FP-042-UNNSESS` (red team RT-0066), from the same
+  capture.
+- **`record` could exit 0 with a gap it had named.** A gap line that quoted a device's answer containing "only the
+  first" was taken for one of the two size caps. Only `record`'s own cap lines are left out now. Oracle
+  `tests/oracles/FP-042-CAPMSG`.
 - **Own-address reads skipped text before the JSON** (found by ClusterFuzzLite on the 0.4.2 work). Since 0.4.1 every
   driver's own-address reader (the ping check's own-target and source guards) started at the first `{` or `[`, so an
   answer with a CLI error line or other text in front of its JSON read as a shorter address list, often an empty one.
@@ -59,6 +68,12 @@
   it. Reading the empty path exactly is planned for 0.4.3. eBGP paths, and every
   FRR path, are recorded as before, with their AS path, and `record` still exits 0 on them. Listed under "What a lab
   cannot prove" on the trust page.
+
+### Release gate
+
+- A FAIL and the rerun limit follow the code (the tree), not the commit; a FAIL during a host gap still fails; an
+  attempt record that can't be read blocks; a live run of some cases only can't clear the live layer; an oracle can't
+  be deleted or hold a symlink; every gate script is a reviewed file once the gate is on `main` (Layer 6 review).
 
 ### Not fixed in 0.4.2
 

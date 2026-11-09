@@ -291,3 +291,14 @@
     - tests/oracles/FP-042-RTS01/test_oracle_fp_042_rts01.py
     - tests/test_oracle_guards_fp_042_rts01.py
     - tests/test_record.py
+- id: layer6-review-0.4.2
+  what: Found by the Layer 6 review of the 0.4.2 candidate (f220469) - record on a BGP-unnumbered FRR fabric left every
+    interface-named session out with a plain warning and exited 0, so a dropped session or a prefix flood passed the
+    baseline (red team RT-0066); a point-to-point address read as a /32 guard; a numbered 169.254.0.0/30 link called
+    unnumbered and left unguarded; a gap line quoting device text with "only the first" dropped from the gaps
+  record: CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py
+    - tests/test_oracle_guards_fp_042_unnsess.py
+    - tests/oracles/FP-042-CAPMSG/test_oracle_fp_042_capmsg.py
+    - tests/test_oracle_guards_fp_042_capmsg.py
