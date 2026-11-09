@@ -57,3 +57,16 @@ coordinator.
   - the `rt-s01-record-as-path` entry in `tests/known_false_passes.yml` then names the oracle test and moves to
     `fixed`;
   - the advisory and CHANGELOG say "fixed in 0.4.2".
+
+## Decision for 0.4.2 (coordinator, 2026-11-10)
+- **The oracle as written:** it is `tests/oracles/FP-042-RTS01/`, renamed so the gate accepts its ID. It accepts
+  either outcome: `as_path: ""` pinned, or an INCOMPLETE BASELINE line naming the route and its AS path.
+- **The fix in 0.4.2 is the gap (91703e7).** The live capture (SR Linux 26.7.2, iBGP) shows the route's attr-set with
+  no as-path container while SR Linux's own report prints `Path : i`.
+  - Pinning `""` would mean reading a missing container as the empty path at run time too.
+  - A container missing for any other reason (a partial answer, a schema change) would then match the pinned `""`
+    and pass: a false pass.
+  - The gap exits 1 and names the route: a safe usability cost.
+- **Follow-up for 0.4.3, as its own oracle:** the exact read. A missing container reads as the empty path only where
+  a cross-check confirms it (for example SR Linux's report printing `Path : i`). On a route learned over eBGP, a
+  missing container is an error, never the empty path.
