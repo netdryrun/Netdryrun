@@ -12,8 +12,16 @@
   - A count that doesn't match the paths listed is still an error, and a text answer without one is a named gap.
   - An answer without its paths is never read as "absent".
 
-  Oracle `tests/oracles/FP-042-FRR102`, from a live FRR 10.2.1 capture. The "no global address" gaps on BGP-unnumbered
-  links in the same run are a separate item.
+  Oracle `tests/oracles/FP-042-FRR102`, from a live FRR 10.2.1 capture.
+- **`record` on BGP-unnumbered links:** every fabric link was an INCOMPLETE BASELINE "no global address" gap, 12 of the
+  18 the stranger hit on martimy/clab-bgp-frr.
+  - An interface is now named "BGP unnumbered", with no subnet to guard, only when two things hold: it lists
+    link-local addresses only, and the node has a BGP session over that interface.
+  - Everything else stays a gap: no such session, an interface whose addresses can't be read, or no driver.
+  - An address token that can't be parsed is now an error instead of being dropped, so a global address can't read as
+    "none".
+
+  Oracle `tests/oracles/FP-042-UNNUMBERED`, from the same capture.
 
 ## 0.4.1 (2026-11-09)
 
