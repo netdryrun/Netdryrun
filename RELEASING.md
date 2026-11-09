@@ -147,8 +147,9 @@ python scripts/labrun.py stop live-<sha>       # the whole process group, checke
 - A watcher outside the run marks it:
   - `stalled`, and stops it, when its heartbeat is older than 90 s;
   - `exited-without-result` when it ends without finishing.
-- A wall-clock gap of over 60 s, from host sleep or a frozen WSL VM, is recorded in `result.json` as a taint. No
-  case that overlaps a taint counts as a verdict.
+- A wall-clock gap of over 60 s, from host sleep or a frozen WSL VM, is recorded in `result.json` as a taint, with
+  the limits the run used (`limits`). A PASS that overlaps a taint is no verdict and must be run again; a FAIL there
+  still fails, and every tainted run counts as an attempt.
 
 **Rerunning one case, and what each layer still owes:**
 
@@ -159,9 +160,13 @@ python scripts/release_gate.py plan                                      # owed,
 ```
 
 - Every attempt is kept in `gate/records/<layer>/`, and nothing is overwritten.
-- A check that failed in any attempt on a commit stays FAIL in GATE.md for that commit. A rerun can't clear it; a fix
-  (a new commit) or an accepted MAJOR can.
-- A case gets at most 2 reruns per commit. A case that needs more is flaky, which is a bug to fix.
+- A check that failed in any attempt on a commit stays FAIL in GATE.md for that commit, and for any other commit with
+  the same tree (an empty or message-only commit is the same code). A rerun can't clear it; a fix or an accepted
+  MAJOR can.
+- A case gets at most 2 reruns per tree. A case that needs more is flaky, which is a bug to fix.
+- An attempt record that can't be read is a BLOCKER: it may have held a FAIL.
+- A `--case` or `--resume` run with no full live layer on that commit leaves the layer partial (`live-partial`, a
+  BLOCKER) until a full run replaces it.
 - `--resume` continues the same run id on the same commit only. A corpus, with all N runs of its nondeterministic
   cases, is one case.
 

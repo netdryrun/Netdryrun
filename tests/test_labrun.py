@@ -200,6 +200,8 @@ def test_a_gap_in_the_watchers_own_clock_is_a_taint_not_a_stall(tmp_path, monkey
                        sleep=lambda s: (sleeps.append(s), len(sleeps) == 5 and on_exit()), popen=popen)
     assert res["state"] == "ok", res
     assert res["taints"] == [{"from": 1004.0, "to": 1300.0, "seconds": 296.0}]
+    # the limits the taints came from are on record: a --gap of 0 taints everything (Layer 6 on f220469)
+    assert res["limits"] == {"gap": 60, "stale": 90, "receipt_timeout": 90}
 
 
 def test_release_gate_gives_no_receipt_when_g2_fails(tmp_path, monkeypatch):

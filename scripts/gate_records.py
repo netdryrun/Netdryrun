@@ -11,12 +11,15 @@ Every time a layer is saved, release_gate.py also writes one attempt record:
 - the cases it ran, when it was partial (`--case`, `--resume`).
 
 Rules (each has a red fixture in tests/test_gate_records.py):
-- **A FAIL stays FAIL:** a check that failed in any non-tainted attempt on a commit fails on that commit, whatever
-  later attempts say, until the commit changes (a fix) or an `accepted.json` entry covers it (MAJOR only, as before).
+- **A FAIL stays FAIL:** a check that failed in any attempt on a commit, or on another commit with the same tree,
+  fails there whatever later attempts say, until the code changes (a fix) or an `accepted.json` entry covers it
+  (MAJOR only, as before). An empty or message-only commit is the same code: it starts nothing again.
 - **Taints:** a check whose run overlaps a wall-clock gap labrun recorded (host sleep, a frozen VM) is no verdict
-  either way. It is reported, and must be run again.
-- **At most 2 reruns of a case per commit** (3 attempts). A 4th is refused: a case that needs more is flaky, and
+  for a PASS: it must be run again. A FAIL in a gap still fails, and every tainted run counts as an attempt (Layer 6
+  on f220469: `labrun --gap 0` tainted everything, so a FAIL was dropped and could be rerun into a PASS).
+- **At most 2 reruns of a case per tree** (3 attempts). A 4th is refused: a case that needs more is flaky, and
   that is a bug to fix, not a rerun to take.
+- **An attempt record that can't be read blocks**: it may have held a FAIL.
 - **`--resume` continues one run id on one commit only.** It skips the cases that run already finished (pass or fail)
   and never splits a case: a corpus, with all N runs of its nondeterministic cases, is one case.
 """
@@ -70,8 +73,16 @@ def peak_child_rss_mb() -> float | None:
     return round(kb / 1024, 1)
 
 
+def tree_of(root: Path, commit: str | None) -> str | None:
+    """The tree a commit holds (what was tested); None when git can't tell."""
+    if not commit:
+        return None
+    out = _git(root, "rev-parse", f"{commit}^{{tree}}")
+    return out.strip() if out else None
+
+
 def append(out: Path, rec: dict, *, commit: str | None, key: str, run_id: str, cases: list[str] | None = None,
-           peak_mb: float | None = None) -> Path:
+           peak_mb: float | None = None, tree: str | None = None) -> Path:
     folder = out / RECORDS / rec["layer"]
     folder.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
@@ -80,7 +91,7 @@ def append(out: Path, rec: dict, *, commit: str | None, key: str, run_id: str, c
     while path.exists():                     # never overwrite an attempt
         path = folder / f"{stamp}-{(commit or 'nocommit')[:10]}-{os.getpid()}-{n}.json"
         n += 1
-    data = {**rec, "attempt": {"commit": commit, "key": key, "run_id": run_id, "cases": cases,
+    data = {**rec, "attempt": {"commit": commit, "tree": tree, "key": key, "run_id": run_id, "cases": cases,
                                "peak_child_rss_mb": peak_mb, "written": time.time()}}
     with open(path, "x", encoding="utf-8") as f:
         f.write(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
@@ -93,7 +104,10 @@ def attempts(out: Path, layer: str) -> list[dict]:
     for p in sorted(folder.glob("*.json")) if folder.is_dir() else []:
         try:
             d = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(d, dict):
+                raise ValueError("not an object")
         except (OSError, ValueError):
+            found.append({"_unreadable": True, "_path": str(p)})   # it may have held a FAIL: never skipped
             continue
         d["_path"] = str(p)
         found.append(d)
@@ -125,35 +139,43 @@ def case_of(check_id: str) -> str:
     return check_id.removesuffix("-clean")
 
 
-def verdict(recs: list[dict], commit: str | None, taints_of=labrun_taints) -> dict:
-    """Every check's status over all attempts on this commit: FAIL if any non-tainted attempt failed, PASS if one
-    passed and none failed, else SKIP. Also the attempts per case and the taints."""
+def _same_code(a: dict, commit: str | None, tree: str | None) -> bool:
+    return bool(commit and a.get("commit") == commit) or bool(tree and a.get("tree") == tree)
+
+
+def verdict(recs: list[dict], commit: str | None, taints_of=labrun_taints, tree: str | None = None) -> dict:
+    """Every check's status over all attempts on this commit, or on any commit with the same tree: FAIL if any
+    attempt failed (in a host gap too), PASS if one untainted attempt passed and none failed, else no verdict. Also the
+    attempts per case (tainted ones count) and the attempt records that can't be read (`unreadable`: a red)."""
     checks: dict[str, dict] = {}
     runs_per_case: dict[str, set] = {}
+    unreadable = [r["_path"] for r in recs if r.get("_unreadable")]
     for r in recs:
         a = r.get("attempt") or {}
-        if not commit or a.get("commit") != commit:
+        if r.get("_unreadable") or not _same_code(a, commit, tree):
             continue
         taints = taints_of(a.get("run_id"))
         for c in r.get("checks", []):
             e = checks.setdefault(c["id"], {"status": None, "attempts": 0, "tainted": 0, "failed_in": None})
-            if tainted(c, taints):
-                e["tainted"] += 1
-                continue
             e["attempts"] += 1
             runs_per_case.setdefault(case_of(c["id"]), set()).add(r["_path"] if "_path" in r else id(r))
+            if tainted(c, taints):
+                e["tainted"] += 1
+                if c["status"] != FAIL:      # a PASS in a host gap is no verdict; a FAIL there still fails
+                    continue
             if c["status"] == FAIL:
                 e["status"], e["failed_in"] = FAIL, e["failed_in"] or r.get("_path")
             elif c["status"] == PASS and e["status"] != FAIL:
                 e["status"] = PASS
             elif e["status"] is None:
                 e["status"] = c["status"]
-    return {"checks": checks, "attempts_per_case": {k: len(v) for k, v in runs_per_case.items()}}
+    return {"checks": checks, "attempts_per_case": {k: len(v) for k, v in runs_per_case.items()},
+            "unreadable": unreadable}
 
 
-def rerun_refused(recs: list[dict], commit: str | None, cases: list[str]) -> list[str]:
-    """Cases that already used their 3 attempts on this commit."""
-    per = verdict(recs, commit)["attempts_per_case"]
+def rerun_refused(recs: list[dict], commit: str | None, cases: list[str], tree: str | None = None) -> list[str]:
+    """Cases that already used their 3 attempts on this commit or this tree."""
+    per = verdict(recs, commit, tree=tree)["attempts_per_case"]
     return [c for c in cases if per.get(c, 0) >= MAX_ATTEMPTS]
 
 
@@ -174,6 +196,11 @@ def plan_rows(out: Path, layers: list[str], commit: str | None, key: str) -> lis
     rows = []
     for layer in layers:
         recs = attempts(out, layer)
+        bad = [r["_path"] for r in recs if r.get("_unreadable")]
+        if bad:
+            rows.append((layer, "FAIL", f"{len(bad)} attempt record(s) can't be read (one may have held a FAIL): "
+                                        + ", ".join(Path(b).name for b in bad[:3])))
+            continue
         on_commit = [r for r in recs if (r.get("attempt") or {}).get("commit") == commit]
         if not on_commit:
             rows.append((layer, "owed", "no attempt on this commit" + (f" ({len(recs)} on others)" if recs else "")))

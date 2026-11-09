@@ -198,7 +198,8 @@ def watch(d: Path, cmd: list[str], receipt_timeout: float, stale: float, gap: fl
         kill_group(proc.pid, sleep=sleep, clock=clock, reap=proc.poll)
         proc.wait()
     result = {"id": d.name, "state": state, "why": why, "rc": proc.returncode, "started": started, "ended": clock(),
-              "taints": taints, "done": read_json(d / "done.json")}
+              "taints": taints, "limits": {"gap": gap, "stale": stale, "receipt_timeout": receipt_timeout},
+              "done": read_json(d / "done.json")}
     write_json(d / "result.json", result)
     log.close()
     return result

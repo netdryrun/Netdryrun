@@ -2192,7 +2192,10 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
     gr = _records()
     for name, rec in records.items():
         # step 2: a check that failed in any non-tainted attempt on this commit stays FAIL; a tainted one is no verdict
-        over = gr.verdict(gr.attempts(folder, name), rec["git"].get("sha"))["checks"]
+        v = gr.verdict(gr.attempts(folder, name), rec["git"].get("sha"), tree=gr.tree_of(ROOT, rec["git"].get("sha")))
+        over = v["checks"]
+        blockers += [f"{name}: an attempt record can't be read, and it may have held a FAIL ({Path(p).name}): restore or "
+                     "rerun it, never drop it" for p in v["unreadable"]]
         for c in rec["checks"]:
             e = over.get(c["id"])
             if e and e["status"] == FAIL and c["status"] != FAIL:
@@ -2345,7 +2348,7 @@ def save(layer: Layer) -> None:
     commit = rec["git"].get("sha")
     cases = getattr(args, "selection_cases", None)
     gr.append(out_dir(args), rec, commit=commit, key=gr.input_key(ROOT), run_id=getattr(args, "run_id", "") or "",
-              cases=cases, peak_mb=gr.peak_child_rss_mb())
+              cases=cases, peak_mb=gr.peak_child_rss_mb(), tree=gr.tree_of(ROOT, commit))
     if cases is not None:   # a partial run updates its own checks in the layer record and keeps the others
         path = out_dir(args) / "gate" / f"{layer.name}.json"
         prev = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -2353,6 +2356,17 @@ def save(layer: Layer) -> None:
             mine = {c["id"] for c in rec["checks"]}
             rec = {**rec, "checks": [c for c in prev["checks"] if c["id"] not in mine] + rec["checks"],
                    "sections": prev.get("sections", []) + rec["sections"]}
+            if prev.get("partial"):
+                rec["partial"] = True
+        else:
+            rec["partial"] = True
+        if rec.get("partial") and not any(c["id"] == f"{layer.name}-partial" for c in rec["checks"]):
+            # Layer 6 on f220469: a --case or --resume run with no full layer on this commit saved a live.json of only
+            # its cases, and GATE.md saw no gap. The checks a full layer adds (the MCP handshake, pack, scale, chaos)
+            # and every case not run are owed until a full run replaces this record
+            rec["checks"].append(asdict(Check(f"{layer.name}-partial", "the whole layer ran on this commit", BLOCKER,
+                                              FAIL, summary="only part of the layer ran on this commit "
+                                              f"({', '.join(cases) or 'nothing'}): run the full layer")))
     write_out(args, f"gate/{layer.name}.json", json.dumps(rec, indent=1, ensure_ascii=False) + "\n")
     text, _ = render(args)
     path = write_out(args, "GATE.md", text)
@@ -2438,9 +2452,9 @@ def select_cases(args) -> str | None:
                 cases.append(f"corpus-{name}")
             else:
                 return f"unknown case {c!r}: example:<one of {', '.join(example_dirs())}> or corpus:<v1|v2>"
-    refused = gr.rerun_refused(recs, sha, cases)
+    refused = gr.rerun_refused(recs, sha, cases, tree=gr.tree_of(ROOT, sha))
     if refused:
-        return (f"{', '.join(refused)} already ran {gr.MAX_ATTEMPTS} times on this commit: a case that needs more "
+        return (f"{', '.join(refused)} already ran {gr.MAX_ATTEMPTS} times on this code: a case that needs more "
                 "reruns is flaky; fix it (a new commit) instead")
     args.selection = {"examples": {c.removeprefix("example-") for c in cases if c.startswith("example-")},
                       "corpora": {c.removeprefix("corpus-") for c in cases if c.startswith("corpus-")}}

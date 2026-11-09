@@ -58,13 +58,13 @@ def test_attempts_on_another_commit_count_for_nothing(tmp_path):
     assert v["checks"] == {}
 
 
-def test_a_check_inside_a_host_gap_is_no_verdict_either_way(tmp_path):
+def test_a_pass_inside_a_host_gap_is_no_verdict_and_a_fail_there_still_fails(tmp_path):
     taint = [{"from": 995.0, "to": 1100.0, "seconds": 105.0}]
     put(tmp_path, [chk("example-x", "PASS", ended=1000.0), chk("example-y", "FAIL", ended=1000.0),
                    chk("example-z", "PASS", ended=2000.0)])
     v = gr.verdict(gr.attempts(tmp_path, "live"), SHA, taints_of=lambda _: taint)["checks"]
     assert v["example-x"]["status"] is None and v["example-x"]["tainted"] == 1
-    assert v["example-y"]["status"] is None            # a FAIL inside a gap is no verdict either: run it again
+    assert v["example-y"]["status"] == "FAIL"           # a FAIL inside a gap still fails (Layer 6 on f220469)
     assert v["example-z"]["status"] == "PASS"
 
 
@@ -166,3 +166,68 @@ def test_a_partial_run_updates_its_own_checks_and_keeps_the_others(gate, tmp_pat
     assert len(gr.attempts(tmp_path, "live")) == 2
     text, cleared = gate.render(args_for(tmp_path))     # the rerun passed, but the first attempt's FAIL stays
     assert not cleared and "failed in an earlier attempt on this commit" in text
+
+
+# ---- Layer 6 on f220469 (cold review): a rerun, a taint, a lost record or a partial layer never washes out a red ----
+def put_tree(out, checks, sha, tree, run_id="r1"):
+    return gr.append(out, rec(checks, sha=sha), commit=sha, key="k", run_id=run_id, tree=tree)
+
+
+def test_a_new_commit_with_the_same_tree_keeps_the_fail_and_the_attempts(tmp_path):
+    """An empty commit (same tree) was a fresh start: the FAIL forgotten, 3 new attempts."""
+    put_tree(tmp_path, [chk("example-x", "FAIL")], SHA, "t1")
+    put_tree(tmp_path, [chk("example-x", "PASS")], "b" * 40, "t1")
+    recs = gr.attempts(tmp_path, "live")
+    assert gr.verdict(recs, "b" * 40, taints_of=lambda _: [], tree="t1")["checks"]["example-x"]["status"] == "FAIL"
+    put_tree(tmp_path, [chk("example-x", "PASS")], "c" * 40, "t1")
+    assert gr.rerun_refused(gr.attempts(tmp_path, "live"), "c" * 40, ["example-x"], tree="t1") == ["example-x"]
+    assert gr.verdict(recs, "d" * 40, taints_of=lambda _: [], tree="t2")["checks"] == {}   # a real fix starts again
+
+
+def test_a_tainted_fail_still_fails_and_every_taint_counts_as_an_attempt(tmp_path):
+    """labrun --gap 0 made every check tainted: a FAIL was dropped and not counted, so it could be rerun into a PASS."""
+    put(tmp_path, [chk("example-x", "FAIL", ended=1000.0)], run_id="g0")
+    put(tmp_path, [chk("example-x", "PASS", ended=5000.0)], run_id="g0b")
+    put(tmp_path, [chk("example-x", "PASS", ended=9000.0)], run_id="clean")
+    taints = {"g0": [{"from": 0, "to": 2000}], "g0b": [{"from": 4000, "to": 6000}]}
+    v = gr.verdict(gr.attempts(tmp_path, "live"), SHA, taints_of=lambda rid: taints.get(rid, []))
+    assert v["checks"]["example-x"]["status"] == "FAIL" and v["attempts_per_case"]["example-x"] == 3
+
+
+def test_an_unreadable_attempt_record_blocks(tmp_path):
+    p = put(tmp_path, [chk("example-x", "FAIL")])
+    p.write_bytes(p.read_bytes()[:-5])                      # truncated: it held a FAIL
+    put(tmp_path, [chk("example-x", "PASS")])
+    v = gr.verdict(gr.attempts(tmp_path, "live"), SHA, taints_of=lambda _: [])
+    assert v["unreadable"] == [str(p)]
+    [(layer, state, detail)] = gr.plan_rows(tmp_path, ["live"], SHA, "k")
+    assert state == "FAIL" and "can't be read" in detail
+
+
+def test_a_partial_live_layer_never_clears(gate, tmp_path, monkeypatch):
+    """--case on a commit with no full live record saved a live.json of one check, and GATE.md showed no gap."""
+    monkeypatch.setattr(gate, "git_state", lambda: {"sha": SHA, "dirty": False})
+    a = args_for(tmp_path, case=["example:frr-bgp"])
+    assert gate.select_cases(a) is None
+    part = gate.Layer("live", a)
+    part.add("example-frr-bgp", "example frr-bgp", "BLOCKER", True)
+    gate.save(part)
+    saved = json.loads((tmp_path / "gate" / "live.json").read_text(encoding="utf-8"))
+    assert saved["partial"] is True
+    text, cleared = gate.render(args_for(tmp_path))
+    assert not cleared and "live/live-partial" in text
+    full = gate.Layer("live", args_for(tmp_path))          # a full run clears the mark
+    full.add("example-frr-bgp", "example frr-bgp", "BLOCKER", True)
+    gate.save(full)
+    assert "partial" not in json.loads((tmp_path / "gate" / "live.json").read_text(encoding="utf-8"))
+
+
+def test_an_unreadable_record_blocks_gate_md(gate, tmp_path):
+    p = put(tmp_path, [chk("example-frr-bgp", "FAIL")])
+    p.write_bytes(p.read_bytes()[:-5])
+    (tmp_path / "gate").mkdir(exist_ok=True)
+    (tmp_path / "gate" / "live.json").write_text(json.dumps(
+        {**rec([chk("example-frr-bgp", "PASS")]), "title": "Layer 5", "version": "0.4.2", "started": "x",
+         "seconds": 1, "host": "h", "python": "3", "strict": True, "tools": {}}), encoding="utf-8")
+    text, cleared = gate.render(args_for(tmp_path))
+    assert not cleared and "attempt record can't be read" in text
