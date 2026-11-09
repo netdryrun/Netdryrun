@@ -370,3 +370,19 @@
     martimy/clab-bgp-frr @ ac5b96c (BGP unnumbered), node leaf01, 2026-11-09: `vtysh -c '<command>'`, commands and
     exit codes in frr1021_capture.txt; captured by the 0.4.2 session for oracle FP-042-FRR102
   added: ndr/oracles-0.4.2
+- files: [clab083_srl_netns_capture.txt, clab083_srl_netns_inspect_srl1.json, clab083_srl_netns_inspect_srl1_netns.json,
+          clab083_srl_netns_inspect_frr1.json]
+  kind: live-capture
+  source: >-
+    containerlab 0.83.0 with examples/srl-frr deployed as ndr-srl-netns (SR Linux 26.7.2,
+    ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8; FRR 10.4.1), the
+    laptop's WSL, 2026-11-10: `docker inspect --format '{{json .}}'` of srl1, its namespace holder
+    clab-ndr-srl-netns-srl1-netns and frr1, and netdryrun 0.4.1 `check` (exit 2), in clab083_srl_netns_capture.txt;
+    captured by the 0.4.2 session for oracle FP-042-SRLNETNS
+  added: ndr/oracles-0.4.2
+- files: [clab083_srl_netns_topology.clab.yml]
+  kind: lab-input
+  source: >-
+    the topology deployed for the clab083_srl_netns capture: examples/srl-frr/topology.clab.yml with its name changed
+    to ndr-srl-netns, 2026-11-10
+  added: ndr/oracles-0.4.2
