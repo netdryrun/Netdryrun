@@ -133,6 +133,23 @@ lab is running, so that anything left over afterwards is known to come from the 
   that can't deploy) and a clear message with no traceback.
 - After every example, corpus run and chaos case, **no `clab-` container may be left running**.
 
+**Starting a long run** (live, acceptance, a corpus refresh) in the background: use `scripts/labrun.py`, never a
+shell `&` (which leaves SIGINT ignored, so G2 refuses the run):
+
+```bash
+python scripts/labrun.py start --id live-<sha> -- python scripts/release_gate.py live --strict
+python scripts/labrun.py status live-<sha>     # phase, heartbeat age, pause, result
+python scripts/labrun.py pause live-<sha>      # hold at the next example or corpus; resume with `resume`
+python scripts/labrun.py stop live-<sha>       # the whole process group, checked gone
+```
+
+- `start` returns 0 only once the gate has written its receipt (after G2), and 1 if the launch failed, within 90 s.
+- A watcher outside the run marks it:
+  - `stalled`, and stops it, when its heartbeat is older than 90 s;
+  - `exited-without-result` when it ends without finishing.
+- A wall-clock gap of over 60 s, from host sleep or a frozen WSL VM, is recorded in `result.json` as a taint. No
+  case that overlaps a taint counts as a verdict.
+
 ### 5b. Acceptance from five angles
 
 Added for 0.4.1, after each extra round of testing on it found another false-pass path. It runs
