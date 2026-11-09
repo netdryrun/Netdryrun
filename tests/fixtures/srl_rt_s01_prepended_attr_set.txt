@@ -1,0 +1,19 @@
+{
+  "index": "7",
+  "origin": "igp",
+  "atomic-aggregate": false,
+  "next-hop": "10.0.100.2",
+  "med": 0,
+  "local-pref": 100,
+  "as-path": {
+    "segment": [
+      {
+        "as-path-index": 0,
+        "type": "as-sequence",
+        "member": [
+          64666
+        ]
+      }
+    ]
+  }
+}
