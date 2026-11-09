@@ -221,6 +221,8 @@ def test_exit_code_table_matches_the_code():
         assert documented.get(code) == status, f"exit code {code} ({status}) is not documented as {status}"
     import signal
     for sig in ("SIGINT", "SIGTERM", "SIGHUP"):
+        if not hasattr(signal, sig):   # Windows has no SIGHUP; every Linux run (CI, the gate) checks it
+            continue
         code = signal_exit_code(getattr(signal, sig))
         assert documented.get(code) == "error", f"{sig} exits {code}, documented as {documented.get(code)}"
     # the CLI's own --help epilog lists the same codes

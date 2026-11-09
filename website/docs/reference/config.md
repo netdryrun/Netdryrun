@@ -41,7 +41,7 @@ Validation is strict, and every problem is an error (exit code `2`) before anyth
 | `timeout` | no | `120` | Seconds a check may wait (see [convergence semantics](#convergence-semantics)). A positive number, at most `86400`. Each check can override it. |
 | `checks` | yes | | List of checks. At least one is required. |
 | `nodes` | no | | A mapping of node name to settings. Each node accepts only `driver`, `setup` and `peers`. |
-| `nodes.<node>.driver` | no | detected | Force the driver for a node: `frr`, `srlinux`, `eos`, `sonic` or `junos` (Juniper cJunosEvolved, beta). See [drivers](#drivers). |
+| `nodes.<node>.driver` | no | detected | Force the driver for a node: `frr`, `srlinux`, `eos`, `sonic`, `junos` (Juniper cJunosEvolved, beta), `nxos` (Cisco NX-OS, Nexus 9000v, beta) or `routeros` (MikroTik RouterOS 7, CHR, beta). See [drivers](#drivers). |
 | `nodes.<node>.setup` | no | | Shell commands run inside the node after deploy, before any check. Each is retried every 5 s until it succeeds (the NOS may still be booting), within a shared 300 s budget. For NOSes that are configured after boot, such as SONiC. The only step with internet access: Docker's management default route is deleted right after it (see [the management network](#the-management-network)). |
 | `nodes.<node>.peers` | no | | Per-neighbor settings, keyed by the neighbor's address (`<vrf>/<address>` outside the default VRF). The only setting is `eor: not_sent`, for a peer that never sends End-of-RIB: the convergence gate then doesn't wait when its End-of-RIB can't be read (it still waits for the session, stable prefix counts, and an End-of-RIB the node reports pending). The address is written without an IPv6 scope. A session that does report End-of-RIB still uses it. A peer the node has no BGP session with is an error at run time. See [convergence semantics](#convergence-semantics). |
 | `scenarios` | no | | A non-empty list of [failure scenarios](#failure-scenarios). |
@@ -93,7 +93,7 @@ The number of prefixes accepted from a neighbor is within a range, and (with `on
 | `max` | one of `min`, `max`, `exact`, `only` | | Upper bound, inclusive |
 | `exact` | one of `min`, `max`, `exact`, `only` | | Exact count |
 | `only` | one of `min`, `max`, `exact`, `only` | | 0.4.1: the prefixes this neighbor may send, a list of prefixes in the check's `afi` (`ipv4-unicast` or `ipv6-unicast`). Any other accepted prefix fails the check, even when the count is in range, and so does one that replaces a listed prefix. `[]` means nothing may arrive. Each entry must be a network address: `10.1.1.77/24` is refused (it would widen the list to `10.1.1.0/24`). FRR and SONiC only: on other drivers it is refused before the lab deploys (exit code `2`). `netdryrun record` writes it on every eBGP neighbor |
-| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS or Juniper (beta). Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry |
+| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS, Juniper (beta), Cisco NX-OS (beta) or MikroTik RouterOS (beta); `ipv6-unicast` is refused on MikroTik RouterOS (beta), whose driver reads IPv4 only. Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry |
 
 Rules:
 
@@ -402,16 +402,16 @@ A driver turns device state into a common shape. Netdryrun detects it from the t
 - an image whose name contains `frr` uses `frr`
 - anything else is an error unless you set `nodes.<node>.driver`
 
-| Check | FRR | SR Linux | Arista EOS | SONiC | Juniper cJunosEvolved (beta) |
-|---|---|---|---|---|---|
-| `bgp_session` | yes | yes | yes | yes | yes |
-| `bgp_prefixes` (accepted = received minus rejected by policy) | yes | yes | yes | yes | yes |
-| `route` present / absent | yes | yes | yes | yes | yes |
-| `bgp_route`: communities (standard, large, well-known), AS path, local preference, MED, next hop, absent | yes | yes | yes | yes | yes |
-| `ping` success / failure | yes | yes | yes | yes | yes |
-| Failure scenarios on the node's own links | yes | not yet (fail the FRR/Linux side instead) | yes | yes | not yet (fail the FRR/Linux side instead) |
-| `inject_routes` on the node | yes | not yet (inject from an FRR neighbor) | not yet | not yet | not yet |
-| Tested on a live lab in CI | yes, on every push | yes, on every push | no: parsers tested against output captured from live labs | no: parsers tested against output captured from live labs | no: parsers tested against output captured from a live lab; needs KVM |
+| Check | FRR | SR Linux | Arista EOS | SONiC | Juniper cJunosEvolved (beta) | Cisco NX-OS (beta) | MikroTik RouterOS (beta) |
+|---|---|---|---|---|---|---|---|
+| `bgp_session` | yes | yes | yes | yes | yes | yes | yes (IPv4 sessions only) |
+| `bgp_prefixes` (accepted = received minus rejected by policy) | yes | yes | yes | yes | yes | yes | yes (`ipv4-unicast` only; accepted counted from the routing table, since the session's `prefix-count` is the received count) |
+| `route` present / absent | yes | yes | yes | yes | yes | yes; known beta limit: `present` reads the routing table's best flag (`ubest`), not FIB programming, so pair it with a `ping` across the same path | yes (IPv4 only) |
+| `bgp_route`: communities (standard, large, well-known), AS path, local preference, MED, next hop, absent | yes | yes | yes | yes | yes | yes, except `without_communities` and `med: 0`, refused before the lab deploys (exit code `2`) | yes (IPv4), except `without_communities` and `med: 0`, refused before the lab deploys (exit code `2`) |
+| `ping` success / failure | yes | yes | yes | yes | yes | yes | yes, outside a VRF (inside one it is refused) |
+| Failure scenarios on the node's own links | yes | not yet (fail the FRR/Linux side instead) | yes | yes | not yet (fail the FRR/Linux side instead) | not yet (fail the FRR/Linux side instead) | not yet (fail the FRR/Linux side instead) |
+| `inject_routes` on the node | yes | not yet (inject from an FRR neighbor) | not yet | not yet | not yet | not yet | not yet |
+| Tested on a live lab in CI | yes, on every push | yes, on every push | no: parsers tested against output captured from live labs | no: parsers tested against output captured from live labs | no: parsers tested against output captured from a live lab; needs KVM | no: parsers tested against output captured from a live lab; needs KVM | no: parsers tested against output captured from a live lab; needs KVM |
 
 **Received paths count as present on every driver:** a BGP route that lost to a static or local route, or that has an unresolvable next hop, may live only in the BGP table, not the routing table. Every driver reads the BGP table too, so a path received from a neighbor counts as present for `present: false`, valid or not, selected or not. The router's own paths (network statements, redistribution, and on SR Linux its static and interface routes listed in the BGP RIB) don't count as received. Neither does a route the import policy rejected, which FRR and Arista EOS drop and SR Linux and Junos keep, marked (SR Linux: `invalid-reason` `rejected-route`; Junos: hidden, "Rejected by import policy"). An SR Linux path marked invalid for any other reason, or marked invalid (`valid-route: false`) with no reason given, is an error until the driver reads that reason.
 
@@ -429,6 +429,8 @@ A driver turns device state into a common shape. Netdryrun detects it from the t
 | SR Linux | `sr_cli --output-format json "info from state ..."`; accepted = `received-routes` minus `rejected-routes`; `bgp_route` from the `bgp-rib` local RIB and its `attr-sets` |
 | Arista EOS | `Cli -c "show ... \| json"`; `bgp_route` from `show ip bgp <prefix> vrf <vrf>` (the best path is the `active` one) |
 | SONiC | the FRR commands, through `vtysh` inside the container |
+| Cisco NX-OS (beta) | NX-API JSON-RPC from inside the container (a small helper POSTs to `https://127.0.0.1/ins`, which reaches the VM): `show bgp ... vrf <vrf>`, `show ip route <prefix> vrf <vrf>`; `"result": null` reads as nothing only once the VRF is confirmed with `show vrf <name>` |
+| MikroTik RouterOS (beta) | the REST API from inside the container: sessions from `/routing/bgp/session` and `/routing/bgp/connection`, routes from `/routing/route`; accepted prefixes are counted from the routing table (paths of that session that policy didn't filter), since `prefix-count` is the received count |
 | Juniper cJunosEvolved (beta) | `cli -c "show ... \| display json"` over the container's SSH hop to the Junos VM; accepted prefixes = `received-prefix-count` minus the hidden routes rejected by import policy; `route` and `bgp_route` from `show route <prefix> exact table <table> all extensive` (hidden routes included) |
 
 If a driver can't read what a check asks for, the run stops before deploying (exit code `2`) instead of guessing: "`<key>` is not supported on `<driver>`" for a `bgp_route` attribute (today every driver reads every attribute), and "afi evpn is not supported on eos" (or `srlinux`, `junos`) for an EVPN prefix count on Arista EOS, SR Linux or Juniper, and "med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED" for `med: 0` on Arista EOS. From 0.4.1 also "only is not supported on `<driver>` yet" for a `bgp_prefixes` `only` list outside FRR and SONiC, and "protocol `<name>` is never reported by `<driver>`" for a [protocol name](#protocol-names) the node's driver can't report.

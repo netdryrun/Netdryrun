@@ -39,15 +39,15 @@ PLATFORMS = {
     "eos": ("Arista EOS (cEOS, bring your own image)", "Arista EOS (bring your own cEOS image)", "Arista EOS"),
     # ships in 0.4 as beta (moved from UNRELEASED on the release branch); back to UNRELEASED if it fails the gate
     "junos": ("Juniper cJunosEvolved (beta, bring your own image)", "Juniper cJunosEvolved (beta)", "Juniper (beta)"),
-}
-# Drivers in the code but in no release yet. Public facts follow releases, so these stay out of every status line
-# until the release that ships them moves them into PLATFORMS (names ready, beta label included).
-UNRELEASED: dict[str, tuple[str, str, str]] = {
+    # shipped in 0.4.1 as beta, chosen per node (`driver: nxos` / `routeros`); passed the 0.4.1 live gate
     "nxos": ("Cisco NX-OS (Nexus 9000v, beta, bring your own image)",
              "Cisco NX-OS (beta, bring your own Nexus 9000v image)", "Cisco NX-OS (beta)"),
     "routeros": ("MikroTik RouterOS 7 (CHR, beta, bring your own image)",
                  "MikroTik RouterOS 7 (beta, bring your own CHR image)", "MikroTik RouterOS (beta)"),
 }
+# Drivers in the code but in no release yet. Public facts follow releases, so these stay out of every status line
+# until the release that ships them moves them into PLATFORMS (names ready, beta label included).
+UNRELEASED: dict[str, tuple[str, str, str]] = {}
 
 
 def _rel(paths) -> list[str]:

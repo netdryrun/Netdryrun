@@ -62,7 +62,7 @@ Netdryrun adds a test layer on top of a containerlab lab:
 - every run produces one pass/fail result, a CI-friendly exit code, and a JSON evidence file
 
 <!-- facts:when_status -->
-Version 0.4.1 has drivers for FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image) and Juniper cJunosEvolved (beta), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
+Version 0.4.1 has drivers for FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image), Juniper cJunosEvolved (beta), Cisco NX-OS (beta, bring your own Nexus 9000v image) and MikroTik RouterOS 7 (beta, bring your own CHR image), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
 <!-- /facts:when_status -->
 It does not do static analysis, build labs for you, or test production devices.
 

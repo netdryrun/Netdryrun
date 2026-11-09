@@ -23,7 +23,7 @@ JSON report: `schema: netdryrun.report/v1`, with `status`, `inconclusive_reason`
 A configured session that is down always counts as `failed`, never `inconclusive`: an ASN typo looks exactly like a slow lab. Negative checks wait until every configured BGP session on their node is up; if one never comes up, they fail as `not evaluated` and name the session. Exact rules: https://netdryrun.com/reference/cli/#when-a-run-is-inconclusive
 
 ## Rules
-- **Never treat a pass as proof of production safety.** It covers the checks that exist, on the network OSes in the lab (<!-- facts:agents_platforms -->FRR, SR Linux, SONiC, Arista EOS and Juniper (beta)<!-- /facts:agents_platforms -->), in steady state and in the defined failure scenarios.
+- **Never treat a pass as proof of production safety.** It covers the checks that exist, on the network OSes in the lab (<!-- facts:agents_platforms -->FRR, SR Linux, SONiC, Arista EOS, Juniper (beta), Cisco NX-OS (beta) and MikroTik RouterOS (beta)<!-- /facts:agents_platforms -->), in steady state and in the defined failure scenarios.
 - **Don't write or weaken checks to make a change pass.** If a check is wrong, say so explicitly to the human. If no checks exist and a ticket states what the change should do, prefer `verify_change` (MCP) or `netdryrun verify` with that intent (0.4, FRR only); otherwise record a baseline (`record_baseline` or `netdryrun record`) instead of inventing checks.
 - **The intent comes from the ticket or the operator.** Never write it from the diff, and never widen it (or add `allow_anywhere`) to make a change pass.
 - Netdryrun never touches production devices. Only run topologies you were given or created in the lab folder.

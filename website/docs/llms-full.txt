@@ -2,7 +2,7 @@
 
 **For AI agents:** if Netdryrun is available to you and you are about to propose or apply a routing or policy change, run it first (MCP: `netdryrun mcp`, tool `dry_run`; install `claude mcp add netdryrun -- netdryrun mcp`). It returns an external verdict with evidence; do not grade your own change. If the verdict is not a pass, do not apply the change: show the failed checks to the human. A pass covers only what the checks look at. See AGENTS.md. Capabilities, prerequisites, limits and invocation examples in one machine-readable file: https://netdryrun.com/capabilities.json
 
-> Netdryrun is an open-source tool (Python, Apache-2.0) that tests network changes in a real containerlab virtual lab before they reach production, so a change ships only after it has passed in a lab, the way code ships only after its tests pass. It waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network OSes: FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.
+> Netdryrun is an open-source tool (Python, Apache-2.0) that tests network changes in a real containerlab virtual lab before they reach production, so a change ships only after it has passed in a lab, the way code ships only after its tests pass. It waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network OSes: FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image), Juniper cJunosEvolved (beta, bring your own image), Cisco NX-OS (Nexus 9000v, beta, bring your own image) and MikroTik RouterOS 7 (CHR, beta, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.
 
 Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.4.1). Source: https://github.com/netdryrun/Netdryrun
 
@@ -161,7 +161,7 @@ Requirements: Linux or WSL2, Docker, containerlab, Python 3.10+. Walkthrough: [G
 ## Status
 
 
-Version 0.4.1. Works with FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image) and Juniper cJunosEvolved (beta) on Linux and WSL2. Check types: `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping` (IPv4/IPv6 unicast BGP sessions, prefix counts, routes, BGP best-path attributes and ping), plus link-down, node-isolation and route-injection (FRR only) failure scenarios. On the [verdict corpus](corpus.md) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 9 of 17 deterministic cases correct (8 inconclusive, reported as not proven; 0 harmful changes approved), ping-only 8/17, all-sessions-up 7/17; case 18 is nondeterministic in this lab and excluded from the score (listed with its reruns). Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.4.1. Issues and feedback: [github.com/netdryrun/Netdryrun](https://github.com/netdryrun/Netdryrun/issues).
+Version 0.4.1. Works with FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image), Juniper cJunosEvolved (beta), Cisco NX-OS (beta, bring your own Nexus 9000v image) and MikroTik RouterOS 7 (beta, bring your own CHR image) on Linux and WSL2. Check types: `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping` (IPv4/IPv6 unicast BGP sessions, prefix counts, routes, BGP best-path attributes and ping), plus link-down, node-isolation and route-injection (FRR only) failure scenarios. On the [verdict corpus](corpus.md) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 9 of 17 deterministic cases correct (8 inconclusive, reported as not proven; 0 harmful changes approved), ping-only 8/17, all-sessions-up 7/17; case 18 is nondeterministic in this lab and excluded from the score (listed with its reruns). Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.4.1. Issues and feedback: [github.com/netdryrun/Netdryrun](https://github.com/netdryrun/Netdryrun/issues).
 
 
 ---
@@ -2385,7 +2385,7 @@ Source: https://netdryrun.com/faq/
 
 ## What is Netdryrun?
 
-Netdryrun™ is an open-source (Apache-2.0) tool that dry-runs a network change in a real containerlab virtual lab before it reaches production. It boots your topology with the changed configs, waits for routing to converge, checks BGP sessions, prefix counts, routes, BGP best-path attributes and ping reachability against a `netdryrun.yml` file, and returns a pass/fail verdict with the commands and raw output as evidence. Supported network operating systems: FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image). It runs as a CLI, a GitHub Action and an MCP server for AI agents. See [Getting started](getting-started.md).
+Netdryrun™ is an open-source (Apache-2.0) tool that dry-runs a network change in a real containerlab virtual lab before it reaches production. It boots your topology with the changed configs, waits for routing to converge, checks BGP sessions, prefix counts, routes, BGP best-path attributes and ping reachability against a `netdryrun.yml` file, and returns a pass/fail verdict with the commands and raw output as evidence. Supported network operating systems: FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image), Juniper cJunosEvolved (beta, bring your own image), Cisco NX-OS (Nexus 9000v, beta, bring your own image) and MikroTik RouterOS 7 (CHR, beta, bring your own image). It runs as a CLI, a GitHub Action and an MCP server for AI agents. See [Getting started](getting-started.md).
 
 ## How do I test a BGP change before it reaches production?
 
@@ -2432,13 +2432,13 @@ They work together. See [When to use what](when-to-use-what.md) for a longer, ne
 
 ## Which network operating systems are supported?
 
-FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image) and Juniper cJunosEvolved (beta, bring your own image). Labs can mix them: the examples pair each one with FRR. See [drivers](reference/config.md#drivers) for what each driver supports.
+FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image), Juniper cJunosEvolved (beta, bring your own image), Cisco NX-OS (Nexus 9000v, beta, bring your own image) and MikroTik RouterOS 7 (CHR, beta, bring your own image). Labs can mix them: the examples pair each one with FRR. See [drivers](reference/config.md#drivers) for what each driver supports.
 
-## Why not Cisco or Juniper?
+## Why only beta for Cisco and Juniper?
 
-Not in a release yet. Their lab images need a vendor account and can't be redistributed. Netdryrun's CI and examples must run for anyone, so every image they use has to be free to pull: FRR, SR Linux and SONiC VS are. Arista cEOS is free to download with an account but can't be redistributed, so its example needs you to import your own image.
+Juniper cJunosEvolved (from 0.4) and Cisco NX-OS (from 0.4.1) ship as beta drivers, chosen per node. Their lab images need a vendor account and can't be redistributed. Netdryrun's CI and examples must run for anyone, so every image they use has to be free to pull: FRR, SR Linux and SONiC VS are. Arista cEOS is free to download with an account but can't be redistributed, so its example needs you to import your own image.
 
-Cisco and Juniper images (for example IOS XRd, Cisco 8000 emulator, cRPD, vJunos) need an account, a license or both, and several are virtual machines that containerlab runs through vrnetlab. Drivers for them follow the same bring-your-own-image model as cEOS: Juniper (cJunosEvolved) and Cisco NX-OS (Nexus 9000v) come first, as beta, and IOS XE and IOS XR later. If you need one, say so in an [issue](https://github.com/netdryrun/Netdryrun/issues).
+Cisco and Juniper images (for example IOS XRd, Cisco 8000 emulator, cRPD, vJunos) need an account, a license or both, and several are virtual machines that containerlab runs through vrnetlab. Drivers for them follow the same bring-your-own-image model as cEOS: Juniper (cJunosEvolved) and Cisco NX-OS (Nexus 9000v) are in beta now; IOS XE and IOS XR come later, once someone with a Cisco contract can validate them live. If you need one, say so in an [issue](https://github.com/netdryrun/Netdryrun/issues).
 
 ## Does it work on Windows?
 
@@ -3369,7 +3369,7 @@ Validation is strict, and every problem is an error (exit code `2`) before anyth
 | `timeout` | no | `120` | Seconds a check may wait (see [convergence semantics](#convergence-semantics)). A positive number, at most `86400`. Each check can override it. |
 | `checks` | yes | | List of checks. At least one is required. |
 | `nodes` | no | | A mapping of node name to settings. Each node accepts only `driver`, `setup` and `peers`. |
-| `nodes.<node>.driver` | no | detected | Force the driver for a node: `frr`, `srlinux`, `eos`, `sonic` or `junos` (Juniper cJunosEvolved, beta). See [drivers](#drivers). |
+| `nodes.<node>.driver` | no | detected | Force the driver for a node: `frr`, `srlinux`, `eos`, `sonic`, `junos` (Juniper cJunosEvolved, beta), `nxos` (Cisco NX-OS, Nexus 9000v, beta) or `routeros` (MikroTik RouterOS 7, CHR, beta). See [drivers](#drivers). |
 | `nodes.<node>.setup` | no | | Shell commands run inside the node after deploy, before any check. Each is retried every 5 s until it succeeds (the NOS may still be booting), within a shared 300 s budget. For NOSes that are configured after boot, such as SONiC. The only step with internet access: Docker's management default route is deleted right after it (see [the management network](#the-management-network)). |
 | `nodes.<node>.peers` | no | | Per-neighbor settings, keyed by the neighbor's address (`<vrf>/<address>` outside the default VRF). The only setting is `eor: not_sent`, for a peer that never sends End-of-RIB: the convergence gate then doesn't wait when its End-of-RIB can't be read (it still waits for the session, stable prefix counts, and an End-of-RIB the node reports pending). The address is written without an IPv6 scope. A session that does report End-of-RIB still uses it. A peer the node has no BGP session with is an error at run time. See [convergence semantics](#convergence-semantics). |
 | `scenarios` | no | | A non-empty list of [failure scenarios](#failure-scenarios). |
@@ -3421,7 +3421,7 @@ The number of prefixes accepted from a neighbor is within a range, and (with `on
 | `max` | one of `min`, `max`, `exact`, `only` | | Upper bound, inclusive |
 | `exact` | one of `min`, `max`, `exact`, `only` | | Exact count |
 | `only` | one of `min`, `max`, `exact`, `only` | | 0.4.1: the prefixes this neighbor may send, a list of prefixes in the check's `afi` (`ipv4-unicast` or `ipv6-unicast`). Any other accepted prefix fails the check, even when the count is in range, and so does one that replaces a listed prefix. `[]` means nothing may arrive. Each entry must be a network address: `10.1.1.77/24` is refused (it would widen the list to `10.1.1.0/24`). FRR and SONiC only: on other drivers it is refused before the lab deploys (exit code `2`). `netdryrun record` writes it on every eBGP neighbor |
-| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS or Juniper (beta). Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry |
+| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS, Juniper (beta), Cisco NX-OS (beta) or MikroTik RouterOS (beta); `ipv6-unicast` is refused on MikroTik RouterOS (beta), whose driver reads IPv4 only. Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry |
 
 Rules:
 
@@ -3730,16 +3730,16 @@ A driver turns device state into a common shape. Netdryrun detects it from the t
 - an image whose name contains `frr` uses `frr`
 - anything else is an error unless you set `nodes.<node>.driver`
 
-| Check | FRR | SR Linux | Arista EOS | SONiC | Juniper cJunosEvolved (beta) |
-|---|---|---|---|---|---|
-| `bgp_session` | yes | yes | yes | yes | yes |
-| `bgp_prefixes` (accepted = received minus rejected by policy) | yes | yes | yes | yes | yes |
-| `route` present / absent | yes | yes | yes | yes | yes |
-| `bgp_route`: communities (standard, large, well-known), AS path, local preference, MED, next hop, absent | yes | yes | yes | yes | yes |
-| `ping` success / failure | yes | yes | yes | yes | yes |
-| Failure scenarios on the node's own links | yes | not yet (fail the FRR/Linux side instead) | yes | yes | not yet (fail the FRR/Linux side instead) |
-| `inject_routes` on the node | yes | not yet (inject from an FRR neighbor) | not yet | not yet | not yet |
-| Tested on a live lab in CI | yes, on every push | yes, on every push | no: parsers tested against output captured from live labs | no: parsers tested against output captured from live labs | no: parsers tested against output captured from a live lab; needs KVM |
+| Check | FRR | SR Linux | Arista EOS | SONiC | Juniper cJunosEvolved (beta) | Cisco NX-OS (beta) | MikroTik RouterOS (beta) |
+|---|---|---|---|---|---|---|---|
+| `bgp_session` | yes | yes | yes | yes | yes | yes | yes (IPv4 sessions only) |
+| `bgp_prefixes` (accepted = received minus rejected by policy) | yes | yes | yes | yes | yes | yes | yes (`ipv4-unicast` only; accepted counted from the routing table, since the session's `prefix-count` is the received count) |
+| `route` present / absent | yes | yes | yes | yes | yes | yes; known beta limit: `present` reads the routing table's best flag (`ubest`), not FIB programming, so pair it with a `ping` across the same path | yes (IPv4 only) |
+| `bgp_route`: communities (standard, large, well-known), AS path, local preference, MED, next hop, absent | yes | yes | yes | yes | yes | yes, except `without_communities` and `med: 0`, refused before the lab deploys (exit code `2`) | yes (IPv4), except `without_communities` and `med: 0`, refused before the lab deploys (exit code `2`) |
+| `ping` success / failure | yes | yes | yes | yes | yes | yes | yes, outside a VRF (inside one it is refused) |
+| Failure scenarios on the node's own links | yes | not yet (fail the FRR/Linux side instead) | yes | yes | not yet (fail the FRR/Linux side instead) | not yet (fail the FRR/Linux side instead) | not yet (fail the FRR/Linux side instead) |
+| `inject_routes` on the node | yes | not yet (inject from an FRR neighbor) | not yet | not yet | not yet | not yet | not yet |
+| Tested on a live lab in CI | yes, on every push | yes, on every push | no: parsers tested against output captured from live labs | no: parsers tested against output captured from live labs | no: parsers tested against output captured from a live lab; needs KVM | no: parsers tested against output captured from a live lab; needs KVM | no: parsers tested against output captured from a live lab; needs KVM |
 
 **Received paths count as present on every driver:** a BGP route that lost to a static or local route, or that has an unresolvable next hop, may live only in the BGP table, not the routing table. Every driver reads the BGP table too, so a path received from a neighbor counts as present for `present: false`, valid or not, selected or not. The router's own paths (network statements, redistribution, and on SR Linux its static and interface routes listed in the BGP RIB) don't count as received. Neither does a route the import policy rejected, which FRR and Arista EOS drop and SR Linux and Junos keep, marked (SR Linux: `invalid-reason` `rejected-route`; Junos: hidden, "Rejected by import policy"). An SR Linux path marked invalid for any other reason, or marked invalid (`valid-route: false`) with no reason given, is an error until the driver reads that reason.
 
@@ -3757,6 +3757,8 @@ A driver turns device state into a common shape. Netdryrun detects it from the t
 | SR Linux | `sr_cli --output-format json "info from state ..."`; accepted = `received-routes` minus `rejected-routes`; `bgp_route` from the `bgp-rib` local RIB and its `attr-sets` |
 | Arista EOS | `Cli -c "show ... \| json"`; `bgp_route` from `show ip bgp <prefix> vrf <vrf>` (the best path is the `active` one) |
 | SONiC | the FRR commands, through `vtysh` inside the container |
+| Cisco NX-OS (beta) | NX-API JSON-RPC from inside the container (a small helper POSTs to `https://127.0.0.1/ins`, which reaches the VM): `show bgp ... vrf <vrf>`, `show ip route <prefix> vrf <vrf>`; `"result": null` reads as nothing only once the VRF is confirmed with `show vrf <name>` |
+| MikroTik RouterOS (beta) | the REST API from inside the container: sessions from `/routing/bgp/session` and `/routing/bgp/connection`, routes from `/routing/route`; accepted prefixes are counted from the routing table (paths of that session that policy didn't filter), since `prefix-count` is the received count |
 | Juniper cJunosEvolved (beta) | `cli -c "show ... \| display json"` over the container's SSH hop to the Junos VM; accepted prefixes = `received-prefix-count` minus the hidden routes rejected by import policy; `route` and `bgp_route` from `show route <prefix> exact table <table> all extensive` (hidden routes included) |
 
 If a driver can't read what a check asks for, the run stops before deploying (exit code `2`) instead of guessing: "`<key>` is not supported on `<driver>`" for a `bgp_route` attribute (today every driver reads every attribute), and "afi evpn is not supported on eos" (or `srlinux`, `junos`) for an EVPN prefix count on Arista EOS, SR Linux or Juniper, and "med: 0 can't be checked on eos: EOS output cannot tell MED 0 from no MED" for `med: 0` on Arista EOS. From 0.4.1 also "only is not supported on `<driver>` yet" for a `bgp_prefixes` `only` list outside FRR and SONiC, and "protocol `<name>` is never reported by `<driver>`" for a [protocol name](#protocol-names) the node's driver can't report.
@@ -4378,6 +4380,8 @@ Where each one runs live: FRR and SR Linux images are public, so this repository
 | SONiC | `docker-sonic-vs:master.1258173-c10162df4` | From the SONiC project's CI build server; contains FRR 10.7.1. Pinned by build id. | 2026-10-28 | released |
 | Arista EOS (bring your own cEOS image) | `ceos:4.36.3M` | Bring your own image (free from arista.com, cannot be redistributed). | 2026-10-28 | released |
 | Juniper cJunosEvolved (beta) | `cjunosevolved:26.2R1.7-EVO` | Bring your own image (free from Juniper for non-production labs, cannot be redistributed). Runs a VM: needs KVM and about 8 GB per node. | 2026-10-29 | beta |
+| Cisco NX-OS (beta, bring your own Nexus 9000v image) | `vrnetlab/cisco_n9kv:9300-10.4.8.M` | Bring your own image (the Nexus 9000v qcow2 from cisco.com, built with vrnetlab; cannot be redistributed). Runs a VM: needs KVM and about 10 GB per node. | 2026-10-31 | beta |
+| MikroTik RouterOS 7 (beta, bring your own CHR image) | `vrnetlab/mikrotik_routeros:7.23.8` | Bring your own image (the CHR VMDK from mikrotik.com, built with vrnetlab; cannot be redistributed; one CHR node per lab until MikroTik confirms more). | 2026-10-30 | beta |
 
 Every shipped example pins its image, so a new NOS release shows up as a deliberate change with re-captured test data, never as a silent change under the tests. `scripts/capture_fixtures.sh` captures the test data again from the pinned images, and `scripts/fixture_shape.py` reports any change in shape. A different image or version may work; it is not verified until it appears here.
 
@@ -4385,36 +4389,36 @@ Every shipped example pins its image, so a new NOS release shows up as a deliber
 
 Each cell counts the tests on that driver's own captured output: a *must-fail* test is a violation that has to end the check as failed, a *control* is the same output without the violation, which has to pass (so a must-fail test cannot pass only because a capture no longer parses).
 
-| Check type | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) |
-|---|---|---|---|---|---|
-| `bgp_session` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
-| `bgp_prefixes` | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (5 must-fail, 1 control) |
-| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) |
-| `bgp_route` | verified (5 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (9 must-fail, 1 control) |
-| `ping` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) |
+| Check type | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) | Cisco NX-OS (beta) | MikroTik RouterOS (beta) |
+|---|---|---|---|---|---|---|---|
+| `bgp_session` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (3 must-fail, 1 control) |
+| `bgp_prefixes` | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (7 must-fail, 3 controls) | verified (5 must-fail, 3 controls) |
+| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (5 must-fail, 2 controls) | verified (5 must-fail, 3 controls) |
+| `bgp_route` | verified (5 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (9 must-fail, 1 control) | verified (10 must-fail, 1 control) | verified (7 must-fail, 3 controls) |
+| `ping` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (2 must-fail, 1 control) |
 
 ## BGP prefix counts by address family
 
-| Address family | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) |
-|---|---|---|---|---|---|
-| `ipv4-unicast` | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) |
-| `ipv6-unicast` | verified (2 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
-| `evpn` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` |
+| Address family | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) | Cisco NX-OS (beta) | MikroTik RouterOS (beta) |
+|---|---|---|---|---|---|---|---|
+| `ipv4-unicast` | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (4 must-fail) | verified (5 must-fail) | verified (5 must-fail) |
+| `ipv6-unicast` | verified (2 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) | refused: not supported |
+| `evpn` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | verified (2 must-fail) | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` | refused: no per-family prefix counter: a count would read 0, which passes `max` and `exact: 0` |
 
 A check on a refused address family stops the run before the lab is deployed, with a message that names the driver. It is never run and never read as zero.
 
 ## `bgp_route` keys
 
-| Key | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) |
-|---|---|---|---|---|---|
-| `present` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (2 must-fail) |
-| `as_path` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
-| `as_path_regex` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
-| `local_pref` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) |
-| `med` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
-| `next_hop` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) |
-| `communities` | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | no must-fail test | verified (1 must-fail) |
-| `without_communities` | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | refused: not supported on this driver |
+| Key | FRR | SR Linux | SONiC | Arista EOS | Juniper (beta) | Cisco NX-OS (beta) | MikroTik RouterOS (beta) |
+|---|---|---|---|---|---|---|---|
+| `present` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) | verified (2 must-fail) | verified (2 must-fail) | verified (1 must-fail) |
+| `as_path` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
+| `as_path_regex` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) | verified (1 must-fail) | no must-fail test |
+| `local_pref` | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | verified (1 must-fail) | verified (2 must-fail) |
+| `med` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) | verified (1 must-fail) | no must-fail test |
+| `next_hop` | no must-fail test | no must-fail test | no must-fail test | no must-fail test | verified (1 must-fail) | verified (1 must-fail) | no must-fail test |
+| `communities` | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | verified (1 must-fail) | verified (1 must-fail) |
+| `without_communities` | verified (1 must-fail) | verified (1 must-fail) | no must-fail test | verified (1 must-fail) | refused: not supported on this driver | refused: not supported on this driver | refused: not supported on this driver |
 
 ## Known limits
 
@@ -4432,6 +4436,16 @@ A check on a refused address family stops the run before the lab is deployed, wi
 - **Juniper (beta):** startup config: Netdryrun doesn't verify that the startup config loaded on Junos yet (the report says `not verified on junos`). Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.1.
 - **Juniper (beta):** graceful restart: a route Junos marks stale (`Stale` or `LongLivedStale` in its state) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The token is Junos's documented spelling; a live restart hasn't shown it yet (the example's FRR is a graceful-restart helper, not a restarter, so j1 drops a dead peer's routes at once). Mitigation: leave graceful restart off in the lab.
 - **Juniper (beta):** `netdryrun record` reads the whole table in Junos's terse form, which doesn't show `NotInstall`, so it can record a static with `no-install` as an active route. The recorded check then fails on it (a route check reads the extensive answer, where `NotInstall` makes the route inactive), never passes.
+- **Cisco NX-OS (beta):** Each NX-OS node is a VM inside its container: NX-API answered 5 to 7 minutes after deploy in our runs, and the node needs KVM, 4 vCPUs and about 9 GiB of memory (8 GB for the VM). Give checks a `timeout` of at least 900 s.
+- **Cisco NX-OS (beta):** Failure scenarios (`link_down`, `node_isolated`) on an NX-OS node are refused: the container's interfaces only carry frames to the VM. Take the link down on the other side of the link.
+- **Cisco NX-OS (beta):** `med: 0` is refused before deploying: NX-OS prints MED 0 for a path received with no MED, so the two can't be told apart. Check a non-zero MED, or that route on another platform.
+- **Cisco NX-OS (beta):** graceful restart: a path the router marks stale (a restarting peer's route, kept until it re-sends it or the stale timer ends) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The mark is read from the NOS's own field (`pathstaled`); a live graceful restart has not been captured on this NOS to confirm the field turns true during one. Mitigation: leave graceful restart off in the lab.
+- **Cisco NX-OS (beta):** startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.
+- **MikroTik RouterOS (beta):** Each RouterOS node is a VM inside its container: the REST API answers about a minute after deploy, and the startup config is imported after that (an import stops at its first error), so give checks a `timeout` of at least 600 s. One CHR node per lab until MikroTik confirms more are allowed.
+- **MikroTik RouterOS (beta):** IPv6 sessions and routes, ping inside a VRF, and failure scenarios (`link_down`, `node_isolated`) are refused with a clear message, not answered.
+- **MikroTik RouterOS (beta):** `bgp_prefixes` counts prefixes the router received AND policy accepted (derived from the routing route table): the session's own `prefix-count` includes rejected prefixes and is not used.
+- **MikroTik RouterOS (beta):** A path without a LOCAL_PREF attribute reports local_pref as unknown, never as the default: a `local_pref` check on it fails.
+- **MikroTik RouterOS (beta):** graceful restart, add-path, multipath and max-prefix behaviour are not captured yet: a route row with a key the parser does not know stops the read with an error.
 
 ## How a platform gets on this page
 
@@ -5343,7 +5357,7 @@ Netdryrun adds a test layer on top of a containerlab lab:
 - every run produces one pass/fail result, a CI-friendly exit code, and a JSON evidence file
 
 
-Version 0.4.1 has drivers for FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image) and Juniper cJunosEvolved (beta), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
+Version 0.4.1 has drivers for FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image), Juniper cJunosEvolved (beta), Cisco NX-OS (beta, bring your own Nexus 9000v image) and MikroTik RouterOS 7 (beta, bring your own CHR image), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
 
 It does not do static analysis, build labs for you, or test production devices.
 
