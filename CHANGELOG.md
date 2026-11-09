@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **FRR 10.2: `record` and route checks stopped on every BGP prefix answer** (found by the synthetic stranger on
+  published 0.4.1, with martimy/clab-bgp-frr). FRR 10.2.1 lists a prefix's BGP paths in `show bgp ... <prefix> json`
+  but leaves out `pathCount`, which 0.4.1 required as its check that no path was dropped, so `record` reported every
+  leaf's own-LAN guard as an INCOMPLETE BASELINE.
+  - Where `pathCount` is missing, the count now comes from the text answer of the same command ("Paths: (N available").
+  - A count that doesn't match the paths listed is still an error, and a text answer without one is a named gap.
+  - An answer without its paths is never read as "absent".
+
+  Oracle `tests/oracles/FP-042-FRR102`, from a live FRR 10.2.1 capture. The "no global address" gaps on BGP-unnumbered
+  links in the same run are a separate item.
+
 ## 0.4.1 (2026-11-09)
 
 Released without the scripted acceptance run on the final candidate (owner decision, 2026-11-09): every other
