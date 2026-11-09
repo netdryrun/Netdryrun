@@ -31,9 +31,14 @@ env:
 jobs:
   static:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30   # 0.4.2's fast-fix checks (loosening, reproduce-first) run pytest on exported trees
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0   # the fast-fix checks need the merge-base and every commit since (0.4.2)
+          # the PR's own head, not GitHub's synthetic merge commit (which carries no trailers); their base is
+          # release_gate.py's --fastfix-base default, origin/main, the base of every pull request here
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.12"
