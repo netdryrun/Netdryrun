@@ -100,6 +100,24 @@ test that failed on the candidate (`tests/test_redteam_angle5_d87.py`, RT-0044 t
   policy that rejects AS-looped paths made "2 invalid routes but a count of 1" an error on every BGP read of the node;
   such paths may already be in rejected-routes, so the count is a range from 0.
 
+### Known limits: four known false passes in 0.4.1 and earlier (red team on the final candidate, 2026-11-09)
+
+Two isolated attackers and a fresh verifier on `26380cb` found four checks that can pass without testing what the
+file says, each in one specific setup. They are in 0.4.1 and every earlier version; 0.4.1 ships with them published as
+known limits (decision for the owner: no source change after the final gate runs), and the fix is planned for 0.4.2.
+Each has a workaround that catches it today:
+
+- **Arista EOS** (RT-0056, RT-0063): `route` with a protocol other than `bgp` and `present: false` doesn't see a
+  route of that protocol that EOS didn't select (`show ip route` lists only the selected one). Check it where the
+  route comes from, and add a positive check on the selected route.
+- **SR Linux EVPN** (RT-0058): `bgp_route present: false` in an ip-vrf without its own `protocols bgp` doesn't see
+  imported type-5 routes. Use `route` with `protocol: bgp` and `present: false` in that VRF.
+- **FRR and SONiC** (RT-0053): a `ping` in a VRF to an address on the VRF device itself isn't refused as the node's
+  own. Put VRF loopbacks on an enslaved interface, or ping the address from another node.
+- **SR Linux `record --attributes`**: an AS path the driver can't read is left out without a warning. Add `as_path`
+  to those checks by hand.
+- **Docs:** `bgp_prefixes` without `afi` counts IPv4 unicast only, also on an IPv4 session that carries IPv6.
+
 ### Fixes from the second 0.4.1 red team and audit (2026-11-06)
 
 Each fixed with a test that fails on the code before the fix (`tests/test_redteam_fixes_041_round4.py`,

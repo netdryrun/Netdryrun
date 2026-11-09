@@ -43,7 +43,7 @@ A verdict document is one JSON object:
 
 Rules for producers:
 
-- A producer MUST NOT emit `passed` unless every check ran and passed. Anything that could not be checked is not a pass (fail closed). Netdryrun 0.4.1 has one published exception, accepted as a documented limit (RT-0048): on SR Linux and Juniper, `bgp_route present: false` reads received paths only, so a prefix the node itself originates and exports isn't seen; that check's detail says so, and the [trust page](../trust.md) lists it.
+- A producer MUST NOT emit `passed` unless every check ran and passed. Anything that could not be checked is not a pass (fail closed). Netdryrun 0.4.1 has published exceptions, accepted as documented limits and listed on the [trust page](../trust.md): on SR Linux and Juniper, `bgp_route present: false` reads received paths only, so a prefix the node itself originates and exports isn't seen, and that check's detail says so (RT-0048); and four narrow cases found on the final candidate (RT-0053, RT-0056/RT-0063, RT-0058, and `record --attributes` on SR Linux), each with a check that catches it today.
 - A producer MUST set `error` to a non-empty string exactly when `status` is `error`, and `inconclusive_reason` exactly when `status` is `inconclusive`.
 - A producer SHOULD reserve `inconclusive` for runs where nothing ever showed a working network; a configured session that is down is a finding (`failed`), since a typo looks the same as a slow environment.
 
