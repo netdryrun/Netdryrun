@@ -408,3 +408,15 @@
     netdryrun 0.4.1 `record --attributes` on the running srl_rt_s01 lab, 2026-11-10 (exit 1; its output in
     srl_rt_s01_capture.txt)
   added: ndr/oracles-0.4.2
+- files: [frr1041_vrfdev_capture.txt]
+  kind: live-capture
+  source: >-
+    quay.io/frrouting/frr:10.4.1 (iproute2-6.9.0), one privileged container, 2026-11-09 (red team 26380cb, RT-0053;
+    HQ wt/redteam-26380cb/cap-vrfdev.txt): a VRF device red with addresses on itself and a dummy enslaved to it;
+    `ip -j addr [show vrf red|show dev red]`, `ip vrf exec red ping`, `ip route show table 10`, as the script
+    frr1041_vrfdev_capture.sh ran them
+  added: ndr/oracles-0.4.3
+- files: [frr1041_vrfdev_capture.sh]
+  kind: lab-input
+  source: the script that made frr1041_vrfdev_capture.txt (HQ wt/redteam-26380cb/cap-vrfdev.sh), 2026-11-09
+  added: ndr/oracles-0.4.3
