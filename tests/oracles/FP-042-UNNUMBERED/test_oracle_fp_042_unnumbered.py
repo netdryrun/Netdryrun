@@ -19,7 +19,6 @@ import json
 import types
 from pathlib import Path
 
-import pytest
 
 from netdryrun import record as rec
 from netdryrun.drivers import Undetectable
