@@ -383,3 +383,14 @@ The public docs call them known false passes found offline and published conserv
 observation: SR Linux's own static default, exported to FRR and sent back, is held in the BGP RIB as an invalid path
 (`invalid-reason: as-loop`), and Netdryrun answers INCONCLUSIVE (exit `3`, "a reason the srlinux driver doesn't read
 yet") for a `route` check on that prefix, never a pass. Reading `as-loop` is a 0.4.2 usability item, not a false pass.
+
+## Acceptance on the final candidate: not run (owner decision, 2026-11-09)
+
+The scripted acceptance layer (`acceptance --strict`, then Job-2 triage) was not run on `2e988a4`. The owner decided
+on 2026-11-09 to ship without it: 0.4.1 already fixes the published false passes of 0.3.3 and 0.4.0, the release had
+waited weeks, and acceptance needed a 15 GB memory window the shared workstation didn't have. Every other layer passed
+on the tested code, and `26380cb..2e988a4` changes prose only: static (19 PASS on `2e988a4`), unit (6715 passed),
+diff-scoped mutation (`8bc84c3`), both corpora (`26380cb`), live on all examples and 7 NOSes with the stranger
+(`26380cb`, 63 PASS), and the angle-5 red team (`acceptance-adversary.md`, no open false pass). Earlier acceptance
+rounds ran on earlier candidates (2 November and later, `acceptance-hand.md`), and their finds are fixed or published.
+What this leaves unchecked: the end-user walk-through on this exact commit. It runs first in 0.4.2's chain.

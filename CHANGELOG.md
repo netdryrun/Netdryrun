@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.4.1 (unreleased)
+## 0.4.1 (2026-11-09)
+
+Released without the scripted acceptance run on the final candidate (owner decision, 2026-11-09): every other
+layer of the release gate passed on the tested code, and 0.4.1 fixes the published false passes of 0.3.3 and 0.4.0.
+The record is in `releases/0.4.1/review.md`.
 
 ### Added
 
