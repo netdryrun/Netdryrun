@@ -53,9 +53,11 @@
 
 - **`record --attributes` on SR Linux: a route its iBGP peer originates now gets a named gap instead of a check.**
   0.4.1 wrote a `bgp_route` check for it without `as_path`, which passed a changed path. 0.4.2 writes no check for that
-  route, and an INCOMPLETE BASELINE line names it, so `record` exits 1 where it exited 0. Add the check by hand once
-  SR Linux's own report shows the path (`as_path: ""` for an empty one). eBGP paths, and every FRR path, are recorded
-  as before, with their AS path, and `record` still exits 0 on them.
+  route, and an INCOMPLETE BASELINE line names it, so `record --attributes` on SR Linux exits 1 for a route its iBGP
+  peer originated (an empty AS path), where it exited 0. Add that check by hand once SR Linux's own report shows the
+  path (`as_path: ""` for an empty one). Reading the empty path exactly is planned for 0.4.3. eBGP paths, and every
+  FRR path, are recorded as before, with their AS path, and `record` still exits 0 on them. Listed under "What a lab
+  cannot prove" on the trust page.
 
 ## 0.4.1 (2026-11-09)
 
