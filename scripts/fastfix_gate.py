@@ -59,7 +59,16 @@ EVIDENCE_NOT_UNDER = ("src/", "fastfix/", "scripts/", ".github/")
 GATE_MODULES = ("pytest", "_pytest", "pluggy", "yaml", "sitecustomize", "usercustomize")
 CHILD_ENV_DROP = ("MUTANT_UNDER_TEST", "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONSTARTUP", "PYTHONHOME",
                   "PYTEST_CURRENT_TEST", "PYTHONPATH")
-ASSERTION = re.compile(r"^(assert\b|AssertionError\b)")
+# an oracle on the buggy parent fails by an assertion, or by pytest.raises seeing no refusal
+ASSERTION = re.compile(r"^(assert\b|AssertionError\b|Failed: DID NOT RAISE\b)")
+# what ships to users besides src/: swapped in from the code under test; a change to it needs a trailer
+SURFACES = ("action.yml", "templates")
+# the gate's own code: judged by the base's copy, and a change to it must be allowed like a flip
+GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/workflows/release-gate.yml")
+
+
+def shipped(path: str) -> bool:
+    return path.startswith("src/") or path == "action.yml" or path.startswith("templates/")
 
 
 class GateError(Exception):
@@ -109,7 +118,10 @@ def commit_files(repo: Path, sha: str) -> set[str]:
     """Files a commit changes. For a merge: the files its result differs from EVERY parent in (the conflict
     resolution, or an 'evil merge'), which no other commit in the range shows."""
     if len(parents(repo, sha)) > 1:
-        return split_z(git(repo, "diff-tree", "--cc", "--no-commit-id", "-r", "--name-only", "-z", sha))
+        try:   # git 2.36+: only what differs from git's own automatic merge (a clean merge shows nothing)
+            return split_z(git(repo, "show", "--remerge-diff", "--format=", "--name-only", "-z", sha))
+        except GateError:   # older git: --cc also lists files both sides changed cleanly (conservative)
+            return split_z(git(repo, "diff-tree", "--cc", "--no-commit-id", "-r", "--name-only", "-z", sha))
     return split_z(git(repo, "diff-tree", "--no-commit-id", "-r", "--name-only", "-z", "--no-renames", "--root", sha))
 
 
@@ -225,7 +237,7 @@ def corpus_verdicts(data: object, where: str) -> dict[str, str]:
                 seen += [r["netdryrun"] for r in runs]
         except (KeyError, TypeError) as e:
             raise GateError(f"{where}: case {cid}: no netdryrun verdict ({e})") from None
-        bad = [v for v in seen if v not in CORPUS_VERDICTS]
+        bad = [v for v in seen if not isinstance(v, str) or v not in CORPUS_VERDICTS]
         if bad:
             raise GateError(f"{where}: case {cid}: unknown verdict {bad[0]!r}")
         mapped = [CORPUS_VERDICTS[v] for v in seen]
@@ -265,18 +277,23 @@ def packages(tree: Path) -> list[str]:
 
 
 def compose(world: Path, code: Path, dest: Path) -> Path:
-    """`world`'s whole tree (tests, fixtures, data, advisories, pyproject, conftest) with only `code`'s src/
-    packages swapped in, and only the package names `world` has: nothing else from the code under test can reach
-    the run (no root conftest, no pytest config, no src/sitecustomize.py or src/pytest.py shadowing a tool)."""
-    names = packages(world)
-    if not names:
+    """`world`'s whole tree (tests, fixtures, data, advisories, pyproject, conftest) with only what ships swapped in
+    from `code`: its src/ packages (none named like a gate tool) and SURFACES (action.yml, templates/). Nothing else
+    from the code under test reaches the run (no root conftest, no pytest config, no src/sitecustomize.py)."""
+    if not packages(world):
         raise GateError(f"{world.name}: no package under src/ to judge")
     shutil.copytree(world, dest, symlinks=True)
     shutil.rmtree(dest / "src")
     (dest / "src").mkdir()
-    for n in names:
-        if (code / "src" / n / "__init__.py").is_file():
+    for n in packages(code):
+        if n not in GATE_MODULES:
             shutil.copytree(code / "src" / n, dest / "src" / n, symlinks=True)
+    for surface in SURFACES:
+        shutil.rmtree(dest / surface, ignore_errors=True) if (dest / surface).is_dir() else (dest / surface).unlink(missing_ok=True)
+        if (code / surface).is_dir():
+            shutil.copytree(code / surface, dest / surface, symlinks=True)
+        elif (code / surface).is_file():
+            shutil.copy2(code / surface, dest / surface)
     return dest
 
 
@@ -343,7 +360,7 @@ def run_pytest(tree: Path, targets: list[str], python: str, work: Path) -> Pytes
             raise GateError(f"pytest's report is unreadable ({e})") from None
         for tc in root.iter("testcase"):
             key = f"{tc.get('classname', '')}::{tc.get('name', '')}"
-            kid = next(iter(tc), None)
+            kid = next((c for c in tc if c.tag in ("failure", "error", "skipped")), None)
             kinds = {c.tag for c in tc} & {"failure", "error", "skipped"}
             outcome = ("failed" if "failure" in kinds else "error" if "error" in kinds
                        else "skipped" if "skipped" in kinds else "passed")
@@ -428,6 +445,10 @@ def loosening(repo: Path, base_ref: str, cand_ref: str, python: str) -> Report:
             raise GateError("the base has no corpus results.json")
         for rel, path in base_corpora.items():
             compare_corpus_files(path, cand_tree / rel, rel, report)
+        # the gate judging itself: once the base has it, a change to the gate's own code is a flip to allow
+        if (base_tree / GATE_FILES[0]).is_file():
+            touched = changed_files(repo, base, cand)
+            report.flips += [Flip("gate", g, "FAIL", "PASS") for g in GATE_FILES if g in touched]
         # 2. must-not-pass fixtures: the base's world with the base's code, then with the candidate's code
         targets = fixture_targets(base_tree)
         base_run = run_pytest(base_tree, targets, python, work / "r")
@@ -446,8 +467,9 @@ def apply_allowlist(repo: Path, base: str, cand: str, cand_tree: Path, report: R
         return
     flips = {(f.source, f.case, f.before, f.after): f for f in report.flips}
     used = set()
+    cited: set[str] = set()
     for f in files:
-        for key in allow_entries(f, cand_tree, changed, report):
+        for key in allow_entries(f, cand_tree, changed, report, cited):
             if key in flips:
                 used.add(key)
                 report.notes.append(f"allowed by {f}: {flips[key]}")
@@ -455,10 +477,11 @@ def apply_allowlist(repo: Path, base: str, cand: str, cand_tree: Path, report: R
                 report.problems.append(f"{f}: allows {key[0]} :: {key[1]} {key[2]} -> {key[3]}, which is not a flip "
                                        "in this change (stale or pre-loaded entries block)")
     report.flips = [fl for k, fl in flips.items() if k not in used]
-    separation_problems(repo, base, cand, report)
+    guarded = {f.source for f in flips.values() if "/" in f.source} | cited
+    separation_problems(repo, base, cand, report, guarded)
 
 
-def allow_entries(f: str, tree: Path, changed: set[str], report: Report) -> list[tuple[str, str, str, str]]:
+def allow_entries(f: str, tree: Path, changed: set[str], report: Report, cited: set[str]) -> list[tuple[str, str, str, str]]:
     if not f.endswith(".yml"):
         report.problems.append(f"{f}: an allowlist file must be YAML (.yml)")
         return []
@@ -493,21 +516,29 @@ def allow_entries(f: str, tree: Path, changed: set[str], report: Report) -> list
             continue
         # a fixture whose guard test no longer holds may cite the updated test (the reviewer checks it still
         # refuses); everything else cites captures, traces or results, never code
-        test_ok = text["source"] == "fixtures"
+        own_test = fixture_file(text["case"]) if text["source"] == "fixtures" else None
         bad = [x for x in ev if x.startswith(EVIDENCE_NOT_UNDER) or x.startswith(ORACLES + "/") or x not in changed
-               or not (tree / x).is_file() or (x.endswith(".py") and not (test_ok and x.startswith("tests/")))]
+               or not (tree / x).is_file() or x == text["source"] or (x.endswith(".py") and x != own_test)]
         if bad:
             report.problems.append(f"{where}: evidence must be capture, trace or results files (or, for a fixture, its "
                                    "updated test) that exist at the candidate and changed in this change (not code, "
                                    f"not an oracle, not the allowlist): {', '.join(bad)}")
             continue
+        cited.update(ev)
         keys.append((text["source"], text["case"], text["from"], text["to"]))
     return keys
 
 
-def separation_problems(repo: Path, base: str, cand: str, report: Report) -> None:
-    """The allowlist is written by someone other than whoever changed the code: every commit touching it touches
-    nothing else, and carries a Session marker no commit changing src/ in this change carries."""
+def fixture_file(case: str) -> str | None:
+    """tests.test_x::test_y[...] -> tests/test_x.py, the only test file a fixture entry may cite."""
+    module = case.split("::", 1)[0]
+    return module.replace(".", "/") + ".py" if module.startswith("tests.") else None
+
+
+def separation_problems(repo: Path, base: str, cand: str, report: Report, guarded: set[str]) -> None:
+    """The allowlist is written by someone other than whoever changed the code or the records: every commit touching
+    it touches nothing else, and carries a Session marker that no commit changing shipped code, a flipped source or
+    the cited evidence carries (and those commits must carry one)."""
     allow_sessions: dict[str, str | None] = {}
     code_sessions: dict[str, str | None] = {}
     for sha in rev_list(repo, base, cand):
@@ -518,14 +549,15 @@ def separation_problems(repo: Path, base: str, cand: str, report: Report) -> Non
                 report.problems.append(f"{sha[:10]} changes the allowlist together with other files or in a merge "
                                        f"({', '.join(others[:5])}): an allowlist commit holds nothing else")
             allow_sessions[sha] = session_of(repo, sha)
-        if any(f.startswith("src/") for f in files):
+        if any(shipped(f) or f in guarded or f in GATE_FILES for f in files):
             code_sessions[sha] = session_of(repo, sha)
     for sha, s in {**allow_sessions, **code_sessions}.items():
         if s is None:
             report.problems.append(f"{sha[:10]} has no Session: trailer, so the allowlist's independence can't be shown")
     clash = {s for s in allow_sessions.values() if s} & {s for s in code_sessions.values() if s}
     if clash:
-        report.problems.append(f"the allowlist comes from a session that also changed src/: {', '.join(sorted(clash))}")
+        report.problems.append(f"the allowlist comes from a session that also changed shipped code, the gate, a "
+                               f"flipped record or the cited evidence: {', '.join(sorted(clash))}")
 
 
 # ------------------------------------------------------------------------------------------------ reproduce-first
@@ -554,7 +586,7 @@ def oracle_problems(tree: Path, oid: str) -> tuple[list[str], list[str]]:
             if missing:
                 problems.append(f"{ORACLES}/{oid}/ORACLE.yml names evidence that doesn't exist: {', '.join(missing)}")
             evidence = ev
-    tests = sorted(p.name for p in d.glob("test_*.py"))
+    tests = sorted(p.name for p in d.rglob("test_*.py"))
     slug = oracle_slug(oid)
     if not tests:
         problems.append(f"{ORACLES}/{oid}/ holds no test_*.py")
@@ -587,10 +619,11 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
         if bad_ids:
             report.problems.append(f"{sha[:10]}: Fixes-Oracle: {bad_ids[0]!r} is not a bug ID like RT-0036")
         ids = [i for i in ids if ID_RE.match(i)]
-        if any(f.startswith("src/") for f in files) and not ids:
+        if any(shipped(f) for f in files) and not ids:
             reason = " ".join(t.get("no-oracle", []))
             if len(reason) < 20:
-                report.problems.append(f"{sha[:10]} changes src/{' in a merge resolution' if merge else ''} without "
+                report.problems.append(f"{sha[:10]} changes shipped code (src/, action.yml, templates/)"
+                                       f"{' in a merge resolution' if merge else ''} without "
                                        "'Fixes-Oracle: <ID>' or 'No-Oracle: <reason, 20+ characters>'")
         if ids and merge:
             report.problems.append(f"{sha[:10]} is a merge: a fix must be its own commit")
@@ -627,6 +660,19 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
                 trees[sha] = export(repo, sha, work / f"t{len(trees)}")
             return trees[sha]
 
+        def world(oid: str, own: str, evidence: list[str]) -> Path:
+            """The range base's tree plus only the oracle's folder and its evidence, as `own` (the last commit that
+            wrote the oracle) has them: a harness, conftest or config planted by anyone in the range can't reach it."""
+            dest = work / f"w-{oid}-{own[:10]}"
+            if not dest.exists():
+                shutil.copytree(tree(base), dest, symlinks=True)
+                shutil.rmtree(dest / ORACLES / oid, ignore_errors=True)
+                shutil.copytree(tree(own) / ORACLES / oid, dest / ORACLES / oid, symlinks=True)
+                for rel in evidence:
+                    (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(tree(own) / rel, dest / rel)
+            return dest
+
         for sha, ids in fixes:
             _, files, session, _ = info[sha]
             parent = parents(repo, sha)[0] if parents(repo, sha) else None
@@ -634,7 +680,7 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
                 report.problems.append(f"{sha[:10]} is a root commit: no parent to fail on")
                 continue
             for oid in ids:
-                check_fix(repo, sha, parent, oid, files, session, fixer_sessions, tree, python, work, report)
+                check_fix(repo, sha, parent, oid, files, session, fixer_sessions, tree, world, python, work, report)
         # every oracle at the candidate holds on the candidate's code, in its own tree
         cand_tree = tree(cand)
         here = sorted(d.name for d in (cand_tree / ORACLES).iterdir() if d.is_dir()) \
@@ -643,7 +689,7 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
             if not ID_RE.match(oid):
                 report.problems.append(f"{ORACLES}/{oid}/ is not named by a bug ID")
                 continue
-            probs, _ = oracle_problems(cand_tree, oid)
+            probs, evidence = oracle_problems(cand_tree, oid)
             report.problems += [f"oracle {oid} at the candidate: {p}" for p in probs]
             own = last_touch(repo, cand, f"{ORACLES}/{oid}/")
             if probs or own is None:
@@ -653,7 +699,12 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
                 if s is None or s in fixer_sessions.get(oid, set()):
                     report.problems.append(f"oracle {oid}: commit {h[:10]} that wrote it has "
                                            f"{'no Session: trailer' if s is None else f'the fixing session ({s})'}")
-            run = run_pytest(compose(tree(own), cand_tree, work / f"at-{oid}"), [f"{ORACLES}/{oid}"], python, work / "r")
+            probs, evidence = oracle_problems(tree(own), oid)
+            if probs:
+                report.problems += [f"oracle {oid} as last written ({own[:10]}): {p}" for p in probs]
+                continue
+            run = run_pytest(compose(world(oid, own, evidence), cand_tree, work / f"at-{oid}"), [f"{ORACLES}/{oid}"],
+                             python, work / "r")
             if run.code != 0 or run.count("passed") != len(run.outcomes):
                 report.problems.append(f"oracle {oid} fails on the candidate {cand[:10]} (pytest exit {run.code}): the "
                                        f"bug is back, or the oracle's tree no longer fits the code:\n{run.output[-800:]}")
@@ -661,7 +712,7 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
     return report
 
 
-def check_fix(repo, sha, parent, oid, files, session, fixer_sessions, tree, python, work, report) -> None:
+def check_fix(repo, sha, parent, oid, files, session, fixer_sessions, tree, world, python, work, report) -> None:
     where = f"{sha[:10]} Fixes-Oracle: {oid}"
     own = last_touch(repo, parent, f"{ORACLES}/{oid}/")
     if own is None:
@@ -687,19 +738,19 @@ def check_fix(repo, sha, parent, oid, files, session, fixer_sessions, tree, pyth
             report.problems.append(f"{where}: oracle commit {h[:10]} is from the fixing session ({s})")
     target = [f"{ORACLES}/{oid}"]
     tag = f"{sha[:8]}-{oid}"
-    # judged in the oracle's own tree (its tests, conftest, fixtures, config), with only src/ from parent and fix
-    before = run_pytest(compose(tree(own), tree(parent), work / f"b-{tag}"), target, python, work / "r")
+    # judged in the base's tree plus the oracle and its evidence, with only shipped code from parent and fix
+    before = run_pytest(compose(world(oid, own, evidence), tree(parent), work / f"b-{tag}"), target, python, work / "r")
     not_assert = sorted(k for k, o in before.outcomes.items()
                         if o != "failed" or not ASSERTION.match(before.messages.get(k, "")))
     if before.code != 1 or not before.outcomes or not_assert:
         report.problems.append(f"{where}: every oracle test must fail on the parent {parent[:10]} with an assertion "
                                f"(pytest exit {before.code}; not an assertion failure: {', '.join(not_assert[:5]) or '-'})")
-    after = run_pytest(compose(tree(own), tree(sha), work / f"a-{tag}"), target, python, work / "r")
+    after = run_pytest(compose(world(oid, own, evidence), tree(sha), work / f"a-{tag}"), target, python, work / "r")
     if after.code != 0 or after.count("passed") != len(after.outcomes):
         report.problems.append(f"{where}: the oracle must pass on the fix (pytest exit {after.code}, "
                                f"{after.count('failed')} failed, {after.count('error')} errors, "
                                f"{after.count('skipped')} skipped)")
-    report.notes.append(f"{where}: fails on {parent[:10]}, checked against the fix in the tree of {own[:10]}")
+    report.notes.append(f"{where}: fails on {parent[:10]}, checked against the fix (oracle as of {own[:10]}, harness from the base)")
 
 
 # ------------------------------------------------------------------------------------------------ cli

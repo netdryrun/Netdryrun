@@ -183,8 +183,10 @@ A release is never "probably fine".
 3. **Write the CHANGELOG.** Move the Unreleased entries under `## X.Y.Z (YYYY-MM-DD)`. Add a
    **Security** section when the release fixes anything security-relevant.
 4. **Run the gate on the candidate:**
-   `python scripts/release_gate.py static --candidate --strict`, then `unit`, `mutation` and,
-   on the lab machine, `live`. Fix every BLOCKER, then fix or accept every MAJOR. Record the
+   `python scripts/release_gate.py static --candidate --strict --fastfix-base <previous release tag>`, then
+   `unit`, `mutation` and, on the lab machine, `live`. The static layer's `loosening` and `reproduce-first` checks
+   cover every commit since that base (`tests/oracles/README.md`, `fastfix/README.md`); for the first release after
+   they landed, pass the commit that brought them to main, since older commits carry no trailers. Fix every BLOCKER, then fix or accept every MAJOR. Record the
    independent review in `releases/X.Y.Z/review.md`. `report` must say READY TO PUBLISH.
 5. **Commit `releases/X.Y.Z/`** (the layer records, `GATE.md`, `mutants.md`, `accepted.json`
    and `review.md`) together with the release changes.

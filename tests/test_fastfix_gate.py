@@ -301,7 +301,7 @@ def test_reviewed_allowlist_from_another_session_is_clean(repo):
 
 @needs_git
 @pytest.mark.parametrize("mutate,expect", [
-    (lambda a: a, "also changed src/"),                                                     # same session
+    (lambda a: a, "also changed shipped code"),                                                     # same session
     (lambda a: a.replace("captures/c1-rerun.txt", "src/toy/__init__.py"), "evidence must be"),
     (lambda a: a.replace("captures/c1-rerun.txt", "data/bad.yml"), "evidence must be"),      # didn't change
     (lambda a: a.replace("case: c1", "case: c2"), "not a flip in this change"),            # stale entry
@@ -310,10 +310,10 @@ def test_reviewed_allowlist_from_another_session_is_clean(repo):
     (lambda a: a.replace("    reviewed_by: coordinator\n", ""), "keys must be exactly"),
 ])
 def test_bad_allowlist_blocks(repo, mutate, expect):
-    assert expect == "also changed src/" or mutate(ALLOW) != ALLOW, "the mutation must change the allowlist"
+    assert expect == "also changed shipped code" or mutate(ALLOW) != ALLOW, "the mutation must change the allowlist"
     _flip_c1(repo)
     repo.write("fastfix/allow/c1.yml", mutate(ALLOW))
-    same = expect == "also changed src/"
+    same = expect == "also changed shipped code"
     repo.commit("allow c1", Session="fixer" if same else "reviewer")
     code, out = repo.loosening(repo.base)
     assert code == 1 and expect in out, out
@@ -612,11 +612,12 @@ def _release_gate():
 
 
 @pytest.mark.parametrize("answers,code,expect", [
-    ({"merge-base": None, "rev-parse": "h" * 40}, 0, ["FAIL", "FAIL"]),            # shallow clone, unknown ref
-    ({"merge-base": "h" * 40, "rev-parse": "h" * 40}, 0, ["FAIL", "FAIL"]),        # empty range: SKIP, strict FAIL
-    ({"merge-base": "b" * 40, "rev-parse": "h" * 40}, 1, ["FAIL", "FAIL"]),        # the script blocks
-    ({"merge-base": "b" * 40, "rev-parse": "h" * 40}, 2, ["FAIL", "FAIL"]),        # the script can't run
-    ({"merge-base": "b" * 40, "rev-parse": "h" * 40}, 0, ["PASS", "PASS"]),
+    ({"merge-base": None, "rev-parse": "h" * 40, "show": None}, 0, ["FAIL", "FAIL"]),      # shallow clone, unknown ref
+    ({"merge-base": "h" * 40, "rev-parse": "h" * 40, "show": None}, 0, ["FAIL", "FAIL"]),  # empty range: strict FAIL
+    ({"merge-base": "b" * 40, "rev-parse": "h" * 40, "show": "BASE"}, 1, ["FAIL", "FAIL"]),  # the script blocks
+    ({"merge-base": "b" * 40, "rev-parse": "h" * 40, "show": "BASE"}, 2, ["FAIL", "FAIL"]),  # the script can't run
+    ({"merge-base": "b" * 40, "rev-parse": "h" * 40, "show": "BASE"}, 0, ["PASS", "PASS"]),
+    ({"merge-base": "b" * 40, "rev-parse": "h" * 40, "show": None}, 0, ["PASS", "PASS"]),    # bootstrap: own copy
 ])
 def test_release_gate_static_wiring(answers, code, expect):
     from types import SimpleNamespace
@@ -626,6 +627,9 @@ def test_release_gate_static_wiring(answers, code, expect):
 
     def runner(cmd, timeout):
         seen.append([str(c) for c in cmd])
+        text = Path(cmd[1]).read_text(encoding="utf-8")
+        # the base's copy judges the change; only a base without one falls back to this checkout's
+        assert text.startswith("BASE") if answers["show"] else text == SCRIPT.read_text(encoding="utf-8")
         return gate.Proc(code, "out", 0.1)
 
     gate.fastfix_checks(layer, SimpleNamespace(fastfix_base="origin/main"),
@@ -636,3 +640,89 @@ def test_release_gate_static_wiring(answers, code, expect):
     if seen:
         assert seen[0][2:] == ["loosening", "--repo", str(gate.ROOT), "--base", "b" * 40]
         assert seen[1][-2:] == ["--range", "b" * 40 + "..HEAD"]
+
+
+# ------------------------------------------------------------------------------------------------ code review round
+
+@needs_git
+def test_change_to_the_gate_itself_is_a_flip_once_the_base_has_it(repo):
+    repo.write("scripts/fastfix_gate.py", "# the judge\n")
+    base = repo.commit("gate lands")
+    repo.write("scripts/fastfix_gate.py", "# the judge, made lenient\n")
+    repo.commit("tweak the judge")
+    code, out = repo.loosening(base)
+    assert code == 1 and "gate :: scripts/fastfix_gate.py: FAIL -> PASS" in out, out
+
+
+@needs_git
+def test_loosened_action_yml_is_judged_and_needs_a_trailer(repo):
+    repo.write("action.yml", "runs:\n  fail_on: unsafe\n")
+    repo.write("tests/test_redteam.py", REDTEAM + textwrap.dedent('''
+
+        def test_action_fails_on_unsafe():
+            assert "fail_on: unsafe" in (Path(__file__).resolve().parents[1] / "action.yml").read_text()
+        '''))
+    base = repo.commit("action")
+    repo.write("action.yml", "runs:\n  fail_on: never\n")
+    repo.commit("relax the action")
+    code, out = repo.loosening(base)
+    assert code == 1 and "test_action_fails_on_unsafe: FAIL -> PASS" in out, out
+    code, out = repo.reproduce(base)
+    assert code == 1 and "changes shipped code" in out, out
+
+
+@needs_git
+@pytest.mark.parametrize("evidence,expect", [("captures/c1-rerun.txt", "also changed shipped code"),
+                                             ("corpus/results/results.json", "evidence must be")])
+def test_records_only_flip_cannot_be_laundered_by_one_session(repo, evidence, expect):
+    repo.write("captures/c1-rerun.txt", "router output\n")
+    repo.write("corpus/results/results.json", results(c1="safe", c2="safe", c3="error",
+                                                      c4=["unsafe", "safe", "unsafe"]))
+    repo.commit("edit the records", Session="same-one")
+    repo.write("fastfix/allow/c1.yml", ALLOW.replace("captures/c1-rerun.txt", evidence))
+    repo.commit("allow it", Session="same-one" if evidence.startswith("captures") else "other-one")
+    code, out = repo.loosening(repo.base)
+    assert code == 1 and expect in out, out
+
+
+@needs_git
+def test_pytest_raises_oracle_is_accepted(repo):
+    _oracle(repo, test="import pytest\n\nfrom toy import judge\n\n\ndef test_seven_is_refused():\n"
+                       "    with pytest.raises(ValueError):\n        judge(7)\n")
+    repo.write("src/toy/__init__.py", JUDGE.replace("    return x > LIMIT", "    if x == 7:\n        raise ValueError(x)\n"
+                                                    "    return x > LIMIT"))
+    repo.commit("fix", Fixes_Oracle="FP-1", Session="fixer")
+    code, out = repo.reproduce(repo.base)
+    assert code == 0, out
+
+
+@needs_git
+def test_harness_planted_before_the_oracle_cannot_bend_it(repo):
+    # a fixer-session commit, before the oracle exists, plants a conftest keyed on a marker the "fix" adds
+    repo.write("tests/conftest.py", "import toy\nif hasattr(toy, 'FIXED'):\n    toy.judge = lambda x: False\n")
+    repo.commit("tidy tests", Session="fixer")
+    _oracle(repo)
+    repo.write("src/toy/__init__.py", JUDGE + "\nFIXED = True\n")
+    repo.commit("fix", Fixes_Oracle="FP-1", Session="fixer")
+    code, out = repo.reproduce(repo.base)
+    assert code == 1 and "the oracle must pass on the fix" in out, out
+
+
+def _git_version() -> tuple[int, ...]:
+    out = subprocess.run(["git", "--version"], capture_output=True, text=True).stdout if shutil.which("git") else ""
+    return tuple(int(x) for x in (out.split()[-1:] or ["0"])[0].split(".")[:2] if x.isdigit())
+
+
+@needs_git
+@pytest.mark.skipif(_git_version() < (2, 36), reason="needs git 2.36+ (--remerge-diff); older git blocks clean "
+                    "merges that touch the same file, which is conservative")
+def test_clean_merge_needs_no_trailer(repo):
+    repo.git("checkout", "-q", "-b", "side")
+    repo.write("src/toy/__init__.py", JUDGE + "# side\n")
+    repo.commit("side", No_Oracle="comment only, nothing on a verdict path")
+    repo.git("checkout", "-q", "main")
+    repo.write("src/toy/__init__.py", "# main\n" + JUDGE)
+    repo.commit("main", No_Oracle="comment only, nothing on a verdict path")
+    repo.git("merge", "-q", "--no-ff", "-m", "Merge side", "side")
+    code, out = repo.reproduce(repo.base)
+    assert code == 0, out
