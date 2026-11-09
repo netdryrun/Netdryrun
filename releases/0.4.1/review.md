@@ -361,12 +361,15 @@ as the first commit on the 0.4.2 branch, with the fixes. This also departs from 
 confirmed case as the next `tests/redteam/RT-NNNN-*.yml` ... on the acceptance branch"; the departure is recorded here
 and in `acceptance-adversary.md`.
 
-| Case | Verdict | Confirmed | Outcome |
+Evidence, said plainly: every case below is verifier-rated offline; none has been confirmed by a Netdryrun live run.
+The public docs call them known false passes found offline and published conservatively.
+
+| Case | Verdict | Evidence | Outcome |
 |---|---|---|---|
-| RT-0053 FRR/SONiC ping to an address on the VRF device | real, MAJOR | kernel and iproute2 in the pinned FRR 10.4.1 image (`cap-vrfdev.txt`: `show vrf red` omits `red`; 2/2 replies) | limit, fix 0.4.2 |
-| RT-0056, RT-0063 EOS non-BGP route not selected | real, MAJOR | live fixtures `eos_leak_route.txt` / `eos_leak_bgp.txt` (selected route only); not yet in a lab | limit, fix 0.4.2 |
-| RT-0058 SR Linux EVPN type-5 in an ip-vrf without BGP | real, MAJOR | offline; not yet in a lab | limit, fix 0.4.2 |
-| RT-S01 SR Linux `record --attributes` drops an unread AS path | real, MAJOR | offline (no capture of an empty AS path) | limit, fix 0.4.2 (warn) |
+| RT-0053 FRR/SONiC ping to an address on the VRF device | real, MAJOR (verifier, offline) | the kernel/iproute2 behaviour reproduced in the pinned FRR 10.4.1 image (`cap-vrfdev.txt`: `show vrf red` omits `red`; 2/2 replies); not through a Netdryrun run | limit, fix 0.4.2 |
+| RT-0056, RT-0063 EOS non-BGP route not selected | real, MAJOR (verifier, offline) | reasoned from live fixtures `eos_leak_route.txt` / `eos_leak_bgp.txt` (selected route only); not in a lab | limit, fix 0.4.2 |
+| RT-0058 SR Linux EVPN type-5 in an ip-vrf without BGP | real, MAJOR (verifier, offline) | offline only | limit, fix 0.4.2 |
+| RT-S01 SR Linux `record --attributes` drops an unread AS path | real, MAJOR (verifier, offline) | offline only (no capture of an empty AS path) | limit, fix 0.4.2 (warn) |
 | RT-0054, RT-0057, RT-0064 SR Linux route-table losers | unproven | one srl-frr test pending | limit if real |
 | RT-0055 FRR VRF-imported default | not producible (zebra lists the unselected entry) | | none |
 | RT-0065 `bgp_prefixes` default `afi` on a dual-stack session | documented | | doc line |

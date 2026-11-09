@@ -103,7 +103,8 @@ test that failed on the candidate (`tests/test_redteam_angle5_d87.py`, RT-0044 t
 ### Known limits: four known false passes in 0.4.1 and earlier (red team on the final candidate, 2026-11-09)
 
 Two isolated attackers and a fresh verifier on `26380cb` found four checks that can pass without testing what the
-file says, each in one specific setup. They are in 0.4.1 and every earlier version; 0.4.1 ships with them published as
+file says, each in one specific setup. They were found offline (the code and the NOS's captured output) and are
+published conservatively: none has been reproduced in a Netdryrun lab run yet. They are in 0.4.1 and every earlier version; 0.4.1 ships with them published as
 known limits (decision for the owner: no source change after the final gate runs), and the fix is planned for 0.4.2.
 Each has a workaround that catches it today:
 
