@@ -39,6 +39,23 @@
     its labels, and a holder Docker can't read.
 
   Oracle `tests/oracles/FP-042-SRLNETNS`, from a containerlab 0.83.0 capture.
+- **`record --attributes` on SR Linux left out an AS path it couldn't read, without a warning** (case 4 of the 0.4.1
+  advisory, GHSA-ggcf-664f-c9ff; a regression in 0.4.1). SR Linux prints no as-path container for an empty AS path
+  (an iBGP peer's own route), and nothing in its answer tells that from a missing one. So the recorded check passed
+  once the path changed.
+  - Where the best path's AS path can't be read, on any driver, `record` now writes no `bgp_route` check for that
+    route. An INCOMPLETE BASELINE line names it, so `record` exits 1.
+  - A local preference the driver can't read is named in a warning, not dropped silently.
+
+  Oracle `tests/oracles/FP-042-RTS01` (red-team finding RT-S01), from a live SR Linux 26.7.2 and FRR 10.4.1 capture.
+
+### Changed
+
+- **`record --attributes` on SR Linux: a route its iBGP peer originates now gets a named gap instead of a check.**
+  0.4.1 wrote a `bgp_route` check for it without `as_path`, which passed a changed path. 0.4.2 writes no check for that
+  route, and an INCOMPLETE BASELINE line names it, so `record` exits 1 where it exited 0. Add the check by hand once
+  SR Linux's own report shows the path (`as_path: ""` for an empty one). eBGP paths, and every FRR path, are recorded
+  as before, with their AS path, and `record` still exits 0 on them.
 
 ## 0.4.1 (2026-11-09)
 

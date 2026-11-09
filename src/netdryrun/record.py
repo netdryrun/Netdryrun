@@ -404,11 +404,26 @@ def _attribute_check(drv, node: str, prefix: str, vrf: str = "default", warnings
             warnings.append(f"{node}: {prefix}: no bgp_route check: its best path is the node's own route, which isn't "
                             "a BGP path (check it on a neighbor)")
         return None
-    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf})}
-    if best.as_path is not None:
-        c["as_path"] = best.as_path
+    if best.as_path is None:
+        # The driver couldn't read the best path's AS path (SR Linux prints no as-path container for an empty path
+        # and the driver can't tell that from a missing one: RT-S01). A check without as_path would pass once the
+        # path changes, so none is written, and the gap is named: never a quieter baseline
+        if warnings is not None:
+            where = node if vrf == "default" else f"{node} vrf {vrf}"
+            warnings.append(f"INCOMPLETE BASELINE: {where}: {prefix}: no bgp_route check: the best path's AS path "
+                            "couldn't be read (on SR Linux, an empty AS path prints no as-path container), so a "
+                            "check of its attributes would pass a changed path. Add one by hand once the device's "
+                            "own report shows the path (as_path: \"\" for an empty one)")
+        return None
+    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf}),
+               "as_path": best.as_path}
     if best.local_pref is not None:
         c["local_pref"] = best.local_pref
+    elif warnings is not None:
+        # never silently dropped (RT-S01): named, but not a gap, since a path without LOCAL_PREF (eBGP-learned on some
+        # drivers) is a real answer
+        warnings.append(f"{node}: {prefix}: local_pref is not recorded: the driver read no local preference on the "
+                        "best path")
     carried = best.all_communities()
     aliases = getattr(drv, "community_aliases", None)
     if carried and aliases is not None and aliases().value:
