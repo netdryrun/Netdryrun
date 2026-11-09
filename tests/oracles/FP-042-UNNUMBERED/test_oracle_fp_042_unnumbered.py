@@ -89,7 +89,10 @@ def run(monkeypatch, lab):
 
 
 def link_gaps(warnings, node, dev):
-    return [w for w in rec.baseline_gaps(warnings) if node in w and dev in w]
+    """INCOMPLETE BASELINE lines about the link subnet of `dev` on `node`. A line about a BGP neighbor (the format
+    FP-042-UNNSESS requires for a session left out: it names the node, the neighbor and "neighbor") is about the
+    session, not the link, and is not counted here."""
+    return [w for w in rec.baseline_gaps(warnings) if node in w and dev in w and "neighbor" not in w.lower()]
 
 
 def named(warnings):
@@ -110,4 +113,7 @@ def test_unnumbered_fabric_link_is_named_not_a_gap(monkeypatch):
     for node in ("leaf01", "spine01"):
         assert link_gaps(warnings, node, "eth1") == [], warnings
         assert [w for w in named(warnings) if node in w and "eth1" in w], warnings
-    assert rec.baseline_gaps(warnings) == [], warnings   # nothing else is missing: record exits 0
+    # no gap about a link subnet on eth1 or eth2 (sessions left out are FP-042-UNNSESS's: they must be gaps)
+    for node in ("leaf01", "spine01"):
+        for dev in ("eth1", "eth2"):
+            assert link_gaps(warnings, node, dev) == [], warnings
