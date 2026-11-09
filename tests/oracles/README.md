@@ -24,7 +24,7 @@ tests/oracles/<ID>/
 |---|---|---|
 | Oracle | `Oracle: <ID>` and `Session: <marker>` | `tests/` only |
 | Fix | `Fixes-Oracle: <ID>` (one line per ID) and `Session: <another marker>` | anything except `tests/oracles/` and the oracle's evidence |
-| Any other commit that changes `src/` | `No-Oracle: <why it needs none, 20+ characters>` | |
+| Any other commit (or merge resolution) that changes `src/`, `action.yml` or `templates/` | `No-Oracle: <why it needs none, 20+ characters>` | |
 
 Example fix message:
 
@@ -41,9 +41,11 @@ For each `Fixes-Oracle` commit F:
 - the oracle was committed before F, by commits carrying `Oracle: <ID>` and a `Session:` different from every session
   that fixes it;
 - F changes nothing under `tests/oracles/` and none of the oracle's evidence files;
-- every oracle test **fails with an assertion** on F's parent, and every one passes on F. Both runs use the tree of the
-  last commit that wrote the oracle (its tests, conftest, fixtures and pytest config), with only the `src/` packages
-  swapped in. So a fix can't make the oracle pass by changing the shared test harness.
+- every oracle test **fails with an assertion** (or `pytest.raises` reports `DID NOT RAISE`) on F's parent, and every
+  one passes on F. Both runs use the base's tree (its tests, conftest, fixtures and pytest config) plus only the
+  oracle's folder and the files in its `evidence:`, with only shipped code (`src/` packages, `action.yml`,
+  `templates/`) swapped in. A harness change anywhere in the range, before or after the oracle, can't reach it, so
+  **list in `evidence:` every file the oracle reads that the base doesn't have.**
 
 For the candidate as a whole: every oracle present still passes, so a later commit can't bring the bug back.
 
@@ -53,6 +55,9 @@ Not proven:
 - Code under test that detects it is being tested can still cheat.
 - Keep the oracle and fix commits when merging (no squash). A squash makes the fix and its oracle one commit, and the
   check then blocks it.
+
+Land the oracle and its fix together (one branch, merged as one). An oracle merged to main before its fix fails
+there, and the loosening gate then reports a red baseline for every other change.
 
 One fix commit per ID: if the bug is fixed across several commits, put the trailer on the last one and make sure the
 oracle still fails on its parent.
