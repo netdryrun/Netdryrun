@@ -1,0 +1,18 @@
+id: FP-042-UNNSESS
+bug: >-
+  `record` on an FRR BGP-unnumbered fabric (FRR 10.2.1, martimy/clab-bgp-frr) records no bgp_session or bgp_prefixes
+  check for the interface-named neighbors yet exits 0 with no INCOMPLETE BASELINE line (red team RT-0066); and the
+  link-subnet step reads an iproute2 point-to-point address (`inet A peer B/31`) as A/32, and calls a numbered
+  169.254.0.0/30 link with a BGP session over it unnumbered, so neither gets the right guard and record exits 0
+evidence:
+  - tests/fixtures/frr1021u_capture.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth1.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth2.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth3.txt
+  - tests/fixtures/frr1021u_leaf01_show_bgp_neighbors_json.txt
+  - tests/fixtures/frr1021u_spine01_ip_o_addr_show_dev_eth1.txt
+  - tests/fixtures/frr1021u_spine01_ip_o_addr_show_dev_eth2.txt
+  - tests/fixtures/frr1021u_spine01_ip_o_addr_show_dev_eth3.txt
+  - tests/fixtures/frr1021u_spine01_show_bgp_neighbors_json.txt
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_unnsess.py
