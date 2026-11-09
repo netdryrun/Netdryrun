@@ -14,3 +14,4 @@ evidence:
   - tests/fixtures/frr1021_learned_route_json.txt
   - tests/fixtures/frr1021_table_json.txt
   - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_frr102.py

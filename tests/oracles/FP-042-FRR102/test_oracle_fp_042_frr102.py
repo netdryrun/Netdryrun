@@ -16,11 +16,11 @@ Two outcomes are accepted, and nothing else:
 Never a pass on a guessed absence: an answer that names the prefix and its advertisement but lists no paths is not
 "absent" (that shape wasn't captured; it is the one the spec feared), and a pathCount that is printed is still
 checked against the paths listed.
-"""
-import json
-from pathlib import Path
 
-import pytest
+The tests here fail on the parent. The guards, which pass before and after the fix, are in
+tests/test_oracle_guards_fp_042_frr102.py (listed in ORACLE.yml `evidence:`).
+"""
+from pathlib import Path
 
 from netdryrun.checks import hold_check, run_check
 from netdryrun.config import _validate_check
@@ -120,34 +120,3 @@ def test_learned_paths_read_as_captured():
     assert [p.best for p in paths] == [True, False]
     assert [p.neighbor for p in paths] == ["fe80::a8c1:abff:fe6a:4ffa", "fe80::a8c1:abff:feac:5920"]
     assert "Paths: (2 available, best #1" in fx("frr1021_learned_prefix_text.txt")
-
-
-# ------------------------------------------------------------------ guards: pass before and after the fix
-
-def test_own_prefix_bgp_route_absent_never_passes():
-    """leaf01 advertises 192.168.11.0/24 (advertisedTo eth1, eth2): `bgp_route present: false` must not pass."""
-    r = negative(CapturedLab(), type="bgp_route", prefix=OWN, present=False)
-    assert not r.passed, r.detail
-
-
-@pytest.mark.parametrize("kind", ["route", "bgp_route"])
-def test_answer_without_paths_never_reads_absent(kind):
-    """The shape the spec feared, not captured: the own prefix's answer with its paths list taken out. It names the
-    prefix and who it is advertised to, so a BGP route exists: no `present: false` may pass on it."""
-    data = json.loads(fx("frr1021_own_prefix_json.txt"))
-    del data["paths"]
-    lab = CapturedLab({f"show bgp ipv4 unicast {OWN} json": json.dumps(data)})
-    raw = {"type": kind, "prefix": OWN, "present": False, **({"protocol": "bgp"} if kind == "route" else {})}
-    # for `route`, zebra's captured answer (connected) stays; without the paths a learned BGP path can't be ruled out
-    r = negative(lab, **raw)
-    assert not r.passed, r.detail
-
-
-@pytest.mark.parametrize("count", [1, 3])
-def test_printed_path_count_is_still_checked(count):
-    """Where pathCount IS printed (FRR 10.4.1 prints it: tests/fixtures/frr_bgp_paths_local.txt), a count that
-    doesn't match the paths listed is still an error, never one path less or none."""
-    data = json.loads(fx("frr1021_learned_prefix_json.txt"))
-    data["pathCount"] = count
-    with pytest.raises(DriverError):
-        parse_bgp_paths(json.dumps(data), LEARNED, default_local_pref=100)
