@@ -1,0 +1,58 @@
+# RT-S01 capture (SR Linux 26.7.2 iBGP with FRR 10.4.1, both AS 65010; examples/srl-frr with FRR moved into AS
+# 65010), from the 0.4.2 session's wt/oracle-cap/RT-S01. ANSI colours and banner art left out.
+#
+# srl_rt_s01_<phase>_bgp_rib.txt / _attr_set.txt: srl1's `sr_cli --output-format json '<command>'` output, byte
+# for byte, for 192.168.20.0/24 (originated by frr1, its iBGP peer); _show.txt: SR Linux's text report of the same
+# route at the same moment ("Show report for the BGP routes to network ..."; its command line wasn't recorded).
+# Phases: empty (best path attr-set 5, no as-path container), prepended (frr1 prepends 64666 towards srl1,
+# attr-set 7, as-path [64666]), empty_again (prepend removed, attr-set 8, no as-path container).
+# srl_rt_s01_srl1.cli, srl_rt_s01_frr1.conf: the configs deployed; srl_rt_s01_record_041.yml: netdryrun 0.4.1
+# `record --attributes` on the running lab (exit 1, its output below).
+
+## capture.txt
+date: 2026-11-10T00:19:47+07:00
+srl image: ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8
+frr image: quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442
+
+## capture.log
+2026-11-10T00:16:26+07:00 NOT STARTED: Windows available 8869 MB < 10000
+2026-11-10T00:18:21+07:00 NOT STARTED: Windows available 5892 MB < 8500
+2026-11-10T00:19:06+07:00 NOT STARTED: Windows available 7981 MB < 8500
+2026-11-10T00:19:47+07:00 start check ok: Windows available 8697 MB, commit 40278 MB
+2026-11-10T00:19:47+07:00 SR Linux AS 65010: FRR joins it (iBGP)
+16:set / network-instance default protocols bgp neighbor 10.0.100.2 peer-as 65020
+2026-11-10T00:19:49+07:00 deploy
+00:20:21 INFO Adding SSH config for nodes path=/etc/ssh/ssh_config.d/clab-ndr-srl-rts01.conf
+00:20:21 INFO containerlab version
+2026-11-10T00:20:21+07:00 waiting for BGP
+2026-11-10T00:20:40+07:00 captured srl_rt_s01_empty_bgp_rib (559 bytes)
+2026-11-10T00:20:40+07:00 empty: best path attr-id 5
+2026-11-10T00:20:42+07:00 captured srl_rt_s01_empty_attr_set (128 bytes)
+2026-11-10T00:20:43+07:00 FRR now prepends 64666 towards SR Linux
+2026-11-10T00:21:06+07:00 captured srl_rt_s01_prepended_bgp_rib (560 bytes)
+2026-11-10T00:21:06+07:00 prepended: best path attr-id 7
+2026-11-10T00:21:08+07:00 captured srl_rt_s01_prepended_attr_set (292 bytes)
+2026-11-10T00:21:32+07:00 captured srl_rt_s01_empty_again_bgp_rib (560 bytes)
+2026-11-10T00:21:32+07:00 empty_again: best path attr-id 8
+2026-11-10T00:21:34+07:00 captured srl_rt_s01_empty_again_attr_set (128 bytes)
+2026-11-10T00:21:50+07:00 netdryrun 0.4.1 record --attributes on the running lab
+2026-11-10T00:22:09+07:00 record exit 1
+2026-11-10T00:22:09+07:00 done
+2026-11-10T00:22:09+07:00 destroying lab
+2026-11-10T00:22:10+07:00 LAB DOWN
+
+## commands
+srl_rt_s01_empty_bgp_rib.txt: srl1, sr_cli --output-format json 'info from state /network-instance default bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 192.168.20.0/24 neighbor * origin-protocol * path-id *'
+srl_rt_s01_empty_attr_set.txt: srl1, sr_cli --output-format json 'info from state /network-instance default bgp-rib attr-sets attr-set 5'
+srl_rt_s01_prepended_bgp_rib.txt: srl1, sr_cli --output-format json 'info from state /network-instance default bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 192.168.20.0/24 neighbor * origin-protocol * path-id *'
+srl_rt_s01_prepended_attr_set.txt: srl1, sr_cli --output-format json 'info from state /network-instance default bgp-rib attr-sets attr-set 7'
+srl_rt_s01_empty_again_bgp_rib.txt: srl1, sr_cli --output-format json 'info from state /network-instance default bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 192.168.20.0/24 neighbor * origin-protocol * path-id *'
+srl_rt_s01_empty_again_attr_set.txt: srl1, sr_cli --output-format json 'info from state /network-instance default bgp-rib attr-sets attr-set 8'
+
+## netdryrun 0.4.1 record --attributes (exit 1)
+recording srl1 (srlinux)
+recording frr1 (frr)
+*** INCOMPLETE BASELINE: srl1: no global address on e1-1 where Netdryrun reads it (unnumbered, or kept on another interface by the NOS); its link subnet has no guard ***
+error: the baseline in /mnt/c/NetCL Business/wt/oracle-cap/RT-S01/record-041.yml has 1 gap(s) (the lines above): a change there would pass it. Record again once every node answers (--deploy waits for VM nodes; --driver NODE=DRIVER for a beta NOS), or add checks for them by hand. Exit code 1.
+warning: INCOMPLETE BASELINE: srl1: no global address on e1-1 where Netdryrun reads it (unnumbered, or kept on another interface by the NOS); its link subnet has no guard
+warning: srl1: only the default VRF is recorded (listing VRFs is not supported on srlinux yet); add checks for other VRFs by hand
