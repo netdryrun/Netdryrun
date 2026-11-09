@@ -17,22 +17,22 @@ env:
   # (the commit the new tag points to) after each release; the `install` job fails when PyPI has a newer release.
   # The `pip install netdryrun...` lines in this file are the docs' lines, from PyPI and not hash-locked, on purpose:
   # they test what users type. Tools this workflow needs come from requirements/tools.txt with hashes.
-  RELEASE: "0.4.0"
+  RELEASE: "0.4.1"
 
 jobs:
   action-passes:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      # The release the docs give (`@v0.4.0`), pinned by the commit that tag points to; the next step fails if the
+      # The release the docs give (`@v0.4.1`), pinned by the commit that tag points to; the next step fails if the
       # tag ever points elsewhere, so this still tests exactly what users get. Not ./: never this checkout's code.
-      - uses: netdryrun/Netdryrun@c236045689fcaee0e43f09478a47f7665fb971a7  # v0.4.0
+      - uses: netdryrun/Netdryrun@eb9d1846fea0e5a41af7aeb9940edd662460a650  # v0.4.1
         id: ndr
         with:
           path: examples/frr-bgp
       - name: The tag the docs give still points at the pinned commit
         env:
-          PINNED: c236045689fcaee0e43f09478a47f7665fb971a7
+          PINNED: eb9d1846fea0e5a41af7aeb9940edd662460a650
         run: |
           got="$(git ls-remote https://github.com/netdryrun/Netdryrun "refs/tags/v$RELEASE^{}" | cut -f1)"
           test "$got" = "$PINNED" || { echo "::error::v$RELEASE points at ${got:-nothing}, the uses: lines pin $PINNED"; exit 1; }
@@ -53,9 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      # The release the docs give (`@v0.4.0`), pinned by the commit that tag points to; the next step fails if the
+      # The release the docs give (`@v0.4.1`), pinned by the commit that tag points to; the next step fails if the
       # tag ever points elsewhere, so this still tests exactly what users get. Not ./: never this checkout's code.
-      - uses: netdryrun/Netdryrun@c236045689fcaee0e43f09478a47f7665fb971a7  # v0.4.0
+      - uses: netdryrun/Netdryrun@eb9d1846fea0e5a41af7aeb9940edd662460a650  # v0.4.1
         id: ndr
         continue-on-error: true
         with:
