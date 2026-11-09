@@ -2196,6 +2196,12 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
         over = v["checks"]
         blockers += [f"{name}: an attempt record can't be read, and it may have held a FAIL ({Path(p).name}): restore or "
                      "rerun it, never drop it" for p in v["unreadable"]]
+        # a check that failed in an attempt on this code but is missing from the latest record (a rerun without
+        # --pack, say) still fails (Layer 6 on f220469)
+        present = {c["id"] for c in rec["checks"]}
+        blockers += [f"{name}/{cid}: failed in an earlier attempt on this code ({Path(e['failed_in']).name}) and the "
+                     "latest record doesn't have it" for cid, e in sorted(over.items())
+                     if e["status"] == FAIL and cid not in present]
         for c in rec["checks"]:
             e = over.get(c["id"])
             if e and e["status"] == FAIL and c["status"] != FAIL:

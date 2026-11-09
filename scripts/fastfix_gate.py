@@ -64,7 +64,10 @@ ASSERTION = re.compile(r"^(assert\b|AssertionError\b|Failed: DID NOT RAISE\b)")
 # what ships to users besides src/: swapped in from the code under test; a change to it needs a trailer
 SURFACES = ("action.yml", "templates")
 # the gate's own code: judged by the base's copy, and a change to it must be allowed like a flip
-GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/workflows/release-gate.yml")
+# the gate's own files: once the base has the gate, changing any of them is a flip that needs a reviewed allowlist entry
+# (Layer 6 on f220469: the attempt records, labrun and the surfaces check were left out)
+GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/workflows/release-gate.yml",
+              "scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py")
 
 
 def shipped(path: str) -> bool:
@@ -431,6 +434,12 @@ def fixture_compare(base_run: PytestRun, cand_run: PytestRun, report: Report) ->
         report.problems.append(f"the base's fixtures did not run cleanly on the candidate's code (pytest exit "
                                f"{cand_run.code}; a collection error, or a dependency the candidate needs):\n"
                                f"{cand_run.output[-1200:]}")
+    # a guard the base skipped (it couldn't run there) but that fails at the candidate is the tool accepting a
+    # must-not-pass input: a red whatever the base could show (Layer 6 on f220469)
+    for k, o in sorted(cand_run.outcomes.items()):
+        if base_run.outcomes.get(k) == "skipped" and o in ("failed", "error"):
+            report.problems.append(f"fixtures :: {k}: skipped at the base, {o} at the candidate: the candidate's code "
+                                   "accepts an input this guard must refuse")
     base_v = {k: "FAIL" for k, o in base_run.outcomes.items() if o == "passed"}
     cand_v = {k: "FAIL" if o == "passed" else "PASS" for k, o in cand_run.outcomes.items()}
     report.compare("fixtures", base_v, cand_v)
@@ -602,6 +611,14 @@ def oracle_problems(tree: Path, oid: str) -> tuple[list[str], list[str]]:
     return problems, evidence
 
 
+def symlink_problems(repo: Path, sha: str, oid: str) -> list[str]:
+    """An oracle folder holds plain files only: a symlink (say a conftest.py pointing into src/) would let a fix change
+    the oracle without touching tests/oracles/ (Layer 6 on f220469)."""
+    out = git(repo, "ls-tree", "-r", sha, "--", f"{ORACLES}/{oid}/")
+    links = [ln.split("	", 1)[-1] for ln in out.splitlines() if ln.startswith("120000 ")]
+    return [f"{ORACLES}/{oid}/ holds a symlink ({', '.join(links[:3])}): an oracle is plain files"] if links else []
+
+
 def oracle_ids_touched(files: set[str]) -> set[str]:
     return {f.split("/")[2] for f in files if f.startswith(ORACLES + "/") and f.count("/") >= 3}
 
@@ -693,11 +710,20 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
         cand_tree = tree(cand)
         here = sorted(d.name for d in (cand_tree / ORACLES).iterdir() if d.is_dir()) \
             if (cand_tree / ORACLES).is_dir() else []
+        # an oracle runs forever: one the base held, or one a fix in this range named, must still be at the candidate
+        # (Layer 6 on f220469: deleting it after the fix let a No-Oracle commit bring the bug back unseen)
+        base_tree = tree(base)
+        held = {d.name for d in (base_tree / ORACLES).iterdir() if d.is_dir() and ID_RE.match(d.name)} \
+            if (base_tree / ORACLES).is_dir() else set()
+        for oid in sorted((held | set(fixer_sessions)) - set(here)):
+            report.problems.append(f"oracle {oid} is not at the candidate {cand[:10]}: an oracle stays and runs "
+                                   "forever once it exists")
         for oid in here:
             if not ID_RE.match(oid):
                 report.problems.append(f"{ORACLES}/{oid}/ is not named by a bug ID")
                 continue
             probs, evidence = oracle_problems(cand_tree, oid)
+            probs += symlink_problems(repo, cand, oid)
             report.problems += [f"oracle {oid} at the candidate: {p}" for p in probs]
             own = last_touch(repo, cand, f"{ORACLES}/{oid}/")
             if probs or own is None:
@@ -727,6 +753,7 @@ def check_fix(repo, sha, parent, oid, files, session, fixer_sessions, tree, worl
         report.problems.append(f"{where}: {ORACLES}/{oid}/ was not committed before the fix")
         return
     probs, evidence = oracle_problems(tree(own), oid)
+    probs += symlink_problems(repo, own, oid)
     if probs:
         report.problems += [f"{where}: {p}" for p in probs]
         return

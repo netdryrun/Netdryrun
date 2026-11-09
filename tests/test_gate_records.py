@@ -231,3 +231,15 @@ def test_an_unreadable_record_blocks_gate_md(gate, tmp_path):
          "seconds": 1, "host": "h", "python": "3", "strict": True, "tools": {}}), encoding="utf-8")
     text, cleared = gate.render(args_for(tmp_path))
     assert not cleared and "attempt record can't be read" in text
+
+
+def test_a_fail_whose_check_the_latest_record_lacks_still_blocks(gate, tmp_path):
+    """GPT: render only overlaid FAILs on the checks in the current layer record, so a check that failed in an earlier
+    attempt (pack, say) and was left out of the next full run (no --pack) disappeared."""
+    put(tmp_path, [chk("pack", "FAIL"), chk("example-frr-bgp", "PASS")])
+    (tmp_path / "gate").mkdir(exist_ok=True)
+    (tmp_path / "gate" / "live.json").write_text(json.dumps(
+        {**rec([chk("example-frr-bgp", "PASS")]), "title": "Layer 5", "version": "0.4.2", "started": "x",
+         "seconds": 1, "host": "h", "python": "3", "strict": True, "tools": {}}), encoding="utf-8")
+    text, cleared = gate.render(args_for(tmp_path))
+    assert not cleared and "live/pack" in text, text

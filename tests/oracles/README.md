@@ -20,6 +20,8 @@ tests/oracles/<ID>/
   Guards (tests that pass before and after the fix) go in `tests/test_oracle_guards_<id>.py`, listed in
   `evidence:` so the fix can't change them. Specs start from `fastfix/oracle-specs/TEMPLATE.md`.
 - Evidence lives under `tests/` (for example `tests/fixtures/`), added in the oracle commit or already committed.
+- An oracle folder holds plain files, never a symlink. An oracle the base holds, or one a fix in the range names, must
+  still be at the candidate: deleting one blocks.
 
 ## Commits
 

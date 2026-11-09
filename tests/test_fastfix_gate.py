@@ -794,3 +794,73 @@ def test_reproduce_says_when_the_trailer_is_in_the_body(repo):
     sha = repo.commit("tighten\n\nFixes-Oracle: FP-1\n\nSession: ndr-fix")
     code, out = repo.reproduce(repo.base, sha)
     assert code == 1 and "in its trailer block" in out and "not the trailer block" in out, out
+
+
+# ---- Layer 6 on f220469 (GPT and Grok on the gate brief) ---------------------------------------------------------
+@needs_git
+def test_an_oracle_deleted_after_its_fix_blocks(repo):
+    """Grok: an oracle commit from another session deletes the oracle, then a No-Oracle revert brings the bug back;
+    nothing ran it at the candidate."""
+    _oracle(repo)
+    repo.write("src/toy/__init__.py", FIXED)
+    repo.commit("fix", Fixes_Oracle="FP-1", Session="fixer")
+    repo.remove("tests/oracles/FP-1")
+    repo.commit("retire FP-1", Oracle="FP-1", Session="someone-else")
+    repo.write("src/toy/__init__.py", JUDGE)
+    repo.commit("restore the old judge", No_Oracle="restore previous driver behaviour, reviewed")
+    code, out = repo.reproduce(repo.base)
+    assert code == 1 and "FP-1" in out and "not at the candidate" in out, out
+
+
+@needs_git
+def test_a_symlink_in_an_oracle_folder_blocks(repo):
+    """Grok: a conftest.py symlinked into src/ lets the fix change the oracle without touching tests/oracles/."""
+    _oracle(repo)
+    link = repo.path / "tests" / "oracles" / "FP-1" / "conftest.py"
+    try:
+        os.symlink(os.path.join("..", "..", "..", "src", "toy", "__init__.py"), link)
+    except (OSError, NotImplementedError):
+        pytest.skip("this machine can't make a symlink")
+    repo.commit("oracle helper", Oracle="FP-1", Session="oracle-writer")
+    repo.write("src/toy/__init__.py", FIXED)
+    repo.commit("fix", Fixes_Oracle="FP-1", Session="fixer")
+    code, out = repo.reproduce(repo.base)
+    assert code == 1 and "symlink" in out, out
+
+
+@needs_git
+@pytest.mark.parametrize("gate_file", ["scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py"])
+def test_every_gate_script_is_a_flip_once_the_base_has_the_gate(repo, gate_file):
+    """GPT: GATE_FILES left out the records, labrun and surfaces scripts, so a change there needed no review."""
+    repo.write("scripts/fastfix_gate.py", "# the judge\n")
+    repo.write(gate_file, "# part of the gate\n")
+    base = repo.commit("gate lands")
+    repo.write(gate_file, "# part of the gate, made lenient\n")
+    repo.commit("tweak")
+    code, out = repo.loosening(base)
+    assert code == 1 and f"gate :: {gate_file}: FAIL -> PASS" in out, out
+
+
+@needs_git
+def test_a_guard_the_base_skips_but_the_candidate_fails_blocks(tmp_path):
+    """Grok: a must-not-pass fixture skipped at the base and failing at the candidate was dropped from the compare.
+    A failing guard at the candidate is the tool accepting the input, whatever the base could run."""
+    r = Repo(tmp_path / "r")
+    r.write("src/toy/__init__.py", JUDGE)
+    r.write("tests/test_redteam.py", REDTEAM + textwrap.dedent('''
+
+        def test_refuses_the_new_input():
+            import pytest
+            import toy
+            if not hasattr(toy, "accepts_new"):
+                pytest.skip("this machine's toy has no new input yet")
+            assert not toy.accepts_new()
+        '''))
+    r.write("data/bad.yml", "bad: [-5]\n")
+    r.write("tests/redteam/README.md", "")
+    r.write("corpus/results/results.json", BASE_RESULTS)
+    base = r.commit("base")
+    r.write("src/toy/__init__.py", JUDGE + "\n\ndef accepts_new():\n    return True\n")
+    r.commit("new input, accepted")
+    code, out = r.loosening(base)
+    assert code == 1 and "test_refuses_the_new_input" in out, out

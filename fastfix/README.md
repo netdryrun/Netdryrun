@@ -30,7 +30,8 @@ Rules (each one blocks when broken):
   (`src/`, `scripts/`, `.github/`, `fastfix/`, `*.py`) or the flipped source itself. A `fixtures` entry may also cite
   the flipped test's own file, updated.
 - Once the base has `scripts/fastfix_gate.py`, a change to the gate's own files (`scripts/fastfix_gate.py`,
-  `scripts/release_gate.py`, `.github/workflows/release-gate.yml`) is a flip (`source: gate`, `case: <path>`), and
+  `scripts/release_gate.py`, `scripts/gate_records.py`, `scripts/labrun.py`, `scripts/surfaces_agree.py`,
+  `.github/workflows/release-gate.yml`) is a flip (`source: gate`, `case: <path>`), and
   the release gate always runs the base's copy of the checker.
 - The commit that adds the allowlist changes nothing else. Its `Session:` trailer must differ from the `Session:` of
   every commit in the change that touches shipped code, the gate, a flipped record or the cited evidence, and those
