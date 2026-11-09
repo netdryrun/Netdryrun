@@ -14,11 +14,12 @@ address token that can't be read (a global address that exists must never read a
 
 Everything goes through `record.record` with the real `Lab.interface_addresses` and the real FRR driver's
 `bgp_neighbors`, fed the captured answers; the reads the capture doesn't cover (routes, VRFs) answer "nothing".
+
+The tests here fail on the parent. The guards, which pass before and after the fix, are in
+tests/test_oracle_guards_fp_042_unnumbered.py (listed in ORACLE.yml `evidence:`).
 """
-import json
 import types
 from pathlib import Path
-
 
 from netdryrun import record as rec
 from netdryrun.drivers import Undetectable
@@ -110,49 +111,3 @@ def test_unnumbered_fabric_link_is_named_not_a_gap(monkeypatch):
         assert link_gaps(warnings, node, "eth1") == [], warnings
         assert [w for w in named(warnings) if node in w and "eth1" in w], warnings
     assert rec.baseline_gaps(warnings) == [], warnings   # nothing else is missing: record exits 0
-
-
-# ------------------------------------------------------------------ guards: pass before and after the fix
-
-def test_the_numbered_lan_still_gets_its_guard(monkeypatch):
-    data, _ = run(monkeypatch, CapturedLab())
-    assert ("leaf01", "192.168.11.0/24") in guarded(data)
-    assert ("spine01", "192.168.11.0/24") in guarded(data)
-
-
-def test_link_local_only_without_an_interface_session_stays_a_gap(monkeypatch):
-    """spine01 eth1 as captured (link-local only), but no BGP session over eth1: could be an address kept elsewhere
-    (SONiC on EthernetN, SR Linux on e1-Y.0), so it stays a gap."""
-    answers = captured()
-    nbrs = json.loads(answers[("spine01", "vtysh -c show bgp neighbors json")])
-    del nbrs["eth1"]
-    answers[("spine01", "vtysh -c show bgp neighbors json")] = json.dumps(nbrs)
-    _, warnings = run(monkeypatch, CapturedLab(answers))
-    assert link_gaps(warnings, "spine01", "eth1"), warnings
-
-
-def test_an_unreadable_interface_stays_a_gap(monkeypatch):
-    answers = captured()
-    answers[("leaf01", "ip -o addr show dev eth1")] = ExecResult([], 1, "", 'Device "eth1" does not exist.')
-    _, warnings = run(monkeypatch, CapturedLab(answers))
-    assert link_gaps(warnings, "leaf01", "eth1"), warnings
-
-
-def test_an_unreadable_address_token_is_never_none(monkeypatch):
-    """The captured eth1 answer plus a global address line whose address can't be read: a global address is there,
-    so it must not read as "link-local only" (Lab.interface_addresses drops a token it can't parse)."""
-    answers = captured()
-    extra = "14: eth1    inet 192.168.300.1/31 scope global eth1\\       valid_lft forever preferred_lft forever\n"
-    answers[("leaf01", "ip -o addr show dev eth1")] = answers[("leaf01", "ip -o addr show dev eth1")] + extra
-    _, warnings = run(monkeypatch, CapturedLab(answers))
-    assert link_gaps(warnings, "leaf01", "eth1"), warnings
-
-
-def test_a_global_address_next_to_the_session_is_guarded(monkeypatch):
-    """eth1 with its interface session and also a global /31: that subnet is guarded, not called unnumbered."""
-    answers = captured()
-    extra = "14: eth1    inet 10.0.0.0/31 scope global eth1\\       valid_lft forever preferred_lft forever\n"
-    answers[("leaf01", "ip -o addr show dev eth1")] = answers[("leaf01", "ip -o addr show dev eth1")] + extra
-    data, warnings = run(monkeypatch, CapturedLab(answers))
-    assert ("leaf01", "10.0.0.0/31") in guarded(data)
-    assert not [w for w in named(warnings) if "leaf01" in w and "eth1" in w], warnings

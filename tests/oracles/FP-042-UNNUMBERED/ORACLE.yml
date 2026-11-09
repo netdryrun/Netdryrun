@@ -15,3 +15,4 @@ evidence:
   - tests/fixtures/frr1021u_spine01_ip_o_addr_show_dev_eth3.txt
   - tests/fixtures/frr1021u_spine01_show_bgp_neighbors_json.txt
   - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_unnumbered.py

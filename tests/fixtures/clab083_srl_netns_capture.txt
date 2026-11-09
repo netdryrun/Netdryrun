@@ -1,0 +1,59 @@
+# FP-042-SRLNETNS capture (containerlab 0.83.0, examples/srl-frr with name ndr-srl-netns), from the 0.4.2
+# session's wt/oracle-cap/FP-042-SRLNETNS (capture 2). ANSI colours and the banner art left out.
+#
+# clab083_srl_netns_inspect_<node>.json: `docker inspect --format '{{json .}}' <container>` for srl1, its
+# namespace holder clab-ndr-srl-netns-srl1-netns (the container srl1's NetworkMode names), and frr1, byte for
+# byte. clab083_srl_netns_topology.clab.yml: the topology deployed (examples/srl-frr, name changed).
+
+## capture.txt
+date: 2026-11-10T00:17:02+07:00
+srl image: ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8
+frr image: quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442
+
+## capture.log
+2026-11-10T00:16:24+07:00 NOT STARTED: Windows available 8878 MB < 10000
+2026-11-10T00:16:58+07:00 start check ok: Windows available 8742 MB, commit 39555 MB
+2026-11-10T00:16:58+07:00 containerlab before: 0.81.1; installing 0.83.0
+::warning title=containerlab::0.83.0 is not the pinned 0.81.1; checked against its release's checksums.txt only
+/tmp/tmp.MVxHDWcuSZ/containerlab_0.83.0_linux_amd64.tar.gz: OK
+    version: 0.83.0
+2026-11-10T00:17:03+07:00 deploy
+00:17:03 INFO Containerlab started version=0.83.0
+00:17:03 INFO Parsing & checking topology file=topology.clab.yml
+00:17:03 INFO Creating docker network name=clab IPv4 subnet=172.20.20.0/24 IPv6 subnet=3fff:172:20:20::/64 MTU=0
+00:17:03 INFO Creating lab directory path=/home/ndr/cap-srlnetns/srl-frr/clab-ndr-srl-netns
+00:17:03 INFO Creating container name=frr1
+00:17:03 INFO Creating container name=srl1-netns
+00:17:03 INFO Creating container name=srl1
+00:17:04 INFO Running postdeploy actions kind=nokia_srlinux node=srl1
+00:17:30 INFO Adding host entries path=/etc/hosts
+00:17:30 INFO Adding SSH config for nodes path=/etc/ssh/ssh_config.d/clab-ndr-srl-netns.conf
+2026-11-10T00:17:53+07:00 clab-ndr-srl-netns-srl1 NetworkMode=container:4b66c3e32d2d32f86eefba43b4420e5c7112c2575ae12bcc6ebc9e9335a2a92c pid=1034 netns=net:[4026532304]
+2026-11-10T00:17:54+07:00   holder 4b66c3e32d2d32f86eefba43b4420e5c7112c2575ae12bcc6ebc9e9335a2a92c: name=/clab-ndr-srl-netns-srl1-netns pid=921 netns=net:[4026532304] labels={"additional_build_type":"NA","arch":"amd64","branch_type":"release","build_type":"no-debug","clab-internal-node":"true","clab-mgmt-net-bridge":"br-58375b1a4537","clab-node-group":"","clab-node-kind":"nokia_srlinux","clab-node-lab-dir":"/home/ndr/cap-srlnetns/srl-frr/clab-ndr-srl-netns/srl1","clab-node-longname":"clab-ndr-srl-netns-srl1-netns","clab-node-name":"srl1-netns","clab-node-type":"srl-netns","clab-owner":"ndr","clab-root-node-longname":"clab-ndr-srl-netns-srl1","clab-root-node-name":"srl1","clab-topo-file":"/home/ndr/cap-srlnetns/srl-frr/topology.clab.yml","containerlab":"ndr-srl-netns","description":"SRLinux OS","org.opencontainers.image.ref.name":"SRLinux","org.opencontainers.image.version":"26.7.2-519","version":"26.7.2-519"}
+2026-11-10T00:17:55+07:00 clab-ndr-srl-netns-frr1 NetworkMode=clab pid=920 netns=net:[4026532233]
+2026-11-10T00:17:56+07:00 clab-ndr-srl-netns-srl1-netns NetworkMode=clab pid=921 netns=net:[4026532304]
+2026-11-10T00:18:10+07:00 netdryrun 0.4.1 check on the running lab
+2026-11-10T00:18:13+07:00 check exit 2
+2026-11-10T00:18:13+07:00 done
+2026-11-10T00:18:13+07:00 destroying lab
+2026-11-10T00:18:15+07:00 restoring containerlab 0.81.1
+/tmp/tmp.yVZCfZz29R/containerlab_0.81.1_linux_amd64.tar.gz: OK
+    version: 0.81.1
+2026-11-10T00:18:19+07:00 containerlab restored: 0.81.1
+2026-11-10T00:18:19+07:00 LAB DOWN
+
+## docker ps -a (all containers)
+f7f61c3ff3c7 clab-ndr-srl-netns-srl1 ghcr.io/nokia/srlinux:26.7.2 Up 47 seconds
+1e895a928718 clab-ndr-srl-netns-frr1 quay.io/frrouting/frr:10.4.1 Up 48 seconds
+4b66c3e32d2d clab-ndr-srl-netns-srl1-netns ghcr.io/nokia/srlinux:26.7.2 Up 47 seconds
+
+## docker ps -a --filter label=containerlab=ndr-srl-netns
+f7f61c3ff3c7 clab-ndr-srl-netns-srl1
+1e895a928718 clab-ndr-srl-netns-frr1
+4b66c3e32d2d clab-ndr-srl-netns-srl1-netns
+
+## netdryrun 0.4.1 check on the running lab (exit 2)
+Netdryrun 0.4.1: 7 checks from netdryrun.yml
+frr1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+ERROR: check 'srl1: BGP session to 10.0.100.2 is established' reads srl1, which runs in the namespace of 4b66c3e32d2d32f86eefba43b4420e5c7112c2575ae12bcc6ebc9e9335a2a92c, which is not a lab node: it would test the host, not the lab
+  wrote json report: /mnt/c/NetCL Business/wt/oracle-cap/FP-042-SRLNETNS/check-041.json
