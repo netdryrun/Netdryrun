@@ -255,6 +255,29 @@ def test_dirty_working_tree_is_ignored(repo):
 
 
 @needs_git
+def test_a_fixture_the_base_skips_is_not_a_red_baseline_and_a_skipped_guard_still_blocks(tmp_path):
+    """PR #6: 65 docs-snippet fixture tests skip on GitHub's runner (a tool it lacks). A skip at the base proves
+    nothing there, so it isn't compared and isn't a red baseline; a guard that passed at the base and is skipped at
+    the candidate is still a FAIL -> PASS flip."""
+    r = Repo(tmp_path / "r")
+    r.write("src/toy/__init__.py", JUDGE)
+    r.write("tests/test_redteam.py", REDTEAM + "\n\ndef test_needs_a_tool():\n    import pytest\n"
+                                              "    pytest.skip('this machine lacks the tool')\n")
+    r.write("data/bad.yml", "bad: [-5]\n")
+    r.write("tests/redteam/README.md", "")
+    r.write("corpus/results/results.json", BASE_RESULTS)
+    base = r.commit("base with an environment skip")
+    r.write("README.md", "x")
+    r.commit("docs")
+    code, out = r.loosening(base)
+    assert code == 0 and "skipped at the base" in out, out
+    r.write("src/toy/__init__.py", JUDGE + "\nimport pytest\npytest.skip('nope', allow_module_level=True)\n")
+    r.commit("skip everything")
+    code, out = r.loosening(base)
+    assert code == 1 and "FAIL -> PASS" in out, out
+
+
+@needs_git
 def test_red_baseline_blocks(tmp_path):
     r = Repo(tmp_path / "r")
     r.write("src/toy/__init__.py", JUDGE.replace("LIMIT = 0", "LIMIT = -10"))

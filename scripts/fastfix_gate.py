@@ -416,11 +416,17 @@ def _target(t: object, where: str) -> str:
 
 def fixture_compare(base_run: PytestRun, cand_run: PytestRun, report: Report) -> None:
     """A passing fixture test means the tool refused the bad input (not PASS). On the candidate anything else
-    (failed, error, skipped) counts as PASS: fail-closed. A test red or skipped at the base is a red baseline."""
-    red = sorted(k for k, o in base_run.outcomes.items() if o != "passed")
+    (failed, error, skipped) counts as PASS: fail-closed. A test that fails or errors at the base is a red baseline.
+    A test the base skips (here: a tool or file this machine lacks) proves nothing at the base: it isn't compared, so
+    a skip on both sides is no flip, and only a pass at the base that turns into anything else is one (PR #6: 65
+    docs-snippet tests skip on GitHub's runner)."""
+    red = sorted(k for k, o in base_run.outcomes.items() if o not in ("passed", "skipped"))
     if red or base_run.code != 0:
-        report.problems.append(f"the baseline is red: {len(red)} fixture test(s) don't pass on the base itself "
+        report.problems.append(f"the baseline is red: {len(red)} fixture test(s) fail on the base itself "
                                f"(pytest exit {base_run.code}): {', '.join(red[:5])}")
+    skipped = sum(o == "skipped" for o in base_run.outcomes.values())
+    if skipped:
+        report.notes.append(f"fixtures: {skipped} skipped at the base on this machine, not compared")
     if cand_run.code not in (0, 1):
         report.problems.append(f"the base's fixtures did not run cleanly on the candidate's code (pytest exit "
                                f"{cand_run.code}; a collection error, or a dependency the candidate needs):\n"

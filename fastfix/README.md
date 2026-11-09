@@ -39,3 +39,10 @@ Rules (each one blocks when broken):
 
 Exit codes: 0 clean, 1 blocked, 2 couldn't run (missing git, unreadable input). The release gate treats anything but
 0 as a failed BLOCKER.
+
+## Oracle specs
+
+`fastfix/oracle-specs/<ID>.md` says what an oracle must capture and prove before the capture exists (a lab that waits
+for a night window). The oracle itself goes to `tests/oracles/<ID>/`, written by a session that isn't the fixer. A
+spec lives here, not under `releases/`, because the slim-container unit run copies no release records and the
+registry test reads it (`tests/known_false_passes.yml`, `oracle_spec:`).
