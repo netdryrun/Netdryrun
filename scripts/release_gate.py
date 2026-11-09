@@ -11,7 +11,8 @@ A check that cannot run (a tool is missing, no lab machine) is SKIP, never PASS.
 skipped BLOCKER counts as a failure; CI always runs with --strict.
 
 Layers (RELEASING.md explains each one):
-  python scripts/release_gate.py static          lint, workflow lint, public facts, version consistency
+  python scripts/release_gate.py static          lint, workflow lint, public facts, version consistency,
+                                                loosening gate and reproduce-first (fastfix_gate.py)
   python scripts/release_gate.py unit            tests on Python 3.10-3.14 and in a plain container, coverage
   python scripts/release_gate.py mutation        mutmut on the verdict modules; survivors block
   python scripts/release_gate.py live            the built wheel on the lab machine: examples, corpora, chaos
@@ -590,9 +591,38 @@ def layer_static(args) -> Layer:
     layer.add("retired-strings", "no retired public string outside the history (CHANGELOG, advisories, records)",
               BLOCKER, not retired, "; ".join(retired[:10]) or "none")
 
+    fastfix_checks(layer, args)
+
     if args.candidate:
         candidate_checks(layer, args.version)
     return layer
+
+
+def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
+    """0.4.2 fast fix (scripts/fastfix_gate.py): the loosening gate and the reproduce-first check, over the change
+    from the merge-base of --fastfix-base and HEAD. An empty range (HEAD is the base: a release from main without
+    --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS."""
+    git_, runner = git_ or git, runner or run
+    titles = {"loosening": "no unexplained FAIL/UNKNOWN -> PASS against the base (fastfix_gate.py loosening)",
+              "reproduce-first": "every src/ commit names an independent oracle that failed before it, or says why "
+                                 "not (fastfix_gate.py reproduce)"}
+    base = git_("merge-base", args.fastfix_base, "HEAD")
+    head = git_("rev-parse", "HEAD")
+    if not base or not head:
+        for id_, title in titles.items():
+            layer.add(id_, title, BLOCKER, False, f"can't find the merge-base of {args.fastfix_base} and HEAD "
+                      "(shallow clone or unknown ref; CI needs fetch-depth: 0)")
+        return
+    if base == head:
+        for id_, title in titles.items():
+            layer.add(id_, title, BLOCKER, None, f"HEAD is the base ({head[:10]}): nothing to compare; pass "
+                      "--fastfix-base <previous release tag> at a release")
+        return
+    script = str(ROOT / "scripts" / "fastfix_gate.py")
+    for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
+                     ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
+                                          "--range", f"{base}..HEAD"])):
+        layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}")
 
 
 def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
@@ -2297,6 +2327,9 @@ def main() -> int:
     ap.add_argument("--strict", action="store_true", help="a skipped BLOCKER (missing tool, no Docker) is a failure")
     ap.add_argument("--candidate", action="store_true",
                     help="static: this is the release candidate (CHANGELOG cut, tag and PyPI version unused)")
+    ap.add_argument("--fastfix-base", default="origin/main",
+                    help="static: the loosening and reproduce-first checks cover merge-base(this, HEAD)..HEAD "
+                         "(default origin/main; at a release, the previous release tag)")
     ap.add_argument("--pythons", default=",".join(PYTHONS), help=f"unit/after-publish: versions (default {','.join(PYTHONS)})")
     ap.add_argument("--modules", default=",".join(VERDICT_MODULES), help="mutation: modules to mutate (default all)")
     ap.add_argument("--carry-mutation", metavar="MUTATION_JSON",
