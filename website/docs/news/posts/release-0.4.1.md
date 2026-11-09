@@ -21,7 +21,7 @@ A verifier that says "passed" without really checking is worse than no verifier.
 
 How it was tested: static checks, the unit suite, mutation testing, both verdict corpora, live labs on every example across 7 network OSes, our end-to-end new-user test, and a red team on the final candidate. One layer, the scripted end-user walk-through, was not run on the final commit; the [release review](https://github.com/netdryrun/Netdryrun/blob/main/releases/0.4.1/review.md) says why.
 
-Found after release by the same new-user test, on public labs it had never seen: on FRR 10.2, `record` can't read one of FRR's replies and stops with an incomplete baseline. It fails safe (no wrong pass), but the baseline isn't written; the fix is in 0.4.2. Until then, record on FRR 10.4.
+Found after release by the same new-user test, on public labs it had never seen: on FRR 10.2, `record` can't read one of FRR's replies and stops with an incomplete baseline. It fails safe (no wrong pass): `record` exits 1 and lists each guard it couldn't write. Until the fix in 0.4.2, add those guards by hand.
 
 Think you can make it say "passed" when it shouldn't? [Open a corpus case](https://github.com/netdryrun/Netdryrun/issues/new?template=corpus-case.yml) and it becomes a permanent must-fail test.
 
