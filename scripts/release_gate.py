@@ -618,11 +618,22 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
             layer.add(id_, title, BLOCKER, None, f"HEAD is the base ({head[:10]}): nothing to compare; pass "
                       "--fastfix-base <previous release tag> at a release")
         return
-    script = str(ROOT / "scripts" / "fastfix_gate.py")
+    # the base's copy judges the change, so a change can't loosen the judge it is judged by; a base from before the
+    # gate existed (its bootstrap) uses this checkout's copy, and says so
+    tmp = Path(tempfile.mkdtemp(prefix="ndr-fastfix-gate-"))
+    script = tmp / "fastfix_gate.py"
+    own = git_("show", f"{base}:scripts/fastfix_gate.py")
+    if own:
+        script.write_text(own + "\n", encoding="utf-8")
+        which = f"the base's fastfix_gate.py ({base[:10]})"
+    else:
+        shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", script)
+        which = "this checkout's fastfix_gate.py (the base predates it)"
     for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
                      ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
                                           "--range", f"{base}..HEAD"])):
-        layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}")
+        layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}, by {which}")
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
