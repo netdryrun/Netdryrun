@@ -491,11 +491,15 @@ def allow_entries(f: str, tree: Path, changed: set[str], report: Report) -> list
         if not isinstance(ev, list) or not ev or not all(isinstance(x, str) and x.strip() for x in ev):
             report.problems.append(f"{where}: evidence must name one or more repository files")
             continue
-        bad = [x for x in ev if x.startswith(EVIDENCE_NOT_UNDER) or x.endswith(".py") or x not in changed
-               or not (tree / x).is_file()]
+        # a fixture whose guard test no longer holds may cite the updated test (the reviewer checks it still
+        # refuses); everything else cites captures, traces or results, never code
+        test_ok = text["source"] == "fixtures"
+        bad = [x for x in ev if x.startswith(EVIDENCE_NOT_UNDER) or x.startswith(ORACLES + "/") or x not in changed
+               or not (tree / x).is_file() or (x.endswith(".py") and not (test_ok and x.startswith("tests/")))]
         if bad:
-            report.problems.append(f"{where}: evidence must be capture, trace or results files that exist at the "
-                                   f"candidate and changed in this change (not code, not the allowlist): {', '.join(bad)}")
+            report.problems.append(f"{where}: evidence must be capture, trace or results files (or, for a fixture, its "
+                                   "updated test) that exist at the candidate and changed in this change (not code, "
+                                   f"not an oracle, not the allowlist): {', '.join(bad)}")
             continue
         keys.append((text["source"], text["case"], text["from"], text["to"]))
     return keys
@@ -705,6 +709,10 @@ def finish(name: str, report: Report) -> int:
         print(f"  {n}")
     for f in report.flips:
         print(f"BLOCKED loosening flip with no reviewed allowlist entry: {f}")
+    if any(f.source == "fixtures" for f in report.flips):
+        print("  (fixtures: the base's guard test no longer holds on the candidate's code. It counts as PASS because "
+              "the gate can't tell a pass from a changed status such as failed -> error; read the test's failure, and "
+              "if the tool still refuses, allow it citing the updated test as evidence)")
     for p in report.problems:
         print(f"BLOCKED {p}")
     if report.flips or report.problems:

@@ -341,6 +341,32 @@ def test_allowlist_that_predates_the_change_does_not_apply(repo):
 
 
 @needs_git
+@pytest.mark.parametrize("evidence,code", [("tests/test_pinned.py", 0), ("src/toy/__init__.py", 1),
+                                           ("tests/oracles/FP-9/test_oracle_fp_9.py", 1)])
+def test_fixture_guard_change_allowed_only_by_its_updated_test(repo, evidence, code):
+    # zero is now reported differently (an exception, not a pass): the base's exact-value guard breaks
+    repo.write("src/toy/__init__.py", JUDGE.replace("    return x > LIMIT", "    if x == 0:\n        raise ValueError(x)\n"
+                                                    "    return x > LIMIT"))
+    repo.write("tests/test_pinned.py", PINNED.replace("    assert not judge(0)", "    with pytest.raises(ValueError):\n"
+                                                      "        judge(0)").replace("from toy", "import pytest\n\nfrom toy"))
+    repo.write("tests/oracles/FP-9/test_oracle_fp_9.py", "def test_x():\n    pass\n")
+    repo.commit("zero raises", Session="fixer", No_Oracle="zero is an input error now, see the test")
+    repo.write("fastfix/allow/zero.yml", textwrap.dedent(f"""\
+        flips:
+          - source: fixtures
+            case: "tests.test_pinned::test_zero_refused"
+            from: FAIL
+            to: PASS
+            evidence: [{evidence}]
+            why: Zero now raises an input error instead of returning a verdict; the updated test pins that.
+            reviewed_by: coordinator
+        """))
+    repo.commit("allow", Session="reviewer")
+    out = repo.loosening(repo.base)
+    assert out[0] == code, out[1]
+
+
+@needs_git
 @pytest.mark.parametrize("base", ["no-such-ref", "--output=x"])
 def test_unresolvable_base_fails(repo, base):
     code, out = repo.loosening(base)
