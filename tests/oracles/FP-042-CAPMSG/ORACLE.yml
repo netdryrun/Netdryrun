@@ -1,0 +1,8 @@
+id: FP-042-CAPMSG
+bug: >-
+  `record.baseline_gaps` treats any INCOMPLETE BASELINE line containing "only the first" as a size cap of the format,
+  not a gap, so a gap line that quotes device text with those words (a failed read carries the device's last line) is
+  dropped and `record` exits 0 on a node whose BGP state it couldn't read (Layer 6 on e6522db)
+evidence:
+  - tests/fixtures/frr_bgp_neighbors.txt
+  - tests/test_oracle_guards_fp_042_capmsg.py
