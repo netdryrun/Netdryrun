@@ -59,6 +59,13 @@
   FRR path, are recorded as before, with their AS path, and `record` still exits 0 on them. Listed under "What a lab
   cannot prove" on the trust page.
 
+### Not fixed in 0.4.2
+
+- **Cases 1 to 3 of the 0.4.1 advisory** ([GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff),
+  `advisories/0.4.1-known-false-passes/README.md`) are still open: Arista EOS `route ... present: false` with a
+  protocol other than `bgp`, SR Linux EVPN type-5 routes in an ip-vrf, and FRR/SONiC pings to a VRF device's own
+  address. Each has a workaround in the advisory. They are planned for 0.4.3.
+
 ## 0.4.1 (2026-11-09)
 
 Released without the scripted acceptance run on the final candidate (owner decision, 2026-11-09): every other
