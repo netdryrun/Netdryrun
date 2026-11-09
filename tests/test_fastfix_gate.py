@@ -274,7 +274,9 @@ def test_a_fixture_the_base_skips_is_not_a_red_baseline_and_a_skipped_guard_stil
     r.write("src/toy/__init__.py", JUDGE + "\nimport pytest\npytest.skip('nope', allow_module_level=True)\n")
     r.commit("skip everything")
     code, out = r.loosening(base)
-    assert code == 1 and "FAIL -> PASS" in out, out
+    # a module-level skip leaves the guards uncollected: each is "judged at the base, not at the candidate", which
+    # blocks as surely as a FAIL -> PASS flip
+    assert code == 1 and ("FAIL -> PASS" in out or "a missing verdict is not a pass" in out), out
 
 
 @needs_git
