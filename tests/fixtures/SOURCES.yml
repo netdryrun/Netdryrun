@@ -359,3 +359,14 @@
     martimy/clab-bgp-frr @ ac5b96c (BGP unnumbered), node leaf01, 2026-11-09: `vtysh -c '<command>'`, commands and
     exit codes in frr1021_capture.txt; captured by the 0.4.2 session for oracle FP-042-FRR102
   added: ndr/oracles-0.4.2
+- files: [frr1021u_capture.txt, frr1021u_leaf01_ip_o_addr_show_dev_eth1.txt, frr1021u_leaf01_ip_o_addr_show_dev_eth2.txt,
+          frr1021u_leaf01_ip_o_addr_show_dev_eth3.txt, frr1021u_leaf01_show_bgp_neighbors_json.txt,
+          frr1021u_spine01_ip_o_addr_show_dev_eth1.txt, frr1021u_spine01_ip_o_addr_show_dev_eth2.txt,
+          frr1021u_spine01_ip_o_addr_show_dev_eth3.txt, frr1021u_spine01_show_bgp_neighbors_json.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.2.1 (quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1), lab
+    martimy/clab-bgp-frr @ ac5b96c (BGP unnumbered), nodes leaf01 and spine01, 2026-11-09: `ip -o addr show dev ethN`
+    and `vtysh -c 'show bgp neighbors json'`, listed in frr1021u_capture.txt; captured by the 0.4.2 session for oracle
+    FP-042-UNNUMBERED
+  added: ndr/oracles-0.4.2

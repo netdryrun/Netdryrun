@@ -1,0 +1,17 @@
+id: FP-042-UNNUMBERED
+bug: >-
+  `record` makes a BGP-unnumbered fabric link an INCOMPLETE BASELINE gap ("no global address on ethN ... its link
+  subnet has no guard") and exits 1, although the link has no global subnet to guard: the interface holds only its
+  IPv6 link-local address and the node's BGP peers over it by interface (stranger, hq run 42599196181,
+  martimy/clab-bgp-frr @ ac5b96c, 12 of the 18 gaps)
+evidence:
+  - tests/fixtures/frr1021u_capture.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth1.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth2.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth3.txt
+  - tests/fixtures/frr1021u_leaf01_show_bgp_neighbors_json.txt
+  - tests/fixtures/frr1021u_spine01_ip_o_addr_show_dev_eth1.txt
+  - tests/fixtures/frr1021u_spine01_ip_o_addr_show_dev_eth2.txt
+  - tests/fixtures/frr1021u_spine01_ip_o_addr_show_dev_eth3.txt
+  - tests/fixtures/frr1021u_spine01_show_bgp_neighbors_json.txt
+  - tests/fixtures/SOURCES.yml

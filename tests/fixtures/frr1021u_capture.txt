@@ -1,0 +1,15 @@
+# FP-042-UNNUMBERED capture (FRR 10.2.1, BGP unnumbered), from the 0.4.2 session's wt/oracle-cap/FP-042-UNNUMBERED
+date: 2026-11-09T20:28:57+07:00
+lab: martimy/clab-bgp-frr ac5b96c2f25a798f3c81ca2d04439cc1af48a77b
+frr image: quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1
+leaf01 eth1/eth2 and spine01 eth1/eth2/eth3 are the BGP-unnumbered fabric links (`neighbor ethN interface`);
+leaf01 eth3 is a numbered LAN (192.168.11.1/24). The frr1021u_*.txt fixtures are the output byte for byte.
+
+frr1021u_leaf01_ip_o_addr_show_dev_eth1.txt: node leaf01, `ip -o addr show dev eth1`, rc 0
+frr1021u_leaf01_ip_o_addr_show_dev_eth2.txt: node leaf01, `ip -o addr show dev eth2`, rc 0
+frr1021u_leaf01_ip_o_addr_show_dev_eth3.txt: node leaf01, `ip -o addr show dev eth3`, rc 0
+frr1021u_leaf01_show_bgp_neighbors_json.txt: node leaf01, `vtysh -c show bgp neighbors json`, rc 0
+frr1021u_spine01_ip_o_addr_show_dev_eth1.txt: node spine01, `ip -o addr show dev eth1`, rc 0
+frr1021u_spine01_ip_o_addr_show_dev_eth2.txt: node spine01, `ip -o addr show dev eth2`, rc 0
+frr1021u_spine01_ip_o_addr_show_dev_eth3.txt: node spine01, `ip -o addr show dev eth3`, rc 0
+frr1021u_spine01_show_bgp_neighbors_json.txt: node spine01, `vtysh -c show bgp neighbors json`, rc 0
