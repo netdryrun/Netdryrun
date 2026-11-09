@@ -386,3 +386,25 @@
     the topology deployed for the clab083_srl_netns capture: examples/srl-frr/topology.clab.yml with its name changed
     to ndr-srl-netns, 2026-11-10
   added: ndr/oracles-0.4.2
+- files: [srl_rt_s01_capture.txt, srl_rt_s01_empty_bgp_rib.txt, srl_rt_s01_empty_attr_set.txt, srl_rt_s01_empty_show.txt,
+          srl_rt_s01_prepended_bgp_rib.txt, srl_rt_s01_prepended_attr_set.txt, srl_rt_s01_prepended_show.txt,
+          srl_rt_s01_empty_again_bgp_rib.txt, srl_rt_s01_empty_again_attr_set.txt, srl_rt_s01_empty_again_show.txt]
+  kind: live-capture
+  source: >-
+    SR Linux 26.7.2 (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8)
+    iBGP with FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    both in AS 65010, the laptop's WSL, 2026-11-10: srl1's `sr_cli --output-format json` local-RIB and attr-set reads
+    for 192.168.20.0/24 in three phases (empty AS path, FRR prepending 64666, empty again), commands in
+    srl_rt_s01_capture.txt; captured by the 0.4.2 session for oracle RT-S01
+  added: ndr/oracles-0.4.2
+- files: [srl_rt_s01_srl1.cli, srl_rt_s01_frr1.conf]
+  kind: lab-input
+  source: >-
+    the configs deployed for the srl_rt_s01 capture: examples/srl-frr with FRR moved into AS 65010 (iBGP), 2026-11-10
+  added: ndr/oracles-0.4.2
+- files: [srl_rt_s01_record_041.yml]
+  kind: report
+  source: >-
+    netdryrun 0.4.1 `record --attributes` on the running srl_rt_s01 lab, 2026-11-10 (exit 1; its output in
+    srl_rt_s01_capture.txt)
+  added: ndr/oracles-0.4.2
