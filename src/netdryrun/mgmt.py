@@ -49,11 +49,15 @@ class Mgmt:
     vrfs: set = field(default_factory=lambda: {"default"})   # Junos: the instances read
     tables: str = "all"                         # "all", or "main" where the node's `ip` can't list every table
     via: str = "container"                      # "container": the node's own `ip`; "helper": NETNS_HELPER_IMAGE
+    holder: str = ""                            # the namespace holder containerlab made for this node, if any
 
 
 def docker_mgmt(lab: Lab, node: str) -> Mgmt:
     """The container's network mode, and every Docker network it is attached to (each is management: R9)."""
-    data = lab.docker_inspect(node)
+    return _mgmt_of(node, lab.docker_inspect(node))
+
+
+def _mgmt_of(node: str, data: dict) -> Mgmt:
     try:
         mode = str(data["HostConfig"]["NetworkMode"])
         nets = data["NetworkSettings"]["Networks"] or {}
@@ -520,6 +524,9 @@ def prepare(lab: Lab, checks: list, log=lambda _: None, sleep=None) -> dict[str,
         if node.kind in NOT_CONTAINERS:
             continue
         m = docker_mgmt(lab, name)
+        own = own_holder(lab, name, m)
+        if own is not None:
+            m = own                      # the namespace is the node's own, held by containerlab's holder for it
         state[name] = m
         if m.mode == "host":
             continue                     # the Docker host's own namespace: never touched (R1); checks on it refused
@@ -554,10 +561,46 @@ def describe(m: Mgmt, kind: str) -> str:
     if m.mode.startswith("container:"):
         return f"not touched (shares {m.mode[len('container:'):]}'s namespace)"
     if not m.kind:
-        return f"not applicable ({kind})"
+        return f"not applicable ({kind})" + (f"; in its namespace holder {m.holder}" if m.holder else "")
     how = " (read from outside: no `ip` in the image)" if m.via == "helper" else ""
     back = f"; back and removed again: {'; '.join(m.readded)}" if m.readded else ""
     return (("removed: " + "; ".join(m.removed)) if m.removed else "none") + how + back
+
+
+def own_holder(lab: Lab, name: str, m: Mgmt) -> Mgmt | None:
+    """containerlab 0.83 runs an SR Linux node in the network namespace of a holder container it makes for that node
+    (clab-<lab>-<node>-netns; FP-042-SRLNETNS). That namespace is the node's own: the holder's Docker networks are read
+    as the node's management networks, so a ping over them is still refused.
+
+    Only a holder that names itself containerlab's, for this lab and this node, counts: labels containerlab=<lab>,
+    clab-internal-node=true and clab-root-node-name=<node>, found under the very name or id the node's NetworkMode
+    gives, and holding its own namespace (not host, not another container's, not none). Anything else is None, and the
+    node's checks stay refused (refuse_checks)."""
+    if not m.mode.startswith("container:"):
+        return None
+    ref = m.mode[len("container:"):]
+    read = getattr(lab, "docker_inspect_container", None)
+    if not ref or read is None or not isinstance(getattr(lab, "name", None), str):
+        return None
+    try:
+        data = read(ref)
+    except LabError:
+        return None
+    labels = (data.get("Config") or {}).get("Labels") if isinstance(data.get("Config"), dict) else None
+    if not isinstance(labels, dict) or (labels.get("containerlab"), labels.get("clab-internal-node"),
+                                        labels.get("clab-root-node-name")) != (lab.name, "true", name):
+        return None
+    hid, hname = str(data.get("Id") or ""), str(data.get("Name") or "").lstrip("/")
+    if not (hid and hid.startswith(ref)) and hname != ref.lstrip("/"):
+        return None
+    try:
+        h = _mgmt_of(name, data)
+    except LabError:
+        return None
+    if h.mode in ("host", "none", "") or h.mode.startswith("container:"):
+        return None
+    h.cid, h.holder = m.cid, hname or hid[:12]
+    return h
 
 
 def _owner(lab: Lab, state: dict, m: Mgmt) -> Mgmt | None:

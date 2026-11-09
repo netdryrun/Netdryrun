@@ -447,7 +447,11 @@ class Lab:
 
     def docker_inspect(self, node: str) -> dict:
         """The node's container as `docker inspect` prints it. Not readable is an error, never "no networks"."""
-        c = self.nodes[node].container
+        return self.docker_inspect_container(self.nodes[node].container)
+
+    def docker_inspect_container(self, c: str) -> dict:
+        """Any container, by name or id, as `docker inspect` prints it (a namespace holder containerlab made for a
+        node is not a node itself). Not readable is an error."""
         r = _run(["docker", "inspect", c], timeout=60, errors="replace")
         try:
             data = json.loads(r.stdout) if r.rc == 0 else None

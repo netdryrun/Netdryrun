@@ -28,6 +28,17 @@
   The answer must now be the JSON document, with only whitespace around it; anything else is unexpected output.
 
   Oracle `tests/oracles/FP-042-ADDRLOAD`, from the fuzzer's saved crash input.
+- **SR Linux on containerlab 0.83: every check was refused** as "in the namespace of ..., which is not a lab node"
+  (found by the synthetic stranger; `netdryrun run examples/srl-frr` exited 2). containerlab 0.83 runs an SR Linux node
+  in a namespace holder container it makes for that node.
+  - That holder now counts as the node's own namespace, but only when it carries containerlab's labels for this lab and
+    this node (`containerlab`, `clab-internal-node: "true"`, `clab-root-node-name`), Docker finds it under the name or
+    id the node's network mode gives, and it holds its own namespace.
+  - Its Docker networks are the node's management networks, so a ping over them is still refused.
+  - Still refused: network-mode host, a holder for another lab or node, a container with the holder's name but not
+    its labels, and a holder Docker can't read.
+
+  Oracle `tests/oracles/FP-042-SRLNETNS`, from a containerlab 0.83.0 capture.
 
 ## 0.4.1 (2026-11-09)
 
