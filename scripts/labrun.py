@@ -46,8 +46,10 @@ ENDED = ("ok", "failed", "launch-failed", "stalled", "exited-without-result", "s
 
 # ---- small helpers ------------------------------------------------------------------------------------------------
 def write_json(path: Path, data: dict) -> None:
-    """Atomic: a reader never sees half a file."""
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    """Atomic: a reader never sees half a file. The temp name is per process and per thread: the heartbeat thread and
+    the run's own beat() (hold_if_paused, phase) write heartbeat.json at once, and a shared temp file let one thread's
+    os.replace find it gone and kill the run before done() (PR #6, Python 3.10, exited-without-result)."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
     tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(tmp, path)
 

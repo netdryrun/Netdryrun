@@ -232,3 +232,25 @@ def test_outside_labrun_the_gate_hooks_do_nothing(tmp_path, monkeypatch):
     gate.lab_boundary("x")
     gate.labrun_end(0, "x")
     assert not list(tmp_path.iterdir())
+
+
+@posix
+def test_two_threads_writing_one_file_never_fail(tmp_path):
+    """The heartbeat thread and the run's own beat() write heartbeat.json at once (PR #6 on 3.10: a shared temp name
+    made one os.replace fail and the run exit before done.json)."""
+    import threading
+    target, errors = tmp_path / "heartbeat.json", []
+
+    def hammer(n):
+        try:
+            for i in range(300):
+                labrun.write_json(target, {"n": n, "i": i})
+        except Exception as e:   # noqa: BLE001  (any failure is the bug)
+            errors.append(e)
+    threads = [threading.Thread(target=hammer, args=(n,)) for n in range(4)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+    assert errors == [] and labrun.read_json(target)["i"] == 299
+    assert not list(tmp_path.glob(".heartbeat.json.*.tmp"))
