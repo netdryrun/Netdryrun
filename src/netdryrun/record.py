@@ -146,7 +146,11 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
         try:
             vrfs += [v for v in drv.vrfs().value if v != "default"]
         except DriverError as e:
-            warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
+            # every session and route in the node's other VRFs is missing: a gap, never a plain warning
+            # (FP-043-VRFLIST, the RT-0066 pattern)
+            warnings.append(f"INCOMPLETE BASELINE: {name}: its VRF list can't be read ({e}); only the default VRF is "
+                            "recorded, every other VRF on it is left out: rerun record, or add checks for other VRFs "
+                            "by hand")
         for vrf in vrfs:
             checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
                                   link_subnets if guards and vrf == "default" else None, sleep, no_bgp)
