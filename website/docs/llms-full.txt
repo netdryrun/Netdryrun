@@ -2598,8 +2598,8 @@ The ten minutes assume the images are already pulled. Recording took 50 seconds 
 
 ## 1. Record the steady state
 
-!!! warning "Advisory for 0.3.3 and 0.4.0"
-    The prefix-count range `record` writes lets a leak of one or two extra prefixes from a neighbor pass. Until 0.4.1, add `--exact-prefixes` to `netdryrun record`, and add `present: false` checks for prefixes that must never arrive. [Advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md).
+!!! warning "Baselines recorded with 0.3.3 or 0.4.0"
+    Their prefix-count ranges let a leak of one or two extra prefixes from a neighbor pass ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)). Upgrade to 0.4.1 and record them again.
 
 ```text
 $ netdryrun record my-lab/topology.clab.yml --deploy
@@ -2657,7 +2657,7 @@ A recorded baseline allows only modest growth: from 0.3.3 each prefix count is t
 
 - **Keep** every `bgp_session` check.
 - **Keep the `only` lists**, and add a prefix to one when a neighbor may start sending it (a customer's new block). Removing `only` brings back the 0.4.0 behavior: a small leak passes.
-- **Set the prefix ranges to the growth you expect**, for example `max: 10` where sites are added often. `max` stays a cheap leak guard. `--exact-prefixes` pins exact counts (no `only` lists); `--min-prefixes` records minimums only.
+- **Set the prefix ranges to the growth you expect**, for example `max: 10` where sites are added often. `max` stays a cheap leak guard. **Leave `exact: 0` as it is** on a family the session doesn't carry (`record` writes it so that adding that family later and leaking through it fails): from 0.4.1 any other bound on such a family fails, saying the session doesn't carry it. `--exact-prefixes` pins exact counts (no `only` lists); `--min-prefixes` records minimums only.
 - **Keep the standard guards** `record` adds: no default route and no link subnet via BGP on each BGP node. A prefix range has room for one leaked default route; the guard is what catches it.
 - **Keep the route checks you care about**, and drop the rest.
 
