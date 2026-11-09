@@ -1,0 +1,39 @@
+== ip -V
+ip utility, iproute2-6.9.0
+== ip -j addr show vrf red
+[{"ifindex":4,"ifname":"d0","flags":["BROADCAST","NOARP","UP","LOWER_UP"],"mtu":1500,"qdisc":"noqueue","master":"red","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"ether","address":"2e:e8:54:33:5b:f0","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[{"family":"inet","local":"10.0.23.1","prefixlen":30,"scope":"global","label":"d0","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fe80::2ce8:54ff:fe33:5bf0","prefixlen":64,"scope":"link","protocol":"kernel_ll","valid_life_time":4294967295,"preferred_life_time":4294967295}]}]
+== ip -j addr
+[{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"mtu":65536,"qdisc":"noqueue","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"loopback","address":"00:00:00:00:00:00","broadcast":"00:00:00:00:00:00","addr_info":[{"family":"inet","local":"127.0.0.1","prefixlen":8,"scope":"host","label":"lo","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"::1","prefixlen":128,"scope":"host","protocol":"kernel_lo","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":2,"link_index":7,"ifname":"eth0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"noqueue","operstate":"UP","group":"default","link_type":"ether","address":"3a:3e:7f:ac:bb:fd","broadcast":"ff:ff:ff:ff:ff:ff","link_netnsid":0,"addr_info":[{"family":"inet","local":"172.17.0.2","prefixlen":16,"broadcast":"172.17.255.255","scope":"global","label":"eth0","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":3,"ifname":"red","flags":["NOARP","MASTER","UP","LOWER_UP"],"mtu":65575,"qdisc":"noqueue","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"9a:20:ac:35:ea:be","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[{"family":"inet","local":"10.9.9.9","prefixlen":32,"scope":"global","label":"red","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet","local":"10.8.8.1","prefixlen":24,"scope":"global","label":"red","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"2001:db8:99::9","prefixlen":128,"scope":"global","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":4,"ifname":"d0","flags":["BROADCAST","NOARP","UP","LOWER_UP"],"mtu":1500,"qdisc":"noqueue","master":"red","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"ether","address":"2e:e8:54:33:5b:f0","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[{"family":"inet","local":"10.0.23.1","prefixlen":30,"scope":"global","label":"d0","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fe80::2ce8:54ff:fe33:5bf0","prefixlen":64,"scope":"link","protocol":"kernel_ll","valid_life_time":4294967295,"preferred_life_time":4294967295}]}]
+== ip -j addr show dev red
+[{"ifindex":3,"ifname":"red","flags":["NOARP","MASTER","UP","LOWER_UP"],"mtu":65575,"qdisc":"noqueue","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"9a:20:ac:35:ea:be","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[{"family":"inet","local":"10.9.9.9","prefixlen":32,"scope":"global","label":"red","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet","local":"10.8.8.1","prefixlen":24,"scope":"global","label":"red","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"2001:db8:99::9","prefixlen":128,"scope":"global","valid_life_time":4294967295,"preferred_life_time":4294967295}]}]
+== ping vrf device /32
+PING 10.9.9.9 (10.9.9.9): 56 data bytes
+64 bytes from 10.9.9.9: seq=0 ttl=64 time=0.061 ms
+64 bytes from 10.9.9.9: seq=1 ttl=64 time=0.135 ms
+
+--- 10.9.9.9 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max = 0.061/0.098/0.135 ms
+rc=0
+== ping other addr in /24 on vrf device
+PING 10.8.8.77 (10.8.8.77): 56 data bytes
+
+--- 10.8.8.77 ping statistics ---
+2 packets transmitted, 0 packets received, 100% packet loss
+rc=1
+== local table 10
+10.0.23.0/30 dev d0 proto kernel scope link src 10.0.23.1 
+local 10.0.23.1 dev d0 proto kernel scope host src 10.0.23.1 
+broadcast 10.0.23.3 dev d0 proto kernel scope link src 10.0.23.1 
+10.8.8.0/24 dev red proto kernel scope link src 10.8.8.1 
+local 10.8.8.1 dev red proto kernel scope host src 10.8.8.1 
+broadcast 10.8.8.255 dev red proto kernel scope link src 10.8.8.1 
+local 10.9.9.9 dev red proto kernel scope host src 10.9.9.9 
+== ip vrf exec red ping enslaved addr
+PING 10.0.23.1 (10.0.23.1): 56 data bytes
+64 bytes from 10.0.23.1: seq=0 ttl=64 time=0.050 ms
+
+--- 10.0.23.1 ping statistics ---
+1 packets transmitted, 1 packets received, 0% packet loss
+round-trip min/avg/max = 0.050/0.050/0.050 ms
+rc=0
