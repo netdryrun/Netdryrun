@@ -17,6 +17,7 @@ from netdryrun.drivers.base import Observation
 from netdryrun.lab import Node
 
 SRC = Path(checks.__file__).resolve().parent   # the code under test (the contributor gate runs this file on a PR's src)
+REPO = Path(__file__).resolve().parent.parent   # repo files that aren't in the package (action.yml)
 FX = Path(__file__).parent / "fixtures"
 
 # keys whose value decides a verdict: counts, AS path, communities, stale, programmed/installed/best flags, family
@@ -36,7 +37,7 @@ VERDICT_KEYS = frozenset({
 # every module that reads device output on the way to a verdict (Layer 6 round 3: verify/, faults.py and runner.py
 # were never scanned)
 SCANNED = sorted((SRC / "drivers").glob("*.py")) + sorted((SRC / "verify").glob("*.py")) + [
-    SRC / "checks.py", SRC / "faults.py", SRC / "runner.py", SRC.parent.parent / "action.yml"]
+    SRC / "checks.py", SRC / "faults.py", SRC / "runner.py", REPO / "action.yml"]
 
 # (file, key) -> why the read can't pass a check on a missing key. Each reason names what a reviewer checks: the
 # capture that shows the device leaves the key out (and so what absence means), or that the value is netdryrun's own
@@ -647,6 +648,6 @@ def test_srl_a_communities_container_without_a_known_list_is_an_error(comms):
 
 def test_the_scan_reads_the_python_in_action_yml():
     """F7: the Action's embedded Python reads report keys too; the scan sees each `python - <<'EOF'` block."""
-    blocks = _sources(SRC.parent.parent / "action.yml")
+    blocks = _sources(REPO / "action.yml")
     assert len(blocks) >= 4 and all(where == "action.yml" for where, _ in blocks)
     assert all(ast.parse(text) for _, text in blocks)
