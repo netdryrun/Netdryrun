@@ -16,7 +16,7 @@ from netdryrun.drivers import DriverError, detect, eos, frr, junos, nxos, router
 from netdryrun.drivers.base import Observation
 from netdryrun.lab import Node
 
-SRC = Path(__file__).parent.parent / "src" / "netdryrun"
+SRC = Path(checks.__file__).resolve().parent   # the code under test (the contributor gate runs this file on a PR's src)
 FX = Path(__file__).parent / "fixtures"
 
 # keys whose value decides a verdict: counts, AS path, communities, stale, programmed/installed/best flags, family

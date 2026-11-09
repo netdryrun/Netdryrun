@@ -200,12 +200,15 @@ def _pytest(tests_tree: Path, src: Path, targets: list[str]) -> subprocess.Compl
 def known_false_passes(base: str) -> list[str]:
     with tempfile.TemporaryDirectory() as tmp:
         tree = _export(base, Path(tmp) / "base")
-        shutil.rmtree(tree / "src", ignore_errors=True)        # the tests are the base's; the code is this checkout's
+        # the tests are the base's; the code is this checkout's, in the tree too, so a base test that reads src/ by
+        # path (an AST scan) reads the code under test, the same code it imports (Dependabot PRs #4 and #5: no src/)
+        shutil.rmtree(tree / "src", ignore_errors=True)
+        shutil.copytree(ROOT / "src", tree / "src", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         reg = tree / "tests" / "known_false_passes.yml"
         targets = registry_tests(reg) if reg.is_file() else registry_tests(ROOT / "tests" / "known_false_passes.yml")
         if not targets:
             return []
-        r = _pytest(tree, ROOT / "src", targets)
+        r = _pytest(tree, tree / "src", targets)
         if r.returncode != 0:
             tail = "\n".join(r.stdout.strip().splitlines()[-25:])
             return [f"a known false pass is back: the base branch's tests fail on this code\n{tail}"]
@@ -249,6 +252,21 @@ def dco(base: str) -> list[str]:
 
 
 DISCLOSURE = re.compile(r"^\s*[-*]\s*\[([ xX])\]\s*(No AI tools|AI tools)\b", re.M)
+
+
+# Pull requests GitHub opens for its own dependency bot. Only these exact logins, with GitHub's user type "Bot", from a
+# branch of this repository, skip the AI-use disclosure; everything else (any human, any other bot, a fork) must tick
+# a box. A human login can't contain "[bot]", and GitHub sets the type.
+DISCLOSURE_EXEMPT_BOTS = frozenset({"dependabot[bot]"})
+
+
+def disclosure_exempt(event: dict) -> bool:
+    pr = event.get("pull_request") or {}
+    user = pr.get("user") or {}
+    head_repo = ((pr.get("head") or {}).get("repo") or {}).get("full_name")
+    base_repo = ((pr.get("base") or {}).get("repo") or {}).get("full_name")
+    return (user.get("login") in DISCLOSURE_EXEMPT_BOTS and user.get("type") == "Bot"
+            and head_repo is not None and head_repo == base_repo)
 
 
 def disclosure(body: str | None) -> list[str]:
@@ -360,7 +378,10 @@ def main(argv=None) -> int:
         problems = dco(args.base)
     elif args.cmd == "disclosure":
         event = json.loads(Path(args.event).read_text(encoding="utf-8"))
-        problems = disclosure((event.get("pull_request") or {}).get("body"))
+        if disclosure_exempt(event):
+            problems, notes = [], [f"{event['pull_request']['user']['login']}: a dependency bot, no AI-use disclosure"]
+        else:
+            problems = disclosure((event.get("pull_request") or {}).get("body"))
     else:
         problems = labs(run_them=args.run)
     for n in notes:
