@@ -544,6 +544,12 @@ def layer_static(args) -> Layer:
     cmd = [sys.executable, "scripts/sync_facts.py", "--check"]
     layer.add_proc("sync-facts", "public facts match the source (sync_facts.py --check)", BLOCKER, cmd, run(cmd))
 
+    # what shipped is what every surface names (0.4.2 priority 4: 0.4.1 shipped NX-OS and RouterOS while sync_facts
+    # still called them UNRELEASED); a release candidate also has nothing left in UNRELEASED
+    cmd = [sys.executable, "scripts/surfaces_agree.py", "static", *(["--release"] if args.candidate else [])]
+    layer.add_proc("surfaces-agree", "every surface names the platforms that shipped (surfaces_agree.py static)",
+                   BLOCKER, cmd, run(cmd, timeout=120))
+
     t0 = time.monotonic()
     found, problems = version_sources(args.version)
     listing = "\n".join(f"{'ok ' if v == args.version else 'BAD'} {v:<10} {where}" for where, v in found)
@@ -1866,6 +1872,10 @@ def layer_after_publish(args) -> Layer:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     release_consistency(layer, v)
+    # the published surfaces outside the repo: GitHub description, PyPI, MCP Registry, LobeHub, netdryrun.com
+    cmd = [sys.executable, "scripts/surfaces_agree.py", "published", "--version", v]
+    layer.add_proc("surfaces-published", f"every published surface names {v} and the released platforms "
+                   "(surfaces_agree.py published)", BLOCKER, cmd, run(cmd, timeout=300))
     if shutil.which("gh"):
         p = run(["gh", "run", "list", "--workflow", "published-action.yml", "--limit", "1",
                  "--json", "conclusion,headSha,url"], timeout=120)
