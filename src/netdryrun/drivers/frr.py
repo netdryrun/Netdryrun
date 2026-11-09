@@ -413,7 +413,8 @@ def parse_paths_available(text: str, prefix: str) -> int:
     """`show bgp <afi> unicast <prefix>` (text): the count in "Paths: (N available, best #k ...)", which FRR 10.2.1
     prints where its JSON leaves pathCount out (tests/fixtures/frr1021_*_prefix_text.txt). Exactly one such line for
     exactly this prefix, or no count: never a guess."""
-    head = re.search(r"BGP routing table entry for (\S+)", text)
+    # FRR prints "BGP routing table entry for 192.168.21.0/24, version 5": the prefix ends at the comma
+    head = re.search(r"BGP routing table entry for ([^\s,]+)", text)
     found = _PATHS_AVAILABLE.findall(text)
     try:
         same = bool(head) and ipaddress.ip_network(head.group(1), strict=False) == ipaddress.ip_network(prefix)
