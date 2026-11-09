@@ -31,12 +31,13 @@ env:
 jobs:
   static:
     runs-on: ubuntu-latest
-    timeout-minutes: 30   # the fast-fix checks run pytest on exported trees
+    timeout-minutes: 30   # 0.4.2's fast-fix checks (loosening, reproduce-first) run pytest on exported trees
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          fetch-depth: 0   # the loosening and reproduce-first checks need the merge-base and every commit since
-          # the PR's own head, not GitHub's synthetic merge commit (which carries no trailers)
+          fetch-depth: 0   # the fast-fix checks need the merge-base and every commit since (0.4.2)
+          # the PR's own head, not GitHub's synthetic merge commit (which carries no trailers); their base is
+          # release_gate.py's --fastfix-base default, origin/main, the base of every pull request here
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
@@ -53,9 +54,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - name: Static layer
-        env:
-          FASTFIX_BASE: origin/${{ github.base_ref || 'main' }}
-        run: python scripts/release_gate.py static --strict --fastfix-base "$FASTFIX_BASE" --out "$RUNNER_TEMP/gate"
+        run: python scripts/release_gate.py static --strict --out "$RUNNER_TEMP/gate"
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
