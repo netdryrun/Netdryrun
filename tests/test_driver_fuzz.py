@@ -534,6 +534,10 @@ def _ping_ok(r) -> bool:
 
 
 FAIL_SAFE = [
+    # frr.parse_paths_available: the "N available" count of FRR's text answer for one prefix, or a DriverError; a
+    # count read here is only ever compared with the paths the JSON lists (FP-042-FRR102), never a verdict itself
+    ("frr.parse_paths_available", lambda t: frr.parse_paths_available(t, "192.168.21.0/24"),
+     ["frr1021_learned_prefix_text.txt"], lambda r: isinstance(r, int) and r >= 0),
     # routeros_state.parse_version: None -> the version is reported as unknown
     ("routeros_state.parse_version", lambda t: routeros_state.parse_version(classify_reply("GET /x", 200, t).obj),
      ["routeros_resource.txt"], lambda r: r is None or isinstance(r, str)),
