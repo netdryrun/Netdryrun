@@ -1,5 +1,64 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **FRR 10.2: `record` and route checks stopped on every BGP prefix answer** (found by the synthetic stranger on
+  published 0.4.1, with martimy/clab-bgp-frr). FRR 10.2.1 lists a prefix's BGP paths in `show bgp ... <prefix> json`
+  but leaves out `pathCount`, which 0.4.1 required as its check that no path was dropped, so `record` reported every
+  leaf's own-LAN guard as an INCOMPLETE BASELINE.
+  - Where `pathCount` is missing, the count now comes from the text answer of the same command ("Paths: (N available").
+  - A count that doesn't match the paths listed is still an error, and a text answer without one is a named gap.
+  - An answer without its paths is never read as "absent".
+
+  Oracle `tests/oracles/FP-042-FRR102`, from a live FRR 10.2.1 capture.
+- **`record` on BGP-unnumbered links:** every fabric link was an INCOMPLETE BASELINE "no global address" gap, 12 of the
+  18 the stranger hit on martimy/clab-bgp-frr.
+  - An interface is now named "BGP unnumbered", with no subnet to guard, only when two things hold: it lists
+    link-local addresses only, and the node has a BGP session over that interface.
+  - Everything else stays a gap: no such session, an interface whose addresses can't be read, or no driver.
+  - An address token that can't be parsed is now an error instead of being dropped, so a global address can't read as
+    "none".
+
+  Oracle `tests/oracles/FP-042-UNNUMBERED`, from the same capture.
+- **Own-address reads skipped text before the JSON** (found by ClusterFuzzLite on the 0.4.2 work). Since 0.4.1 every
+  driver's own-address reader (the ping check's own-target and source guards) started at the first `{` or `[`, so an
+  answer with a CLI error line or other text in front of its JSON read as a shorter address list, often an empty one.
+  The answer must now be the JSON document, with only whitespace around it; anything else is unexpected output.
+
+  Oracle `tests/oracles/FP-042-ADDRLOAD`, from the fuzzer's saved crash input.
+- **SR Linux on containerlab 0.83: every check was refused** as "in the namespace of ..., which is not a lab node"
+  (found by the synthetic stranger; `netdryrun run examples/srl-frr` exited 2). containerlab 0.83 runs an SR Linux node
+  in a namespace holder container it makes for that node.
+  - That holder now counts as the node's own namespace, but only when it carries containerlab's labels for this lab and
+    this node (`containerlab`, `clab-internal-node: "true"`, `clab-root-node-name`), Docker finds it under the name or
+    id the node's network mode gives, and it holds its own namespace.
+  - Its Docker networks are the node's management networks, so a ping over them is still refused.
+  - Still refused: network-mode host, a holder for another lab or node, a container with the holder's name but not
+    its labels, and a holder Docker can't read.
+
+  Oracle `tests/oracles/FP-042-SRLNETNS`, from a containerlab 0.83.0 capture.
+- **`record --attributes` on SR Linux left out an AS path it couldn't read, without a warning** (case 4 of the 0.4.1
+  advisory, GHSA-ggcf-664f-c9ff; a regression in 0.4.1). SR Linux prints no as-path container for an empty AS path
+  (an iBGP peer's own route), and nothing in its answer tells that from a missing one. So the recorded check passed
+  once the path changed.
+  - Where the best path's AS path can't be read, on any driver, `record` now writes no `bgp_route` check for that
+    route. An INCOMPLETE BASELINE line names it, so `record` exits 1.
+  - A local preference the driver can't read is named in a warning, not dropped silently.
+
+  Oracle `tests/oracles/FP-042-RTS01` (red-team finding RT-S01), from a live SR Linux 26.7.2 and FRR 10.4.1 capture.
+
+### Changed
+
+- **`record --attributes` on SR Linux: a route its iBGP peer originates now gets a named gap instead of a check.**
+  0.4.1 wrote a `bgp_route` check for it without `as_path`, which passed a changed path. 0.4.2 writes no check for that
+  route, and an INCOMPLETE BASELINE line names it, so `record --attributes` on SR Linux exits 1 for a route its iBGP
+  peer originated (an empty AS path), where it exited 0. Add that check by hand once SR Linux's own report shows the
+  path (`as_path: ""` for an empty one). Reading the empty path exactly is planned for 0.4.3. eBGP paths, and every
+  FRR path, are recorded as before, with their AS path, and `record` still exits 0 on them. Listed under "What a lab
+  cannot prove" on the trust page.
+
 ## 0.4.1 (2026-11-09)
 
 Released without the scripted acceptance run on the final candidate (owner decision, 2026-11-09): every other
