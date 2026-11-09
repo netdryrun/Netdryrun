@@ -21,6 +21,6 @@ A verifier that says "passed" without really checking is worse than no verifier.
 
 How it was tested: static checks, the unit suite, mutation testing, both verdict corpora, live labs on every example across 7 network OSes, our end-to-end new-user test, and a red team on the final candidate. One layer, the scripted end-user walk-through, was not run on the final commit; the [release review](https://github.com/netdryrun/Netdryrun/blob/main/releases/0.4.1/review.md) says why.
 
-Think you can make it say "passed" when it shouldn't? [Open a corpus case](https://github.com/netdryrun/netdryrun/issues/new?template=corpus-case.yml) and it becomes a permanent must-fail test.
+Think you can make it say "passed" when it shouldn't? [Open a corpus case](https://github.com/netdryrun/Netdryrun/issues/new?template=corpus-case.yml) and it becomes a permanent must-fail test.
 
 [Full changelog](https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md) · [Release on GitHub](https://github.com/netdryrun/Netdryrun/releases/tag/v0.4.1)
