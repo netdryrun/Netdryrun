@@ -14,7 +14,8 @@ requires-python = ">=3.10"
 authors = [{ name = "Netdryrun" }]
 keywords = [
   "network testing", "network automation", "bgp", "containerlab", "frr", "srlinux",
-  "sonic", "arista", "ceos", "juniper", "netdevops", "network change validation", "mcp", "mcp-server",
+  "sonic", "arista", "ceos", "juniper", "cisco", "nx-os", "mikrotik", "routeros", "netdevops",
+  "network change validation", "mcp", "mcp-server",
   "ai-agents", "ci", "github-actions", "dry-run",
 ]
 # The license is the SPDX expression above (PEP 639 License-Expression). PEP 639 deprecates License classifiers, so none is listed.
