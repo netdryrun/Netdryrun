@@ -196,6 +196,13 @@ def test_pypi_without_a_status_line_is_red():
     assert any("no 'Status: **vX.Y.Z.**" in x for x in published(**{"https://pypi.org/pypi/netdryrun/json": page}))
 
 
+def test_a_hostile_pypi_description_cant_stall_the_status_regex():
+    """CodeQL py/redos on PR #6: the old pattern backtracked exponentially on 'drivers for ' plus many '()'."""
+    page = json.dumps({"info": {"version": V, "summary": "s",
+                                "description": "Status: **v.**drivers for " + "()" * 50000}})
+    assert any("no 'Status: **vX.Y.Z.**" in x for x in published(**{"https://pypi.org/pypi/netdryrun/json": page}))
+
+
 def test_a_registry_whose_latest_is_another_version_is_red():
     reg = json.dumps({"servers": [{"server": {"version": "0.4.1", "description": "d"},
                                    "_meta": {"io.modelcontextprotocol.registry/official": {"isLatest": True}}}]})

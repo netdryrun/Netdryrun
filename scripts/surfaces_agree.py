@@ -190,7 +190,7 @@ def published_problems(version: str, released: set[str], unreleased: set[str], g
             info = json.loads(pypi)["info"]
             if info.get("version") != version:
                 problems.append(f"PyPI: the latest release is {info.get('version')!r}, expected {version}")
-            m = re.search(r"Status: \*\*v([\d.]+?)\.?\*\*.*?drivers for ([^.]*(?:\([^)]*\)[^.]*)*)\.",
+            m = re.search(r"Status: \*\*v([\d.]+?)\.?\*\*.*?drivers for ((?:[^.()]|\([^)]*\))*)\.",
                           info.get("description") or "", re.S)
             if not m:
                 problems.append("PyPI: the project description has no 'Status: **vX.Y.Z.** ... drivers for ...' line")
