@@ -1,0 +1,124 @@
+id: RT-0055
+title: >-
+  route 0.0.0.0/0 vrf red protocol bgp present: false passes on FRR while bgpd holds a BGP default in vrf red,
+  imported from vrf blue (`import vrf blue`; learned there from a neighbor), that loses in zebra to red's static
+  default: bgpd creates a VRF-imported path with the importing instance's peer_self (leak_update in
+  bgpd/bgp_mplsvpn.c), so it prints peerId 0.0.0.0 and the driver reads it as the router's own path, never as a
+  received BGP route that wasn't selected
+found: 2026-11-09, red team A (drivers)
+fixed_in: null
+retired: "not producible, 2026-11-09 (verifier): zebra lists the unselected imported BGP entry, so the check fails live; the latent _learned reading of an imported path is tracked as a 0.4.2 item"
+kind: driver
+driver: frr
+check:
+  type: route
+  node: r1
+  vrf: red
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+outputs:
+  # zebra: the static default wins (distance 1); the imported BGP default is not installed (shape of
+  # tests/fixtures/sonic_route_static_offloaded.json, FRR 10)
+  - needle: "show ip route vrf red 0.0.0.0/0 json"
+    output: |
+      {
+        "0.0.0.0/0":[
+          {
+            "prefix":"0.0.0.0/0",
+            "prefixLen":0,
+            "protocol":"static",
+            "vrfId":5,
+            "vrfName":"red",
+            "selected":true,
+            "destSelected":true,
+            "distance":1,
+            "metric":0,
+            "installed":true,
+            "table":10,
+            "internalStatus":16,
+            "internalFlags":73,
+            "internalNextHopNum":1,
+            "internalNextHopActiveNum":1,
+            "nexthopGroupId":31,
+            "installedNexthopGroupId":31,
+            "uptime":"00:01:12",
+            "nexthops":[
+              {
+                "flags":3,
+                "fib":true,
+                "ip":"10.0.23.2",
+                "afi":"ipv4",
+                "interfaceIndex":9,
+                "interfaceName":"eth2",
+                "vrf":"red",
+                "active":true,
+                "weight":1
+              }
+            ]
+          }
+        ]
+      }
+  # bgpd: the default imported from vrf blue (learned there from 10.0.12.2, AS 65002); bgpd's own peer as the path's
+  # peer, the next hop resolved in vrf blue (shape of tests/fixtures/frr_bgp_paths.txt, FRR 10)
+  - needle: "show bgp vrf red ipv4 unicast 0.0.0.0/0 json"
+    output: |
+      {
+        "prefix":"0.0.0.0/0",
+        "version":3,
+        "advertisedTo":{
+        },
+        "pathCount":1,
+        "paths":[
+          {
+            "aspath":{
+              "string":"65002",
+              "segments":[
+                {
+                  "type":"as-sequence",
+                  "list":[
+                    65002
+                  ]
+                }
+              ],
+              "length":1
+            },
+            "announceNexthopSelf":true,
+            "nhVrfName":"blue",
+            "origin":"IGP",
+            "metric":0,
+            "valid":true,
+            "version":3,
+            "bestpath":{
+              "bestpathFromAs":65002,
+              "overall":true,
+              "selectionReason":"First path received"
+            },
+            "lastUpdate":{
+              "epoch":1794200000,
+              "string":"Mon Nov  9 08:13:20 2026"
+            },
+            "nexthops":[
+              {
+                "ip":"10.0.12.2",
+                "hostname":"r2",
+                "afi":"ipv4",
+                "metric":0,
+                "accessible":true,
+                "used":true
+              }
+            ],
+            "peer":{
+              "peerId":"0.0.0.0",
+              "routerId":"1.1.1.1"
+            }
+          }
+        ]
+      }
+reproduce: >-
+  containerlab: FRR r1 with VRFs red and blue (kernel VRF devices), r2 (AS 65002) peering with r1 in vrf blue and
+  sending 0.0.0.0/0. r1: `router bgp 65001 vrf red / address-family ipv4 unicast / import vrf blue` (the change
+  under test, or a stray RT) and `ip route 0.0.0.0/0 10.0.23.2 vrf red`. zebra keeps the static (distance 1 vs 20),
+  `show bgp vrf red ipv4 unicast 0.0.0.0/0 json` shows the imported path with peerId 0.0.0.0. Delete the static and
+  zebra installs the leaked BGP default in red. Uncertain point: the peerId value is from bgpd's leak_update
+  (to_bgp->peer_self), not from a capture; a live capture should confirm it.

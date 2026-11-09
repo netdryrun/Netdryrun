@@ -8,10 +8,12 @@ adversarial reviewers and a fresh verifier on the final 0.4.1 candidate, 9 Novem
 reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were confirmed against recorded
 router output (EOS from live fixtures), not yet through a Netdryrun live run. We publish them now to be safe. 0.4.1
 ships with them published as known limits (trust page, configuration reference, CHANGELOG). Cases 1 to 3 were in
-earlier versions too; case 4 is new in 0.4.1. 0.4.1 fixes the cases in the [earlier advisory](../../advisories/0.4.0-further-false-passes/)
+earlier versions too; case 4 is new in 0.4.1. 0.4.1 fixes the cases in the [earlier advisory](../0.4.0-further-false-passes/)
 except where that advisory says otherwise.
 
-This file moves to `advisories/` with its registry entries and reproducing tests in 0.4.2.
+GitHub advisory: [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff).
+Each case is a red-team file in `tests/redteam/` (RT-0053, RT-0056, RT-0058, RT-0063) or an oracle (case 4, RT-S01),
+registered in `tests/known_false_passes.yml`; the test fails if the published text or the limit changes unnoticed.
 
 **What to do:** apply the workaround for each case that matches your labs. Upgrade to 0.4.2 when it ships.
 

@@ -1,0 +1,23 @@
+id: RT-0064
+title: >-
+  route 0.0.0.0/0 protocol ospf present: false passes on SR Linux while an OSPF default is received and loses to a
+  static default: SR Linux's route-table holds installed routes only, and the driver looks for unselected
+  candidates in the BGP RIB alone, so an OSPF (or IS-IS, static) route that lost route preference is never seen
+found: 2026-11-09, red team B
+fixed_in: null
+retired: "unconfirmed, 2026-11-09: same SR Linux question as RT-0057 (refuted for a static); the OSPF form's live test is queued (OSPF stuck in exstart on the first try). If it shows the winner only, the case is filed again as a new number"
+kind: driver
+driver: srlinux
+check:
+  type: route
+  node: srl1
+  prefix: 0.0.0.0/0
+  protocol: ospf
+  present: false
+outputs:
+  # the static default (preference 5) is the installed route; the OSPF external default (preference 150) lost and is
+  # not in route-table, as the leaked BGP default of RT-0017 isn't
+  - needle: "route-table ipv4-unicast route 0.0.0.0/0"
+    fixture: srl_leak_route.txt
+  - needle: "bgp-rib afi-safi ipv4-unicast"
+    fixture: srl_rib_empty.txt
