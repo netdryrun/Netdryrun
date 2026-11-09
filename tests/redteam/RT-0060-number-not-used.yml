@@ -1,0 +1,6 @@
+id: RT-0060
+title: Number not used (no case)
+found: "2026-11-09, red team B on 26380cb"
+fixed_in: null
+kind: config
+retired: "number not used: red team B's candidates were renumbered to RT-0063..RT-0065 on 2026-11-09, leaving RT-0059..RT-0062 empty; the file keeps the numbering contiguous"

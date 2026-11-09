@@ -31,6 +31,9 @@ whom) and `fixed_in`.
 
 Never delete one. If a feature is removed and a case can no longer run, set `retired: "<why>, <date>"`; the
 file stays and still counts.
+The same field holds a candidate that a verifier or a live test showed isn't a false pass (the reason names the
+evidence; an unconfirmed one says which live test is queued and is filed again under a new number if it proves real),
+and a number that was never used, so the numbering stays contiguous.
 
 ## Running it against an old release
 

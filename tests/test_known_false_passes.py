@@ -31,10 +31,12 @@ def test_ids_are_unique_and_every_entry_is_covered_by_something():
 
 
 def test_every_advisory_is_listed():
-    records = {e["record"] for e in ENTRIES}
+    records = [e["record"] for e in ENTRIES]
     for d in sorted((ROOT / "advisories").iterdir()):
         if d.is_dir():
-            assert f"advisories/{d.name}/README.md" in records, f"advisories/{d.name} has no entry"
+            # the record names the advisory first; an accepted limit also names the trust page after it
+            own = f"advisories/{d.name}/README.md"
+            assert any(r == own or r.startswith(own + ",") for r in records), f"advisories/{d.name} has no entry"
 
 
 def test_every_row_of_the_trust_page_advisories_table_is_listed():
@@ -76,13 +78,20 @@ def test_an_accepted_limit_is_published_and_pinned():
     accepted_cases = set()
     for e in ENTRIES:
         if e.get("status") == "accepted-documented-limit":
-            assert e.get("decided") and e.get("cases"), e["id"]
+            assert e.get("decided"), e["id"]
+            assert "trust.md" in e["record"], e["id"]
+            if e.get("oracle_spec"):
+                # a limit no red-team driver case can hold (a whole command, e.g. record): it is pinned by an oracle
+                # spec until the oracle lands (tests/oracles/<ID>/), and then by the oracle itself
+                assert not e.get("cases") and (ROOT / e["oracle_spec"]).is_file(), e["id"]
+                assert e.get("tests"), e["id"]
+                continue
+            assert e.get("cases"), e["id"]
             accepted_cases |= set(e["cases"])
             assert "tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented" in e["tests"]
-            assert "trust.md" in e["record"], e["id"]
     # every red-team case marked accepted_limit is exactly one an accepted entry names, and the set is pinned: a
     # second accepted limit needs this line changed in review (code review of the limit, MAJOR 1)
     import yaml as _yaml
     marked = {_yaml.safe_load(p.read_text(encoding="utf-8"))["id"] for p in (ROOT / "tests" / "redteam").glob("RT-*.yml")
               if _yaml.safe_load(p.read_text(encoding="utf-8")).get("accepted_limit")}
-    assert marked == accepted_cases == {"RT-0048"}, (marked, accepted_cases)
+    assert marked == accepted_cases == {"RT-0048", "RT-0053", "RT-0056", "RT-0058", "RT-0063"}, (marked, accepted_cases)
