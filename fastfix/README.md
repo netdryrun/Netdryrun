@@ -46,3 +46,8 @@ Exit codes: 0 clean, 1 blocked, 2 couldn't run (missing git, unreadable input). 
 for a night window). The oracle itself goes to `tests/oracles/<ID>/`, written by a session that isn't the fixer. A
 spec lives here, not under `releases/`, because the slim-container unit run copies no release records and the
 registry test reads it (`tests/known_false_passes.yml`, `oracle_spec:`).
+
+Start a spec from `fastfix/oracle-specs/TEMPLATE.md`. The reproduce check runs every test in `tests/oracles/<ID>/` on
+the fix's parent and needs each one to fail with an assertion. So a spec puts only the red tests in the oracle folder,
+and the guards (tests that pass before and after the fix) in `tests/test_oracle_guards_<id>.py`, listed in the
+oracle's `evidence:`.
