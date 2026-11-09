@@ -5556,13 +5556,18 @@ Source: https://netdryrun.com/roadmap/
 
 ## Current: 0.4.2
 
-- Fixes for the four known false passes of 0.4.1, each with a reproducing test written before the fix.
-- One router-state contract shared by the drivers that already pass the gate, so a check means the same thing on every OS.
-- A shorter, modular release check: a fix re-judges recorded lab evidence in minutes and runs only the live labs its change can affect; the full chain still runs before every stable release.
+A fix release, with no new features:
+
+- Fixes for the four known false passes of 0.4.1 and the two issues found after its release, each with a reproducing test written before the fix.
+- The full release gate on the final release candidate, the scripted end-user acceptance run included.
+- Updated verdict-corpus results, with every change against 0.4.1 explained.
+- The compatibility matrix and every distribution page in sync, including the containerlab versions each driver is tested on.
+- A shorter, modular release check: a fix runs only the labs its change can affect; the full chain still runs before every stable release.
 
 ## Later (in this order, current plan)
 
-- **0.4.3: Cumulus Linux, beta.**
+- **0.4.3: one router-state contract** shared by the drivers that already pass the gate, so a check means the same thing on every OS.
+- **Then: Cumulus Linux, beta.**
 - **0.5: check strength and signed verdict receipts.** [Check strength](disclosures/check-strength.md) runs a lab's checks against known-bad variants of the network and lists the ones every check still passes. A receipt records what was checked, the verdict, the evidence and how strong the checks were, so a reviewer can verify it offline.
 - **0.6: hosted verification, beta.** Run a verdict without local Docker. The Apache-2.0 CLI, Action and MCP server stay the product and stay free.
 - **After that, by demand:** OSPF and IS-IS adjacency checks, path and traceroute checks, EVPN, MPLS and segment routing, more drivers.
