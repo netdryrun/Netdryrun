@@ -30,13 +30,13 @@ jobs:
         id: ndr
         with:
           path: examples/frr-bgp
+          artifact-name: published-frr-bgp
       - name: The tag the docs give still points at the pinned commit
         env:
           PINNED: eb9d1846fea0e5a41af7aeb9940edd662460a650
         run: |
           got="$(git ls-remote https://github.com/netdryrun/Netdryrun "refs/tags/v$RELEASE^{}" | cut -f1)"
           test "$got" = "$PINNED" || { echo "::error::v$RELEASE points at ${got:-nothing}, the uses: lines pin $PINNED"; exit 1; }
-          artifact-name: published-frr-bgp
       - name: Check the outputs
         env:
           STATUS: ${{ steps.ndr.outputs.status }}
@@ -93,6 +93,7 @@ jobs:
           sparse-checkout: |
             examples/frr-bgp
             scripts/mcp_handshake.py
+            requirements/tools.txt
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
