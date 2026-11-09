@@ -361,7 +361,8 @@ as the first commit on the 0.4.2 branch, with the fixes. This also departs from 
 confirmed case as the next `tests/redteam/RT-NNNN-*.yml` ... on the acceptance branch"; the departure is recorded here
 and in `acceptance-adversary.md`.
 
-Evidence, said plainly: every case below is verifier-rated offline; none has been confirmed by a Netdryrun live run.
+Evidence, said plainly: the four published limits are verifier-rated offline; none has been confirmed by a Netdryrun
+live run. Only the SR Linux route-table cases (RT-0054, RT-0057, RT-0064) went to a lab, which refuted RT-0057.
 The public docs call them known false passes found offline and published conservatively.
 
 | Case | Verdict | Evidence | Outcome |
@@ -370,6 +371,15 @@ The public docs call them known false passes found offline and published conserv
 | RT-0056, RT-0063 EOS non-BGP route not selected | real, MAJOR (verifier, offline) | reasoned from live fixtures `eos_leak_route.txt` / `eos_leak_bgp.txt` (selected route only); not in a lab | limit, fix 0.4.2 |
 | RT-0058 SR Linux EVPN type-5 in an ip-vrf without BGP | real, MAJOR (verifier, offline) | offline only | limit, fix 0.4.2 |
 | RT-S01 SR Linux `record --attributes` drops an unread AS path | real, MAJOR (verifier, offline) | offline only (no capture of an empty AS path) | limit, fix 0.4.2 (warn) |
-| RT-0054, RT-0057, RT-0064 SR Linux route-table losers | unproven | one srl-frr test pending | limit if real |
+| RT-0057 SR Linux floating static (pref 250) behind a BGP default | not real | srl-frr lab, SR Linux 26.7.2, Netdryrun at `1ab9308` (2026-11-09): the driver's route-table read lists the losing static with `active: false` next to the active BGP default, and `route protocol: static, present: false` FAILS ("unexpectedly present via static (not selected)") | none |
+| RT-0064 SR Linux OSPF default behind a static | untested | the same lab: OSPF never reached full on SR Linux (exstart in the first pass, then the rerun's `mtu-ignore` setting was refused by SR Linux's CLI), so no OSPF default reached it; one rerun only, by agreement. Inferred not producible from RT-0057 (the same route-table read lists losers), not shown for OSPF | none; test queued for 0.4.2 |
+| RT-0054 SR Linux EVPN type-5 default behind a static in an ip-vrf | untested directly | its premise (the route table lists the winner only) is refuted in the default network-instance on SR Linux 26.7.2 (RT-0057's capture); not in any advisory or published limit | none; two-leaf EVPN test queued for 0.4.2 |
 | RT-0055 FRR VRF-imported default | not producible (zebra lists the unselected entry) | | none |
 | RT-0065 `bgp_prefixes` default `afi` on a dual-stack session | documented | | doc line |
+
+**SR Linux lab, 2026-11-09 (14:56 to 15:14 Thailand time, two passes).** A copy of `examples/srl-frr` (lab
+`ndr-srl-loser`) under the lab lock and the 3,000 MB memory guard, which never tripped; records in
+`wt/rg-srl-losers/` and `wt/rg-srl-losers-b/` (run logs and the JSON report of each check). One fail-closed
+observation: SR Linux's own static default, exported to FRR and sent back, is held in the BGP RIB as an invalid path
+(`invalid-reason: as-loop`), and Netdryrun answers INCONCLUSIVE (exit `3`, "a reason the srlinux driver doesn't read
+yet") for a `route` check on that prefix, never a pass. Reading `as-loop` is a 0.4.2 usability item, not a false pass.
