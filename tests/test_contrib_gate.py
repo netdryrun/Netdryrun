@@ -127,6 +127,48 @@ def test_a_known_false_pass_that_comes_back_fails_even_if_the_pr_weakens_its_tes
     assert found and "known false pass is back" in found[0]
 
 
+@needs_git
+def test_a_base_test_that_reads_src_by_path_reads_the_code_under_test(repo):
+    """Dependabot PRs #4 and #5: a base test that scans src/ by path (test_verdict_keys_041.py) crashed with
+    FileNotFoundError, because the base tree had its src/ removed. The tree now carries this checkout's src/, so the
+    scan reads the code under test, and a false pass brought back in it still fails the gate."""
+    scan = ("from pathlib import Path\n\n"
+            "def test_scan():\n"
+            "    src = Path(__file__).parent.parent / 'src' / 'netdryrun' / 'drivers' / 'x.py'\n"
+            "    assert 'return True' not in src.read_text()\n")
+    base = commit(repo, {**PKG, "tests/known_false_passes.yml": "- id: x\n  tests: [tests/test_scan.py]\n",
+                         "tests/test_scan.py": scan}, "base")
+    assert gate.known_false_passes(base) == []
+    commit(repo, {"README.md": "a dependency bump"}, "bump")
+    assert gate.known_false_passes(base) == []
+    commit(repo, {"src/netdryrun/drivers/x.py": "def established(state):\n    return True\n"}, "bring it back")
+    found = gate.known_false_passes(base)
+    assert found and "known false pass is back" in found[0]
+
+
+def _event(login, type_="Bot", head="netdryrun/Netdryrun", base="netdryrun/Netdryrun", body=""):
+    return {"pull_request": {"user": {"login": login, "type": type_}, "body": body,
+                             "head": {"repo": {"full_name": head}}, "base": {"repo": {"full_name": base}}}}
+
+
+def test_dependabot_is_exempt_from_the_disclosure_and_nobody_else_is():
+    assert gate.disclosure_exempt(_event("dependabot[bot]"))
+    assert not gate.disclosure_exempt(_event("dependabot[bot]", type_="User"))       # type is GitHub's, not the name
+    assert not gate.disclosure_exempt(_event("dependabot"))                           # a human named like the bot
+    assert not gate.disclosure_exempt(_event("renovate[bot]"))                        # only the listed bot
+    assert not gate.disclosure_exempt(_event("dependabot[bot]", head="someone/fork"))  # never from a fork
+    assert not gate.disclosure_exempt(_event("dependabot[bot]", head=None))
+    assert not gate.disclosure_exempt({})                                             # fail closed on a bare event
+
+
+def test_the_disclosure_command_passes_dependabot_and_still_fails_a_human(tmp_path):
+    ev = tmp_path / "event.json"
+    ev.write_text(json.dumps(_event("dependabot[bot]")), encoding="utf-8")
+    assert gate.main(["disclosure", str(ev)]) == 0
+    ev.write_text(json.dumps(_event("ada", type_="User")), encoding="utf-8")
+    assert gate.main(["disclosure", str(ev)]) == 1
+
+
 # ---- corpus -----------------------------------------------------------------------------------------------------
 def _tree(root: Path, cases: dict[str, str], amend: str = "") -> Path:
     (root / "corpus" / "cases").mkdir(parents=True)
