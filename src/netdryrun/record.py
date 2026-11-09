@@ -47,34 +47,33 @@ MISSING_NODE = "BASELINE MISSES A NODE"
 NOT_ROUTERS = frozenset({"bridge", "ovs-bridge", "host", "ext-container"})
 
 
+class SizeCap(str):
+    """One of record's own two size-cap lines ("only the first ..."), marked by its type where record writes it.
+    A line is exempt from the gaps only by this mark, never by its text: any copy, quote or rebuild of the text is a
+    plain str and counts as a gap (fresh adversary on f4b5e6a, after oracle FP-042-CAPMSG)."""
+    __slots__ = ()
+
+
 def baseline_gaps(warnings: list[str]) -> list[str]:
     """The warnings that make `record` exit 1: a node missing from the baseline, and every INCOMPLETE BASELINE line
     from a read that failed or a state that couldn't be recorded (code review of the 0.4.1 batch: one session recorded
     on a node kept exit 0 while its prefix counts or routes were left out). The two size caps ("only the first ...")
-    are limits of the format, said in the file, not gaps in what was read. Only those two lines, exactly as
-    _routes_cap and _links_cap write them, are left out: a substring test let a gap line that quotes the device's
-    words ("only the first ...") drop out, and `record` exited 0 (oracle FP-042-CAPMSG)."""
+    are limits of the format, said in the file, not gaps in what was read: only a SizeCap, as _routes_cap and
+    _links_cap return it, is left out. Text that reads like one (a gap line quoting the device's words) is a gap
+    (oracle FP-042-CAPMSG)."""
     return [w for w in warnings
-            if w.startswith(MISSING_NODE) or (w.startswith("INCOMPLETE BASELINE") and not _is_size_cap(w))]
+            if w.startswith(MISSING_NODE) or (w.startswith("INCOMPLETE BASELINE") and not isinstance(w, SizeCap))]
 
 
-def _routes_cap(where: str, count: int, fam: int) -> str:
-    return (f"INCOMPLETE BASELINE: {where} has {count} BGP routes (IPv{fam}); only the first {MAX_ROUTES_PER_NODE} are "
-            "recorded as checks. A change to any other route goes unnoticed: add checks for the routes that matter")
+def _routes_cap(where: str, count: int, fam: int) -> SizeCap:
+    return SizeCap(f"INCOMPLETE BASELINE: {where} has {count} BGP routes (IPv{fam}); only the first "
+                   f"{MAX_ROUTES_PER_NODE} are recorded as checks. A change to any other route goes unnoticed: add "
+                   "checks for the routes that matter")
 
 
-def _links_cap(name: str, count: int) -> str:
-    return (f"INCOMPLETE BASELINE: {name} has {count} link subnets; only the first {MAX_LINK_GUARDS_PER_NODE} are "
-            "guarded. A leak of another one goes unnoticed: add guards for the ones that matter")
-
-
-def _is_size_cap(w: str) -> bool:
-    m = re.fullmatch(r"INCOMPLETE BASELINE: (.+) has (\d+) BGP routes \(IPv([46])\); only the first \d+ are recorded "
-                     r"as checks\. .*", w, re.S)
-    if m and w == _routes_cap(m.group(1), int(m.group(2)), int(m.group(3))):
-        return True
-    m = re.fullmatch(r"INCOMPLETE BASELINE: (.+) has (\d+) link subnets; only the first \d+ are guarded\. .*", w, re.S)
-    return bool(m and w == _links_cap(m.group(1), int(m.group(2))))
+def _links_cap(name: str, count: int) -> SizeCap:
+    return SizeCap(f"INCOMPLETE BASELINE: {name} has {count} link subnets; only the first {MAX_LINK_GUARDS_PER_NODE} "
+                   "are guarded. A leak of another one goes unnoticed: add guards for the ones that matter")
 
 
 def _runs_a_router(lab, name: str) -> bool | None:

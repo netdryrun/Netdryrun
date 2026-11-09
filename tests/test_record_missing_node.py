@@ -157,6 +157,17 @@ def test_baseline_gaps_are_every_read_gap_but_not_the_size_caps():
     assert rec.baseline_gaps(ws) == ws[:2] + ws[-2:]
 
 
+def test_only_records_own_cap_lines_are_exempt_never_their_text():
+    """The exemption is the SizeCap mark record puts on its own two lines, not their text: the same words as a plain
+    str (a copy, a quote, a rebuild) are a gap (fresh adversary on f4b5e6a)."""
+    cap, links = rec._routes_cap("r2", 900, 4), rec._links_cap("r3", 300)
+    assert isinstance(cap, rec.SizeCap) and isinstance(links, rec.SizeCap)
+    assert rec.baseline_gaps([cap, links]) == []
+    copies = [str(cap), "".join(links), f"{cap}"]
+    assert all(type(c) is str for c in copies)
+    assert rec.baseline_gaps(copies) == copies
+
+
 def test_no_bgp_instance_is_a_missing_node_unless_named(monkeypatch):
     """A NOS answers "no BGP instance" while its BGP is still starting (FRR before bgpd loads, cEOS "BGP inactive",
     SONiC before setup): a missing node, unless the user says the node runs no BGP (code review of the batch, M1)."""
