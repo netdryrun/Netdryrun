@@ -628,9 +628,11 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
         if any(shipped(f) for f in files) and not ids:
             reason = " ".join(t.get("no-oracle", []))
             if len(reason) < 20:
+                hint = message_problems(git(repo, "show", "-s", "--format=%B", sha))
                 report.problems.append(f"{sha[:10]} changes shipped code (src/, action.yml, templates/)"
                                        f"{' in a merge resolution' if merge else ''} without "
-                                       "'Fixes-Oracle: <ID>' or 'No-Oracle: <reason, 20+ characters>'")
+                                       "'Fixes-Oracle: <ID>' or 'No-Oracle: <reason, 20+ characters>'"
+                                       + (f" in its trailer block ({hint[0]})" if hint else ""))
         if ids and merge:
             report.problems.append(f"{sha[:10]} is a merge: a fix must be its own commit")
             continue
@@ -779,6 +781,39 @@ def finish(name: str, report: Report) -> int:
     return OK
 
 
+GATE_TRAILERS = ("Fixes-Oracle", "No-Oracle", "Oracle", "Session")
+_GATE_LINE = re.compile(r"^(" + "|".join(GATE_TRAILERS) + r")\s*:", re.I)
+_TRAILER_LINE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]*:\s*\S")
+
+
+def message_problems(text: str) -> list[str]:
+    """A commit message whose gate trailers git won't read. Git reads trailers only from the last paragraph, and only
+    when that paragraph is all trailers: a `Fixes-Oracle:` line in the body is invisible to `reproduce` (897f1e2 and
+    ca9d984 on PR #6 put Fixes-Oracle and Session in separate `-m` paragraphs). No git needed: a commit-msg hook."""
+    lines = [ln.rstrip() for ln in text.splitlines() if not ln.startswith("#")]
+    paras, cur = [], []
+    for ln in lines:
+        if ln.strip():
+            cur.append(ln)
+        elif cur:
+            paras.append(cur)
+            cur = []
+    if cur:
+        paras.append(cur)
+    if len(paras) < 2:
+        return []   # a subject only: no trailers to place (reproduce says what a src commit is missing)
+    body, last = paras[1:-1], paras[-1]
+    problems = [f"'{ln.split(':')[0]}:' is in the message body, not the trailer block: git reads trailers only from "
+                "the last paragraph, so the gate won't see it. Put every trailer together at the end, one per line"
+                for p in body for ln in p if _GATE_LINE.match(ln)]
+    if any(_GATE_LINE.match(ln) for ln in last):
+        odd = [ln for ln in last if not _TRAILER_LINE.match(ln) and not ln.startswith((" ", "\t"))]
+        if odd:
+            problems.append(f"the trailer block also holds {odd[0][:60]!r}, which isn't a trailer: git may not read the "
+                            "block at all. Keep the last paragraph to `Key: value` lines")
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -794,7 +829,18 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--repo", required=True)
     c.add_argument("--range", required=True)
     c.add_argument("--python", default=sys.executable)
+    d = sub.add_parser("check-message", help="a commit message's gate trailers are where git reads them (commit-msg)")
+    d.add_argument("file")
     args = ap.parse_args(argv)
+    if args.cmd == "check-message":
+        try:
+            problems = message_problems(Path(args.file).read_text(encoding="utf-8", errors="replace"))
+        except OSError as e:
+            print(f"ERROR cannot read the commit message: {e}")
+            return ERROR
+        for p in problems:
+            print(f"BLOCKED {p}")
+        return BLOCKED if problems else OK
     try:
         if args.cmd == "loosening":
             return finish("loosening", loosening(Path(args.repo).resolve(), args.base, args.candidate, args.python))

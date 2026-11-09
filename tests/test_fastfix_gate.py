@@ -751,3 +751,46 @@ def test_clean_merge_needs_no_trailer(repo):
     repo.git("merge", "-q", "--no-ff", "-m", "Merge side", "side")
     code, out = repo.reproduce(repo.base)
     assert code == 0, out
+
+
+# ---- check-message: trailers where git reads them (PR #6: 897f1e2 and ca9d984 put Fixes-Oracle in its own paragraph)
+def _gate_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("fastfix_gate_msg", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["fastfix_gate_msg"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.parametrize("msg,ok", [
+    ("Fix X\n\nWhy.\n\nFixes-Oracle: FP-042-FRR102\nSession: ndr-a\n", True),
+    ("Fix X\n\nFixes-Oracle: FP-042-FRR102\nSession: ndr-a\n", True),
+    ("Docs only\n", True),
+    ("Docs\n\nJust prose, no trailers.\n", True),
+    # the PR #6 shape: `git commit -m subject -m "Fixes-Oracle: X" -m "Session: Y"`
+    ("Fix X\n\nFixes-Oracle: FP-042-FRR102\n\nSession: ndr-a\n", False),
+    ("Fix X\n\nOracle: RT-S01 is in the body\nand more prose\n\nSession: ndr-a\n", False),
+    ("Fix X\n\nWhy.\n\nNo-Oracle: a reason long enough here\nnot a trailer line\n", False),
+    ("Fix X\n# a git comment line\n\nFixes-Oracle: FP-1\nSession: s\n", True),
+])
+def test_check_message_finds_trailers_git_wont_read(msg, ok):
+    assert (_gate_module().message_problems(msg) == []) is ok
+
+
+def test_check_message_command_exit_codes(tmp_path):
+    good, bad = tmp_path / "good", tmp_path / "bad"
+    good.write_text("Fix\n\nFixes-Oracle: FP-1\nSession: s\n", encoding="utf-8")
+    bad.write_text("Fix\n\nFixes-Oracle: FP-1\n\nSession: s\n", encoding="utf-8")
+    assert run_main(["check-message", str(good)])[0] == 0
+    code, out = run_main(["check-message", str(bad)])
+    assert code == 1 and "not the trailer block" in out
+    assert run_main(["check-message", str(tmp_path / "missing")])[0] == 2
+
+
+@needs_git
+def test_reproduce_says_when_the_trailer_is_in_the_body(repo):
+    repo.write("src/toy/__init__.py", JUDGE.replace("LIMIT = 0", "LIMIT = 1"))
+    sha = repo.commit("tighten\n\nFixes-Oracle: FP-1\n\nSession: ndr-fix")
+    code, out = repo.reproduce(repo.base, sha)
+    assert code == 1 and "in its trailer block" in out and "not the trailer block" in out, out
