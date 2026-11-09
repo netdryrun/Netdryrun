@@ -1,0 +1,9 @@
+id: FP-043-VRFLIST
+bug: >-
+  When a node's VRF list can't be read (`drv.vrfs()` raises, record.py:148 at f4b5e6a), `record` writes only a plain
+  warning ("only the default VRF is recorded") and exits 0, so every session and route in that node's other VRFs is
+  left out of the baseline without a gap (same pattern as RT-0066 / FP-042-UNNSESS; fresh adversary on the 0.4.2 final
+  candidate)
+evidence:
+  - tests/fixtures/frr_bgp_neighbors.txt
+  - tests/test_oracle_guards_fp_043_vrflist.py
