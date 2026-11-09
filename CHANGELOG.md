@@ -22,6 +22,12 @@
     "none".
 
   Oracle `tests/oracles/FP-042-UNNUMBERED`, from the same capture.
+- **Own-address reads skipped text before the JSON** (found by ClusterFuzzLite on the 0.4.2 work). Since 0.4.1 every
+  driver's own-address reader (the ping check's own-target and source guards) started at the first `{` or `[`, so an
+  answer with a CLI error line or other text in front of its JSON read as a shorter address list, often an empty one.
+  The answer must now be the JSON document, with only whitespace around it; anything else is unexpected output.
+
+  Oracle `tests/oracles/FP-042-ADDRLOAD`, from the fuzzer's saved crash input.
 
 ## 0.4.1 (2026-11-09)
 
