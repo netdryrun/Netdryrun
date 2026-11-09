@@ -13,5 +13,8 @@ evidence:
   - tests/fixtures/frr1021_learned_prefix_text.txt
   - tests/fixtures/frr1021_learned_route_json.txt
   - tests/fixtures/frr1021_table_json.txt
+  - tests/fixtures/frr1021u_capture.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth3.txt
+  - tests/fixtures/frr1021u_leaf01_show_bgp_neighbors_json.txt
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_frr102.py
