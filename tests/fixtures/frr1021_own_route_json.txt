@@ -1,0 +1,35 @@
+{
+  "192.168.11.0/24":[
+    {
+      "prefix":"192.168.11.0/24",
+      "prefixLen":24,
+      "protocol":"connected",
+      "vrfId":0,
+      "vrfName":"default",
+      "selected":true,
+      "destSelected":true,
+      "distance":0,
+      "metric":0,
+      "installed":true,
+      "table":254,
+      "internalStatus":16,
+      "internalFlags":8,
+      "internalNextHopNum":1,
+      "internalNextHopActiveNum":1,
+      "nexthopGroupId":12,
+      "installedNexthopGroupId":12,
+      "uptime":"00:00:22",
+      "nexthops":[
+        {
+          "flags":3,
+          "fib":true,
+          "directlyConnected":true,
+          "interfaceIndex":24,
+          "interfaceName":"eth3",
+          "active":true,
+          "weight":1
+        }
+      ]
+    }
+  ]
+}

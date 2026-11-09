@@ -361,3 +361,12 @@
     and `vtysh -c 'show bgp neighbors json'`, listed in frr1021u_capture.txt; captured by the 0.4.2 session for oracle
     FP-042-UNNUMBERED
   added: ndr/oracles-0.4.2
+- files: [frr1021_capture.txt, frr1021_own_prefix_json.txt, frr1021_own_prefix_text.txt, frr1021_own_route_json.txt,
+          frr1021_learned_prefix_json.txt, frr1021_learned_prefix_text.txt, frr1021_learned_route_json.txt,
+          frr1021_table_json.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.2.1 (quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1), lab
+    martimy/clab-bgp-frr @ ac5b96c (BGP unnumbered), node leaf01, 2026-11-09: `vtysh -c '<command>'`, commands and
+    exit codes in frr1021_capture.txt; captured by the 0.4.2 session for oracle FP-042-FRR102
+  added: ndr/oracles-0.4.2
