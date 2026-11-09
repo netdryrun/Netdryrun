@@ -1,0 +1,50 @@
+{
+  "prefix":"192.168.11.0/24",
+  "version":1,
+  "advertisedTo":{
+    "eth1":{
+      "hostname":"spine01"
+    },
+    "eth2":{
+      "hostname":"spine02"
+    }
+  },
+  "paths":[
+    {
+      "aspath":{
+        "string":"Local",
+        "segments":[],
+        "length":0
+      },
+      "origin":"IGP",
+      "metric":0,
+      "weight":32768,
+      "valid":true,
+      "version":1,
+      "sourced":true,
+      "local":true,
+      "bestpath":{
+        "overall":true,
+        "selectionReason":"First path received"
+      },
+      "lastUpdate":{
+        "epoch":1794230473,
+        "string":"Mon Nov  9 13:21:13 2026\n"
+      },
+      "nexthops":[
+        {
+          "ip":"0.0.0.0",
+          "hostname":"leaf01",
+          "afi":"ipv4",
+          "metric":0,
+          "accessible":true,
+          "used":true
+        }
+      ],
+      "peer":{
+        "peerId":"0.0.0.0",
+        "routerId":"10.10.10.21"
+      }
+    }
+  ]
+}

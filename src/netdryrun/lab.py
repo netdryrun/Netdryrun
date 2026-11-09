@@ -297,11 +297,13 @@ class Lab:
             raise LabError(f"could not read the addresses of {interface} on {node}: "
                            f"{' '.join((r.stderr or r.stdout).split())[:200] or f'exit code {r.rc}'}")
         out = []
-        for m in re.finditer(r"\binet6?\s+([0-9A-Fa-f:.]+/\d+)", r.stdout):
+        for m in re.finditer(r"\binet6?\s+(\S+)", r.stdout):
             try:
                 out.append(ipaddress.ip_interface(m.group(1)))
             except ValueError:
-                pass
+                # an address that exists but can't be read is never "no address": it could be the global one that
+                # makes the link numbered (oracle FP-042-UNNUMBERED)
+                raise LabError(f"could not read an address of {interface} on {node}: {m.group(1)[:60]!r}") from None
         return out
 
     def peers_of(self, node: str, interface: str) -> list[tuple[str, str]]:
@@ -445,7 +447,11 @@ class Lab:
 
     def docker_inspect(self, node: str) -> dict:
         """The node's container as `docker inspect` prints it. Not readable is an error, never "no networks"."""
-        c = self.nodes[node].container
+        return self.docker_inspect_container(self.nodes[node].container)
+
+    def docker_inspect_container(self, c: str) -> dict:
+        """Any container, by name or id, as `docker inspect` prints it (a namespace holder containerlab made for a
+        node is not a node itself). Not readable is an error."""
         r = _run(["docker", "inspect", c], timeout=60, errors="replace")
         try:
             data = json.loads(r.stdout) if r.rc == 0 else None

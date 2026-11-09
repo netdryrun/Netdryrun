@@ -1,0 +1,80 @@
+id: RT-0057
+title: >-
+  route 0.0.0.0/0 protocol static present: false passes on SR Linux while a static default with preference 250 is
+  configured and valid but loses to the BGP default: the network-instance route table lists only the active route
+  (tests/fixtures/srl_leak_route.txt lists the static alone while a BGP path lost to it), and the driver looks for
+  not-selected routes in the BGP RIB only, so a non-BGP route that is present but not selected is never seen (FRR's
+  zebra lists every entry for the prefix, and the same check fails there)
+found: 2026-11-09, red team A (drivers)
+fixed_in: null
+retired: "refuted live, 2026-11-09: SR Linux 26.7.2 lists the losing static default with active false and the check fails (wt/rg-srl-losers)"
+kind: driver
+driver: srlinux
+check:
+  type: route
+  node: srl1
+  prefix: 0.0.0.0/0
+  protocol: static
+  present: false
+outputs:
+  - needle: "route-table ipv4-unicast route 0.0.0.0/0"
+    output: |
+      {
+        "route": [
+          {
+            "ipv4-prefix": "0.0.0.0/0",
+            "id": 0,
+            "route-type": "bgp",
+            "route-owner": "bgp_mgr",
+            "origin-network-instance": "default",
+            "leakable": false,
+            "leaked": false,
+            "metric": 0,
+            "preference": 170,
+            "active": true,
+            "route-limit-exceeded": false,
+            "last-app-update": "2026-11-09T08:27:42.049Z (a second ago)",
+            "next-hop-group": "44970325",
+            "next-hop-group-network-instance": "default",
+            "resilient-hash": false,
+            "dynamic-load-balancing": false,
+            "fib-programming": {
+              "suppressed": false,
+              "last-successful-operation-type": "add",
+              "last-successful-operation-timestamp": "2026-11-09T08:27:42.050Z (a second ago)",
+              "pending-operation-type": "none",
+              "last-failed-operation-type": "none"
+            }
+          }
+        ]
+      }
+  - needle: "bgp-rib afi-safi ipv4-unicast"
+    output: |
+      {
+        "route": [
+          {
+            "prefix": "0.0.0.0/0",
+            "neighbor": "10.0.100.2",
+            "origin-protocol": "bgp",
+            "path-id": 0,
+            "last-modified": "2026-11-09T08:27:41.500Z (2 seconds ago)",
+            "used-route": true,
+            "unused-weight-only": false,
+            "valid-route": true,
+            "best-route": true,
+            "backup-route": false,
+            "stale-route": false,
+            "fib-disabled": false,
+            "pending-delete": false,
+            "neighbor-as": 65020,
+            "group-best": true,
+            "tie-break-reason": "none",
+            "attr-id": "6"
+          }
+        ]
+      }
+reproduce: >-
+  containerlab: SR Linux srl1 eBGP to FRR (examples/srl-frr) receiving 0.0.0.0/0, plus `network-instance default
+  static-routes route 0.0.0.0/0 preference 250 next-hop-group nhg-backup`. route-table shows the bgp route only;
+  the static appears there only after the BGP session is shut. Check {type: route, node: srl1, prefix: 0.0.0.0/0,
+  protocol: static, present: false} passes; on FRR it fails.

@@ -68,7 +68,10 @@ def test_frr_count_shapes(edit, detail):
     d = json.loads(read("frr_bgp_paths.txt"))
     edit(d)
     if detail is None:
-        detail = _snip(f"no pathCount: {str({k: v for k, v in d.items() if k != 'paths'})[:150]}")
+        # no pathCount (FRR 10.2.1 prints none, oracle FP-042-FRR102): still an error without the text answer's count,
+        # now named, and the paths are never read as fewer or none
+        raises(lambda: frr.parse_bgp_paths(_obj(d), "192.168.20.0/24"), "bgpd listed the BGP paths for 192.168.20.0/24 without pathCount: the count comes from the text answer (`show bgp <afi> unicast <prefix>`), which wasn't read, so no verdict on them")
+        return
     raises(lambda: frr.parse_bgp_paths(_obj(d), "192.168.20.0/24"), FRR + detail)
 
 
@@ -189,8 +192,8 @@ def test_missing_count_messages_cut_the_details_at_150_characters():
     d = json.loads(read("frr_bgp_paths.txt"))
     del d["pathCount"]
     d["zz"] = long
-    detail = str({k: v for k, v in d.items() if k != "paths"})[:150]
-    raises(lambda: frr.parse_bgp_paths(_obj(d), "192.168.20.0/24"), FRR + _snip(f"no pathCount: {detail}"))
+    # FRR: a missing pathCount is a named gap (FP-042-FRR102) that prints none of the answer's details
+    raises(lambda: frr.parse_bgp_paths(_obj(d), "192.168.20.0/24"), "bgpd listed the BGP paths for 192.168.20.0/24 without pathCount: the count comes from the text answer (`show bgp <afi> unicast <prefix>`), which wasn't read, so no verdict on them")
     d = json.loads(read("eos_bgp_paths.txt"))
     e = _eos_entry(d)
     del e["totalPaths"]

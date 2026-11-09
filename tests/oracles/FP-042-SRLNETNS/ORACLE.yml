@@ -1,0 +1,14 @@
+id: FP-042-SRLNETNS
+bug: >-
+  On containerlab 0.83 an SR Linux node runs in the network namespace of a holder container containerlab makes for it
+  (clab-<lab>-<node>-netns, labels containerlab=<lab>, clab-internal-node=true, clab-root-node-name=<node>), and
+  `mgmt.refuse_checks` refuses every check on the node as "in the namespace of <id>, which is not a lab node", so
+  `netdryrun run examples/srl-frr` exits 2 (stranger, hq run 42599196181; recaptured 2026-11-10 on containerlab 0.83.0)
+evidence:
+  - tests/fixtures/clab083_srl_netns_capture.txt
+  - tests/fixtures/clab083_srl_netns_inspect_srl1.json
+  - tests/fixtures/clab083_srl_netns_inspect_srl1_netns.json
+  - tests/fixtures/clab083_srl_netns_inspect_frr1.json
+  - tests/fixtures/clab083_srl_netns_topology.clab.yml
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_srlnetns.py

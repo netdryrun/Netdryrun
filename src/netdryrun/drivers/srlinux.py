@@ -335,7 +335,9 @@ def parse_attr_set(text: str, row: dict, default_local_pref: int | None = None) 
     if not isinstance(a, dict) or set(a) - ATTR_SET_KEYS or str(a.get("index")) != str(row.get("attr-id")):
         raise unexpected(ATTR_CMD, f"not attr-set {row.get('attr-id')}: {str(a)[:150]}")
     # no as-path container: unknown (None), never an empty path that `as_path: ""` or a regex would match (Layer 6
-    # round 2 on eaa323c); every live attr-set prints one. A path without communities has no communities container
+    # round 2 on eaa323c). SR Linux 26.7.2 leaves the container out for an empty AS path (an iBGP peer's own route,
+    # RT-S01, live), but nothing in the attr-set or the RIB row tells that from a missing container on a path that
+    # isn't empty, so it stays unknown and `record` names the gap. A path without communities has no communities container
     # (srl_attr_set_rejected.txt, live): YANG state leaves an empty container out, so that absence is "none"
     segs = _as_path_segments(a["as-path"]) if "as-path" in a else None
     comms = _communities(a["communities"]) if "communities" in a else {}

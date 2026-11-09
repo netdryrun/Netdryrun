@@ -23,13 +23,17 @@ whom) and `fixed_in`.
 2. Write the smallest file that reproduces the false pass. Prefer `driver` with real captured output, then
    `check`, then `config`; use `pinned` only when the reproduction needs a whole run.
 3. Run `pytest tests/test_redteam.py`: the new case must **fail** (the false pass is real) before the fix
-   and pass after it. Commit the case and the fix together, the case first in the diff.
+   and pass after it. From 0.4.2 the case is committed **before** the fix, by another session, as an oracle
+   (`tests/oracles/README.md`); the fix commit names it with `Fixes-Oracle:` and may not edit it.
 4. Add a line to the advisory or the CHANGELOG if a released version was affected.
 
 ## Retiring a case
 
 Never delete one. If a feature is removed and a case can no longer run, set `retired: "<why>, <date>"`; the
 file stays and still counts.
+The same field holds a candidate that a verifier or a live test showed isn't a false pass (the reason names the
+evidence; an unconfirmed one says which live test is queued and is filed again under a new number if it proves real),
+and a number that was never used, so the numbering stays contiguous.
 
 ## Running it against an old release
 

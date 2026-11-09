@@ -7,6 +7,7 @@ a `present: false` check pass.
 from __future__ import annotations
 
 import ipaddress
+import json
 import re
 from collections import Counter
 
@@ -394,11 +395,51 @@ def parse_received(text: str, family: int) -> set[str]:
     return out
 
 
-def _path_count(command: str, data: dict) -> None:
+PATHS_TEXT_CMD = "show bgp <afi> unicast <prefix>"
+_PATHS_AVAILABLE = re.compile(r"^\s*Paths: \((\d+) available\b", re.M)
+
+
+def needs_text_count(text: str) -> bool:
+    """A `show bgp ... <prefix> json` answer that lists paths without pathCount (FRR 10.2.1, captured: oracle
+    FP-042-FRR102): the path count must then come from the text answer before the paths are believed."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return False
+    return isinstance(data, dict) and isinstance(data.get("paths"), list) and "pathCount" not in data
+
+
+def parse_paths_available(text: str, prefix: str) -> int:
+    """`show bgp <afi> unicast <prefix>` (text): the count in "Paths: (N available, best #k ...)", which FRR 10.2.1
+    prints where its JSON leaves pathCount out (tests/fixtures/frr1021_*_prefix_text.txt). Exactly one such line for
+    exactly this prefix, or no count: never a guess."""
+    # FRR prints "BGP routing table entry for 192.168.21.0/24, version 5": the prefix ends at the comma
+    head = re.search(r"BGP routing table entry for ([^\s,]+)", text)
+    found = _PATHS_AVAILABLE.findall(text)
+    try:
+        same = bool(head) and ipaddress.ip_network(head.group(1), strict=False) == ipaddress.ip_network(prefix)
+    except ValueError:   # an entry line naming no prefix this parser can read
+        same = False
+    if not same or len(found) != 1:
+        raise DriverError(f"bgpd listed the BGP paths for {prefix} without pathCount, and its text answer "
+                          f"(`{PATHS_TEXT_CMD}`) gives no single path count for {prefix} to check them against: "
+                          "the paths can't be trusted, so no verdict on them")
+    return int(found[0])
+
+
+def _path_count(command: str, data: dict, text_count: int | None = None, prefix: str = "") -> None:
     """`pathCount` must equal the paths listed: a path dropped from under its count must never read as one path
-    less, or as no path (0.4.1, the shape of the Junos fuzz finding of 2026-11-01)."""
+    less, or as no path (0.4.1, the shape of the Junos fuzz finding of 2026-11-01). Where bgpd prints no pathCount
+    (FRR 10.2.1), the text answer's "N available" is the count instead (text_count); without it there is no verdict
+    on the paths, named, never a guess (oracle FP-042-FRR102)."""
     if "pathCount" not in data:
-        raise unexpected(command, f"no pathCount: {str({k: v for k, v in data.items() if k != 'paths'})[:150]}")
+        if text_count is None:
+            raise DriverError(f"bgpd listed the BGP paths for {prefix or data.get('prefix')} without pathCount: the "
+                              f"count comes from the text answer (`{PATHS_TEXT_CMD}`), which wasn't read, so no "
+                              "verdict on them")
+        if text_count != len(data["paths"]):
+            raise unexpected(command, f"{text_count} paths available (text answer), but {len(data['paths'])} listed")
+        return
     count = as_int(command, data["pathCount"])
     if count != len(data["paths"]):
         raise unexpected(command, f"pathCount {count}, but {len(data['paths'])} paths listed")
@@ -438,14 +479,15 @@ def _communities(p: dict, key: str) -> list[str]:
     return obj["string"].split()
 
 
-def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
-    """Path objects for exactly `prefix` from `show bgp ... <prefix> json`. `{}` means no path."""
+def _bgp_paths_raw(command: str, text: str, prefix: str, text_count: int | None = None) -> list[dict]:
+    """Path objects for exactly `prefix` from `show bgp ... <prefix> json`. `{}` means no path. text_count: the text
+    answer's path count, for a bgpd that prints no pathCount (see _path_count)."""
     data = _bgp_json(command, text)
     if not data:
         return []
     if not isinstance(data.get("paths"), list) or "prefix" not in data:
         raise unexpected(command, text)
-    _path_count(command, data)
+    _path_count(command, data, text_count, prefix)
     if network(command, data["prefix"]) != ipaddress.ip_network(prefix):
         # bgpd answers for exactly the prefix asked, `{}` without it (FRR 10.4.1): an answer for another one is output
         # this parser doesn't know, never "no path" (read as no path, it made `present: false` pass)
@@ -476,7 +518,8 @@ def _learned(p: dict) -> bool:
 
 
 @parser(ROUTE_CMD)
-def parse_routes(text: str, prefix: str, bgp_text: str | None = None, offload: bool = False) -> list[Route]:
+def parse_routes(text: str, prefix: str, bgp_text: str | None = None, offload: bool = False,
+                 bgp_count: int | None = None) -> list[Route]:
     """Routing-table entries for `prefix`, plus a not-installed BGP route when the BGP table has a path
     learned from a neighbor that zebra doesn't hold (invalid next hop, not selected): it was received,
     so it counts as present, as on EOS and SR Linux. zebra answers for exactly the prefix asked, `{}` without it
@@ -488,13 +531,13 @@ def parse_routes(text: str, prefix: str, bgp_text: str | None = None, offload: b
             raise unexpected(ROUTE_CMD, f"a route for {net} in the answer for {want}")
     out = [_route(prefix, e, offload=offload) for entries in table.values() for e in entries]
     if bgp_text is not None:
-        paths = _bgp_paths_for_route_check(bgp_text, prefix)   # read even when zebra has it: a stale path is an error
+        paths = _bgp_paths_for_route_check(bgp_text, prefix, bgp_count)   # read even when zebra has it: a stale path is an error
         if not any(r.protocol == "bgp" for r in out) and any(_learned(p) for p in paths):
             out.append(Route(prefix, "bgp", False))
     return out
 
 
-def _bgp_paths_for_route_check(text: str, prefix: str) -> list[dict]:
+def _bgp_paths_for_route_check(text: str, prefix: str, text_count: int | None = None) -> list[dict]:
     """The BGP side of a route check. No BGP instance in the VRF means no BGP paths (the VRF itself is
     confirmed separately); any other warning or shape is an error."""
     data = load_json(BGP_PATHS_CMD, text)
@@ -502,7 +545,7 @@ def _bgp_paths_for_route_check(text: str, prefix: str) -> list[dict]:
         return []
     if isinstance(data, dict) and isinstance(data.get("warning"), str) and _NO_INSTANCE.search(data["warning"]):
         return []
-    return _bgp_paths_raw(BGP_PATHS_CMD, text, prefix)
+    return _bgp_paths_raw(BGP_PATHS_CMD, text, prefix, text_count)
 
 
 @parser(ALL_ROUTES_CMD)
@@ -519,12 +562,13 @@ def _next_hop(hops: list) -> str | None:
 
 
 @parser(BGP_PATHS_CMD)
-def parse_bgp_paths(text: str, prefix: str, default_local_pref: int | None = 100) -> list[BgpPath]:
+def parse_bgp_paths(text: str, prefix: str, default_local_pref: int | None = 100,
+                    text_count: int | None = None) -> list[BgpPath]:
     """`show bgp <afi> unicast <prefix> json`. A path without locPrf carries no LOCAL_PREF attribute
     (eBGP-learned or local), and FRR applies the instance's default local preference to it. Every path
     is listed, valid or not, best or not."""
     out = []
-    for p in _bgp_paths_raw(BGP_PATHS_CMD, text, prefix):
+    for p in _bgp_paths_raw(BGP_PATHS_CMD, text, prefix, text_count):
         segs = _segments(p)
         out.append(BgpPath(
             best=bool((p.get("bestpath") or {}).get("overall")),
@@ -575,6 +619,13 @@ class FrrDriver(Driver):
     def _vtysh(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["vtysh", "-c", command], evidence)
 
+    def _text_count(self, json_text: str, vrf_part: str, afi: str, prefix: str, evidence: list[dict]) -> int | None:
+        """Where bgpd lists a prefix's paths without pathCount (FRR 10.2.1), read the count from the text answer of
+        the same command, so a dropped path is still caught (oracle FP-042-FRR102). None when pathCount is printed."""
+        if not needs_text_count(json_text):
+            return None
+        return parse_paths_available(self._vtysh(f"show bgp{vrf_part} {afi} unicast {prefix}", evidence), prefix)
+
     def _confirm_vrf(self, vrf: str, evidence: list[dict]) -> None:
         """Before an empty answer is trusted: zebra answers `{}` for a VRF that doesn't exist, exactly as
         for an existing VRF without the route, so check the VRF list."""
@@ -610,7 +661,8 @@ class FrrDriver(Driver):
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         text = self._vtysh(f"show {fam} route{vrf_part} {prefix} json", ev)
         bgp = self._vtysh(f"show bgp{vrf_part} {afi} unicast {prefix} json", ev)
-        routes = parse_routes(text, prefix, bgp, offload=self.offload)
+        routes = parse_routes(text, prefix, bgp, offload=self.offload, bgp_count=self._text_count(bgp, vrf_part, afi,
+                                                                                                    prefix, ev))
         if not routes:
             self._confirm_vrf(vrf, ev)
         return Observation(routes, ev)
@@ -655,14 +707,15 @@ class FrrDriver(Driver):
         afi = "ipv6" if ipaddress.ip_network(prefix).version == 6 else "ipv4"
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         text = self._vtysh(f"show bgp{vrf_part} {afi} unicast {prefix} json", ev)
-        paths = parse_bgp_paths(text, prefix, default_local_pref=None)
+        count = self._text_count(text, vrf_part, afi, prefix, ev)
+        paths = parse_bgp_paths(text, prefix, default_local_pref=None, text_count=count)
         if not paths:
             self._confirm_vrf(vrf, ev)
         if any(p.local_pref is None for p in paths):
             # Some path has no LOCAL_PREF attribute: read the default it gets (an empty table listing)
             default = parse_default_local_pref(
                 self._vtysh(f"show bgp{vrf_part} ipv4 unicast 255.255.255.255/32 longer-prefixes json", ev))
-            paths = parse_bgp_paths(text, prefix, default_local_pref=default)
+            paths = parse_bgp_paths(text, prefix, default_local_pref=default, text_count=count)
         return Observation(paths, ev)
 
     def community_aliases(self) -> Observation:

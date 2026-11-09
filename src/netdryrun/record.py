@@ -86,7 +86,9 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     unknown = sorted(set(drivers) - set(lab.nodes))
     if unknown:
         raise ValueError(f"--driver names nodes not in the topology: {', '.join(unknown)}")
-    link_subnets = _link_subnets(lab, warnings) if guards else []
+    link_local_only: dict[str, list[str]] = {}   # node -> interfaces with link-local addresses only
+    link_subnets = _link_subnets(lab, warnings, link_local_only) if guards else []
+    drvs: dict = {}
     routing: list[str] = []
     no_bgp: set[str] = set()
     for name, node in lab.nodes.items():
@@ -114,6 +116,7 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
             continue
         routing.append(name)
         drv = for_node(lab, name, drivers[name]) if name in drivers else for_node(lab, name)
+        drvs[name] = drv
         log(f"recording {name} ({drv.name})")
         if drv.name == "sonic":
             warnings.append(f"{name}: SONiC is configured after boot; add its commands under nodes.{name}.setup "
@@ -126,6 +129,7 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
         for vrf in vrfs:
             checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
                                   link_subnets if guards and vrf == "default" else None, sleep, no_bgp)
+    _unnumbered(link_local_only, drvs, warnings)
     for name in routing:
         if name in no_bgp and name in no_bgp_ok:
             continue   # the user said it runs no BGP (--no-bgp): its "no BGP instance" answer is the expected state
@@ -277,9 +281,11 @@ def _closed_world(c: dict, drv, where: str, addr: str, afi: str, count: int, war
                     "with present: false for prefixes that must never arrive")
 
 
-def _link_subnets(lab, warnings: list[str]) -> list[str]:
+def _link_subnets(lab, warnings: list[str], link_local_only: dict[str, list[str]] | None = None) -> list[str]:
     """The subnets of the topology's links, from the addresses on their interfaces. An interface whose
-    addresses can't be read is a warning: its subnet gets no guard, and the file says so."""
+    addresses can't be read is a warning: its subnet gets no guard, and the file says so. An interface with
+    link-local addresses only goes to `link_local_only` (when given), for _unnumbered to decide once the node's BGP
+    sessions are known; without it, it is a gap here."""
     nets: set = set()
     for end in (e for link in lab.links for e in link):
         node = lab.nodes.get(end[0])
@@ -293,11 +299,42 @@ def _link_subnets(lab, warnings: list[str]) -> list[str]:
             continue
         if not found:
             # Unnumbered, or the NOS keeps the address elsewhere (SONiC on EthernetN, SR Linux on e1-Y.0 in
-            # srbase-default): either way no guard can be written from it, so say so
-            warnings.append(f"INCOMPLETE BASELINE: {end[0]}: no global address on {end[1]} where Netdryrun reads "
-                            "it (unnumbered, or kept on another interface by the NOS); its link subnet has no guard")
+            # srbase-default): no guard can be written from it. Only a BGP session over the interface itself says
+            # which (_unnumbered); without that, say so
+            if link_local_only is not None:
+                link_local_only.setdefault(end[0], []).append(end[1])
+            else:
+                warnings.append(_no_global(end[0], end[1]))
         nets |= found
     return [str(n) for n in sorted(nets, key=lambda n: (n.version, n))]
+
+
+def _no_global(node: str, interface: str, why: str = "") -> str:
+    return (f"INCOMPLETE BASELINE: {node}: no global address on {interface} where Netdryrun reads it (unnumbered, or "
+            f"kept on another interface by the NOS{why}); its link subnet has no guard")
+
+
+def _unnumbered(link_local_only: dict[str, list[str]], drvs: dict, warnings: list[str]) -> None:
+    """An interface with link-local addresses only is BGP unnumbered, with no subnet to guard, only when the node
+    has a BGP session over that interface itself (FRR keys it by the interface name: `neighbor eth1 interface`).
+    Anything else stays a gap: no driver, BGP sessions that can't be read, or no session over the interface (the
+    address may be kept elsewhere: SONiC on EthernetN, SR Linux on e1-Y.0). Oracle FP-042-UNNUMBERED."""
+    for node, interfaces in link_local_only.items():
+        drv = drvs.get(node)
+        if drv is None:
+            warnings += [_no_global(node, i, "; no driver to read its BGP sessions") for i in interfaces]
+            continue
+        try:
+            sessions = set(drv.bgp_neighbors("default").value)   # keyed by address, or interface name (FRR)
+        except DriverError as e:
+            warnings += [_no_global(node, i, f"; its BGP sessions couldn't be read: {e}") for i in interfaces]
+            continue
+        for i in interfaces:
+            if i in sessions:
+                warnings.append(f"{node}: {i} is BGP unnumbered (link-local addresses only, a BGP session over {i}): "
+                                "no link subnet on it to guard")
+            else:
+                warnings.append(_no_global(node, i))
 
 
 def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_subnets: list[str],
@@ -367,11 +404,26 @@ def _attribute_check(drv, node: str, prefix: str, vrf: str = "default", warnings
             warnings.append(f"{node}: {prefix}: no bgp_route check: its best path is the node's own route, which isn't "
                             "a BGP path (check it on a neighbor)")
         return None
-    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf})}
-    if best.as_path is not None:
-        c["as_path"] = best.as_path
+    if best.as_path is None:
+        # The driver couldn't read the best path's AS path (SR Linux prints no as-path container for an empty path
+        # and the driver can't tell that from a missing one: RT-S01). A check without as_path would pass once the
+        # path changes, so none is written, and the gap is named: never a quieter baseline
+        if warnings is not None:
+            where = node if vrf == "default" else f"{node} vrf {vrf}"
+            warnings.append(f"INCOMPLETE BASELINE: {where}: {prefix}: no bgp_route check: the best path's AS path "
+                            "couldn't be read (on SR Linux, an empty AS path prints no as-path container), so a "
+                            "check of its attributes would pass a changed path. Add one by hand once the device's "
+                            "own report shows the path (as_path: \"\" for an empty one)")
+        return None
+    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf}),
+               "as_path": best.as_path}
     if best.local_pref is not None:
         c["local_pref"] = best.local_pref
+    elif warnings is not None:
+        # never silently dropped (RT-S01): named, but not a gap, since a path without LOCAL_PREF (eBGP-learned on some
+        # drivers) is a real answer
+        warnings.append(f"{node}: {prefix}: local_pref is not recorded: the driver read no local preference on the "
+                        "best path")
     carried = best.all_communities()
     aliases = getattr(drv, "community_aliases", None)
     if carried and aliases is not None and aliases().value:

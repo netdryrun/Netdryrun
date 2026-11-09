@@ -1,0 +1,30 @@
+
+FFFFFFFFF{
+    "interfaces": {
+        "Ethernet1": {
+       "ipv4Routable0": false,
+            "enabled": true,
+            "description": "",
+            "inimeout": 64893,
+            "isVrrpBackup": false,
+            "vrf": "defaõlt",
+            "urpf": "disable",
+            "addresslessForwarding": "isInvalid",
+            "v4IntfForwarding": true,
+            "diÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿïÿÿrectedBroadcastEnabled": false,
+            "maxMssIngress": 0,
+            "maxMssEgress": 0
+        },
+        "Management0": {
+            "name": "Management0",
+            "interfaceStatus": "connected",
+            "lineProtup": false,
+            "vrf": "deNfault",
+            "u0pf": "disable",
+            "addresslessForwarding": "isInvalid",
+            "v4IntfForwarding": true,
+            "directedBroadcastEnabled": false,
+              "maxMssEgress": 0
+        }
+    }
+}

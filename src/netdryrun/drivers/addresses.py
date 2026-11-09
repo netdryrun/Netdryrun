@@ -30,11 +30,12 @@ def _strict(fn):
 
 
 def _load(command: str, text: str):
+    # the whole answer is the JSON document, with only whitespace around it: text before it (a CLI error line, a
+    # banner) is unexpected output, never skipped (FP-042-ADDRLOAD: skipping it read malformed output as no addresses)
     try:
-        i = min(x for x in (text.find("{"), text.find("[")) if x >= 0)
-        return json.loads(text[i:])
-    except (ValueError, TypeError) as e:
-        raise unexpected(command, f"not JSON ({e}): {text[:120]!r}") from None
+        return json.loads(text.strip())
+    except (ValueError, TypeError, AttributeError, RecursionError) as e:
+        raise unexpected(command, f"not JSON ({e}): {str(text)[:120]!r}") from None
 
 
 def _iface(command: str, text: str, prefixlen: object = None) -> ipaddress._BaseAddress:

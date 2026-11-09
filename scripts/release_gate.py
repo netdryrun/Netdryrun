@@ -11,7 +11,8 @@ A check that cannot run (a tool is missing, no lab machine) is SKIP, never PASS.
 skipped BLOCKER counts as a failure; CI always runs with --strict.
 
 Layers (RELEASING.md explains each one):
-  python scripts/release_gate.py static          lint, workflow lint, public facts, version consistency
+  python scripts/release_gate.py static          lint, workflow lint, public facts, version consistency,
+                                                loosening gate and reproduce-first (fastfix_gate.py)
   python scripts/release_gate.py unit            tests on Python 3.10-3.14 and in a plain container, coverage
   python scripts/release_gate.py mutation        mutmut on the verdict modules; survivors block
   python scripts/release_gate.py live            the built wheel on the lab machine: examples, corpora, chaos
@@ -284,6 +285,7 @@ class Check:
     summary: str = ""       # one line for the table
     output: str = ""        # the evidence: command output (tail) or a computed listing
     command: str = ""
+    ended: float = 0.0      # wall clock at the end (epoch s): a check overlapping a labrun taint is no verdict
 
 
 @dataclass
@@ -333,7 +335,7 @@ class Layer:
         status = PASS if ok else FAIL if ok is False else SKIP
         if status == SKIP and self.args.strict and severity == BLOCKER:
             status, summary = FAIL, f"skipped under --strict: {summary}"
-        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command)
+        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command, round(time.time(), 1))
         self.checks.append(check)
         print(f"  [{check.status}] {severity:<7} {title}" + (f": {summary}" if summary else ""), flush=True)
         return check
@@ -542,6 +544,12 @@ def layer_static(args) -> Layer:
     cmd = [sys.executable, "scripts/sync_facts.py", "--check"]
     layer.add_proc("sync-facts", "public facts match the source (sync_facts.py --check)", BLOCKER, cmd, run(cmd))
 
+    # what shipped is what every surface names (0.4.2 priority 4: 0.4.1 shipped NX-OS and RouterOS while sync_facts
+    # still called them UNRELEASED); a release candidate also has nothing left in UNRELEASED
+    cmd = [sys.executable, "scripts/surfaces_agree.py", "static", *(["--release"] if args.candidate else [])]
+    layer.add_proc("surfaces-agree", "every surface names the platforms that shipped (surfaces_agree.py static)",
+                   BLOCKER, cmd, run(cmd, timeout=120))
+
     t0 = time.monotonic()
     found, problems = version_sources(args.version)
     listing = "\n".join(f"{'ok ' if v == args.version else 'BAD'} {v:<10} {where}" for where, v in found)
@@ -590,9 +598,49 @@ def layer_static(args) -> Layer:
     layer.add("retired-strings", "no retired public string outside the history (CHANGELOG, advisories, records)",
               BLOCKER, not retired, "; ".join(retired[:10]) or "none")
 
+    fastfix_checks(layer, args)
+
     if args.candidate:
         candidate_checks(layer, args.version)
     return layer
+
+
+def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
+    """0.4.2 fast fix (scripts/fastfix_gate.py): the loosening gate and the reproduce-first check, over the change
+    from the merge-base of --fastfix-base and HEAD. An empty range (HEAD is the base: a release from main without
+    --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS."""
+    git_, runner = git_ or git, runner or run
+    titles = {"loosening": "no unexplained FAIL/UNKNOWN -> PASS against the base (fastfix_gate.py loosening)",
+              "reproduce-first": "every src/ commit names an independent oracle that failed before it, or says why "
+                                 "not (fastfix_gate.py reproduce)"}
+    base = git_("merge-base", args.fastfix_base, "HEAD")
+    head = git_("rev-parse", "HEAD")
+    if not base or not head:
+        for id_, title in titles.items():
+            layer.add(id_, title, BLOCKER, False, f"can't find the merge-base of {args.fastfix_base} and HEAD "
+                      "(shallow clone or unknown ref; CI needs fetch-depth: 0)")
+        return
+    if base == head:
+        for id_, title in titles.items():
+            layer.add(id_, title, BLOCKER, None, f"HEAD is the base ({head[:10]}): nothing to compare; pass "
+                      "--fastfix-base <previous release tag> at a release")
+        return
+    # the base's copy judges the change, so a change can't loosen the judge it is judged by; a base from before the
+    # gate existed (its bootstrap) uses this checkout's copy, and says so
+    tmp = Path(tempfile.mkdtemp(prefix="ndr-fastfix-gate-"))
+    script = tmp / "fastfix_gate.py"
+    own = git_("show", f"{base}:scripts/fastfix_gate.py")
+    if own:
+        script.write_text(own + "\n", encoding="utf-8")
+        which = f"the base's fastfix_gate.py ({base[:10]})"
+    else:
+        shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", script)
+        which = "this checkout's fastfix_gate.py (the base predates it)"
+    for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
+                     ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
+                                          "--range", f"{base}..HEAD"])):
+        layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}, by {which}")
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
@@ -1142,15 +1190,23 @@ def layer_live(args) -> Layer:
     try:
         if not live_install(live, args):
             return layer
+        # --case / --resume (step 2): only the cases asked for; None means the whole layer
+        sel = getattr(args, "selection", None)
         stale = sorted(stale_corpora()) if not args.skip_corpus else []
+        if sel is not None:
+            stale = [v for v in stale if v in sel["corpora"]]
         if stale:   # G3: a drift shows in minutes, not after the examples; stop at the first verdict that differs
             if not live_corpora(live, args, only=stale, fail_fast=True):
                 layer.add("live-stopped", "the rest of the live layer", BLOCKER, False,
                           f"not run: a stale corpus ({', '.join(stale)}) gave a verdict that differs from its committed "
                           "results; review the flip, refresh the results, then rerun")
                 return layer
-        live_examples(live, args)
-        live_corpora(live, args, skip=stale)
+        if sel is None or sel["examples"]:
+            live_examples(live, args)
+        unasked = [v for v in CORPORA if sel is not None and v not in sel["corpora"]]
+        live_corpora(live, args, skip=tuple(stale) + tuple(unasked))
+        if sel is not None:   # a partial run: the MCP handshake, pack, scale and chaos belong to the whole layer
+            return layer
         cmd = [live.python, ROOT / "scripts" / "mcp_handshake.py", live.ndr, "mcp"]
         layer.add_proc("mcp-handshake", "MCP handshake against the installed wheel", BLOCKER, cmd, run(cmd, timeout=300))
         if args.pack:
@@ -1317,6 +1373,7 @@ def live_examples(live: Live, args) -> None:
     for name in example_dirs():
         if args.examples and name not in args.examples:
             continue
+        lab_boundary(f"example {name}")
         row = docs.get(name)
         if not row or not row["codes"]:
             layer.add(f"example-{name}", f"example {name}", BLOCKER, False, "no documented expected result")
@@ -1578,6 +1635,7 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
     for version, sub in (("v1", ""), ("v2", "v2")):
         if (only is not None and version not in only) or version in skip:
             continue
+        lab_boundary(f"corpus {version}")
         committed = ROOT / "corpus" / sub / "results" / "results.json"
         cmd = [live.python, copy / "run.py", "--corpus", version, "--workdir", live.work / f"corpus-{version}"]
         if fail_fast:
@@ -1814,6 +1872,10 @@ def layer_after_publish(args) -> Layer:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     release_consistency(layer, v)
+    # the published surfaces outside the repo: GitHub description, PyPI, MCP Registry, LobeHub, netdryrun.com
+    cmd = [sys.executable, "scripts/surfaces_agree.py", "published", "--version", v]
+    layer.add_proc("surfaces-published", f"every published surface names {v} and the released platforms "
+                   "(surfaces_agree.py published)", BLOCKER, cmd, run(cmd, timeout=300))
     if shutil.which("gh"):
         p = run(["gh", "run", "list", "--workflow", "published-action.yml", "--limit", "1",
                  "--json", "conclusion,headSha,url"], timeout=120)
@@ -2127,7 +2189,17 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
             records[name] = json.loads(path.read_text(encoding="utf-8"))
     accepted = load_accepted(args.version, folder).get("checks", {})
     blockers, skipped, majors, notes = [], [], [], []
+    gr = _records()
     for name, rec in records.items():
+        # step 2: a check that failed in any non-tainted attempt on this commit stays FAIL; a tainted one is no verdict
+        over = gr.verdict(gr.attempts(folder, name), rec["git"].get("sha"))["checks"]
+        for c in rec["checks"]:
+            e = over.get(c["id"])
+            if e and e["status"] == FAIL and c["status"] != FAIL:
+                c["status"], c["summary"] = FAIL, (f"failed in an earlier attempt on this commit "
+                                                   f"({Path(e['failed_in']).name}); a FAIL stays: {c['summary']}")
+            elif e and e["status"] is None and e["tainted"] and c["status"] == PASS:
+                c["status"], c["summary"] = SKIP, f"no verdict: ran during a host gap (labrun taint): {c['summary']}"
         for c in rec["checks"]:
             key = f"{name}/{c['id']}"
             if c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR and key in accepted:
@@ -2258,9 +2330,29 @@ def fmt_secs(s: float) -> str:
     return f"{s:.1f} s" if s < 90 else f"{s / 60:.1f} min"
 
 
+def _records():
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import gate_records
+    return gate_records
+
+
 def save(layer: Layer) -> None:
     args = layer.args
     rec = layer.record()
+    gr = _records()
+    commit = rec["git"].get("sha")
+    cases = getattr(args, "selection_cases", None)
+    gr.append(out_dir(args), rec, commit=commit, key=gr.input_key(ROOT), run_id=getattr(args, "run_id", "") or "",
+              cases=cases, peak_mb=gr.peak_child_rss_mb())
+    if cases is not None:   # a partial run updates its own checks in the layer record and keeps the others
+        path = out_dir(args) / "gate" / f"{layer.name}.json"
+        prev = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+        if prev and prev["git"].get("sha") == commit:
+            mine = {c["id"] for c in rec["checks"]}
+            rec = {**rec, "checks": [c for c in prev["checks"] if c["id"] not in mine] + rec["checks"],
+                   "sections": prev.get("sections", []) + rec["sections"]}
     write_out(args, f"gate/{layer.name}.json", json.dumps(rec, indent=1, ensure_ascii=False) + "\n")
     text, _ = render(args)
     path = write_out(args, "GATE.md", text)
@@ -2271,6 +2363,90 @@ def save(layer: Layer) -> None:
         section = section[:section.find("\n## ", 4)] if "\n## " in section[4:] else section
         with open(summary, "a", encoding="utf-8") as f:
             f.write(section + "\n")
+
+
+# ---- labrun (0.4.2 step 1): receipt, heartbeat, case boundaries, done ------------------------------------------------
+def _labrun():
+    """scripts/labrun.py, or None outside a labrun launch (LABRUN_DIR unset). A launch whose labrun module can't be
+    loaded fails loudly: labrun would otherwise report it as a launch that never started."""
+    if not os.environ.get("LABRUN_DIR"):
+        return None
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import labrun
+    return labrun
+
+
+def labrun_begin(args) -> int | None:
+    """Under labrun: G2 first (a run with SIGINT ignored is no run), then the receipt and the heartbeat. Returns an
+    exit code when the run must stop here, None to go on."""
+    lr = _labrun()
+    if lr is None:
+        return None
+    harness = harness_problem()
+    if harness:
+        print(f"labrun: G2 failed, no receipt: {harness}", flush=True)
+        lr.done(2, f"G2: {harness}")
+        return 2
+    lr.HEART = lr.Heartbeat().start()
+    lr.receipt(layer=args.layer, version=args.version, commit=(git("rev-parse", "HEAD") or "").strip())
+    return None
+
+
+def labrun_end(code: int, summary: str) -> None:
+    lr = _labrun()
+    if lr is not None:
+        lr.done(code, summary)
+        if lr.HEART:
+            lr.HEART.stop()
+
+
+def lab_boundary(name: str) -> None:
+    """Between two cases (an example, a corpus): hold here if a pause is asked for, then name the next case."""
+    lr = _labrun()
+    if lr is not None:
+        lr.hold_if_paused()
+        lr.phase(name)
+
+
+def select_cases(args) -> str | None:
+    """--case / --resume (step 2): narrow the live layer to the cases asked for. Sets args.selection
+    ({"examples": set, "corpora": set}), args.examples and args.selection_cases; returns a problem, or None."""
+    if args.layer != "live":
+        return "--case and --resume apply to the live layer only"
+    gr = _records()
+    sha = (git("rev-parse", "HEAD") or "").strip() or None
+    recs = gr.attempts(out_dir(args), "live")
+    if args.resume:
+        if args.case:
+            return "give --case or --resume, not both"
+        if not args.run_id:
+            return "--resume needs --run-id (or $LABRUN_ID): it continues one run on one commit"
+        done = gr.done_cases(recs, sha, args.run_id)
+        if not done:
+            return f"nothing to resume: run {args.run_id} finished no case on {sha and sha[:10]}"
+        wanted = [f"example-{n}" for n in example_dirs()] + [f"corpus-{v}" for v in CORPORA]
+        cases = [c for c in wanted if c not in done]
+    else:
+        cases = []
+        for c in args.case:
+            kind, _, name = c.partition(":")
+            if kind == "example" and name in example_dirs():
+                cases.append(f"example-{name}")
+            elif kind == "corpus" and name in CORPORA:
+                cases.append(f"corpus-{name}")
+            else:
+                return f"unknown case {c!r}: example:<one of {', '.join(example_dirs())}> or corpus:<v1|v2>"
+    refused = gr.rerun_refused(recs, sha, cases)
+    if refused:
+        return (f"{', '.join(refused)} already ran {gr.MAX_ATTEMPTS} times on this commit: a case that needs more "
+                "reruns is flaky; fix it (a new commit) instead")
+    args.selection = {"examples": {c.removeprefix("example-") for c in cases if c.startswith("example-")},
+                      "corpora": {c.removeprefix("corpus-") for c in cases if c.startswith("corpus-")}}
+    args.examples = sorted(args.selection["examples"])
+    args.selection_cases = cases
+    return None
 
 
 def layer_failed(layer: Layer) -> bool:
@@ -2288,7 +2464,14 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog="Layers: " + ", ".join(RUNNERS) + ". See RELEASING.md.")
-    ap.add_argument("layer", choices=[*RUNNERS, "all", "report", "corpus-check"])
+    ap.add_argument("layer", choices=[*RUNNERS, "all", "report", "corpus-check", "plan"])
+    ap.add_argument("--case", action="append", default=[], metavar="CASE",
+                    help="live: run only this case and keep the layer's other results (example:<name> or "
+                         "corpus:<v1|v2>; repeatable). At most 2 reruns of a case per commit")
+    ap.add_argument("--resume", action="store_true",
+                    help="live: continue --run-id on this commit, skipping the cases it already finished")
+    ap.add_argument("--run-id", default=os.environ.get("LABRUN_ID", ""),
+                    help="attempt records: the run this belongs to (default $LABRUN_ID, set by labrun)")
     ap.add_argument("publish_version", nargs="?", help="after-publish: the version just published")
     ap.add_argument("--version", help="the release under test (default: pyproject.toml's version)")
     ap.add_argument("--out", help="report folder (default releases/<version>)")
@@ -2297,6 +2480,9 @@ def main() -> int:
     ap.add_argument("--strict", action="store_true", help="a skipped BLOCKER (missing tool, no Docker) is a failure")
     ap.add_argument("--candidate", action="store_true",
                     help="static: this is the release candidate (CHANGELOG cut, tag and PyPI version unused)")
+    ap.add_argument("--fastfix-base", default="origin/main",
+                    help="static: the loosening and reproduce-first checks cover merge-base(this, HEAD)..HEAD "
+                         "(default origin/main; at a release, the previous release tag)")
     ap.add_argument("--pythons", default=",".join(PYTHONS), help=f"unit/after-publish: versions (default {','.join(PYTHONS)})")
     ap.add_argument("--modules", default=",".join(VERDICT_MODULES), help="mutation: modules to mutate (default all)")
     ap.add_argument("--carry-mutation", metavar="MUTATION_JSON",
@@ -2336,6 +2522,18 @@ def main() -> int:
         ok, lines = corpus_check(args.corpus, Path(args.results), args.version)
         print("\n".join(lines))
         return 0 if ok else 1
+    if args.layer == "plan":   # step 2: what each layer owes on this commit
+        gr = _records()
+        sha = (git("rev-parse", "HEAD") or "").strip() or None
+        rows = gr.plan_rows(out_dir(args), list(LAYERS), sha, gr.input_key(ROOT))
+        print(f"plan for {sha and sha[:10]} ({out_dir(args)}):")
+        for layer_name, state, detail in rows:
+            print(f"  {layer_name:<14} {state:<8} {detail}")
+        return 0 if all(s == "PASS" for _, s, _ in rows) else 1
+    if args.case or args.resume:
+        problem = select_cases(args)
+        if problem:
+            ap.error(problem)
     if args.layer == "report":
         text, cleared = render(args)
         state = "CLEARED" if cleared else "READY TO PUBLISH" if "**READY TO PUBLISH**" in text else "not cleared"
@@ -2343,6 +2541,9 @@ def main() -> int:
         return 0 if cleared else 1
 
     names = ["static", "unit", "mutation", "live", "acceptance"] if args.layer == "all" else [args.layer]
+    stop = labrun_begin(args)
+    if stop is not None:
+        return stop
     failed = []
     for name in names:
         print(f"== {({**LAYERS, **CHECK_LAYERS})[name]} (Netdryrun {args.version})", flush=True)
@@ -2350,7 +2551,9 @@ def main() -> int:
         save(layer)
         if layer_failed(layer):
             failed.append(name)
-    print(f"gate: {'BLOCKER failure in ' + ', '.join(failed) if failed else 'no BLOCKER failed'}")
+    summary = f"gate: {'BLOCKER failure in ' + ', '.join(failed) if failed else 'no BLOCKER failed'}"
+    print(summary)
+    labrun_end(1 if failed else 0, summary)
     return 1 if failed else 0
 
 

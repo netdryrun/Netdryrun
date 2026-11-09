@@ -1,0 +1,56 @@
+id: RT-0058
+title: >-
+  bgp_route 10.99.0.0/24 vrf ipvrf present: false passes on SR Linux while an EVPN IP-prefix (type-5) route for it is
+  received, imported into ip-vrf ipvrf and installed there (route-type bgp-evpn): the driver reads ipvrf's own
+  bgp-rib, which an ip-vrf without `protocols bgp` doesn't have (EVPN paths are in the default network-instance's
+  bgp-rib evpn), sr_cli answers {} and the check reads "no BGP path". On FRR the same imported route is a path in
+  `show bgp vrf ipvrf ipv4 unicast` and the check fails
+found: 2026-11-09, red team A (drivers)
+fixed_in: null
+accepted_limit:
+  decided: 'owner, 2026-11-09: ship 0.4.1 and publish the four as known limits (no source change after the final gate runs);
+    fix in 0.4.2'
+  mitigation: 'use route with the same vrf, protocol: bgp and present: false'
+  fix_in: '0.4.2: read the EVPN RIB for an ip-vrf'
+  detail: no BGP path
+  published:
+    website/docs/reference/config.md:
+    - accepted for 0.4.1; RT-0058
+    - which the driver doesn't read
+    website/docs/trust.md:
+    - (RT-0058)
+    - 'Use `route` with `protocol: bgp` and `present: false` in that VRF'
+    CHANGELOG.md:
+    - '**SR Linux EVPN** (RT-0058)'
+    advisories/0.4.1-known-false-passes/README.md:
+    - (RT-0058)
+    - 'reads the EVPN RIB for an
+
+      ip-vrf'
+kind: driver
+driver: srlinux
+check:
+  type: bgp_route
+  node: leaf1
+  vrf: ipvrf
+  prefix: 10.99.0.0/24
+  present: false
+outputs:
+  - needle: "bgp-rib afi-safi ipv4-unicast"
+    output: |
+      {
+      }
+  - needle: "oper-state"
+    output: |
+      {
+        "network-instance": [
+          {
+            "name": "ipvrf",
+            "oper-state": "up"
+          }
+        ]
+      }
+reproduce: >-
+  containerlab: the RT-0054 EVPN lab without the static: leaf2 advertises 10.99.0.0/24 as an EVPN IP-prefix route,
+  leaf1's ipvrf route-table shows 10.99.0.0/24 route-type bgp-evpn, active. {type: bgp_route, node: leaf1, vrf: ipvrf,
+  prefix: 10.99.0.0/24, present: false} passes ("no BGP path"). Same root cause as RT-0054.

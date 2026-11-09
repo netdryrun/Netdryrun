@@ -133,6 +133,38 @@ lab is running, so that anything left over afterwards is known to come from the 
   that can't deploy) and a clear message with no traceback.
 - After every example, corpus run and chaos case, **no `clab-` container may be left running**.
 
+**Starting a long run** (live, acceptance, a corpus refresh) in the background: use `scripts/labrun.py`, never a
+shell `&` (which leaves SIGINT ignored, so G2 refuses the run):
+
+```bash
+python scripts/labrun.py start --id live-<sha> -- python scripts/release_gate.py live --strict
+python scripts/labrun.py status live-<sha>     # phase, heartbeat age, pause, result
+python scripts/labrun.py pause live-<sha>      # hold at the next example or corpus; resume with `resume`
+python scripts/labrun.py stop live-<sha>       # the whole process group, checked gone
+```
+
+- `start` returns 0 only once the gate has written its receipt (after G2), and 1 if the launch failed, within 90 s.
+- A watcher outside the run marks it:
+  - `stalled`, and stops it, when its heartbeat is older than 90 s;
+  - `exited-without-result` when it ends without finishing.
+- A wall-clock gap of over 60 s, from host sleep or a frozen WSL VM, is recorded in `result.json` as a taint. No
+  case that overlaps a taint counts as a verdict.
+
+**Rerunning one case, and what each layer still owes:**
+
+```bash
+python scripts/release_gate.py live --strict --case example:junos-frr   # or corpus:v2; repeatable
+python scripts/release_gate.py live --strict --resume --run-id live-<sha>
+python scripts/release_gate.py plan                                      # owed, stale, FAIL, tainted or PASS per layer
+```
+
+- Every attempt is kept in `gate/records/<layer>/`, and nothing is overwritten.
+- A check that failed in any attempt on a commit stays FAIL in GATE.md for that commit. A rerun can't clear it; a fix
+  (a new commit) or an accepted MAJOR can.
+- A case gets at most 2 reruns per commit. A case that needs more is flaky, which is a bug to fix.
+- `--resume` continues the same run id on the same commit only. A corpus, with all N runs of its nondeterministic
+  cases, is one case.
+
 ### 5b. Acceptance from five angles
 
 Added for 0.4.1, after each extra round of testing on it found another false-pass path. It runs
@@ -219,8 +251,10 @@ A release is never "probably fine".
 3. **Write the CHANGELOG.** Move the Unreleased entries under `## X.Y.Z (YYYY-MM-DD)`. Add a
    **Security** section when the release fixes anything security-relevant.
 4. **Run the gate on the candidate:**
-   `python scripts/release_gate.py static --candidate --strict`, then `unit`, `mutation` and,
-   on the lab machine, `live`. Fix every BLOCKER, then fix or accept every MAJOR. Record the
+   `python scripts/release_gate.py static --candidate --strict --fastfix-base <previous release tag>`, then
+   `unit`, `mutation` and, on the lab machine, `live`. The static layer's `loosening` and `reproduce-first` checks
+   cover every commit since that base (`tests/oracles/README.md`, `fastfix/README.md`); for the first release after
+   they landed, pass the commit that brought them to main, since older commits carry no trailers. Fix every BLOCKER, then fix or accept every MAJOR. Record the
    independent review in `releases/X.Y.Z/review.md`. `report` must say READY TO PUBLISH.
 5. **Commit `releases/X.Y.Z/`** (the layer records, `GATE.md`, `mutants.md`, `accepted.json`
    and `review.md`) together with the release changes.

@@ -270,3 +270,24 @@
   record: advisories/0.4.0-further-false-passes/README.md (case 19), website/docs/trust.md
   tests:
     - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
+- id: advisory-0.4.1-known-false-passes
+  what: Four narrow checks that can pass without seeing the problem in 0.4.1 and earlier (EOS non-BGP route not
+    selected, SR Linux EVPN type-5 in an ip-vrf, FRR/SONiC ping to the VRF device's own address; red team on the final
+    0.4.1 candidate); case 4 (SR Linux record --attributes) is the next entry
+  status: accepted-documented-limit
+  cases: [RT-0053, RT-0056, RT-0058, RT-0063]
+  decided: "owner, 2026-11-09: ship 0.4.1 and publish the four as known limits; fix in 0.4.2 (GHSA-ggcf-664f-c9ff)"
+  record: advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  tests:
+    - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
+- id: rt-s01-record-as-path
+  what: On SR Linux, `record --attributes` leaves out an AS path it can't read (an iBGP peer's own route) without a
+    warning, so the baseline passes a later change of that path (regression in 0.4.1; fixed for 0.4.2, where the
+    route gets no check and an INCOMPLETE BASELINE line names it)
+  oracle_spec: fastfix/oracle-specs/RT-S01.md
+  decided: "owner, 2026-11-09: ship 0.4.1 and publish it as a known limit; fix in 0.4.2 through oracle RT-S01"
+  record: advisories/0.4.1-known-false-passes/README.md (case 4), website/docs/trust.md
+  tests:
+    - tests/oracles/FP-042-RTS01/test_oracle_fp_042_rts01.py
+    - tests/test_oracle_guards_fp_042_rts01.py
+    - tests/test_record.py

@@ -1,0 +1,40 @@
+id: RT-0063
+title: >-
+  route 0.0.0.0/0 protocol ospf present: false passes on Arista EOS while an OSPF default is in the RIB but loses to
+  a local static (drop) default: `show ip route` lists only the route the RIB selected, and the driver reads the BGP
+  table for unselected candidates and no other protocol's, so an inactive OSPF (or static, IS-IS) route is never seen
+found: 2026-11-09, red team B
+fixed_in: null
+accepted_limit:
+  decided: 'owner, 2026-11-09: ship 0.4.1 and publish the four as known limits (no source change after the final gate runs);
+    fix in 0.4.2'
+  mitigation: check the route where it comes from, and add a positive route check that the selected route has the expected
+    protocol
+  fix_in: '0.4.2: read every candidate route on EOS'
+  detail: absent
+  published:
+    website/docs/reference/config.md:
+    - accepted for 0.4.1; RT-0056, RT-0063
+    - lists only the route it selected
+    website/docs/trust.md:
+    - (RT-0056, RT-0063)
+    CHANGELOG.md:
+    - '**Arista EOS** (RT-0056, RT-0063)'
+    advisories/0.4.1-known-false-passes/README.md:
+    - RT-0063)
+    - reads every candidate route
+kind: driver
+driver: eos
+check:
+  type: route
+  node: r1
+  prefix: 0.0.0.0/0
+  protocol: ospf
+  present: false
+outputs:
+  # the static drop default (`ip route 0.0.0.0/0 Null0`) is the selected route; the leaked OSPF default (distance
+  # 110 against the static's 1) is not printed by `show ip route`, exactly as the leaked BGP default of RT-0016 isn't
+  - needle: "show ip route vrf default 0.0.0.0/0"
+    fixture: eos_leak_route.txt
+  - needle: "show ip bgp 0.0.0.0/0"
+    fixture: eos_bgp_default_absent.json
