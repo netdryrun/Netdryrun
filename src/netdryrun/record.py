@@ -412,8 +412,8 @@ def _attribute_check(drv, node: str, prefix: str, vrf: str = "default", warnings
             where = node if vrf == "default" else f"{node} vrf {vrf}"
             warnings.append(f"INCOMPLETE BASELINE: {where}: {prefix}: no bgp_route check: the best path's AS path "
                             "couldn't be read (on SR Linux, an empty AS path prints no as-path container), so a "
-                            "check of its attributes would pass a changed path. Add one by hand once the device's "
-                            "own report shows the path (as_path: \"\" for an empty one)")
+                            "check of its attributes would pass a changed path. Until 0.4.3, check that path's AS "
+                            "path on the peer that sends it")
         return None
     c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf}),
                "as_path": best.as_path}

@@ -48,8 +48,9 @@ SR Linux (0.4.0 recorded such a path as the empty AS path `""` and pinned it; 0.
 (for example a hijacked origin relayed by the same peer) passed the baseline. *Workaround:* add `as_path` to such
 recorded checks by hand. *Fixed in 0.4.2:* `record` writes no `bgp_route` check for a route whose AS path it can't
 read, and an INCOMPLETE BASELINE line names it, so `record` exits 1; a local preference it can't read is named in a
-warning. Add that route's check by hand (`as_path: ""` for an empty path). Reading the empty path exactly is planned
-for 0.4.3.
+warning. Until 0.4.3, that route's AS path can't be checked on SR Linux (a hand-written `as_path` check there never
+gets a verdict): check that path's AS path on the peer that sends it. Reading the empty path exactly is planned for
+0.4.3.
 
 ## Found another way it can pass without looking?
 
