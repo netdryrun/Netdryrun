@@ -104,7 +104,8 @@ test that failed on the candidate (`tests/test_redteam_angle5_d87.py`, RT-0044 t
 
 Two isolated attackers and a fresh verifier on `26380cb` found four checks that can pass without testing what the
 file says, each in one specific setup. They were found offline (the code and the NOS's captured output) and are
-published conservatively: none has been reproduced in a Netdryrun lab run yet. They are in 0.4.1 and every earlier version; 0.4.1 ships with them published as
+published conservatively: none has been reproduced in a Netdryrun lab run yet. Three were in earlier versions; the `record` one is new in 0.4.1, a regression from 45f63df (0.4.0 pinned such a
+path as the empty AS path `""`). 0.4.1 ships with them published as
 known limits (decision for the owner: no source change after the final gate runs), and the fix is planned for 0.4.2.
 Each has a workaround that catches it today:
 
@@ -115,8 +116,8 @@ Each has a workaround that catches it today:
   imported type-5 routes. Use `route` with `protocol: bgp` and `present: false` in that VRF.
 - **FRR and SONiC** (RT-0053): a `ping` in a VRF to an address on the VRF device itself isn't refused as the node's
   own. Put VRF loopbacks on an enslaved interface, or ping the address from another node.
-- **SR Linux `record --attributes`**: an AS path the driver can't read is left out without a warning. Add `as_path`
-  to those checks by hand.
+- **SR Linux `record --attributes`** (regression in 0.4.1): an AS path the driver can't read is left out without a
+  warning. Add `as_path` to those checks by hand, or review recorded SR Linux baselines for a missing `as_path`.
 - **Docs:** `bgp_prefixes` without `afi` counts IPv4 unicast only, also on an IPv4 session that carries IPv6.
 
 ### Fixes from the second 0.4.1 red team and audit (2026-11-06)
