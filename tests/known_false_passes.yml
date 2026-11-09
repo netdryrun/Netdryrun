@@ -284,7 +284,7 @@
   what: On SR Linux, `record --attributes` leaves out an AS path it can't read (an iBGP peer's own route) without a
     warning, so the baseline passes a later change of that path (regression in 0.4.1)
   status: accepted-documented-limit
-  oracle_spec: releases/0.4.2/oracle-specs/RT-S01.md
+  oracle_spec: fastfix/oracle-specs/RT-S01.md
   decided: "owner, 2026-11-09: ship 0.4.1 and publish it as a known limit; fix in 0.4.2 through oracle RT-S01"
   record: advisories/0.4.1-known-false-passes/README.md (case 4), website/docs/trust.md
   tests:
