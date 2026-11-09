@@ -150,6 +150,21 @@ python scripts/labrun.py stop live-<sha>       # the whole process group, checke
 - A wall-clock gap of over 60 s, from host sleep or a frozen WSL VM, is recorded in `result.json` as a taint. No
   case that overlaps a taint counts as a verdict.
 
+**Rerunning one case, and what each layer still owes:**
+
+```bash
+python scripts/release_gate.py live --strict --case example:junos-frr   # or corpus:v2; repeatable
+python scripts/release_gate.py live --strict --resume --run-id live-<sha>
+python scripts/release_gate.py plan                                      # owed, stale, FAIL, tainted or PASS per layer
+```
+
+- Every attempt is kept in `gate/records/<layer>/`, and nothing is overwritten.
+- A check that failed in any attempt on a commit stays FAIL in GATE.md for that commit. A rerun can't clear it; a fix
+  (a new commit) or an accepted MAJOR can.
+- A case gets at most 2 reruns per commit. A case that needs more is flaky, which is a bug to fix.
+- `--resume` continues the same run id on the same commit only. A corpus, with all N runs of its nondeterministic
+  cases, is one case.
+
 ### 5b. Acceptance from five angles
 
 Added for 0.4.1, after each extra round of testing on it found another false-pass path. It runs

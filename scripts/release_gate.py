@@ -285,6 +285,7 @@ class Check:
     summary: str = ""       # one line for the table
     output: str = ""        # the evidence: command output (tail) or a computed listing
     command: str = ""
+    ended: float = 0.0      # wall clock at the end (epoch s): a check overlapping a labrun taint is no verdict
 
 
 @dataclass
@@ -334,7 +335,7 @@ class Layer:
         status = PASS if ok else FAIL if ok is False else SKIP
         if status == SKIP and self.args.strict and severity == BLOCKER:
             status, summary = FAIL, f"skipped under --strict: {summary}"
-        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command)
+        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command, round(time.time(), 1))
         self.checks.append(check)
         print(f"  [{check.status}] {severity:<7} {title}" + (f": {summary}" if summary else ""), flush=True)
         return check
@@ -1183,15 +1184,23 @@ def layer_live(args) -> Layer:
     try:
         if not live_install(live, args):
             return layer
+        # --case / --resume (step 2): only the cases asked for; None means the whole layer
+        sel = getattr(args, "selection", None)
         stale = sorted(stale_corpora()) if not args.skip_corpus else []
+        if sel is not None:
+            stale = [v for v in stale if v in sel["corpora"]]
         if stale:   # G3: a drift shows in minutes, not after the examples; stop at the first verdict that differs
             if not live_corpora(live, args, only=stale, fail_fast=True):
                 layer.add("live-stopped", "the rest of the live layer", BLOCKER, False,
                           f"not run: a stale corpus ({', '.join(stale)}) gave a verdict that differs from its committed "
                           "results; review the flip, refresh the results, then rerun")
                 return layer
-        live_examples(live, args)
-        live_corpora(live, args, skip=stale)
+        if sel is None or sel["examples"]:
+            live_examples(live, args)
+        unasked = [v for v in CORPORA if sel is not None and v not in sel["corpora"]]
+        live_corpora(live, args, skip=tuple(stale) + tuple(unasked))
+        if sel is not None:   # a partial run: the MCP handshake, pack, scale and chaos belong to the whole layer
+            return layer
         cmd = [live.python, ROOT / "scripts" / "mcp_handshake.py", live.ndr, "mcp"]
         layer.add_proc("mcp-handshake", "MCP handshake against the installed wheel", BLOCKER, cmd, run(cmd, timeout=300))
         if args.pack:
@@ -2170,7 +2179,17 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
             records[name] = json.loads(path.read_text(encoding="utf-8"))
     accepted = load_accepted(args.version, folder).get("checks", {})
     blockers, skipped, majors, notes = [], [], [], []
+    gr = _records()
     for name, rec in records.items():
+        # step 2: a check that failed in any non-tainted attempt on this commit stays FAIL; a tainted one is no verdict
+        over = gr.verdict(gr.attempts(folder, name), rec["git"].get("sha"))["checks"]
+        for c in rec["checks"]:
+            e = over.get(c["id"])
+            if e and e["status"] == FAIL and c["status"] != FAIL:
+                c["status"], c["summary"] = FAIL, (f"failed in an earlier attempt on this commit "
+                                                   f"({Path(e['failed_in']).name}); a FAIL stays: {c['summary']}")
+            elif e and e["status"] is None and e["tainted"] and c["status"] == PASS:
+                c["status"], c["summary"] = SKIP, f"no verdict: ran during a host gap (labrun taint): {c['summary']}"
         for c in rec["checks"]:
             key = f"{name}/{c['id']}"
             if c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR and key in accepted:
@@ -2301,9 +2320,29 @@ def fmt_secs(s: float) -> str:
     return f"{s:.1f} s" if s < 90 else f"{s / 60:.1f} min"
 
 
+def _records():
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import gate_records
+    return gate_records
+
+
 def save(layer: Layer) -> None:
     args = layer.args
     rec = layer.record()
+    gr = _records()
+    commit = rec["git"].get("sha")
+    cases = getattr(args, "selection_cases", None)
+    gr.append(out_dir(args), rec, commit=commit, key=gr.input_key(ROOT), run_id=getattr(args, "run_id", "") or "",
+              cases=cases, peak_mb=gr.peak_child_rss_mb())
+    if cases is not None:   # a partial run updates its own checks in the layer record and keeps the others
+        path = out_dir(args) / "gate" / f"{layer.name}.json"
+        prev = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+        if prev and prev["git"].get("sha") == commit:
+            mine = {c["id"] for c in rec["checks"]}
+            rec = {**rec, "checks": [c for c in prev["checks"] if c["id"] not in mine] + rec["checks"],
+                   "sections": prev.get("sections", []) + rec["sections"]}
     write_out(args, f"gate/{layer.name}.json", json.dumps(rec, indent=1, ensure_ascii=False) + "\n")
     text, _ = render(args)
     path = write_out(args, "GATE.md", text)
@@ -2361,6 +2400,45 @@ def lab_boundary(name: str) -> None:
         lr.phase(name)
 
 
+def select_cases(args) -> str | None:
+    """--case / --resume (step 2): narrow the live layer to the cases asked for. Sets args.selection
+    ({"examples": set, "corpora": set}), args.examples and args.selection_cases; returns a problem, or None."""
+    if args.layer != "live":
+        return "--case and --resume apply to the live layer only"
+    gr = _records()
+    sha = (git("rev-parse", "HEAD") or "").strip() or None
+    recs = gr.attempts(out_dir(args), "live")
+    if args.resume:
+        if args.case:
+            return "give --case or --resume, not both"
+        if not args.run_id:
+            return "--resume needs --run-id (or $LABRUN_ID): it continues one run on one commit"
+        done = gr.done_cases(recs, sha, args.run_id)
+        if not done:
+            return f"nothing to resume: run {args.run_id} finished no case on {sha and sha[:10]}"
+        wanted = [f"example-{n}" for n in example_dirs()] + [f"corpus-{v}" for v in CORPORA]
+        cases = [c for c in wanted if c not in done]
+    else:
+        cases = []
+        for c in args.case:
+            kind, _, name = c.partition(":")
+            if kind == "example" and name in example_dirs():
+                cases.append(f"example-{name}")
+            elif kind == "corpus" and name in CORPORA:
+                cases.append(f"corpus-{name}")
+            else:
+                return f"unknown case {c!r}: example:<one of {', '.join(example_dirs())}> or corpus:<v1|v2>"
+    refused = gr.rerun_refused(recs, sha, cases)
+    if refused:
+        return (f"{', '.join(refused)} already ran {gr.MAX_ATTEMPTS} times on this commit: a case that needs more "
+                "reruns is flaky; fix it (a new commit) instead")
+    args.selection = {"examples": {c.removeprefix("example-") for c in cases if c.startswith("example-")},
+                      "corpora": {c.removeprefix("corpus-") for c in cases if c.startswith("corpus-")}}
+    args.examples = sorted(args.selection["examples"])
+    args.selection_cases = cases
+    return None
+
+
 def layer_failed(layer: Layer) -> bool:
     return any(c.status == FAIL and c.severity == BLOCKER for c in layer.checks)
 
@@ -2376,7 +2454,14 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog="Layers: " + ", ".join(RUNNERS) + ". See RELEASING.md.")
-    ap.add_argument("layer", choices=[*RUNNERS, "all", "report", "corpus-check"])
+    ap.add_argument("layer", choices=[*RUNNERS, "all", "report", "corpus-check", "plan"])
+    ap.add_argument("--case", action="append", default=[], metavar="CASE",
+                    help="live: run only this case and keep the layer's other results (example:<name> or "
+                         "corpus:<v1|v2>; repeatable). At most 2 reruns of a case per commit")
+    ap.add_argument("--resume", action="store_true",
+                    help="live: continue --run-id on this commit, skipping the cases it already finished")
+    ap.add_argument("--run-id", default=os.environ.get("LABRUN_ID", ""),
+                    help="attempt records: the run this belongs to (default $LABRUN_ID, set by labrun)")
     ap.add_argument("publish_version", nargs="?", help="after-publish: the version just published")
     ap.add_argument("--version", help="the release under test (default: pyproject.toml's version)")
     ap.add_argument("--out", help="report folder (default releases/<version>)")
@@ -2427,6 +2512,18 @@ def main() -> int:
         ok, lines = corpus_check(args.corpus, Path(args.results), args.version)
         print("\n".join(lines))
         return 0 if ok else 1
+    if args.layer == "plan":   # step 2: what each layer owes on this commit
+        gr = _records()
+        sha = (git("rev-parse", "HEAD") or "").strip() or None
+        rows = gr.plan_rows(out_dir(args), list(LAYERS), sha, gr.input_key(ROOT))
+        print(f"plan for {sha and sha[:10]} ({out_dir(args)}):")
+        for layer_name, state, detail in rows:
+            print(f"  {layer_name:<14} {state:<8} {detail}")
+        return 0 if all(s == "PASS" for _, s, _ in rows) else 1
+    if args.case or args.resume:
+        problem = select_cases(args)
+        if problem:
+            ap.error(problem)
     if args.layer == "report":
         text, cleared = render(args)
         state = "CLEARED" if cleared else "READY TO PUBLISH" if "**READY TO PUBLISH**" in text else "not cleared"
