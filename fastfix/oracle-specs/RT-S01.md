@@ -43,8 +43,9 @@ coordinator.
   2. **The recorded check fails, or is not proven, when the AS path changes** (the second capture). It never passes.
   3. **Every other attribute the driver can't read** (local preference None on the captured shape) also gets a
      warning, not a silent drop.
-- **It must fail with an assertion on the commit before the fix** (0.4.1 behaviour: no `as_path`, no warning, PASS
-  after the change).
+- **Every test in the oracle folder must fail with an assertion on the commit before the fix** (0.4.1 behaviour: no
+  `as_path`, no warning, PASS after the change). A test that passes there too is a guard: it goes in
+  `tests/test_oracle_guards_rt_s01.py`, listed in `evidence:` (fastfix/oracle-specs/TEMPLATE.md).
 - **Commit:** the oracle commit carries `Oracle: RT-S01` and its own `Session:` marker. It changes `tests/` only.
 
 ## The fix (another session, after the oracle exists)

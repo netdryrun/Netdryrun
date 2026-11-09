@@ -43,8 +43,9 @@ Status: **spec only**. A session that is not the fixer writes the oracle from a 
   1. The captured 0.83 srl-frr layout is accepted: no LabError for srl1's checks.
   2. **The guard holds:** the same layout with the holder's labels naming another lab, or another node, or removed,
      is refused. network-mode host is refused.
-- **On the parent commit:** test 1 must fail with an assertion (the LabError is turned into one), and test 2 passes
-  there too, as a guard.
+- **On the parent commit:** test 1 must fail with an assertion (the LabError is turned into one). Test 2 is a guard:
+  it goes in `tests/test_oracle_guards_fp_042_srlnetns.py`, not in the oracle folder, where every test must fail on
+  the parent (fastfix/oracle-specs/TEMPLATE.md).
 
 ## Also in this fix
 - `compatibility.md` gains a "containerlab versions tested" row: the versions the gate's live layer and the stranger

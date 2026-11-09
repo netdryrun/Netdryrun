@@ -55,7 +55,8 @@ parse_eos_interfaces('<valid json>FFFF', ...)                                   
   3. **Guard:** each reader's committed fixture, with only leading and trailing whitespace added, still parses to the
      same result as before.
 - **On the parent commit:** tests 1 and 2 must fail with an assertion (use `pytest.raises(DriverError)`, which
-  reports DID NOT RAISE), and test 3 passes there too.
+  reports DID NOT RAISE). Test 3 is a guard: it goes in `tests/test_oracle_guards_fp_042_addrload.py`, not in the
+  oracle folder, where every test must fail on the parent (fastfix/oracle-specs/TEMPLATE.md).
 
 ## The fix (for the fixing session, after the oracle)
 - `_load` reads the whole text: strip whitespace, then `json.loads`. Prefer `base.load_json`, which also refuses

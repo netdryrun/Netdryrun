@@ -16,6 +16,9 @@ tests/oracles/<ID>/
 ```
 
 - `<ID>` looks like `RT-0036` or `FP-042-01` (`^[A-Z][A-Z0-9]*-[0-9][0-9A-Za-z.-]*$`).
+- Only red tests go in the folder: the check runs every test there on the fix's parent and blocks if one passes.
+  Guards (tests that pass before and after the fix) go in `tests/test_oracle_guards_<id>.py`, listed in
+  `evidence:` so the fix can't change them. Specs start from `fastfix/oracle-specs/TEMPLATE.md`.
 - Evidence lives under `tests/` (for example `tests/fixtures/`), added in the oracle commit or already committed.
 
 ## Commits
