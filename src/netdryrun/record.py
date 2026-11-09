@@ -51,9 +51,30 @@ def baseline_gaps(warnings: list[str]) -> list[str]:
     """The warnings that make `record` exit 1: a node missing from the baseline, and every INCOMPLETE BASELINE line
     from a read that failed or a state that couldn't be recorded (code review of the 0.4.1 batch: one session recorded
     on a node kept exit 0 while its prefix counts or routes were left out). The two size caps ("only the first ...")
-    are limits of the format, said in the file, not gaps in what was read."""
+    are limits of the format, said in the file, not gaps in what was read. Only those two lines, exactly as
+    _routes_cap and _links_cap write them, are left out: a substring test let a gap line that quotes the device's
+    words ("only the first ...") drop out, and `record` exited 0 (oracle FP-042-CAPMSG)."""
     return [w for w in warnings
-            if w.startswith(MISSING_NODE) or (w.startswith("INCOMPLETE BASELINE") and "only the first" not in w)]
+            if w.startswith(MISSING_NODE) or (w.startswith("INCOMPLETE BASELINE") and not _is_size_cap(w))]
+
+
+def _routes_cap(where: str, count: int, fam: int) -> str:
+    return (f"INCOMPLETE BASELINE: {where} has {count} BGP routes (IPv{fam}); only the first {MAX_ROUTES_PER_NODE} are "
+            "recorded as checks. A change to any other route goes unnoticed: add checks for the routes that matter")
+
+
+def _links_cap(name: str, count: int) -> str:
+    return (f"INCOMPLETE BASELINE: {name} has {count} link subnets; only the first {MAX_LINK_GUARDS_PER_NODE} are "
+            "guarded. A leak of another one goes unnoticed: add guards for the ones that matter")
+
+
+def _is_size_cap(w: str) -> bool:
+    m = re.fullmatch(r"INCOMPLETE BASELINE: (.+) has (\d+) BGP routes \(IPv([46])\); only the first \d+ are recorded "
+                     r"as checks\. .*", w, re.S)
+    if m and w == _routes_cap(m.group(1), int(m.group(2)), int(m.group(3))):
+        return True
+    m = re.fullmatch(r"INCOMPLETE BASELINE: (.+) has (\d+) link subnets; only the first \d+ are guarded\. .*", w, re.S)
+    return bool(m and w == _links_cap(m.group(1), int(m.group(2))))
 
 
 def _runs_a_router(lab, name: str) -> bool | None:
@@ -179,9 +200,7 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
                 continue
             routes = [r for r in every if r.active]
             if len(routes) > MAX_ROUTES_PER_NODE:
-                warnings.append(f"INCOMPLETE BASELINE: {where} has {len(routes)} BGP routes (IPv{fam}); only the "
-                                f"first {MAX_ROUTES_PER_NODE} are recorded as checks. A change to any other route "
-                                "goes unnoticed: add checks for the routes that matter")
+                warnings.append(_routes_cap(where, len(routes), fam))
             for r in sorted(routes, key=lambda r: r.prefix)[:MAX_ROUTES_PER_NODE]:
                 checks.append({"type": "route", "node": name, "prefix": r.prefix, "protocol": "bgp", **at})
                 if attributes:
@@ -372,9 +391,7 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
     # a subnet the node learns via BGP today, or whose family couldn't be read, gets no guard
     links = [n for n in link_subnets if n not in bgp_now.get(6 if ":" in n else 4, {n})]
     if len(links) > MAX_LINK_GUARDS_PER_NODE:
-        warnings.append(f"INCOMPLETE BASELINE: {name} has {len(links)} link subnets; only the first "
-                        f"{MAX_LINK_GUARDS_PER_NODE} are guarded. A leak of another one goes unnoticed: add guards "
-                        "for the ones that matter")
+        warnings.append(_links_cap(name, len(links)))
     out += [{"type": "route", "node": name, "prefix": n, "protocol": "bgp", "present": False}
             for n in links[:MAX_LINK_GUARDS_PER_NODE]]
     kept = []

@@ -150,9 +150,11 @@ def test_a_node_no_driver_recognises_is_missing_unless_it_is_a_host(monkeypatch)
 
 def test_baseline_gaps_are_every_read_gap_but_not_the_size_caps():
     ws = [f"{rec.MISSING_NODE}: r1: ...", "INCOMPLETE BASELINE: r2: could not read IPv4 routes (x)",
+          rec._routes_cap("r2", 900, 4), rec._links_cap("r3", 300), "r4: only the default VRF",
+          # a gap line that only looks like a cap (a shortened text, or device words) is a gap (FP-042-CAPMSG)
           "INCOMPLETE BASELINE: r2 has 900 BGP routes (IPv4); only the first 50 are recorded",
-          "INCOMPLETE BASELINE: r3 has 300 link subnets; only the first 100 get a guard", "r4: only the default VRF"]
-    assert rec.baseline_gaps(ws) == ws[:2]
+          "INCOMPLETE BASELINE: r5: could not read BGP state (% only the first 3 words were read)"]
+    assert rec.baseline_gaps(ws) == ws[:2] + ws[-2:]
 
 
 def test_no_bgp_instance_is_a_missing_node_unless_named(monkeypatch):
