@@ -191,7 +191,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.1
+      - uses: netdryrun/Netdryrun@v0.4.2
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true
@@ -203,7 +203,7 @@ The job installs containerlab and Netdryrun, pulls the FRR image, runs the check
 
 ```bash
 bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
-python3 -m venv .ndr && .ndr/bin/pip install netdryrun==0.4.1
+python3 -m venv .ndr && .ndr/bin/pip install netdryrun==0.4.2
 sudo env -i "PATH=$PWD/.ndr/bin:/usr/sbin:/usr/bin:/sbin:/bin" HOME=/root netdryrun run network/ --junit netdryrun-junit.xml --json netdryrun-report.json
 ```
 

@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false   # the lab runs privileged containers: leave no token in .git/config
-      - uses: netdryrun/Netdryrun@v0.4.1
+      - uses: netdryrun/Netdryrun@v0.4.2
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true
