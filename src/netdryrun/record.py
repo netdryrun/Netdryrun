@@ -210,7 +210,13 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
         try:
             ipaddress.ip_address(addr)
         except ValueError:
-            warnings.append(f"{where}: BGP neighbor {addr!r} is not an IP address (unnumbered?); not recorded")
+            # an interface-named session (FRR `neighbor eth1 interface`: BGP unnumbered). netdryrun.yml can't name it
+            # yet, so no check can be written; leaving it out silently let a session drop or a prefix flood pass the
+            # baseline (red team RT-0066, oracle FP-042-UNNSESS): the gap is named and `record` exits 1
+            warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr!r} is an interface-named (unnumbered) "
+                            "session, which a check can't name yet, so neither its bgp_session nor its bgp_prefixes "
+                            "is recorded: a session that drops or a peer that sends more prefixes over it isn't "
+                            "caught by this baseline")
             continue
         if n.ambiguous:
             warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} is {len(n.ambiguous)} sessions "
@@ -292,7 +298,9 @@ def _link_subnets(lab, warnings: list[str], link_local_only: dict[str, list[str]
         if node is None or node.kind in ("bridge", "ovs-bridge"):   # a host or bridge endpoint: nothing to read
             continue
         try:
-            found = {a.network for a in lab.interface_addresses(*end) if not a.ip.is_link_local}
+            # only IPv6 fe80::/10 makes a link "unnumbered": an IPv4 169.254.0.0/16 address is a numbered subnet
+            # with a guard like any other (oracle FP-042-UNNSESS)
+            found = {a.network for a in lab.interface_addresses(*end) if not (a.version == 6 and a.ip.is_link_local)}
         except LabError as e:
             warnings.append(f"INCOMPLETE BASELINE: {end[0]}: could not read the addresses of {end[1]} ({e}); its "
                             "link subnet has no guard")

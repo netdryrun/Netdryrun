@@ -297,13 +297,25 @@ class Lab:
             raise LabError(f"could not read the addresses of {interface} on {node}: "
                            f"{' '.join((r.stderr or r.stdout).split())[:200] or f'exit code {r.rc}'}")
         out = []
-        for m in re.finditer(r"\binet6?\s+(\S+)", r.stdout):
+        for m in re.finditer(r"\binet6?\s+(\S+)(?:\s+peer\s+(\S+))?", r.stdout):
+            token, peer = m.group(1), m.group(2)
             try:
-                out.append(ipaddress.ip_interface(m.group(1)))
+                if peer is not None:
+                    # a point-to-point address: iproute2 prints `inet A peer B/len`, and the link's subnet is the peer's
+                    # (oracle FP-042-UNNSESS: A alone read as A/32). A local address outside that subnet is unreadable
+                    net = ipaddress.ip_network(peer, strict=False)
+                    if "/" in token or ipaddress.ip_address(token) not in net:
+                        raise ValueError(f"{token} peer {peer}")
+                    out.append(ipaddress.ip_interface(f"{token}/{net.prefixlen}"))
+                elif "/" not in token:
+                    raise ValueError(token)   # no prefix length: never guess /32 or /128
+                else:
+                    out.append(ipaddress.ip_interface(token))
             except ValueError:
                 # an address that exists but can't be read is never "no address": it could be the global one that
                 # makes the link numbered (oracle FP-042-UNNUMBERED)
-                raise LabError(f"could not read an address of {interface} on {node}: {m.group(1)[:60]!r}") from None
+                shown = token + (f" peer {peer}" if peer else "")
+                raise LabError(f"could not read an address of {interface} on {node}: {shown[:60]!r}") from None
         return out
 
     def peers_of(self, node: str, interface: str) -> list[tuple[str, str]]:
