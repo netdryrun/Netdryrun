@@ -1358,6 +1358,7 @@ def live_examples(live: Live, args) -> None:
     for name in example_dirs():
         if args.examples and name not in args.examples:
             continue
+        lab_boundary(f"example {name}")
         row = docs.get(name)
         if not row or not row["codes"]:
             layer.add(f"example-{name}", f"example {name}", BLOCKER, False, "no documented expected result")
@@ -1619,6 +1620,7 @@ def live_corpora(live: Live, args, only=None, skip=(), fail_fast: bool = False) 
     for version, sub in (("v1", ""), ("v2", "v2")):
         if (only is not None and version not in only) or version in skip:
             continue
+        lab_boundary(f"corpus {version}")
         committed = ROOT / "corpus" / sub / "results" / "results.json"
         cmd = [live.python, copy / "run.py", "--corpus", version, "--workdir", live.work / f"corpus-{version}"]
         if fail_fast:
@@ -2314,6 +2316,51 @@ def save(layer: Layer) -> None:
             f.write(section + "\n")
 
 
+# ---- labrun (0.4.2 step 1): receipt, heartbeat, case boundaries, done ------------------------------------------------
+def _labrun():
+    """scripts/labrun.py, or None outside a labrun launch (LABRUN_DIR unset). A launch whose labrun module can't be
+    loaded fails loudly: labrun would otherwise report it as a launch that never started."""
+    if not os.environ.get("LABRUN_DIR"):
+        return None
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import labrun
+    return labrun
+
+
+def labrun_begin(args) -> int | None:
+    """Under labrun: G2 first (a run with SIGINT ignored is no run), then the receipt and the heartbeat. Returns an
+    exit code when the run must stop here, None to go on."""
+    lr = _labrun()
+    if lr is None:
+        return None
+    harness = harness_problem()
+    if harness:
+        print(f"labrun: G2 failed, no receipt: {harness}", flush=True)
+        lr.done(2, f"G2: {harness}")
+        return 2
+    lr.HEART = lr.Heartbeat().start()
+    lr.receipt(layer=args.layer, version=args.version, commit=(git("rev-parse", "HEAD") or "").strip())
+    return None
+
+
+def labrun_end(code: int, summary: str) -> None:
+    lr = _labrun()
+    if lr is not None:
+        lr.done(code, summary)
+        if lr.HEART:
+            lr.HEART.stop()
+
+
+def lab_boundary(name: str) -> None:
+    """Between two cases (an example, a corpus): hold here if a pause is asked for, then name the next case."""
+    lr = _labrun()
+    if lr is not None:
+        lr.hold_if_paused()
+        lr.phase(name)
+
+
 def layer_failed(layer: Layer) -> bool:
     return any(c.status == FAIL and c.severity == BLOCKER for c in layer.checks)
 
@@ -2387,6 +2434,9 @@ def main() -> int:
         return 0 if cleared else 1
 
     names = ["static", "unit", "mutation", "live", "acceptance"] if args.layer == "all" else [args.layer]
+    stop = labrun_begin(args)
+    if stop is not None:
+        return stop
     failed = []
     for name in names:
         print(f"== {({**LAYERS, **CHECK_LAYERS})[name]} (Netdryrun {args.version})", flush=True)
@@ -2394,7 +2444,9 @@ def main() -> int:
         save(layer)
         if layer_failed(layer):
             failed.append(name)
-    print(f"gate: {'BLOCKER failure in ' + ', '.join(failed) if failed else 'no BLOCKER failed'}")
+    summary = f"gate: {'BLOCKER failure in ' + ', '.join(failed) if failed else 'no BLOCKER failed'}"
+    print(summary)
+    labrun_end(1 if failed else 0, summary)
     return 1 if failed else 0
 
 
