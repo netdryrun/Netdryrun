@@ -1,14 +1,14 @@
 {
   "schema": "netdryrun.corpus/v1",
   "environment": {
-    "generated": "2026-11-08T17:38:00+00:00",
-    "netdryrun": "0.4.1",
+    "generated": "2026-11-09T19:35:10+00:00",
+    "netdryrun": "0.4.2",
     "containerlab": "0.81.1",
     "frr_image": "quay.io/frrouting/frr:10.4.1",
     "frr_image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
     "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-    "commit": "8bc84c3",
-    "verdict_tree": "7b46c7001df4507aea51ece6fa6b70d3f14bddafe54390fa6e13bf5244c3ef84"
+    "commit": "unknown",
+    "verdict_tree": "5a310189aee72534c3415afc774c6592bfd628c97ca53621543ebb63d661c88d"
   },
   "cases": [
     {
@@ -43,7 +43,7 @@
           "error": null
         }
       },
-      "seconds": 82
+      "seconds": 83
     },
     {
       "id": "02-med-to-upstream",
@@ -82,7 +82,7 @@
           "error": null
         }
       },
-      "seconds": 81
+      "seconds": 83
     },
     {
       "id": "03-prepend-to-peer",
@@ -121,7 +121,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 111
     },
     {
       "id": "04-tag-community-upstream",
@@ -160,7 +160,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 83
     },
     {
       "id": "05-description-only",
@@ -200,7 +200,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 83
     },
     {
       "id": "06-customer-adds-prefix",
@@ -242,7 +242,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 83
     },
     {
       "id": "07-tighten-max-prefix",
@@ -282,7 +282,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 83
     },
     {
       "id": "08-upstream-timers",
@@ -321,7 +321,7 @@
           "error": null
         }
       },
-      "seconds": 81
+      "seconds": 82
     },
     {
       "id": "09-customer-localpref",
@@ -361,7 +361,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 81
     },
     {
       "id": "10-transit-export-filter-removed",
@@ -404,7 +404,7 @@
           "error": null
         }
       },
-      "seconds": 79
+      "seconds": 81
     },
     {
       "id": "11-peer-export-filter-removed",
@@ -452,7 +452,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 84
     },
     {
       "id": "12-ibgp-send-community-dropped",
@@ -492,7 +492,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 81
     },
     {
       "id": "13-upstream-asn-typo",
@@ -545,7 +545,7 @@
           "error": null
         }
       },
-      "seconds": 417
+      "seconds": 419
     },
     {
       "id": "14-peer-session-shutdown",
@@ -597,7 +597,7 @@
           "error": null
         }
       },
-      "seconds": 423
+      "seconds": 420
     },
     {
       "id": "15-customer-filter-too-strict",
@@ -694,7 +694,7 @@
           "error": null
         }
       },
-      "seconds": 274
+      "seconds": 278
     },
     {
       "id": "17-default-leaked-to-peer",
@@ -736,7 +736,7 @@
           "error": null
         }
       },
-      "seconds": 83
+      "seconds": 81
     },
     {
       "id": "18-redistribute-connected",
@@ -775,7 +775,7 @@
           "error": null
         }
       },
-      "seconds": 79
+      "seconds": 81
     },
     {
       "id": "19-nexthop-self-removed",
@@ -819,7 +819,7 @@
           "error": null
         }
       },
-      "seconds": 247
+      "seconds": 245
     },
     {
       "id": "20-ibgp-shutdown",
@@ -869,7 +869,7 @@
           "error": null
         }
       },
-      "seconds": 451
+      "seconds": 459
     },
     {
       "id": "21-customer-max-prefix-removed",
@@ -909,7 +909,7 @@
           "error": null
         }
       },
-      "seconds": 88
+      "seconds": 80
     },
     {
       "id": "22-customer-leaks-third-party",
@@ -948,7 +948,7 @@
           "error": null
         }
       },
-      "seconds": 79
+      "seconds": 81
     },
     {
       "id": "23-fat-finger-third-party-origin",
@@ -987,7 +987,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 82
     },
     {
       "id": "24-customer-blackholed",
@@ -1033,7 +1033,7 @@
           "error": null
         }
       },
-      "seconds": 250
+      "seconds": 251
     },
     {
       "id": "25-aggregate-typo",
@@ -1078,7 +1078,7 @@
           "error": null
         }
       },
-      "seconds": 190
+      "seconds": 193
     },
     {
       "id": "26-route-map-order-bug",
@@ -1226,7 +1226,7 @@
           "error": null
         }
       },
-      "seconds": 278
+      "seconds": 282
     },
     {
       "id": "29-graceful-restart",
@@ -1265,7 +1265,7 @@
           "error": null
         }
       },
-      "seconds": 80
+      "seconds": 81
     },
     {
       "id": "30-peer-import-filter-removed",
@@ -1309,7 +1309,7 @@
           "error": null
         }
       },
-      "seconds": 79
+      "seconds": 82
     }
   ]
 }

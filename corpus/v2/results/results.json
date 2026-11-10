@@ -1,14 +1,14 @@
 {
   "schema": "netdryrun.corpus/v1",
   "environment": {
-    "generated": "2026-11-08T21:06:56+00:00",
-    "netdryrun": "0.4.1",
+    "generated": "2026-11-09T20:58:29+00:00",
+    "netdryrun": "0.4.2",
     "containerlab": "0.81.1",
     "frr_image": "quay.io/frrouting/frr:10.4.1",
     "frr_image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
     "host": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-    "commit": "8bc84c3",
-    "verdict_tree": "7b46c7001df4507aea51ece6fa6b70d3f14bddafe54390fa6e13bf5244c3ef84",
+    "commit": "unknown",
+    "verdict_tree": "5a310189aee72534c3415afc774c6592bfd628c97ca53621543ebb63d661c88d",
     "corpus": "v2",
     "rerun_args": " --corpus v2"
   },
@@ -48,7 +48,7 @@
           "error": null
         }
       },
-      "seconds": 331
+      "seconds": 333
     },
     {
       "id": "02-redistribute-connected-pe2",
@@ -93,7 +93,7 @@
           "error": null
         }
       },
-      "seconds": 334
+      "seconds": 347
     },
     {
       "id": "03-test-prefix-left-in-config",
@@ -136,7 +136,7 @@
           "error": null
         }
       },
-      "seconds": 333
+      "seconds": 352
     },
     {
       "id": "04-redundant-aggregate-typo",
@@ -178,7 +178,7 @@
           "error": null
         }
       },
-      "seconds": 330
+      "seconds": 363
     },
     {
       "id": "05-customer-max-prefix-removed",
@@ -221,7 +221,7 @@
           "error": null
         }
       },
-      "seconds": 175
+      "seconds": 179
     },
     {
       "id": "06-peer-import-filter-permit-all",
@@ -271,7 +271,7 @@
           "error": null
         }
       },
-      "seconds": 311
+      "seconds": 312
     },
     {
       "id": "07-customer-adds-prefixes",
@@ -313,7 +313,7 @@
           "error": null
         }
       },
-      "seconds": 330
+      "seconds": 334
     },
     {
       "id": "08-customer-announces-aggregate",
@@ -355,7 +355,7 @@
           "error": null
         }
       },
-      "seconds": 331
+      "seconds": 334
     },
     {
       "id": "09-ibgp-send-community-line-removed",
@@ -398,7 +398,7 @@
           "error": null
         }
       },
-      "seconds": 329
+      "seconds": 334
     },
     {
       "id": "10-ibgp-standard-communities-disabled",
@@ -446,7 +446,7 @@
           "error": null
         }
       },
-      "seconds": 532
+      "seconds": 530
     },
     {
       "id": "11-customer-max-prefix-warning-only",
@@ -489,7 +489,7 @@
           "error": null
         }
       },
-      "seconds": 173
+      "seconds": 177
     },
     {
       "id": "12-customer-max-prefix-raised",
@@ -532,7 +532,7 @@
           "error": null
         }
       },
-      "seconds": 330
+      "seconds": 332
     },
     {
       "id": "13-upstream-routes-tagged-as-customer",
@@ -626,7 +626,7 @@
           "error": null
         }
       },
-      "seconds": 413
+      "seconds": 414
     },
     {
       "id": "15-upstream-default-filtered",
@@ -669,7 +669,7 @@
           "error": null
         }
       },
-      "seconds": 415
+      "seconds": 413
     },
     {
       "id": "16-customer-session-peer-group",
@@ -717,7 +717,7 @@
           "error": null
         }
       },
-      "seconds": 330
+      "seconds": 333
     },
     {
       "id": "17-customer-region-community",
@@ -760,7 +760,7 @@
           "error": null
         }
       },
-      "seconds": 333
+      "seconds": 332
     },
     {
       "id": "18-aggregate-discard-route-removed",
@@ -807,7 +807,7 @@
           "error": null
         }
       },
-      "seconds": 447,
+      "seconds": 443,
       "nondeterministic": true,
       "runs": [
         {
@@ -818,22 +818,22 @@
         {
           "ping": "safe",
           "sessions": "safe",
+          "netdryrun": "error"
+        },
+        {
+          "ping": "safe",
+          "sessions": "safe",
+          "netdryrun": "error"
+        },
+        {
+          "ping": "safe",
+          "sessions": "safe",
+          "netdryrun": "error"
+        },
+        {
+          "ping": "safe",
+          "sessions": "safe",
           "netdryrun": "unsafe"
-        },
-        {
-          "ping": "safe",
-          "sessions": "safe",
-          "netdryrun": "error"
-        },
-        {
-          "ping": "safe",
-          "sessions": "safe",
-          "netdryrun": "error"
-        },
-        {
-          "ping": "safe",
-          "sessions": "safe",
-          "netdryrun": "error"
         }
       ],
       "run_details": [
@@ -949,6 +949,264 @@
             "error": null
           },
           "netdryrun": {
+            "status": "inconclusive",
+            "failed_checks": [
+              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+            ],
+            "passed_checks": [
+              "I1 pe1-ce1 session up",
+              "I1 pe1-up1 session up",
+              "I1 pe1-pe2 iBGP up",
+              "I1 pe2-peer1 session up",
+              "I2 upstream has customer route",
+              "I2 upstream has our aggregate",
+              "I2 peer has customer route",
+              "I2 peer has our aggregate",
+              "I3 customer has upstream route",
+              "I3 customer has peer route",
+              "I3 customer has default",
+              "I3 customer reaches upstream",
+              "I3 customer reaches peer",
+              "I4 no peer route leaked to upstream",
+              "I4 no upstream route leaked to peer",
+              "I4 no default leaked to peer",
+              "I5 upstream receives 2 to 51 prefixes from us",
+              "I5 peer receives 2 to 51 prefixes from us",
+              "I6 customer has no BGP route for link 10.0.1.0/30",
+              "I6 customer has no BGP route for link 10.0.2.0/30",
+              "I6 customer has no BGP route for link 10.0.3.0/30",
+              "I6 customer has no BGP route for link 10.0.4.0/30",
+              "I6 customer has no BGP route for pe1 loopback",
+              "I6 customer has no BGP route for pe2 loopback",
+              "I6 upstream has no BGP route for link 10.0.1.0/30",
+              "I6 upstream has no BGP route for link 10.0.2.0/30",
+              "I6 upstream has no BGP route for link 10.0.3.0/30",
+              "I6 upstream has no BGP route for link 10.0.4.0/30",
+              "I6 upstream has no BGP route for pe1 loopback",
+              "I6 upstream has no BGP route for pe2 loopback",
+              "I6 peer has no BGP route for link 10.0.1.0/30",
+              "I6 peer has no BGP route for link 10.0.2.0/30",
+              "I6 peer has no BGP route for link 10.0.3.0/30",
+              "I6 peer has no BGP route for link 10.0.4.0/30",
+              "I6 peer has no BGP route for pe1 loopback",
+              "I6 peer has no BGP route for pe2 loopback",
+              "I7 customer has no route for 1.1.1.0/24",
+              "I7 customer has no route for 8.8.8.0/24",
+              "I7 customer has no route for 9.9.9.0/24",
+              "I7 upstream has no route for 1.1.1.0/24",
+              "I7 upstream has no route for 8.8.8.0/24",
+              "I7 upstream has no route for 9.9.9.0/24",
+              "I7 peer has no route for 1.1.1.0/24",
+              "I7 peer has no route for 8.8.8.0/24",
+              "I7 peer has no route for 9.9.9.0/24",
+              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
+              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
+              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
+            ],
+            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
+            "never_left": true,
+            "error": null
+          }
+        },
+        {
+          "ping": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "customer reaches upstream",
+              "customer reaches peer"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "sessions": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "pe1-ce1 up",
+              "pe1-up1 up",
+              "pe1-pe2 up",
+              "pe2-peer1 up"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "netdryrun": {
+            "status": "inconclusive",
+            "failed_checks": [
+              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+            ],
+            "passed_checks": [
+              "I1 pe1-ce1 session up",
+              "I1 pe1-up1 session up",
+              "I1 pe1-pe2 iBGP up",
+              "I1 pe2-peer1 session up",
+              "I2 upstream has customer route",
+              "I2 upstream has our aggregate",
+              "I2 peer has customer route",
+              "I2 peer has our aggregate",
+              "I3 customer has upstream route",
+              "I3 customer has peer route",
+              "I3 customer has default",
+              "I3 customer reaches upstream",
+              "I3 customer reaches peer",
+              "I4 no peer route leaked to upstream",
+              "I4 no upstream route leaked to peer",
+              "I4 no default leaked to peer",
+              "I5 upstream receives 2 to 51 prefixes from us",
+              "I5 peer receives 2 to 51 prefixes from us",
+              "I6 customer has no BGP route for link 10.0.1.0/30",
+              "I6 customer has no BGP route for link 10.0.2.0/30",
+              "I6 customer has no BGP route for link 10.0.3.0/30",
+              "I6 customer has no BGP route for link 10.0.4.0/30",
+              "I6 customer has no BGP route for pe1 loopback",
+              "I6 customer has no BGP route for pe2 loopback",
+              "I6 upstream has no BGP route for link 10.0.1.0/30",
+              "I6 upstream has no BGP route for link 10.0.2.0/30",
+              "I6 upstream has no BGP route for link 10.0.3.0/30",
+              "I6 upstream has no BGP route for link 10.0.4.0/30",
+              "I6 upstream has no BGP route for pe1 loopback",
+              "I6 upstream has no BGP route for pe2 loopback",
+              "I6 peer has no BGP route for link 10.0.1.0/30",
+              "I6 peer has no BGP route for link 10.0.2.0/30",
+              "I6 peer has no BGP route for link 10.0.3.0/30",
+              "I6 peer has no BGP route for link 10.0.4.0/30",
+              "I6 peer has no BGP route for pe1 loopback",
+              "I6 peer has no BGP route for pe2 loopback",
+              "I7 customer has no route for 1.1.1.0/24",
+              "I7 customer has no route for 8.8.8.0/24",
+              "I7 customer has no route for 9.9.9.0/24",
+              "I7 upstream has no route for 1.1.1.0/24",
+              "I7 upstream has no route for 8.8.8.0/24",
+              "I7 upstream has no route for 9.9.9.0/24",
+              "I7 peer has no route for 1.1.1.0/24",
+              "I7 peer has no route for 8.8.8.0/24",
+              "I7 peer has no route for 9.9.9.0/24",
+              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
+              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
+              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
+            ],
+            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
+            "never_left": true,
+            "error": null
+          }
+        },
+        {
+          "ping": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "customer reaches upstream",
+              "customer reaches peer"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "sessions": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "pe1-ce1 up",
+              "pe1-up1 up",
+              "pe1-pe2 up",
+              "pe2-peer1 up"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "netdryrun": {
+            "status": "inconclusive",
+            "failed_checks": [
+              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+            ],
+            "passed_checks": [
+              "I1 pe1-ce1 session up",
+              "I1 pe1-up1 session up",
+              "I1 pe1-pe2 iBGP up",
+              "I1 pe2-peer1 session up",
+              "I2 upstream has customer route",
+              "I2 upstream has our aggregate",
+              "I2 peer has customer route",
+              "I2 peer has our aggregate",
+              "I3 customer has upstream route",
+              "I3 customer has peer route",
+              "I3 customer has default",
+              "I3 customer reaches upstream",
+              "I3 customer reaches peer",
+              "I4 no peer route leaked to upstream",
+              "I4 no upstream route leaked to peer",
+              "I4 no default leaked to peer",
+              "I5 upstream receives 2 to 51 prefixes from us",
+              "I5 peer receives 2 to 51 prefixes from us",
+              "I6 customer has no BGP route for link 10.0.1.0/30",
+              "I6 customer has no BGP route for link 10.0.2.0/30",
+              "I6 customer has no BGP route for link 10.0.3.0/30",
+              "I6 customer has no BGP route for link 10.0.4.0/30",
+              "I6 customer has no BGP route for pe1 loopback",
+              "I6 customer has no BGP route for pe2 loopback",
+              "I6 upstream has no BGP route for link 10.0.1.0/30",
+              "I6 upstream has no BGP route for link 10.0.2.0/30",
+              "I6 upstream has no BGP route for link 10.0.3.0/30",
+              "I6 upstream has no BGP route for link 10.0.4.0/30",
+              "I6 upstream has no BGP route for pe1 loopback",
+              "I6 upstream has no BGP route for pe2 loopback",
+              "I6 peer has no BGP route for link 10.0.1.0/30",
+              "I6 peer has no BGP route for link 10.0.2.0/30",
+              "I6 peer has no BGP route for link 10.0.3.0/30",
+              "I6 peer has no BGP route for link 10.0.4.0/30",
+              "I6 peer has no BGP route for pe1 loopback",
+              "I6 peer has no BGP route for pe2 loopback",
+              "I7 customer has no route for 1.1.1.0/24",
+              "I7 customer has no route for 8.8.8.0/24",
+              "I7 customer has no route for 9.9.9.0/24",
+              "I7 upstream has no route for 1.1.1.0/24",
+              "I7 upstream has no route for 8.8.8.0/24",
+              "I7 upstream has no route for 9.9.9.0/24",
+              "I7 peer has no route for 1.1.1.0/24",
+              "I7 peer has no route for 8.8.8.0/24",
+              "I7 peer has no route for 9.9.9.0/24",
+              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
+              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
+              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
+            ],
+            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
+            "never_left": true,
+            "error": null
+          }
+        },
+        {
+          "ping": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "customer reaches upstream",
+              "customer reaches peer"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "sessions": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "pe1-ce1 up",
+              "pe1-up1 up",
+              "pe1-pe2 up",
+              "pe2-peer1 up"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "netdryrun": {
             "status": "failed",
             "failed_checks": [
               "I2 upstream has our aggregate",
@@ -1006,264 +1264,6 @@
             ],
             "inconclusive_reason": null,
             "never_left": false,
-            "error": null
-          }
-        },
-        {
-          "ping": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "customer reaches upstream",
-              "customer reaches peer"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "sessions": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "pe1-ce1 up",
-              "pe1-up1 up",
-              "pe1-pe2 up",
-              "pe2-peer1 up"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "netdryrun": {
-            "status": "inconclusive",
-            "failed_checks": [
-              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
-              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
-            ],
-            "passed_checks": [
-              "I1 pe1-ce1 session up",
-              "I1 pe1-up1 session up",
-              "I1 pe1-pe2 iBGP up",
-              "I1 pe2-peer1 session up",
-              "I2 upstream has customer route",
-              "I2 upstream has our aggregate",
-              "I2 peer has customer route",
-              "I2 peer has our aggregate",
-              "I3 customer has upstream route",
-              "I3 customer has peer route",
-              "I3 customer has default",
-              "I3 customer reaches upstream",
-              "I3 customer reaches peer",
-              "I4 no peer route leaked to upstream",
-              "I4 no upstream route leaked to peer",
-              "I4 no default leaked to peer",
-              "I5 upstream receives 2 to 51 prefixes from us",
-              "I5 peer receives 2 to 51 prefixes from us",
-              "I6 customer has no BGP route for link 10.0.1.0/30",
-              "I6 customer has no BGP route for link 10.0.2.0/30",
-              "I6 customer has no BGP route for link 10.0.3.0/30",
-              "I6 customer has no BGP route for link 10.0.4.0/30",
-              "I6 customer has no BGP route for pe1 loopback",
-              "I6 customer has no BGP route for pe2 loopback",
-              "I6 upstream has no BGP route for link 10.0.1.0/30",
-              "I6 upstream has no BGP route for link 10.0.2.0/30",
-              "I6 upstream has no BGP route for link 10.0.3.0/30",
-              "I6 upstream has no BGP route for link 10.0.4.0/30",
-              "I6 upstream has no BGP route for pe1 loopback",
-              "I6 upstream has no BGP route for pe2 loopback",
-              "I6 peer has no BGP route for link 10.0.1.0/30",
-              "I6 peer has no BGP route for link 10.0.2.0/30",
-              "I6 peer has no BGP route for link 10.0.3.0/30",
-              "I6 peer has no BGP route for link 10.0.4.0/30",
-              "I6 peer has no BGP route for pe1 loopback",
-              "I6 peer has no BGP route for pe2 loopback",
-              "I7 customer has no route for 1.1.1.0/24",
-              "I7 customer has no route for 8.8.8.0/24",
-              "I7 customer has no route for 9.9.9.0/24",
-              "I7 upstream has no route for 1.1.1.0/24",
-              "I7 upstream has no route for 8.8.8.0/24",
-              "I7 upstream has no route for 9.9.9.0/24",
-              "I7 peer has no route for 1.1.1.0/24",
-              "I7 peer has no route for 8.8.8.0/24",
-              "I7 peer has no route for 9.9.9.0/24",
-              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
-              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
-              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
-            ],
-            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
-            "never_left": true,
-            "error": null
-          }
-        },
-        {
-          "ping": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "customer reaches upstream",
-              "customer reaches peer"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "sessions": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "pe1-ce1 up",
-              "pe1-up1 up",
-              "pe1-pe2 up",
-              "pe2-peer1 up"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "netdryrun": {
-            "status": "inconclusive",
-            "failed_checks": [
-              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
-              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
-            ],
-            "passed_checks": [
-              "I1 pe1-ce1 session up",
-              "I1 pe1-up1 session up",
-              "I1 pe1-pe2 iBGP up",
-              "I1 pe2-peer1 session up",
-              "I2 upstream has customer route",
-              "I2 upstream has our aggregate",
-              "I2 peer has customer route",
-              "I2 peer has our aggregate",
-              "I3 customer has upstream route",
-              "I3 customer has peer route",
-              "I3 customer has default",
-              "I3 customer reaches upstream",
-              "I3 customer reaches peer",
-              "I4 no peer route leaked to upstream",
-              "I4 no upstream route leaked to peer",
-              "I4 no default leaked to peer",
-              "I5 upstream receives 2 to 51 prefixes from us",
-              "I5 peer receives 2 to 51 prefixes from us",
-              "I6 customer has no BGP route for link 10.0.1.0/30",
-              "I6 customer has no BGP route for link 10.0.2.0/30",
-              "I6 customer has no BGP route for link 10.0.3.0/30",
-              "I6 customer has no BGP route for link 10.0.4.0/30",
-              "I6 customer has no BGP route for pe1 loopback",
-              "I6 customer has no BGP route for pe2 loopback",
-              "I6 upstream has no BGP route for link 10.0.1.0/30",
-              "I6 upstream has no BGP route for link 10.0.2.0/30",
-              "I6 upstream has no BGP route for link 10.0.3.0/30",
-              "I6 upstream has no BGP route for link 10.0.4.0/30",
-              "I6 upstream has no BGP route for pe1 loopback",
-              "I6 upstream has no BGP route for pe2 loopback",
-              "I6 peer has no BGP route for link 10.0.1.0/30",
-              "I6 peer has no BGP route for link 10.0.2.0/30",
-              "I6 peer has no BGP route for link 10.0.3.0/30",
-              "I6 peer has no BGP route for link 10.0.4.0/30",
-              "I6 peer has no BGP route for pe1 loopback",
-              "I6 peer has no BGP route for pe2 loopback",
-              "I7 customer has no route for 1.1.1.0/24",
-              "I7 customer has no route for 8.8.8.0/24",
-              "I7 customer has no route for 9.9.9.0/24",
-              "I7 upstream has no route for 1.1.1.0/24",
-              "I7 upstream has no route for 8.8.8.0/24",
-              "I7 upstream has no route for 9.9.9.0/24",
-              "I7 peer has no route for 1.1.1.0/24",
-              "I7 peer has no route for 8.8.8.0/24",
-              "I7 peer has no route for 9.9.9.0/24",
-              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
-              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
-              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
-            ],
-            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
-            "never_left": true,
-            "error": null
-          }
-        },
-        {
-          "ping": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "customer reaches upstream",
-              "customer reaches peer"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "sessions": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "pe1-ce1 up",
-              "pe1-up1 up",
-              "pe1-pe2 up",
-              "pe2-peer1 up"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "netdryrun": {
-            "status": "inconclusive",
-            "failed_checks": [
-              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
-              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
-            ],
-            "passed_checks": [
-              "I1 pe1-ce1 session up",
-              "I1 pe1-up1 session up",
-              "I1 pe1-pe2 iBGP up",
-              "I1 pe2-peer1 session up",
-              "I2 upstream has customer route",
-              "I2 upstream has our aggregate",
-              "I2 peer has customer route",
-              "I2 peer has our aggregate",
-              "I3 customer has upstream route",
-              "I3 customer has peer route",
-              "I3 customer has default",
-              "I3 customer reaches upstream",
-              "I3 customer reaches peer",
-              "I4 no peer route leaked to upstream",
-              "I4 no upstream route leaked to peer",
-              "I4 no default leaked to peer",
-              "I5 upstream receives 2 to 51 prefixes from us",
-              "I5 peer receives 2 to 51 prefixes from us",
-              "I6 customer has no BGP route for link 10.0.1.0/30",
-              "I6 customer has no BGP route for link 10.0.2.0/30",
-              "I6 customer has no BGP route for link 10.0.3.0/30",
-              "I6 customer has no BGP route for link 10.0.4.0/30",
-              "I6 customer has no BGP route for pe1 loopback",
-              "I6 customer has no BGP route for pe2 loopback",
-              "I6 upstream has no BGP route for link 10.0.1.0/30",
-              "I6 upstream has no BGP route for link 10.0.2.0/30",
-              "I6 upstream has no BGP route for link 10.0.3.0/30",
-              "I6 upstream has no BGP route for link 10.0.4.0/30",
-              "I6 upstream has no BGP route for pe1 loopback",
-              "I6 upstream has no BGP route for pe2 loopback",
-              "I6 peer has no BGP route for link 10.0.1.0/30",
-              "I6 peer has no BGP route for link 10.0.2.0/30",
-              "I6 peer has no BGP route for link 10.0.3.0/30",
-              "I6 peer has no BGP route for link 10.0.4.0/30",
-              "I6 peer has no BGP route for pe1 loopback",
-              "I6 peer has no BGP route for pe2 loopback",
-              "I7 customer has no route for 1.1.1.0/24",
-              "I7 customer has no route for 8.8.8.0/24",
-              "I7 customer has no route for 9.9.9.0/24",
-              "I7 upstream has no route for 1.1.1.0/24",
-              "I7 upstream has no route for 8.8.8.0/24",
-              "I7 upstream has no route for 9.9.9.0/24",
-              "I7 peer has no route for 1.1.1.0/24",
-              "I7 peer has no route for 8.8.8.0/24",
-              "I7 peer has no route for 9.9.9.0/24",
-              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
-              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
-              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
-            ],
-            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
-            "never_left": true,
             "error": null
           }
         }
