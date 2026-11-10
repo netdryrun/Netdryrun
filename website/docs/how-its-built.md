@@ -11,7 +11,7 @@ A tool that approves network changes has to earn trust with evidence, not claims
 
 | | Evidence |
 |---|---|
-| Accuracy on realistic BGP changes | <!-- facts:built_accuracy -->Verdict Corpus v1: **24/30** (ping only 20/30, sessions up 15/30). v2: **9 of 17** deterministic cases (8 inconclusive, reported as not proven; 0 harmful changes approved) (ping only 8/17, sessions up 7/17); case 18 is nondeterministic in this lab and not scored. Both ran on Netdryrun 0.4.1 (the release gate reruns them for every release)<!-- /facts:built_accuracy -->. [Results](corpus.md) |
+| Accuracy on realistic BGP changes | <!-- facts:built_accuracy -->Verdict Corpus v1: **24/30** (ping only 20/30, sessions up 15/30). v2: **9 of 17** deterministic cases (8 inconclusive, reported as not proven; 0 harmful changes approved) (ping only 8/17, sessions up 7/17); case 18 is nondeterministic in this lab and not scored. Both ran on Netdryrun 0.4.2 (the release gate reruns them for every release)<!-- /facts:built_accuracy -->. [Results](corpus.md) |
 | Expected verdicts fixed before any run | Committed first, never edited: [`b4df0b0`](https://github.com/netdryrun/Netdryrun/commit/b4df0b0) (v1), [`322cc4e`](https://github.com/netdryrun/Netdryrun/commit/322cc4e) (v2) |
 | Results you can rerun | One command locally (`python corpus/run.py`, `--corpus v2` for v2). The [Reproduce corpus](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/reproduce-corpus.yml) workflow reruns v1 from your own fork; it has not been run on GitHub yet |
 | Real labs on every change | FRR and Nokia SR Linux labs boot in CI on every push and pull request ([runs](https://github.com/netdryrun/Netdryrun/actions/workflows/ci.yml)) |
