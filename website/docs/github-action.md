@@ -102,6 +102,7 @@ jobs:
 ### Several labs
 
 ```yaml
+on: pull_request
 jobs:
   dryrun:
     runs-on: ubuntu-latest

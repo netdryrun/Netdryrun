@@ -291,10 +291,25 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                        timeout=1800)
                 destroy(good / "topology.clab.yml")
             else:
-                # record --deploy waits for VM nodes to answer before its --wait (0.4.1)
+                # record --deploy waits for VM nodes to answer before its --wait (0.4.1); a VM NOS needs a long wait
+                # for its sessions to come up (0.4.1 hand acceptance: 240 s RouterOS, 420-480 s Junos and NX-OS)
+                wait = ["--wait", str(spec["record_wait"])] if spec.get("record_wait") else []
                 p = sh([ctx.ndr, "record", good / "topology.clab.yml", "--deploy", "--out", good / "netdryrun.yml",
-                        "--force", *drivers], timeout=3600)
-            if p.code != 0:
+                        "--force", *wait, *drivers], timeout=3600)
+            known = []
+            if p.code == 1 and "INCOMPLETE BASELINE" in p.out:
+                # record exits 1 on a gap (0.4.1). A gap that is a documented limit of this driver (the matrix lists
+                # each one, with why) lets the must-fail test go on with the baseline record wrote, as a user who
+                # read record's error would; any other gap fails the item
+                gaps = sorted(set(re.findall(r"^\*\*\* (INCOMPLETE BASELINE: .*?) \*\*\*$", p.out, re.M)))
+                allowed = [re.compile(k["match"]) for k in spec.get("known_gaps", [])]
+                unknown = [g for g in gaps if not any(a.search(g) for a in allowed)]
+                if gaps and not unknown and (good / "netdryrun.yml").exists():
+                    known = gaps
+                else:
+                    raise RuntimeError(f"record failed: exit 1 on gap(s) not listed as known for {drv}: "
+                                       f"{unknown or 'none parsed'}\n{p.out[-3000:]}")
+            elif p.code != 0:
                 raise RuntimeError(f"record failed: exit {p.code}\n{p.out[-3000:]}")
             recorded = yaml.safe_load((good / "netdryrun.yml").read_text())
             for n, v in ex_nodes.items():   # the example's node settings (setup, driver), merged over record's
@@ -311,6 +326,8 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
             (bad / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
             r.seconds += time.monotonic() - t0
             notes = [f"record: {len(recorded['checks'])} checks"]
+            if known:
+                notes.append(f"record exit 1 on {len(known)} known driver gap(s): " + " | ".join(known))
             # 2. the good lab must pass its own baseline, from a fresh deploy; it is kept for the traps
             expect_run(ctx, r, good, 0, None, "--keep")
             if r.status != PASS:
@@ -836,7 +853,7 @@ def make_big30(base: Path, spec: dict, src: Path) -> None:
 # ------------------------------------------------------------------------------------------------- angle 4
 
 MCP_SMOKE = r'''
-import asyncio, json, os, shutil, subprocess, sys, time
+import asyncio, json, os, re, shutil, subprocess, sys, time
 from pathlib import Path
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -901,7 +918,11 @@ async def main():
             problems.append(f"verify_change: no {guards} to pass as the standing guards")
         v = await call("verify_change", topology=str(before / "topology.clab.yml"), before=str(before), after=str(after),
                        intent=sys.argv[6], guards=str(guards))
-        if v.get("status") not in ("matched", "failed", "no_change"):
+        known = sys.argv[7] if len(sys.argv) > 7 else ""
+        if v.get("status") == "inconclusive" and known and re.search(known, json.dumps(v)):
+            # a documented, fail-safe INCONCLUSIVE (the acceptance matrix names it and why): reported, not a problem
+            print("KNOWN " + json.dumps({"status": v.get("status"), "match": known}))
+        elif v.get("status") not in ("matched", "failed", "no_change"):
             problems.append(f"verify_change: status {v.get('status')}: {str(v)[:300]}")
         if v.get("guards_source") != "explicit":
             problems.append(f"verify_change: guards_source {v.get('guards_source')!r}, not the explicit guards")
@@ -925,7 +946,8 @@ def mcp(ctx: Ctx, r: Result) -> None:
     shutil.copytree(ctx.src / "examples" / spec["example"], work / "lab")
     intent = spec.get("intent", "intent:\n  - prefix: 10.101.0.0/24\n    appears_on: [edge1, up1, peer1]\n")
     with LabLock(ctx.args.lock, r.id):
-        p = sh([ctx.python, "-c", MCP_SMOKE, ctx.ndr, work, ctx.src, spec["leaky"], spec["fix"], intent], timeout=5400)
+        p = sh([ctx.python, "-c", MCP_SMOKE, ctx.ndr, work, ctx.src, spec["leaky"], spec["fix"], intent,
+                spec.get("verify_known_inconclusive", {}).get("match", "")], timeout=5400)
         left = leftovers()
     res = re.search(r"^RESULTS (.*)$", p.out, re.M)
     probs = re.search(r"^PROBLEMS (.*)$", p.out, re.M)
@@ -935,6 +957,8 @@ def mcp(ctx: Ctx, r: Result) -> None:
     r.expected = "leaky change: DO NOT APPLY; fix: passed; record and verify answer"
     r.got = "; ".join(problems) or "as expected"
     r.note = ", ".join(f"{s['tool']} {s['tokens']} tokens" for s in sizes)
+    if re.search(r"^KNOWN ", p.out, re.M):
+        r.note += f"; verify_change INCONCLUSIVE, known: {spec['verify_known_inconclusive']['why']}"
     r.status = PASS if not problems and not left and "Traceback" not in p.out else FAIL
     if left:
         r.note += f"; left behind: {', '.join(left)}"

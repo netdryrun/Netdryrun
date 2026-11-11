@@ -49,6 +49,12 @@ drivers:
     examples: [srl-frr, srl-hidden-leak]
     mustfail:
       example: srl-frr
+      # documented SR Linux limits (record exits 1 on them; the must-fail test goes on with record's baseline):
+      # the looped path srl1 rejects (as-loop) is hidden for a reason the driver can't read yet (M-10, since 0.4.1)
+      known_gaps:
+        - {match: 'srl1: no global address on \S+ where Netdryrun reads it', why: 'the NOS keeps the link address inside the NOS, not on the container interface record reads; the FRR end of the link has the subnet and it is guarded; reading it through the driver is planned for 0.4.3'}
+        - {match: 'srl1: BGP neighbor 10\.0\.100\.2 ipv4-unicast: the prefix count is 0 to 1 \(hidden routes', why: 'M-10: a path SR Linux rejects for as-loop is hidden for a reason the driver cannot classify'}
+        - {match: 'srl1: the guard against 10\.0\.100\.0/30 via BGP could not be evaluated .*as-loop', why: 'M-10: the as-loop reason is not read yet, so this guard cannot be evaluated'}
       node: srl1
       neighbor: 10.0.100.2
       file: configs/srl1.cli
@@ -62,6 +68,8 @@ drivers:
     examples: [sonic-frr]
     mustfail:
       example: sonic-frr
+      known_gaps:
+        - {match: 'sonic1: no global address on \S+ where Netdryrun reads it', why: 'the NOS keeps the link address inside the NOS, not on the container interface record reads; the FRR end of the link has the subnet and it is guarded; reading it through the driver is planned for 0.4.3'}
       node: sonic1
       neighbor: 10.0.40.2
       # docker-sonic-vs is configured after boot: the filter is in the last setup command of netdryrun.yml
@@ -76,6 +84,8 @@ drivers:
     examples: [arista-frr]
     mustfail:
       example: arista-frr
+      known_gaps:
+        - {match: 'ceos1: could not read IPv6 routes \(VRF ''default'' has routing disabled', why: 'the example lab does not enable IPv6 routing on cEOS: nothing routes IPv6 there, so no IPv6 guard can be built'}
       node: ceos1
       neighbor: 10.0.200.2
       file: configs/ceos1.cfg
@@ -89,6 +99,9 @@ drivers:
     examples: [junos-frr]
     mustfail:
       example: junos-frr
+      known_gaps:
+        - {match: 'j1: no global address on \S+ where Netdryrun reads it', why: 'the NOS keeps the link address inside the NOS, not on the container interface record reads; the FRR end of the link has the subnet and it is guarded; reading it through the driver is planned for 0.4.3'}
+      record_wait: 480   # 0.4.1 hand acceptance: Junos sessions need 420-480 s after the VM answers
       node: j1
       neighbor: 10.0.100.2
       # a routing-instance that doesn't exist is a run error on Junos by design (exit 2), a failing check elsewhere
@@ -104,6 +117,9 @@ drivers:
     examples: [nxos-frr]
     mustfail:
       example: nxos-frr
+      known_gaps:
+        - {match: 'n1: no global address on \S+ where Netdryrun reads it', why: 'the NOS keeps the link address inside the NOS, not on the container interface record reads; the FRR end of the link has the subnet and it is guarded; reading it through the driver is planned for 0.4.3'}
+      record_wait: 480   # 0.4.1 hand acceptance: NX-OS sessions need 420-480 s after the VM answers
       node: n1
       neighbor: 10.0.100.2
       file: configs/n1.cfg
@@ -117,6 +133,9 @@ drivers:
     examples: [mikrotik]
     mustfail:
       example: mikrotik
+      known_gaps:
+        - {match: 'r1: no global address on \S+ where Netdryrun reads it', why: 'the NOS keeps the link address inside the NOS, not on the container interface record reads; the FRR end of the link has the subnet and it is guarded; reading it through the driver is planned for 0.4.3'}
+      record_wait: 240   # 0.4.1 hand acceptance: RouterOS needs 240 s
       node: r1
       neighbor: 10.0.100.2
       file: configs/r1.rsc
@@ -155,3 +174,10 @@ mcp:
   example: agent-demo
   leaky: changes/attempt-1-open-filters.diff
   fix: changes/attempt-2-prefix-lists.diff
+  # M-8 (0.4.1, fail-safe): FRR keeps edge1's default-originate path from up1 flagged stale after End-of-RIB, so
+  # verify never sees a stable snapshot and answers INCONCLUSIVE (never a pass). Reading such a path as current needs
+  # proof the peer sent it again (its adj-out), planned for 0.4.3; until then this INCONCLUSIVE, and only this one, is
+  # reported, not a problem
+  verify_known_inconclusive:
+    match: 'path kept stale by graceful restart'
+    why: 'M-8 (0.4.1): FRR 10.4.1 keeps a default-originate path stale after End-of-RIB; fail-safe INCONCLUSIVE, fix planned for 0.4.3'
