@@ -122,7 +122,8 @@ def canon_ext_communities(text: object) -> tuple[str, ...]:
     pattern = re.compile(r"\s*([A-Za-z][A-Za-z0-9-]*):(\S+?)(?:\s+\([^)]*\))?(?=\s|$)")
     while pos < len(text.rstrip()):
         m = pattern.match(text, pos)
-        if not m or m.group(1).lower() not in _EXT_TYPES:
+        # a match that doesn't move past pos would loop forever (and grow `out` without bound): refuse it
+        if not m or m.end() <= pos or m.group(1).lower() not in _EXT_TYPES:
             raise SnapshotError(f"extended communities: cannot read {text[pos:pos + 60]!r}")
         out.append(f"{_EXT_TYPES[m.group(1).lower()]}:{m.group(2).lower()}")
         pos = m.end()
