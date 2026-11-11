@@ -2908,9 +2908,11 @@
    "class": "message-text"
   },
   "netdryrun.drivers.frr.x__bgp_paths_for_route_check__mutmut_2": {
-   "reason": "message text only: the command name passed only for error messages (and a missing one becomes a TypeError that the parser wrapper turns into the same DriverError)",
-   "diff": "4c4930aaf5f9fa46",
-   "class": "message-text"
+   "reason": "load_json uses its command only in error text; unexpected(None, ...) still returns a DriverError (re-reviewed: the function gained a text_count parameter in 0.4.2, the mutation is the same).",
+   "diff": "b6ed9e8759844d92",
+   "class": "message-text",
+   "argument": "load_json uses its command only in error text; unexpected(None, ...) still returns a DriverError (re-reviewed: the function gained a text_count parameter in 0.4.2, the mutation is the same).",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: command only in error text; same DriverError."
   },
   "netdryrun.drivers.frr.x__bgp_paths_raw__mutmut_12": {
    "reason": "message text only: the same exception is still raised, only its message changes",
@@ -6971,6 +6973,55 @@
    "class": "equivalent",
    "argument": "addresses is read only inside `for p in received`; when received is non-empty it is rebound to the session dict first. With received empty the loop doesn't run, so None vs {} is never read.",
    "reviewed": "adversarial (fresh Claude reviewer), bc16bd7 mutation run, 2026-11-09: AGREE: addresses is read only inside 'for p in received', and when received is non-empty it is first rebound to a dict; when received is empty the loop body never runs."
+  },
+  "netdryrun.drivers.frr.x_parse_paths_available__mutmut_15": {
+   "reason": "ipaddress only tests `if strict`: strict=None behaves as strict=False.",
+   "diff": "d949920ff7037fe6",
+   "class": "equivalent",
+   "argument": "ipaddress only tests `if strict`: strict=None behaves as strict=False.",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: None is falsy like False."
+  },
+  "netdryrun.drivers.frr.x_parse_paths_available__mutmut_17": {
+   "reason": "With strict on, only an entry line with host bits set (bgpd prints masked prefixes) differs: ip_network raises ValueError, which is caught and leaves same False, so a DriverError (no verdict) follows; strict never makes two prefixes compare equal.",
+   "diff": "6e3407e2c8902500",
+   "class": "safety",
+   "argument": "With strict on, only an entry line with host bits set (bgpd prints masked prefixes) differs: ip_network raises ValueError, which is caught and leaves same False, so a DriverError (no verdict) follows; strict never makes two prefixes compare equal.",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: frr.py catches the ValueError and the read fails closed; never a pass."
+  },
+  "netdryrun.drivers.frr.x_parse_paths_available__mutmut_20": {
+   "reason": "As _17: strict=True only adds a ValueError for host bits, caught into a DriverError (no verdict).",
+   "diff": "3fe169d794a0e498",
+   "class": "safety",
+   "argument": "As _17: strict=True only adds a ValueError for host bits, caught into a DriverError (no verdict).",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: same as 17."
+  },
+  "netdryrun.drivers.frr.x_parse_paths_available__mutmut_23": {
+   "reason": "`same` is only read as `if not same`: None and False take the same branch.",
+   "diff": "797684ea1f4be318",
+   "class": "equivalent",
+   "argument": "`same` is only read as `if not same`: None and False take the same branch.",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: None and False give the same result."
+  },
+  "netdryrun.drivers.frr.x_parse_paths_available__mutmut_30": {
+   "reason": "Only the last clause of the DriverError message changes; same exception, same condition.",
+   "diff": "f9e921c232e45086",
+   "class": "message-text",
+   "argument": "Only the last clause of the DriverError message changes; same exception, same condition.",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: same DriverError on the same condition."
+  },
+  "netdryrun.drivers.frr.x_parse_paths_available__mutmut_31": {
+   "reason": "As _30: the message clause in upper case; same DriverError.",
+   "diff": "54cb0a9c23e6f7d6",
+   "class": "message-text",
+   "argument": "As _30: the message clause in upper case; same DriverError.",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: same as 30."
+  },
+  "netdryrun.mgmt.x_prepare__mutmut_67": {
+   "reason": "prepare_eos never reads its log parameter nor passes it on.",
+   "diff": "54a681e63b879c59",
+   "class": "equivalent",
+   "argument": "prepare_eos never reads its log parameter nor passes it on.",
+   "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: prepare_eos and its callees never use log."
   }
  }
 }
