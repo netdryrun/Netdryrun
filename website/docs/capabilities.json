@@ -89,7 +89,7 @@
     "verify_change: an intent explains what it declares, leaks included; the intent must come from the ticket or the operator, never from the diff.",
     "verify_change: received routes are compared before inbound policy without their communities (FRR doesn't list them there); a default-originate advertisement is compared by presence, not by its attributes.",
     "verify_change: IPv4 and IPv6 unicast only; sessions carrying other address families, and unnumbered BGP neighbors, are refused (exit 2).",
-    "Settle and hold stretch to the longest BGP advertisement interval a driver reads, except on Arista EOS, where a configured out-delay is not read yet: raise --settle and --hold above it there (planned for 0.4.1).",
+    "Settle and hold stretch to the longest BGP advertisement interval a driver reads, except on Arista EOS, where a configured out-delay is not read yet: raise --settle and --hold above it there (planned for 0.4.3).",
     "A route that crosses several peers with long advertisement intervals can take one interval per hop, and update-delay is not read: raise --settle for those.",
     "A lab whose state never settles gives INCONCLUSIVE (exit 3): this says nothing about the change; retry at most once, then escalate.",
     "afi: evpn is refused on Arista EOS and Nokia SR Linux.",
