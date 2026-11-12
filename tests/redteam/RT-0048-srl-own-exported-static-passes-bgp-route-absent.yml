@@ -8,18 +8,18 @@ fixed_in: null
 accepted_limit:
   decided: "owner, 2026-11-08: ship 0.4.1, publish as a limit (a fail-closed rule failed the shipped leak guards)"
   mitigation: put the present-false guard on the neighbor that would receive the route
-  fix_in: "0.4.2: read the adj-rib-out (SR Linux rib-out-post, Junos advertising-protocol; live captures in hand)"
+  fix_in: "0.4.3: read the adj-rib-out (SR Linux rib-out-post, Junos advertising-protocol; live captures in hand)"
   detail: "a prefix this node originates itself isn't checked"
   published:
     website/docs/reference/config.md: ["doesn't see a prefix the node itself originates and exports",
-      "put the `present: false` guard on the neighbor that would receive the route", "0.4.2"]
+      "put the `present: false` guard on the neighbor that would receive the route", "0.4.3"]
     website/docs/trust.md: ["doesn't see a prefix the node itself originates and exports", "on the neighbor that would
-        receive it", "0.4.2"]
+        receive it", "0.4.3"]
     website/docs/reference/junos.md: ["doesn't see a prefix the node itself originates and exports", "on the neighbor
-        that would receive the route", "0.4.2"]
+        that would receive the route", "0.4.3"]
     website/docs/spec/verdict-v1.md: ["RT-0048"]
     advisories/0.4.0-further-false-passes/README.md: ["On SR Linux and Junos the case is **accepted as a documented
-        limit**", "Keep the guard on the neighbor that would receive the route", "0.4.2"]
+        limit**", "Keep the guard on the neighbor that would receive the route", "0.4.3"]
     CHANGELOG.md: ["accepted as a documented limit\n  for 0.4.1", "0.4.2 reads the adj-rib-out"]
 kind: driver
 driver: srlinux

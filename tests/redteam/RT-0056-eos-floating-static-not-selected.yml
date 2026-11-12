@@ -12,7 +12,7 @@ accepted_limit:
     fix in 0.4.2'
   mitigation: check the route where it comes from, and add a positive route check that the selected route has the expected
     protocol
-  fix_in: '0.4.2: read every candidate route on EOS'
+  fix_in: '0.4.3: read every candidate route on EOS'
   detail: absent
   published:
     website/docs/reference/config.md:

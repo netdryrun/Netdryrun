@@ -93,6 +93,15 @@
   `advisories/0.4.1-known-false-passes/README.md`) are still open: Arista EOS `route ... present: false` with a
   protocol other than `bgp`, and SR Linux EVPN type-5 routes in an ip-vrf (case 3 is fixed above). Each has a
   workaround in the advisory. They are planned for 0.4.3.
+- **SR Linux and Junos: `bgp_route present: false` doesn't see the node's own exported prefix** (RT-0048, accepted
+  for 0.4.1). Keep the guard on the neighbor that would receive the route. Planned for 0.4.3.
+- **The corpus v2 case 18 race** is not removed; case 18 stays unscored. Planned for 0.4.3.
+- **A prefix-limit reset is still not proof that injected routes reached a peer**; the narrow attributable proof is
+  planned for 0.4.3.
+- **A route that takes one advertisement interval per hop** can still arrive after the windows: raise `--settle`.
+  Planned for 0.4.3.
+- **Scheduled fixes moved to 0.4.3:** the Arista EOS `out-delay` read, the NX-OS FIB state for `route present`, and
+  the two FRR config-comparison limits (a warned-but-applied line, a rewritten `frr.conf`).
 
 ## 0.4.1 (2026-11-09)
 

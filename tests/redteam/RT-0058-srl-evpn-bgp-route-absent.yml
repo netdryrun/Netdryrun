@@ -11,7 +11,7 @@ accepted_limit:
   decided: 'owner, 2026-11-09: ship 0.4.1 and publish the four as known limits (no source change after the final gate runs);
     fix in 0.4.2'
   mitigation: 'use route with the same vrf, protocol: bgp and present: false'
-  fix_in: '0.4.2: read the EVPN RIB for an ip-vrf'
+  fix_in: '0.4.3: read the EVPN RIB for an ip-vrf'
   detail: no BGP path
   published:
     website/docs/reference/config.md:

@@ -25,7 +25,8 @@ description: "Where Netdryrun is going: shipped releases, the current one, and l
 
 A fix release, with no new features:
 
-- Fixes for the three known false passes of 0.4.1 that 0.4.2 doesn't fix (Arista EOS routes that weren't selected, SR Linux EVPN type-5 routes in an ip-vrf, FRR and SONiC pings to a VRF device's own address), each with a reproducing test written before the fix.
+- Fixes for the two known false passes of 0.4.1 that 0.4.2 doesn't fix (Arista EOS routes that weren't selected, SR Linux EVPN type-5 routes in an ip-vrf), each with a reproducing test written before the fix.
+- Limits 0.4.2 doesn't close, each listed on the trust page or the config reference: the node's own exported prefix on SR Linux and Junos (RT-0048), the corpus v2 case 18 race, a narrow attributable proof for a prefix-limit reset, a route that takes one advertisement interval per hop, the EOS `out-delay`, the NX-OS FIB state, and the two FRR config-comparison limits.
 - `record --attributes` on SR Linux reads an empty AS path exactly, instead of naming it as a gap.
 - `record` and checks name a BGP-unnumbered session by its interface (`eth1`), so a session over an unnumbered link is recorded instead of named as a gap.
 - The full release gate on the final release candidate, the scripted end-user acceptance run included.

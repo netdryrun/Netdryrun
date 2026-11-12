@@ -141,7 +141,7 @@ The CHR image can't be redistributed. Download the CHR VMDK from mikrotik.com yo
 
 The Nexus 9000v can't be redistributed. Download it from Cisco and build the vrnetlab image; see the [README](https://github.com/netdryrun/Netdryrun/blob/main/examples/nxos-frr/README.md). It needs KVM, about 10 GB of free RAM and 4 vCPUs. The VM takes several minutes to boot, which is most of the 358 to 377 s above, hence `timeout: 900`. NX-OS's eBGP advertisement interval is 30 s, so Netdryrun extends the settle and hold before the post-convergence checks to at least 32 s.
 
-**Known beta limit (NX-OS):** `present` on a `route` check reads the routing table's best flag (`ubest`), not whether the route is programmed in the FIB, so a route the RIB prefers but the switch failed to install can pass (found by the 0.4.1 Layer 6 review). Mitigation: pair a `route` check on an NX-OS node with a `ping` across the same path, which only passes if forwarding works. Fix scheduled: 0.4.2 (read the FIB state from a live Nexus 9000v capture, test-first); the NX-OS driver stays beta and opt-in (`driver: nxos`) until then.
+**Known beta limit (NX-OS):** `present` on a `route` check reads the routing table's best flag (`ubest`), not whether the route is programmed in the FIB, so a route the RIB prefers but the switch failed to install can pass (found by the 0.4.1 Layer 6 review). Mitigation: pair a `route` check on an NX-OS node with a `ping` across the same path, which only passes if forwarding works. Fix scheduled: 0.4.3 (read the FIB state from a live Nexus 9000v capture, test-first); the NX-OS driver stays beta and opt-in (`driver: nxos`) until then.
 
 ## agent-demo
 
