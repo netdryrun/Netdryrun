@@ -408,3 +408,25 @@
     netdryrun 0.4.1 `record --attributes` on the running srl_rt_s01 lab, 2026-11-10 (exit 1; its output in
     srl_rt_s01_capture.txt)
   added: ndr/oracles-0.4.2
+- files: [frr1041_rt0066_r1_bgp_neighbors.json, frr1041_rt0066_r1_neighbor_routes.json,
+          frr1041_rt0066_r1_neighbor_routes.txt, frr1041_rt0066_r1_bgp_ipv4.json, frr1041_repro042_r1_show_version.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-repro042 (r2 sends r1 2 prefixes with addpath-tx-all-paths, 2 paths each), the
+    laptop's WSL, 2026-11-12: r1's vtysh answers read with docker exec after `netdryrun run --keep`; captured for
+    oracle FP-042-ADDPATH (red team RT-0066)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_repro042_topology.clab.yml, frr1041_repro042_r1.conf, frr1041_repro042_r2.conf,
+          frr1041_repro042_r3.conf]
+  kind: lab-input
+  source: >-
+    the topology and FRR configs deployed for lab ndr-repro042 (RT-0066 add-path, RT-0053 VRF device address),
+    2026-11-12
+  added: ndr/oracles-0.4.2
+- files: [frr1041_repro042_report.json, frr1041_repro042_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (79e6205) `run --keep --json` on lab ndr-repro042, 2026-11-12 (exit 1): addpath-min4-must-fail
+    and vrf-own-address-must-not-pass passed
+  added: ndr/oracles-0.4.2
