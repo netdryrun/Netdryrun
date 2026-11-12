@@ -28,6 +28,18 @@
 
   Oracles `tests/oracles/FP-042-UNNUMBERED` and `tests/oracles/FP-042-UNNSESS` (red team RT-0066), from the same
   capture.
+- **FRR and SONiC: `bgp_prefixes` counted add-path paths as prefixes** (red team RT-0067, found on the 0.4.2
+  candidate and confirmed live on FRR 10.4.1; 0.1.0 and later). FRR 10.4.1 negotiates add-path receive on every
+  session by default, so a peer configured with `addpath-tx-all-paths` sends several paths per prefix, and FRR's
+  `acceptedPrefixCounter` counts each path. 2 prefixes with 2 paths each read as 4, so `min: 4` passed. When the peer
+  may send add-path (its capability says so, or doesn't say), the driver now counts the distinct prefixes in
+  `show bgp ... neighbors N routes json`, and a listing whose paths don't add up to FRR's counter is an error, not a
+  count. Oracle `tests/oracles/FP-042-ADDPATH`, from the live capture.
+- **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
+  [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
+  In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the
+  usual VRF loopback is refused as the node's own. Oracle `tests/oracles/FP-042-VRFDEV`, reproduced live on FRR
+  10.4.1.
 - **`record` could exit 0 with a gap it had named.** A gap line that quoted a device's answer containing "only the
   first" was taken for one of the two size caps. Only `record`'s own cap lines are left out now. Oracle
   `tests/oracles/FP-042-CAPMSG`.
@@ -77,10 +89,10 @@
 
 ### Not fixed in 0.4.2
 
-- **Cases 1 to 3 of the 0.4.1 advisory** ([GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff),
+- **Cases 1 and 2 of the 0.4.1 advisory** ([GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff),
   `advisories/0.4.1-known-false-passes/README.md`) are still open: Arista EOS `route ... present: false` with a
-  protocol other than `bgp`, SR Linux EVPN type-5 routes in an ip-vrf, and FRR/SONiC pings to a VRF device's own
-  address. Each has a workaround in the advisory. They are planned for 0.4.3.
+  protocol other than `bgp`, and SR Linux EVPN type-5 routes in an ip-vrf (case 3 is fixed above). Each has a
+  workaround in the advisory. They are planned for 0.4.3.
 
 ## 0.4.1 (2026-11-09)
 

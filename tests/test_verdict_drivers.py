@@ -295,7 +295,14 @@ FRR_NBR = J({"10.0.0.2": {"bgpState": "Established",
                           "addressFamilyInfo": {"ipv4Unicast": {"acceptedPrefixCounter": 3},
                                                 "ipv6Unicast": {"acceptedPrefixCounter": "4"},
                                                 "l2VpnEvpn": {"acceptedPrefixCounter": 5},
-                                                "ipv4Multicast": {"acceptedPrefixCounter": 6}}},
+                                                "ipv4Multicast": {"acceptedPrefixCounter": 6}},
+                          # as FRR 10.4.1 prints it (tests/fixtures/frr_bgp_neighbors.txt): rx only, the peer sends
+                          # one path per prefix, so acceptedPrefixCounter is the prefix count (RT-0066)
+                          "neighborCapabilities": {"addPath": {
+                              "ipv4Unicast": {"rxAdvertisedAndReceived": True, "rxAdvertised": True, "rxReceived": True},
+                              "ipv6Unicast": {"rxAdvertisedAndReceived": True, "rxAdvertised": True, "rxReceived": True},
+                              "l2VpnEvpn": {"rxAdvertisedAndReceived": True, "rxAdvertised": True, "rxReceived": True},
+                              "ipv4Multicast": {"rxAdvertisedAndReceived": True}}}},
              "2001:db8:0::1": {"bgpState": "Idle (Admin)"},
              "eth1": {"bgpState": "Active", "addressFamilyInfo": {}}})
 SHOW_VRF = "vrf red id 5 table 1001\nvrf blue inactive\n"

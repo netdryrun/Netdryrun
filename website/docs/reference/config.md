@@ -231,7 +231,7 @@ Reachability from a node.
   the driver can't read the node's addresses for is not evaluated either.
 - Not read as own: VRRP, VARP (`ip virtual-router address`) and HSRP virtual addresses (on every driver), IPv6
   anycast addresses (NX-OS `ipv6 address ... anycast`) and anycast gateways other than EOS `ip address virtual`. Don't ping a first-hop redundancy address from a node that may hold it.
-- **Known limit (FRR and SONiC, a known false pass (found offline, published conservatively), accepted for 0.4.1; RT-0053):** in a VRF, the node's own addresses are read from the interfaces enslaved to the VRF (`ip -j addr show vrf <vrf>`), which doesn't list the VRF device itself. An address put on the VRF device (`ip addr add 10.9.9.9/32 dev red`, a common VRF loopback) is answered by the node, and a `ping` to it in that VRF passes. **Mitigation:** in a VRF `ping` check, don't target an address on the VRF device: put the loopback on an interface enslaved to the VRF (a dummy interface), or check the address with a `ping` from another node. **Fix:** 0.4.2.
+- **The VRF device's own address (FRR and SONiC, from 0.4.2; RT-0053):** in a VRF, the node's own addresses are those of the interfaces enslaved to the VRF and of the VRF device itself (`ip -j addr show vrf <vrf>` and `ip -j addr show dev <vrf>`), so a `ping` to a VRF loopback on the VRF device (`ip addr add 10.9.9.9/32 dev red`) is refused as the node's own. In 0.4.1 and earlier it was answered by the node and passed (case 3 of the 0.4.1 advisory).
 
 ```yaml
 - type: ping

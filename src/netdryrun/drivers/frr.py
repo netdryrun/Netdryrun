@@ -10,6 +10,7 @@ import ipaddress
 import json
 import re
 from collections import Counter
+from dataclasses import replace
 
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
                    check_vrf_name, load_json, network, parser, render_as_path, unexpected)
@@ -242,6 +243,48 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv, external=external,
                                                        eor=frr_eor(info) if state == "established" else {}))
     return out
+
+
+def add_path_rx(text: str) -> set[tuple[str, str, str]]:
+    """(neighbor key, neighbor as FRR names it, afi) for every established session whose peer may send this node
+    several paths per prefix: its add-path TX capability (`neighborCapabilities.addPath.<afi>.txReceived` or
+    `txAdvertisedAndReceived`) is anything but a clear false, or isn't listed. FRR's acceptedPrefixCounter then counts
+    paths, not prefixes (RT-0066: 2 prefixes with 2 paths each read as 4, so `min: 4` passed)."""
+    data = _bgp_json(NEIGHBORS_CMD, text)
+    out = set()
+    for addr, info in data.items():
+        if not isinstance(info, dict) or [w.lower() for w in str(info.get("bgpState", "")).split()[:1]] != ["established"]:
+            continue
+        caps = info.get("neighborCapabilities")
+        ap = caps.get("addPath") if isinstance(caps, dict) else None
+        for afi in (info.get("addressFamilyInfo") or {}):
+            entry = ap.get(afi) if isinstance(ap, dict) else None
+            known_off = isinstance(entry, dict) and all(entry.get(k, False) is False
+                                                        for k in ("txReceived", "txAdvertisedAndReceived"))
+            if not known_off:
+                out.add((_canon_addr(addr), addr, AFI_NAMES.get(afi, afi)))
+    return out
+
+
+def count_neighbor_prefixes(text: str, cmd: str, accepted: int) -> int:
+    """Distinct prefixes in `show bgp ... neighbors N routes json`, the routes this node accepted from N, one key per
+    prefix and its paths listed under it. The listing's paths must add up to FRR's acceptedPrefixCounter for the same
+    neighbor and family, or the two answers disagree and the count is an error, never a guess."""
+    data = load_json(cmd, text)
+    if not isinstance(data, dict):
+        raise unexpected(cmd, text)
+    routes = data.get("routes", {} if not data else None)
+    if not isinstance(routes, dict) or not all(isinstance(p, list) for p in routes.values()):
+        raise unexpected(cmd, str(data)[:300])
+    # FRR's counter leaves out history (dampened) and removed paths; the listing may show them (Layer 6 review)
+    live = {pfx: [p for p in ps if not (isinstance(p, dict) and (p.get("history") or p.get("removed")))]
+            for pfx, ps in routes.items()}
+    routes = {pfx: ps for pfx, ps in live.items() if ps}
+    paths = sum(len(p) for p in routes.values())
+    if paths != accepted:
+        raise DriverError(f"`{cmd}`: lists {paths} paths over {len(routes)} prefixes, but the neighbor's "
+                          f"acceptedPrefixCounter is {accepted}: the prefix count can't be read")
+    return len(routes)
 
 
 def frr_eor(info: dict) -> dict[str, str]:
@@ -648,9 +691,28 @@ class FrrDriver(Driver):
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []
         cmd = "show bgp neighbors json" if vrf == "default" else f"show bgp vrf {vrf} neighbors json"
-        neighbors = parse_bgp_neighbors(self._vtysh(cmd, ev))
+        text = self._vtysh(cmd, ev)
+        neighbors = parse_bgp_neighbors(text)
         if not neighbors:
             self._confirm_vrf(vrf, ev)
+        # with add-path from the peer, acceptedPrefixCounter counts paths: count the prefixes it lists (RT-0066)
+        vrf_part = "" if vrf == "default" else f" vrf {vrf}"
+        for key, name, afi in sorted(add_path_rx(text)):
+            n = neighbors.get(key)
+            if n is None or afi not in n.prefixes:
+                continue
+            if afi not in ("ipv4-unicast", "ipv6-unicast"):
+                # no per-neighbor listing read for this family (EVPN, ...): the counter's P paths are 1 to P
+                # prefixes, judged only where the whole range agrees, otherwise no verdict (never the path count)
+                paths = n.prefixes[afi]
+                neighbors[key] = n = replace(
+                    n, prefixes={**n.prefixes, afi: min(paths, 1)}, prefixes_upto={**n.prefixes_upto, afi: paths},
+                    prefixes_unread={**n.prefixes_unread, afi: f"the peer may send add-path in {afi}, so FRR's "
+                                     f"acceptedPrefixCounter ({paths}) counts paths, not prefixes"})
+                continue
+            rcmd = f"show bgp{vrf_part} {afi.split('-')[0]} unicast neighbors {name} routes json"
+            count = count_neighbor_prefixes(self._vtysh(rcmd, ev), rcmd, n.prefixes[afi])
+            neighbors[key] = replace(n, prefixes={**n.prefixes, afi: count})
         return Observation(neighbors, ev)
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
@@ -730,7 +792,13 @@ class FrrDriver(Driver):
         from .addresses import parse_ip_j_addr
         vrf = check_vrf_name(vrf)
         cmd = ["ip", "-j", "addr"] + ([] if vrf == "default" else ["show", "vrf", vrf])
-        return parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+        out = parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+        if vrf != "default":
+            # `show vrf X` lists the interfaces enslaved to X, not the VRF device itself; an address on it (the usual
+            # VRF loopback, `ip addr add A dev X`) is answered by the node too (RT-0053)
+            dev = ["ip", "-j", "addr", "show", "dev", vrf]
+            out += parse_ip_j_addr(self._exec(dev, []), skip_enslaved=False, command=" ".join(dev))
+        return out
 
     def ping(self, target: str, source: str | None, count: int, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

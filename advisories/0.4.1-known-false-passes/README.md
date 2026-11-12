@@ -3,7 +3,7 @@
 **Affected:** netdryrun 0.4.1 and earlier, and the `netdryrun/Netdryrun@v0.4.1` and earlier Actions (each entry gives
 the drivers). **Severity:** Moderate, as [GHSA-g4f6-4624-2pjv](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-g4f6-4624-2pjv):
 each case needs a specific driver, config and lab state, and each has a check that catches it today (given below).
-**Patched versions:** case 4 is fixed in 0.4.2; cases 1 to 3 are not fixed yet, planned for 0.4.3. **Found by:** our own release gate (two isolated
+**Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are not fixed yet, planned for 0.4.3. **Found by:** our own release gate (two isolated
 adversarial reviewers and a fresh verifier on the final 0.4.1 candidate, 9 November 2026), before any outside user
 reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were confirmed against recorded
 router output (EOS from live fixtures), not yet through a Netdryrun live run. We publish them now to be safe. 0.4.1
@@ -15,8 +15,8 @@ GitHub advisory: [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/se
 Each case is a red-team file in `tests/redteam/` (RT-0053, RT-0056, RT-0058, RT-0063) or an oracle (case 4, RT-S01),
 registered in `tests/known_false_passes.yml`; the test fails if the published text or the limit changes unnoticed.
 
-**What to do:** upgrade to 0.4.2 (case 4), and apply the workaround for each of cases 1 to 3 that matches your labs
-until 0.4.3 ships.
+**What to do:** upgrade to 0.4.2 (cases 3 and 4), and apply the workaround for each of cases 1 and 2 that matches
+your labs until 0.4.3 ships.
 
 **1. Arista EOS: `route ... present: false` with a protocol other than `bgp` didn't see a route that lost** (RT-0056,
 RT-0063). 0.2.0 and later, Arista EOS. EOS's `show ip route` lists only the route it selected for a
@@ -40,7 +40,7 @@ later, FRR (SONiC from 0.2.0). Before 0.4.1 a `ping` to any of the node's own ad
 the node answers itself, but reads a VRF's addresses from its enslaved interfaces only. With `ip addr add 10.9.9.9/32 dev red` (a common VRF loopback), `ping vrf: red, target: 10.9.9.9` was
 answered by the node itself and passed (reproduced in the pinned FRR 10.4.1 image: `ip -j addr show vrf red` doesn't
 list `red`; 2 of 2 replies). *Workaround:* put VRF loopbacks on a dummy interface enslaved to the VRF, or check the
-address with a `ping` from another node. *Planned for 0.4.3:* the VRF device's own addresses count as the node's.
+address with a `ping` from another node. *Fixed in 0.4.2:* the VRF device's own addresses count as the node's.
 
 **4. SR Linux: `record --attributes` left out an AS path it couldn't read, without a warning (regression in 0.4.1).** 0.4.1 only,
 SR Linux (0.4.0 recorded such a path as the empty AS path `""` and pinned it; 0.4.1 reads it as unknown). For a route whose AS path SR Linux prints none of (a route its iBGP peer originates), the recorded

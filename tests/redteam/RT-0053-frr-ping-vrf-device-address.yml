@@ -4,25 +4,7 @@ title: >-
   (ip addr add 10.9.9.9/32 dev red): `ip -j addr show vrf red` lists only the interfaces enslaved to red, never the
   VRF master device, so the own-address refusal never sees it and the kernel answers the ping locally
 found: 2026-11-09, red team A (drivers)
-fixed_in: null
-accepted_limit:
-  decided: 'owner, 2026-11-09: ship 0.4.1 and publish the four as known limits (no source change after the final gate runs);
-    fix in 0.4.2'
-  mitigation: put a VRF loopback on an interface enslaved to the VRF, or ping the address from another node
-  fix_in: '0.4.2: the VRF device''s own addresses count as the node''s'
-  detail: replies
-  published:
-    website/docs/reference/config.md:
-    - accepted for 0.4.1; RT-0053
-    - doesn't list the VRF device itself
-    website/docs/trust.md:
-    - (RT-0053)
-    - Put VRF loopbacks on an enslaved interface
-    CHANGELOG.md:
-    - '**FRR and SONiC** (RT-0053)'
-    advisories/0.4.1-known-false-passes/README.md:
-    - (RT-0053)
-    - the VRF device's own addresses count as the node's
+fixed_in: 0.4.2
 kind: driver
 driver: frr
 check:
@@ -33,6 +15,10 @@ check:
 outputs:
   # iproute2 `ip -j addr show vrf red`: devices whose master is red (eth2); the VRF device red (10.9.9.9/32) has no
   # master and is not listed (same JSON shape as tests/fixtures/frr_local_ip_addr.json)
+  # iproute2 `ip -j addr show dev red`: the VRF device itself, with its own address (0.4.2 reads it too)
+  - needle: "ip -j addr show dev red"
+    output: |
+      [{"ifindex":7,"ifname":"red","flags":["NOARP","MASTER","UP","LOWER_UP"],"mtu":65575,"qdisc":"noqueue","operstate":"UP","group":"default","link_type":"ether","address":"de:6a:1c:44:91:0e","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[{"family":"inet","local":"10.9.9.9","prefixlen":32,"scope":"global","label":"red","valid_life_time":4294967295,"preferred_life_time":4294967295}]}]
   - needle: "ip -j addr"
     output: |
       [{"ifindex":9,"link_index":8,"ifname":"eth2","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":9500,"qdisc":"noqueue","master":"red","operstate":"UP","group":"default","link_type":"ether","address":"aa:c1:ab:ea:a8:c4","broadcast":"ff:ff:ff:ff:ff:ff","link_netnsid":1,"addr_info":[{"family":"inet","local":"10.0.23.1","prefixlen":30,"broadcast":"10.0.23.3","scope":"global","label":"eth2","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fe80::a8c1:abff:feea:a8c4","prefixlen":64,"scope":"link","protocol":"kernel_ll","valid_life_time":4294967295,"preferred_life_time":4294967295}]}]

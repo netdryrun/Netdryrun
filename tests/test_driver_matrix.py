@@ -51,6 +51,9 @@ def frr_family(text: str, family: str) -> str:
     counter fields are the same for every family in `show bgp neighbors json`)."""
     out, n = re.subn(r'("addressFamilyInfo"\s*:\s*\{\s*")ipv4Unicast"', rf'\1{family}"', text)
     assert n, "no addressFamilyInfo to edit"
+    # FRR lists the add-path capability under each family the session carries: rename it with the family, or the
+    # edited capture is one FRR can't print (a family with no addPath entry reads as "may send add-path", RT-0066)
+    out = re.sub(r'("addPath"\s*:\s*\{\s*")ipv4Unicast"', rf'\1{family}"', out)
     return out
 
 

@@ -275,7 +275,7 @@
     selected, SR Linux EVPN type-5 in an ip-vrf, FRR/SONiC ping to the VRF device's own address; red team on the final
     0.4.1 candidate); case 4 (SR Linux record --attributes) is the next entry
   status: accepted-documented-limit
-  cases: [RT-0053, RT-0056, RT-0058, RT-0063]
+  cases: [RT-0056, RT-0058, RT-0063]   # RT-0053 (the VRF device's own address) fixed in 0.4.2: see below
   decided: "owner, 2026-11-09: ship 0.4.1 and publish the four as known limits; fix in 0.4.2 (GHSA-ggcf-664f-c9ff)"
   record: advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
   tests:
@@ -302,3 +302,21 @@
     - tests/test_oracle_guards_fp_042_unnsess.py
     - tests/oracles/FP-042-CAPMSG/test_oracle_fp_042_capmsg.py
     - tests/test_oracle_guards_fp_042_capmsg.py
+- id: rt-0053-vrf-device-own-address
+  what: FRR and SONiC read a VRF's own addresses from `ip -j addr show vrf X`, which leaves out the VRF device itself,
+    so a ping to an address on it (the usual VRF loopback) passed though the node answered it (case 3 of the 0.4.1
+    advisory); 0.4.2 also reads `ip -j addr show dev X`
+  record: CHANGELOG.md (0.4.2, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  tests:
+    - tests/oracles/FP-042-VRFDEV/test_oracle_fp_042_vrfdev.py
+    - tests/test_frr_addpath_vrfdev_042.py
+    - tests/test_redteam.py
+- id: rt-0067-frr-addpath-prefix-count
+  what: With add-path from the peer, FRR's acceptedPrefixCounter counts paths, and the FRR and SONiC drivers read it
+    as the prefix count, so `bgp_prefixes min` passed on fewer prefixes (red team on the 0.4.2 candidate 79e6205,
+    confirmed live on FRR 10.4.1); the driver now counts the prefixes the neighbor's routes listing gives
+  record: CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-ADDPATH/test_oracle_fp_042_addpath.py
+    - tests/test_frr_addpath_vrfdev_042.py
+    - tests/test_redteam.py
