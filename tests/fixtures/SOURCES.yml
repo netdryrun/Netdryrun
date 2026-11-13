@@ -440,3 +440,25 @@
     10.255.1.1`, read with docker exec after `netdryrun run --keep`; captured for oracle FP-042-VRFDEV (red team
     RT-0053)
   added: ndr/oracles-0.4.2
+- files: [srl2672_rt0068_srl1_bgp_neighbors.json, srl2672_rt0068_srl1_bgp_rib_ipv4.json,
+          srl2672_rt0068_srl1_neighbor_state.txt]
+  kind: live-capture
+  source: >-
+    Nokia SR Linux 26.7.2 (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8),
+    containerlab 0.81.1, lab ndr-rpsrl (frr1 sends srl1 2 prefixes with addpath-tx-all-paths, 2 paths each; srl1 has
+    add-paths receive), the laptop's WSL, 2026-11-13: the two JSON files are the sr_cli answers netdryrun read for
+    srl-addpath-min4-must-fail, copied byte for byte from the report's evidence; the text file is `sr_cli "info from
+    state /network-instance default protocols bgp neighbor 10.0.100.2"` read with docker exec after `netdryrun run
+    --keep`; captured for oracle FP-042-SRLADDPATH (red team RT-0068)
+  added: ndr/oracles-0.4.2
+- files: [srl2672_rpsrl_topology.clab.yml, srl2672_rpsrl_netdryrun.yml, srl2672_rpsrl_srl1.cli, srl2672_rpsrl_frr1.conf,
+          srl2672_rpsrl_frr2.conf]
+  kind: lab-input
+  source: the topology, checks and configs deployed for lab ndr-rpsrl (RT-0068 SR Linux add-path), 2026-11-13
+  added: ndr/oracles-0.4.2
+- files: [srl2672_rpsrl_report.json, srl2672_rpsrl_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `run --keep --json` on lab ndr-rpsrl, 2026-11-13 (exit 1): srl-addpath-min4-must-fail
+    passed and srl-addpath-exact2-must-pass failed, both reading 4 prefixes
+  added: ndr/oracles-0.4.2
