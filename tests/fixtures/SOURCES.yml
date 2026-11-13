@@ -462,3 +462,26 @@
     netdryrun 0.4.2 (f3747e3) `run --keep --json` on lab ndr-rpsrl, 2026-11-13 (exit 1): srl-addpath-min4-must-fail
     passed and srl-addpath-exact2-must-pass failed, both reading 4 prefixes
   added: ndr/oracles-0.4.2
+- files: [ceos4363m_rt0069_ceos1_ip_bgp_summary_vrf.json, ceos4363m_rt0069_ceos1_ipv6_bgp_summary_vrf.json,
+          ceos4363m_rt0069_ceos1_ip_bgp_summary.json, ceos4363m_rt0069_ceos1_ip_bgp_neighbor.json,
+          ceos4363m_rt0069_ceos1_ip_bgp.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df), containerlab
+    0.81.1, lab ndr-rpeos (frr1 sends ceos1 2 prefixes with addpath-tx-all-paths, 2 paths each; ceos1 has
+    additional-paths receive), the laptop's WSL, 2026-11-13: the two *_summary_vrf files are the Cli answers netdryrun
+    read for eos-addpath-min4-must-fail, copied byte for byte from the report's evidence; `show ip bgp summary |
+    json`, `show ip bgp neighbors 10.0.200.2 | json` and `show ip bgp` read with docker exec after `netdryrun run
+    --keep`; captured for oracle FP-042-EOSADDPATH (red team RT-0069)
+  added: ndr/oracles-0.4.2
+- files: [ceos4363m_rpeos_topology.clab.yml, ceos4363m_rpeos_netdryrun.yml, ceos4363m_rpeos_ceos1.cfg,
+          ceos4363m_rpeos_frr1.conf, ceos4363m_rpeos_frr2.conf]
+  kind: lab-input
+  source: the topology, checks and configs deployed for lab ndr-rpeos (RT-0069 cEOS additional-paths), 2026-11-13
+  added: ndr/oracles-0.4.2
+- files: [ceos4363m_rpeos_report.json, ceos4363m_rpeos_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `run --keep --json` on lab ndr-rpeos, 2026-11-13 (exit 1): eos-addpath-min4-must-fail
+    passed and eos-addpath-exact2-must-pass failed, both reading 4 prefixes
+  added: ndr/oracles-0.4.2
