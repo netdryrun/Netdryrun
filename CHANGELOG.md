@@ -49,6 +49,13 @@
   clearly off, P paths are the range 1 to P prefixes, judged only where the whole range agrees (`max` and `exact: 0`
   still get a verdict, `min` above 1 gets none). Oracle `tests/oracles/FP-042-EOSADDPATH`, from the live capture;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **FRR and SONiC: a dampening history entry read as a received route** (red team RT-0070, confirmed live on FRR
+  10.4.1; 0.3.1 and later, and for the default route 0.4.1 only, since a731395). With `bgp dampening`, bgpd keeps a
+  withdrawn route listed as a history entry, and the driver read it as received and not selected, so
+  `route ... protocol: bgp active: false` passed after the neighbor withdrew the route, and a `present: false` guard
+  failed though it was gone. A path flagged `dampeningHistoryEntry`, `history` or `removed` is no path now, in `route`,
+  `bgp_route` and the add-path prefix count; a damped (suppressed) path the neighbor still announces stays present and
+  not selected. Oracle `tests/oracles/FP-042-FRRDAMP`, from the live capture.
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the

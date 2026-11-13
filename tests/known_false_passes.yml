@@ -340,3 +340,13 @@
     - tests/oracles/FP-042-EOSADDPATH/test_oracle_fp_042_eosaddpath.py
     - tests/test_eos_addpath_042.py
     - tests/test_redteam.py
+- id: rt-0070-frr-dampening-history-entry
+  what: With `bgp dampening`, FRR keeps a withdrawn route listed as a dampening history entry, and the FRR and SONiC
+    drivers read it as a received, not-selected BGP route, so `route protocol bgp active false` passed after the
+    withdrawal (0.3.1 to 0.4.1; the default route 0.4.1 only, since a731395; red team on the 0.4.2 candidate,
+    confirmed live on FRR 10.4.1); history and removed paths are no path now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRDAMP/test_oracle_fp_042_frrdamp.py
+    - tests/test_frr_dampening_042.py
+    - tests/test_redteam.py

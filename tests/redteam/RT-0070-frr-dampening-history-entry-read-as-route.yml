@@ -1,0 +1,22 @@
+id: RT-0070
+title: >-
+  route 0.0.0.0/0 protocol bgp active: false passed on FRR after the peer withdrew the default: with `bgp dampening`,
+  bgpd keeps the withdrawn route listed as a dampening history entry (dampeningHistoryEntry, no valid, no best path),
+  and the driver read it as a received BGP route that wasn't selected ("present via bgp (not selected)"). SONiC
+  shares the driver.
+found: "2026-11-13, red team on the 0.4.2 candidate; captured live on FRR 10.4.1 (lab ndr-rpdamp) the same day"
+fixed_in: 0.4.2
+kind: driver
+driver: frr
+check:
+  type: route
+  node: r1
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  active: false
+outputs:
+  # live capture (oracle FP-042-FRRDAMP): zebra has no default; bgpd lists one path, a dampening history entry
+  - needle: "unicast 0.0.0.0/0 json"
+    fixture: frr1041_rt0070_r1_bgp_default.json
+  - needle: "show ip route 0.0.0.0/0 json"
+    fixture: frr1041_rt0070_r1_ip_route_default.json

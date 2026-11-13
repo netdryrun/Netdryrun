@@ -277,8 +277,7 @@ def count_neighbor_prefixes(text: str, cmd: str, accepted: int) -> int:
     if not isinstance(routes, dict) or not all(isinstance(p, list) for p in routes.values()):
         raise unexpected(cmd, str(data)[:300])
     # FRR's counter leaves out history (dampened) and removed paths; the listing may show them (Layer 6 review)
-    live = {pfx: [p for p in ps if not (isinstance(p, dict) and (p.get("history") or p.get("removed")))]
-            for pfx, ps in routes.items()}
+    live = {pfx: [p for p in ps if not (isinstance(p, dict) and _withdrawn(cmd, p))] for pfx, ps in routes.items()}
     routes = {pfx: ps for pfx, ps in live.items() if ps}
     paths = sum(len(p) for p in routes.values())
     if paths != accepted:
@@ -546,7 +545,28 @@ def _bgp_paths_raw(command: str, text: str, prefix: str, text_count: int | None 
             # the stale timer ends. Such a path is neither present nor gone yet, so no check can pass on it
             raise DriverError(f"{prefix}: BGP path from {(p.get('peer') or {}).get('peerId', '?')} is stale "
                               "(graceful restart in progress): not settled")
-    return data["paths"]
+    return [p for p in data["paths"] if not _withdrawn(command, p)]
+
+
+# flags bgpd prints (only when set) on a path the peer withdrew but bgpd still lists: a dampening history entry
+# (`dampeningHistoryEntry` in a prefix's detail, `history` in a table or neighbor listing) and a path being removed
+WITHDRAWN_FLAGS = ("dampeningHistoryEntry", "history", "removed")
+
+
+def _withdrawn(command: str, p: dict) -> bool:
+    """A path bgpd keeps after the peer withdrew it. With `bgp dampening`, a withdrawn route stays listed as a history
+    entry (no `valid`, no best path, "(history entry)" in the text answer) until its penalty decays; read as a path,
+    a withdrawn default passed `route ... protocol bgp active: false` as "present via bgp (not selected)" (red team
+    RT-0070, oracle FP-042-FRRDAMP). Such a path is no path. A damped (suppressed) path is kept: the peer still
+    announces it, so the route is received, present and never active (`dampeningSuppressed` / `damped`). A flag that
+    isn't a boolean is output this parser doesn't know."""
+    out = False
+    for k in WITHDRAWN_FLAGS:
+        if k in p:
+            if not isinstance(p[k], bool):
+                raise unexpected(command, f"{k}: {str(p[k])[:40]!r}")
+            out = out or p[k]
+    return out
 
 
 def _learned(p: dict) -> bool:
