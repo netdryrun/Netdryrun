@@ -345,6 +345,36 @@ def eos_eor(p: dict) -> dict[str, str]:
     return {"*": "unknown"}
 
 
+def parse_eos_add_path_off(text: str, vrf: str, address: str) -> set[str]:
+    """The families of one EOS peer (`show ip|ipv6 bgp neighbors <peer> vrf <vrf> | json`) in which it can't send this
+    node several paths per prefix: `neighborCapabilities.addPathsCaps.<afi>.receivingAddPaths.enabled` is exactly
+    false (cEOS 4.36.3M advertises add-path receive by default, so it is on whenever the peer sends add-path, red team
+    RT-0069). Fail-safe: output this function doesn't recognise, another peer, or a family without the entry gives no
+    family, and the driver then reads prefixAccepted as a count of paths. Never raises."""
+    try:
+        data = json.loads(text)
+    except (ValueError, RecursionError):
+        return set()
+    vrfs = data.get("vrfs") if isinstance(data, dict) else None
+    entry = vrfs.get(vrf) if isinstance(vrfs, dict) else None
+    peers = entry.get("peerList") if isinstance(entry, dict) else None
+    if not isinstance(peers, list):
+        return set()
+    mine = [p for p in peers if isinstance(p, dict) and isinstance(p.get("peerAddress"), str)
+            and _canon_addr(p.get("peerAddress")) == _canon_addr(address)]
+    if len(mine) != 1:
+        return set()
+    caps = mine[0].get("neighborCapabilities")
+    ap = caps.get("addPathsCaps") if isinstance(caps, dict) else None
+    out: set[str] = set()
+    for afi, name in EOS_FAMILIES.items():
+        fam = ap.get(afi) if isinstance(ap, dict) else None
+        rx = fam.get("receivingAddPaths") if isinstance(fam, dict) else None
+        if isinstance(rx, dict) and rx.get("enabled") is False:
+            out.add(name)
+    return out
+
+
 class EosDriver(Driver):
     name = "eos"
     route_protocols = frozenset({"bgp", "connected", "static", "ospf", "ospf6", "isis", "aggregate"})
@@ -413,7 +443,36 @@ class EosDriver(Driver):
         # A failing IPv6 summary (error, timeout, unreadable output) raises: swallowing it made every
         # IPv6 prefix count read 0, which passes `max` and `exact: 0`.
         parse_bgp_summary(self._bgp_cli(f"show ipv6 bgp summary vrf {vrf} | json", ev), vrf, "ipv6-unicast", out)
+        self._add_path_ranges(vrf, out, ev)
         return Observation(out, ev)
+
+    def _add_path_ranges(self, vrf: str, neighbors: dict[str, BgpNeighbor], ev: list[dict]) -> None:
+        """With add-path from the peer, the summary's prefixAccepted counts paths (red team RT-0069, cEOS 4.36.3M: 2
+        prefixes with 2 paths each read as 4, so `min: 4` passed). For each established peer with more than one path
+        accepted in a family, read its add-path receive state; where it isn't clearly off, the P paths are 1 to P
+        prefixes, judged only where the whole range agrees, otherwise no verdict (no per-neighbor listing of EOS's is
+        captured to count them from). A read that fails is not clearly off."""
+        for n in neighbors.values():
+            fams = [afi for afi in EOS_FAMILIES.values() if n.prefixes.get(afi, 0) > 1]
+            if n.state != "established" or not fams:
+                continue
+            try:
+                ver = ipaddress.ip_address(n.address.split("%")[0]).version
+            except ValueError:
+                ver = 4
+            cmd = f"show {'ipv6' if ver == 6 else 'ip'} bgp neighbors {n.address} vrf {vrf} | json"
+            try:
+                off, why = parse_eos_add_path_off(self._bgp_cli(cmd, ev), vrf, n.address), "it may send add-path"
+            except DriverError as e:
+                off, why = set(), f"its add-path state couldn't be read ({e})"
+            for afi in fams:
+                if afi in off:
+                    continue
+                paths = n.prefixes[afi]
+                n.prefixes[afi] = 1
+                n.prefixes_upto[afi] = paths
+                n.prefixes_unread[afi] = (f"{why} in {afi} (`{cmd}`), so EOS's prefixAccepted ({paths}) counts paths, "
+                                          "not prefixes")
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

@@ -1009,20 +1009,31 @@ def eos_summary(vrf="default", **peers):
     return J({"vrfs": {vrf: {"peers": peers}}})
 
 
+def eos_peer(addr, vrf="default", **families):
+    """`show ip bgp neighbors <addr> vrf <vrf> | json` for one peer: receivingAddPaths.enabled per family, as cEOS
+    4.36.3M prints it (eos_eor_received.txt: false where the peer sends no add-path)."""
+    caps = {f: {"receivingAddPaths": {"receiveCapabilityAdvertised": True, "sendCapabilityReceived": on,
+                                      "enabled": on}} for f, on in families.items()}
+    return J({"vrfs": {vrf: {"peerList": [{"peerAddress": addr, "neighborCapabilities": {"addPathsCaps": caps}}]}}})
+
+
 def test_eos_bgp_neighbors_commands_and_counts():
     v4 = eos_summary(**{"10.0.0.2": {"peerState": "Established", "prefixAccepted": 3},
                         "10.0.0.3": {"peerState": "Idle (Admin)"}})
     v6 = eos_summary(**{"10.0.0.2": {"peerState": "Established", "prefixAccepted": "5"},
                         "2001:db8:0::1": {"peerState": "Active", "prefixAccepted": 0}})
-    lab = Lab([("ipv6 bgp summary", v6), ("ip bgp summary", v4)])
+    lab = Lab([("ipv6 bgp summary", v6), ("ip bgp summary", v4),
+               ("bgp neighbors 10.0.0.2", eos_peer("10.0.0.2", ipv4Unicast=False, ipv6Unicast=False))])
     obs = EosDriver(lab, "r1").bgp_neighbors()
+    # the summaries, then the add-path state of each established peer with more than one path in a family (RT-0069)
     assert lab.lines() == ["Cli -p 15 -c show ip bgp summary vrf default | json",
-                           "Cli -p 15 -c show ipv6 bgp summary vrf default | json"]
+                           "Cli -p 15 -c show ipv6 bgp summary vrf default | json",
+                           "Cli -p 15 -c show ip bgp neighbors 10.0.0.2 vrf default | json"]
     n = obs.value
     assert n["10.0.0.2"] == BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 3, "ipv6-unicast": 5})
     assert n["10.0.0.3"] == BgpNeighbor("10.0.0.3", "idle", {})
     assert n["2001:db8::1"] == BgpNeighbor("2001:db8:0::1", "active", {"ipv6-unicast": 0})
-    assert len(obs.evidence) == 2
+    assert len(obs.evidence) == 3
     lab = Lab([("ipv6 bgp summary", eos_summary("red")), ("ip bgp summary", eos_summary("red"))])
     assert EosDriver(lab, "r1").bgp_neighbors("red").value == {}
     assert lab.lines() == ["Cli -p 15 -c show ip bgp summary vrf red | json",

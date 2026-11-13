@@ -42,6 +42,13 @@
   paths in the local RIB, and a RIB whose usable paths don't add up to the counter is an error, not a count. Oracle
   `tests/oracles/FP-042-SRLADDPATH`, from the live capture;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **Arista EOS: `bgp_prefixes` counted additional paths as prefixes** (red team RT-0069, confirmed live on cEOS
+  4.36.3M; 0.2.0 and later). cEOS advertises additional-paths receive by default, and the summary's `prefixAccepted`
+  counts each path: 2 prefixes with 2 paths each read as 4, so `min: 4` passed. For a peer with more than one path in a
+  family, the driver now reads its add-path receive state (`show ip|ipv6 bgp neighbors N vrf V | json`); unless it is
+  clearly off, P paths are the range 1 to P prefixes, judged only where the whole range agrees (`max` and `exact: 0`
+  still get a verdict, `min` above 1 gets none). Oracle `tests/oracles/FP-042-EOSADDPATH`, from the live capture;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the

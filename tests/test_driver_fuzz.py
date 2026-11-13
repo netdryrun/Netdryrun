@@ -577,6 +577,10 @@ FAIL_SAFE = [
     ("eos.parse_eos_eor", lambda t: eos.parse_eos_eor(t, "default"), ["eos_eor_received.txt", "eos_eor_pending.txt"],
      lambda r: isinstance(r, dict) and all(isinstance(k, str) and isinstance(v, dict) and all(
          x in ("received", "pending", "untracked", "unknown") for x in v.values()) for k, v in r.items())),
+    # eos.parse_eos_add_path_off: no family -> prefixAccepted is read as paths, a range of prefixes (RT-0069)
+    ("eos.parse_eos_add_path_off", lambda t: eos.parse_eos_add_path_off(t, "default", "10.0.200.2"),
+     ["eos_eor_received.txt", "ceos4363m_rt0069_ceos1_ip_bgp_neighbor.json"],
+     lambda r: isinstance(r, set) and r <= {"ipv4-unicast", "ipv6-unicast"}),
     ("srlinux.parse_instance_state", lambda t: srlinux.parse_instance_state(t), ["srl_neighbor_local_pref.txt"],
      lambda r: r is None or isinstance(r, str)),
     # nxos.parse_vrf_state: None -> the driver raises "VRF ... does not exist"

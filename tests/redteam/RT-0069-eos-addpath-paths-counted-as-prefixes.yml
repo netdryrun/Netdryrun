@@ -1,0 +1,22 @@
+id: RT-0069
+title: >-
+  bgp_prefixes min 4 passed on Arista EOS with 2 prefixes accepted: with additional-paths receive (cEOS advertises
+  it by default) the peer sent each prefix with 2 paths, and the driver read the summary's prefixAccepted (4), a count
+  of paths, as the prefix count
+found: "2026-11-13, red team on the 0.4.2 candidate; captured live on cEOS 4.36.3M (lab ndr-rpeos) the same day"
+fixed_in: 0.4.2
+kind: driver
+driver: eos
+check:
+  type: bgp_prefixes
+  node: ceos1
+  neighbor: 10.0.200.2
+  min: 4
+outputs:
+  # live capture (oracle FP-042-EOSADDPATH): prefixAccepted 4 for 2 prefixes; receivingAddPaths enabled
+  - needle: "show ip bgp summary"
+    fixture: ceos4363m_rt0069_ceos1_ip_bgp_summary_vrf.json
+  - needle: "show ipv6 bgp summary"
+    fixture: ceos4363m_rt0069_ceos1_ipv6_bgp_summary_vrf.json
+  - needle: "bgp neighbors 10.0.200.2"
+    fixture: ceos4363m_rt0069_ceos1_ip_bgp_neighbor.json
