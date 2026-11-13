@@ -49,6 +49,17 @@ drivers:
     examples: [srl-frr, srl-hidden-leak]
     mustfail:
       example: srl-frr
+      # frr1 also sends 192.168.66.0/24, which the good customer filter must reject: without it the must-fail change
+      # (the filter loses its match) changes nothing visible in this lab (rehearsal on 79e6205)
+      peer_edits:
+        - file: configs/frr1.conf
+          replace:
+            - [" ip address 192.168.20.1/24\n", " ip address 192.168.20.1/24\n ip address 192.168.66.1/24\n"]
+            - ["  network 192.168.20.0/24\n", "  network 192.168.20.0/24\n  network 192.168.66.0/24\n"]
+      # record names srl1's prefix count from frr1 as a gap (M-10, below) and tells the user to add a check by hand:
+      # this is that check, the generic closed-world form (the customer prefix only), not tailored to the leak
+      hand_checks:
+        - {type: bgp_prefixes, node: srl1, neighbor: 10.0.100.2, only: [192.168.20.0/24], why: 'the check record asks for in place of its srl1 prefix-count gap'}
       # documented SR Linux limits (record exits 1 on them; the must-fail test goes on with record's baseline):
       # the looped path srl1 rejects (as-loop) is hidden for a reason the driver can't read yet (M-10, since 0.4.1)
       known_gaps:
@@ -134,6 +145,7 @@ drivers:
     mustfail:
       example: mikrotik
       known_gaps:
+        - {match: 'r1: could not read IPv6 routes \(IPv6 routes are not supported on routeros yet\)', why: 'compatibility.md: on MikroTik RouterOS (beta) IPv6 sessions and routes are refused with a clear message; the lab is IPv4'}
         - {match: 'r1: no global address on \S+ where Netdryrun reads it', why: 'the NOS keeps the link address inside the NOS, not on the container interface record reads; the FRR end of the link has the subnet and it is guarded; reading it through the driver is planned for 0.4.3'}
       record_wait: 240   # 0.4.1 hand acceptance: RouterOS needs 240 s
       node: r1
@@ -163,7 +175,17 @@ enduser:
 
 # Angle 3
 integrator:
-  big30: {spines: 2, leaves: 28, srlinux: [1, 2, 3], eos: [4, 5], sonic: [6]}
+  big30:
+    spines: 2
+    leaves: 28
+    srlinux: [1, 2, 3]
+    eos: [4, 5]
+    sonic: [6]
+    # record exits 1 on these documented driver limits (same as angle 1's known_gaps); any other gap fails the item
+    known_gaps:
+      - {match: 'leaf[1-3]: no global address on \S+ where Netdryrun reads it', why: 'SR Linux keeps a numbered link address on e1-Y.0 inside the NOS; the FRR end of the link has the subnet and it is guarded'}
+      - {match: 'leaf6: no global address on \S+ where Netdryrun reads it', why: 'SONiC keeps the link address on EthernetN; the FRR end of the link has the subnet and it is guarded'}
+      - {match: 'leaf[45]: could not read IPv6 routes \(VRF ''default'' has routing disabled', why: 'the lab does not enable IPv6 routing on cEOS: nothing routes IPv6 there'}
   brownfield: {customer_prefixes: 1200, bogons: 600}
   concurrency: [different-labs, same-lab]
   schema: true

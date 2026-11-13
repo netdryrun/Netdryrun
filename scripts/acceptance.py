@@ -245,6 +245,23 @@ def traps_for(ctx: Ctx, node: str, neighbor: str, legit: str) -> list[dict]:
     return out
 
 
+def record_gaps(p, known: list, baseline: Path, who: str) -> list[str]:
+    """record's exit: 0 is no gap; 1 with INCOMPLETE BASELINE lines, every one a documented limit the matrix lists
+    (each with why), returns the gaps so the item can go on with the baseline record wrote, as a user who read record's
+    error would; anything else raises, naming every gap the matrix doesn't list."""
+    if p.code == 0:
+        return []
+    if p.code == 1 and "INCOMPLETE BASELINE" in p.out:
+        gaps = sorted(set(re.findall(r"^\*\*\* (INCOMPLETE BASELINE: .*?) \*\*\*$", p.out, re.M)))
+        allowed = [re.compile(k["match"]) for k in known]
+        unknown = [g for g in gaps if not any(a.search(g) for a in allowed)]
+        if gaps and not unknown and baseline.exists():
+            return gaps
+        raise RuntimeError(f"record failed: exit 1 on gap(s) not listed as known for {who}: {unknown or 'none parsed'}"
+                           f"\n{p.out[-3000:]}")
+    raise RuntimeError(f"record failed: exit {p.code}\n{p.out[-3000:]}")
+
+
 def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
     base = ctx.work / "mustfail" / drv
     shutil.rmtree(base, ignore_errors=True)
@@ -263,6 +280,9 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 apply(d / spec["file"], spec["filter"])
         if spec.get("file"):
             apply(bad / spec["file"], spec["drop_match"])
+    for e in spec.get("peer_edits", []):   # the same on both labs (a prefix the good filter must reject)
+        for d in (good, bad):
+            apply(d / e["file"], e["replace"])
     setup = None
     if spec.get("setup_last"):   # SONiC: configured after boot by setup commands
         setup = {"good": cfg_good["nodes"], "bad": json.loads(json.dumps(cfg_good["nodes"]))}
@@ -296,27 +316,16 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 wait = ["--wait", str(spec["record_wait"])] if spec.get("record_wait") else []
                 p = sh([ctx.ndr, "record", good / "topology.clab.yml", "--deploy", "--out", good / "netdryrun.yml",
                         "--force", *wait, *drivers], timeout=3600)
-            known = []
-            if p.code == 1 and "INCOMPLETE BASELINE" in p.out:
-                # record exits 1 on a gap (0.4.1). A gap that is a documented limit of this driver (the matrix lists
-                # each one, with why) lets the must-fail test go on with the baseline record wrote, as a user who
-                # read record's error would; any other gap fails the item
-                gaps = sorted(set(re.findall(r"^\*\*\* (INCOMPLETE BASELINE: .*?) \*\*\*$", p.out, re.M)))
-                allowed = [re.compile(k["match"]) for k in spec.get("known_gaps", [])]
-                unknown = [g for g in gaps if not any(a.search(g) for a in allowed)]
-                if gaps and not unknown and (good / "netdryrun.yml").exists():
-                    known = gaps
-                else:
-                    raise RuntimeError(f"record failed: exit 1 on gap(s) not listed as known for {drv}: "
-                                       f"{unknown or 'none parsed'}\n{p.out[-3000:]}")
-            elif p.code != 0:
-                raise RuntimeError(f"record failed: exit {p.code}\n{p.out[-3000:]}")
+            known = record_gaps(p, spec.get("known_gaps", []), good / "netdryrun.yml", drv)
             recorded = yaml.safe_load((good / "netdryrun.yml").read_text())
             for n, v in ex_nodes.items():   # the example's node settings (setup, driver), merged over record's
                 if isinstance(v, dict):
                     recorded.setdefault("nodes", {}).setdefault(n, {}).update(v)
             if ex_timeout and ex_timeout > recorded.get("timeout", 0):
                 recorded["timeout"] = ex_timeout
+            # the checks record's gap lines tell a user to add by hand (the matrix gives them, each with why)
+            hand = [{k: v for k, v in c.items() if k != "why"} for c in spec.get("hand_checks", [])]
+            recorded["checks"] = list(recorded.get("checks") or []) + hand
             (good / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
             if setup:   # merged over the example's settings (driver), never replacing them (code review of the batch)
                 base_nodes = json.loads(json.dumps(recorded.get("nodes", {})))
@@ -325,7 +334,7 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 recorded["nodes"] = {**base_nodes, **{n: {**base_nodes.get(n, {}), **v} for n, v in setup["bad"].items()}}
             (bad / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
             r.seconds += time.monotonic() - t0
-            notes = [f"record: {len(recorded['checks'])} checks"]
+            notes = [f"record: {len(recorded['checks']) - len(hand)} checks" + (f" + {len(hand)} by hand" if hand else "")]
             if known:
                 notes.append(f"record exit 1 on {len(known)} known driver gap(s): " + " | ".join(known))
             # 2. the good lab must pass its own baseline, from a fresh deploy; it is kept for the traps
@@ -410,6 +419,8 @@ def readme_in_container(ctx: Ctx, r: Result, eu: dict) -> None:
     wheel = next((ctx.work / "dist").glob("netdryrun-*.whl"))
     box = ctx.work / "enduser"
     shutil.rmtree(box, ignore_errors=True)
+    if box.exists():   # files the container wrote as root survive rmtree: start in a fresh folder (rehearsal on 79e6205)
+        box = ctx.work / f"enduser-{int(time.time())}"
     box.mkdir()
     shutil.copy(wheel, box / wheel.name)
     steps, want = [], []
@@ -597,9 +608,16 @@ def big30(ctx: Ctx, r: Result, variant: str, code: int) -> None:
             t0 = time.monotonic()
             destroy(good / "topology.clab.yml")
             r.note += f", destroy {time.monotonic() - t0:.0f} s"
-        if p.code != 0 or q.code != 0:
-            r.status, r.evidence = FAIL, (p.out if p.code else q.out)[-4000:]
+        if p.code != 0:
+            r.status, r.evidence = FAIL, p.out[-4000:]
             return
+        try:
+            gaps = record_gaps(q, spec.get("known_gaps", []), base / "baseline.yml", "big30")
+        except RuntimeError as e:
+            r.status, r.note, r.evidence = FAIL, str(e).splitlines()[0], str(e)[-4000:]
+            return
+        if gaps:
+            r.note += f", record exit 1 on {len(gaps)} known gap(s)"
         rec = yaml.safe_load((base / "baseline.yml").read_text())
         rec.update(lab="topology.clab.yml", timeout=600, nodes=boot["nodes"])
         for v in ("good", "bad"):
