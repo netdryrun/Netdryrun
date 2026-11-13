@@ -206,6 +206,56 @@ def parse_as_loop_counts(text: str) -> dict[str, tuple[int, int]]:
     return out
 
 
+def srl_add_path_rx(text: str) -> set[tuple[str, str]]:
+    """(neighbor key, afi) for every established session and counted family where the peer may send this node several
+    paths per prefix: the family's `add-paths.receive` is anything but a clear false, and the peer's
+    `received-capabilities` list names ADD_PATH or isn't a list. SR Linux's received-routes then counts paths, not
+    prefixes (red team RT-0068, SR Linux 26.7.2: 2 prefixes with 2 paths each read as 4, so `min: 4` passed)."""
+    out = set()
+    for n in _list(NEIGHBORS_CMD, _json(text, NEIGHBORS_CMD), "neighbor"):
+        state = n.get("session-state")
+        if not isinstance(state, str) or state.lower() != "established" or not isinstance(n.get("afi-safi"), list):
+            continue
+        caps = n.get("received-capabilities")
+        if isinstance(caps, list) and "ADD_PATH" not in caps:
+            continue   # the peer didn't offer add-path: it sends one path per prefix
+        for af in n["afi-safi"]:
+            if not isinstance(af, dict) or af.get("afi-safi-name") not in COUNTED_FAMILIES:
+                continue
+            ap = af.get("add-paths")
+            if not (isinstance(ap, dict) and ap.get("receive") is False):
+                out.add((_canon_addr(str(n.get("peer-address"))), str(af["afi-safi-name"])))
+    return out
+
+
+@parser(RIB_TREE_CMD)
+def parse_rib_neighbor_paths(text: str) -> dict[str, tuple[list, list]]:
+    """Per neighbor, (counted, unsure): the prefix of every path in the local RIB that neighbor sent, one entry per
+    path (add-path lists a prefix once per path). Counted: no invalid-reason, so in received minus rejected and not
+    looped. Unsure: flagged with anything but exactly as-loop or exactly rejected-route (see parse_as_loop_counts),
+    so it may or may not be in the count. Paths flagged exactly as-loop or rejected-route are in neither."""
+    data = _json(text, RIB_TREE_CMD)
+    if not data:
+        return {}
+    rib = data.get("local-rib")
+    if not isinstance(rib, dict) or not isinstance(rib.get("route"), list):
+        raise unexpected(RIB_TREE_CMD, data)
+    out: dict[str, tuple[list, list]] = {}
+    for row in rib["route"]:
+        if not isinstance(row, dict):
+            raise unexpected(RIB_TREE_CMD, str(row)[:150])
+        neighbor = row.get("neighbor")
+        if not isinstance(neighbor, str) or not neighbor:
+            continue   # not a received path; one lost from a neighbor's set shows as a count that disagrees
+        reason = row.get("invalid-reason")
+        flagged = {k for k, v in reason.items() if v is True} if isinstance(reason, dict) else set()
+        if flagged in (LOOP_REASONS, REJECTED_REASONS):
+            continue
+        counted, unsure = out.setdefault(_canon_addr(neighbor), ([], []))
+        (unsure if flagged else counted).append(str(network(RIB_TREE_CMD, row.get("prefix"))))
+    return {k: (sorted(c), sorted(u)) for k, (c, u) in out.items()}
+
+
 def _as_path_segments(path) -> list[tuple[str, list]] | None:
     """An attr-set's as-path: every live one is `{"segment": [{"type": ..., "member": [...]}]}`. No capture shows how
     SR Linux prints an empty AS path (a router's own route), so a container without segments (`{}`, or an empty
@@ -390,6 +440,23 @@ def unread_path(row: dict) -> BgpPath:
                    local_origin="" if _bgp_learned(row) else str(row["origin-protocol"]))
 
 
+def _count_add_path_prefixes(n: BgpNeighbor, afi: str, counted: list, unsure: list) -> None:
+    """With add-path from the peer, n.prefixes[afi] (to n.prefixes_upto[afi]) counts paths: replace it with the
+    distinct prefixes of the neighbor's paths in the local RIB. The RIB's counted paths must fall in that count, or the
+    two answers disagree and the count is an error, never a guess (and never the path count)."""
+    lo = n.prefixes[afi]
+    hi = n.prefixes_upto.get(afi, lo)
+    if not lo <= len(counted) <= hi:
+        raise DriverError(f"`{RIB_TREE_CMD}`: lists {len(counted)} usable paths from {n.address} in {afi}, but the "
+                          f"neighbor's received-routes minus rejected and looped is {lo if lo == hi else f'{lo} to {hi}'}"
+                          ": with add-path the prefix count can't be read")
+    n.prefixes[afi] = len(set(counted))
+    if unsure:   # an unsure path's prefix may or may not be one more
+        n.prefixes_upto[afi] = len(set(counted) | set(unsure))
+    else:
+        n.prefixes_upto.pop(afi, None)
+
+
 class SrlDriver(Driver):
     name = "srlinux"
     route_protocols = frozenset({"bgp", "bgp-evpn", "bgp-vpn", "connected", "local", "static", "aggregate", "ospf",
@@ -431,16 +498,19 @@ class SrlDriver(Driver):
     def bgp_neighbors(self, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []
-        neighbors = parse_bgp_neighbors(self._cli(f"info from state /network-instance {vrf} protocols bgp neighbor *", ev))
+        text = self._cli(f"info from state /network-instance {vrf} protocols bgp neighbor *", ev)
+        neighbors = parse_bgp_neighbors(text)
         if not neighbors:
             self._confirm_vrf(vrf, ev)
-        self._drop_looped(vrf, neighbors, ev)
+        self._drop_looped(vrf, neighbors, ev, srl_add_path_rx(text))
         return Observation(neighbors, ev)
 
-    def _drop_looped(self, vrf: str, neighbors: dict, ev: list[dict]) -> None:
-        """Take the paths that failed AS-loop detection off each counted family (see parse_as_loop_counts)."""
+    def _drop_looped(self, vrf: str, neighbors: dict, ev: list[dict], add_path: set | frozenset = frozenset()) -> None:
+        """Take the paths that failed AS-loop detection off each counted family (see parse_as_loop_counts). Where the
+        peer may send add-path (srl_add_path_rx), the count is of paths: the prefixes are counted from the same RIB."""
         for afi in sorted({afi for n in neighbors.values() for afi in n.prefixes}):
-            loops = parse_as_loop_counts(self._cli(f"info from state /network-instance {vrf} bgp-rib afi-safi {afi} {afi}", ev))
+            rib = self._cli(f"info from state /network-instance {vrf} bgp-rib afi-safi {afi} {afi}", ev)
+            loops = parse_as_loop_counts(rib)
             for key, n in neighbors.items():
                 looped, unsure = loops.get(key, (0, 0))
                 if afi not in n.prefixes or not looped + unsure:
@@ -457,6 +527,13 @@ class SrlDriver(Driver):
                 n.prefixes[afi] = max(0, top - unsure)
                 if unsure:   # each unsure path may or may not be counted: judged only where the whole range agrees
                     n.prefixes_upto[afi] = top
+            flagged = [(key, n) for key, n in sorted(neighbors.items())
+                       if (key, afi) in add_path and n.prefixes_upto.get(afi, n.prefixes.get(afi, 0)) > 1]
+            if flagged:
+                paths = parse_rib_neighbor_paths(rib)
+            for key, n in flagged:
+                _count_add_path_prefixes(n, afi, *paths.get(key, ([], [])))
+
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

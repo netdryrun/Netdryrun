@@ -92,6 +92,22 @@ def eos_table_empty(key):
     return check
 
 
+def srl_no_neighbor_paths(d) -> bool:
+    """No path any neighbor sent that counts or may count: an empty answer, or a local RIB route list none of whose
+    rows names a neighbor without being flagged exactly as-loop or exactly rejected-route (RT-0068)."""
+    if d == {}:
+        return True
+    rows = d.get("local-rib", {}).get("route") if isinstance(d, dict) and isinstance(d.get("local-rib"), dict) else None
+
+    def kept(r) -> bool:
+        if not isinstance(r, dict) or not isinstance(r.get("neighbor"), str) or not r["neighbor"]:
+            return False
+        reason = r.get("invalid-reason")
+        flagged = {k for k, v in reason.items() if v is True} if isinstance(reason, dict) else set()
+        return flagged not in ({"as-loop"}, {"rejected-route"})
+    return isinstance(rows, list) and not any(kept(r) for r in rows)
+
+
 def srl_no_loops(d) -> bool:
     """No path off the count or unsure: an empty answer, or a local RIB route list none of whose paths is flagged
     with anything but exactly rejected-route."""
@@ -331,6 +347,8 @@ CASES = [
     Case("junos.parse_bgp_paths[hidden next hop]", lambda t: junos.parse_bgp_paths(t, "10.31.0.0/24"),
          ["junos_route_hidden_nexthop.txt"], junos_bgp_paths_empty),
     Case("srlinux.parse_as_loop_counts", srlinux.parse_as_loop_counts, ["srl_bgp_rib_loop.txt"], srl_no_loops),
+    Case("srlinux.parse_rib_neighbor_paths", srlinux.parse_rib_neighbor_paths,
+         ["srl_bgp_rib_loop.txt", "srl2672_rt0068_srl1_bgp_rib_ipv4.json"], srl_no_neighbor_paths),
     Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, {**SRL_ROW, "attr-id": _index(t)}),
          ["srl_attr_set_best.txt", "srl_attr_set_backup.txt"], lambda d: False),
 ]

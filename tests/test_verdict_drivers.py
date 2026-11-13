@@ -646,10 +646,15 @@ def test_parse_ping(text, expected):
 # what every live SR Linux route-table row carries (srl_route.txt): no FIB operation pending or failed
 SRL_FIB_OK = {"suppressed": False, "pending-operation-type": "none", "last-failed-operation-type": "none"}
 
+# every live SR Linux neighbor prints add-paths per family (srl_bgp_neighbors.txt): off here, so received-routes
+# counts prefixes (with it on, the prefixes are counted from the RIB: tests/test_srl_addpath_042.py)
+SRL_NO_ADD_PATH = {"add-paths": {"receive": False, "send": False}}
 SRL_NBR = J({"neighbor": [
     {"peer-address": "10.0.0.2", "session-state": "Established",
-     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "oper-state": "up", "received-routes": 5, "rejected-routes": 1},
-                  {"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": "4", "rejected-routes": 0},
+     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "oper-state": "up", "received-routes": 5, "rejected-routes": 1,
+                   **SRL_NO_ADD_PATH},
+                  {"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": "4", "rejected-routes": 0,
+                   **SRL_NO_ADD_PATH},
                   {"afi-safi-name": "evpn"}]},
     {"peer-address": "2001:db8:0::1", "session-state": "idle"},
 ]})

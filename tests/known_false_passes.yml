@@ -320,3 +320,13 @@
     - tests/oracles/FP-042-ADDPATH/test_oracle_fp_042_addpath.py
     - tests/test_frr_addpath_vrfdev_042.py
     - tests/test_redteam.py
+- id: rt-0068-srl-addpath-prefix-count
+  what: With add-path receive on SR Linux, the neighbor's received-routes counts paths, and the driver read it (minus
+    rejected and AS-loop paths) as the prefix count, so `bgp_prefixes min` passed on fewer prefixes (0.1.0 to 0.4.1;
+    red team on the 0.4.2 candidate, confirmed live on SR Linux 26.7.2); the driver now counts the distinct prefixes of
+    the neighbor's paths in the local RIB
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-SRLADDPATH/test_oracle_fp_042_srladdpath.py
+    - tests/test_srl_addpath_042.py
+    - tests/test_redteam.py

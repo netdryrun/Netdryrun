@@ -35,6 +35,13 @@
   may send add-path (its capability says so, or doesn't say), the driver now counts the distinct prefixes in
   `show bgp ... neighbors N routes json`, and a listing whose paths don't add up to FRR's counter is an error, not a
   count. Oracle `tests/oracles/FP-042-ADDPATH`, from the live capture.
+- **SR Linux: `bgp_prefixes` counted add-path paths as prefixes** (red team RT-0068, confirmed live on SR Linux
+  26.7.2; 0.1.0 and later). With `add-paths receive true`, `received-routes` counts each path: 2 prefixes with 2 paths
+  each read as 4, so `min: 4` passed. When the peer may send add-path (the family's `add-paths receive` isn't false and
+  the peer offered ADD_PATH, or either doesn't say), the driver now counts the distinct prefixes of the neighbor's
+  paths in the local RIB, and a RIB whose usable paths don't add up to the counter is an error, not a count. Oracle
+  `tests/oracles/FP-042-SRLADDPATH`, from the live capture;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the
