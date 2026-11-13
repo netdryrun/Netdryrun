@@ -31,7 +31,7 @@ def test_prose_only(monkeypatch):
         return SimpleNamespace(code=0 if path in named else 128 if path == "broken.md" else 1,
                                out="HEAD:tests/t.py" if path in named else "")
     monkeypatch.setattr(gate, "run", run)
-    assert gate.prose_only("design/notes.md") and gate.prose_only("advisories/y/README.md")
+    assert gate.prose_only("design/notes.md") and gate.prose_only("research/y/README.md")
     for p in ("README.md", "AGENTS.md", "website/docs/examples.md", "website/docs/reference/cli.md",
               "website/docs/llms-full.txt", "CHANGELOG.md", "advisories/x/README.md", "broken.md",
               "src/netdryrun/runner.py", "tests/README.md", "scripts/x.md", ".github/workflows/ci.yml",
@@ -55,6 +55,18 @@ def test_a_docs_file_a_layer_reads_is_never_prose(monkeypatch):
     for path in ("README.md", "website/docs/examples.md"):
         monkeypatch.setattr(gate, "git", fake_git({("old", "new")}, {("old", "new"): path}))
         assert "different code" in gate.code_differs({"static": "new", "live": "old"}), path
+
+
+def test_an_advisory_is_never_prose_even_when_nothing_names_it(monkeypatch):
+    """The unit layer reads every advisory without naming its path (test_known_false_passes.py walks advisories/, the
+    red-team corpus pins published sentences): an advisory README edited after the layers passed blocks."""
+    monkeypatch.setattr(gate, "run", lambda cmd, timeout=60: SimpleNamespace(code=1, out=""))   # nothing names it
+    assert gate.prose_only("design/notes.md")
+    for path in ("advisories/0.4.2-addpath-prefix-count/README.md", "advisories/new/README.md", "advisories/x/notes.md"):
+        assert not gate.prose_only(path), path
+        monkeypatch.setattr(gate, "git", fake_git({("old", "new")}, {("old", "new"): path}))
+        assert "different code" in gate.code_differs({"static": "new", "unit": "old"}), path
+    assert gate.prose_only("docs/advisories/x.md")   # a folder prefix, not any path containing it
 
 
 def test_code_change_between_layers_blocks(monkeypatch):

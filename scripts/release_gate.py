@@ -2297,8 +2297,11 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
 
 # Markdown that a layer other than static reads, so a change there is never prose-only: live takes each example's
 # expected outcomes from website/docs/examples.md, acceptance runs README.md's blocks and lints every YAML block in
-# README.md and website/docs (Layer 6 change-impact review, 2026-11-13: both carried a green record across an edit)
-READ_BY_LAYERS = ("website/docs/", "README.md", "AGENTS.md")
+# README.md and website/docs (Layer 6 change-impact review, 2026-11-13: both carried a green record across an edit).
+# advisories/: the unit layer reads every advisory without naming it (test_known_false_passes.py walks the folder, and
+# the red-team corpus pins published sentences in them), so an advisory README the code doesn't name is read too.
+# Entries ending in "/" are folders, the others files.
+READ_BY_LAYERS = ("website/docs/", "advisories/", "README.md", "AGENTS.md")
 
 
 def prose_only(path: str) -> bool:
@@ -2307,7 +2310,7 @@ def prose_only(path: str) -> bool:
     advisories). Anything git can't answer for is read: fail closed."""
     if path.startswith(("src/", "tests/", "scripts/", ".github/")) or not path.endswith(".md"):
         return False
-    if path.startswith(READ_BY_LAYERS[0]) or path in READ_BY_LAYERS[1:]:
+    if path.startswith(tuple(r for r in READ_BY_LAYERS if r.endswith("/"))) or path in READ_BY_LAYERS:
         return False
     p = run(["git", "-C", ROOT, "grep", "-l", "-F", path, "HEAD", "--", "src", "scripts", "tests"], timeout=60)
     return p.code == 1 and not p.out.strip()   # 1 is "no match"; a match (0) or an error (anything else) is read
