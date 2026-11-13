@@ -13,6 +13,8 @@
   - An answer without its paths is never read as "absent".
 
   Oracle `tests/oracles/FP-042-FRR102`, from a live FRR 10.2.1 capture.
+  On martimy/clab-bgp-frr itself `record` still exits 1: its sessions are BGP unnumbered (`neighbor eth1 interface`),
+  a named gap until 0.4.3 (next item). Until then, cover those sessions with `route` and `ping` checks written by hand.
 - **`record` on BGP-unnumbered links:** every fabric link was an INCOMPLETE BASELINE "no global address" gap, 12 of the
   18 the stranger hit on martimy/clab-bgp-frr.
   - An interface is now named "BGP unnumbered", with no subnet to guard, only when two things hold: it lists
