@@ -253,9 +253,9 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
             if afi in unsupported:
                 continue
             if afi in n.prefixes_upto:
+                range_why = n.prefixes_upto_why.get(afi) or "hidden routes Netdryrun can't classify"
                 warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count is "
-                                f"{count} to {n.prefixes_upto[afi]} (hidden routes Netdryrun can't classify); "
-                                "not recorded: add a check by hand")
+                                f"{count} to {n.prefixes_upto[afi]} ({range_why}); not recorded: add a check by hand")
                 continue
             c = {"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, **at}
             if prefix_mode == "exact":

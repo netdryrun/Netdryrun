@@ -14,8 +14,8 @@ import re
 
 import ipaddress
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
-                   check_vrf_name, load_json, must, must_bool, network, parser, unexpected)
+from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, add_path_range_why,
+                   as_int, canon_communities, check_vrf_name, load_json, must, must_bool, network, parser, unexpected)
 from .frr import _canon_addr, parse_ping
 from .stale import refuse_if_stale
 
@@ -471,6 +471,7 @@ class EosDriver(Driver):
                 paths = n.prefixes[afi]
                 n.prefixes[afi] = 1
                 n.prefixes_upto[afi] = paths
+                n.prefixes_upto_why[afi] = add_path_range_why(paths)
                 n.prefixes_unread[afi] = (f"{why} in {afi} (`{cmd}`), so EOS's prefixAccepted ({paths}) counts paths, "
                                           "not prefixes")
 

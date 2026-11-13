@@ -135,6 +135,9 @@ class BgpNeighbor:
     prefixes_upto: dict[str, int] = field(default_factory=dict)
     # afi -> why the hidden routes behind a prefixes_upto range couldn't be read (a failed command, unreadable output)
     prefixes_unread: dict[str, str] = field(default_factory=dict, compare=False)
+    # afi -> why the count is a prefixes_upto range, where it isn't hidden routes (add-path: a counter of paths that
+    # may be fewer prefixes); wording only, for the check's detail and record's warning
+    prefixes_upto_why: dict[str, str] = field(default_factory=dict, compare=False)
     # seconds between advertisements to this neighbor (MRAI) as the device reports it, or the platform's default
     # where it reports none; None: not known. A route can arrive this late after the session looks settled.
     # A timer, not the session's identity: not part of equality.
@@ -159,6 +162,11 @@ class BgpNeighbor:
 # its version alone reported an IPv4 route as ospf6, which validate refuses for IPv4, so `protocol: ospf present:
 # false` never matched it and passed (angle-5 red team on d87aa3e, RT-0044, RT-0045; Junos, SR Linux, EOS, NX-OS).
 _FAMILY_NAMES = {"ospf": ("ospf", "ospf6"), "ospf6": ("ospf", "ospf6"), "rip": ("rip", "ripng"), "ripng": ("rip", "ripng")}
+
+
+def add_path_range_why(paths: int) -> str:
+    """The reason a range of 1 to `paths` prefixes gives, where the counter counts add-path paths (EOS, FRR EVPN)."""
+    return f"{paths} paths counted: the peer may send add-path, so a prefix may have several"
 
 
 @dataclass

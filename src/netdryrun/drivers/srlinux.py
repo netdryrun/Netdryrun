@@ -453,8 +453,11 @@ def _count_add_path_prefixes(n: BgpNeighbor, afi: str, counted: list, unsure: li
     n.prefixes[afi] = len(set(counted))
     if unsure:   # an unsure path's prefix may or may not be one more
         n.prefixes_upto[afi] = len(set(counted) | set(unsure))
+        n.prefixes_upto_why[afi] = (f"add-path: {len(unsure)} path(s) the RIB flags invalid may or may not be counted, "
+                                    "and each may be a prefix of its own")
     else:
         n.prefixes_upto.pop(afi, None)
+        n.prefixes_upto_why.pop(afi, None)
 
 
 class SrlDriver(Driver):

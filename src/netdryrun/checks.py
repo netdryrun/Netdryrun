@@ -117,8 +117,10 @@ def _counted(n, afi: str, count: int, low: int, high: int | None, evidence: list
         return within(count), f"{count} {afi} prefixes accepted", evidence
     # Some received routes are hidden for a reason the device doesn't give, so the count is somewhere from
     # `count` to `top`: judged only when every value in that range gives the same answer (interop IOP-7)
-    span = (f"{count} to {top} {afi} prefixes accepted ({top - count} received route(s) hidden: rejected by "
-            "import policy or with a next hop the node can't use, which its output doesn't tell apart)")
+    # (add-path: the counter counts paths, so the range has another reason, which the driver names)
+    why = n.prefixes_upto_why.get(afi) or (f"{top - count} received route(s) hidden: rejected by import policy or "
+                                           "with a next hop the node can't use, which its output doesn't tell apart")
+    span = f"{count} to {top} {afi} prefixes accepted ({why})"
     if within(count) and within(top):
         return True, span, evidence
     if top < low or (high is not None and count > high):

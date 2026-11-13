@@ -12,8 +12,8 @@ import re
 from collections import Counter
 from dataclasses import replace
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
-                   check_vrf_name, load_json, network, parser, render_as_path, unexpected)
+from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, add_path_range_why,
+                   as_int, canon_communities, check_vrf_name, load_json, network, parser, render_as_path, unexpected)
 
 AFI_NAMES = {"ipv4Unicast": "ipv4-unicast", "ipv6Unicast": "ipv6-unicast", "l2VpnEvpn": "evpn"}
 
@@ -732,6 +732,7 @@ class FrrDriver(Driver):
                 paths = n.prefixes[afi]
                 neighbors[key] = n = replace(
                     n, prefixes={**n.prefixes, afi: min(paths, 1)}, prefixes_upto={**n.prefixes_upto, afi: paths},
+                    prefixes_upto_why={**n.prefixes_upto_why, afi: add_path_range_why(paths)},
                     prefixes_unread={**n.prefixes_unread, afi: f"the peer may send add-path in {afi}, so FRR's "
                                      f"acceptedPrefixCounter ({paths}) counts paths, not prefixes"})
                 continue
