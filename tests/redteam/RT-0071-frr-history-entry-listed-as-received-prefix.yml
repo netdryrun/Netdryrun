@@ -1,0 +1,19 @@
+id: RT-0071
+title: >-
+  record on FRR wrote a prefix the neighbor had withdrawn into a bgp_prefixes `only` list, so the prefix coming back
+  passed the recorded check: with `bgp dampening`, bgpd keeps the withdrawn prefix in `neighbors N routes json` as a
+  history path, and parse_received (bgp_received, `only:` and record's closed world) listed it as a prefix the
+  neighbor sends; an `only:` check stayed not-ready ("counted ... but ... listed") while the entry lasted. SONiC
+  shares the driver.
+found: "2026-11-13, adversary review of the RT-0070 fix on the 0.4.2 candidate (a cousin of RT-0070)"
+fixed_in: 0.4.2
+kind: pinned
+# The reproduction is the oracle FP-042-FRRRECVHIST (bgp_received, a record run and the recorded check on a listing
+# derived from the live FRR 10.4.1 captures of RT-0070 and RT-0066), with the unit tests of the fix for SONiC.
+tests:
+  - tests/oracles/FP-042-FRRRECVHIST/test_oracle_fp_042_frrrecvhist.py::test_bgp_received_leaves_out_a_history_only_prefix
+  - tests/oracles/FP-042-FRRRECVHIST/test_oracle_fp_042_frrrecvhist.py::test_record_does_not_allow_the_withdrawn_prefix_in_only
+  - tests/oracles/FP-042-FRRRECVHIST/test_oracle_fp_042_frrrecvhist.py::test_the_recorded_check_fails_when_the_withdrawn_prefix_comes_back
+  - tests/oracles/FP-042-FRRRECVHIST/test_oracle_fp_042_frrrecvhist.py::test_only_check_passes_while_a_history_entry_is_listed
+  - tests/test_frr_received_history_042.py::test_record_leaves_the_withdrawn_prefix_out_of_only
+  - tests/test_frr_received_history_042.py::test_only_passes_while_a_history_entry_is_listed_and_fails_when_the_prefix_returns

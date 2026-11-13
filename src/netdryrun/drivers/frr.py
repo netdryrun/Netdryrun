@@ -428,10 +428,15 @@ def parse_received(text: str, family: int) -> set[str]:
         for p in paths:
             if not isinstance(p, dict) or not isinstance(p.get("network"), str)                     or network(RECEIVED_CMD, p["network"]) != net:
                 raise unexpected(RECEIVED_CMD, f"{key} path: {str(p)[:150]}")
+        # a prefix listed only by paths the neighbor withdrew (a dampening history entry, a path being removed) is no
+        # prefix it sends: listed, `record` wrote it into `only` and the prefix coming back passed (red team RT-0071,
+        # oracle FP-042-FRRRECVHIST). One live path keeps it; a damped (suppressed) path is still announced
+        if all([_withdrawn(RECEIVED_CMD, p) for p in paths]):   # every flag read: one that isn't a boolean raises
+            continue
         out.add(str(net))
     # bgpd closes the listing with its own route total (FRR 10.4.1; its totalPaths counts every path of those
     # prefixes, from any neighbor): a listing that disagrees was cut or misread, and a prefix missing from it would
-    # never fail `only`
+    # never fail `only`. The total counts the withdrawn prefixes too, so the check is on every key listed
     if data.get("totalRoutes") != len(routes):
         raise unexpected(RECEIVED_CMD, f"{len(routes)} routes listed, totalRoutes {data.get('totalRoutes')!r}")
     return out

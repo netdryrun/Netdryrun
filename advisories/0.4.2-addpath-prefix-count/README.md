@@ -56,3 +56,9 @@ suppressed (the neighbor still announces it) is still present and not selected. 
 route with `present: false`, which fails on it (a false alarm, never a false pass), or clear dampening first
 (`clear bgp ipv4 unicast dampening`). Case `tests/redteam/RT-0070-frr-dampening-history-entry-read-as-route.yml`, oracle
 `tests/oracles/FP-042-FRRDAMP`, from a live FRR 10.4.1 capture.
+
+The same history entry stays in the neighbor's received-routes listing, which `bgp_prefixes only:` and `record`'s
+closed-world list read (FRR and SONiC 0.4.1, where both came in; RT-0071): `record` wrote the withdrawn prefix into
+`only`, so the prefix coming back passed the recorded check. From 0.4.2 a prefix whose paths are all withdrawn is not
+listed; re-record a baseline taken while dampening held a withdrawn prefix, or remove it from `only` by hand. Case
+`tests/redteam/RT-0071-frr-history-entry-listed-as-received-prefix.yml`, oracle `tests/oracles/FP-042-FRRRECVHIST`.

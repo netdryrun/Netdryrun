@@ -350,3 +350,13 @@
     - tests/oracles/FP-042-FRRDAMP/test_oracle_fp_042_frrdamp.py
     - tests/test_frr_dampening_042.py
     - tests/test_redteam.py
+- id: rt-0071-frr-history-entry-listed-as-received-prefix
+  what: With `bgp dampening`, FRR keeps a withdrawn prefix in the neighbor's received listing as a history path, and
+    the FRR and SONiC drivers' parse_received listed it, so `record` wrote it into `only` and the prefix coming back
+    passed the recorded bgp_prefixes check (0.4.1, where `only:` and record's closed world came in; found by adversary
+    review of the RT-0070 fix); a prefix whose paths are all withdrawn is no received prefix now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRRECVHIST/test_oracle_fp_042_frrrecvhist.py
+    - tests/test_frr_received_history_042.py
+    - tests/test_redteam.py

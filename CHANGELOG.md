@@ -56,6 +56,12 @@
   failed though it was gone. A path flagged `dampeningHistoryEntry`, `history` or `removed` is no path now, in `route`,
   `bgp_route` and the add-path prefix count; a damped (suppressed) path the neighbor still announces stays present and
   not selected. Oracle `tests/oracles/FP-042-FRRDAMP`, from the live capture.
+- **FRR and SONiC: a withdrawn prefix kept as a dampening history entry was listed as received** (RT-0071, a cousin
+  of RT-0070 found by adversary review; 0.4.1). The neighbor's received-routes listing keeps the history path, and
+  the driver listed its prefix, so `record` wrote it into `only` and the prefix coming back passed the recorded check,
+  and an `only:` check stayed not-ready while the entry lasted. A prefix whose paths are all withdrawn is no received
+  prefix now; the listing's totalRoutes is still checked against every prefix listed. Oracle
+  `tests/oracles/FP-042-FRRRECVHIST`, derived from the live captures.
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the
