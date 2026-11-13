@@ -1,15 +1,38 @@
 flips:
-  - source: gate
-    case: scripts/release_gate.py
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_frr_bgp_neighbors[FrrDriver]
     from: FAIL
     to: PASS
-    evidence: [advisories/0.4.2-addpath-prefix-count/README.md]
+    evidence: [tests/test_verdict_drivers.py]
     why: >-
-      36182fe adds "advisories/" to READ_BY_LAYERS, so prose_only() now returns False for every advisories/ path that
-      it used to call prose-only when no code named it. Website/docs, README.md and AGENTS.md keep their old answers
-      (folder prefix match plus exact names). The set of prose-only paths only shrinks, so a layer's green record
-      survives fewer edits, never more. The cited advisory README is the file edited in this range that the old rule
-      would have let through as prose.
+      e252746 (RT-0067) adds a `show bgp ipv4 unicast neighbors <peer> routes json` read for every established FRR peer
+      whose add-path TX capability is not a clear false. The base FRR_NBR fake lists no addPath block and has no answer
+      for that read, so its Lab raises "unexpected command". In the driver, a failed read raises an error and a listing
+      that disagrees with acceptedPrefixCounter is a DriverError. Non-unicast families get a 1..P range, never the path
+      count. The updated FRR_NBR prints the rx-only addPath block FRR 10.4.1 shows, and the count assertions are
+      unchanged.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_frr_bgp_neighbors[SonicDriver]
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_drivers.py]
+    why: >-
+      Same test parametrised for SONiC, which uses the FRR driver's bgp_neighbors: the base fake has no addPath block, so
+      the new add-path routes read is made, and the fake raises "unexpected command". A real failed read errors, and a
+      listing that disagrees with the counter errors, so a refusal replaces the base's number. The updated fake marks
+      add-path rx-only (the peer sends one path per prefix), with the same expected counts.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_frr_bgp_neighbors_in_a_vrf
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_drivers.py]
+    why: >-
+      Same cause in a VRF: the new `show bgp vrf red ipv4 unicast neighbors 10.0.0.2 routes json` read (RT-0067) has no
+      answer in the base fake, which raises "unexpected command". In the driver that read's failure or disagreement is
+      an error, never a count. The updated FRR_NBR adds the rx-only addPath block, and the VRF command and count
+      assertions are unchanged.
     reviewed_by: ndr-allow-042-n3b
   - source: fixtures
     case: tests.test_driver_false_pass::test_eos_ipv6_summary_is_still_read
