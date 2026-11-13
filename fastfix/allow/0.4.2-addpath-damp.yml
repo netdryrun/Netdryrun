@@ -1,0 +1,87 @@
+flips:
+  - source: gate
+    case: scripts/release_gate.py
+    from: FAIL
+    to: PASS
+    evidence: [advisories/0.4.2-addpath-prefix-count/README.md]
+    why: >-
+      36182fe adds "advisories/" to READ_BY_LAYERS, so prose_only() now returns False for every advisories/ path that
+      it used to call prose-only when no code named it. Website/docs, README.md and AGENTS.md keep their old answers
+      (folder prefix match plus exact names). The set of prose-only paths only shrinks, so a layer's green record
+      survives fewer edits, never more. The cited advisory README is the file edited in this range that the old rule
+      would have let through as prose.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_driver_false_pass::test_eos_ipv6_summary_is_still_read
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_driver_false_pass.py]
+    why: >-
+      For an established peer with prefixAccepted above 1, the EOS driver now also reads `show ipv6 bgp neighbors
+      <peer> vrf <vrf> | json` (RT-0069). The base fake has no answer for that read, so its Lab raises "unexpected
+      command". In the driver, a failed or unknown read makes the count a 1..N range, never a number. The updated test
+      answers add-path receive enabled=false and still gets the exact 1 and 7 counts.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_eos_bgp_neighbors_commands_and_counts
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_drivers.py]
+    why: >-
+      Same cause as test_eos_ipv6_summary_is_still_read: the extra `show ip bgp neighbors 10.0.0.2 vrf default | json`
+      read (RT-0069) has no answer in the base fake. Without a clear enabled=false, the driver gives a range of
+      prefixes, never the path count. The updated test answers add-path off for both families and asserts the extra
+      command and 3 evidence entries. The counts, states and VRF assertions are unchanged.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_srl_bgp_neighbors
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_drivers.py]
+    why: >-
+      The base fake neighbor has no add-paths block. srl_add_path_rx now treats anything but receive=false as "may
+      send add-path" (RT-0068), so the driver counts prefixes from the bgp-rib. The fake RIB lists no paths from
+      10.0.0.2, so the driver raises DriverError ("lists 0 usable paths ... 4"), never giving a number. The updated test
+      adds add-paths receive/send false, as live SR Linux prints it, and keeps the same assertions.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_srl_evidence_is_kept_everywhere
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_drivers.py]
+    why: >-
+      Same shared SRL_NBR fake as test_srl_bgp_neighbors. Without an add-paths block, add-path reads as on and the RIB
+      cross-check errors (0 RIB paths against a count of 4), so the driver refuses instead of returning a count. The
+      updated SRL_NBR adds SRL_NO_ADD_PATH to the counted families, and the test's own evidence assertions are
+      unchanged.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_srl_loop_count::test_a_path_both_looped_and_rejected_is_not_subtracted_twice
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_srl_loop_count.py]
+    why: >-
+      The base _nb() neighbor has no add-paths block, so add-path reads as on and _count_add_path_prefixes raises
+      DriverError: every fake RIB row is flagged invalid, giving 0 usable paths against a count of 2 to 3. That is an error, not a
+      number. The updated _nb() adds add-paths receive/send false, and every loop-count assertion is unchanged.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_srl_loop_count::test_an_invalid_reason_the_driver_does_not_know_makes_a_range_not_an_error
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_srl_loop_count.py]
+    why: >-
+      Same _nb() fake with no add-paths block: the new RIB cross-check raises DriverError (0 usable paths against "1
+      to 2"), which is stricter than the range the base gave. The updated _nb() marks add-path off, and the test again
+      asserts the same range, so the unknown-reason handling is unchanged.
+    reviewed_by: ndr-allow-042-n3b
+  - source: fixtures
+    case: tests.test_srl_loop_count::test_exact_reasons_stay_exact
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_srl_loop_count.py]
+    why: >-
+      Same _nb() fake with no add-paths block: add-path reads as on and the RIB count disagrees (0 against 2), so
+      the driver errors instead of giving an exact count. The updated _nb() adds add-paths receive/send false, as live
+      SR Linux prints it, and the exact-count assertions are unchanged.
+    reviewed_by: ndr-allow-042-n3b
