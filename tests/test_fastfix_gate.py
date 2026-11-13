@@ -344,6 +344,58 @@ def test_bad_allowlist_blocks(repo, mutate, expect):
     assert code == 1 and expect in out, out
 
 
+@pytest.mark.parametrize("source,case,ok", [
+    ("fixtures", "tests.test_verdict_drivers::test_frr_bgp_neighbors[FrrDriver]", True),
+    ("fixtures", "tests.test_verdict_drivers::test_frr_bgp_neighbors", True),
+    ("fixtures", "tests.test_x::test_y[a-b_1.2]", True),
+    ("fixtures", "tests.test_x::test_y[Frr]Driver]", False),        # a ']' inside the id
+    ("fixtures", "tests.test_x::test_[y][FrrDriver]", False),       # '[' in the middle
+    ("fixtures", "tests.test_x::test_[y]z", False),
+    ("fixtures", "tests.test_x::test_y[[FrrDriver]]", False),       # nested
+    ("fixtures", "tests.test_x::test_y[]", False),                  # empty
+    ("fixtures", "[FrrDriver]", False),                             # nothing but the id
+    ("fixtures", "tests.test_x::test_y[Frr*]", False),
+    ("fixtures", "tests.test_x::test_y[Frr?]", False),
+    ("fixtures", "tests.test_x::test_*[FrrDriver]", False),
+    ("fixtures", "tests.test_x::test_?", False),
+    ("fixtures", "tests.test_x::test_y]", False),
+    ("fixtures", "tests.test_x::test_y[FrrDriver", False),
+    ("corpus/results/[ab].json", "c1", False),                      # brackets in source
+    ("corpus/results/r.json[x]", "c1", False),
+    ("corpus/results/*.json", "c1", False),
+    ("corpus/results/r?.json", "c1", False),
+])
+def test_allowlist_key_is_literal(source, case, ok):
+    assert ffg.literal_key(source, case) is ok
+
+
+def test_parametrised_case_allows_only_its_own_flip(tmp_path, monkeypatch):
+    """`test_x[FrrDriver]` is compared by equality: it allows that flip and leaves [SonicDriver] and the bare name."""
+    case = "tests.test_verdict_drivers::test_frr_bgp_neighbors"
+    allow = "fastfix/allow/p.yml"
+    (tmp_path / "fastfix/allow").mkdir(parents=True)
+    (tmp_path / "captures").mkdir()
+    (tmp_path / "captures/rerun.txt").write_text("router output\n")
+    (tmp_path / allow).write_text(textwrap.dedent(f"""\
+        flips:
+          - source: fixtures
+            case: "{case}[FrrDriver]"
+            from: FAIL
+            to: PASS
+            evidence: [captures/rerun.txt]
+            why: The FRR driver now reads the neighbor table the fixed way; see the rerun capture.
+            reviewed_by: coordinator
+        """))
+    monkeypatch.setattr(ffg, "changed_files", lambda *a: {allow, "captures/rerun.txt"})
+    monkeypatch.setattr(ffg, "separation_problems", lambda *a: None)
+    report = ffg.Report(flips=[ffg.Flip("fixtures", f"{case}{p}", "FAIL", "PASS")
+                               for p in ("[FrrDriver]", "[SonicDriver]", "")])
+    ffg.apply_allowlist(tmp_path, "b", "c", tmp_path, report)
+    assert not report.problems, report.problems
+    assert sorted(f.case for f in report.flips) == [case, f"{case}[SonicDriver]"]
+    assert any("[FrrDriver]" in n for n in report.notes)
+
+
 @needs_git
 def test_allowlist_in_the_fix_commit_blocks(repo):
     repo.write("fastfix/allow/c1.yml", ALLOW)

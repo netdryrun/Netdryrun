@@ -515,8 +515,9 @@ def allow_entries(f: str, tree: Path, changed: set[str], report: Report, cited: 
         if not all(isinstance(v, str) and v.strip() for v in text.values()):
             report.problems.append(f"{where}: source, case, from, to, why and reviewed_by must be non-empty text")
             continue
-        if any(c in text["source"] + text["case"] for c in "*?["):
-            report.problems.append(f"{where}: no wildcards in source or case")
+        if not literal_key(text["source"], text["case"]):
+            report.problems.append(f"{where}: no wildcards in source or case (a case may end in one pytest "
+                                   "parameter id such as [FrrDriver], nothing else in brackets)")
             continue
         if text["from"] not in ("FAIL", "UNKNOWN", "MIXED") or text["to"] not in ("MIXED", "PASS") \
                 or RANK[text["to"]] <= RANK[text["from"]]:
@@ -542,6 +543,24 @@ def allow_entries(f: str, tree: Path, changed: set[str], report: Report, cited: 
         cited.update(ev)
         keys.append((text["source"], text["case"], text["from"], text["to"]))
     return keys
+
+
+_GLOB = "*?[]"
+
+
+def literal_key(source: str, case: str) -> bool:
+    """An entry names exactly one flip, compared by string equality (apply_allowlist), so nothing in it may read as
+    a pattern. The one exception: a case may end in a single pytest parameter id, `test_x[FrrDriver]`, because the
+    gate itself names parametrised fixture cases that way; its inside holds no glob character and isn't empty."""
+    if any(c in source for c in _GLOB):
+        return False
+    stem, param = case, ""
+    if case.endswith("]") and "[" in case:
+        i = case.index("[")
+        stem, param = case[:i], case[i + 1:-1]
+        if not param or any(c in param for c in _GLOB):
+            return False
+    return bool(stem) and not any(c in stem for c in _GLOB)
 
 
 def fixture_file(case: str) -> str | None:
