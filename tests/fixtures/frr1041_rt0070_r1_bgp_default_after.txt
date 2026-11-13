@@ -1,0 +1,8 @@
+BGP routing table entry for 0.0.0.0/0, version 2
+Paths: (1 available, no best path)
+  Not advertised to any peer
+  65002, (history entry)
+    10.0.12.2(isp) from isp(10.0.12.2) (2.2.2.2)
+      Origin IGP, metric 0, external, multipath
+      Dampinfo: penalty 996, flapped 1 times in 00:00:08
+      Last update: Fri Nov 13 00:51:08 2026

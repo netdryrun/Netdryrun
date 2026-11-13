@@ -485,3 +485,25 @@
     netdryrun 0.4.2 (f3747e3) `run --keep --json` on lab ndr-rpeos, 2026-11-13 (exit 1): eos-addpath-min4-must-fail
     passed and eos-addpath-exact2-must-pass failed, both reading 4 prefixes
   added: ndr/oracles-0.4.2
+- files: [frr1041_rt0070_r1_ip_route_default.json, frr1041_rt0070_r1_bgp_default.json,
+          frr1041_rt0070_r1_bgp_default_before.json, frr1041_rt0070_r1_bgp_default_after.json,
+          frr1041_rt0070_r1_bgp_default_after.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-rpdamp (r1 with bgp dampening; isp sends a default-originate, then removes it), the
+    laptop's WSL, 2026-11-13: frr1041_rt0070_r1_ip_route_default.json and frr1041_rt0070_r1_bgp_default.json are the
+    vtysh answers netdryrun read for damp-history-must-not-pass, copied byte for byte from the report's evidence;
+    `show bgp ipv4 unicast 0.0.0.0/0 json` before and after the withdrawal, and its text form after, read with docker
+    exec; captured for oracle FP-042-FRRDAMP (red team RT-0070)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpdamp_topology.clab.yml, frr1041_rpdamp_checks.yml, frr1041_rpdamp_r1.conf, frr1041_rpdamp_isp.conf]
+  kind: lab-input
+  source: the topology, checks and FRR configs deployed for lab ndr-rpdamp (RT-0070 dampening history), 2026-11-13
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpdamp_report.json, frr1041_rpdamp_check.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `check --json` on lab ndr-rpdamp after isp withdrew the default, 2026-11-13 (exit 0):
+    damp-history-must-not-pass passed ("present via bgp (not selected)")
+  added: ndr/oracles-0.4.2

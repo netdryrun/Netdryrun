@@ -1,0 +1,7 @@
+name: ndr-rpdamp
+topology:
+  nodes:
+    r1: {kind: linux, image: "quay.io/frrouting/frr:10.4.1", binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/r1.conf:/etc/frr/frr.conf]}
+    isp: {kind: linux, image: "quay.io/frrouting/frr:10.4.1", binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/isp.conf:/etc/frr/frr.conf]}
+  links:
+    - endpoints: ["r1:eth1", "isp:eth1"]
