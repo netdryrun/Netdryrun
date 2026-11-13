@@ -1,0 +1,7 @@
+Netdryrun 0.4.2: 1 checks from checks.yml
+peer: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+r1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+Management default routes removed; settling 10s before the checks...
+  [PASS] fgr-min4-must-fail -- 4 ipv4-unicast prefixes accepted (3.4s)
+PASSED: 1 passed, 0 failed (1 checks)
+  wrote json report: /mnt/c/NetCL Business/wt/repro-042c/capture/gr_report.json

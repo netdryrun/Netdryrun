@@ -507,3 +507,32 @@
     netdryrun 0.4.2 (f3747e3) `check --json` on lab ndr-rpdamp after isp withdrew the default, 2026-11-13 (exit 0):
     damp-history-must-not-pass passed ("present via bgp (not selected)")
   added: ndr/oracles-0.4.2
+- files: [frr1041_rpgr_r1_neighbors_stale.json, frr1041_rpgr_r1_neighbors_after_eor.json,
+          frr1041_rpgr_r1_ipv4_stale.txt, frr1041_rpgr_r1_ipv4_after_eor.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-rpgr (r1 a graceful-restart helper; peer, with preserve-fw-state, sends 4 prefixes, is
+    changed to send 3 with coalesce-time 90000, and its bgpd is killed and restarted by watchfrr), the laptop's WSL,
+    2026-11-13: frr1041_rpgr_r1_neighbors_stale.json is the vtysh answer netdryrun read for fgr-min4-must-fail inside
+    the stale window (End-of-RIB from the peer pending, acceptedPrefixCounter 4) and
+    frr1041_rpgr_r1_neighbors_after_eor.json the one it read for fgr-control-min3-must-pass after End-of-RIB, both
+    copied byte for byte from the reports' evidence; `show bgp ipv4 unicast` in the window (4 paths marked S) and after
+    End-of-RIB (3 paths), read with docker exec; captured for oracle FP-042-FRRGRSTALE (repro-042c F-GR)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpgr_topology.clab.yml, frr1041_rpgr_checks.yml, frr1041_rpgr_checks_control.yml,
+          frr1041_rpgr_r1.conf, frr1041_rpgr_peer.conf, frr1041_rpgr_peer_restarted.conf]
+  kind: lab-input
+  source: >-
+    the topology, checks and FRR configs deployed for lab ndr-rpgr (F-GR graceful-restart stale window), 2026-11-13;
+    frr1041_rpgr_peer_restarted.conf is the config written over the peer's bind-mounted frr.conf before its bgpd was
+    killed, which the restarted bgpd loaded
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpgr_report.json, frr1041_rpgr_check.txt, frr1041_rpgr_control_report.json,
+          frr1041_rpgr_control_check.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `check --json` on lab ndr-rpgr, 2026-11-13: inside the stale window (exit 0)
+    fgr-min4-must-fail passed ("4 ipv4-unicast prefixes accepted") while the peer sent 3; after End-of-RIB (exit 0)
+    fgr-control-min3-must-pass passed ("3 ipv4-unicast prefixes accepted")
+  added: ndr/oracles-0.4.2

@@ -1,0 +1,4 @@
+lab: topology.clab.yml
+timeout: 120
+checks:
+  - {name: fgr-control-min3-must-pass, type: bgp_prefixes, node: r1, neighbor: 10.0.13.2, min: 3}
