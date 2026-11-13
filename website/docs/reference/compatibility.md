@@ -84,6 +84,7 @@ A check on a refused address family stops the run before the lab is deployed, wi
 - **MikroTik RouterOS (beta):** Each RouterOS node is a VM inside its container: the REST API answers about a minute after deploy, and the startup config is imported after that (an import stops at its first error), so give checks a `timeout` of at least 600 s. One CHR node per lab until MikroTik confirms more are allowed.
 - **MikroTik RouterOS (beta):** IPv6 sessions and routes, ping inside a VRF, and failure scenarios (`link_down`, `node_isolated`) are refused with a clear message, not answered.
 - **MikroTik RouterOS (beta):** `bgp_prefixes` counts prefixes the router received AND policy accepted (derived from the routing route table): the session's own `prefix-count` includes rejected prefixes and is not used.
+- **MikroTik RouterOS (beta):** the session's `prefix-count` can lag the route table by several minutes after boot (seen at 0 five minutes after deploy and correct at ten on CHR 7.23.8). Until it matches the table, BGP neighbor reads refuse with "received N prefixes (prefix-count) but the table lists M of its paths": that is no verdict, not a failure of your change. A `timeout` of 600 s or more covers it.
 - **MikroTik RouterOS (beta):** A path without a LOCAL_PREF attribute reports local_pref as unknown, never as the default: a `local_pref` check on it fails.
 - **MikroTik RouterOS (beta):** graceful restart, add-path, multipath and max-prefix behaviour are not captured yet: a route row with a key the parser does not know stops the read with an error.
 
