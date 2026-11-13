@@ -253,6 +253,9 @@ def record_gaps(p, known: list, baseline: Path, who: str) -> list[str]:
         return []
     if p.code == 1 and "INCOMPLETE BASELINE" in p.out:
         gaps = sorted(set(re.findall(r"^\*\*\* (INCOMPLETE BASELINE: .*?) \*\*\*$", p.out, re.M)))
+        # record's own size-cap lines don't count toward its exit code (record._is_size_cap): leave them out here too
+        gaps = [g for g in gaps if not re.search(r" has \d+ (link subnets|BGP routes \(IPv[46]\)); only the first \d+ "
+                                                 r"are (guarded|recorded)", g)]
         allowed = [re.compile(k["match"]) for k in known]
         unknown = [g for g in gaps if not any(a.search(g) for a in allowed)]
         if gaps and not unknown and baseline.exists():

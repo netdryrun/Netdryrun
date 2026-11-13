@@ -56,10 +56,12 @@ drivers:
           replace:
             - [" ip address 192.168.20.1/24\n", " ip address 192.168.20.1/24\n ip address 192.168.66.1/24\n"]
             - ["  network 192.168.20.0/24\n", "  network 192.168.20.0/24\n  network 192.168.66.0/24\n"]
-      # record names srl1's prefix count from frr1 as a gap (M-10, below) and tells the user to add a check by hand:
-      # this is that check, the generic closed-world form (the customer prefix only), not tailored to the leak
+      # record names srl1's prefix count from frr1 as a gap (M-10, below) and tells the user to add a check by hand.
+      # On SR Linux `only` isn't supported and the count is a range, so the check is the one Netdryrun's own error
+      # recommends there ("use exact, or route checks with present: false"): a guard on the prefix the customer must
+      # never send
       hand_checks:
-        - {type: bgp_prefixes, node: srl1, neighbor: 10.0.100.2, only: [192.168.20.0/24], why: 'the check record asks for in place of its srl1 prefix-count gap'}
+        - {type: route, node: srl1, prefix: 192.168.66.0/24, protocol: bgp, present: false, why: 'the check record asks for in place of its srl1 prefix-count gap; on SR Linux the error for only says to use route checks with present false'}
       # documented SR Linux limits (record exits 1 on them; the must-fail test goes on with record's baseline):
       # the looped path srl1 rejects (as-loop) is hidden for a reason the driver can't read yet (M-10, since 0.4.1)
       known_gaps:
