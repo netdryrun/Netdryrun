@@ -80,9 +80,17 @@ session comes back, and the count is the neighbor's: no false pass then.
 From 0.4.2 a family whose neighbor set the F-bit and whose End-of-RIB isn't read as received
 (`gracefulRestartInfo.<afi>.endOfRibStatus.endOfRibRecv` true and the family listed in `gracefulRestartInfo.endOfRibRecv`)
 has no settled count: no bound is judged on it, the check samples again until End-of-RIB arrives, and `record` leaves
-the count out. A graceful-restart field the driver doesn't recognise is treated the same way, and so is a neighbor
-routes listing (read for add-path) that shows stale paths. **Workaround before you upgrade:** add a `max` to the
+the count out. A per-family graceful-restart block whose F-bit or End-of-RIB fields have an unexpected type is treated
+the same way, and so is a neighbor routes listing (read for add-path) that shows stale paths. A neighbor with no
+graceful-restart block is read as before. **Workaround before you upgrade:** add a `max` to the
 `min` check, which makes it a post-convergence check: from 0.4.1 the convergence gate waits for an End-of-RIB the node reports pending.
-Or leave graceful restart (or `preserve-fw-state` on the restarting neighbor) off in the lab. Case
+Or leave graceful restart (or `preserve-fw-state` on the restarting neighbor) off in the lab.
+
+**Limits.** The guard trusts FRR's per-family F-bit. Not yet checked in a lab: a neighbor that comes back without a
+family it had before, and long-lived graceful restart; in both the F-bit can read false while stale paths remain. Until
+they are, pair a `min` with `route` checks on the prefixes that matter. The workaround above doesn't cover a peer
+declared `eor: not_sent`, which the gate doesn't wait for. And a neighbor that sets the F-bit but never sends End-of-RIB
+(`bgp graceful-restart disable-eor`), or whose stale timer runs out first, leaves the count not ready: the check ends
+as not evaluated, never as a pass. Case
 `tests/redteam/RT-0072-frr-gr-stale-paths-counted-as-accepted.yml`, oracle `tests/oracles/FP-042-FRRGRSTALE`, from a live
 FRR 10.4.1 capture.
