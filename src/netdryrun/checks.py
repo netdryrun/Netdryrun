@@ -112,6 +112,11 @@ def _counted(n, afi: str, count: int, low: int, high: int | None, evidence: list
     def within(c: int) -> bool:
         return low <= c and (high is None or c <= high)
 
+    if afi in n.prefixes_unread and afi not in n.prefixes_upto:
+        # the driver says the count isn't settled (FRR: graceful-restart stale paths until End-of-RIB, RT-0072):
+        # no bound is judged on it, not even one it meets; a later sample may be settled
+        return False, Unready(f"error: {count} {afi} prefixes counted, not a settled count: "
+                              f"{n.prefixes_unread[afi]}"), evidence
     top = n.prefixes_upto.get(afi, count)
     if top == count:
         return within(count), f"{count} {afi} prefixes accepted", evidence

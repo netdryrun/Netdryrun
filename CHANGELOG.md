@@ -62,6 +62,13 @@
   and an `only:` check stayed not-ready while the entry lasted. A prefix whose paths are all withdrawn is no received
   prefix now; the listing's totalRoutes is still checked against every prefix listed. Oracle
   `tests/oracles/FP-042-FRRRECVHIST`, derived from the live captures.
+- **FRR and SONiC: `bgp_prefixes min` passed on graceful-restart stale paths** (red team RT-0072, confirmed live on
+  FRR 10.4.1; FRR 0.1.0 and later, SONiC 0.2.0 and later). After a peer that preserves its forwarding state (F-bit
+  set) restarts, bgpd keeps its old paths marked stale until End-of-RIB and counts them in acceptedPrefixCounter, so
+  `min: 4` passed while the restarted peer sent 3. While End-of-RIB from such a peer is pending for the family (or
+  can't be read as received, or the add-path listing shows stale paths) the count isn't settled now: no bound is
+  judged, the check samples again, and `record` leaves the count out. Oracle `tests/oracles/FP-042-FRRGRSTALE`, from
+  the live capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the

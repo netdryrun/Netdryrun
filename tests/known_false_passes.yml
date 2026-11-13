@@ -360,3 +360,14 @@
     - tests/oracles/FP-042-FRRRECVHIST/test_oracle_fp_042_frrrecvhist.py
     - tests/test_frr_received_history_042.py
     - tests/test_redteam.py
+- id: rt-0072-frr-gr-stale-paths-counted
+  what: During a BGP graceful restart with the peer's F-bit set, FRR keeps the peer's old paths marked stale until
+    End-of-RIB and counts them in acceptedPrefixCounter, and the FRR and SONiC drivers read that counter, so
+    `bgp_prefixes min 4` passed while the restarted peer sent 3 (FRR 0.1.0 and later, SONiC 0.2.0 and later; red team
+    on the 0.4.2 candidate, confirmed live on FRR 10.4.1); a count with End-of-RIB pending under the F-bit is not
+    settled now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRGRSTALE/test_oracle_fp_042_frrgrstale.py
+    - tests/test_frr_gr_stale_042.py
+    - tests/test_redteam.py

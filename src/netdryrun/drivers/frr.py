@@ -239,10 +239,75 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         mrai = info.get("minBtwnAdvertisementRunsTimerMsecs")
         adv = as_int(NEIGHBORS_CMD, mrai) / 1000 if mrai is not None else None
         external = True if info.get("nbrExternalLink") is True else False if info.get("nbrInternalLink") is True else None
+        # graceful restart: stale paths still in the counter, End-of-RIB pending (RT-0072): no settled count
+        unsettled = gr_stale_window(addr, info, prefixes) if state == "established" else {}
         # "Idle (Admin)" -> "idle": the first word is the FSM state
         _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv, external=external,
-                                                       eor=frr_eor(info) if state == "established" else {}))
+                                                       eor=frr_eor(info) if state == "established" else {},
+                                                       prefixes_unread=unsettled))
     return out
+
+
+def gr_stale_window(addr: str, info: dict, prefixes: dict[str, int]) -> dict[str, str]:
+    """Families of one established neighbor of `show bgp neighbors json` whose acceptedPrefixCounter isn't a settled
+    count: graceful restart kept the peer's paths, marked stale, and End-of-RIB from it hasn't arrived yet. FRR counts
+    stale paths as accepted, so the counter is the table from before the restart, not what the peer sends now (red team
+    RT-0072, oracle FP-042-FRRGRSTALE: FRR 10.4.1, `min: 4` passed on 4 stale paths while the peer sent 3).
+
+    Decided from what FRR prints (the 10.4.1 window capture frr1041_rpgr_r1_neighbors_stale.json and every FRR neighbor
+    capture in tests/fixtures): `gracefulRestartInfo.<afi>.fBit` is the peer's Forwarding State bit for the family.
+    Only with it set does bgpd keep the stale paths over the reconnect (with it clear they are flushed when the session
+    comes back, repro-042c F-GR run 1). So a family is unsettled when fBit is true and End-of-RIB isn't read as
+    received (`endOfRibStatus.endOfRibRecv` true and the top-level `endOfRibRecv` map listing the family as true;
+    anything else, pending or the two reads disagreeing, is unsettled). Unchanged: graceful restart off (local mode
+    `Disable`, no `gracefulRestartInfo`, no block for the family: nothing is kept), fBit false (every steady-session
+    capture), End-of-RIB received (the settled count). Fails closed: a family block or fBit that is there but isn't
+    what FRR prints, or a block with End-of-RIB status and no fBit, leaves the count unsettled until End-of-RIB is
+    read as received. The value is the reason, for the check's detail (BgpNeighbor.prefixes_unread)."""
+    g = info.get("gracefulRestartInfo")
+    if not isinstance(g, dict) or str(g.get("localGrMode", "")).rstrip("*") == "Disable":
+        return {}
+    recv_map = g.get("endOfRibRecv")
+    out = {}
+    for afi in (info.get("addressFamilyInfo") or {}):
+        if afi not in g:
+            continue
+        name, block = AFI_NAMES.get(afi, afi), g[afi]
+        counted = f"FRR's acceptedPrefixCounter ({prefixes.get(name, '?')})"
+        if not isinstance(block, dict) or ("fBit" in block and not isinstance(block["fBit"], bool)):
+            out[name] = (f"the graceful-restart state of {addr} in {afi} is output this driver doesn't know "
+                         f"({str(block)[:80]}), so {counted} may count stale paths")
+            continue
+        if block.get("fBit", "endOfRibStatus" in block) is not True:
+            continue   # F-bit clear (or no graceful restart for the family): no stale path survives the reconnect
+        status = block.get("endOfRibStatus")
+        recv = status.get("endOfRibRecv") if isinstance(status, dict) else None
+        listed = recv_map.get(afi) if isinstance(recv_map, dict) else None
+        if recv is True and listed is True:
+            continue
+        if recv is False and listed is None:
+            out[name] = (f"graceful restart: End-of-RIB from {addr} in {afi} is still pending and the peer kept its "
+                         f"forwarding state, so {counted} still counts the stale paths kept from before the restart")
+        else:
+            out[name] = (f"graceful restart: End-of-RIB from {addr} in {afi} can't be read as received "
+                         f"(endOfRibStatus.endOfRibRecv {recv!r}, endOfRibRecv map {listed!r}), so {counted} may "
+                         "still count stale paths")
+    return out
+
+
+def listed_stale(text: str, cmd: str) -> int:
+    """Paths flagged stale in `show bgp ... neighbors N routes json` (graceful restart: kept from before the peer
+    restarted, End-of-RIB pending). A flag that isn't a boolean is unexpected output."""
+    data = load_json(cmd, text)
+    routes = data.get("routes") if isinstance(data, dict) else None
+    stale = 0
+    for paths in (routes.values() if isinstance(routes, dict) else []):
+        for p in (paths if isinstance(paths, list) else []):
+            if isinstance(p, dict) and "stale" in p:
+                if not isinstance(p["stale"], bool):
+                    raise unexpected(cmd, f"stale: {str(p['stale'])[:40]!r}")
+                stale += p["stale"]
+    return stale
 
 
 def add_path_rx(text: str) -> set[tuple[str, str, str]]:
@@ -724,8 +789,8 @@ class FrrDriver(Driver):
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         for key, name, afi in sorted(add_path_rx(text)):
             n = neighbors.get(key)
-            if n is None or afi not in n.prefixes:
-                continue
+            if n is None or afi not in n.prefixes or afi in n.prefixes_unread:
+                continue   # unread: a graceful-restart window, no count to refine until End-of-RIB
             if afi not in ("ipv4-unicast", "ipv6-unicast"):
                 # no per-neighbor listing read for this family (EVPN, ...): the counter's P paths are 1 to P
                 # prefixes, judged only where the whole range agrees, otherwise no verdict (never the path count)
@@ -737,7 +802,14 @@ class FrrDriver(Driver):
                                      f"acceptedPrefixCounter ({paths}) counts paths, not prefixes"})
                 continue
             rcmd = f"show bgp{vrf_part} {afi.split('-')[0]} unicast neighbors {name} routes json"
-            count = count_neighbor_prefixes(self._vtysh(rcmd, ev), rcmd, n.prefixes[afi])
+            listing = self._vtysh(rcmd, ev)
+            stale = listed_stale(listing, rcmd)
+            if stale:   # stale paths listed though the neighbor's graceful-restart state didn't say so: not settled
+                neighbors[key] = replace(n, prefixes_unread={**n.prefixes_unread, afi: (
+                    f"`{rcmd}` lists {stale} stale path(s) (graceful restart, End-of-RIB pending), so FRR's "
+                    f"acceptedPrefixCounter ({n.prefixes[afi]}) still counts paths from before the restart")})
+                continue
+            count = count_neighbor_prefixes(listing, rcmd, n.prefixes[afi])
             neighbors[key] = replace(n, prefixes={**n.prefixes, afi: count})
         return Observation(neighbors, ev)
 

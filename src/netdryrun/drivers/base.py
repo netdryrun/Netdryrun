@@ -133,7 +133,9 @@ class BgpNeighbor:
     # doesn't give (Junos hides routes import policy rejected and routes whose next hop it can't use alike): the
     # reference count, received minus rejected by import policy, is then from prefixes[afi] to this (interop IOP-7)
     prefixes_upto: dict[str, int] = field(default_factory=dict)
-    # afi -> why the hidden routes behind a prefixes_upto range couldn't be read (a failed command, unreadable output)
+    # afi -> why the hidden routes behind a prefixes_upto range couldn't be read (a failed command, unreadable output);
+    # without a prefixes_upto range: why the count isn't settled at all (FRR graceful restart, End-of-RIB pending and
+    # stale paths still counted, RT-0072), so no bound is judged on it and `record` leaves it out
     prefixes_unread: dict[str, str] = field(default_factory=dict, compare=False)
     # afi -> why the count is a prefixes_upto range, where it isn't hidden routes (add-path: a counter of paths that
     # may be fewer prefixes); wording only, for the check's detail and record's warning

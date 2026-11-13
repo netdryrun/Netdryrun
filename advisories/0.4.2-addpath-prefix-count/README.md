@@ -64,3 +64,25 @@ closed-world list read (FRR and SONiC 0.4.1, where both came in; RT-0071): `reco
 `only`, so the prefix coming back passed the recorded check. From 0.4.2 a prefix whose paths are all withdrawn is not
 listed; re-record a baseline taken while dampening held a withdrawn prefix, or remove it from `only` by hand. Case
 `tests/redteam/RT-0071-frr-history-entry-listed-as-received-prefix.yml`, oracle `tests/oracles/FP-042-FRRRECVHIST`.
+
+## Also fixed in 0.4.2: FRR and SONiC counted graceful-restart stale paths as accepted prefixes
+
+**Affected:** FRR since 0.1.0 and SONiC since 0.2.0, netdryrun 0.4.1 and earlier. When a BGP neighbor restarts with
+graceful restart and preserves its forwarding state (it sets the F-bit for the family, for example FRR's
+`bgp graceful-restart preserve-fw-state`), bgpd keeps the neighbor's old paths marked stale until the neighbor sends
+End-of-RIB, and counts them in `acceptedPrefixCounter`. The window a check can read lasts from the session coming
+back until End-of-RIB (or until the stale-path timer ends); while the session is down the check fails as not
+established. `bgp_prefixes min` is a positive check, judged before any
+End-of-RIB wait, so `min: 4` passed ("4 ipv4-unicast prefixes accepted") while the restarted neighbor sent only 3 and
+its End-of-RIB was still pending (FRR 10.4.1, captured live). Without the F-bit bgpd drops the stale paths when the
+session comes back, and the count is the neighbor's: no false pass then.
+
+From 0.4.2 a family whose neighbor set the F-bit and whose End-of-RIB isn't read as received
+(`gracefulRestartInfo.<afi>.endOfRibStatus.endOfRibRecv` true and the family listed in `gracefulRestartInfo.endOfRibRecv`)
+has no settled count: no bound is judged on it, the check samples again until End-of-RIB arrives, and `record` leaves
+the count out. A graceful-restart field the driver doesn't recognise is treated the same way, and so is a neighbor
+routes listing (read for add-path) that shows stale paths. **Workaround before you upgrade:** add a `max` to the
+`min` check, which makes it a post-convergence check: from 0.4.1 the convergence gate waits for an End-of-RIB the node reports pending.
+Or leave graceful restart (or `preserve-fw-state` on the restarting neighbor) off in the lab. Case
+`tests/redteam/RT-0072-frr-gr-stale-paths-counted-as-accepted.yml`, oracle `tests/oracles/FP-042-FRRGRSTALE`, from a live
+FRR 10.4.1 capture.

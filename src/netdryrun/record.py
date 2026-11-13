@@ -252,6 +252,11 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
         for afi, count in sorted(n.prefixes.items()):
             if afi in unsupported:
                 continue
+            if afi in n.prefixes_unread and afi not in n.prefixes_upto:
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count {count} "
+                                f"isn't settled ({n.prefixes_unread[afi]}); not recorded: record again once it "
+                                "settles, or add a check by hand")
+                continue
             if afi in n.prefixes_upto:
                 range_why = n.prefixes_upto_why.get(afi) or "hidden routes Netdryrun can't classify"
                 warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count is "
