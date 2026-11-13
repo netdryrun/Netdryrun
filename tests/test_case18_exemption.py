@@ -728,6 +728,12 @@ def test_audit_f12_a_results_change_between_layers_is_code(monkeypatch):
     msg = gate.code_differs({"static": "b" * 40, "live": "a" * 40})
     assert msg and "corpus/v2/results/results.json" in msg
     calls["diff"] = "releases/0.4.1/GATE.md\ncorpus/v2/AMENDMENTS.md"
+    # 2026-11-13: Markdown is prose-only only when no script or test names it (a gate script reads AMENDMENTS.md)
+    from types import SimpleNamespace
+    named = {"value": True}
+    monkeypatch.setattr(gate, "run", lambda cmd, timeout=60: SimpleNamespace(code=0 if named["value"] else 1, out=""))
+    assert "corpus/v2/AMENDMENTS.md" in gate.code_differs({"static": "b" * 40, "live": "a" * 40})
+    named["value"] = False
     assert gate.code_differs({"static": "b" * 40, "live": "a" * 40}) is None
 
 

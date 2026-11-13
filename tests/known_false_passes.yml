@@ -315,7 +315,7 @@
   what: With add-path from the peer, FRR's acceptedPrefixCounter counts paths, and the FRR and SONiC drivers read it
     as the prefix count, so `bgp_prefixes min` passed on fewer prefixes (red team on the 0.4.2 candidate 79e6205,
     confirmed live on FRR 10.4.1); the driver now counts the prefixes the neighbor's routes listing gives
-  record: CHANGELOG.md (0.4.2, Fixed)
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
   tests:
     - tests/oracles/FP-042-ADDPATH/test_oracle_fp_042_addpath.py
     - tests/test_frr_addpath_vrfdev_042.py
