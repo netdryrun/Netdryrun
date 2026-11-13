@@ -29,8 +29,10 @@ paths each read as 4, so `bgp_prefixes min: 4` passed though only 2 prefixes arr
 - SR Linux counts the distinct prefixes of the neighbor's paths in the local RIB (`bgp-rib`), which it already read for
   the AS-loop paths; a RIB whose usable paths don't add up to the counter gives no verdict.
 - Arista EOS reads the peer's add-path receive state (`show ip bgp neighbors N vrf V | json`,
-  `receivingAddPaths.enabled`). Where it isn't clearly off, `prefixAccepted` P becomes the range 1 to P prefixes: `max`
-  and `exact: 0` still get a verdict, `min` above 1 gets none. Counting EOS prefixes from a route listing is planned.
+  `receivingAddPaths.enabled`). Where it isn't clearly off, `prefixAccepted` P becomes the range 1 to P prefixes, judged
+  only where the whole range agrees: `max` passes when P is within it, `max: 0` and `exact: 0` fail, and `min` above P
+  fails, but P above `max`, or a `min` from 2 to P, gets no verdict (not ready), not a fail. Counting EOS prefixes from
+  a route listing is planned.
 
 **Workaround before you upgrade:** add an `only:` list to the check (FRR and SONiC); check the count on a neighbor that
 doesn't receive add-path; or turn add-path receive off on that session if your design allows it (FRR, under

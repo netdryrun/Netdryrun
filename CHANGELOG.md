@@ -46,9 +46,9 @@
   4.36.3M; 0.2.0 and later). cEOS advertises additional-paths receive by default, and the summary's `prefixAccepted`
   counts each path: 2 prefixes with 2 paths each read as 4, so `min: 4` passed. For a peer with more than one path in a
   family, the driver now reads its add-path receive state (`show ip|ipv6 bgp neighbors N vrf V | json`); unless it is
-  clearly off, P paths are the range 1 to P prefixes, judged only where the whole range agrees (`max` and `exact: 0`
-  still get a verdict, `min` above 1 gets none). Oracle `tests/oracles/FP-042-EOSADDPATH`, from the live capture;
-  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+  clearly off, P paths are the range 1 to P prefixes, judged only where the whole range agrees (`max` passes when P is
+  within it; P above `max`, or a `min` from 2 to P, gets no verdict, not a fail). Oracle
+  `tests/oracles/FP-042-EOSADDPATH`, from the live capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a dampening history entry read as a received route** (red team RT-0070, confirmed live on FRR
   10.4.1; 0.3.1 and later, and for the default route 0.4.1 only, since a731395). With `bgp dampening`, bgpd keeps a
   withdrawn route listed as a history entry, and the driver read it as received and not selected, so
