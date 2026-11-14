@@ -125,7 +125,8 @@
   0.3.3 and 0.4.0 did this with routes recorded too; 0.4.1 already exited 1 there. Now the failed read is an
   `INCOMPLETE BASELINE` line naming the node, the VRF and IPv6 ("IPv6 routes could not be read, so no IPv6 guards"),
   and `record` exits 1, in both modes. Only a driver's own answer that it can't read IPv6 routes there (RouterOS's
-  "not supported", cEOS's `routingDisabled` for IPv6) keeps the plain warning and no IPv6 guard. Oracle
+  "not supported", cEOS's `routingDisabled` for IPv6) writes no IPv6 guard: under `--no-routes` with a plain warning;
+  with routes recorded, the route read's own `INCOMPLETE BASELINE` line stays, and `record` exits 1 as before. Oracle
   `tests/oracles/FP-042-RECORDV6READFAIL`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC read any `show vrf` answer they didn't recognise as "no VRFs"** (adversary review of the RT-0076
   fix; 0.4.0 to 0.4.1). The VRF list kept the lines shaped `vrf NAME ...` and skipped the rest, so when vtysh exited 0
@@ -201,6 +202,10 @@
 - **`record` on a BGP-unnumbered fabric** (FRR `neighbor ethN interface`): the interface-named sessions are an
   INCOMPLETE BASELINE gap and `record` exits 1 (for example on martimy/clab-bgp-frr). Cover those sessions with `route`
   and `ping` checks written by hand. Planned for 0.4.3.
+- **cEOS with IPv6 routing off at record time gets no `::/0` guard**: a later change that turns IPv6 routing on and
+  leaks `::/0` passes the recorded file. Add `{type: route, node: <node>, prefix: ::/0, protocol: bgp, present: false}`
+  by hand on such nodes. On RouterOS, and on cEOS with IPv6 routing off in a recorded VRF, `record` with routes exits 1
+  on a healthy lab (the IPv6 route read is named as a gap); use `--no-routes` there or review the line. Planned for 0.4.3.
 - **SR Linux and Junos: `bgp_route present: false` doesn't see the node's own exported prefix** (RT-0048, accepted
   for 0.4.1). Keep the guard on the neighbor that would receive the route. Planned for 0.4.3.
 - **Juniper (beta): `bgp_prefixes` may count add-path paths as prefixes** when add-path receive is negotiated with the

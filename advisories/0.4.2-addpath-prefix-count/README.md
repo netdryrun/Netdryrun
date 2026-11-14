@@ -166,7 +166,7 @@ Four neighbours of this hole, found by adversary review of its fix, are fixed in
   supported", cEOS with IPv6 routing off) no `::/0` guard is written, as before; a read that fails is the next item.
   **Workaround before you upgrade:** add that check by hand. Oracle `tests/oracles/FP-042-RECORDV6DEFAULT`.
 - **A failed IPv6 route read under `record --no-routes`.** **Affected:** netdryrun 0.3.3 to 0.4.1, every driver that
-  reads IPv6 routes (FRR, SONiC, Junos, NX-OS, SR Linux, EOS with IPv6 routing on). When the IPv6 route read of a node
+  reads IPv6 routes (FRR, SONiC, SR Linux and EOS with IPv6 routing on from 0.3.3; Junos from 0.4.0; NX-OS in 0.4.1). When the IPv6 route read of a node
   or VRF without IPv6 BGP today failed (a vtysh, NX-API or NETCONF timeout), `record` wrote a plain `# warning:`
   comment and left out the IPv6 link-subnet guards (from 0.3.3) and the eBGP `::/0` guard (from 0.4.1) without a gap
   line, and exited 0, so a `::/0` or link subnet leaked there later passed. 0.3.3 and 0.4.0 did this with routes
