@@ -1,0 +1,13 @@
+id: FP-042-RECORDV6DEFAULT
+bug: >-
+  `record` writes the ::/0 guard of a VRF only when the VRF has IPv6 BGP today (IPv6 neighbors, routes or families) or
+  an established eBGP session (record._guards: `if fam == 6 and not v6 and not (ebgp and 6 in bgp_now)`), so a VRF,
+  or the default VRF, with a BGP instance whose IPv6 routes the driver reads but that has no IPv6 BGP route today and
+  no eBGP session (a sessionless `import vrf` VRF, or iBGP-only) gets no ::/0 guard and no INCOMPLETE BASELINE line,
+  and a ::/0 leaked into it later (`address-family ipv6` + `import vrf` added) passes every recorded check (adversary
+  n4f on 606d238, C1). Either fix passes: a `::/0 present: false` guard with that VRF's `vrf:` wherever the VRF's IPv6
+  routes can be read, or an INCOMPLETE BASELINE line naming the node, the VRF and the IPv6 default. The guards (where
+  the driver can't read IPv6 routes, no ::/0 guard and no gap line beyond today's; the IPv4 and eBGP guards stay) are
+  in tests/test_oracle_guards_fp_042_recordv6default.py
+evidence:
+  - tests/test_oracle_guards_fp_042_recordv6default.py
