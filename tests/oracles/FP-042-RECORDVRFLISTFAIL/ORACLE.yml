@@ -1,0 +1,13 @@
+id: FP-042-RECORDVRFLISTFAIL
+bug: >-
+  `record` treats a failed VRF-list read on a driver that lists VRFs (FRR, SONiC, Junos, NX-OS, RouterOS: a vtysh,
+  NETCONF/CLI, NX-API or REST timeout on `show vrf`) like a driver that can't list VRFs at all: record.record() catches
+  the DriverError from drv.vrfs(), writes only the plain warning "only the default VRF is recorded", records the default
+  VRF alone and exits 0, so every other VRF goes unrecorded with no session, route or guard and a default leaked into a
+  customer VRF passes the baseline; cli.md says a failed read (a VRF) is an INCOMPLETE BASELINE line that exits 1
+  (adversary n4f on 606d238, finding B1; the same since 0.4.0). Fixed when the rendered file carries an INCOMPLETE
+  BASELINE line naming the node and its VRF read. The guards (a driver that doesn't implement vrfs(), as on EOS and SR
+  Linux, keeps the plain warning and no gap line; a VRF list that reads records every VRF) are in
+  tests/test_oracle_guards_fp_042_recordvrflistfail.py
+evidence:
+  - tests/test_oracle_guards_fp_042_recordvrflistfail.py
