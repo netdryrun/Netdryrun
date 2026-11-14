@@ -92,6 +92,13 @@
   passed after the withdrawal. Such a path is no path now, in `route`, `bgp_route` and `record`; a path without
   either flag, or with a flag that isn't a boolean, is unexpected output. Oracle `tests/oracles/FP-042-NXOSHIST`;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record` wrote no guard in a non-default VRF** (red team RT-0076, angle-5 red team on the 0.4.2 candidate; 0.4.0
+  to 0.4.1). `record` covers every VRF the driver lists, but wrote the no-default-route and link-subnet guards in the
+  default VRF only, without a word, so a default route leaked into a customer VRF passed every recorded check of that
+  VRF. Every VRF with BGP sessions now gets the guards, each with its `vrf:`, judged like the default VRF's on what
+  that VRF learns via BGP today (a VRF that learns a default today gets no default guard, and a comment says so). A
+  baseline recorded on a lab with VRFs has more checks than before; re-record to get them. Oracle
+  `tests/oracles/FP-042-RECORDVRF`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the

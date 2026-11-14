@@ -129,3 +129,15 @@ brought up, and a `link_down` on it, or a `node_isolated` whose links are all do
 you upgrade:** keep a scenario that fails a node with a shut link last in the file (or in its own run), or replace
 `node_isolated` with a `link_down` list of the links that are up. Case
 `tests/redteam/RT-0074-scenario-restore-brings-up-a-shut-link.yml`, oracle `tests/oracles/FP-042-SCENRESTORE`.
+
+## Also fixed in 0.4.2: `record` wrote no guard in a non-default VRF
+
+**Affected:** netdryrun 0.4.0 to 0.4.1, on every driver that lists VRFs (FRR and SONiC; Junos from 0.4.0; the NX-OS and
+RouterOS beta drivers in 0.4.1). `record` records every VRF the node lists, each check with its `vrf:`, but wrote its
+guards (no default route via BGP, no link subnet of the topology via BGP) in the default VRF only, and said nothing
+about the others. A change that leaked the default route into a customer VRF (FRR `import vrf default` under the VRF's
+`router bgp`) passed every check recorded for that VRF. From 0.4.2 each VRF with BGP sessions gets the same guards with
+its `vrf:`, each first run on the recording lab like the default VRF's: one the VRF fails today (a default it learns as
+its service) is left out with a comment. **Workaround before you upgrade:** add to a recorded baseline, for each VRF,
+`{type: route, node: <node>, vrf: <vrf>, prefix: 0.0.0.0/0, protocol: bgp, present: false}` (and `::/0` with IPv6), or
+re-record with 0.4.2. Case `tests/redteam/RT-0076-record-no-guard-in-a-vrf.yml`, oracle `tests/oracles/FP-042-RECORDVRF`.

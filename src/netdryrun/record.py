@@ -96,8 +96,8 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     With `guards` (the default from 0.3.3: a prefix range has room for one leaked default route, so the
     no-default-route guard is what catches it), the standard guard recipes that can be read from the lab: no
     default route via BGP, and no link subnet of the topology via BGP, on every BGP node, except what the node
-    learns via BGP today. Guards are recorded in the default VRF only.
-    Every VRF the node lists is recorded; a check outside the default VRF carries `vrf:`."""
+    learns via BGP today. Every VRF the node lists is recorded, its guards included (each judged on what that VRF
+    learns today); a check outside the default VRF carries `vrf:`."""
     if prefix_mode not in ("range", "exact", "min"):
         raise ValueError(f"prefix_mode must be range, exact or min, got {prefix_mode!r}")
     lab = Lab(topology)
@@ -149,7 +149,7 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
             warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
         for vrf in vrfs:
             checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
-                                  link_subnets if guards and vrf == "default" else None, sleep, no_bgp)
+                                  link_subnets if guards else None, sleep, no_bgp)
     _unnumbered(link_local_only, drvs, warnings)
     for name in routing:
         if name in no_bgp and name in no_bgp_ok:
@@ -214,7 +214,9 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
                     if c:
                         checks.append(c)
     if link_subnets is not None and neighbors:
-        checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep)
+        # every VRF with BGP sessions gets the guards, with its `vrf:` (angle-5 red team on 82fb052, RT-0076): 0.4.1
+        # wrote them in the default VRF only, so a default route leaked into a customer VRF passed every recorded check
+        checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep, vrf=vrf)
     return checks
 
 
@@ -370,8 +372,9 @@ def _unnumbered(link_local_only: dict[str, list[str]], drvs: dict, warnings: lis
 
 
 def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_subnets: list[str],
-            warnings: list[str], sleep=time.sleep) -> list[dict]:
-    """The standard guards for one BGP node: checks that must hold on what the network does today. Each one
+            warnings: list[str], sleep=time.sleep, vrf: str = "default") -> list[dict]:
+    """The standard guards for one VRF of a BGP node (`neighbors` and `bgp_now` are that VRF's): checks that must
+    hold on what the network does today, each with the VRF's `vrf:` outside the default VRF. Each one
     is evaluated on the recording lab with the real check before it is written: a guard the baseline itself
     fails (a default received from upstream but not selected, which the routing table doesn't list) is left
     out, and a warning, a comment in the file, says why. A sample that errors is no answer: it is retried, and
@@ -381,23 +384,25 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
     # an eBGP session that doesn't carry IPv6 today still gets the ::/0 guard, so a family added later can't leak a
     # default unseen (acceptance round B-3), wherever IPv6 routes can be read
     ebgp = any(n.state == "established" and n.external is not False for n in neighbors.values())
+    at = {} if vrf == "default" else {"vrf": vrf}
+    where = name if vrf == "default" else f"{name} (vrf {vrf})"   # every message names the VRF
     out = []
     for fam, default in ((4, "0.0.0.0/0"), (6, "::/0")):
         if fam == 6 and not v6 and not (ebgp and 6 in bgp_now):
             continue
         if fam not in bgp_now:   # its routes couldn't be read: a guard against what it has today can't be built
-            warnings.append(f"INCOMPLETE BASELINE: {name}: IPv{fam} routes could not be read, so no IPv{fam} "
+            warnings.append(f"INCOMPLETE BASELINE: {where}: IPv{fam} routes could not be read, so no IPv{fam} "
                             "guards (no default route, no link subnet) were recorded for it")
             continue
         if default in bgp_now[fam]:
-            warnings.append(f"{name}: learns {default} via BGP today; no 'no default route' guard recorded")
+            warnings.append(f"{where}: learns {default} via BGP today; no 'no default route' guard recorded")
             continue
-        out.append({"type": "route", "node": name, "prefix": default, "protocol": "bgp", "present": False})
+        out.append({"type": "route", "node": name, "prefix": default, "protocol": "bgp", "present": False, **at})
     # a subnet the node learns via BGP today, or whose family couldn't be read, gets no guard
     links = [n for n in link_subnets if n not in bgp_now.get(6 if ":" in n else 4, {n})]
     if len(links) > MAX_LINK_GUARDS_PER_NODE:
-        warnings.append(_links_cap(name, len(links)))
-    out += [{"type": "route", "node": name, "prefix": n, "protocol": "bgp", "present": False}
+        warnings.append(_links_cap(where, len(links)))
+    out += [{"type": "route", "node": name, "prefix": n, "protocol": "bgp", "present": False, **at}
             for n in links[:MAX_LINK_GUARDS_PER_NODE]]
     kept = []
     for g in out:
@@ -412,10 +417,10 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
         if ok:
             kept.append(g)
         elif isinstance(detail, Unready):
-            warnings.append(f"INCOMPLETE BASELINE: {name}: the guard against {g['prefix']} via BGP could not be "
+            warnings.append(f"INCOMPLETE BASELINE: {where}: the guard against {g['prefix']} via BGP could not be "
                             f"evaluated on the lab ({why}); not recorded: add it by hand once the node answers")
         else:
-            warnings.append(f"{name}: no guard against {g['prefix']} via BGP: the baseline lab already fails it ({why})")
+            warnings.append(f"{where}: no guard against {g['prefix']} via BGP: the baseline lab already fails it ({why})")
     return kept
 
 

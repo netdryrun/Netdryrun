@@ -108,11 +108,28 @@ def test_a_vrf_without_bgp_is_skipped_quietly_and_a_node_without_bgp_still_warns
     assert any(c.get("vrf") == "cust" for c in data["checks"])
 
 
-def test_guards_are_recorded_in_the_default_vrf_only(monkeypatch):
-    """0.3.3's guards (no default route via BGP) merged with 0.4's VRFs: a guard is written for the default VRF,
-    never for a customer VRF, where a default route can be the service itself."""
+def test_guards_are_recorded_in_every_vrf_with_its_vrf(monkeypatch):
+    """0.3.3's guards (no default route via BGP) merged with 0.4's VRFs. Until 0.4.2 a guard was written for the
+    default VRF only, so a default leaked into a customer VRF passed the baseline (RT-0076, oracle FP-042-RECORDVRF).
+    From 0.4.2 every VRF with BGP sessions gets the guards, with its `vrf:`. A VRF whose service is a default route
+    learns it today, and a guard is never written against what a VRF learns today (next test)."""
     data, _ = _record(monkeypatch, Drv(vrfs=["cust"]), guards=True)
     guards = [c for c in data["checks"] if c.get("present") is False]
     assert {"type": "route", "node": "edge1", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": False} in guards
-    assert not any("vrf" in c for c in guards)
-    assert any(c.get("vrf") == "cust" for c in data["checks"])          # the VRF itself is still recorded
+    assert {"type": "route", "node": "edge1", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": False,
+            "vrf": "cust"} in guards
+    assert any(c.get("vrf") == "cust" for c in data["checks"] if c.get("present") is not False)
+
+
+def test_a_vrf_that_learns_a_default_today_gets_no_default_guard(monkeypatch):
+    class DefaultInCust(Drv):
+        def all_routes(self, vrf="default", family=4):
+            got = super().all_routes(vrf, family)
+            if vrf == "cust" and family == 4:
+                return Observation(got.value + [Route("0.0.0.0/0", "bgp", True)], [])
+            return got
+
+    data, warnings = _record(monkeypatch, DefaultInCust(vrfs=["cust"]), guards=True)
+    guards = [c for c in data["checks"] if c.get("present") is False]
+    assert [c.get("vrf", "default") for c in guards if c["prefix"] == "0.0.0.0/0"] == ["default"]
+    assert any(w.startswith("edge1 (vrf cust): learns 0.0.0.0/0 via BGP today") for w in warnings)
