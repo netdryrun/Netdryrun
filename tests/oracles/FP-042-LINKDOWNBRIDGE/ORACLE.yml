@@ -1,0 +1,15 @@
+id: FP-042-LINKDOWNBRIDGE
+bug: >-
+  Scenario `link_down` on a port of a bridge that keeps another port watches no session: `runner._stacked_on` counts
+  a bond, bridge or VRF master as down only once every enslaved device goes down, so with r1 eth1 and eth2 in br0
+  (session address on br0) or SONiC's `Bridge` kept up by vlanmgr's `dummy` member (session on `Vlan100@Bridge`),
+  `_wait_fault_visible` logs "no BGP session runs over the downed links" and the checks run at once; neither end sees a
+  carrier change, and a route check on the far end passes on the state from before the fault (adversary n5d on
+  5f0b7d7, offline on the real Lab and run_scenario with a fake kernel). Also red here: the far end of a SONiC port is
+  never looked up (`Lab.peers_of(r1, "Ethernet0")` matches only the topology's `r1:eth1`), so a routed SONiC port
+  watches only its own end; and a host with the bonding module loaded lists `/sys/class/net/bonding_masters`, which
+  `Lab.link_tree` reads as a device and fails, so every `link_down` exits 2 (acceptance risk 1). The guards (a bond
+  that keeps a member stays up and is not waited for; a VLAN subinterface is still watched on both ends; a gre tunnel
+  without a session adds nothing to wait for) are in tests/test_oracle_guards_fp_042_linkdownbridge.py
+evidence:
+  - tests/test_oracle_guards_fp_042_linkdownbridge.py
