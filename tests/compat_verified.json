@@ -1,6 +1,9 @@
 {
   "frr": {
-    "date": "2026-10-28"
+    "date": "2026-10-28",
+    "limits": [
+      "`bgp_prefixes exact: 0` on a session that carries only IPv4 (or IPv6) labeled-unicast: bgpd names that family `ipv4LabeledUnicast`, so the check reads the session as not carrying ipv4-unicast and passes, though labeled-unicast routes are installed as IPv4 unicast routes (not confirmed live). Use `max: 0` there, or `route ... present: false` checks. Not fixed in 0.4.2."
+    ]
   },
   "srlinux": {
     "date": "2026-10-27",
@@ -13,14 +16,16 @@
   "sonic": {
     "date": "2026-10-28",
     "limits": [
-      "graceful restart: SONiC's routing is FRR, and its driver reads FRR's `stale` flag as the FRR driver does: a `route` or `bgp_route` check never passes on a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends). A live graceful restart has not been captured on docker-sonic-vs to confirm the flag. From 0.4.2 a `bgp_prefixes` count isn't settled while a peer that kept its forwarding state (F-bit) hasn't sent End-of-RIB, as on FRR, since bgpd counts the stale paths. Mitigation: leave graceful restart off in the lab."
+      "graceful restart: SONiC's routing is FRR, and its driver reads FRR's `stale` flag as the FRR driver does: a `route` or `bgp_route` check never passes on a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends). A live graceful restart has not been captured on docker-sonic-vs to confirm the flag. From 0.4.2 a `bgp_prefixes` count isn't settled while a peer that kept its forwarding state (F-bit) hasn't sent End-of-RIB, as on FRR, since bgpd counts the stale paths. Mitigation: leave graceful restart off in the lab.",
+      "`bgp_prefixes exact: 0` on a session that carries only IPv4 (or IPv6) labeled-unicast: bgpd names that family `ipv4LabeledUnicast`, so the check reads the session as not carrying ipv4-unicast and passes, though labeled-unicast routes are installed as IPv4 unicast routes (not confirmed live). Use `max: 0` there, or `route ... present: false` checks. Not fixed in 0.4.2."
     ]
   },
   "eos": {
     "date": "2026-10-28",
     "limits": [
       "graceful restart: a path the router marks stale (a restarting peer's route, kept until it re-sends it or the stale timer ends) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The mark is read from the NOS's own field (`routeType.stale`); a live graceful restart has not been captured on this NOS to confirm the field turns true during one. Mitigation: leave graceful restart off in the lab.",
-      "`med: 0` is refused before the lab boots (exit 2): cEOS 4.36.3M prints MED 0 for a path received with no MED (live capture, 0.4 interop test), and no field of `show ip bgp <prefix> | json` tells the two apart. A non-zero MED is checked as usual; a path whose MED reads 0 reports it as \"not set\"."
+      "`med: 0` is refused before the lab boots (exit 2): cEOS 4.36.3M prints MED 0 for a path received with no MED (live capture, 0.4 interop test), and no field of `show ip bgp <prefix> | json` tells the two apart. A non-zero MED is checked as usual; a path whose MED reads 0 reports it as \"not set\".",
+      "`bgp_prefixes` during graceful restart: while a restarting peer that kept its forwarding state (F-bit) hasn't sent End-of-RIB, its stale paths may still be in the count, so a check with only a `min` could pass on fewer prefixes than the peer now sends (not confirmed live; FRR and SONiC handle this from 0.4.2). Not fixed in 0.4.2. Mitigation: add a `max` (the convergence gate then waits for End-of-RIB), or pair the `min` with `route` checks."
     ]
   },
   "junos": {
@@ -45,7 +50,9 @@
       "Failure scenarios (`link_down`, `node_isolated`) on an NX-OS node are refused: the container's interfaces only carry frames to the VM. Take the link down on the other side of the link.",
       "`med: 0` is refused before deploying: NX-OS prints MED 0 for a path received with no MED, so the two can't be told apart. Check a non-zero MED, or that route on another platform.",
       "graceful restart: a path the router marks stale (a restarting peer's route, kept until it re-sends it or the stale timer ends) stops the read with a 'not settled' error, so a check samples again until the mark clears and never passes or fails on a route about to go. The mark is read from the NOS's own field (`pathstaled`); a live graceful restart has not been captured on this NOS to confirm the field turns true during one. Mitigation: leave graceful restart off in the lab.",
-      "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4."
+      "startup config: a line the NOS rejects at boot isn't detected yet, so the lab can run without it. Mitigation: add a positive check for what each changed line creates. Fix scheduled: 0.4.",
+      "`bgp_prefixes` during graceful restart: while a restarting peer that kept its forwarding state (F-bit) hasn't sent End-of-RIB, its stale paths may still be in the count, so a check with only a `min` could pass on fewer prefixes than the peer now sends (not confirmed live; FRR and SONiC handle this from 0.4.2). Not fixed in 0.4.2. Mitigation: add a `max` (the convergence gate then waits for End-of-RIB), or pair the `min` with `route` checks.",
+      "`bgp_prefixes` with add-path: when add-path receive is negotiated with a peer, the count NX-OS reports in its summary may count paths, not prefixes, so a `min` could pass on fewer prefixes (not confirmed live). Not fixed in 0.4.2. Mitigation: check the prefixes that matter with `route` checks, or leave add-path receive off in the lab."
     ]
   },
   "routeros": {

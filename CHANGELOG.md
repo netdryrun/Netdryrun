@@ -246,14 +246,20 @@
   on a healthy lab (the IPv6 route read is named as a gap); use `--no-routes` there or review the line. Planned for 0.4.3.
 - **SR Linux and Junos: `bgp_route present: false` doesn't see the node's own exported prefix** (RT-0048, accepted
   for 0.4.1). Keep the guard on the neighbor that would receive the route. Planned for 0.4.3.
-- **Juniper (beta): `bgp_prefixes` may count add-path paths as prefixes** when add-path receive is negotiated with the
-  peer, as FRR, SR Linux and Arista EOS did before 0.4.2 (RT-0067 to RT-0069), so a `min` could pass on fewer
-  prefixes. Not confirmed live on Junos. Workaround: check the prefixes that matter with `route ... present` checks, or
+- **Juniper and Cisco NX-OS (beta): `bgp_prefixes` may count add-path paths as prefixes** when add-path receive is
+  negotiated with the peer, as FRR, SR Linux and Arista EOS did before 0.4.2 (RT-0067 to RT-0069), so a `min` could pass on fewer
+  prefixes. Not confirmed live on Junos or NX-OS (on NX-OS only if the summary's count is a path count). Workaround: check the prefixes that matter with `route ... present` checks, or
   leave add-path receive off in the lab.
-- **SR Linux and Juniper (beta): `bgp_prefixes min` may count graceful-restart stale paths** while a restarting peer
+- **SR Linux, Arista EOS, and Juniper and Cisco NX-OS (beta): `bgp_prefixes min` may count graceful-restart stale paths** while a restarting peer
   that kept its forwarding state (F-bit set) hasn't sent End-of-RIB, as FRR and SONiC did before 0.4.2 (RT-0072). Not
-  confirmed live on either. Workaround: add a `max` to the check (the convergence gate then waits for End-of-RIB), or
+  confirmed live on any of them. Workaround: add a `max` to the check (the convergence gate then waits for End-of-RIB), or
   pair the `min` with `route` checks.
+- **FRR and SONiC: `bgp_prefixes exact: 0` passes on a session that carries only IPv4 (or IPv6) labeled-unicast**
+  (red team 042-HV, RT-0080). bgpd lists such a session's family as `ipv4LabeledUnicast`, not `ipv4Unicast`, so the
+  check reads "the session doesn't carry ipv4-unicast" and passes, while bgpd stores labeled-unicast routes in the
+  IPv4 unicast table and zebra installs them. Only `exact: 0` passes this way; `max`, `min`, `only` and `exact` above 0
+  fail. Not confirmed live. Workaround: use `max: 0` instead of `exact: 0` on such sessions, or add `route ... present:
+  false` checks. Planned for 0.4.3.
 - **Arista EOS: `route ... protocol: bgp present: false` passes on a BGP aggregate** (red team 042-GV, A-RT-0077).
   The driver reads an `aggregate-address` route as protocol `aggregate`, not `bgp`, so the guard passes on the node's
   own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix
