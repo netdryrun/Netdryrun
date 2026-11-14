@@ -47,7 +47,7 @@ The cases are `tests/redteam/RT-0067-frr-addpath-paths-counted-as-prefixes.yml`,
 `tests/oracles/FP-042-SRLADDPATH` and `tests/oracles/FP-042-EOSADDPATH`, built from the live captures. GitHub advisory:
 to be linked when published.
 
-## Also fixed in 0.4.2: FRR and SONiC read a dampening history entry as a received route
+## Also fixed in 0.4.2: FRR, SONiC and Cisco NX-OS read a dampening history entry as a received route
 
 **Affected:** FRR and SONiC, netdryrun 0.3.1 to 0.4.1 (0.4.1 only for the default route `0.0.0.0/0`). With
 `bgp dampening`, bgpd keeps a route the neighbor withdrew listed as a dampening history entry until its penalty decays
@@ -64,6 +64,14 @@ closed-world list read (FRR and SONiC 0.4.1, where both came in; RT-0071): `reco
 `only`, so the prefix coming back passed the recorded check. From 0.4.2 a prefix whose paths are all withdrawn is not
 listed; re-record a baseline taken while dampening held a withdrawn prefix, or remove it from `only` by hand. Case
 `tests/redteam/RT-0071-frr-history-entry-listed-as-received-prefix.yml`, oracle `tests/oracles/FP-042-FRRRECVHIST`.
+
+Cisco NX-OS (beta driver, netdryrun 0.4.1, its first release) had the same hole (RT-0075): NX-OS lists a withdrawn path
+with `pathhistory: "true"` (a dampening history entry) or `pathdeleted: "true"` (a path being deleted), and the driver
+read it as a received route that wasn't selected, so `route ... protocol: bgp active: false` passed after the
+withdrawal. From 0.4.2 such a path is no path in `route`, `bgp_route` and `record`. The case was derived from live
+NX-OS 10.4(8) captures, not captured in this state; the workaround is the FRR one above (`present: false`, or
+`clear bgp ip unicast dampening`). Case `tests/redteam/RT-0075-nxos-history-path-read-as-route.yml`, oracle
+`tests/oracles/FP-042-NXOSHIST`.
 
 ## Also fixed in 0.4.2: FRR and SONiC counted graceful-restart stale paths as accepted prefixes
 

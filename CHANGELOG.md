@@ -85,6 +85,13 @@
   before anything changes: a link already down is left down by `node_isolated`, and a `link_down` on it (or a
   `node_isolated` whose links are all down) is an error, since the fault would change nothing. Oracle
   `tests/oracles/FP-042-SCENRESTORE`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **Cisco NX-OS (beta): a withdrawn BGP path read as a received route** (red team RT-0075, angle-5 red team on the
+  0.4.2 candidate, derived from live NX-OS 10.4(8) captures; 0.4.1, the driver's first release). The NX-OS form of
+  RT-0070: NX-OS keeps a path the peer withdrew listed as a dampening history entry (`pathhistory`) or while deleting
+  it (`pathdeleted`), and the driver read it as received and not selected, so `route ... protocol: bgp active: false`
+  passed after the withdrawal. Such a path is no path now, in `route`, `bgp_route` and `record`; a path without
+  either flag, or with a flag that isn't a boolean, is unexpected output. Oracle `tests/oracles/FP-042-NXOSHIST`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the

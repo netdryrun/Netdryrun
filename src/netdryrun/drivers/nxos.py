@@ -292,7 +292,19 @@ def _bgp_paths_raw(text: str, prefix: str, vrf: str) -> list[dict]:
     for p in paths:   # graceful restart: a stale path is neither present nor gone yet. NX-OS 10.4(8) prints the mark
         # on every path (each capture): a missing one is unknown, never "not stale" (Layer 6 round 2 on eaa323c)
         refuse_if_stale(prefix, p.get("ipv6neighbor", p.get("neighbor")), _flag(BGP_CMD, must(BGP_CMD, p, "pathstaled")))
-    return paths
+    return [p for p in paths if not _withdrawn(p)]
+
+
+def _withdrawn(p: dict) -> bool:
+    """A path the peer withdrew that NX-OS still lists: a dampening history entry (`pathhistory`, "h" in the text
+    view) or a path being deleted (`pathdeleted`). It is no path, received or not (angle-5 red team on 82fb052,
+    RT-0075; the FRR form is RT-0070): read as one, `route ... protocol: bgp active: false` passed on a route the
+    peer had withdrawn. NX-OS 10.4(8) prints both flags on every path (each capture), so a missing or non-boolean one
+    is unexpected output, never "not withdrawn". Every reader of BGP paths (parse_routes, parse_bgp_paths, and so
+    routes, bgp_paths and record) gets the paths through _bgp_paths_raw, after this filter."""
+    history = _flag(BGP_CMD, must(BGP_CMD, p, "pathhistory"))
+    deleted = _flag(BGP_CMD, must(BGP_CMD, p, "pathdeleted"))
+    return history or deleted
 
 
 def _peer(p: dict) -> str:

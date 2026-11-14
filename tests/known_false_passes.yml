@@ -390,3 +390,14 @@
     - tests/oracles/FP-042-SCENRESTORE/test_oracle_fp_042_scenrestore.py
     - tests/test_scenario_restore_prior_state_042.py
     - tests/test_redteam.py
+- id: rt-0075-nxos-history-path-read-as-route
+  what: Cisco NX-OS (beta) keeps a withdrawn BGP path listed as a dampening history entry (pathhistory) or a path
+    being deleted (pathdeleted), and the driver read it as a received, not-selected BGP route, so
+    `route protocol bgp active false` passed after the withdrawal (0.4.1, the driver's first release; angle-5 red team
+    on the 0.4.2 candidate, derived from live NX-OS 10.4(8) captures); history and deleted paths are no path now, in
+    `route`, `bgp_route` and `record`
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-NXOSHIST/test_oracle_fp_042_nxoshist.py
+    - tests/test_nxos_history_042.py
+    - tests/test_redteam.py

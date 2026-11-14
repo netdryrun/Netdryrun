@@ -140,7 +140,9 @@ def _bgp(prefix_rows, rd=True, afi=True) -> str:
     return ok({"TABLE_vrf": {"ROW_vrf": row}})
 
 
-PATH = {"pathtype": "external", "pathbest": "true", "pathstaled": "false", "aspath": "65002", "ipnexthop": "10.0.1.2", "neighbor": "10.0.1.2",
+# NX-OS prints pathstaled, pathhistory and pathdeleted on every path (each live capture); a missing one is unexpected
+PATH = {"pathtype": "external", "pathbest": "true", "pathstaled": "false", "pathhistory": "false", "pathdeleted": "false",
+        "aspath": "65002", "ipnexthop": "10.0.1.2", "neighbor": "10.0.1.2",
         "neighborid": "2.2.2.2", "metric": 0, "localpref": "100"}
 
 
