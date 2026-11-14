@@ -44,6 +44,9 @@ def prefix_range(count: int) -> dict:
 # change there, so `record` exits 1 (acceptance 0.4.1 on d87aa3e: srl1's read failed, record exited 0, and a must-fail
 # change on srl1 passed the baseline; j1 was still booting and recorded nothing)
 MISSING_NODE = "BASELINE MISSES A NODE"
+# Every marker a gap line can start with: render puts each such line first in the file, and the MCP record_baseline
+# description names each one, since that tool returns the YAML only (oracle FP-042-MCPMISSNODE)
+GAP_MARKERS = ("INCOMPLETE BASELINE", MISSING_NODE)
 NOT_ROUTERS = frozenset({"bridge", "ovs-bridge", "host", "ext-container"})
 
 
@@ -55,7 +58,7 @@ def baseline_gaps(warnings: list[str]) -> list[str]:
     _routes_cap and _links_cap write them, are left out: a substring test let a gap line that quotes the device's
     words ("only the first ...") drop out, and `record` exited 0 (oracle FP-042-CAPMSG)."""
     return [w for w in warnings
-            if w.startswith(MISSING_NODE) or (w.startswith("INCOMPLETE BASELINE") and not _is_size_cap(w))]
+            if w.startswith(GAP_MARKERS) and not _is_size_cap(w)]
 
 
 def _routes_cap(where: str, count: int, fam: int) -> str:
@@ -497,7 +500,7 @@ def render(data: dict, warnings: list[str]) -> str:
     # one comment line per warning: device output in a warning must not add YAML (a setup command) to the file
     head += [f"# warning: {' '.join(str(w).split())}" for w in warnings]
     incomplete = [" ".join(str(w).split()) for w in warnings
-                  if str(w).startswith(("INCOMPLETE BASELINE", MISSING_NODE))]
+                  if str(w).startswith(GAP_MARKERS)]
     if incomplete:   # first in the file, so nobody commits a partial baseline without seeing it
         head = [f"# {w}" for w in incomplete] + ["#"] + head
     return "\n".join(head) + "\n" + yaml.safe_dump(data, sort_keys=False, width=200)

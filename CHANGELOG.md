@@ -99,6 +99,11 @@
   that VRF learns via BGP today (a VRF that learns a default today gets no default guard, and a comment says so). A
   baseline recorded on a lab with VRFs has more checks than before; re-record to get them. Oracle
   `tests/oracles/FP-042-RECORDVRF`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **MCP `record_baseline` named one gap marker of two** (angle-5 red team on the 0.4.2 candidate; 0.4.1). The tool
+  returns the YAML only, and its description named `# INCOMPLETE BASELINE` as the sign of a partial baseline, but a
+  routing node with no recorded check makes the first line `# BASELINE MISSES A NODE` (on which `netdryrun record`
+  exits 1), so an agent following the description could read the baseline as complete. The description now names every
+  marker, from the same list `record` uses to put gap lines first. Oracle `tests/oracles/FP-042-MCPMISSNODE`.
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the
