@@ -1,0 +1,11 @@
+id: FP-042-YAMLMERGEDUP
+bug: >-
+  A duplicate key inside a mapping used only as a YAML merge source (`<<: {..}` inline, or one mapping of a
+  `<<: [{..}, ..]` list) is accepted by config loading and the last value wins: `_StrictLoader.construct_mapping` skips
+  `<<` entries and PyYAML's flatten_mapping copies the source's pairs without constructing it. A guard template with
+  `prefix: 0.0.0.0/0` and a pasted `prefix: 192.0.2.0/24` validates as a guard on 192.0.2.0/24, so a leaked default
+  passes every later run; config.md says "Duplicate keys are errors, at any depth" (angle-5 red team on 82fb052,
+  B-RT-0073, offline). The guards (merges without duplicates and an explicit key overriding a merged one still load)
+  are in tests/test_oracle_guards_fp_042_yamlmergedup.py
+evidence:
+  - tests/test_oracle_guards_fp_042_yamlmergedup.py
