@@ -1,0 +1,10 @@
+id: FP-042-SCENRESTORE
+bug: >-
+  Scenario restore sets every link it took down administratively up, including one that was already admin-down before
+  the scenario (a backup link the lab keeps shut): `run_scenario` plans `node_isolated` from Lab.data_interfaces with
+  no admin state read, and its `finally` runs `ip link set dev X up` on each. Every later scenario then runs on a
+  network with an extra link; config.md says "Links and injected routes are always restored afterwards" (angle-5 red
+  team on 82fb052, B-RT-0076, offline on the real Lab with a fake kernel). The guards (a link that was up comes back up)
+  are in tests/test_oracle_guards_fp_042_scenrestore.py
+evidence:
+  - tests/test_oracle_guards_fp_042_scenrestore.py
