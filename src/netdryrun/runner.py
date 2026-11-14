@@ -5,6 +5,7 @@ import ipaddress
 import math
 import os
 import platform
+import re
 import signal
 import sys
 import threading
@@ -27,7 +28,7 @@ from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
 from .faults import RouteInjection
 from . import mgmt
-from .lab import NXOS_KINDS, ROUTEROS_KINDS, VM_KINDS, Lab, LabError
+from .lab import NXOS_KINDS, ROUTEROS_KINDS, VM_KINDS, Lab, LabError, LinkDev
 
 # Every wait in a run goes through these two names (looked up at call time), so tests can drive a whole
 # run on a fake clock.
@@ -1257,9 +1258,11 @@ def _canon_ip(addr: str) -> str:
 #      established: on the faulted node (neighbors in the downed interfaces' subnets, or named after the
 #      interface for unnumbered BGP) and on the far end of each link, looking through bridges (neighbors
 #      whose address is one of the faulted interface's addresses). A device stacked on a downed interface
-#      (a VLAN subinterface, macvlan, or a bond, bridge or VRF master once every member goes down; _stacked_on)
-#      counts as that interface, with its addresses and name (oracle FP-042-LINKDOWNSTACKED). Default VRF plus
-#      the VRFs the scenario's checks use.
+#      (a VLAN subinterface, macvlan, or a bond or bridge once every member goes down; _fault_reach) counts as
+#      that interface, with its addresses and name (oracle FP-042-LINKDOWNSTACKED). A bridge that keeps another
+#      port counts its sessions with the far end (its addresses there, the far end's addresses here; oracle
+#      FP-042-LINKDOWNBRIDGE). A SONiC port is matched to its container interface's topology link (_link_end).
+#      Default VRF plus the VRFs the scenario's checks use.
 #   2. Apply the faults, then wait until every one of those sessions is no longer established on both ends:
 #      proof that the network saw the fault. The wait is bounded by the largest timeout of the scenario's
 #      checks; if the fault never shows, the run stops with an error (exit 2), never a verdict on pre-fault
@@ -1294,9 +1297,49 @@ def _sessions_over_links(lab: Lab, links: list[tuple[str, str]], vrfs: list[str]
     return every if any_state else established
 
 
+def _link_end(lab: Lab, node: str, iface: str, ports: dict | None = None) -> str:
+    """The topology's name for the interface a fault takes down. A SONiC port (`Ethernet0`) sits on a container
+    interface (`eth1`) that the topology's links name, read from the node (Lab.sonic_port_device: its CONFIG_DB lanes
+    in lanemap.ini): without it Lab.peers_of finds no far end, and only the near end of a SONiC link was watched
+    (oracle FP-042-LINKDOWNBRIDGE). A port map that can't be read, or a device no topology link names, stops the
+    scenario (LabError)."""
+    kind = lab.nodes[node].kind if node in getattr(lab, "nodes", {}) else ""
+    ends = {i for a, b in getattr(lab, "links", []) for n, i in (a, b) if n == node}
+    if iface in ends:
+        return iface
+    if kind in SONIC_KINDS:
+        port_device = getattr(lab, "sonic_port_device", None)
+        if ports and (node, iface) in ports:
+            dev = ports[(node, iface)]   # confirmed on the node already (run_scenario)
+        else:
+            dev = port_device(node, iface) if port_device is not None else _container_iface(iface, kind)
+        if dev not in ends:
+            raise LabError(f"{node} {iface} is on {dev}, which no link of the topology names: Netdryrun can't find "
+                           "the far end of the link, so it can't tell when the fault took effect")
+        return dev
+    dev = _container_iface(iface, kind)
+    return dev if dev in ends else iface
+
+
+def _names_iface(lab: Lab, node: str, key: str, names: set[str]) -> bool:
+    """Whether a BGP neighbor key that is no address (unnumbered BGP) names one of the node's devices in `names`:
+    itself, the container interface behind a cEOS name (`Ethernet1` on `eth1`), or a SONiC port on one of them (read
+    from the node; unreadable raises LabError)."""
+    if key in names:
+        return True
+    kind = lab.nodes[node].kind if node in getattr(lab, "nodes", {}) else ""
+    if kind in SONIC_KINDS:
+        port_device = getattr(lab, "sonic_port_device", None)
+        if port_device is not None and re.fullmatch(r"Ethernet\d+", key):
+            return port_device(node, key) in names
+    return _container_iface(key, kind) in names
+
+
 def _link_sessions(lab: Lab, links: list[tuple[str, str]], vrfs: list[str], driver_for,
-                   log=lambda _: None) -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]]]:
-    """(the established sessions, every configured session) over the links, from one read of each node.
+                   log=lambda _: None, ports: dict | None = None
+                   ) -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]]]:
+    """(the established sessions, every configured session) over the links, from one read of each node. `ports`: the
+    container interface of each SONiC port, where the caller read it from the node already (_link_end).
 
     "Couldn't read it" is never "there are none": BGP state (or interface addresses) that can't be read
     raises LabError naming the node, since the scenario could otherwise be judged without the wait for the
@@ -1332,63 +1375,139 @@ def _link_sessions(lab: Lab, links: list[tuple[str, str]], vrfs: list[str], driv
             trees[node] = lab.link_tree(node)   # unreadable raises LabError: never "nothing stacked"
         return trees[node]
 
+    def ips(node: str, devices) -> set:
+        return {a.ip for i in devices for a in lab.interface_addresses(node, i)}
+
     downed: dict[str, set[str]] = {}
     for node, iface in links:
         downed.setdefault(node, set()).add(iface)
     for node, iface in links:
         # the session can run over a device stacked on the link (oracle FP-042-LINKDOWNSTACKED): its addresses and
-        # name count as the link's
-        stacked = _stacked_on(tree(node), iface, downed[node])
+        # name count as the link's. A bridge the link is a port of, which keeps another port, stays up but cuts off
+        # what it reached only through the link (oracle FP-042-LINKDOWNBRIDGE): its sessions with the far end count.
+        stacked, bridged = _fault_reach(tree(node), iface, downed[node])
         if stacked:
             log(f"  {node} {iface}: also looking at the devices stacked on it ({', '.join(sorted(stacked))})")
-        names = {iface} | stacked
+        if bridged:
+            log(f"  {node} {iface}: a port of a bridge that keeps another port; also looking at the sessions between "
+                f"{', '.join(sorted(bridged))} and the far end of the link")
+        names = {iface} | stacked | bridged
         addrs = [a for i in [iface, *sorted(stacked)] for a in lab.interface_addresses(node, i)]
-        local_ips = {a.ip for a in addrs}
+        local_ips = {a.ip for a in addrs} | ips(node, sorted(bridged))
+        far: list[tuple[str, set[str]]] = []
+        far_ips: set = set()
+        for peer, peer_iface in lab.peers_of(node, _link_end(lab, node, iface, ports)):
+            # the far end's own stacked devices (an unnumbered session on its VLAN subinterface), read only when
+            # this end has some, so a plain link reads nothing more on the peer
+            p_stacked, p_bridged = (_fault_reach(tree(peer), peer_iface, {peer_iface}) if stacked or bridged
+                                    else (set(), set()))
+            far.append((peer, {peer_iface} | p_stacked | p_bridged))
+            if bridged:
+                # which of this end's sessions on the bridge run through the downed port: those with the far end's
+                # addresses, read from the far end's kernel, so only where it holds them and bridges no further
+                kind = lab.nodes[peer].kind if peer in getattr(lab, "nodes", {}) else ""
+                if kind != "linux" or p_bridged:
+                    why = (f"{peer} {peer_iface} is a port of a bridge too ({', '.join(sorted(p_bridged))}), so the "
+                           "hosts behind it are not known" if kind == "linux" else
+                           f"the far end {peer} is a {kind or 'non-container'} node, whose addresses Netdryrun can't "
+                           "read from its container interface")
+                    raise LabError(f"{node} {iface} is a port of {', '.join(sorted(bridged))}, which keeps another "
+                                   f"port, and {why}: Netdryrun can't tell which BGP sessions on the bridge run over "
+                                   f"{iface}, so it can't tell when the fault took effect. Take the link down where it "
+                                   "is no bridge port, or on the far end")
+                far_ips |= ips(peer, [peer_iface, *sorted(p_stacked)])
         for vrf in vrfs:
             for key, n in neighbors(node, vrf).items():
                 ip = _ip(key)
-                over = key in names or (ip is not None and ip not in local_ips and any(ip in a.network for a in addrs))
+                if ip is None:
+                    over = _names_iface(lab, node, key, names)
+                else:
+                    over = (ip not in local_ips and any(ip in a.network for a in addrs)) or ip in far_ips
                 if over:
                     every.add((node, vrf, key))
                     if n.state == "established":
                         watch.add((node, vrf, key))
-            for peer, peer_iface in lab.peers_of(node, iface):
-                # the far end's own stacked devices (an unnumbered session on its VLAN subinterface), read only when
-                # this end has some, so a plain link reads nothing more on the peer
-                peer_names = {peer_iface} | (_stacked_on(tree(peer), peer_iface, {peer_iface}) if stacked else set())
+            for peer, peer_names in far:
                 for key, n in neighbors(peer, vrf).items():
                     ip = _ip(key)
-                    if key in peer_names or ip in local_ips:
+                    if ip in local_ips if ip is not None else _names_iface(lab, peer, key, peer_names):
                         every.add((peer, vrf, key))
                         if n.state == "established":
                             watch.add((peer, vrf, key))
     return sorted(watch), sorted(every)
 
 
+# link kinds that keep their carrier when the device they are bound to goes down (gre1@eth1): not stacked down
+TUNNEL_KINDS = frozenset({"gre", "gretap", "ip6gre", "ip6gretap", "erspan", "ip6erspan", "ipip", "sit", "ip6tnl",
+                          "vti", "vti6", "vxlan", "geneve", "wireguard"})
+# masters that keep their carrier while any member has it and carry one link: a member down changes no peer
+BOND_KINDS = frozenset({"bond", "team"})
+_SLAVE_KINDS = {"bridge_slave": "bridge", "bond_slave": "bond", "team_slave": "team", "vrf_slave": "vrf"}
+
+
 def _stacked_on(tree: dict, iface: str, downed: set[str]) -> set[str]:
-    """The devices a fault on `iface` takes down with it, from Lab.link_tree: every device whose lower device goes
-    down (a VLAN subinterface or macvlan on it, and what is stacked on those), and a bond, bridge or VRF master once
-    every device enslaved to it goes down (a bond that keeps another member stays up). `downed`: every interface of
-    the node the scenario takes down (with what is stacked on them, they decide which masters go down)."""
-    def up(start: set[str], within: set[str] | None) -> set[str]:
+    """The devices a fault on `iface` takes down with it (_fault_reach)."""
+    return _fault_reach(tree, iface, downed)[0]
+
+
+def _fault_reach(tree: dict, iface: str, downed: set[str]) -> tuple[set[str], set[str]]:
+    """(the devices a fault on `iface` takes down with it, the bridges it is a port of that stay up), from
+    Lab.link_tree (LinkDev, or (lower, master) with nothing else known).
+
+    Down: every device whose lower device goes down (a VLAN subinterface or macvlan on it, and what is stacked on
+    those; not a tunnel bound to it, which keeps its carrier), and a bond or bridge master once every device enslaved
+    to it is down (lost with the fault, or without carrier already). A VRF device never loses carrier. `downed`: every
+    interface of the node the scenario takes down (with what is stacked on them, they decide which masters go down).
+
+    Bridged: a master that keeps another member and is no bond or VRF (a bridge; a master whose kind isn't shown
+    counts as one), with what is stacked on it (SONiC's Vlan100@Bridge, which vlanmgr's `dummy` member keeps up), and
+    a bridge those are ports of. They stay up, but what they reached only through `iface` is cut off (oracle
+    FP-042-LINKDOWNBRIDGE)."""
+    t = {n: LinkDev(*e) for n, e in tree.items()}
+
+    def master_kind(m: str) -> str | None:
+        kind = t[m].kind if m in t else None
+        if kind is None:
+            kinds = {_SLAVE_KINDS.get(e.slave_kind) for e in t.values() if e.master == m} - {None}
+            kind = kinds.pop() if len(kinds) == 1 else None
+        return kind
+
+    def close(start: set[str], within: set[str] | None) -> set[str]:
         gone = set(start)
         while True:
             out = set(gone)
-            for name, (lower, master) in tree.items():
-                if lower is not None and lower in gone:
+            for name, e in t.items():
+                if e.lower is not None and e.lower in gone and e.kind not in TUNNEL_KINDS:
                     out.add(name)
-                if master is not None and name in gone and master not in out:
+                if e.master is not None and name in gone and e.master not in out and master_kind(e.master) != "vrf":
                     if within is not None:
-                        down = master in within
+                        down = e.master in within
                     else:
-                        down = {n for n, (_lo, m) in tree.items() if m == master} <= gone
+                        down = not any(x.master == e.master and x.carrier and n not in gone for n, x in t.items())
                     if down:
-                        out.add(master)
+                        out.add(e.master)
             if out == gone:
                 return gone
             gone = out
 
-    return up({iface}, up(set(downed) | {iface}, None)) - {iface}
+    every_down = close(set(downed) | {iface}, None)
+    stacked = close({iface}, every_down) - {iface}
+    reached = stacked | {iface}
+    bridged: set[str] = set()
+    while True:
+        more = set()
+        for name, e in t.items():
+            if name not in reached and name not in bridged and e.lower is not None and e.lower in bridged \
+                    and e.kind not in TUNNEL_KINDS:
+                more.add(name)   # stacked on a bridge that stays up: up with it
+        for name in reached | bridged:
+            m = t[name].master if name in t else None
+            if m is not None and m not in reached and m not in bridged and master_kind(m) not in BOND_KINDS \
+                    and master_kind(m) != "vrf":
+                more.add(m)
+        if not more:
+            return stacked, bridged
+        bridged |= more
 
 
 def _wait_fault_visible(watch: list[tuple[str, str, str]], driver_for, timeout: float, sc: Scenario,
@@ -1474,6 +1593,7 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     # restore would bring up a link that was never up.
     plan = []
     planned: set[tuple[str, str]] = set()
+    ports: dict[tuple[str, str], str] = {}   # SONiC port -> the container interface the node says it sits on
     for f in sc.faults:
         if f.kind == "inject_routes":
             plan.append((f, []))
@@ -1492,6 +1612,14 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
                 log(f"  {f.node} {iface} is already administratively down: left as it is, and not brought up after "
                     "the scenario")
                 continue
+            if lab.nodes[f.node].kind in SONIC_KINDS and hasattr(lab, "sonic_port_device"):
+                # the port must sit on the lab link preflight mapped it to, read from the node itself
+                want = _container_iface(iface, lab.nodes[f.node].kind)
+                got = lab.sonic_port_device(f.node, iface)
+                if got != want:
+                    raise LabError(f"scenario '{sc.name}': {f.node} {iface} is on {got}, not on the lab link "
+                                   f"{want}: the fault would take another link down")
+                ports[(f.node, iface)] = got
             planned.add((f.node, iface))
             ifaces.append(iface)
         if f.kind == "node_isolated" and not ifaces and not any(n == f.node for n, _ in planned):
@@ -1503,7 +1631,7 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     # watch: the established sessions over the downed links, which must go down (the fault took effect).
     # over_links: every session over them, established or not, expected down while the fault lasts: the
     # BGP gate for the scenario's post-convergence checks doesn't wait for those.
-    watch, over = _link_sessions(lab, links, vrfs, driver_for, log=log) if links else ([], [])
+    watch, over = _link_sessions(lab, links, vrfs, driver_for, log=log, ports=ports) if links else ([], [])
     over_links = set(over)
     try:
         for f, ifaces in plan:
@@ -1514,13 +1642,6 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
                 inj.apply()
                 continue
             for iface in ifaces:
-                if lab.nodes[f.node].kind in SONIC_KINDS and hasattr(lab, "sonic_port_device"):
-                    # the port must sit on the lab link preflight mapped it to, read from the node itself
-                    want = _container_iface(iface, lab.nodes[f.node].kind)
-                    got = lab.sonic_port_device(f.node, iface)
-                    if got != want:
-                        raise LabError(f"scenario '{sc.name}': {f.node} {iface} is on {got}, not on the lab link "
-                                       f"{want}: the fault would take another link down")
                 downed.append((f.node, iface))   # recorded first: restore even if this call half-fails
                 lab.set_link(f.node, iface, up=False)
                 if lab.admin_up(f.node, iface):

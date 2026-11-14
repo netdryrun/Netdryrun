@@ -198,19 +198,43 @@ the line's `with:`, and read the `protocol` and `next_hops` of each `appears_on`
 `tests/redteam/RT-0077-verify-bgp-pins-explain-a-static-that-wins.yml`, oracle `tests/oracles/FP-042-VERIFYPINSTATIC`
 (output derived from the live FRR 10.4.1 captures; the state is not yet captured live).
 
-## Also fixed in 0.4.2: a `link_down` over a VLAN subinterface was judged before the fault took effect
+## Also fixed in 0.4.2: a `link_down` over a VLAN subinterface or a bridge was judged before the fault took effect
 
-**Affected:** every node kind whose links a scenario can fail (FRR, SONiC, Arista cEOS and plain Linux containers),
-netdryrun 0.3.1 to 0.4.1 (0.2.0 and 0.3.0 waited for no session at all). Before taking a link down, a scenario notes
-the BGP sessions over it and waits until they are down on both ends. Those sessions were found from the downed
+**Affected:** netdryrun 0.3.1 to 0.4.1 (0.2.0 and 0.3.0 waited for no session at all), on FRR and plain Linux
+containers and on SONiC VS (its VLAN SVIs sit on the kernel bridge `Bridge`). Before taking a link down, a scenario
+notes the BGP sessions over it and waits until they are down on both ends. Those sessions were found from the downed
 interface's own addresses, so a session on a VLAN subinterface of it (`eth1.100@eth1`, eth1 holding only its
-link-local) was not found: the run logged "no BGP session runs over the downed links" and judged after the settle and
-hold windows. A far end behind a containerlab bridge gets no carrier event and keeps the session and its routes for
-its hold time (180 s by default), so `route ... protocol: bgp` passed on the far end in a lab with no backup path.
-From 0.4.2 the devices stacked on a downed interface count as that interface, with their addresses and names: VLAN
-subinterfaces and macvlans (and what is stacked on those), and a bond, bridge or VRF device once every interface
-enslaved to it goes down. They are read from the node before any link goes down; a device that can't be read stops
-the run with exit code 2. **Workaround before you upgrade:** in a scenario that takes down the parent of a VLAN
-subinterface, look for "no BGP session runs over the downed links" in the output, and give the scenario a `--settle`
-above the BGP hold time (or lower the hold timers in the lab). Case
-`tests/redteam/RT-0078-link-down-on-a-vlan-trunk-parent.yml`, oracle `tests/oracles/FP-042-LINKDOWNSTACKED`.
+link-local), or on a bridge it is a port of (`br0` with eth1 and eth2; SONiC's `Vlan100@Bridge` over `Ethernet0`), was
+not found: the run logged "no BGP session runs over the downed links" and judged after the settle and hold windows. A
+far end behind a containerlab bridge gets no carrier event and keeps the session and its routes for its hold time (180
+s by default), so `route ... protocol: bgp` passed on the far end in a lab with no backup path.
+
+From 0.4.2 the node's devices are read with their kinds before any link goes down (one `ip -d -j link show`):
+
+- VLAN subinterfaces and macvlans on a downed interface (and what is stacked on those) count as that interface, with
+  their addresses and names, and so does a bond or bridge once every member is down.
+- A bridge that keeps another port stays up, so the sessions between it (and the VLAN devices on it) and the far end
+  of the downed link are watched. Where the far end's addresses can't be read from its container (cEOS, SONiC, SR
+  Linux and VM kinds) or the far end is a bridge port too, the run stops with exit code 2.
+- A bond that keeps a member, a VRF device and a tunnel bound to the interface keep their carrier and are not waited
+  for. A listing that can't be read stops the run with exit code 2.
+
+**Not covered in 0.4.2** (the run then judges after the settle and hold windows, as before): an Arista cEOS SVI or
+subinterface over a downed `ethN` (EOS's kernel devices carry no link to `ethN`; not confirmed on a live cEOS), a bond
+that goes down with one member lost (`min_links`, LACP), a tunnel whose only underlay was the downed link, and a
+bridge on a node whose `ip` shows no masters (busybox, unverified). **Workaround before you upgrade, and for those:**
+look for "no BGP session runs over the downed links" in the output, and give the scenario a `--settle` above the BGP
+hold time (or lower the hold timers in the lab). Cases `tests/redteam/RT-0078-link-down-on-a-vlan-trunk-parent.yml`,
+oracles `tests/oracles/FP-042-LINKDOWNSTACKED` and `tests/oracles/FP-042-LINKDOWNBRIDGE`.
+
+## Also fixed in 0.4.2: a `link_down` on a SONiC port watched only the SONiC end
+
+**Affected:** SONiC VS, netdryrun 0.3.1 to 0.4.1. The topology's links name the container interface a SONiC port
+sits on (`eth1` for `Ethernet0`), so for `link_down {node: s1, interface: Ethernet0}` the far end was never looked up.
+The SONiC end's own session dropped at once, but a far end behind a containerlab bridge kept the session and its
+routes for its hold time, and a route check on it passed on the state from before the fault. From 0.4.2 the port is
+mapped to its container interface from the node (its CONFIG_DB lanes in `lanemap.ini`) before the far end is looked
+up, a map that can't be read stops the run with exit code 2, and an unnumbered session on a SONiC or cEOS far end,
+keyed by its port name, counts too. **Workaround before you upgrade:** take the link down on the far end's side, or
+give the scenario a `--settle` above the BGP hold time. Case `tests/redteam/RT-0079-link-down-on-a-sonic-port-watched-one-end.yml`,
+oracle `tests/oracles/FP-042-LINKDOWNBRIDGE`.

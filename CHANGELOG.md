@@ -146,16 +146,33 @@
   don't describe (a floating static beside the pinned BGP route) is an undeclared difference. A line without `with:`
   is unchanged. Oracle `tests/oracles/FP-042-VERIFYPINSTATIC`, on output derived from the live FRR 10.4.1 captures;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
-- **A `link_down` whose BGP session runs over a VLAN subinterface was judged before the fault took effect** (red
-  team RT-0078, on the 0.4.2 final candidate; 0.3.1 to 0.4.1). The sessions to wait for were found from the downed
-  interface's own addresses, so with the session on `eth1.100@eth1` (eth1 holding only its link-local) none was
-  watched: the run logged "no BGP session runs over the downed links" and judged at once, and the far end behind a
-  bridge kept the route for its hold time, so `route ... protocol: bgp` passed in a lab with no backup path. Devices
-  stacked on a downed interface now count as that interface, with their addresses and names: VLAN subinterfaces and
-  macvlans on it (and what is stacked on those), and a bond, bridge or VRF device once every interface enslaved to it
-  goes down. They are read from the node (`ls /sys/class/net`, `ip -o link show dev X`) before any link goes down,
-  and a device that can't be read stops the run with exit code 2. Oracle `tests/oracles/FP-042-LINKDOWNSTACKED`;
+- **A `link_down` whose BGP session runs over a VLAN subinterface or a bridge was judged before the fault took
+  effect** (red team RT-0078, on the 0.4.2 final candidate, and adversary n5d on the first fix; 0.3.1 to 0.4.1). The
+  sessions to wait for were found from the downed interface's own addresses, so with the session on `eth1.100@eth1`
+  (eth1 holding only its link-local), or on a bridge the interface is a port of (`br0` with eth1 and eth2; SONiC's
+  `Vlan100@Bridge` over `Ethernet0`), none was watched: the run logged "no BGP session runs over the downed links" and
+  judged at once, and the far end behind a bridge kept the route for its hold time, so `route ... protocol: bgp` passed
+  in a lab with no backup path. The node's devices are read before any link goes down (one `ip -d -j link show`, with
+  their kinds), and:
+  - VLAN subinterfaces and macvlans on a downed interface (and what is stacked on those) count as that interface, with
+    their addresses and names, and so does a bond or bridge once every member is down (or was already without carrier).
+  - A bridge that keeps another port stays up, so its sessions with the far end of the downed link are watched: on the
+    far end, the sessions to the bridge's addresses (and those of the VLAN devices on it); on the near end, the
+    sessions to the far end's addresses. When the far end's addresses can't be read from its container (a cEOS,
+    SONiC, SR Linux or VM node) or the far end is a bridge port too, the run stops with exit code 2.
+  - A bond that keeps a member, a VRF device, and a tunnel bound to the downed interface (gre, ipip, sit, ip6tnl,
+    vxlan...) keep their carrier and are not waited for.
+  - A device listing that can't be read stops the run with exit code 2. `/sys/class/net/bonding_masters`, a file the
+    bonding module adds, is no longer read as an interface (it made every `link_down`, and `node_isolated`, exit 2).
+
+  Oracles `tests/oracles/FP-042-LINKDOWNSTACKED` and `tests/oracles/FP-042-LINKDOWNBRIDGE`;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A `link_down` on a SONiC port watched only the SONiC end** (RT-0079, found writing the oracle
+  `FP-042-LINKDOWNBRIDGE`; 0.3.1 to 0.4.1). The topology's links name the container interface a SONiC VS port sits on
+  (`eth1` for `Ethernet0`), so the far end of `Ethernet0` was never looked up, and a route check on the far end passed
+  while it held the route for its hold time. The port is mapped to its container interface from the node (its
+  CONFIG_DB lanes in `lanemap.ini`) before the far end is looked up, and a map that can't be read stops the run with
+  exit code 2. An unnumbered session on a SONiC or cEOS far end, keyed by its port name, counts too.
 - **MCP `record_baseline` named one gap marker of two** (angle-5 red team on the 0.4.2 candidate; 0.4.1). The tool
   returns the YAML only, and its description named `# INCOMPLETE BASELINE` as the sign of a partial baseline, but a
   routing node with no recorded check makes the first line `# BASELINE MISSES A NODE` (on which `netdryrun record`
@@ -241,6 +258,12 @@
   own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix
   with `bgp_route ... present: false`, or use `protocol: aggregate` on EOS. Not confirmed on a live cEOS. Planned for
   0.4.3.
+- **`link_down`: sessions the fault ends that Netdryrun still doesn't wait for** (RT-0078 follow-ups; the checks
+  then run after the settle and hold windows only). On Arista cEOS, an SVI (`Vlan10`) or subinterface over a downed
+  `ethN`: EOS's kernel devices carry no link to `ethN`, so the session isn't found (not confirmed on a live cEOS). A
+  bond that goes down with one member lost (`min_links`, LACP thresholds) is read as up. A tunnel (gre, vxlan...) whose
+  only underlay was the downed link. A bridge port on a node whose `ip` shows no masters (busybox, unverified). Give
+  such scenarios a `--settle` that covers the hold time, or take the link down on the far end. Planned for 0.4.3.
 - **The corpus v2 case 18 race** is not removed; case 18 stays unscored. Planned for 0.4.3.
 - **A prefix-limit reset is still not proof that injected routes reached a peer**; the narrow attributable proof is
   planned for 0.4.3.

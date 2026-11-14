@@ -471,11 +471,26 @@
   what: a link_down whose BGP session runs over a device stacked on the downed interface (a VLAN subinterface) watched
     no session, logged "no BGP session runs over the downed links" and judged on the state from before the fault, so
     a route check passed while the far end behind a bridge held the route for its hold time (0.3.1 to 0.4.1; red team
-    042-GV on the 0.4.2 final candidate); stacked devices (VLAN, macvlan, a bond, bridge or VRF once every member is
-    down) count as the link now, and one that can't be read stops the scenario (exit 2)
+    042-GV on the 0.4.2 final candidate), and so did a port of a bridge that keeps another port (br0 with eth1 and
+    eth2; SONiC's Vlan100@Bridge; adversary n5d on the first fix); stacked devices (VLAN, macvlan, a bond or bridge
+    once every member is down) count as the link now, a bridge that keeps another port counts its sessions with the
+    far end, a far end that can't be read for it, and any device that can't be read, stop the scenario (exit 2)
   record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
   tests:
     - tests/oracles/FP-042-LINKDOWNSTACKED/test_oracle_fp_042_linkdownstacked.py
     - tests/test_oracle_guards_fp_042_linkdownstacked.py
     - tests/test_scenario_stacked_links_042.py
+    - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py
+    - tests/test_oracle_guards_fp_042_linkdownbridge.py
+    - tests/test_scenario_bridge_ports_042.py
+    - tests/test_redteam.py
+- id: rt-0079-link-down-sonic-port-far-end
+  what: a link_down on a SONiC VS port (Ethernet0) never looked up the far end, because the topology names the
+    container interface (eth1), so only the SONiC end's session was watched and a route check on the far end passed
+    while it held the route for its hold time (0.3.1 to 0.4.1; found writing oracle FP-042-LINKDOWNBRIDGE); the port is
+    mapped to its container interface from the node's lanes now, and a map that can't be read stops the scenario
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py
+    - tests/test_scenario_bridge_ports_042.py
     - tests/test_redteam.py

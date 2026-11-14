@@ -1,0 +1,21 @@
+id: RT-0079
+title: >-
+  `link_down` on a SONiC VS port (`Ethernet0`) watched only the SONiC end: the topology's links name the container
+  interface the port sits on (`r1:eth1`), so Lab.peers_of(r1, "Ethernet0") found no far end, the far end's session was
+  never watched, and r2 behind a containerlab bridge kept SONiC r1's route for its 180 s hold time after r1's own end
+  dropped: `route 10.1.0.0/24 protocol bgp` on r2 passed in a lab with no backup path
+found: "2026-11-15, oracle session ndr-oracle-042-n5e while writing FP-042-LINKDOWNBRIDGE (adversary n5d on 5f0b7d7)"
+fixed_in: 0.4.2
+kind: pinned
+# runner._link_end maps the SONiC port to its container interface from the node (Lab.sonic_port_device: the port's
+# CONFIG_DB lanes in lanemap.ini) before looking up the far end; a map that can't be read, or a device no topology
+# link names, stops the scenario (exit 2). An unnumbered session on a SONiC or cEOS far end, keyed by its port name
+# (`Ethernet0`, `Ethernet1`), counts as the link's container interface too (runner._names_iface). Affected: 0.3.1 (the
+# wait for the sessions over the downed links came in) to 0.4.1: `git show v0.3.1:src/netdryrun/runner.py` looks up
+# lab.peers_of(node, iface) with the fault's own name, and 0.3.1 to 0.4.0 accepted any interface name in link_down.
+tests:
+  - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py::test_sonic_port_far_end_is_watched
+  - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py::test_sonic_link_down_on_a_routed_port_is_not_judged_before_the_far_end_drops
+  - tests/test_scenario_bridge_ports_042.py::test_sonic_routed_port_far_end_is_watched
+  - tests/test_scenario_bridge_ports_042.py::test_sonic_port_map_unreadable_or_off_the_topology_stops_the_scenario
+  - tests/test_scenario_bridge_ports_042.py::test_an_unnumbered_session_on_a_sonic_far_end_is_watched
