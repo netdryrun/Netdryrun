@@ -1420,14 +1420,37 @@ def run_scenario(lab: Lab, sc: Scenario, drivers: dict, *, settle: float, hold: 
     show, held = on_result, any(f.kind == "inject_routes" for f in sc.faults)
     if held:
         on_result = None
-    # Which links go down, decided before anything changes
+    # Which links go down, decided before anything changes. Restore returns each link to the state it was found in
+    # (angle-5 red team on 82fb052, RT-0074): restore runs `ip link set up` only on a link this scenario took down, so
+    # the admin flag of each is read first. A link the lab keeps shut (a backup link, an `exec: ip link set X down`)
+    # is left alone by `node_isolated`, and a `link_down` on it is refused: that fault would change nothing, and its
+    # restore would bring up a link that was never up.
     plan = []
+    planned: set[tuple[str, str]] = set()
     for f in sc.faults:
         if f.kind == "inject_routes":
             plan.append((f, []))
             continue
         lab._require_linux_links(f.node)
-        plan.append((f, [f.interface] if f.kind == "link_down" else lab.data_interfaces(f.node)))
+        candidates = [f.interface] if f.kind == "link_down" else lab.data_interfaces(f.node)
+        ifaces = []
+        for iface in candidates:
+            if (f.node, iface) in planned:
+                continue   # another fault of this scenario takes it down already; it is restored once
+            if not lab.admin_up(f.node, iface):   # unreadable raises: never read as "down"
+                if f.kind == "link_down":
+                    raise LabError(f"scenario '{sc.name}': {f.node} {iface} is already administratively down before "
+                                   "the scenario: `link_down` would change nothing, and restoring it would bring up "
+                                   "a link the lab keeps down")
+                log(f"  {f.node} {iface} is already administratively down: left as it is, and not brought up after "
+                    "the scenario")
+                continue
+            planned.add((f.node, iface))
+            ifaces.append(iface)
+        if f.kind == "node_isolated" and not ifaces and not any(n == f.node for n, _ in planned):
+            raise LabError(f"scenario '{sc.name}': every lab link of {f.node} is already administratively down before "
+                           "the scenario: `node_isolated` would change nothing")
+        plan.append((f, ifaces))
     links = [(f.node, iface) for f, ifaces in plan for iface in ifaces]
     vrfs = sorted({"default"} | {c.params.get("vrf", "default") for c in sc.checks})
     # watch: the established sessions over the downed links, which must go down (the fault took effect).

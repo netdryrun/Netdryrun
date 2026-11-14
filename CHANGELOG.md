@@ -78,6 +78,13 @@
   merges (inline, anchored, in a `<<: [..]` list, at any merge depth) is checked now, in `netdryrun.yml`, the lab's
   topology and `verify`'s files. Oracle `tests/oracles/FP-042-YAMLMERGEDUP`;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A scenario's restore brought up a link the lab keeps shut** (red team RT-0074, angle-5 red team on the 0.4.2
+  candidate; 0.2.0 to 0.4.1). `node_isolated` took every lab link of the node down and restore set each one up again
+  without reading its state first, so a backup link that was administratively down before the scenario came back up,
+  and the scenarios and checks after it ran on a network with an extra link. Each link's admin state is read now,
+  before anything changes: a link already down is left down by `node_isolated`, and a `link_down` on it (or a
+  `node_isolated` whose links are all down) is an error, since the fault would change nothing. Oracle
+  `tests/oracles/FP-042-SCENRESTORE`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the

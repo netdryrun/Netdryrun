@@ -106,3 +106,18 @@ check, loaded as a guard on 192.0.2.0/24: a leaked default route passed every ru
 depth, and the file is refused naming the duplicate. **Workaround before you upgrade:** check each anchored mapping (`&name`) and each
 mapping in a `<<: [..]` list for a key written twice. Case
 `tests/redteam/RT-0073-duplicate-key-in-merge-source.yml`, oracle `tests/oracles/FP-042-YAMLMERGEDUP`.
+
+## Also fixed in 0.4.2: a scenario's restore brought up a link the lab keeps shut
+
+**Affected:** every node kind whose links a scenario can fail (FRR, SONiC, Arista cEOS and plain Linux containers),
+netdryrun 0.2.0 to 0.4.1.
+After a scenario, restore ran `ip link set up` on every interface the scenario had taken down, without reading its
+state first. `node_isolated` takes down every lab link of the node, so a backup link the lab keeps administratively down
+(a containerlab `exec: [ip link set eth2 down]`, a `shutdown` in the router's config) came back up after the scenario,
+and so did a link a `link_down` named while it was already down. Every later scenario, and the network the run left
+behind, had an extra link: a failover check could pass over a path the real network doesn't have. From 0.4.2 each
+link's admin state is read before anything changes: a link already down is left down by `node_isolated` and never
+brought up, and a `link_down` on it, or a `node_isolated` whose links are all down, is an error. **Workaround before
+you upgrade:** keep a scenario that fails a node with a shut link last in the file (or in its own run), or replace
+`node_isolated` with a `link_down` list of the links that are up. Case
+`tests/redteam/RT-0074-scenario-restore-brings-up-a-shut-link.yml`, oracle `tests/oracles/FP-042-SCENRESTORE`.

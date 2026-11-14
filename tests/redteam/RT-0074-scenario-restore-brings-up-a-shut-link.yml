@@ -1,0 +1,18 @@
+id: RT-0074
+title: >-
+  A scenario's restore brought up a link the lab keeps shut: run_scenario took every data interface of an isolated
+  node down and, after the checks, ran `ip link set up` on each without having read its admin state, so a backup link
+  that was administratively down before (`node_isolated`, or a `link_down` naming it) came back UP, and every later
+  scenario and the checks after it ran on a network with an extra link, where a failover check can pass over a path
+  the real network doesn't have
+found: "2026-11-14, angle-5 red team on 82fb052 (B-RT-0076)"
+fixed_in: 0.4.2
+kind: pinned
+# The reproduction needs a whole scenario run on a fake kernel: the oracle FP-042-SCENRESTORE runs the real Lab and
+# runner.run_scenario with r1 eth2 shut before `node_isolated: r1`, and the unit tests of the fix cover link_down,
+# a link two faults name and an unreadable admin flag. Affected: 0.2.0 (where scenarios came in) to 0.4.1.
+tests:
+  - tests/oracles/FP-042-SCENRESTORE/test_oracle_fp_042_scenrestore.py::test_node_isolated_leaves_a_shut_link_shut
+  - tests/oracles/FP-042-SCENRESTORE/test_oracle_fp_042_scenrestore.py::test_link_down_on_a_shut_link_never_leaves_it_up
+  - tests/test_scenario_restore_prior_state_042.py::test_node_isolated_never_touches_a_shut_link
+  - tests/test_scenario_restore_prior_state_042.py::test_link_down_on_a_shut_link_is_refused_before_anything_changes
