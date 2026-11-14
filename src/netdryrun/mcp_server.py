@@ -400,7 +400,8 @@ def run_checks(path: str) -> str:
     prefixes it sends today, or an exact count where the driver can't list them) and BGP route. Call it when no
     checks exist, before changing the configs, then dry-run the change against this baseline. With
     attributes=true, also pin each BGP route's AS path, local preference and communities. By default it also
-    adds the standard guards (no default route and no link subnet via BGP on each BGP node and VRF); guards=false
+    adds the standard guards (no default route and no link subnet via BGP in each VRF with a BGP instance, the
+    default VRF included, sessions or not); guards=false
     leaves them out. Returns the YAML; nothing is written to disk. Gap lines come first: a first line starting
     """ + " or ".join(f'"# {m}"' for m in GAP_MARKERS) + """ means the baseline misses something (a
     route, a prefix count, a guard, or a whole node, which `netdryrun record` exits 1 on): say so to the human.

@@ -111,8 +111,8 @@ def test_a_vrf_without_bgp_is_skipped_quietly_and_a_node_without_bgp_still_warns
 def test_guards_are_recorded_in_every_vrf_with_its_vrf(monkeypatch):
     """0.3.3's guards (no default route via BGP) merged with 0.4's VRFs. Until 0.4.2 a guard was written for the
     default VRF only, so a default leaked into a customer VRF passed the baseline (RT-0076, oracle FP-042-RECORDVRF).
-    From 0.4.2 every VRF with BGP sessions gets the guards, with its `vrf:`. A VRF whose service is a default route
-    learns it today, and a guard is never written against what a VRF learns today (next test)."""
+    From 0.4.2 every VRF with a BGP instance gets the guards, sessions or not (FP-042-RECORDVRFNOSESS), with its
+    `vrf:`. A VRF whose service is a default route learns it today, and a guard is never written against what a VRF learns today (next test)."""
     data, _ = _record(monkeypatch, Drv(vrfs=["cust"]), guards=True)
     guards = [c for c in data["checks"] if c.get("present") is False]
     assert {"type": "route", "node": "edge1", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": False} in guards

@@ -9,8 +9,13 @@ fixed_in: 0.4.2
 kind: pinned
 # The reproduction is a whole record() run on a fake PE (oracle FP-042-RECORDVRF: the real record() and the recorded
 # checks judged on the leaked state), with the unit tests of the fix. Affected: 0.4.0 (VRFs in record) to 0.4.1, on
-# every driver that lists VRFs (FRR and SONiC; Junos from 0.4.0, NX-OS and RouterOS beta in 0.4.1).
+# every driver that lists VRFs (FRR and SONiC; Junos from 0.4.0, NX-OS and RouterOS beta in 0.4.1). The fix guards every
+# VRF with a BGP instance, sessions or not: its first form guarded only VRFs with sessions, which left a VRF fed by
+# `import vrf` alone, and the default VRF of a node whose sessions are all in VRFs, as open (adversary n4c on cf460d6,
+# oracle FP-042-RECORDVRFNOSESS).
 tests:
   - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_recorded_vrf_gets_its_default_route_guard_or_a_gap_line
   - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_leaked_default_in_the_vrf_fails_the_baseline_or_the_gap_is_named
   - tests/test_record_vrf_guards_042.py::test_the_leak_into_the_vrf_fails_its_guard_only
+  - tests/oracles/FP-042-RECORDVRFNOSESS/test_oracle_fp_042_recordvrfnosess.py::test_a_leaked_default_in_the_sessionless_vrf_fails_the_baseline_or_the_gap_is_named
+  - tests/test_record_vrf_nosess_guards_042.py::test_the_leak_into_the_sessionless_vrf_fails_its_guard_only

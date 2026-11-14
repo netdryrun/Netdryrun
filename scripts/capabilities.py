@@ -86,8 +86,8 @@ LIMITS = [
     "verify_change does not observe nodes passed as unobserved (hosts), IGP adjacency state (OSPF and IS-IS routes are "
     "compared, their adjacencies are not), or the data plane beyond a standing guard's ping checks: an undeclared "
     "change there does not fail.",
-    "record covers every active VRF on FRR and SONiC; on Nokia SR Linux and Arista EOS it records the default VRF "
-    "only, with a warning.",
+    "record covers every active VRF on FRR and SONiC, and on the Junos, NX-OS and RouterOS beta drivers; on Nokia SR "
+    "Linux and Arista EOS it records the default VRF only, with a warning.",
 ]
 
 EXIT_CODES = {

@@ -1,4 +1,5 @@
-"""RT-0076 (oracle FP-042-RECORDVRF): `record` writes the guards in every VRF with BGP sessions, each with its `vrf:`.
+"""RT-0076 (oracle FP-042-RECORDVRF): `record` writes the guards in every VRF with BGP sessions, each with its `vrf:`
+(VRFs with a BGP instance but no session: tests/test_record_vrf_nosess_guards_042.py).
 
 On the oracle's fake PE (default VRF: upstream 10.0.12.2; VRF cust: customer 10.1.0.2), these tests kill: guards in the
 default VRF only, a VRF guard written without `vrf:` (it would judge the default VRF), a VRF guard evaluated on the

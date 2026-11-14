@@ -83,7 +83,8 @@
   without reading its state first, so a backup link that was administratively down before the scenario came back up,
   and the scenarios and checks after it ran on a network with an extra link. Each link's admin state is read now,
   before anything changes: a link already down is left down by `node_isolated`, and a `link_down` on it (or a
-  `node_isolated` whose links are all down) is an error, since the fault would change nothing. Oracle
+  `node_isolated` whose links are all down) stops the run with an error (exit 2), since the fault would change
+  nothing. Oracle
   `tests/oracles/FP-042-SCENRESTORE`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **Cisco NX-OS (beta): a withdrawn BGP path read as a received route** (red team RT-0075, angle-5 red team on the
   0.4.2 candidate, derived from live NX-OS 10.4(8) captures; 0.4.1, the driver's first release). The NX-OS form of
@@ -95,10 +96,12 @@
 - **`record` wrote no guard in a non-default VRF** (red team RT-0076, angle-5 red team on the 0.4.2 candidate; 0.4.0
   to 0.4.1). `record` covers every VRF the driver lists, but wrote the no-default-route and link-subnet guards in the
   default VRF only, without a word, so a default route leaked into a customer VRF passed every recorded check of that
-  VRF. Every VRF with BGP sessions now gets the guards, each with its `vrf:`, judged like the default VRF's on what
-  that VRF learns via BGP today (a VRF that learns a default today gets no default guard, and a comment says so). A
-  baseline recorded on a lab with VRFs has more checks than before; re-record to get them. Oracle
-  `tests/oracles/FP-042-RECORDVRF`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+  VRF. Every VRF with a BGP instance now gets the guards, each with its `vrf:`, whether it has BGP sessions or not
+  (a VRF fed only by `import vrf`, and the default VRF of a node whose sessions are all in VRFs, unguarded since
+  0.3.3), judged like the default VRF's on what that VRF learns via BGP today (a VRF that learns a default today gets
+  no default guard, and a comment says so). A baseline recorded on a lab with VRFs has more checks than before;
+  re-record to get them. Oracles `tests/oracles/FP-042-RECORDVRF` and `tests/oracles/FP-042-RECORDVRFNOSESS`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **MCP `record_baseline` named one gap marker of two** (angle-5 red team on the 0.4.2 candidate; 0.4.1). The tool
   returns the YAML only, and its description named `# INCOMPLETE BASELINE` as the sign of a partial baseline, but a
   routing node with no recorded check makes the first line `# BASELINE MISSES A NODE` (on which `netdryrun record`

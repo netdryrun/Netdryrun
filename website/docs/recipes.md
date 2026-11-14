@@ -62,7 +62,7 @@ The count is of *accepted* prefixes (received minus rejected by import policy), 
   only: [10.10.0.0/24]
 ```
 
-`record` also writes the no-default-route and link-subnet guards below for every BGP node, and from 0.4.2 in each VRF with BGP sessions, with its `vrf:` (`--no-guards` leaves them out).
+`record` also writes the no-default-route and link-subnet guards below for every BGP node, and from 0.4.2 in each VRF with a BGP instance, sessions or not, with its `vrf:` (`--no-guards` leaves them out).
 
 **Tested:** passes on `frr-bgp` (2 prefixes); fails on r2 announcing 12 extra static /24s with `redistribute static`, exit 1:
 

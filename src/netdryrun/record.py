@@ -99,8 +99,8 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     With `guards` (the default from 0.3.3: a prefix range has room for one leaked default route, so the
     no-default-route guard is what catches it), the standard guard recipes that can be read from the lab: no
     default route via BGP, and no link subnet of the topology via BGP, on every BGP node, except what the node
-    learns via BGP today. Every VRF the node lists is recorded, its guards included (each judged on what that VRF
-    learns today); a check outside the default VRF carries `vrf:`."""
+    learns via BGP today. Every VRF the node lists is recorded, its guards included in every VRF with a BGP instance,
+    sessions or not (each judged on what that VRF learns today); a check outside the default VRF carries `vrf:`."""
     if prefix_mode not in ("range", "exact", "min"):
         raise ValueError(f"prefix_mode must be range, exact or min, got {prefix_mode!r}")
     lab = Lab(topology)
@@ -115,6 +115,7 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     drvs: dict = {}
     routing: list[str] = []
     no_bgp: set[str] = set()
+    seen: set[str] = set()   # nodes with recorded state: a guard of a VRF without sessions alone is none
     for name, node in lab.nodes.items():
         try:
             resolve(node, drivers[name]) if name in drivers else detect(node)
@@ -152,12 +153,12 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
             warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
         for vrf in vrfs:
             checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
-                                  link_subnets if guards else None, sleep, no_bgp)
+                                  link_subnets if guards else None, sleep, no_bgp, seen)
     _unnumbered(link_local_only, drvs, warnings)
     for name in routing:
         if name in no_bgp and name in no_bgp_ok:
             continue   # the user said it runs no BGP (--no-bgp): its "no BGP instance" answer is the expected state
-        if not any(c.get("node") == name for c in checks):
+        if name not in seen:
             # "no BGP instance" is also what a NOS answers while its BGP is still starting (FRR before bgpd loads its
             # config, cEOS "BGP inactive", SONiC before setup): never a reason to leave a node out silently (code
             # review of the batch, M1)
@@ -170,8 +171,10 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
 
 
 def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: bool, prefix_mode: str,
-                attributes: bool, link_subnets: list[str] | None, sleep, no_bgp: set | None = None) -> list[dict]:
-    """One VRF of one node: its sessions, routes and (with `link_subnets`) guards."""
+                attributes: bool, link_subnets: list[str] | None, sleep, no_bgp: set | None = None,
+                seen: set | None = None) -> list[dict]:
+    """One VRF of one node: its sessions, routes and (with `link_subnets`) guards. `seen` gets the node's name when
+    this VRF records state of the node (a session, a route, or the guards of a VRF with sessions)."""
     at = {} if vrf == "default" else {"vrf": vrf}
     where = name if vrf == "default" else f"{name} (vrf {vrf})"
     try:
@@ -216,10 +219,17 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
                         continue
                     if c:
                         checks.append(c)
-    if link_subnets is not None and neighbors:
-        # every VRF with BGP sessions gets the guards, with its `vrf:` (angle-5 red team on 82fb052, RT-0076): 0.4.1
-        # wrote them in the default VRF only, so a default route leaked into a customer VRF passed every recorded check
+    state = bool(checks) or bool(neighbors)
+    if link_subnets is not None:
+        # every VRF with a BGP instance gets the guards, with its `vrf:` (angle-5 red team on 82fb052, RT-0076): 0.4.1
+        # wrote them in the default VRF only, so a default route leaked into a customer VRF passed every recorded
+        # check. Sessions or not (adversary n4c on cf460d6, B1): a VRF fed only by `import vrf` (a shared-services or
+        # route-leak VRF), or a default VRF whose sessions are all in VRFs, takes a leaked default as quietly
         checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep, vrf=vrf)
+    if seen is not None and state and checks:
+        # the guards of a VRF without sessions are no state read from the node: a node with nothing else (BGP still
+        # starting, or a driver that answers an empty table for no BGP) stays a node the baseline misses
+        seen.add(name)
     return checks
 
 

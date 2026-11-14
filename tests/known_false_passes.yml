@@ -404,10 +404,14 @@
 - id: rt-0076-record-no-guard-in-a-vrf
   what: record wrote the no-default-route and link-subnet guards in the default VRF only, without a word, so a default
     route leaked into a customer VRF passed every recorded check of that VRF (0.4.0 to 0.4.1; angle-5 red team on the
-    0.4.2 candidate); every VRF with BGP sessions gets the guards now, each with its `vrf:`
+    0.4.2 candidate); every VRF with a BGP instance gets the guards now, sessions or not (a VRF fed only by
+    `import vrf`, and the default VRF of a node whose sessions are all in VRFs, after adversary n4c on cf460d6), each with
+    its `vrf:`
   record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
   tests:
     - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py
+    - tests/oracles/FP-042-RECORDVRFNOSESS/test_oracle_fp_042_recordvrfnosess.py
     - tests/test_record_vrf_guards_042.py
+    - tests/test_record_vrf_nosess_guards_042.py
     - tests/test_record_vrfs.py
     - tests/test_redteam.py

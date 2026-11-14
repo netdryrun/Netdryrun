@@ -121,11 +121,13 @@ mapping in a `<<: [..]` list for a key written twice. Case
 netdryrun 0.2.0 to 0.4.1.
 After a scenario, restore ran `ip link set up` on every interface the scenario had taken down, without reading its
 state first. `node_isolated` takes down every lab link of the node, so a backup link the lab keeps administratively down
-(a containerlab `exec: [ip link set eth2 down]`, a `shutdown` in the router's config) came back up after the scenario,
+(a containerlab `exec: [ip link set eth2 down]`, or on FRR a `shutdown` under the interface, which zebra applies to
+the kernel link) came back up after the scenario,
 and so did a link a `link_down` named while it was already down. Every later scenario, and the network the run left
 behind, had an extra link: a failover check could pass over a path the real network doesn't have. From 0.4.2 each
 link's admin state is read before anything changes: a link already down is left down by `node_isolated` and never
-brought up, and a `link_down` on it, or a `node_isolated` whose links are all down, is an error. **Workaround before
+brought up, and a `link_down` on it, or a `node_isolated` whose links are all down, stops the run with an error
+(exit 2) once the lab is up, since the fault would change nothing. **Workaround before
 you upgrade:** keep a scenario that fails a node with a shut link last in the file (or in its own run), or replace
 `node_isolated` with a `link_down` list of the links that are up. Case
 `tests/redteam/RT-0074-scenario-restore-brings-up-a-shut-link.yml`, oracle `tests/oracles/FP-042-SCENRESTORE`.
@@ -136,8 +138,11 @@ you upgrade:** keep a scenario that fails a node with a shut link last in the fi
 RouterOS beta drivers in 0.4.1). `record` records every VRF the node lists, each check with its `vrf:`, but wrote its
 guards (no default route via BGP, no link subnet of the topology via BGP) in the default VRF only, and said nothing
 about the others. A change that leaked the default route into a customer VRF (FRR `import vrf default` under the VRF's
-`router bgp`) passed every check recorded for that VRF. From 0.4.2 each VRF with BGP sessions gets the same guards with
-its `vrf:`, each first run on the recording lab like the default VRF's: one the VRF fails today (a default it learns as
-its service) is left out with a comment. **Workaround before you upgrade:** add to a recorded baseline, for each VRF,
+`router bgp`) passed every check recorded for that VRF. From 0.4.2 every VRF with a BGP instance gets the same guards
+with its `vrf:`, whether it has BGP sessions or not: a VRF fed only by `import vrf` (a shared-services VRF) is guarded
+too, and so is the default VRF of a node whose sessions are all in VRFs (unguarded since 0.3.3). Each guard is first run
+on the recording lab like the default VRF's: one the VRF fails today (a default it learns as its service) is left out
+with a comment. **Workaround before you upgrade:** add to a recorded baseline, for each VRF,
 `{type: route, node: <node>, vrf: <vrf>, prefix: 0.0.0.0/0, protocol: bgp, present: false}` (and `::/0` with IPv6), or
-re-record with 0.4.2. Case `tests/redteam/RT-0076-record-no-guard-in-a-vrf.yml`, oracle `tests/oracles/FP-042-RECORDVRF`.
+re-record with 0.4.2. Case `tests/redteam/RT-0076-record-no-guard-in-a-vrf.yml`, oracles `tests/oracles/FP-042-RECORDVRF`
+and `tests/oracles/FP-042-RECORDVRFNOSESS`.
