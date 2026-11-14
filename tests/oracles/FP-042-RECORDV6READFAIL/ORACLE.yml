@@ -1,0 +1,15 @@
+id: FP-042-RECORDV6READFAIL
+bug: >-
+  Under `record --no-routes`, a failed IPv6 route read (a vtysh/NX-API/NETCONF timeout, rc != 0) on a driver that
+  reads IPv6 routes (FRR, SONiC, Junos, NX-OS, SR Linux, EOS) is a plain warning, not an INCOMPLETE BASELINE line, and
+  record._guards then skips the IPv6 family (`if fam == 6 and not v6 and 6 not in bgp_now: continue`) and every IPv6
+  link subnet (`n not in bgp_now.get(6, {n})`) without a line, so a VRF without IPv6 BGP today gets no ::/0 guard and
+  no IPv6 link guards, record exits 0, and a ::/0 leaked into it later passes every recorded check (adversary n4i on
+  57eb8ca, B1 and D1); the IPv4 counterpart is a gap line. Either fix passes, per VRF: the `present: false` guards
+  (::/0, the IPv6 link subnet) with the VRF's `vrf:`, or an INCOMPLETE BASELINE line naming the node, the VRF and
+  IPv6. The guards (a driver that can't read IPv6 at all, RouterOS and cEOS with IPv6 routing off, keeps today's
+  output exactly; IPv4 checks unchanged; routes mode still a gap; readable IPv6 keeps its guards) are in
+  tests/test_oracle_guards_fp_042_recordv6readfail.py
+evidence:
+  - tests/test_oracle_guards_fp_042_recordv6readfail.py
+  - tests/fixtures/eos_route_red_v6_routing_disabled.json
