@@ -415,3 +415,23 @@
     - tests/test_record_vrf_nosess_guards_042.py
     - tests/test_record_vrfs.py
     - tests/test_redteam.py
+- id: record-vrf-list-read-failed
+  what: on a driver that lists VRFs (FRR, SONiC, Junos from 0.4.0; NX-OS, RouterOS beta from 0.4.1), a VRF list that
+    couldn't be read recorded the default VRF alone with a plain warning and exited 0, so a default route leaked into
+    an unrecorded VRF passed (0.4.0 to 0.4.1; adversary n4f on 606d238, B1); it is an INCOMPLETE BASELINE line now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-RECORDVRFLISTFAIL/test_oracle_fp_042_recordvrflistfail.py
+    - tests/test_oracle_guards_fp_042_recordvrflistfail.py
+    - tests/test_record_vrflist_v6default_042.py
+    - tests/test_record_vrfs.py
+- id: record-v6-default-guard-without-ipv6-bgp
+  what: record wrote the ::/0 guard only with IPv6 BGP today or an established eBGP session, so a node or VRF with
+    IPv4 iBGP sessions only, or none, had no ::/0 guard and no line, and a ::/0 leaked into it later passed (0.3.3 to
+    0.4.1; adversary n4f on 606d238, C1); every VRF whose IPv6 routes can be read gets the guard now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-RECORDV6DEFAULT/test_oracle_fp_042_recordv6default.py
+    - tests/test_oracle_guards_fp_042_recordv6default.py
+    - tests/test_record_vrflist_v6default_042.py
+    - tests/test_record_vrf_nosess_guards_042.py

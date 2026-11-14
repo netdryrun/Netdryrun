@@ -102,6 +102,20 @@
   no default guard, and a comment says so). A baseline recorded on a lab with VRFs has more checks than before;
   re-record to get them. Oracles `tests/oracles/FP-042-RECORDVRF` and `tests/oracles/FP-042-RECORDVRFNOSESS`;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record`: a VRF list that couldn't be read recorded the default VRF alone and exited 0** (adversary review of the
+  RT-0076 fix; 0.4.0 to 0.4.1, on the drivers that list VRFs: FRR, SONiC and Junos from 0.4.0, the NX-OS and RouterOS
+  beta drivers from 0.4.1). A failed `show vrf` (or instance-list) read got the same plain `# warning:` comment as a
+  driver that can't list VRFs, no gap line, so `record` exited 0 and a default route leaked into an unrecorded VRF
+  passed every recorded check. On those drivers it is an `INCOMPLETE BASELINE` line naming the node now, and `record`
+  exits 1; SR Linux and EOS, which can't list VRFs, keep the warning. Oracle `tests/oracles/FP-042-RECORDVRFLISTFAIL`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record` wrote no `::/0` guard where IPv6 BGP and eBGP were absent** (adversary review of the RT-0076 fix; 0.3.3
+  to 0.4.1). The `::/0` guard was written only with IPv6 BGP today or (from 0.4.1) an established eBGP session, so a
+  node or VRF with IPv4 iBGP sessions only, or none, had no `::/0` guard and no line, and a change that brought IPv6 in
+  (`address-family ipv6`, `import vrf`) and leaked `::/0` passed. Every VRF with a BGP instance whose IPv6 routes can
+  be read gets the guard now, judged on the recording lab first like the others; where IPv6 routes can't be read
+  (RouterOS) nothing changes. Oracle `tests/oracles/FP-042-RECORDV6DEFAULT`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **MCP `record_baseline` named one gap marker of two** (angle-5 red team on the 0.4.2 candidate; 0.4.1). The tool
   returns the YAML only, and its description named `# INCOMPLETE BASELINE` as the sign of a partial baseline, but a
   routing node with no recorded check makes the first line `# BASELINE MISSES A NODE` (on which `netdryrun record`

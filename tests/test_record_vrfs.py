@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from netdryrun import record as rec
-from netdryrun.drivers.base import BgpNeighbor, DriverError, Observation, Route
+from netdryrun.drivers.base import BgpNeighbor, Driver, DriverError, Observation, Route
 from netdryrun.drivers.frr import FrrDriver
 from netdryrun.drivers.sonic import SonicDriver
 from netdryrun.lab import ExecResult, Node
@@ -83,10 +83,28 @@ def test_record_covers_every_vrf_the_driver_lists(monkeypatch):
     assert not warnings
 
 
+class NoVrfList(Drv):
+    """A driver without its own vrfs(): the base Driver's "not supported" answer (EOS, SR Linux)."""
+    vrfs = Driver.vrfs
+
+
 def test_a_driver_that_cannot_list_vrfs_records_the_default_one_and_says_so(monkeypatch):
+    data, warnings = _record(monkeypatch, NoVrfList())
+    assert all("vrf" not in c for c in data["checks"]) and data["checks"]
+    assert warnings == ["edge1: only the default VRF is recorded (listing VRFs is not supported on frr yet); add "
+                        "checks for other VRFs by hand"]
+    assert not rec.baseline_gaps(warnings)
+
+
+def test_a_driver_whose_vrf_list_read_fails_is_an_incomplete_baseline(monkeypatch):
+    """A driver that lists VRFs and whose read fails leaves every other VRF unrecorded: a gap line, exit 1
+    (FP-042-RECORDVRFLISTFAIL), never the plain warning of a driver that can't list them."""
     data, warnings = _record(monkeypatch, Drv(vrfs=None))
     assert all("vrf" not in c for c in data["checks"]) and data["checks"]
-    assert any("only the default VRF" in w for w in warnings)
+    assert rec.baseline_gaps(warnings) == warnings == [
+        "INCOMPLETE BASELINE: edge1: could not list its VRFs (listing VRFs is not supported on this platform yet), "
+        "so only the default VRF is recorded and no other VRF has a session, route or guard: fix the read and record "
+        "again, or add checks for other VRFs by hand"]
 
 
 def test_a_vrf_without_bgp_is_skipped_quietly_and_a_node_without_bgp_still_warns(monkeypatch):

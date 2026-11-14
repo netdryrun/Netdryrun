@@ -38,7 +38,8 @@ def run(monkeypatch, drv, guards_on=True):
 def test_a_sessionless_vrf_gets_the_default_and_link_subnet_guards_with_its_vrf(monkeypatch):
     data, warnings = run(monkeypatch, o.PeDrv("vrf"))
     svc = [c for c in data["checks"] if c.get("vrf") == "svc" and c.get("present") is False]
-    assert sorted(c["prefix"] for c in svc) == ["0.0.0.0/0", *LINKS]
+    # ::/0 too: its IPv6 routes can be read (FP-042-RECORDV6DEFAULT)
+    assert sorted(c["prefix"] for c in svc) == ["0.0.0.0/0", *LINKS, "::/0"]
     assert all(c == {"type": "route", "node": "pe1", "prefix": c["prefix"], "protocol": "bgp", "present": False,
                      "vrf": "svc"} for c in svc)
     assert guards(data["checks"], "default") == ["0.0.0.0/0", *LINKS, "::/0"]   # eBGP upstream: ::/0 too (B-3)
@@ -47,7 +48,7 @@ def test_a_sessionless_vrf_gets_the_default_and_link_subnet_guards_with_its_vrf(
 
 def test_a_default_vrf_without_sessions_gets_its_guards_without_vrf(monkeypatch):
     data, warnings = run(monkeypatch, o.PeDrv("default"))
-    assert guards(data["checks"], "default") == ["0.0.0.0/0", *LINKS]
+    assert guards(data["checks"], "default") == ["0.0.0.0/0", *LINKS, "::/0"]   # IPv6 routes read: ::/0 too
     assert guards(data["checks"], "cust") == ["0.0.0.0/0", *LINKS, "::/0"]
     assert not [w for w in warnings if "INCOMPLETE" in w], warnings
 
@@ -71,7 +72,7 @@ class SvcLearnsADefault(o.PeDrv):
 
 def test_a_sessionless_vrf_is_judged_on_its_own_routes(monkeypatch):
     data, warnings = run(monkeypatch, SvcLearnsADefault("vrf"))
-    assert guards(data["checks"], "svc") == LINKS
+    assert guards(data["checks"], "svc") == [*LINKS, "::/0"]
     assert "0.0.0.0/0" in guards(data["checks"], "default")
     assert any(w.startswith("pe1 (vrf svc): learns 0.0.0.0/0 via BGP today") for w in warnings), warnings
 
@@ -115,7 +116,7 @@ def test_a_sessionless_vrf_guard_that_cannot_be_evaluated_is_a_named_gap(monkeyp
     data, warnings = run(monkeypatch, SvcGuardUnreadable("vrf"))
     assert guards(data["checks"], "svc") == []
     gaps = [w for w in warnings if w.startswith("INCOMPLETE BASELINE: pe1 (vrf svc): the guard against")]
-    assert len(gaps) == 3, warnings
+    assert len(gaps) == 4, warnings   # 0.0.0.0/0, the two link subnets and ::/0
 
 
 class NothingYet(o.PeDrv):
@@ -134,7 +135,7 @@ class NothingYet(o.PeDrv):
 
 def test_guards_alone_are_no_state_a_node_with_nothing_else_is_still_missed(monkeypatch):
     data, warnings = run(monkeypatch, NothingYet("vrf"))
-    assert guards(data["checks"], "default") == ["0.0.0.0/0", *LINKS]
+    assert guards(data["checks"], "default") == ["0.0.0.0/0", *LINKS, "::/0"]
     assert [w for w in warnings if w.startswith(f"{rec.MISSING_NODE}: pe1:")], warnings
 
 

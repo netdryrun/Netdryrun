@@ -12,7 +12,10 @@ kind: pinned
 # every driver that lists VRFs (FRR and SONiC; Junos from 0.4.0, NX-OS and RouterOS beta in 0.4.1). The fix guards every
 # VRF with a BGP instance, sessions or not: its first form guarded only VRFs with sessions, which left a VRF fed by
 # `import vrf` alone, and the default VRF of a node whose sessions are all in VRFs, as open (adversary n4c on cf460d6,
-# oracle FP-042-RECORDVRFNOSESS).
+# oracle FP-042-RECORDVRFNOSESS). Adversary n4f on 606d238 found two neighbours, fixed in 0.4.2 too: on those drivers
+# a VRF list that can't be read is an INCOMPLETE BASELINE line (0.4.0 and 0.4.1 recorded the default VRF alone and
+# exited 0; oracle FP-042-RECORDVRFLISTFAIL), and ::/0 is guarded in every VRF whose IPv6 routes can be read, not only
+# with IPv6 BGP or an eBGP session (oracle FP-042-RECORDV6DEFAULT).
 tests:
   - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_recorded_vrf_gets_its_default_route_guard_or_a_gap_line
   - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_leaked_default_in_the_vrf_fails_the_baseline_or_the_gap_is_named

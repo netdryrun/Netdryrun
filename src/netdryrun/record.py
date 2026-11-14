@@ -20,7 +20,7 @@ from . import __version__
 from .checks import Unready, _evaluate
 from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
 from .drivers import DriverError, Undetectable, detect, for_node, resolve
-from .drivers.base import NoSuchInstance, is_bgp
+from .drivers.base import Driver, NoSuchInstance, is_bgp
 from .lab import Lab, LabError
 
 MAX_ROUTES_PER_NODE = 50
@@ -150,7 +150,15 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
         try:
             vrfs += [v for v in drv.vrfs().value if v != "default"]
         except DriverError as e:
-            warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
+            if type(drv).vrfs is not Driver.vrfs:
+                # a driver that lists VRFs (FRR, SONiC, Junos, NX-OS, RouterOS) whose read failed: every other VRF
+                # goes unrecorded, no session, route or guard, so it is a gap, never a comment (adversary n4f on
+                # 606d238, B1; the same plain warning since 0.4.0)
+                warnings.append(f"INCOMPLETE BASELINE: {name}: could not list its VRFs ({e}), so only the default VRF "
+                                "is recorded and no other VRF has a session, route or guard: fix the read and record "
+                                "again, or add checks for other VRFs by hand")
+            else:   # a driver that can't list VRFs (EOS, SR Linux): the documented default-VRF-only limit
+                warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
         for vrf in vrfs:
             checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
                                   link_subnets if guards else None, sleep, no_bgp, seen)
@@ -394,14 +402,15 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
     a guard that never gets a real answer is left out with an INCOMPLETE BASELINE line."""
     v6 = (any(":" in a for a in neighbors) or bool(bgp_now.get(6))   # IPv6 neighbors or routes, or IPv6
           or any("ipv6" in afi for n in neighbors.values() for afi in n.prefixes))   # carried over IPv4
-    # an eBGP session that doesn't carry IPv6 today still gets the ::/0 guard, so a family added later can't leak a
-    # default unseen (acceptance round B-3), wherever IPv6 routes can be read
-    ebgp = any(n.state == "established" and n.external is not False for n in neighbors.values())
     at = {} if vrf == "default" else {"vrf": vrf}
     where = name if vrf == "default" else f"{name} (vrf {vrf})"   # every message names the VRF
     out = []
     for fam, default in ((4, "0.0.0.0/0"), (6, "::/0")):
-        if fam == 6 and not v6 and not (ebgp and 6 in bgp_now):
+        # ::/0 is guarded wherever the VRF's IPv6 routes can be read, IPv6 BGP today or not: a family added later
+        # (acceptance round B-3, eBGP) or an `import vrf` that brings IPv6 into a VRF without IPv6 or eBGP sessions
+        # (adversary n4f on 606d238, C1) can't leak a default unseen; where they can't be read and nothing says the
+        # VRF carries IPv6, nothing is claimed
+        if fam == 6 and not v6 and 6 not in bgp_now:
             continue
         if fam not in bgp_now:   # its routes couldn't be read: a guard against what it has today can't be built
             warnings.append(f"INCOMPLETE BASELINE: {where}: IPv{fam} routes could not be read, so no IPv{fam} "

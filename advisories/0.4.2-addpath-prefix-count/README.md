@@ -146,3 +146,21 @@ with a comment. **Workaround before you upgrade:** add to a recorded baseline, f
 `{type: route, node: <node>, vrf: <vrf>, prefix: 0.0.0.0/0, protocol: bgp, present: false}` (and `::/0` with IPv6), or
 re-record with 0.4.2. Case `tests/redteam/RT-0076-record-no-guard-in-a-vrf.yml`, oracles `tests/oracles/FP-042-RECORDVRF`
 and `tests/oracles/FP-042-RECORDVRFNOSESS`.
+
+Two neighbours of this hole, found by adversary review of its fix, are fixed in 0.4.2 too:
+
+- **A VRF list that couldn't be read.** **Affected:** netdryrun 0.4.0 to 0.4.1, on the same drivers (FRR, SONiC and
+  Junos from 0.4.0; the NX-OS and RouterOS beta drivers from 0.4.1). When the read of the node's VRFs failed (a vtysh,
+  NETCONF/CLI, NX-API or REST timeout), `record` recorded the default VRF alone with a plain `# warning:` comment, wrote
+  no gap line and exited 0, so a default route leaked into any other VRF passed. From 0.4.2 it writes an
+  `INCOMPLETE BASELINE` line naming the node and its VRF list, first in the file, and exits 1. SR Linux and EOS, which
+  can't list VRFs, keep the documented warning. **Workaround before you upgrade:** look for `only the default VRF is
+  recorded` in a baseline recorded on FRR, SONiC, Junos, NX-OS or RouterOS, and record again. Oracle
+  `tests/oracles/FP-042-RECORDVRFLISTFAIL`.
+- **No `::/0` guard without IPv6 BGP or an eBGP session.** **Affected:** netdryrun 0.3.3 to 0.4.1, every driver that
+  reads IPv6 routes. `record` wrote the `::/0` guard only where the node (from 0.4.2 the VRF) had IPv6 BGP today or
+  (from 0.4.1) an established eBGP session, so with IPv4 iBGP sessions only, or none, a change that brought IPv6 in
+  (`address-family ipv6`, `import vrf`) and leaked `::/0` passed. From 0.4.2 every VRF with a BGP instance whose IPv6
+  routes can be read gets `{type: route, node: <node>, prefix: ::/0, protocol: bgp, present: false}` with its `vrf:`,
+  judged on the recording lab first. **Workaround before you upgrade:** add that check by hand. Oracle
+  `tests/oracles/FP-042-RECORDV6DEFAULT`.
