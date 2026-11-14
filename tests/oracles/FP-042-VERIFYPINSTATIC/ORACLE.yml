@@ -1,0 +1,12 @@
+id: FP-042-VERIFYPINSTATIC
+bug: >-
+  verify: an `appears_on` line with BGP pins in `with:` (from, as_path) explains a new static RIB entry for the same
+  prefix, and approves when that static is the route the node selects and installs: `RouteView.presence()` reads
+  "installed" from the selected static, `_pins_ok` compares the BGP pins with bgpd's best path only (kept when zebra
+  prefers a distance-1 static), and `_pinned_items` explains every non-path item. INTENT MATCHED while edge1 forwards
+  the prefix to another next hop (red team 042-GV, B-RT-0077, offline through the real FRR collector and engine on
+  derived edge1 output from the live captures in tests/fixtures/verify). The guards (the pinned BGP path installed
+  alone is still matched, unmet pins still fail, a line with no pins keeps today's behaviour) are in
+  tests/test_oracle_guards_fp_042_verifypinstatic.py
+evidence:
+  - tests/test_oracle_guards_fp_042_verifypinstatic.py
