@@ -1,0 +1,11 @@
+id: FP-042-RECORDVRF
+bug: >-
+  `record` on FRR (and SONiC) with a non-default VRF writes the no-default-route and link-subnet guards for the default
+  VRF only (record.record() passes link subnets only when vrf == "default"), with no INCOMPLETE BASELINE line, so a
+  default route leaked into the VRF (`import vrf default`) passes every recorded check of that VRF; cli.md says record
+  covers every active VRF on FRR and SONiC and writes the guards on each BGP node (angle-5 red team on 82fb052,
+  B-RT-0074, offline through the real record()). Either fix passes: a `vrf:` guard per recorded VRF, or a named gap
+  line. The guards (the default VRF's guards and the VRF's own checks stay as they are) are in
+  tests/test_oracle_guards_fp_042_recordvrf.py
+evidence:
+  - tests/test_oracle_guards_fp_042_recordvrf.py
