@@ -94,3 +94,15 @@ declared `eor: not_sent`, which the gate doesn't wait for. And a neighbor that s
 as not evaluated, never as a pass. Case
 `tests/redteam/RT-0072-frr-gr-stale-paths-counted-as-accepted.yml`, oracle `tests/oracles/FP-042-FRRGRSTALE`, from a live
 FRR 10.4.1 capture.
+
+## Also fixed in 0.4.2: a duplicate key inside a YAML merge source was accepted
+
+**Affected:** every driver, netdryrun 0.3.1 to 0.4.1 (before 0.3.1 no duplicate key was refused; see the
+[0.3.0 advisory](../0.3.0-false-pass/README.md)). Duplicate keys in `netdryrun.yml` are errors at any depth, but a
+mapping used only as a `<<` merge source was never checked, and YAML kept its last value without a word. A no-leak
+guard template written `prefix: 0.0.0.0/0` with a pasted second `prefix: 192.0.2.0/24`, then merged into each node's
+check, loaded as a guard on 192.0.2.0/24: a leaked default route passed every run. The same held for one mapping of a
+`<<: [..]` list and for the containerlab topology file. From 0.4.2 every mapping a file merges is checked, at any merge
+depth, and the file is refused naming the duplicate. **Workaround before you upgrade:** check each anchored mapping (`&name`) and each
+mapping in a `<<: [..]` list for a key written twice. Case
+`tests/redteam/RT-0073-duplicate-key-in-merge-source.yml`, oracle `tests/oracles/FP-042-YAMLMERGEDUP`.

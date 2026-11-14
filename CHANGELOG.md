@@ -71,6 +71,13 @@
   can't be read as received, or the add-path listing shows stale paths) the count isn't settled now: no bound is
   judged, the check samples again, and `record` leaves the count out. Oracle `tests/oracles/FP-042-FRRGRSTALE`, from
   the live capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A duplicate key inside a YAML merge source was accepted** (red team RT-0073, angle-5 red team on the 0.4.2
+  candidate; 0.3.1 to 0.4.1). Duplicate keys are refused at any depth, but a mapping used only through `<<` was never
+  checked, and its last value won: a no-leak guard template written `prefix: 0.0.0.0/0` with a pasted second
+  `prefix: 192.0.2.0/24` loaded as a guard on 192.0.2.0/24, so a leaked default route passed. Every mapping a file
+  merges (inline, anchored, in a `<<: [..]` list, at any merge depth) is checked now, in `netdryrun.yml`, the lab's
+  topology and `verify`'s files. Oracle `tests/oracles/FP-042-YAMLMERGEDUP`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
   [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
   In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the

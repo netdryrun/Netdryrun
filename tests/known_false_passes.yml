@@ -371,3 +371,12 @@
     - tests/oracles/FP-042-FRRGRSTALE/test_oracle_fp_042_frrgrstale.py
     - tests/test_frr_gr_stale_042.py
     - tests/test_redteam.py
+- id: rt-0073-duplicate-key-in-merge-source
+  what: A duplicate key inside a mapping used only as a `<<` merge source was accepted and the last value won, so a
+    no-leak guard template with a pasted second `prefix:` guarded the wrong prefix (0.3.1 to 0.4.1, where duplicate
+    keys are refused elsewhere; angle-5 red team on the 0.4.2 candidate); every mapping a file merges is checked now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-YAMLMERGEDUP/test_oracle_fp_042_yamlmergedup.py
+    - tests/test_yaml_merge_source_dup_042.py
+    - tests/test_redteam.py
