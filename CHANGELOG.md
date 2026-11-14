@@ -136,6 +136,26 @@
   ` (configured)`, and the `netns-based vrfs` header); anything else is an error, which `record` turns into the
   `INCOMPLETE BASELINE` VRF-list line (exit 1). An empty answer, zebra's on a node without VRFs, is still no VRFs.
   Oracle `tests/oracles/FP-042-FRRVRFPARSE`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`verify`: BGP pins on `appears_on` approved a static route that won** (red team RT-0077, on the 0.4.2 final
+  candidate; 0.4.0 to 0.4.1, in `netdryrun verify`, MCP `verify_change` and the Action's `mode: verify`). With
+  `with: {from: 10.0.1.2, as_path: "65100"}`, the pins were compared with bgpd's best path only, and every RIB entry for
+  the prefix was explained. When the change also added a distance-1 static to another next hop, zebra selected and
+  installed the static while bgpd kept its best path, and the verdict was INTENT MATCHED. The pins now describe the
+  route the node selects: `protocol`, `distance` and `metric` must hold for every selected RIB entry, BGP attributes
+  need the selected route to be BGP's ("the selected route is a static route, not BGP"), and a RIB entry the pins
+  don't describe (a floating static beside the pinned BGP route) is an undeclared difference. A line without `with:`
+  is unchanged. Oracle `tests/oracles/FP-042-VERIFYPINSTATIC`, on output derived from the live FRR 10.4.1 captures;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A `link_down` whose BGP session runs over a VLAN subinterface was judged before the fault took effect** (red
+  team RT-0078, on the 0.4.2 final candidate; 0.3.1 to 0.4.1). The sessions to wait for were found from the downed
+  interface's own addresses, so with the session on `eth1.100@eth1` (eth1 holding only its link-local) none was
+  watched: the run logged "no BGP session runs over the downed links" and judged at once, and the far end behind a
+  bridge kept the route for its hold time, so `route ... protocol: bgp` passed in a lab with no backup path. Devices
+  stacked on a downed interface now count as that interface, with their addresses and names: VLAN subinterfaces and
+  macvlans on it (and what is stacked on those), and a bond, bridge or VRF device once every interface enslaved to it
+  goes down. They are read from the node (`ls /sys/class/net`, `ip -o link show dev X`) before any link goes down,
+  and a device that can't be read stops the run with exit code 2. Oracle `tests/oracles/FP-042-LINKDOWNSTACKED`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **MCP `record_baseline` named one gap marker of two** (angle-5 red team on the 0.4.2 candidate; 0.4.1). The tool
   returns the YAML only, and its description named `# INCOMPLETE BASELINE` as the sign of a partial baseline, but a
   routing node with no recorded check makes the first line `# BASELINE MISSES A NODE` (on which `netdryrun record`
@@ -216,6 +236,11 @@
   that kept its forwarding state (F-bit set) hasn't sent End-of-RIB, as FRR and SONiC did before 0.4.2 (RT-0072). Not
   confirmed live on either. Workaround: add a `max` to the check (the convergence gate then waits for End-of-RIB), or
   pair the `min` with `route` checks.
+- **Arista EOS: `route ... protocol: bgp present: false` passes on a BGP aggregate** (red team 042-GV, A-RT-0077).
+  The driver reads an `aggregate-address` route as protocol `aggregate`, not `bgp`, so the guard passes on the node's
+  own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix
+  with `bgp_route ... present: false`, or use `protocol: aggregate` on EOS. Not confirmed on a live cEOS. Planned for
+  0.4.3.
 - **The corpus v2 case 18 race** is not removed; case 18 stays unscored. Planned for 0.4.3.
 - **A prefix-limit reset is still not proof that injected routes reached a peer**; the narrow attributable proof is
   planned for 0.4.3.

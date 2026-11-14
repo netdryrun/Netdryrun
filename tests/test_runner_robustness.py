@@ -129,6 +129,9 @@ class FakeLab:
     def peers_of(self, node, iface):
         return Lab.peers_of(self, node, iface)
 
+    def link_tree(self, node):   # plain links: nothing stacked on them (oracle FP-042-LINKDOWNSTACKED)
+        return {}
+
 
 class FakeDriver:
     """State as functions of the world: neighbors(world) -> {addr: state}, routes(world, prefix) -> bool."""

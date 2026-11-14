@@ -182,3 +182,35 @@ Four neighbours of this hole, found by adversary review of its fix, are fixed in
   `show vrf` format is an error, and `record` writes the `INCOMPLETE BASELINE` VRF-list line and exits 1; an empty
   answer (a node without VRFs) is still no VRFs. **Workaround before you upgrade:** on a node with VRFs, check that
   the recorded baseline has checks with its `vrf:`; if not, record again. Oracle `tests/oracles/FP-042-FRRVRFPARSE`.
+
+## Also fixed in 0.4.2: `verify` approved a static route under BGP pins
+
+**Affected:** `netdryrun verify` (FRR only), MCP `verify_change` and the Action's `mode: verify`, netdryrun 0.4.0 to
+0.4.1. An `appears_on` line with BGP attributes in `with:` (`from: 10.0.1.2`, `as_path: "65100"`) was checked against
+bgpd's best path only, and every RIB entry for the prefix was explained. A change that also added
+`ip route 10.101.0.0/24 10.0.3.2` (distance 1) made zebra select and install the static while bgpd kept its best path
+from 10.0.1.2, and the verdict was INTENT MATCHED although the node forwarded the prefix to another next hop. The report
+showed it (`protocol: static` and the static's next hop in the line's details, the `ip route` line under untested
+config), but the verdict approved. From 0.4.2 the pins describe the route the node selects: `protocol`, `distance` and
+`metric` must hold for every selected RIB entry, BGP attributes need the selected route to be BGP's, and with pins a
+RIB entry they don't describe is an undeclared difference. **Workaround before you upgrade:** add `protocol: bgp` to
+the line's `with:`, and read the `protocol` and `next_hops` of each `appears_on` line in the report. Case
+`tests/redteam/RT-0077-verify-bgp-pins-explain-a-static-that-wins.yml`, oracle `tests/oracles/FP-042-VERIFYPINSTATIC`
+(output derived from the live FRR 10.4.1 captures; the state is not yet captured live).
+
+## Also fixed in 0.4.2: a `link_down` over a VLAN subinterface was judged before the fault took effect
+
+**Affected:** every node kind whose links a scenario can fail (FRR, SONiC, Arista cEOS and plain Linux containers),
+netdryrun 0.3.1 to 0.4.1 (0.2.0 and 0.3.0 waited for no session at all). Before taking a link down, a scenario notes
+the BGP sessions over it and waits until they are down on both ends. Those sessions were found from the downed
+interface's own addresses, so a session on a VLAN subinterface of it (`eth1.100@eth1`, eth1 holding only its
+link-local) was not found: the run logged "no BGP session runs over the downed links" and judged after the settle and
+hold windows. A far end behind a containerlab bridge gets no carrier event and keeps the session and its routes for
+its hold time (180 s by default), so `route ... protocol: bgp` passed on the far end in a lab with no backup path.
+From 0.4.2 the devices stacked on a downed interface count as that interface, with their addresses and names: VLAN
+subinterfaces and macvlans (and what is stacked on those), and a bond, bridge or VRF device once every interface
+enslaved to it goes down. They are read from the node before any link goes down; a device that can't be read stops
+the run with exit code 2. **Workaround before you upgrade:** in a scenario that takes down the parent of a VLAN
+subinterface, look for "no BGP session runs over the downed links" in the output, and give the scenario a `--settle`
+above the BGP hold time (or lower the hold timers in the lab). Case
+`tests/redteam/RT-0078-link-down-on-a-vlan-trunk-parent.yml`, oracle `tests/oracles/FP-042-LINKDOWNSTACKED`.

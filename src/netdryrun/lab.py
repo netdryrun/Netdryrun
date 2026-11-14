@@ -318,6 +318,35 @@ class Lab:
                 raise LabError(f"could not read an address of {interface} on {node}: {shown[:60]!r}") from None
         return out
 
+    def link_tree(self, node: str) -> dict[str, tuple[str | None, str | None]]:
+        """device -> (its lower device in the node's own namespace, its master) for every device of the node but
+        loopback and management, read from `ls /sys/class/net` and one `ip -o link show dev X` each: `X@Y` names the
+        lower device Y (a VLAN subinterface, macvlan), `@ifN` a peer in another namespace (none here), and `master M`
+        a bond, bridge or VRF it is enslaved to. A link fault takes down what is stacked on the downed interface
+        (oracle FP-042-LINKDOWNSTACKED: the BGP session ran over eth1.100@eth1), so a device that can't be read is an
+        error, never "nothing stacked"."""
+        r = self.exec(node, ["ls", "/sys/class/net"], timeout=15)
+        if r.rc != 0:
+            raise LabError(f"could not list the interfaces on {node} to find the devices stacked on the downed links: "
+                           f"{' '.join((r.stderr or r.stdout).split())[:200] or f'exit code {r.rc}'}")
+        skip = {"lo", "eth0", "mgmt0", "docker0"}
+        names = [i for i in r.stdout.split() if i not in skip and not i.startswith(("mgmt0", "gway", "monit"))]
+        out: dict[str, tuple[str | None, str | None]] = {}
+        for name in names:
+            r = self.exec(node, ["ip", "-o", "link", "show", "dev", name], timeout=15)
+            lines = [x for x in (r.stdout or "").splitlines() if x.strip()] if r.rc == 0 else []
+            m = re.match(r"\d+:\s+(\S+):\s+<[^>]*>", lines[0]) if len(lines) == 1 else None
+            label = m.group(1) if m else ""
+            if label != name and not label.startswith(name + "@"):
+                raise LabError(f"could not read the link of {name} on {node} to find the devices stacked on the downed "
+                               f"links: {' '.join((r.stderr or r.stdout).split())[:200] or f'exit code {r.rc}'}")
+            lower = label[len(name) + 1:] or None
+            if lower is not None and lower not in names and (lower == "NONE" or re.fullmatch(r"if\d+", lower)):
+                lower = None   # a veth peer in another namespace, or no lower device
+            master = re.search(r"\smaster\s+(\S+)", lines[0])
+            out[name] = (lower, master.group(1) if master else None)
+        return out
+
     def peers_of(self, node: str, interface: str) -> list[tuple[str, str]]:
         """The (node, interface) endpoints at the other end of a link, looking through bridge nodes
         (a clab bridge or OVS bridge in the middle is invisible to the routers on it)."""

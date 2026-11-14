@@ -1256,8 +1256,10 @@ def _canon_ip(addr: str) -> str:
 #   1. Before applying a link fault, find the BGP sessions that run over the links going down and are
 #      established: on the faulted node (neighbors in the downed interfaces' subnets, or named after the
 #      interface for unnumbered BGP) and on the far end of each link, looking through bridges (neighbors
-#      whose address is one of the faulted interface's addresses). Default VRF plus the VRFs the scenario's
-#      checks use.
+#      whose address is one of the faulted interface's addresses). A device stacked on a downed interface
+#      (a VLAN subinterface, macvlan, or a bond, bridge or VRF master once every member goes down; _stacked_on)
+#      counts as that interface, with its addresses and name (oracle FP-042-LINKDOWNSTACKED). Default VRF plus
+#      the VRFs the scenario's checks use.
 #   2. Apply the faults, then wait until every one of those sessions is no longer established on both ends:
 #      proof that the network saw the fault. The wait is bounded by the largest timeout of the scenario's
 #      checks; if the fault never shows, the run stops with an error (exit 2), never a verdict on pre-fault
@@ -1323,25 +1325,70 @@ def _link_sessions(lab: Lab, links: list[tuple[str, str]], vrfs: list[str], driv
                                "when the fault took effect") from None
         return states[(node, vrf)]
 
+    trees: dict[str, dict] = {}
+
+    def tree(node: str) -> dict:
+        if node not in trees:
+            trees[node] = lab.link_tree(node)   # unreadable raises LabError: never "nothing stacked"
+        return trees[node]
+
+    downed: dict[str, set[str]] = {}
     for node, iface in links:
-        addrs = lab.interface_addresses(node, iface)
+        downed.setdefault(node, set()).add(iface)
+    for node, iface in links:
+        # the session can run over a device stacked on the link (oracle FP-042-LINKDOWNSTACKED): its addresses and
+        # name count as the link's
+        stacked = _stacked_on(tree(node), iface, downed[node])
+        if stacked:
+            log(f"  {node} {iface}: also looking at the devices stacked on it ({', '.join(sorted(stacked))})")
+        names = {iface} | stacked
+        addrs = [a for i in [iface, *sorted(stacked)] for a in lab.interface_addresses(node, i)]
         local_ips = {a.ip for a in addrs}
         for vrf in vrfs:
             for key, n in neighbors(node, vrf).items():
                 ip = _ip(key)
-                over = key == iface or (ip is not None and ip not in local_ips and any(ip in a.network for a in addrs))
+                over = key in names or (ip is not None and ip not in local_ips and any(ip in a.network for a in addrs))
                 if over:
                     every.add((node, vrf, key))
                     if n.state == "established":
                         watch.add((node, vrf, key))
             for peer, peer_iface in lab.peers_of(node, iface):
+                # the far end's own stacked devices (an unnumbered session on its VLAN subinterface), read only when
+                # this end has some, so a plain link reads nothing more on the peer
+                peer_names = {peer_iface} | (_stacked_on(tree(peer), peer_iface, {peer_iface}) if stacked else set())
                 for key, n in neighbors(peer, vrf).items():
                     ip = _ip(key)
-                    if key == peer_iface or ip in local_ips:
+                    if key in peer_names or ip in local_ips:
                         every.add((peer, vrf, key))
                         if n.state == "established":
                             watch.add((peer, vrf, key))
     return sorted(watch), sorted(every)
+
+
+def _stacked_on(tree: dict, iface: str, downed: set[str]) -> set[str]:
+    """The devices a fault on `iface` takes down with it, from Lab.link_tree: every device whose lower device goes
+    down (a VLAN subinterface or macvlan on it, and what is stacked on those), and a bond, bridge or VRF master once
+    every device enslaved to it goes down (a bond that keeps another member stays up). `downed`: every interface of
+    the node the scenario takes down (with what is stacked on them, they decide which masters go down)."""
+    def up(start: set[str], within: set[str] | None) -> set[str]:
+        gone = set(start)
+        while True:
+            out = set(gone)
+            for name, (lower, master) in tree.items():
+                if lower is not None and lower in gone:
+                    out.add(name)
+                if master is not None and name in gone and master not in out:
+                    if within is not None:
+                        down = master in within
+                    else:
+                        down = {n for n, (_lo, m) in tree.items() if m == master} <= gone
+                    if down:
+                        out.add(master)
+            if out == gone:
+                return gone
+            gone = out
+
+    return up({iface}, up(set(downed) | {iface}, None)) - {iface}
 
 
 def _wait_fault_visible(watch: list[tuple[str, str, str]], driver_for, timeout: float, sc: Scenario,
