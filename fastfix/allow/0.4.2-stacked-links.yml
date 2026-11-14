@@ -1,0 +1,652 @@
+flips:
+  - source: fixtures
+    case: tests.test_runner_mutants::test_a_scenario_that_does_not_recover_says_later_ones_are_skipped
+    from: FAIL
+    to: PASS
+    evidence: [tests/redteam/RT-0078-link-down-on-a-vlan-trunk-parent.yml]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      tests/test_runner_mutants.py (unchanged) imports FakeLab from the base tests/test_runner_robustness.py, which
+      has no link_tree, so the scenario ends in AttributeError (status error) instead of the asserted verdict. The
+      updated fake lives in test_runner_robustness.py, which this entry can't cite, so it cites the RT-0078 record
+      of the new read. Re-run by ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails
+      only because its fake can't answer that read, and passes, every assertion unchanged, once FakeLab.link_tree
+      answers {} (no stacked devices), exactly what the updated fake adds. With nothing stacked the watched sessions
+      are the base's; stacked devices only add sessions to wait for, so the code is the same or stricter for what
+      the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_runner_mutants::test_run_hands_its_driver_overrides_to_the_scenarios
+    from: FAIL
+    to: PASS
+    evidence: [tests/redteam/RT-0078-link-down-on-a-vlan-trunk-parent.yml]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      tests/test_runner_mutants.py (unchanged) imports FakeLab from the base tests/test_runner_robustness.py, which
+      has no link_tree, so the scenario ends in AttributeError (status error) instead of the asserted verdict. The
+      updated fake lives in test_runner_robustness.py, which this entry can't cite, so it cites the RT-0078 record
+      of the new read. Re-run by ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails
+      only because its fake can't answer that read, and passes, every assertion unchanged, once FakeLab.link_tree
+      answers {} (no stacked devices), exactly what the updated fake adds. With nothing stacked the watched sessions
+      are the base's; stacked devices only add sessions to wait for, so the code is the same or stricter for what
+      the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_runner_mutants::test_the_last_scenario_not_recovering_skips_nothing
+    from: FAIL
+    to: PASS
+    evidence: [tests/redteam/RT-0078-link-down-on-a-vlan-trunk-parent.yml]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      tests/test_runner_mutants.py (unchanged) imports FakeLab from the base tests/test_runner_robustness.py, which
+      has no link_tree, so the scenario ends in AttributeError (status error) instead of the asserted verdict. The
+      updated fake lives in test_runner_robustness.py, which this entry can't cite, so it cites the RT-0078 record
+      of the new read. Re-run by ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails
+      only because its fake can't answer that read, and passes, every assertion unchanged, once FakeLab.link_tree
+      answers {} (no stacked devices), exactly what the updated fake adds. With nothing stacked the watched sessions
+      are the base's; stacked devices only add sessions to wait for, so the code is the same or stricter for what
+      the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_runner_robustness::test_scenario_positive_cannot_pass_on_pre_fault_state[0.0]
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_robustness.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_runner_robustness.py has no link_tree, so the scenario ends in AttributeError
+      (an internal error, status error) instead of the asserted verdict. Re-run by ndr-allow-042-n5c in Ubuntu-ndr:
+      the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't answer that read, and passes, every
+      assertion unchanged, once FakeLab.link_tree answers {} (no stacked devices), exactly what the updated fake
+      adds. With nothing stacked the watched sessions are the base's; stacked devices only add sessions to wait for,
+      so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_runner_robustness::test_scenario_positive_cannot_pass_on_pre_fault_state[10.0]
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_robustness.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_runner_robustness.py has no link_tree, so the scenario ends in AttributeError
+      (an internal error, status error) instead of the asserted verdict. Re-run by ndr-allow-042-n5c in Ubuntu-ndr:
+      the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't answer that read, and passes, every
+      assertion unchanged, once FakeLab.link_tree answers {} (no stacked devices), exactly what the updated fake
+      adds. With nothing stacked the watched sessions are the base's; stacked devices only add sessions to wait for,
+      so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_runner_robustness::test_scenario_waits_for_the_fault_to_show_in_bgp
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_robustness.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_runner_robustness.py has no link_tree, so the scenario ends in AttributeError
+      (an internal error, status error) instead of the asserted verdict. Re-run by ndr-allow-042-n5c in Ubuntu-ndr:
+      the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't answer that read, and passes, every
+      assertion unchanged, once FakeLab.link_tree answers {} (no stacked devices), exactly what the updated fake
+      adds. With nothing stacked the watched sessions are the base's; stacked devices only add sessions to wait for,
+      so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_a_failed_link_restore_shows_each_streamed_result_once
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_a_link_that_cannot_be_restored_stops_the_run
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_a_scenario_without_injected_routes_still_streams_as_it_goes
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_inject_routes_is_applied_and_restored
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_later_scenarios_are_skipped_when_the_network_does_not_recover
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_link_down_is_applied_and_restored
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_node_isolated_downs_every_data_interface
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_only_passing_positive_checks_must_recover
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_recovered_network_adds_nothing
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_run_scenario_far_end_without_a_driver
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_run_scenario_gate_ignores_sessions_a_top_level_check_expects_down
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_run_scenario_gate_warning_is_added_to_each_check
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_run_scenario_holds_post_convergence_checks_for_its_hold
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_run_scenario_without_driver_for_builds_missing_drivers
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_checks_in_another_vrf_watch_that_vrf
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_drivers_built_mid_scenario_get_their_override
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_negative_checks_are_held
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_negative_checks_wait_for_the_bgp_gate
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_positive_long_history
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_positive_merged_fields
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_positive_that_fails_in_the_hold
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_positive_unready_in_the_hold_is_counted
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_positive_unready_samples_are_added
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_recovery_is_checked
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_restores_even_when_a_check_crashes
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_results_are_reported
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_waits_for_bgp_over_the_downed_link_and_settles
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_watches_only_the_vrfs_its_checks_use
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenario_with_fractional_timing
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_scenarios_on_nodes_that_gave_state_still_run_after_an_unready_main_phase
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_sessions_over_links_any_state
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_sessions_over_links_ipv6_and_scoped_keys
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_sessions_over_links_node_without_a_driver_has_nothing_to_watch
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_sessions_over_links_on_the_far_end
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_sessions_over_links_on_the_faulted_node
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_sessions_over_links_per_vrf_and_unreadable
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
+  - source: fixtures
+    case: tests.test_verdict_runner::test_unreadable_snapshot_after_a_readable_failure_is_still_an_error
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: >-
+      5f0b7d7 (FP-042-LINKDOWNSTACKED, RT-0078): before a scenario downs a link, run_scenario's _link_sessions now
+      reads Lab.link_tree for the node, and an unreadable tree raises LabError (exit 2), never "nothing stacked".
+      The base FakeLab in tests/test_verdict_runner.py has no link_tree, so the run ends in AttributeError (an
+      internal error, status error) and the test's status, result or event assertions fail. Re-run by
+      ndr-allow-042-n5c in Ubuntu-ndr: the 7db9bce test file on the 5f0b7d7 src fails only because its fake can't
+      answer that read, and passes, every assertion unchanged, once FakeLab.link_tree answers {} (no stacked
+      devices), exactly what the updated fake adds. With nothing stacked the watched sessions are the base's;
+      stacked devices only add sessions to wait for, so the code is the same or stricter for what the test checks.
+    reviewed_by: ndr-allow-042-n5c
