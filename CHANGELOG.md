@@ -158,12 +158,13 @@
     their addresses and names, and so does a bond or bridge once every member is down (or was already without carrier).
   - A bridge that keeps another port stays up, so its sessions with the far end of the downed link are watched: on the
     far end, the sessions to the bridge's addresses (and those of the VLAN devices on it); on the near end, the
-    sessions to the far end's addresses. When the far end's addresses can't be read from its container (a cEOS,
-    SONiC, SR Linux or VM node) or the far end is a bridge port too, the run stops with exit code 2.
+    sessions to the far end's addresses. When the far end is not a plain Linux container (cEOS, SONiC, SR Linux, a
+    VM kind, or any kind other than `linux`) or is a bridge port too, the run stops with exit code 2.
   - A bond that keeps a member, a VRF device, and a tunnel bound to the downed interface (gre, ipip, sit, ip6tnl,
     vxlan...) keep their carrier and are not waited for.
   - A device listing that can't be read stops the run with exit code 2. `/sys/class/net/bonding_masters`, a file the
-    bonding module adds, is no longer read as an interface (it made every `link_down`, and `node_isolated`, exit 2).
+    bonding module adds, is no longer read as an interface (from 0.3.1 it made `node_isolated` exit 2 on a host
+    with the bonding module loaded).
 
   Oracles `tests/oracles/FP-042-LINKDOWNSTACKED` and `tests/oracles/FP-042-LINKDOWNBRIDGE`;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
@@ -262,7 +263,9 @@
   then run after the settle and hold windows only). On Arista cEOS, an SVI (`Vlan10`) or subinterface over a downed
   `ethN`: EOS's kernel devices carry no link to `ethN`, so the session isn't found (not confirmed on a live cEOS). A
   bond that goes down with one member lost (`min_links`, LACP thresholds) is read as up. A tunnel (gre, vxlan...) whose
-  only underlay was the downed link. A bridge port on a node whose `ip` shows no masters (busybox, unverified). Give
+  only underlay was the downed link. A bridge port on a node whose `ip` shows no masters (busybox, unverified). On the far end of a plain downed
+  interface, an unnumbered session named after a bridge (`br0`) or a SONiC `VlanN` the downed port reached (the
+  far end's devices are read only when the near end has stacked devices). Give
   such scenarios a `--settle` that covers the hold time, or take the link down on the far end. Planned for 0.4.3.
 - **The corpus v2 case 18 race** is not removed; case 18 stays unscored. Planned for 0.4.3.
 - **A prefix-limit reset is still not proof that injected routes reached a peer**; the narrow attributable proof is

@@ -214,15 +214,16 @@ From 0.4.2 the node's devices are read with their kinds before any link goes dow
 - VLAN subinterfaces and macvlans on a downed interface (and what is stacked on those) count as that interface, with
   their addresses and names, and so does a bond or bridge once every member is down.
 - A bridge that keeps another port stays up, so the sessions between it (and the VLAN devices on it) and the far end
-  of the downed link are watched. Where the far end's addresses can't be read from its container (cEOS, SONiC, SR
-  Linux and VM kinds) or the far end is a bridge port too, the run stops with exit code 2.
+  of the downed link are watched. Where the far end is not a plain Linux container (cEOS, SONiC, SR Linux, VM kinds,
+  any kind other than `linux`) or is a bridge port too, the run stops with exit code 2.
 - A bond that keeps a member, a VRF device and a tunnel bound to the interface keep their carrier and are not waited
   for. A listing that can't be read stops the run with exit code 2.
 
 **Not covered in 0.4.2** (the run then judges after the settle and hold windows, as before): an Arista cEOS SVI or
 subinterface over a downed `ethN` (EOS's kernel devices carry no link to `ethN`; not confirmed on a live cEOS), a bond
 that goes down with one member lost (`min_links`, LACP), a tunnel whose only underlay was the downed link, and a
-bridge on a node whose `ip` shows no masters (busybox, unverified). **Workaround before you upgrade, and for those:**
+bridge on a node whose `ip` shows no masters (busybox, unverified), and, on the far end of a plain downed interface,
+an unnumbered session named after a bridge (`br0`) or a SONiC `VlanN` the port reached. **Workaround before you upgrade, and for those:**
 look for "no BGP session runs over the downed links" in the output, and give the scenario a `--settle` above the BGP
 hold time (or lower the hold timers in the lab). Cases `tests/redteam/RT-0078-link-down-on-a-vlan-trunk-parent.yml`,
 oracles `tests/oracles/FP-042-LINKDOWNSTACKED` and `tests/oracles/FP-042-LINKDOWNBRIDGE`.
