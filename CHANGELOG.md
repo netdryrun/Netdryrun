@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.2 (2026-11-10)
+## 0.4.2 (2026-11-15)
 
 ### Fixed
 
@@ -129,6 +129,9 @@
   `advisories/0.4.1-known-false-passes/README.md`) are still open: Arista EOS `route ... present: false` with a
   protocol other than `bgp`, and SR Linux EVPN type-5 routes in an ip-vrf (case 3 is fixed above). Each has a
   workaround in the advisory. They are planned for 0.4.3.
+- **`record` on a BGP-unnumbered fabric** (FRR `neighbor ethN interface`): the interface-named sessions are an
+  INCOMPLETE BASELINE gap and `record` exits 1 (for example on martimy/clab-bgp-frr). Cover those sessions with `route`
+  and `ping` checks written by hand. Planned for 0.4.3.
 - **SR Linux and Junos: `bgp_route present: false` doesn't see the node's own exported prefix** (RT-0048, accepted
   for 0.4.1). Keep the guard on the neighbor that would receive the route. Planned for 0.4.3.
 - **The corpus v2 case 18 race** is not removed; case 18 stays unscored. Planned for 0.4.3.
