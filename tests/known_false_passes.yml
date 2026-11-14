@@ -435,3 +435,24 @@
     - tests/test_oracle_guards_fp_042_recordv6default.py
     - tests/test_record_vrflist_v6default_042.py
     - tests/test_record_vrf_nosess_guards_042.py
+- id: record-v6-read-failed-no-routes
+  what: under record --no-routes, a failed IPv6 route read on a driver that reads IPv6 (FRR, SONiC, Junos, NX-OS, SR
+    Linux, EOS with IPv6 routing on) in a node or VRF without IPv6 BGP today was a plain warning, and the IPv6
+    link-subnet guards (0.3.3) and the eBGP ::/0 guard (0.4.1) were left out without a gap line, exit 0, so a later ::/0
+    or link-subnet leak passed (0.3.3 to 0.4.1, with routes recorded too in 0.3.3 and 0.4.0; adversary n4i on 57eb8ca,
+    B1 and D1); it is an INCOMPLETE BASELINE line now, and only the driver's own "can't read IPv6 here" answer
+    (RouterOS not supported, cEOS routingDisabled) stays a plain warning
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-RECORDV6READFAIL/test_oracle_fp_042_recordv6readfail.py
+    - tests/test_oracle_guards_fp_042_recordv6readfail.py
+    - tests/test_record_v6readfail_frrvrfparse_042.py
+- id: frr-vrf-list-any-text
+  what: FRR and SONiC read a `show vrf` answer that isn't zebra's VRF list (a daemon message, an unknown command, a
+    banner, JSON) as no VRFs, so record recorded the default VRF alone with no warning and exit 0 (0.4.0 to 0.4.1;
+    adversary n4i on 57eb8ca, D2); any line outside zebra's format raises now, and record writes the VRF-list gap line
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRVRFPARSE/test_oracle_fp_042_frrvrfparse.py
+    - tests/test_oracle_guards_fp_042_frrvrfparse.py
+    - tests/test_record_v6readfail_frrvrfparse_042.py

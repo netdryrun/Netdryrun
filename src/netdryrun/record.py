@@ -20,7 +20,7 @@ from . import __version__
 from .checks import Unready, _evaluate
 from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
 from .drivers import DriverError, Undetectable, detect, for_node, resolve
-from .drivers.base import Driver, NoSuchInstance, is_bgp
+from .drivers.base import Driver, NoSuchInstance, cannot_read_ipv6, is_bgp
 from .lab import Lab, LabError
 
 MAX_ROUTES_PER_NODE = 50
@@ -199,11 +199,13 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
         return []
     checks = _session_checks(name, neighbors, prefix_mode, warnings, vrf, drv)
     bgp_now: dict[int, set[str]] = {}   # every BGP route the node has today, received selected or not
+    no_v6 = False   # the node answered that IPv6 routes can't be read here at all (not a read that failed)
     if include_routes or link_subnets is not None:
         for fam in (4, 6):
             try:
                 every = [r for r in drv.all_routes(vrf=vrf, family=fam).value if is_bgp(r.protocol)]
             except DriverError as e:
+                no_v6 = no_v6 or (fam == 6 and cannot_read_ipv6(e))
                 # without include_routes only the guards needed them, and _guards says what that leaves out
                 warnings.append(f"INCOMPLETE BASELINE: {where}: could not read IPv{fam} routes ({e}), so none is "
                                 "recorded as a check: fix the read and record again, or add checks by hand"
@@ -233,7 +235,7 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
         # wrote them in the default VRF only, so a default route leaked into a customer VRF passed every recorded
         # check. Sessions or not (adversary n4c on cf460d6, B1): a VRF fed only by `import vrf` (a shared-services or
         # route-leak VRF), or a default VRF whose sessions are all in VRFs, takes a leaked default as quietly
-        checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep, vrf=vrf)
+        checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep, vrf=vrf, no_v6=no_v6)
     if seen is not None and state and checks:
         # the guards of a VRF without sessions are no state read from the node: a node with nothing else (BGP still
         # starting, or a driver that answers an empty table for no BGP) stays a node the baseline misses
@@ -393,13 +395,14 @@ def _unnumbered(link_local_only: dict[str, list[str]], drvs: dict, warnings: lis
 
 
 def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_subnets: list[str],
-            warnings: list[str], sleep=time.sleep, vrf: str = "default") -> list[dict]:
+            warnings: list[str], sleep=time.sleep, vrf: str = "default", no_v6: bool = False) -> list[dict]:
     """The standard guards for one VRF of a BGP node (`neighbors` and `bgp_now` are that VRF's): checks that must
     hold on what the network does today, each with the VRF's `vrf:` outside the default VRF. Each one
     is evaluated on the recording lab with the real check before it is written: a guard the baseline itself
     fails (a default received from upstream but not selected, which the routing table doesn't list) is left
     out, and a warning, a comment in the file, says why. A sample that errors is no answer: it is retried, and
-    a guard that never gets a real answer is left out with an INCOMPLETE BASELINE line."""
+    a guard that never gets a real answer is left out with an INCOMPLETE BASELINE line. `no_v6`: the IPv6 route read
+    answered that the node can't have its IPv6 routes read in this VRF (cannot_read_ipv6), not that the read failed."""
     v6 = (any(":" in a for a in neighbors) or bool(bgp_now.get(6))   # IPv6 neighbors or routes, or IPv6
           or any("ipv6" in afi for n in neighbors.values() for afi in n.prefixes))   # carried over IPv4
     at = {} if vrf == "default" else {"vrf": vrf}
@@ -409,8 +412,10 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
         # ::/0 is guarded wherever the VRF's IPv6 routes can be read, IPv6 BGP today or not: a family added later
         # (acceptance round B-3, eBGP) or an `import vrf` that brings IPv6 into a VRF without IPv6 or eBGP sessions
         # (adversary n4f on 606d238, C1) can't leak a default unseen; where they can't be read and nothing says the
-        # VRF carries IPv6, nothing is claimed
-        if fam == 6 and not v6 and 6 not in bgp_now:
+        # VRF carries IPv6, nothing is claimed. "Can't be read" is the driver's answer (RouterOS's not-supported, cEOS
+        # with IPv6 routing off), never one read that failed: a timeout on a driver that reads IPv6 is the gap line
+        # below, so --no-routes can't drop ::/0 and the IPv6 link guards with exit 0 (adversary n4i on 57eb8ca, B1)
+        if fam == 6 and not v6 and no_v6:
             continue
         if fam not in bgp_now:   # its routes couldn't be read: a guard against what it has today can't be built
             warnings.append(f"INCOMPLETE BASELINE: {where}: IPv{fam} routes could not be read, so no IPv{fam} "

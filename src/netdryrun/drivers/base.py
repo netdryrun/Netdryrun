@@ -21,6 +21,25 @@ class NoSuchInstance(DriverError):
     BGP sessions exist (a scenario's snapshot) can read it as "none"."""
 
 
+class RoutingDisabled(NoSuchInstance):
+    """The device answered that routing is off in the VRF for the family asked for (cEOS `routingDisabled: true`): no
+    route is there because nothing routes there. A definitive answer about the node, unlike a read that failed."""
+
+
+# A driver's constant answer for a family it can't read at all (RouterOS): the text, so every caller can tell it from a
+# read that failed (adversary n4i on 57eb8ca, B1)
+IPV6_ROUTES_UNSUPPORTED = "IPv6 routes are not supported on {} yet"
+_IPV6_ROUTES_UNSUPPORTED = re.compile(r"IPv6 routes are not supported on [A-Za-z0-9_-]+ yet")
+
+
+def cannot_read_ipv6(e: DriverError) -> bool:
+    """True when an IPv6 route read raised because the node can't have IPv6 routes read there: the driver doesn't read
+    IPv6 routes at all (RouterOS's not-supported answer), or the device said IPv6 routing is off in the VRF (cEOS).
+    Every other error is a read that failed (a timeout, rc != 0, output that couldn't be read, a VRF the answer doesn't
+    list), never "nothing to read"."""
+    return isinstance(e, RoutingDisabled) or bool(_IPV6_ROUTES_UNSUPPORTED.fullmatch(str(e)))
+
+
 # Same syntax as config.VRF_NAME. Checked again here: the name goes into device CLI strings, and a
 # driver must never be handed a name it would read as something else.
 _VRF_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}")

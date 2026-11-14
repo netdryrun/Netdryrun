@@ -726,13 +726,25 @@ def parse_default_local_pref(text: str) -> int | None:
     return as_int(BGP_TABLE_CMD, v) if v is not None else None
 
 
+# zebra's `show vrf` lines (zebra_vrf.c): "vrf NAME id N table T", "vrf NAME id N netns NS" or "vrf NAME inactive",
+# each with " (configured)" when configured; the "netns-based vrfs" header with the netns backend
+_VRF_LINE = re.compile(r"\s*vrf\s+(\S+)\s+(inactive|id\s+\d+\s+(?:table\s+\d+|netns\s+\S+))(?:\s+\(configured\))?\s*")
+_VRF_HEADER = re.compile(r"\s*netns-based vrfs\s*")
+
+
+@parser(VRF_CMD)
 def parse_vrfs(text: str) -> dict[str, bool]:
-    """zebra's `show vrf`: "vrf NAME id N table T" (active) or "vrf NAME inactive"; default not listed."""
+    """zebra's `show vrf`: "vrf NAME id N table T" (active) or "vrf NAME inactive"; default not listed. An empty
+    answer is no VRFs (zebra prints nothing on a node without one); any other line is not zebra's VRF list (a daemon
+    message, an unknown command, a banner, JSON) and raises, never "no VRFs" (adversary n4i on 57eb8ca, D2)."""
     out = {}
     for line in text.splitlines():
-        m = re.match(r"\s*vrf\s+(\S+)\s*(.*)$", line)
-        if m:
-            out[m.group(1)] = not m.group(2).startswith("inactive")
+        if not line.strip() or _VRF_HEADER.fullmatch(line):
+            continue
+        m = _VRF_LINE.fullmatch(line)
+        if not m:
+            raise unexpected(VRF_CMD, text)
+        out[m.group(1)] = m.group(2) != "inactive"
     return out
 
 

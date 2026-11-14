@@ -147,7 +147,7 @@ with a comment. **Workaround before you upgrade:** add to a recorded baseline, f
 re-record with 0.4.2. Case `tests/redteam/RT-0076-record-no-guard-in-a-vrf.yml`, oracles `tests/oracles/FP-042-RECORDVRF`
 and `tests/oracles/FP-042-RECORDVRFNOSESS`.
 
-Two neighbours of this hole, found by adversary review of its fix, are fixed in 0.4.2 too:
+Four neighbours of this hole, found by adversary review of its fix, are fixed in 0.4.2 too:
 
 - **A VRF list that couldn't be read.** **Affected:** netdryrun 0.4.0 to 0.4.1, on the same drivers (FRR, SONiC and
   Junos from 0.4.0; the NX-OS and RouterOS beta drivers from 0.4.1). When the read of the node's VRFs failed (a vtysh,
@@ -162,5 +162,23 @@ Two neighbours of this hole, found by adversary review of its fix, are fixed in 
   (from 0.4.1) an established eBGP session, so with IPv4 iBGP sessions only, or none, a change that brought IPv6 in
   (`address-family ipv6`, `import vrf`) and leaked `::/0` passed. From 0.4.2 every VRF with a BGP instance whose IPv6
   routes can be read gets `{type: route, node: <node>, prefix: ::/0, protocol: bgp, present: false}` with its `vrf:`,
-  judged on the recording lab first. **Workaround before you upgrade:** add that check by hand. Oracle
-  `tests/oracles/FP-042-RECORDV6DEFAULT`.
+  judged on the recording lab first. Where the driver answers that it can't read IPv6 routes there (RouterOS's "not
+  supported", cEOS with IPv6 routing off) no `::/0` guard is written, as before; a read that fails is the next item.
+  **Workaround before you upgrade:** add that check by hand. Oracle `tests/oracles/FP-042-RECORDV6DEFAULT`.
+- **A failed IPv6 route read under `record --no-routes`.** **Affected:** netdryrun 0.3.3 to 0.4.1, every driver that
+  reads IPv6 routes (FRR, SONiC, Junos, NX-OS, SR Linux, EOS with IPv6 routing on). When the IPv6 route read of a node
+  or VRF without IPv6 BGP today failed (a vtysh, NX-API or NETCONF timeout), `record` wrote a plain `# warning:`
+  comment and left out the IPv6 link-subnet guards (from 0.3.3) and the eBGP `::/0` guard (from 0.4.1) without a gap
+  line, and exited 0, so a `::/0` or link subnet leaked there later passed. 0.3.3 and 0.4.0 did this with routes
+  recorded too; 0.4.1 exited 1 there, but not under `--no-routes`. From 0.4.2 the failed read is an
+  `INCOMPLETE BASELINE` line ("IPv6 routes could not be read, so no IPv6 guards ...") naming the node and VRF, and
+  `record` exits 1. **Workaround before you upgrade:** look for `could not read IPv6 routes` in a recorded baseline of
+  a driver that reads IPv6, and record again (or add the `::/0` and IPv6 link-subnet `present: false` checks by
+  hand). Oracle `tests/oracles/FP-042-RECORDV6READFAIL`.
+- **An FRR or SONiC VRF list read from text that isn't one.** **Affected:** netdryrun 0.4.0 to 0.4.1, FRR and SONiC.
+  The VRF list kept the lines shaped `vrf NAME ...` of `vtysh -c "show vrf"` and skipped the rest, so an answer that
+  exits 0 but isn't zebra's VRF list (a daemon-connection message, an unknown command, a banner, JSON) read as no
+  VRFs: `record` recorded the default VRF alone, with no warning, and exited 0. From 0.4.2 any line that isn't zebra's
+  `show vrf` format is an error, and `record` writes the `INCOMPLETE BASELINE` VRF-list line and exits 1; an empty
+  answer (a node without VRFs) is still no VRFs. **Workaround before you upgrade:** on a node with VRFs, check that
+  the recorded baseline has checks with its `vrf:`; if not, record again. Oracle `tests/oracles/FP-042-FRRVRFPARSE`.

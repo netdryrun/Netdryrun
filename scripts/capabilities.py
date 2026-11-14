@@ -87,8 +87,8 @@ LIMITS = [
     "compared, their adjacencies are not), or the data plane beyond a standing guard's ping checks: an undeclared "
     "change there does not fail.",
     "record covers every active VRF on FRR and SONiC, and on the Junos, NX-OS and RouterOS beta drivers (a VRF list "
-    "that can't be read there is an INCOMPLETE BASELINE line); on Nokia SR Linux and Arista EOS it records the default "
-    "VRF only, with a warning.",
+    "that can't be read there, or on FRR and SONiC isn't zebra's VRF list, is an INCOMPLETE BASELINE line); on Nokia SR "
+    "Linux and Arista EOS it records the default VRF only, with a warning.",
 ]
 
 EXIT_CODES = {

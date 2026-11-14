@@ -14,8 +14,9 @@ import re
 
 import ipaddress
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, add_path_range_why,
-                   as_int, canon_communities, check_vrf_name, load_json, must, must_bool, network, parser, unexpected)
+from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, RoutingDisabled,
+                   add_path_range_why, as_int, canon_communities, check_vrf_name, load_json, must, must_bool, network,
+                   parser, unexpected)
 from .frr import _canon_addr, parse_ping
 from .stale import refuse_if_stale
 
@@ -93,8 +94,8 @@ def _routing_vrf(command: str, data: dict, vrf: str) -> dict:
     if disabled is not True and disabled is not False:
         raise unexpected(command, f"vrf {vrf}: routingDisabled is {disabled!r}, not a boolean")
     if disabled:
-        raise NoSuchInstance(f"VRF {vrf!r} has routing disabled (`{command}`): nothing routes there, so no route "
-                             "check means anything in it")
+        raise RoutingDisabled(f"VRF {vrf!r} has routing disabled (`{command}`): nothing routes there, so no route "
+                              "check means anything in it")
     return entry
 
 

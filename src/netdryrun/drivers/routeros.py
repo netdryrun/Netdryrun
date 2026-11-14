@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import ipaddress
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, canon_communities,
-                   check_vrf_name, unexpected)
+from .base import (IPV6_ROUTES_UNSUPPORTED, BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation,
+                   Route, canon_communities, check_vrf_name, unexpected)
 from .routeros_rest import HELPER, Reply, classify_reply
 from .routeros_state import (
     RoutingRoute,
@@ -104,7 +104,7 @@ class RouterosDriver(Driver):
     def _v4_prefix(prefix: str) -> str:
         net = ipaddress.ip_network(prefix, strict=False)
         if net.version != 4:
-            raise DriverError(f"{prefix}: IPv6 routes are not supported on routeros yet")
+            raise DriverError(f"{prefix}: {IPV6_ROUTES_UNSUPPORTED.format('routeros')}")
         return str(net)
 
     own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
@@ -157,7 +157,7 @@ class RouterosDriver(Driver):
     def all_routes(self, vrf: str = "default", family: int = 4) -> Observation:
         vrf = check_vrf_name(vrf)
         if family == 6:
-            raise DriverError("IPv6 routes are not supported on routeros yet")
+            raise DriverError(IPV6_ROUTES_UNSUPPORTED.format(self.name))
         ev: list[dict] = []
         table = self._confirm_table(vrf, ev)
         found = [Route(p.prefix, p.kind, p.active) for p in self._paths(table, ev)

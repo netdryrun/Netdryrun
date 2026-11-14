@@ -113,9 +113,28 @@
   to 0.4.1). The `::/0` guard was written only with IPv6 BGP today or (from 0.4.1) an established eBGP session, so a
   node or VRF with IPv4 iBGP sessions only, or none, had no `::/0` guard and no line, and a change that brought IPv6 in
   (`address-family ipv6`, `import vrf`) and leaked `::/0` passed. Every VRF with a BGP instance whose IPv6 routes can
-  be read gets the guard now, judged on the recording lab first like the others; where IPv6 routes can't be read
-  (RouterOS) nothing changes. Oracle `tests/oracles/FP-042-RECORDV6DEFAULT`;
+  be read gets the guard now, judged on the recording lab first like the others; where the driver answers that IPv6
+  routes can't be read there (RouterOS, cEOS with IPv6 routing off) nothing changes. An IPv6 route read that fails is
+  a gap line, never "can't be read" (next entry). Oracle `tests/oracles/FP-042-RECORDV6DEFAULT`;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record --no-routes` dropped the IPv6 guards when an IPv6 route read failed, and exited 0** (adversary review of
+  the `::/0` fix; 0.3.3 to 0.4.1). On a driver that reads IPv6 routes (FRR, SONiC, Junos, NX-OS, SR Linux, EOS with
+  IPv6 routing on), a failed IPv6 route read (a vtysh, NX-API or NETCONF timeout) in a node or VRF without IPv6 BGP
+  today was a plain `# warning:` comment, and the IPv6 link-subnet guards (from 0.3.3) and the eBGP `::/0` guard (from
+  0.4.1) were left out without a gap line, so `record` exited 0 and a `::/0` or link subnet leaked there later passed.
+  0.3.3 and 0.4.0 did this with routes recorded too; 0.4.1 already exited 1 there. Now the failed read is an
+  `INCOMPLETE BASELINE` line naming the node, the VRF and IPv6 ("IPv6 routes could not be read, so no IPv6 guards"),
+  and `record` exits 1, in both modes. Only a driver's own answer that it can't read IPv6 routes there (RouterOS's
+  "not supported", cEOS's `routingDisabled` for IPv6) keeps the plain warning and no IPv6 guard. Oracle
+  `tests/oracles/FP-042-RECORDV6READFAIL`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **FRR and SONiC read any `show vrf` answer they didn't recognise as "no VRFs"** (adversary review of the RT-0076
+  fix; 0.4.0 to 0.4.1). The VRF list kept the lines shaped `vrf NAME ...` and skipped the rest, so when vtysh exited 0
+  with something that isn't zebra's VRF list (a daemon-connection message, an unknown-command error, a banner, JSON),
+  `record` recorded the default VRF alone, as on a node without VRFs, with no warning and exit 0. Every line must be
+  zebra's `show vrf` format now (`vrf NAME id N table T`, `vrf NAME id N netns NS`, `vrf NAME inactive`, optionally
+  ` (configured)`, and the `netns-based vrfs` header); anything else is an error, which `record` turns into the
+  `INCOMPLETE BASELINE` VRF-list line (exit 1). An empty answer, zebra's on a node without VRFs, is still no VRFs.
+  Oracle `tests/oracles/FP-042-FRRVRFPARSE`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **MCP `record_baseline` named one gap marker of two** (angle-5 red team on the 0.4.2 candidate; 0.4.1). The tool
   returns the YAML only, and its description named `# INCOMPLETE BASELINE` as the sign of a partial baseline, but a
   routing node with no recorded check makes the first line `# BASELINE MISSES A NODE` (on which `netdryrun record`

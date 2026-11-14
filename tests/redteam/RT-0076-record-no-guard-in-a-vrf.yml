@@ -15,7 +15,11 @@ kind: pinned
 # oracle FP-042-RECORDVRFNOSESS). Adversary n4f on 606d238 found two neighbours, fixed in 0.4.2 too: on those drivers
 # a VRF list that can't be read is an INCOMPLETE BASELINE line (0.4.0 and 0.4.1 recorded the default VRF alone and
 # exited 0; oracle FP-042-RECORDVRFLISTFAIL), and ::/0 is guarded in every VRF whose IPv6 routes can be read, not only
-# with IPv6 BGP or an eBGP session (oracle FP-042-RECORDV6DEFAULT).
+# with IPv6 BGP or an eBGP session (oracle FP-042-RECORDV6DEFAULT). Adversary n4i on 57eb8ca found two more: under
+# --no-routes a failed IPv6 route read on a driver that reads IPv6 dropped ::/0 and the IPv6 link guards with exit 0 (an
+# INCOMPLETE BASELINE line now; only the driver's own can't-read-IPv6 answer, RouterOS or cEOS with IPv6 routing off,
+# stays silent; oracle FP-042-RECORDV6READFAIL), and FRR/SONiC read any unrecognised `show vrf` answer as no VRFs (an
+# error now, so the VRF-list gap line; oracle FP-042-FRRVRFPARSE).
 tests:
   - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_recorded_vrf_gets_its_default_route_guard_or_a_gap_line
   - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_leaked_default_in_the_vrf_fails_the_baseline_or_the_gap_is_named
