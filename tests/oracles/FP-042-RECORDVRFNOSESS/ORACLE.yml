@@ -1,0 +1,13 @@
+id: FP-042-RECORDVRFNOSESS
+bug: >-
+  `record` writes a VRF's guards only when the VRF has BGP neighbors (record._record_vrf: `if link_subnets is not None
+  and neighbors:`), so a VRF with a BGP instance and BGP routes but no session (FRR `router bgp X vrf svc` + `import vrf
+  ...`, the usual shared-services or route-leak VRF) has its routes recorded with `vrf:` but no 0.0.0.0/0 guard, no
+  warning and no INCOMPLETE BASELINE line, and a default leaked into it passes every recorded check. The same holds for
+  the default VRF of a node whose sessions are all in VRFs while the default VRF holds imported BGP routes (adversary
+  n4c on cf460d6, finding B1). Either fix passes: a `0.0.0.0/0 present: false` guard with that VRF's `vrf:`, or an
+  INCOMPLETE BASELINE line naming the node and the VRF. The guards (a VRF with sessions keeps its guards, a VRF without
+  a BGP instance gets nothing new, the sessionless VRF's routes stay recorded) are in
+  tests/test_oracle_guards_fp_042_recordvrfnosess.py
+evidence:
+  - tests/test_oracle_guards_fp_042_recordvrfnosess.py
