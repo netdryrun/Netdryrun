@@ -106,14 +106,16 @@
    "class": "message-text"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_48": {
-   "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
-   "diff": "0e50ec0af4281bb2",
-   "class": "message-text"
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. Wraps the 'selected route is not a BGP route' reason in XX; still non-empty, same failure.",
+   "diff": "0c616e8a55e42434",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_49": {
-   "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
-   "diff": "c2020a77ffe22b75",
-   "class": "message-text"
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. Lower-cases BGP in the 'not a BGP route' reason; still non-empty, same failure.",
+   "diff": "c7994e3bc9864a53",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_60": {
    "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
@@ -126,9 +128,10 @@
    "class": "message-text"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_65": {
-   "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
-   "diff": "71396d5365f91793",
-   "class": "message-text"
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. Changes the '; ' separator of the one-candidate mismatch list; that return is reached only after no candidate matched, and the joined text stays non-empty.",
+   "diff": "97bb446b064d49e3",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_66": {
    "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
@@ -136,9 +139,10 @@
    "class": "message-text"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_67": {
-   "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
-   "diff": "24a2e0a47d2e7231",
-   "class": "message-text"
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. c.get(None, 'not shown') makes the one-candidate mismatch text say 'not shown' for the observed value; which keys are listed and whether the line matched are unchanged.",
+   "diff": "3c5250391c90e603",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_68": {
    "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
@@ -166,9 +170,10 @@
    "class": "message-text"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_73": {
-   "reason": "message text only: the reason of a declaration that didn't happen; it didn't happen either way, same verdict",
-   "diff": "18b2fbc724211e48",
-   "class": "message-text"
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. show(None) prints 'null' as the pinned value in the one-candidate mismatch text; the match decision is made in the loop above and is unchanged.",
+   "diff": "44851a10bc611162",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.verify.engine.x__propagated__mutmut_17": {
    "reason": "equivalent: an equal-length pair is the same path, so the after pair returned early (got == want) and an empty before head can only equal an empty after head, impossible here",
@@ -3886,18 +3891,18 @@
    "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
   },
   "netdryrun.runner.x__link_sessions__mutmut_20": {
-   "reason": "message text only: the text of the LabError raised either way when BGP state can't be read before a fault (exit 2)",
-   "diff": "28fde9aab46bdff9",
+   "reason": "runner.py _link_sessions neighbors(): changes only the closing words ('when the fault took effect') of the LabError raised either way when BGP state can't be read.",
+   "diff": "d70217900256734b",
    "class": "message-text",
-   "argument": "Changes only text: the text of the LabError raised either way when BGP state can't be read before a fault (exit 2). The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-   "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.runner.x__link_sessions__mutmut_21": {
-   "reason": "message text only: the text of the LabError raised either way when BGP state can't be read before a fault (exit 2)",
-   "diff": "a1f76fc8fbe910a0",
+   "reason": "runner.py _link_sessions neighbors(): changes only the closing words ('when the fault took effect') of the LabError raised either way when BGP state can't be read.",
+   "diff": "4624ee03b5f8739a",
    "class": "message-text",
-   "argument": "Changes only text: the text of the LabError raised either way when BGP state can't be read before a fault (exit 2). The result's passed flag, its samples and the run status are computed from the observation, not from this text, so it can't turn a failure into a pass.",
-   "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.runner.x__link_sessions__mutmut_7": {
    "reason": "message text only: a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
@@ -4261,11 +4266,11 @@
    "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
   },
   "netdryrun.runner.x_run_scenario__mutmut_52": {
-   "reason": "message text only: a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
-   "diff": "732388f8f58201a1",
+   "reason": "runner.py run_scenario planning: changes only 'the scenario' at the end (upper case) of the 'already administratively down: left as it is' log line; the link is still skipped with `continue`.",
+   "diff": "9065783a5b1a3830",
    "class": "logging",
-   "argument": "Changes only a line passed to log(): a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it. log() output reaches no result field, status or exit code, so it can't turn a failure into a pass.",
-   "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*)"
+   "argument": "log() output reaches no result, status or exit code; the plan (the links taken down) is the same, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.runner.x_run_scenario__mutmut_68": {
    "reason": "message text only: a progress or warning line passed to log(); nothing in the verdict, the report status or the exit code depends on it",
@@ -5414,14 +5419,16 @@
    "diff": "77e29bedf9df3e39"
   },
   "netdryrun.drivers.routeros.xǁRouterosDriverǁ_v4_prefix__mutmut_3": {
+   "reason": "ipaddress.ip_network passes strict to IPv4Network/IPv6Network, which test it only as `if strict:`; None is falsy, so a prefix with host bits is masked exactly as with strict=False.",
+   "diff": "969dab761e929479",
    "class": "equivalent",
-   "reason": "None is falsy: ip_network(strict=None) reads a prefix exactly as strict=False",
-   "diff": "dccbe645c1772a59"
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.drivers.routeros.xǁRouterosDriverǁall_routes__mutmut_3": {
+   "reason": "The default family is only tested as `family == 6`; 5 == 6 is false exactly as 4 == 6 is, and family is not used again, so a call without family reads IPv4 as before.",
+   "diff": "5a96688e070aa567",
    "class": "equivalent",
-   "reason": "only family == 6 selects IPv6; any other default reads IPv4, as 4 does",
-   "diff": "3009ad9aa8349219"
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.drivers.routeros.xǁRouterosDriverǁbgp_paths__mutmut_27": {
    "class": "equivalent",
@@ -5544,9 +5551,10 @@
    "class": "timing-only"
   },
   "netdryrun.verify.engine.x__pins_ok__mutmut_74": {
-   "reason": "message text only: which keys the one-candidate mismatch message lists; whether a candidate matches is decided above",
-   "diff": "527c02ec2cdaf043",
-   "class": "message-text"
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. The filter c.get(None, UNSEEN) != v is always true, so the one-candidate mismatch text lists every BGP pin, matching ones too; bgp is non-empty there, so the text is non-empty and the mismatch was already decided by the loop above.",
+   "diff": "e5be4094696ea5c0",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.drivers.junos.x__active__mutmut_6": {
    "reason": "equivalent: _leaf only tests `if required`, and None and False are both false",
@@ -5704,9 +5712,10 @@
    "class": "message-text"
   },
   "netdryrun.drivers.nxos.x__bgp_paths_raw__mutmut_42": {
-   "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
-   "diff": "c43f85ea9c2502ea",
-   "class": "message-text"
+   "reason": "must(None, p, \"pathstaled\"): the command is used only in the text of the DriverError raised for a missing pathstaled key; the same error is raised, so the read still fails, and a present key is returned unchanged.",
+   "diff": "82446e875b4e258d",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.drivers.base.x_must__mutmut_4": {
    "reason": "message text only: the command named in the DriverError raised for a missing or non-boolean verdict key; the same error is raised, so the read still fails (Layer 6 round 2 on ddfdf4a)",
@@ -5746,11 +5755,11 @@
    "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*); re-keyed from x_run_scenario__mutmut_105 on b88adef: the same mutation on moved code (2026-11-04)"
   },
   "netdryrun.runner.x_run_scenario__mutmut_48": {
-   "reason": "equivalent: with no links, _link_sessions reads nothing and returns two empty lists, the else value",
-   "diff": "41578cc53490a5d8",
-   "class": "equivalent",
-   "argument": "Same behaviour on every input the function can receive: with no links, _link_sessions reads nothing and returns two empty lists, the else value. So the verdict can't change.",
-   "reviewed": "adversarial (ChatGPT), round 1: checked and agreed (research/model-reviews/release-0.3.3/ndr-0.3.3-adversarial-mutants-*); re-keyed from x_run_scenario__mutmut_42 on b88adef: the same mutation on moved code (2026-11-04)"
+   "reason": "runner.py run_scenario planning, link_down on a link already admin-down: changes only 'a link the lab keeps down' in the LabError raised either way.",
+   "diff": "75058699c081eb4e",
+   "class": "message-text",
+   "argument": "The same LabError is raised at the same point, before any link goes down (exit 2); only its text differs, so no check result exists that could pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.verify.run.x_classify_nodes__mutmut_21": {
    "reason": "equivalent: `runs` is only compared with 'frr'; None and '' both differ from it; re-keyed from x_classify_nodes__mutmut_19 on b88adef: the same mutation on moved code (2026-11-04)",
@@ -5758,11 +5767,11 @@
    "class": "equivalent"
   },
   "netdryrun.runner.x_run_scenario__mutmut_17": {
-   "reason": "equivalent: on_result is only tested for truth after this line; None and \"\" are both false",
-   "diff": "fdf7b629b80b5889",
+   "reason": "runner.py run_scenario: on_result = '' instead of None when routes are injected; after this line on_result is only truth-tested (`if on_result:` in _reach_then_hold, _with_warnings.add and the blocked-results loop), and '' and None are both false. The caller's callback stays in `show`.",
+   "diff": "1dff8b917521e5ee",
    "class": "equivalent",
-   "argument": "Same behaviour on every input the function can receive: after this line on_result is only passed to _reach_then_hold and _with_warnings, which test `if on_result:`, and tested with `if on_result:` before the blocked results; nothing compares it with None, and the caller's callback is kept in `show`. So the verdict can't change.",
-   "reviewed": "coordinator (ndr - main), 2026-11-04: checked independently on b88adef and agreed (equivalent; on_result used only at runner.py:1050, 1064, 1068, each a truth test)"
+   "argument": "Every later use of on_result is a truth test, so no result is shown or computed differently; the verdict can't change.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   },
   "netdryrun.drivers.junos.x__state__mutmut_6": {
    "reason": "equivalent: _leaf only tests `required` for truth; None and False are both false",
@@ -7022,6 +7031,695 @@
    "class": "equivalent",
    "argument": "prepare_eos never reads its log parameter nor passes it on.",
    "reviewed": "adversarial (fresh Claude reviewer), be62293 mutation triage, 2026-11-12: AGREE: prepare_eos and its callees never use log."
+  },
+  "netdryrun.verify.engine.x__pins_ok__mutmut_45": {
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. This mutant changes only the join separator in the 'selected route is a <protocol> route, not BGP' reason, which is still non-empty, so the line fails the same.",
+   "diff": "bcc8b09d0105b263",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.verify.engine.x__pins_ok__mutmut_50": {
+   "reason": "_pins_ok returns '' for a match and any non-empty reason for a mismatch; the caller (_appears, engine.py:405) only tests whether the string is empty. Upper-cases the 'not a BGP route' reason; still non-empty, same failure.",
+   "diff": "2964975dcca07e75",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.config.xǁ_StrictLoaderǁ_check_keys__mutmut_3": {
+   "reason": "The per-loader set of checked node ids is stored under __dict__[None] instead of '_ndr_checked'; nothing else in src or tests reads that key (grep), so the set behaves identically. 28 merge/duplicate-key probes gave identical results.",
+   "diff": "089812db41f7e5bf",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.config.xǁ_StrictLoaderǁ_check_keys__mutmut_7": {
+   "reason": "Renames the private __dict__ key holding the checked-node set to 'XX_ndr_checkedXX'; the key is read and written only on this line, so the same set is used every call.",
+   "diff": "772cb9561c2c3740",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.config.xǁ_StrictLoaderǁ_check_keys__mutmut_8": {
+   "reason": "Renames the private __dict__ key holding the checked-node set to '_NDR_CHECKED'; the key is read and written only on this line, so the same set is used every call.",
+   "diff": "95bb6dc19a3affc3",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.config.xǁ_StrictLoaderǁ_check_keys__mutmut_61": {
+   "reason": "The `except TypeError: continue` around `k in seen_src` is dead: every k comes from the set _keys() returns, so it is already hashable, and dict lookup/insert of a hashable key and src.start_mark.line cannot raise TypeError; changing continue to break never runs.",
+   "diff": "bbe77e3b08ad77b9",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_4": {
+   "reason": "Under SafeLoader construct_mapping is only reached with deep=False (construct_yaml_map/construct_yaml_set call it without deep; only the unsafe python/object constructors pass deep=True), and deep=None is falsy like False; 28 probes gave identical results.",
+   "diff": "31349ae442e911eb",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.config.xǁ_StrictLoaderǁconstruct_mapping__mutmut_6": {
+   "reason": "Drops deep=deep, so deep defaults to False; under SafeLoader the caller's deep is always False (construct_yaml_map/construct_yaml_set pass none), so the call is unchanged.",
+   "diff": "b685678cd66291e9",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.checks.x__bgp_prefixes__mutmut_52": {
+   "reason": "Changes only the join separator of the hidden-family list in the 'prefix count ... can't be read' detail; the branch still returns False.",
+   "diff": "25bfe6a0787a8d3e",
+   "class": "message-text",
+   "argument": "The mutated text sits in the `return False, (...)` of the hidden-family branch (checks.py, `if hidden:`); the first tuple element stays False and the branch is taken on the same condition, so the check fails exactly as before and nothing can pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.checks.x__bgp_prefixes__mutmut_53": {
+   "reason": "Wraps the last fragment of the 'prefix count ... can't be read' detail in XX; the branch still returns False.",
+   "diff": "96e486feec8165f8",
+   "class": "message-text",
+   "argument": "The mutated text sits in the `return False, (...)` of the hidden-family branch (checks.py, `if hidden:`); the first tuple element stays False and the branch is taken on the same condition, so the check fails exactly as before and nothing can pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.checks.x__bgp_prefixes__mutmut_54": {
+   "reason": "Upper-cases the last fragment of the 'prefix count ... can't be read' detail; the branch still returns False.",
+   "diff": "81fe417a08622a39",
+   "class": "message-text",
+   "argument": "The mutated text sits in the `return False, (...)` of the hidden-family branch (checks.py, `if hidden:`); the first tuple element stays False and the branch is taken on the same condition, so the check fails exactly as before and nothing can pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_102": {
+   "reason": "Changes only the tail of the prefixes_unread reason string (\"still count stale paths\"); the family is still marked unsettled, and checks/record read the reason only as detail text.",
+   "diff": "fdf91e77578d331d",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_103": {
+   "reason": "Changes only the tail of the prefixes_unread reason string (\"still count stale paths\"); the family is still marked unsettled, and checks/record read the reason only as detail text.",
+   "diff": "be33c27fa990f3a1",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_12": {
+   "reason": "The default for a missing localGrMode becomes None; its str() is never \"Disable\" after rstrip(\"*\"), exactly like the original \"\", so the same branch runs.",
+   "diff": "fbe7fc637ecbf03f",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_14": {
+   "reason": "The default for a missing localGrMode becomes None (no default); its str() is never \"Disable\" after rstrip(\"*\"), exactly like the original \"\", so the same branch runs.",
+   "diff": "62a5b53f92e81efd",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_18": {
+   "reason": "The default for a missing localGrMode becomes \"XXXX\"; its str() is never \"Disable\" after rstrip(\"*\"), exactly like the original \"\", so the same branch runs.",
+   "diff": "c80620a87b60741f",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_44": {
+   "reason": "Changes only the fallback shown inside `counted` (prefixes.get(name, ...)), an f-string used only in the reason text; the family is marked unsettled either way.",
+   "diff": "f86f8f2017c1bfc0",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_46": {
+   "reason": "Changes only the fallback shown inside `counted` (prefixes.get(name, ...)), an f-string used only in the reason text; the family is marked unsettled either way.",
+   "diff": "9bbce4105653cf18",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_47": {
+   "reason": "Changes only the fallback shown inside `counted` (prefixes.get(name, ...)), an f-string used only in the reason text; the family is marked unsettled either way.",
+   "diff": "4bb2bddd9c4a5082",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_57": {
+   "reason": "Changes only the excerpt of the unknown block quoted in the reason (str(None), or 81 chars instead of 80); the family is still marked unsettled.",
+   "diff": "03a0b6d3bdd1eb49",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_gr_stale_window__mutmut_58": {
+   "reason": "Changes only the excerpt of the unknown block quoted in the reason (str(None), or 81 chars instead of 80); the family is still marked unsettled.",
+   "diff": "f8f76d5d7b1516aa",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_add_path_rx__mutmut_12": {
+   "reason": "The default for a missing bgpState becomes None; its first word lowercased is no more [\"established\"] than the original [] from \"\", so the neighbor is skipped the same way.",
+   "diff": "dc2620cfeed7d4c3",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_add_path_rx__mutmut_14": {
+   "reason": "The default for a missing bgpState becomes None (no default); its first word lowercased is no more [\"established\"] than the original [] from \"\", so the neighbor is skipped the same way.",
+   "diff": "1ca93c04d55e13ba",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_add_path_rx__mutmut_18": {
+   "reason": "The default for a missing bgpState becomes \"XXXX\"; its first word lowercased is no more [\"established\"] than the original [] from \"\", so the neighbor is skipped the same way.",
+   "diff": "018228b7d909e268",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_add_path_rx__mutmut_2": {
+   "reason": "_bgp_json(None, text): the command is used only in the text of the errors load_json, unexpected and DriverError raise; the same exceptions on the same input (and parse_bgp_neighbors already read it).",
+   "diff": "f0e97a49243e88f9",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_2": {
+   "reason": "The command passed as None is used only in the error text (load_json / unexpected); the same DriverError is raised on the same input.",
+   "diff": "096fe7fad7ebff53",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_25": {
+   "reason": "Changes only an argument of unexpected() (command None, snippet None, str(None) or 301 chars): the same DriverError for a non-dict routes or non-list paths, only its message differs.",
+   "diff": "37c32035faf89824",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_26": {
+   "reason": "Changes only an argument of unexpected() (command None, snippet None, str(None) or 301 chars): the same DriverError for a non-dict routes or non-list paths, only its message differs.",
+   "diff": "e7067ed8dab0bc6a",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_29": {
+   "reason": "Changes only an argument of unexpected() (command None, snippet None, str(None) or 301 chars): the same DriverError for a non-dict routes or non-list paths, only its message differs.",
+   "diff": "055875b5e35e257d",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_30": {
+   "reason": "Changes only an argument of unexpected() (command None, snippet None, str(None) or 301 chars): the same DriverError for a non-dict routes or non-list paths, only its message differs.",
+   "diff": "0c87239af8dafae4",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_34": {
+   "reason": "_withdrawn(None, p): _withdrawn uses its command only in the unexpected() message for a non-boolean flag; the same flags are read and the same error raised.",
+   "diff": "0fe20eda189ea380",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_7": {
+   "reason": "The command passed as None is used only in the error text (load_json / unexpected); the same DriverError is raised on the same input.",
+   "diff": "6da26e2d7313fb06",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_count_neighbor_prefixes__mutmut_8": {
+   "reason": "unexpected(cmd, None): the DriverError for a non-object answer is raised the same, with \"None\" as its snippet.",
+   "diff": "8a5beaa107522928",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁbgp_neighbors__mutmut_58": {
+   "reason": "Dropping prefixes_upto_why only loses the add-path range reason: checks._counted and record read prefixes_upto_why only as `.get(afi) or <default text>` for detail/warning text; prefixes, prefixes_upto and prefixes_unread are set the same, so the range and the verdict are unchanged.",
+   "diff": "9ba547a1ca1624b4",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁbgp_neighbors__mutmut_65": {
+   "reason": "add_path_range_why(None) changes only the reason string (\"None paths counted\"); prefixes_upto_why is read only as detail text.",
+   "diff": "4b83276c7c30d291",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁbgp_neighbors__mutmut_78": {
+   "reason": "The listing command passed as None to listed_stale / count_neighbor_prefixes is used there only in error text (load_json, unexpected, the DriverError f-string, _withdrawn's message); same values and exceptions.",
+   "diff": "9f58ecaaddcfc1a6",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁbgp_neighbors__mutmut_89": {
+   "reason": "The listing command passed as None to listed_stale / count_neighbor_prefixes is used there only in error text (load_json, unexpected, the DriverError f-string, _withdrawn's message); same values and exceptions.",
+   "diff": "76850815a6612dcb",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_listed_stale__mutmut_2": {
+   "reason": "The command passed as None is used only in error text (load_json / unexpected); the same count or DriverError results.",
+   "diff": "d200b8d53c20f556",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_listed_stale__mutmut_23": {
+   "reason": "The command passed as None is used only in error text (load_json / unexpected); the same count or DriverError results.",
+   "diff": "6f83ed6a43f63c50",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_listed_stale__mutmut_27": {
+   "reason": "Changes only the excerpt in the unexpected() message (str(None) or 41 chars); the same DriverError is raised.",
+   "diff": "1cf8f30f2c52eb90",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x_listed_stale__mutmut_30": {
+   "reason": "Changes only the excerpt in the unexpected() message (str(None) or 41 chars); the same DriverError is raised.",
+   "diff": "d160365016ea7e67",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁlocal_addresses__mutmut_55": {
+   "reason": "skip_enslaved=None: parse_ip_j_addr tests it only by truthiness (`if skip_enslaved and link.get(\"master\")`), and None is falsy like False.",
+   "diff": "ddbef2ef922a47aa",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁlocal_addresses__mutmut_56": {
+   "reason": "command=None: parse_ip_j_addr uses its command only in the text of the errors it raises (_load, unexpected, _iface); the same addresses or the same DriverError result.",
+   "diff": "d5de3d9c45703eb1",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁlocal_addresses__mutmut_59": {
+   "reason": "command=the default \"ip -j addr\": parse_ip_j_addr uses its command only in the text of the errors it raises (_load, unexpected, _iface); the same addresses or the same DriverError result.",
+   "diff": "f8cb85f947d6d60e",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.xǁFrrDriverǁlocal_addresses__mutmut_66": {
+   "reason": "command=\"XX XX\".join(dev): parse_ip_j_addr uses its command only in the text of the errors it raises (_load, unexpected, _iface); the same addresses or the same DriverError result.",
+   "diff": "7784aee7223f9b45",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x__withdrawn__mutmut_10": {
+   "reason": "Changes only an argument of unexpected() for a non-boolean withdrawn flag (command None, snippet None, str(None), 41 chars): the same DriverError is raised.",
+   "diff": "337495ebd9f7c7e3",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x__withdrawn__mutmut_5": {
+   "reason": "Changes only an argument of unexpected() for a non-boolean withdrawn flag (command None, snippet None, str(None), 41 chars): the same DriverError is raised.",
+   "diff": "4142705cdbcf53bb",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x__withdrawn__mutmut_6": {
+   "reason": "Changes only an argument of unexpected() for a non-boolean withdrawn flag (command None, snippet None, str(None), 41 chars): the same DriverError is raised.",
+   "diff": "5e817b13f985f85c",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x__withdrawn__mutmut_9": {
+   "reason": "Changes only an argument of unexpected() for a non-boolean withdrawn flag (command None, snippet None, str(None), 41 chars): the same DriverError is raised.",
+   "diff": "117be375072c68b5",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.frr.x__bgp_paths_raw__mutmut_81": {
+   "reason": "_withdrawn(None, p): the command is used only in _withdrawn's error text; the same paths are filtered and the same DriverError is raised for a non-boolean flag.",
+   "diff": "0619039de9a66f80",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_20": {
+   "reason": "`ver = None` in the ValueError branch: ver is only used in `'ipv6' if ver == 6 else 'ip'`, and None == 6 is false exactly as 4 == 6 is, so the same IPv4 command is built.",
+   "diff": "b25b9dcf25c9e54c",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_21": {
+   "reason": "`ver = 5` in the ValueError branch: ver is only used in `'ipv6' if ver == 6 else 'ip'`, and 5 == 6 is false exactly as 4 == 6 is, so the same IPv4 command is built.",
+   "diff": "da67db44ba249128",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_42": {
+   "reason": "Changes only the wording of `why` (\"it may send add-path\"), which goes only into the text of prefixes_unread[afi]; checks._counted and record test only `afi in prefixes_unread`, and the key is still set, so the range, verdict and exit code are unchanged.",
+   "diff": "091143c164d1aca2",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_43": {
+   "reason": "Changes only the wording of `why` (\"it may send add-path\"), which goes only into the text of prefixes_unread[afi]; checks._counted and record test only `afi in prefixes_unread`, and the key is still set, so the range, verdict and exit code are unchanged.",
+   "diff": "69f74ad8809d6bf4",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_52": {
+   "reason": "add_path_range_why(None) only formats the reason string (\"None paths counted: ...\") stored in prefixes_upto_why, which BgpNeighbor documents as wording only (checks._counted and record use it as detail text); prefixes and prefixes_upto are set as before.",
+   "diff": "74037905338ce280",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_54": {
+   "reason": "Changes only the trailing words of the prefixes_unread[afi] text; the key is still set and only its presence is judged (checks._counted, record), so the range, verdict and exit code are unchanged.",
+   "diff": "c88aba78b579ab09",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_55": {
+   "reason": "Changes only the trailing words of the prefixes_unread[afi] text; the key is still set and only its presence is judged (checks._counted, record), so the range, verdict and exit code are unchanged.",
+   "diff": "01bf7635e096f8bc",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.xǁEosDriverǁ_add_path_ranges__mutmut_6": {
+   "reason": "`n.prefixes.get(afi, 1) > 1`: the default only applies to a family missing from prefixes, and 1 > 1 is false exactly as 0 > 1 is, so the same families are selected.",
+   "diff": "28854266d9f0768c",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_2": {
+   "reason": "unexpected(None, ...) still returns the DriverError that is raised; the command appears only in its message (\"unexpected output from `None`\"), so the read still fails the same way.",
+   "diff": "8264aa1398adaaf6",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_28": {
+   "reason": "unexpected(None, ...) still returns the DriverError that is raised; the command appears only in its message (\"unexpected output from `None`\"), so the read still fails the same way.",
+   "diff": "e4d44c4970f977b4",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_32": {
+   "reason": "Slicing the snippet to 81 characters instead of 80 changes only the DriverError message; the same error is raised on the same input.",
+   "diff": "b96c3defda451a0a",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_37": {
+   "reason": "The segment kind \"AS-SET\" is only read by base.render_as_path, which lower-cases it and then tests `in (\"as-set\", \"set\")`, `\"confed\" in kind and \"set\" in kind`, `\"confed\" in kind`, else sequence; \"as-set\" takes the same branch as the original kind, so the rendered AS path is identical.",
+   "diff": "f0403e5b8bd7c2ec",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_41": {
+   "reason": "The segment kind \"XXconfed-setXX\" is only read by base.render_as_path, which lower-cases it and then tests `in (\"as-set\", \"set\")`, `\"confed\" in kind and \"set\" in kind`, `\"confed\" in kind`, else sequence; \"xxconfed-setxx\" takes the same branch as the original kind, so the rendered AS path is identical.",
+   "diff": "dececa4085127045",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_42": {
+   "reason": "The segment kind \"CONFED-SET\" is only read by base.render_as_path, which lower-cases it and then tests `in (\"as-set\", \"set\")`, `\"confed\" in kind and \"set\" in kind`, `\"confed\" in kind`, else sequence; \"confed-set\" takes the same branch as the original kind, so the rendered AS path is identical.",
+   "diff": "7b28bd361b5d689f",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_46": {
+   "reason": "The segment kind \"XXconfed-sequenceXX\" is only read by base.render_as_path, which lower-cases it and then tests `in (\"as-set\", \"set\")`, `\"confed\" in kind and \"set\" in kind`, `\"confed\" in kind`, else sequence; \"xxconfed-sequencexx\" takes the same branch as the original kind, so the rendered AS path is identical.",
+   "diff": "557df1a9e30f50ca",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_47": {
+   "reason": "The segment kind \"CONFED-SEQUENCE\" is only read by base.render_as_path, which lower-cases it and then tests `in (\"as-set\", \"set\")`, `\"confed\" in kind and \"set\" in kind`, `\"confed\" in kind`, else sequence; \"confed-sequence\" takes the same branch as the original kind, so the rendered AS path is identical.",
+   "diff": "ad0e1df5c015791e",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_49": {
+   "reason": "The segment kind \"XXas-sequenceXX\" is only read by base.render_as_path, which lower-cases it and then tests `in (\"as-set\", \"set\")`, `\"confed\" in kind and \"set\" in kind`, `\"confed\" in kind`, else sequence; \"xxas-sequencexx\" takes the same branch as the original kind, so the rendered AS path is identical.",
+   "diff": "bcf28daafb2d2e57",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_50": {
+   "reason": "The segment kind \"AS-SEQUENCE\" is only read by base.render_as_path, which lower-cases it and then tests `in (\"as-set\", \"set\")`, `\"confed\" in kind and \"set\" in kind`, `\"confed\" in kind`, else sequence; \"as-sequence\" takes the same branch as the original kind, so the rendered AS path is identical.",
+   "diff": "08d8951d8cb7634d",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_6": {
+   "reason": "str(None) replaces the printed value only in the DriverError message; the non-string asPath still raises the same DriverError.",
+   "diff": "39913870c2137a5c",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.eos.x__as_path__mutmut_7": {
+   "reason": "Slicing the snippet to 81 characters instead of 80 changes only the DriverError message; the same error is raised on the same input.",
+   "diff": "b00f065d97f1e1a7",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.x__count_add_path_prefixes__mutmut_11": {
+   "reason": "Inside the f-string of the DriverError that is raised: `(lo == hi) and False` only makes the message say \"N to N\" instead of \"N\"; the same error is raised on the same input.",
+   "diff": "832950246ecabb36",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.x__count_add_path_prefixes__mutmut_14": {
+   "reason": "Changes only the last words of the DriverError message; the error is raised on the same input.",
+   "diff": "2fcfe80c088d01a6",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.x__count_add_path_prefixes__mutmut_19": {
+   "reason": "Changes only the wording of prefixes_upto_why[afi] (documented as wording only, used as detail text by checks._counted and record); prefixes and prefixes_upto are set as before.",
+   "diff": "d2c078f6464b6356",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.x__count_add_path_prefixes__mutmut_20": {
+   "reason": "Changes only the wording of prefixes_upto_why[afi] (documented as wording only, used as detail text by checks._counted and record); prefixes and prefixes_upto are set as before.",
+   "diff": "419ad95508133813",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.x_srl_add_path_rx__mutmut_11": {
+   "reason": "_json(text) (default command \"sr_cli\"): the command argument is used only in the text of the DriverError that load_json/_json/_list raise for output they can't read; the same input raises the same error, and readable output gives the same rows.",
+   "diff": "ea42324a8857593e",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.x_srl_add_path_rx__mutmut_2": {
+   "reason": "_list(None, ...): the command argument is used only in the text of the DriverError that load_json/_json/_list raise for output they can't read; the same input raises the same error, and readable output gives the same rows.",
+   "diff": "cb7ce64ef3d817be",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.x_srl_add_path_rx__mutmut_9": {
+   "reason": "_json(text, None): the command argument is used only in the text of the DriverError that load_json/_json/_list raise for output they can't read; the same input raises the same error, and readable output gives the same rows.",
+   "diff": "e795aad033c05b01",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.nxos.x__withdrawn__mutmut_15": {
+   "reason": "_flag(None, ...) for pathdeleted: the command is used only in the text of the DriverError that unexpected() builds for a missing or non-boolean flag; the same error is raised on the same input and a valid flag reads the same.",
+   "diff": "9ea112799341f597",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.nxos.x__withdrawn__mutmut_19": {
+   "reason": "must(None, ...) for pathdeleted: the command is used only in the text of the DriverError that unexpected() builds for a missing or non-boolean flag; the same error is raised on the same input and a valid flag reads the same.",
+   "diff": "2d60410c811804ec",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.nxos.x__withdrawn__mutmut_2": {
+   "reason": "_flag(None, ...) for pathhistory: the command is used only in the text of the DriverError that unexpected() builds for a missing or non-boolean flag; the same error is raised on the same input and a valid flag reads the same.",
+   "diff": "325fd4231bda3e00",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.nxos.x__withdrawn__mutmut_6": {
+   "reason": "must(None, ...) for pathhistory: the command is used only in the text of the DriverError that unexpected() builds for a missing or non-boolean flag; the same error is raised on the same input and a valid flag reads the same.",
+   "diff": "c627453e72820cdb",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.routeros.xǁRouterosDriverǁ_v4_prefix__mutmut_10": {
+   "reason": "IPV6_ROUTES_UNSUPPORTED.format(None) changes only the driver name in the DriverError message; an IPv6 prefix still raises the same DriverError.",
+   "diff": "2a703abda9a69d97",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.routeros.xǁRouterosDriverǁ_v4_prefix__mutmut_11": {
+   "reason": "IPV6_ROUTES_UNSUPPORTED.format('XXrouterosXX') changes only the driver name in the DriverError message; an IPv6 prefix still raises the same DriverError.",
+   "diff": "c6823dda9ad36e96",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.routeros.xǁRouterosDriverǁ_v4_prefix__mutmut_12": {
+   "reason": "IPV6_ROUTES_UNSUPPORTED.format('ROUTEROS') changes only the driver name in the DriverError message; an IPv6 prefix still raises the same DriverError.",
+   "diff": "5b282a0cc1fc312b",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.drivers.srlinux.xǁSrlDriverǁ_drop_looped__mutmut_48": {
+   "reason": "`n.prefixes.get(afi, 1)`: the default only applies to a family missing from prefixes, and 1 > 1 is false exactly as 0 > 1 is, so the same neighbors are flagged.",
+   "diff": "4ba74b82c09b1ca5",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_end__mutmut_13": {
+   "reason": "runner.py _link_end: kind 'XXXX' instead of '' for a node the lab doesn't list. kind is used only in `kind in SONIC_KINDS` and in _container_iface(iface, kind), which also only tests `kind in SONIC_KINDS`; both values are outside it, so every branch and return value is the same.",
+   "diff": "426ae7d413131977",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_end__mutmut_51": {
+   "reason": "runner.py _link_end, SONiC port on a device no topology link names: changes only 'the far end of the link, so it can't tell when the fault took effect' in the LabError raised either way.",
+   "diff": "ee73cb6b7d4f9c0c",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_end__mutmut_52": {
+   "reason": "runner.py _link_end, SONiC port on a device no topology link names: changes only the same words in upper case in the LabError raised either way.",
+   "diff": "19dca480c3c64339",
+   "class": "message-text",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_end__mutmut_55": {
+   "reason": "runner.py _link_end last lines: reached only when kind is not in SONIC_KINDS; _container_iface uses kind only as `kind in SONIC_KINDS`, which is False for both kind and None there, so dev is the same.",
+   "diff": "bccd8a83aa98f869",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_end__mutmut_57": {
+   "reason": "runner.py _link_end last lines: reached only when kind is not in SONIC_KINDS; _container_iface's default kind '' is also outside SONIC_KINDS, so dev is the same.",
+   "diff": "9a86bf726ff002a0",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_108": {
+   "reason": "runner.py _link_sessions: the else value of the far end's kind becomes 'XXXX' for a peer the lab's nodes don't list. Both '' and 'XXXX' are != 'linux', so the same LabError is raised; only `{kind or 'non-container'}` in its text changes.",
+   "diff": "bc13e4f94c31a08c",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_117": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only the far end's bridge list (join separator) in the `why` text in the LabError raised either way.",
+   "diff": "97a6b9db3393655d",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_119": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only the 'hosts behind it are not known' wording in the LabError raised either way.",
+   "diff": "981d6736fb9d55db",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_120": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only the 'hosts behind it are not known' wording (upper case) in the LabError raised either way.",
+   "diff": "bc13c5a9d44ca462",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_125": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only the 'non-container' fallback word in the LabError raised either way.",
+   "diff": "8a18351051c1cd35",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_126": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only the 'non-container' fallback word (upper case) in the LabError raised either way.",
+   "diff": "90a1d6d8af4d761e",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_127": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only 'read from its container interface' in the LabError raised either way.",
+   "diff": "81c2457d045845cf",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_128": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only 'read from its container interface' (upper case) in the LabError raised either way.",
+   "diff": "750bc4705fddfc75",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_131": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only the join separator of the near end's bridge list in the LabError raised either way.",
+   "diff": "1b04571ba1706fd9",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_133": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only 'is no bridge port, or on the far end' in the LabError raised either way.",
+   "diff": "d2696af2bf3fb02e",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_134": {
+   "reason": "runner.py _link_sessions, bridged link whose far end isn't a plain Linux node: changes only 'is no bridge port, or on the far end' (upper case) in the LabError raised either way.",
+   "diff": "8c74d594ba65488d",
+   "class": "message-text",
+   "argument": "Both versions raise the same LabError at the same point (the scenario stops, exit 2); only the message differs. No session set, watch list or result is computed from this text, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_46": {
+   "reason": "runner.py _link_sessions: changes only the separator in the 'also looking at the devices stacked on it (...)' log line.",
+   "diff": "df1cf4309532c35f",
+   "class": "logging",
+   "argument": "log() output feeds no session set, result field, status or exit code; the watched and configured session lists are computed the same, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__link_sessions__mutmut_50": {
+   "reason": "runner.py _link_sessions: changes only the separator in the 'a port of a bridge that keeps another port ... between X and the far end' log line.",
+   "diff": "7b5fdb97068314c0",
+   "class": "logging",
+   "argument": "log() output feeds no session set, result field, status or exit code; the watched and configured session lists are computed the same, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x__names_iface__mutmut_15": {
+   "reason": "runner.py _names_iface: kind 'XXXX' instead of '' for a node the lab doesn't list. kind is used only in `kind in SONIC_KINDS` and _container_iface(key, kind) (the same test inside); both values are outside SONIC_KINDS, so the answer is the same.",
+   "diff": "595813615f08463f",
+   "class": "equivalent",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x_run_scenario__mutmut_106": {
+   "reason": "runner.py run_scenario: `if links or True` calls _link_sessions with an empty links list, whose loops run zero times (no read, no log) and return two empty sorted lists, the same as the else value ([], []).",
+   "diff": "a385b3add1106e2a",
+   "class": "equivalent",
+   "argument": "With no links the call reads nothing and returns ([], []), exactly the else value; watch, over_links and the later `if links:` wait are unchanged, so the verdict can't change.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x_run_scenario__mutmut_180": {
+   "reason": "runner.py run_scenario: `results = pos_results` instead of `results += pos_results`; results is the fresh empty list here, so both give the same contents. The only difference is that results aliases pos_results, which _bgp_convergence_gate reads (positive_results) before the later `results += sorted(neg_results)` and keeps no reference to.",
+   "diff": "69602077db6dd640",
+   "class": "equivalent",
+   "argument": "results holds the same Result objects in the same order on every path (normal return, and the finally block's _never_left on a restore failure), so the report and its verdict are unchanged.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x_run_scenario__mutmut_46": {
+   "reason": "runner.py run_scenario planning, link_down on a link already admin-down: changes only the first part of the 'already administratively down before the scenario' text in the LabError raised either way.",
+   "diff": "b0ad86283f0192d5",
+   "class": "message-text",
+   "argument": "The same LabError is raised at the same point, before any link goes down (exit 2); only its text differs, so no check result exists that could pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x_run_scenario__mutmut_47": {
+   "reason": "runner.py run_scenario planning, link_down on a link already admin-down: changes only the same text in upper case in the LabError raised either way.",
+   "diff": "67ced06a6be1787f",
+   "class": "message-text",
+   "argument": "The same LabError is raised at the same point, before any link goes down (exit 2); only its text differs, so no check result exists that could pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x_run_scenario__mutmut_49": {
+   "reason": "runner.py run_scenario planning, link_down on a link already admin-down: changes only 'a link the lab keeps down' (upper case) in the LabError raised either way.",
+   "diff": "0356e30cea255391",
+   "class": "message-text",
+   "argument": "The same LabError is raised at the same point, before any link goes down (exit 2); only its text differs, so no check result exists that could pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x_run_scenario__mutmut_51": {
+   "reason": "runner.py run_scenario planning: changes only 'the scenario' at the end of the 'already administratively down: left as it is' log line; the link is still skipped with `continue`.",
+   "diff": "9814ba6d19eebd94",
+   "class": "logging",
+   "argument": "log() output reaches no result, status or exit code; the plan (the links taken down) is the same, so it can't turn a failure into a pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.runner.x_run_scenario__mutmut_87": {
+   "reason": "runner.py run_scenario planning: changes only 'the scenario: `node_isolated` would change nothing' in the LabError raised either way when every link of the node is already down.",
+   "diff": "2345ecf5c93f0f4a",
+   "class": "message-text",
+   "argument": "The same LabError is raised at the same point, before any link goes down (exit 2); only its text differs, so no check result exists that could pass.",
+   "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
   }
  }
 }
