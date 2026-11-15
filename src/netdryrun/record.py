@@ -20,7 +20,7 @@ from . import __version__
 from .checks import Unready, _evaluate
 from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
 from .drivers import DriverError, Undetectable, detect, for_node, resolve
-from .drivers.base import Driver, NoSuchInstance, cannot_read_ipv6, is_bgp
+from .drivers.base import NAMED_FAMILIES, Driver, NoSuchInstance, cannot_read_ipv6, is_bgp, unicast_unread
 from .lab import Lab, LabError
 
 MAX_ROUTES_PER_NODE = 50
@@ -277,6 +277,20 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
         for afi, count in sorted(n.prefixes.items()):
             if afi in unsupported:
                 continue
+            if afi not in NAMED_FAMILIES:
+                # a family a check can't name (FRR ipv4LabeledUnicast): a check on it is refused by `run`, and its
+                # counter isn't what the node installs (RT-0080, FP-042-FRRLU), so it is a gap
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} carries {afi}, a family no check "
+                                "can count; not recorded: a change to the routes it carries isn't caught by this "
+                                "baseline: add route checks by hand")
+                continue
+            hidden = unicast_unread(afi, n.prefixes)
+            if hidden:
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the session also carries "
+                                f"{', '.join(hidden)}, whose routes the node can install as {afi} routes without "
+                                f"counting them, so the {afi} prefix count can't be read; not recorded: add route "
+                                "checks by hand")
+                continue
             if afi in n.prefixes_unread and afi not in n.prefixes_upto:
                 warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count {count} "
                                 f"isn't settled ({n.prefixes_unread[afi]}); not recorded: record again once it "
@@ -301,8 +315,17 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
             # an eBGP session that doesn't carry a unicast family today: exact 0 there, so the day that family is
             # added and sends a prefix the check fails (acceptance round B-3; a family a session doesn't carry
             # satisfies only exact: 0, see checks._bgp_prefixes)
+            # A labeled-unicast family of that IP version (or a family no check names) is no "doesn't carry": the
+            # node installs its routes as unicast routes, so exact 0 would be false the day it is recorded (RT-0080)
             for afi in ("ipv4-unicast", "ipv6-unicast"):
                 if afi not in n.prefixes and afi not in unsupported:
+                    hidden = unicast_unread(afi, n.prefixes)
+                    if hidden:
+                        warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the session lists "
+                                        f"no {afi} family but carries {', '.join(hidden)}, whose routes the node can "
+                                        f"install as {afi} routes, so `exact: 0` on {afi} isn't recorded: add route "
+                                        "checks by hand")
+                        continue
                     checks.append({"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, "exact": 0, **at})
     return checks
 

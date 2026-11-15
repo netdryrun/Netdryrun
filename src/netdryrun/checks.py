@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from .config import BGP_ATTRIBUTES, Check, community_name
 from .drivers import Driver
-from .drivers.base import DriverError, Observation, protocol_matches
+from .drivers.base import DriverError, Observation, protocol_matches, unicast_unread
 from .mgmt import ManagementPathError
 
 REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
@@ -80,6 +80,14 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
         # from a down session would satisfy "max" by accident
         return False, f"session is {n.state}; prefix counts are only meaningful when established", obs.evidence
     afi = p.get("afi", "ipv4-unicast")
+    hidden = unicast_unread(afi, n.prefixes)
+    if hidden:
+        # a labeled-unicast family (or one no check names) whose routes the node may install as `afi` routes without
+        # counting them there: neither "doesn't carry" nor the unicast counter is the count (RT-0080, FP-042-FRRLU)
+        return False, (f"the {afi} prefix count of the session to {p['neighbor']} can't be read: it carries "
+                       f"{', '.join(hidden)}, which Netdryrun doesn't count and whose routes the node can install as "
+                       f"{afi} routes (labeled-unicast does) without counting them as {afi} prefixes; check those "
+                       "routes with route checks"), obs.evidence
     if afi not in n.prefixes:
         # every driver lists the families an established session carries, 0 prefixes included: this one isn't
         # carried. Nothing of it can arrive, which is all `exact: 0` claims (and stops being true once the family

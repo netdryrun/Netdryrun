@@ -178,6 +178,43 @@ class BgpNeighbor:
     eor: dict[str, str] = field(default_factory=dict, compare=False)
 
 
+# The address families a check can name (config.AFIS). A driver keeps every other family a session lists under the
+# device's own name (FRR and SONiC `ipv4LabeledUnicast`, `ipv4Vpn`; SR Linux `ipv4-labeled-unicast`), so it reaches
+# BgpNeighbor.prefixes as it is.
+NAMED_FAMILIES = ("ipv4-unicast", "ipv6-unicast", "evpn")
+
+
+def unicast_unread(afi: str, families) -> list[str]:
+    """The families among `families` (one session's BgpNeighbor.prefixes keys) that leave its `afi` unicast count
+    unread, sorted; [] when the count (or the family's absence) can be read.
+
+    A labeled-unicast family carries routes of its IP version that the node installs as unicast routes: FRR 10.4.1
+    lists an LU-only session as `ipv4LabeledUnicast` alone, with acceptedPrefixCounter 0, while the peer's 3 routes are
+    installed as BGP IPv4 unicast routes (red team RT-0080, oracle FP-042-FRRLU), so "doesn't carry ipv4-unicast" and
+    `exact: 0` were false. Fails closed:
+    - the unicast family isn't listed: every family a check can't name blocks it, unless its name says it is only the
+      other IP version (`ipv6LabeledUnicast` doesn't block ipv4-unicast); a session that lists only named families
+      (an IPv6-only session for ipv4-unicast) still reads as not carrying it;
+    - the unicast family is listed with its own count: a labeled-unicast family of the same IP version (or of none
+      the name says) blocks it, since nothing says whether that count includes its routes; another family of the
+      version (VPN, multicast) keeps its routes in another table and doesn't.
+    EVPN is a named family and never blocks."""
+    if afi not in ("ipv4-unicast", "ipv6-unicast"):
+        return []
+    own, other = ("ipv4", "ipv6") if afi == "ipv4-unicast" else ("ipv6", "ipv4")
+    out = []
+    for fam in families:
+        if fam in NAMED_FAMILIES:
+            continue
+        word = re.sub(r"[^a-z0-9]", "", str(fam).lower())
+        if other in word and own not in word:
+            continue   # a family of the other IP version only
+        if afi in families and "labeled" not in word:
+            continue
+        out.append(str(fam))
+    return sorted(out)
+
+
 # Protocol names that come in a pair, one per address family: OSPF of any version on an IPv4 prefix is ospf (OSPFv2,
 # or OSPFv3 carrying IPv4, RFC 5838), on IPv6 ospf6; RIP on IPv4 is rip, on IPv6 ripng. A driver that named OSPFv3 by
 # its version alone reported an IPv4 route as ospf6, which validate refuses for IPv4, so `protocol: ospf present:

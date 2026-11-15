@@ -71,6 +71,18 @@
   can't be read as received, or the add-path listing shows stale paths) the count isn't settled now: no bound is
   judged, the check samples again, and `record` leaves the count out. Oracle `tests/oracles/FP-042-FRRGRSTALE`, from
   the live capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **FRR and SONiC: `bgp_prefixes exact: 0` passed on a session that carries IPv4 over labeled-unicast** (red team
+  042-HV, RT-0080, confirmed live on FRR 10.4.1; FRR 0.1.0 and later, SONiC 0.2.0 and later). bgpd lists a session
+  activated only for `ipv4 labeled-unicast` as `ipv4LabeledUnicast` alone, with a counter of 0, while it installs the
+  peer's routes as BGP IPv4 unicast routes, so the check read "the session doesn't carry ipv4-unicast" and passed
+  (before 0.4.1 a family the session didn't list counted 0, so every `max` passed too), and `record` wrote that
+  `exact: 0` for eBGP sessions, plus a check with `afi: ipv4LabeledUnicast` that `run` refuses. A labeled-unicast
+  family of the check's IP version, or any family a check can't name that isn't of the other version only, now makes
+  the unicast count unread: every bound fails with "can't be read", and `record` names the family and the unicast count
+  it can't record as INCOMPLETE BASELINE lines (exit 1). The same rule covers SR Linux, whose driver keeps such a
+  family (`ipv4-labeled-unicast`) under its own name. A session that carries no family of that version (IPv6 only,
+  EVPN only) still passes `exact: 0`. Oracle `tests/oracles/FP-042-FRRLU`, from the live capture;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **A duplicate key inside a YAML merge source was accepted** (red team RT-0073, angle-5 red team on the 0.4.2
   candidate; 0.3.1 to 0.4.1). Duplicate keys are refused at any depth, but a mapping used only through `<<` was never
   checked, and its last value won: a no-leak guard template written `prefix: 0.0.0.0/0` with a pasted second
@@ -254,12 +266,6 @@
   that kept its forwarding state (F-bit set) hasn't sent End-of-RIB, as FRR and SONiC did before 0.4.2 (RT-0072). Not
   confirmed live on any of them. Workaround: add a `max` to the check (the convergence gate then waits for End-of-RIB), or
   pair the `min` with `route` checks.
-- **FRR and SONiC: `bgp_prefixes exact: 0` passes on a session that carries only IPv4 (or IPv6) labeled-unicast**
-  (red team 042-HV, RT-0080). bgpd lists such a session's family as `ipv4LabeledUnicast`, not `ipv4Unicast`, so the
-  check reads "the session doesn't carry ipv4-unicast" and passes, while bgpd stores labeled-unicast routes in the
-  IPv4 unicast table and zebra installs them. Only `exact: 0` passes this way; `max`, `min`, `only` and `exact` above 0
-  fail. Not confirmed live. Workaround: use `max: 0` instead of `exact: 0` on such sessions, or add `route ... present:
-  false` checks. Planned for 0.4.3.
 - **Arista EOS: `route ... protocol: bgp present: false` passes on a BGP aggregate** (red team 042-GV, A-RT-0077).
   The driver reads an `aggregate-address` route as protocol `aggregate`, not `bgp`, so the guard passes on the node's
   own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix

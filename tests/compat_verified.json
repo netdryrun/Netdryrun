@@ -1,9 +1,6 @@
 {
   "frr": {
-    "date": "2026-10-28",
-    "limits": [
-      "`bgp_prefixes exact: 0` on a session that carries only IPv4 (or IPv6) labeled-unicast: bgpd names that family `ipv4LabeledUnicast`, so the check reads the session as not carrying ipv4-unicast and passes, though labeled-unicast routes are installed as IPv4 unicast routes (not confirmed live). Use `max: 0` there, or `route ... present: false` checks. Not fixed in 0.4.2."
-    ]
+    "date": "2026-10-28"
   },
   "srlinux": {
     "date": "2026-10-27",
@@ -16,8 +13,7 @@
   "sonic": {
     "date": "2026-10-28",
     "limits": [
-      "graceful restart: SONiC's routing is FRR, and its driver reads FRR's `stale` flag as the FRR driver does: a `route` or `bgp_route` check never passes on a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends). A live graceful restart has not been captured on docker-sonic-vs to confirm the flag. From 0.4.2 a `bgp_prefixes` count isn't settled while a peer that kept its forwarding state (F-bit) hasn't sent End-of-RIB, as on FRR, since bgpd counts the stale paths. Mitigation: leave graceful restart off in the lab.",
-      "`bgp_prefixes exact: 0` on a session that carries only IPv4 (or IPv6) labeled-unicast: bgpd names that family `ipv4LabeledUnicast`, so the check reads the session as not carrying ipv4-unicast and passes, though labeled-unicast routes are installed as IPv4 unicast routes (not confirmed live). Use `max: 0` there, or `route ... present: false` checks. Not fixed in 0.4.2."
+      "graceful restart: SONiC's routing is FRR, and its driver reads FRR's `stale` flag as the FRR driver does: a `route` or `bgp_route` check never passes on a stale path (a restarting peer's route, kept until it re-sends it or the stale timer ends). A live graceful restart has not been captured on docker-sonic-vs to confirm the flag. From 0.4.2 a `bgp_prefixes` count isn't settled while a peer that kept its forwarding state (F-bit) hasn't sent End-of-RIB, as on FRR, since bgpd counts the stale paths. Mitigation: leave graceful restart off in the lab."
     ]
   },
   "eos": {

@@ -103,6 +103,33 @@ as not evaluated, never as a pass. Case
 `tests/redteam/RT-0072-frr-gr-stale-paths-counted-as-accepted.yml`, oracle `tests/oracles/FP-042-FRRGRSTALE`, from a live
 FRR 10.4.1 capture.
 
+## Also fixed in 0.4.2: FRR and SONiC read a labeled-unicast session as not carrying unicast
+
+**Affected:** FRR since 0.1.0 and SONiC since 0.2.0, netdryrun 0.4.1 and earlier. A session activated only for
+`address-family ipv4 labeled-unicast` carries IPv4 routes that the node installs as BGP IPv4 unicast routes, but
+`show bgp neighbors json` lists its family as `ipv4LabeledUnicast` alone, with an `acceptedPrefixCounter` of 0 (FRR
+10.4.1, captured live: the peer's 3 prefixes installed via the session). The driver kept that name as it was, so
+`bgp_prefixes afi: ipv4-unicast exact: 0` passed with "0 ipv4-unicast prefixes (the session doesn't carry
+ipv4-unicast)" in 0.4.1, and in 0.4.0 and earlier, where a family the session didn't list counted 0, every `max` on
+it passed too. `record` 0.4.1 wrote that `exact: 0` for every such eBGP session. Every version with `record` also wrote a check with
+`afi: ipv4LabeledUnicast`: from 0.2.0 to 0.3.0 one on bgpd's labeled-unicast counter, which read 0 with the peer's
+3 routes installed (live), so it caught no change; from 0.3.1 one that `run` refuses (exit 2: no false pass, but no baseline).
+The same holds for IPv6 labeled-unicast. Live, the End-of-RIB gate failed the check closed unless the peer was declared
+`eor: not_sent`; a peer with graceful restart negotiated, or an `eor: not_sent` declaration, let it pass.
+
+From 0.4.2 a labeled-unicast family of the check's IP version makes the unicast count unread: every bound fails with
+"the ipv4-unicast prefix count of the session to X can't be read", also when the session lists the unicast family
+beside it (nothing says whether that counter includes the labeled-unicast routes). Any other family a check can't name
+(`ipv4Vpn`, `ipv4Multicast`, link-state) does the same when the session doesn't list the unicast family, unless its
+name says it is only of the other IP version. `record` writes neither the `exact: 0` nor a check on the unnamed family:
+INCOMPLETE BASELINE lines name both, and `record` exits 1. The SR Linux driver keeps such a family under its own name
+(`ipv4-labeled-unicast`), so the rule covers it too (not seen live on SR Linux). Unchanged: a session that carries no
+family of that version (IPv6 only, EVPN only) still passes `exact: 0` with "doesn't carry". **Workaround before you
+upgrade:** on a session that carries labeled-unicast, use `max: 0` (it fails there in 0.4.1) or `route ... present:
+false` checks instead of `exact: 0`, and remove the `exact: 0` lines `record` wrote for such sessions. Case
+`tests/redteam/RT-0080-frr-labeled-unicast-read-as-no-unicast.yml`, oracle `tests/oracles/FP-042-FRRLU`, from a live FRR
+10.4.1 capture.
+
 ## Also fixed in 0.4.2: a duplicate key inside a YAML merge source was accepted
 
 **Affected:** every driver, netdryrun 0.3.1 to 0.4.1 (before 0.3.1 no duplicate key was refused; see the
