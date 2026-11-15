@@ -1,0 +1,36 @@
+id: FP-042-FRRLU
+bug: >-
+  A BGP session activated only for `address-family ipv4 labeled-unicast` carries IPv4 routes into the unicast RIB, but
+  FRR's `show bgp neighbors json` lists only `ipv4LabeledUnicast` (acceptedPrefixCounter 0) for it, so the 0.4.2 FRR
+  parser (SONiC shares it) reports the session as not carrying ipv4-unicast and `bgp_prefixes node r1 neighbor
+  10.0.12.2 afi ipv4-unicast exact: 0` passed ("0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)")
+  while r1 had r2's 3 prefixes installed as BGP routes via 10.0.12.2 (captured live on FRR 10.4.1, lab ndr-rplu,
+  2026-11-15, repro-042d RT-0080, with nodes.r1.peers.10.0.12.2.eor: not_sent; without it the End-of-RIB gate failed
+  it closed). `exact: 0` on ipv4-unicast must not pass on the capture, with or without the gate, and `record` must not
+  write it for that session. Guards (an IPv6-only session still passes exact 0 on ipv4-unicast, max 0 still fails
+  here) are in tests/test_oracle_guards_fp_042_frrlu.py, since the oracle folder holds red tests only
+evidence:
+  - tests/fixtures/frr1041_rplu_r1_neighbors.json
+  - tests/fixtures/frr1041_rplu_r1_neighbor_10.0.12.2.json
+  - tests/fixtures/frr1041_rplu_r1_bgp_ipv4_unicast.json
+  - tests/fixtures/frr1041_rplu_r1_bgp_ipv4_unicast.txt
+  - tests/fixtures/frr1041_rplu_r1_bgp_ipv4_labeled_unicast.txt
+  - tests/fixtures/frr1041_rplu_r1_ip_route.json
+  - tests/fixtures/frr1041_rplu_r1_ip_route.txt
+  - tests/fixtures/frr1041_rplu_r1_bgp_summary.txt
+  - tests/fixtures/frr1041_rplu_r1_running_config.txt
+  - tests/fixtures/frr1041_rplu_r1_ip_route_10.80.1.0.json
+  - tests/fixtures/frr1041_rplu_r1_bgp_ipv4_unicast_10.80.1.0.json
+  - tests/fixtures/frr1041_rplu_report.json
+  - tests/fixtures/frr1041_rplu_check.txt
+  - tests/fixtures/frr1041_rplu_eor_report.json
+  - tests/fixtures/frr1041_rplu_eor_check.txt
+  - tests/fixtures/frr1041_rplu_topology.clab.yml
+  - tests/fixtures/frr1041_rplu_checks.yml
+  - tests/fixtures/frr1041_rplu_checks_eor.yml
+  - tests/fixtures/frr1041_rplu_r1.conf
+  - tests/fixtures/frr1041_rplu_r2.conf
+  - tests/fixtures/verify/neighbors.txt
+  - tests/fixtures/frr_custleak_neighbors.txt
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_frrlu.py

@@ -1,0 +1,158 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "ndr-rplu",
+  "config": "checks-eor.yml",
+  "started": "2026-11-15T00:16:28+00:00",
+  "finished": "2026-11-15T00:18:26+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.12.16",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "r1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "r2": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 1,
+    "failed": 1,
+    "total": 2
+  },
+  "warnings": {
+    "count": 2,
+    "items": [
+      {
+        "check": "lu-exact0-must-fail-eor-not-sent",
+        "code": "gate-eor-pending",
+        "node": "r2",
+        "session": "10.0.12.1",
+        "text": "convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving"
+      },
+      {
+        "check": "lu-max0-control",
+        "code": "gate-eor-pending",
+        "node": "r2",
+        "session": "10.0.12.1",
+        "text": "convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "lu-exact0-must-fail-eor-not-sent",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.12.2",
+        "afi": "ipv4-unicast",
+        "exact": 0
+      },
+      "passed": true,
+      "detail": "0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast) (held 10s, 5 samples)",
+      "attempts": 5,
+      "duration_s": 10.1,
+      "started": "2026-11-15T00:18:15+00:00",
+      "history": [
+        {
+          "t": 0.1,
+          "passed": true,
+          "detail": "0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)"
+        },
+        {
+          "t": 3.3,
+          "passed": true,
+          "detail": "0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)"
+        },
+        {
+          "t": 6.4,
+          "passed": true,
+          "detail": "0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)"
+        },
+        {
+          "t": 9.5,
+          "passed": true,
+          "detail": "0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)"
+        },
+        {
+          "t": 10.1,
+          "passed": true,
+          "detail": "0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show bgp neighbors json",
+          "rc": 0,
+          "output": "{\n  \"10.0.12.2\":{\n    \"remoteAs\":65002,\n    \"localAs\":65001,\n    \"localAsReplaceAsDualAs\":false,\n    \"nbrExternalLink\":true,\n    \"localRole\":\"undefined\",\n    \"remoteRole\":\"undefined\",\n    \"hostname\":\"r2\",\n    \"domainname\":\"localdomain\",\n    \"bgpVersion\":4,\n    \"remoteRouterId\":\"2.2.2.2\",\n    \"localRouterId\":\"1.1.1.1\",\n    \"bgpState\":\"Established\",\n    \"bgpTimerUpMsec\":247000,\n    \"bgpTimerUpString\":\"00:04:07\",\n    \"bgpTimerUpEstablishedEpoch\":1794701658,\n    \"bgpTimerLastRead\":1000,\n    \"bgpTimerLastWrite\":1000,\n    \"bgpInUpdateElapsedTimeMsecs\":245000,\n    \"bgpTimerConfiguredHoldTimeMsecs\":9000,\n    \"bgpTimerConfiguredKeepAliveIntervalMsecs\":3000,\n    \"bgpTimerHoldTimeMsecs\":9000,\n    \"bgpTimerKeepAliveIntervalMsecs\":3000,\n    \"bgpTcpMssConfigured\":0,\n    \"bgpTcpMssSynced\":9448,\n    \"extendedOptionalParametersLength\":false,\n    \"bgpTimerConfiguredConditionalAdvertisementsSec\":60,\n    \"neighborCapabilities\":{\n      \"4byteAs\":\"advertisedAndReceived\",\n      \"extendedMessage\":\"advertisedAndReceived\",\n      \"addPath\":{\n        \"ipv4LabeledUnicast\":{\n          \"rxAdvertisedAndReceived\":true,\n          \"rxAdvertised\":true,\n          \"rxReceived\":true\n        }\n      },\n      \"pathsLimit\":{\n        \"ipv4LabeledUnicast\":{\n          \"advertisedAndReceived\":true,\n          \"advertisedPathsLimit\":0,\n          \"receivedPathsLimit\":0\n        }\n      },\n      \"dynamic\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestart\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestartByPeer\":{},\n      \"routeRefresh\":\"advertisedAndReceived\",\n      \"enhancedRouteRefresh\":\"advertisedAndReceived\",\n      \"multiprotocolExtensions\":{\n        \"ipv4LabeledUnicast\":{\n          \"advertisedAndReceived\":true\n        }\n      },\n      \"hostName\":{\n        \"advHostName\":\"r1\",\n        \"advDomainName\":\"localdomain\",\n        \"rcvHostName\":\"r2\",\n        \"rcvDomainName\":\"localdomain\"\n      },\n      \"softwareVersion\":{\n        \"advertisedSoftwareVersion\":\"FRRouting\\/10.4.1_git\",\n        \"receivedSoftwareVersion\":\"FRRouting\\/10.4.1_git\"\n      },\n      \"linkLocalNextHop\":{\n        \"advertised\":true,\n        \"received\":true\n      },\n      \"gracefulRestart\":\"advertisedAndReceived\",\n      \"gracefulRestartRemoteTimerMsecs\":120000,\n      \"addressFamiliesByPeer\":\"none\"\n    },\n    \"gracefulRestartInfo\":{\n      \"endOfRibSend\":{\n        \"ipv4LabeledUnicast\":true\n      },\n      \"endOfRibRecv\":{\n        \"ipv4LabeledUnicast\":true\n      },\n      \"localGrMode\":\"Helper*\",\n      \"remoteGrMode\":\"Helper\",\n      \"rBit\":true,\n      \"nBit\":true,\n      \"timers\":{\n        \"configuredRestartTimer\":120,\n        \"configuredLlgrStaleTime\":0,\n        \"receivedRestartTimer\":120\n      }\n    },\n    \"messageStats\":{\n      \"depthInq\":0,\n      \"depthOutq\":0,\n      \"opensSent\":2,\n      \"opensRecv\":1,\n      \"notificationsSent\":0,\n      \"notificationsRecv\":0,\n      \"updatesSent\":3,\n      \"updatesRecv\":2,\n      \"keepalivesSent\":83,\n      \"keepalivesRecv\":83,\n      \"routeRefreshSent\":0,\n      \"routeRefreshRecv\":0,\n      \"capabilitySent\":0,\n      \"capabilityRecv\":0,\n      \"totalSent\":88,\n      \"totalRecv\":86\n    },\n    \"prefixStats\":{\n      \"inboundFiltered\":0,\n      \"aspathLoop\":0,\n      \"originatorLoop\":0,\n      \"clusterLoop\":0,\n      \"invalidNextHop\":0,\n      \"withdrawn\":0,\n      \"attributesDiscarded\":0\n    },\n    \"minBtwnAdvertisementRunsTimerMsecs\":0,\n    \"addressFamilyInfo\":{\n      \"ipv4LabeledUnicast\":{\n        \"updateGroupId\":1,\n        \"subGroupId\":1,\n        \"packetQueueLength\":0,\n        \"commAttriSentToNbr\":\"extendedAndStandard\",\n        \"acceptedPrefixCounter\":0,\n        \"sentPrefixCounter\":3\n      }\n    },\n    \"connectionsEstablished\":1,\n    \"connectionsDropped\":0,\n    \"lastResetTimerMsecs\":248000,\n    \"lastResetDueTo\":\"No AFI\\/SAFI activated for peer\",\n    \"lastResetCode\":30,\n    \"softwareVersion\":\"FRRouting\\/10.4.1_git\",\n    \"externalBgpNbrMaxHopsAway\":1,\n    \"hostLocal\":\"10.0.12.1\",\n    \"portLocal\":179,\n    \"hostForeign\":\"10.0.12.2\",\n    \"portForeign\":35656,\n    \"nexthop\":\"10.0.12.1\",\n    \"nexthopGlobal\":\"::\",\n    \"nexthopLocal\":\"::\",\n    \"bgpConnection\":\"sharedNetwork\",\n    \"connectRetryTimer\":10,\n    \"estimatedRttInMsecs\":0,\n    \"readThread\":\"on\",\n    \"writeThread\":\"on\"\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-eor-pending",
+          "node": "r2",
+          "session": "10.0.12.1",
+          "text": "convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving"
+        }
+      ]
+    },
+    {
+      "name": "lu-max0-control",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.12.2",
+        "afi": "ipv4-unicast",
+        "max": 0
+      },
+      "passed": false,
+      "detail": "the session to 10.0.12.2 doesn't carry ipv4-unicast",
+      "attempts": 1,
+      "duration_s": 0.1,
+      "started": "2026-11-15T00:18:15+00:00",
+      "history": [
+        {
+          "t": 0.1,
+          "passed": false,
+          "detail": "the session to 10.0.12.2 doesn't carry ipv4-unicast"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show bgp neighbors json",
+          "rc": 0,
+          "output": "{\n  \"10.0.12.2\":{\n    \"remoteAs\":65002,\n    \"localAs\":65001,\n    \"localAsReplaceAsDualAs\":false,\n    \"nbrExternalLink\":true,\n    \"localRole\":\"undefined\",\n    \"remoteRole\":\"undefined\",\n    \"hostname\":\"r2\",\n    \"domainname\":\"localdomain\",\n    \"bgpVersion\":4,\n    \"remoteRouterId\":\"2.2.2.2\",\n    \"localRouterId\":\"1.1.1.1\",\n    \"bgpState\":\"Established\",\n    \"bgpTimerUpMsec\":237000,\n    \"bgpTimerUpString\":\"00:03:57\",\n    \"bgpTimerUpEstablishedEpoch\":1794701658,\n    \"bgpTimerLastRead\":3000,\n    \"bgpTimerLastWrite\":3000,\n    \"bgpInUpdateElapsedTimeMsecs\":235000,\n    \"bgpTimerConfiguredHoldTimeMsecs\":9000,\n    \"bgpTimerConfiguredKeepAliveIntervalMsecs\":3000,\n    \"bgpTimerHoldTimeMsecs\":9000,\n    \"bgpTimerKeepAliveIntervalMsecs\":3000,\n    \"bgpTcpMssConfigured\":0,\n    \"bgpTcpMssSynced\":9448,\n    \"extendedOptionalParametersLength\":false,\n    \"bgpTimerConfiguredConditionalAdvertisementsSec\":60,\n    \"neighborCapabilities\":{\n      \"4byteAs\":\"advertisedAndReceived\",\n      \"extendedMessage\":\"advertisedAndReceived\",\n      \"addPath\":{\n        \"ipv4LabeledUnicast\":{\n          \"rxAdvertisedAndReceived\":true,\n          \"rxAdvertised\":true,\n          \"rxReceived\":true\n        }\n      },\n      \"pathsLimit\":{\n        \"ipv4LabeledUnicast\":{\n          \"advertisedAndReceived\":true,\n          \"advertisedPathsLimit\":0,\n          \"receivedPathsLimit\":0\n        }\n      },\n      \"dynamic\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestart\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestartByPeer\":{},\n      \"routeRefresh\":\"advertisedAndReceived\",\n      \"enhancedRouteRefresh\":\"advertisedAndReceived\",\n      \"multiprotocolExtensions\":{\n        \"ipv4LabeledUnicast\":{\n          \"advertisedAndReceived\":true\n        }\n      },\n      \"hostName\":{\n        \"advHostName\":\"r1\",\n        \"advDomainName\":\"localdomain\",\n        \"rcvHostName\":\"r2\",\n        \"rcvDomainName\":\"localdomain\"\n      },\n      \"softwareVersion\":{\n        \"advertisedSoftwareVersion\":\"FRRouting\\/10.4.1_git\",\n        \"receivedSoftwareVersion\":\"FRRouting\\/10.4.1_git\"\n      },\n      \"linkLocalNextHop\":{\n        \"advertised\":true,\n        \"received\":true\n      },\n      \"gracefulRestart\":\"advertisedAndReceived\",\n      \"gracefulRestartRemoteTimerMsecs\":120000,\n      \"addressFamiliesByPeer\":\"none\"\n    },\n    \"gracefulRestartInfo\":{\n      \"endOfRibSend\":{\n        \"ipv4LabeledUnicast\":true\n      },\n      \"endOfRibRecv\":{\n        \"ipv4LabeledUnicast\":true\n      },\n      \"localGrMode\":\"Helper*\",\n      \"remoteGrMode\":\"Helper\",\n      \"rBit\":true,\n      \"nBit\":true,\n      \"timers\":{\n        \"configuredRestartTimer\":120,\n        \"configuredLlgrStaleTime\":0,\n        \"receivedRestartTimer\":120\n      }\n    },\n    \"messageStats\":{\n      \"depthInq\":0,\n      \"depthOutq\":0,\n      \"opensSent\":2,\n      \"opensRecv\":1,\n      \"notificationsSent\":0,\n      \"notificationsRecv\":0,\n      \"updatesSent\":3,\n      \"updatesRecv\":2,\n      \"keepalivesSent\":79,\n      \"keepalivesRecv\":79,\n      \"routeRefreshSent\":0,\n      \"routeRefreshRecv\":0,\n      \"capabilitySent\":0,\n      \"capabilityRecv\":0,\n      \"totalSent\":84,\n      \"totalRecv\":82\n    },\n    \"prefixStats\":{\n      \"inboundFiltered\":0,\n      \"aspathLoop\":0,\n      \"originatorLoop\":0,\n      \"clusterLoop\":0,\n      \"invalidNextHop\":0,\n      \"withdrawn\":0,\n      \"attributesDiscarded\":0\n    },\n    \"minBtwnAdvertisementRunsTimerMsecs\":0,\n    \"addressFamilyInfo\":{\n      \"ipv4LabeledUnicast\":{\n        \"updateGroupId\":1,\n        \"subGroupId\":1,\n        \"packetQueueLength\":0,\n        \"commAttriSentToNbr\":\"extendedAndStandard\",\n        \"acceptedPrefixCounter\":0,\n        \"sentPrefixCounter\":3\n      }\n    },\n    \"connectionsEstablished\":1,\n    \"connectionsDropped\":0,\n    \"lastResetTimerMsecs\":238000,\n    \"lastResetDueTo\":\"No AFI\\/SAFI activated for peer\",\n    \"lastResetCode\":30,\n    \"softwareVersion\":\"FRRouting\\/10.4.1_git\",\n    \"externalBgpNbrMaxHopsAway\":1,\n    \"hostLocal\":\"10.0.12.1\",\n    \"portLocal\":179,\n    \"hostForeign\":\"10.0.12.2\",\n    \"portForeign\":35656,\n    \"nexthop\":\"10.0.12.1\",\n    \"nexthopGlobal\":\"::\",\n    \"nexthopLocal\":\"::\",\n    \"bgpConnection\":\"sharedNetwork\",\n    \"connectRetryTimer\":10,\n    \"estimatedRttInMsecs\":0,\n    \"readThread\":\"on\",\n    \"writeThread\":\"on\"\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-eor-pending",
+          "node": "r2",
+          "session": "10.0.12.1",
+          "text": "convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving"
+        }
+      ]
+    }
+  ]
+}

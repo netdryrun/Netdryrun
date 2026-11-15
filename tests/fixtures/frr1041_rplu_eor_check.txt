@@ -1,0 +1,12 @@
+Netdryrun 0.4.2: 2 checks from checks-eor.yml
+r1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+r2: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+Management default routes removed; settling 10s before the checks...
+warning: convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving
+Convergence checks done; settling 30s before post-convergence checks...
+  [PASS] lu-exact0-must-fail-eor-not-sent -- 0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast) (held 10s, 5 samples) (10.1s)
+      warning: convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving
+  [FAIL] lu-max0-control -- the session to 10.0.12.2 doesn't carry ipv4-unicast (0.1s)
+      warning: convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving
+FAILED: 1 passed, 1 failed (2 checks; 2 with a convergence warning)
+  wrote json report: /mnt/c/NetCL Business/wt/repro-042d/capture/lu_eor_report.json

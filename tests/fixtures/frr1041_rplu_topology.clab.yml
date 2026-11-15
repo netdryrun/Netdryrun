@@ -1,0 +1,7 @@
+name: ndr-rplu
+topology:
+  nodes:
+    r1: {kind: linux, image: "quay.io/frrouting/frr:10.4.1", binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/r1.conf:/etc/frr/frr.conf]}
+    r2: {kind: linux, image: "quay.io/frrouting/frr:10.4.1", binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/r2.conf:/etc/frr/frr.conf]}
+  links:
+    - endpoints: ["r1:eth1", "r2:eth1"]

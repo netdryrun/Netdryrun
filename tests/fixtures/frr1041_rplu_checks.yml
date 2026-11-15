@@ -1,0 +1,6 @@
+lab: topology.clab.yml
+timeout: 60
+checks:
+  # RT-0080: r2 sends 3 IPv4 prefixes over labeled-unicast; "accepts no IPv4 routes from r2" must FAIL
+  - {name: lu-exact0-must-fail, type: bgp_prefixes, node: r1, neighbor: 10.0.12.2, afi: ipv4-unicast, exact: 0}
+  - {name: lu-route-present-control, type: route, node: r1, prefix: 10.80.1.0/24, protocol: bgp}

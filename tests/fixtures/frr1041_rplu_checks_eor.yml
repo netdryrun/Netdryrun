@@ -1,0 +1,9 @@
+lab: topology.clab.yml
+timeout: 60
+nodes:
+  r1:
+    peers:
+      10.0.12.2: {eor: not_sent}
+checks:
+  - {name: lu-exact0-must-fail-eor-not-sent, type: bgp_prefixes, node: r1, neighbor: 10.0.12.2, afi: ipv4-unicast, exact: 0}
+  - {name: lu-max0-control, type: bgp_prefixes, node: r1, neighbor: 10.0.12.2, afi: ipv4-unicast, max: 0}

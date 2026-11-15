@@ -1,0 +1,10 @@
+Netdryrun 0.4.2: 2 checks from checks.yml
+r1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+r2: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+Management default routes removed; settling 10s before the checks...
+  [PASS] lu-route-present-control -- active via bgp (3.3s)
+warning: convergence: r2's session to 10.0.12.1 had not sent End-of-RIB (all families: unknown) when this check ran (waited 60s); its routes may still have been arriving
+Convergence checks done; settling 10s before post-convergence checks...
+  [FAIL] lu-exact0-must-fail -- not evaluated: End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown) after waiting 60s. A post-convergence check only means something once the node's neighbors have sent their whole table (End-of-RIB). For a peer that never sends End-of-RIB, declare nodes.r1.peers.<address>.eor: not_sent (60.3s)
+FAILED: 1 passed, 1 failed (2 checks)
+  wrote json report: /mnt/c/NetCL Business/wt/repro-042d/capture/lu_report.json

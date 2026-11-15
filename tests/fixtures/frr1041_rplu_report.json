@@ -1,0 +1,207 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "ndr-rplu",
+  "config": "checks.yml",
+  "started": "2026-11-15T00:12:25+00:00",
+  "finished": "2026-11-15T00:13:55+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.12.16",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "r1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "r2": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 1,
+    "failed": 1,
+    "total": 2
+  },
+  "warnings": {
+    "count": 0,
+    "items": []
+  },
+  "checks": [
+    {
+      "name": "lu-exact0-must-fail",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.12.2",
+        "afi": "ipv4-unicast",
+        "exact": 0
+      },
+      "passed": false,
+      "detail": "not evaluated: End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown) after waiting 60s. A post-convergence check only means something once the node's neighbors have sent their whole table (End-of-RIB). For a peer that never sends End-of-RIB, declare nodes.r1.peers.<address>.eor: not_sent",
+      "attempts": 20,
+      "duration_s": 60.3,
+      "started": "2026-11-15T00:12:41+00:00",
+      "history": [
+        {
+          "t": 0.0,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 3.2,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 6.4,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 9.5,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 12.7,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 15.9,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 19.0,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 22.3,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 25.4,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 28.6,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 31.8,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 35.0,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 38.2,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 41.4,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 44.5,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 47.9,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 51.1,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 54.3,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 57.5,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        },
+        {
+          "t": 60.0,
+          "passed": false,
+          "detail": "End-of-RIB not received on r1 from: 10.0.12.2 (all families: unknown)"
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    },
+    {
+      "name": "lu-route-present-control",
+      "type": "route",
+      "params": {
+        "node": "r1",
+        "prefix": "10.80.1.0/24",
+        "protocol": "bgp"
+      },
+      "passed": true,
+      "detail": "active via bgp",
+      "attempts": 2,
+      "duration_s": 3.3,
+      "started": "2026-11-15T00:12:38+00:00",
+      "history": [
+        {
+          "t": 0.2,
+          "passed": true,
+          "detail": "active via bgp"
+        },
+        {
+          "t": 3.3,
+          "passed": true,
+          "detail": "active via bgp"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show ip route 10.80.1.0/24 json",
+          "rc": 0,
+          "output": "{\n  \"10.80.1.0/24\":[\n    {\n      \"prefix\":\"10.80.1.0/24\",\n      \"prefixLen\":24,\n      \"protocol\":\"bgp\",\n      \"vrfId\":0,\n      \"vrfName\":\"default\",\n      \"selected\":true,\n      \"destSelected\":true,\n      \"distance\":20,\n      \"metric\":0,\n      \"installed\":true,\n      \"table\":254,\n      \"internalStatus\":16,\n      \"internalFlags\":8,\n      \"internalNextHopNum\":1,\n      \"internalNextHopActiveNum\":1,\n      \"nexthopGroupId\":15,\n      \"installedNexthopGroupId\":15,\n      \"receivedNexthopGroupId\":15,\n      \"uptime\":\"00:02:28\",\n      \"nexthops\":[\n        {\n          \"flags\":3,\n          \"fib\":true,\n          \"ip\":\"10.0.12.2\",\n          \"afi\":\"ipv4\",\n          \"interfaceIndex\":2437,\n          \"interfaceName\":\"eth1\",\n          \"active\":true,\n          \"labels\":[\n            3\n          ],\n          \"weight\":1\n        }\n      ]\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show bgp ipv4 unicast 10.80.1.0/24 json",
+          "rc": 0,
+          "output": "{\n  \"prefix\":\"10.80.1.0/24\",\n  \"version\":1,\n  \"localLabel\":18,\n  \"advertisedTo\":{\n    \"10.0.12.2\":{\n      \"hostname\":\"r2\"\n    }\n  },\n  \"pathCount\":1,\n  \"paths\":[\n    {\n      \"aspath\":{\n        \"string\":\"65002\",\n        \"segments\":[\n          {\n            \"type\":\"as-sequence\",\n            \"list\":[\n              65002\n            ]\n          }\n        ],\n        \"length\":1\n      },\n      \"origin\":\"IGP\",\n      \"metric\":0,\n      \"valid\":true,\n      \"version\":1,\n      \"bestpath\":{\n        \"bestpathFromAs\":65002,\n        \"overall\":true,\n        \"selectionReason\":\"First path received\"\n      },\n      \"remoteLabel\":3,\n      \"lastUpdate\":{\n        \"epoch\":1794701413,\n        \"string\":\"Sun Nov 15 00:10:13 2026\"\n      },\n      \"registeredForLabel\":true,\n      \"nexthops\":[\n        {\n          \"ip\":\"10.0.12.2\",\n          \"hostname\":\"r2\",\n          \"afi\":\"ipv4\",\n          \"metric\":0,\n          \"accessible\":true,\n          \"used\":true\n        }\n      ],\n      \"peer\":{\n        \"peerId\":\"10.0.12.2\",\n        \"routerId\":\"2.2.2.2\",\n        \"hostname\":\"r2\",\n        \"domainname\":\"localdomain\",\n        \"type\":\"external\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}
