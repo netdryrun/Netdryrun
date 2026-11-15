@@ -1,0 +1,18 @@
+id: FP-042-EOSASDOT
+bug: >-
+  The Arista EOS driver passes an AS path printed in asdot notation through as text (eos._as_path keeps any token):
+  with `bgp asn notation asdot`, cEOS prints `"asPath": "64086.59905 65020"` for the path 4200000001 65020, and a
+  `bgp_route` guard `as_path_regex: '^(?!.*\b42[0-9]{8}\b)'` ("no private 4-byte ASN in the best path", written in
+  asplain, the only form netdryrun.yml accepts) passes because the regex never sees 4200000001. The NX-OS parser
+  refuses a dotted token as unexpected output and config.normalize_as_path refuses dotted ASNs (red team 042-IA
+  RT-0002, verifier 042-IV on 3d71d5a: real if cEOS `| json` prints asdot, which is not yet captured live). The EOS
+  driver must refuse a dotted AS path token as unexpected output or convert it to asplain; the guard must never pass
+  on such a path. The output is derived in the test from tests/fixtures/eos_bgp_paths.txt (cEOS 4.36.3M, live), not
+  captured. Guards (plain AS paths and AS sets parse unchanged; the regex still passes on the live capture and fails
+  on an asplain 4200000001) are in tests/test_oracle_guards_fp_042_eosasdot.py, since the oracle folder holds red
+  tests only
+evidence:
+  - tests/fixtures/eos_bgp_paths.txt
+  - tests/fixtures/eos_bgp_paths_as_set.txt
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_eosasdot.py

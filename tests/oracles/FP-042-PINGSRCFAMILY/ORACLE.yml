@@ -1,0 +1,22 @@
+id: FP-042-PINGSRCFAMILY
+bug: >-
+  A `ping` check whose `source` is of the other address family than its `target` (IPv4 source with an IPv6 target, or
+  the reverse) is accepted by validate and passes: nothing compares the two families (config._ping_target refuses
+  only source == target, checks._ping only checks that the source is one of the node's addresses), and the ping tools
+  drop a `-I` source of the other family without an error (busybox 1.30.1 on the FRR image: banner without "from
+  <source>"; iputils 20211215: the kernel picks the source), so the ping is sent from another address and the return
+  path to the requested source is never tested (red team 042-IB RT-0081 and RT-0112-a, verifier 042-IV on 3d71d5a,
+  tool behaviour checked locally with probe_ping.sh/probe_ping2.sh in WSL). Such a check must be refused (a config
+  error) or never pass, on FRR (busybox output), SONiC and SR Linux (iputils output). Device output is derived in the
+  test from the captures below, not captured for this case. Guards (a same-family source and a check without source
+  still load and pass) are in tests/test_oracle_guards_fp_042_pingsrcfamily.py, since the oracle folder holds red
+  tests only
+evidence:
+  - tests/fixtures/frr_ping.txt
+  - tests/fixtures/srl_ping.txt
+  - tests/fixtures/frr_local_ip_addr.json
+  - tests/fixtures/sonic_local_ip_addr.json
+  - tests/fixtures/srl_local_ipv4.json
+  - tests/fixtures/srl_local_ipv6.json
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_pingsrcfamily.py
