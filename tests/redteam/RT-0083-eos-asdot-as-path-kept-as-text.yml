@@ -1,0 +1,18 @@
+id: RT-0083
+title: >-
+  EOS: an AS path printed in asdot notation ("64086.59905 65020", which is 4200000001 65020, under `bgp asn notation
+  asdot`) was kept as text, so a bgp_route "no private 4-byte ASN" guard `as_path_regex: '^(?!.*\b42[0-9]{8}\b)'`,
+  written in asplain (the only form netdryrun.yml takes), never saw 4200000001 and passed
+found: "2026-11-15, red team 042-IA (RT-0002), verifier 042-IV on 3d71d5a (real if cEOS | json prints asdot: not yet captured live)"
+fixed_in: 0.4.2
+kind: driver
+driver: eos
+# The output is DERIVED, not captured: tests/fixtures/eos_bgp_paths.txt (cEOS 4.36.3M, live) with the best path's
+# asPath "65020" replaced by "64086.59905 65020" and the second path left out. The fix: eos._as_path reads every ASN as
+# asplain digits and refuses any other token (a dotted one included) as unexpected output, as nxos._as_path does
+# (oracle FP-042-EOSASDOT). Affected: EOS 0.3.0 to 0.4.1 (bgp_route and as_path_regex since
+# 0.3.0; `git show v0.3.0:src/netdryrun/drivers/eos.py` keeps asPath as text).
+check: {type: bgp_route, node: r1, prefix: 192.168.20.0/24, as_path_regex: '^(?!.*\b42[0-9]{8}\b)'}
+outputs:
+  - needle: "show ip bgp 192.168.20.0/24"
+    output: "{\"vrfs\":{\"default\":{\"vrf\":\"default\",\"routerId\":\"30.30.30.30\",\"asn\":\"65030\",\"bgpRouteEntries\":{\"192.168.20.0/24\":{\"address\":\"192.168.20.0\",\"maskLength\":24,\"bgpRoutePaths\":[{\"nextHop\":\"10.3.1.2\",\"reasonNotBestpath\":\"noReason\",\"localPreference\":200,\"weight\":0,\"tag\":0,\"med\":50,\"routeType\":{\"stale\":false,\"valid\":true,\"suppressed\":false,\"active\":true,\"backup\":false,\"ecmpHead\":false,\"ecmp\":false,\"ecmpContributor\":false,\"atomicAggregator\":false,\"queued\":false,\"luRoute\":false,\"sixPeRoute\":false,\"ucmp\":false,\"implicitEcmpFast\":false,\"origin\":\"Igp\"},\"peerEntry\":{\"peerAddr\":\"10.3.1.2\",\"peerRouterId\":\"20.20.20.20\"},\"asPathEntry\":{\"asPathType\":\"External\",\"asPath\":\"64086.59905 65020\"},\"routeDetail\":{\"nextHopVrfName\":\"\",\"communityList\":[\"65020:100\",\"65020:200\"],\"extCommunityList\":[],\"extCommunityListRaw\":[],\"largeCommunityList\":[\"65020:1:1\",\"65020:2:2\"],\"rxSafi\":\"Unicast\",\"origin\":\"Igp\",\"recvdFromRRClient\":false,\"recmpEligible\":false,\"tunnelRibEligible\":false,\"igpMetric\":0},\"timestamp\":1793073321}],\"totalPaths\":1}}}}}"

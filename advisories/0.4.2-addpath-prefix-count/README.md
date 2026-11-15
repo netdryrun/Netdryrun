@@ -267,3 +267,34 @@ up, a map that can't be read stops the run with exit code 2, and an unnumbered s
 keyed by its port name, counts too. **Workaround before you upgrade:** take the link down on the far end's side, or
 give the scenario a `--settle` above the BGP hold time. Case `tests/redteam/RT-0079-link-down-on-a-sonic-port-watched-one-end.yml`,
 oracle `tests/oracles/FP-042-LINKDOWNBRIDGE`.
+
+## Also fixed in 0.4.2: a `ping` with a `source` of the other address family passed
+
+**Affected:** FRR and Nokia SR Linux since 0.1.0 and SONiC since 0.2.0, netdryrun 0.4.1 and earlier. A ping check
+whose `source` is of the other address family than its `target` (`source: 192.0.2.1` with `target: "2001:db8:3::1"`,
+or an IPv6 source with an IPv4 target) loaded, and the drivers passed the source as `ping -I`. busybox ping (the FRR
+image) drops a source of the other family without an error and prints no "from"; iputils (SONiC, SR Linux) ignores it
+and prints the source the kernel picked (verifier 042-IV, checked locally on busybox 1.30.1 and iputils 20211215).
+So the ping left from the egress interface's address of the target's family, got its replies, and the check passed,
+though the way back to the requested source, which is what a LAN-to-LAN ping from a source proves, was never tested.
+From 0.4.2 such a check is refused when the file loads (exit 2), on every driver and through `validate`, `run` and the
+MCP tools. **Workaround before you upgrade:** make each ping's `source` the same address family as its `target`.
+Cases `tests/redteam/RT-0081-ping-ipv4-source-ipv6-target.yml` and `tests/redteam/RT-0082-ping-ipv6-source-ipv4-target.yml`,
+oracle `tests/oracles/FP-042-PINGSRCFAMILY`, on output derived from live captures.
+
+Not fixed: a ping **without** `source` on a node with no lab address of the target's family (an unnumbered node with
+no loopback) can leave from the management address and get its reply over the management network (not confirmed
+live). Give such checks a `source` that is a lab address of the node, and add a loopback /32 if it has none.
+
+## Also fixed in 0.4.2: Arista EOS kept an asdot AS path as text
+
+**Affected:** Arista EOS, netdryrun 0.3.0 to 0.4.1 (`bgp_route` with `as_path_regex`). Under `bgp asn notation asdot`,
+EOS prints an ASN above 65535 in asdot (`64086.59905` for 4200000001), and the driver kept the AS path as printed. A
+guard written in asplain, the only form `netdryrun.yml` takes, never saw the ASN, so a "must not contain" regex such
+as `as_path_regex: '^(?!.*\b42[0-9]{8}\b)'` (no private 4-byte ASN in the best path) passed on a path through AS
+4200000001. Positive checks (an exact `as_path`, a regex that requires an ASN) failed safely. Whether cEOS `| json`
+follows the asdot setting is not yet confirmed live. From 0.4.2 every AS path token must be a number, as on NX-OS: a
+dotted one is unexpected output and the check is an error, in `bgp_route` and `record --attributes`. **Workaround
+before you upgrade:** keep `bgp asn notation` at its asplain default in the lab, or write such guards as positive
+checks. Case `tests/redteam/RT-0083-eos-asdot-as-path-kept-as-text.yml`, oracle `tests/oracles/FP-042-EOSASDOT`, on
+output derived from the live cEOS 4.36.3M capture.

@@ -188,8 +188,9 @@ def _only(where: str, value: Any, afi: str) -> list[str]:
 
 def _ping_target(where: str, params: dict) -> None:
     """A ping target must be another host the ping leaves the node for (red team B-9006): never unspecified, loopback,
-    multicast or limited broadcast, and never the source address itself. A target that is one of the pinging node's own
-    addresses is refused at run time (Driver.local_addresses)."""
+    multicast or limited broadcast, and never the source address itself. A source is of the target's address family
+    (FP-042-PINGSRCFAMILY). A target that is one of the pinging node's own addresses is refused at run time
+    (Driver.local_addresses)."""
     ip = ipaddress.ip_address(params["target"].split("%")[0])
     if getattr(ip, "ipv4_mapped", None) is not None:
         # ::ffff:a.b.c.d is an IPv4 target in IPv6 form: the node's own IPv4 addresses would never be compared with it
@@ -201,8 +202,18 @@ def _ping_target(where: str, params: dict) -> None:
     if why:
         raise ConfigError(f"{where}: target {params['target']} is {why}: a ping to it never leaves the node, so it "
                           "says nothing about the network")
-    if params.get("source") and ipaddress.ip_address(params["source"].split("%")[0]) == ip:
+    if not params.get("source"):
+        return
+    src = ipaddress.ip_address(params["source"].split("%")[0])
+    if src == ip:
         raise ConfigError(f"{where}: target {params['target']} is the source address: the node pings itself")
+    if src.version != ip.version:
+        # the ping tools drop (busybox) or ignore (iputils) a -I source of the other family without an error: the ping
+        # leaves from another address and the return path to the source is never tested (FP-042-PINGSRCFAMILY)
+        raise ConfigError(f"{where}: source {params['source']} is an IPv{src.version} address and target "
+                          f"{params['target']} an IPv{ip.version} address: a ping can't leave from a source of the "
+                          f"other family (the ping tool would send it from another address, so the path back to "
+                          f"{params['source']} would never be tested); give a source of the target's family")
 
 
 def _describe(ctype: str, p: dict[str, Any]) -> str:

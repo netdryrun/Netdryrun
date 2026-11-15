@@ -217,6 +217,23 @@
     its labels, and a holder Docker can't read.
 
   Oracle `tests/oracles/FP-042-SRLNETNS`, from a containerlab 0.83.0 capture.
+- **A `ping` with a `source` of the other address family passed** (red team 042-IB, RT-0081 and RT-0082, verifier
+  042-IV; FRR and SR Linux 0.1.0 to 0.4.1, SONiC 0.2.0 to 0.4.1). `{type: ping, node: r1, source: 192.0.2.1, target:
+  "2001:db8:3::1"}` (or an IPv6 source with an IPv4 target) loaded, and the ping tools drop (busybox, on FRR) or
+  ignore (iputils, on SONiC and SR Linux) a `-I` source of the other family without an error: the ping left from the
+  egress interface's address of the target's family, got its replies, and passed, so the way back to the source's
+  prefix was never tested. A `source` of the other family than `target` is refused when the file loads now (exit 2),
+  on every driver, in `netdryrun validate`, `run` and the MCP tools. `record` writes no ping check. Oracle
+  `tests/oracles/FP-042-PINGSRCFAMILY`, on output derived from the live captures and the tools' behaviour checked
+  locally; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **Arista EOS: an AS path printed in asdot was kept as text** (red team 042-IA, RT-0083, verifier 042-IV; 0.3.0 to
+  0.4.1). Under `bgp asn notation asdot` EOS prints an ASN above 65535 as `64086.59905` (4200000001), and the driver
+  kept the AS path as it was printed, so a `bgp_route` guard written in asplain, the only form `netdryrun.yml` takes,
+  never saw the ASN: `as_path_regex: '^(?!.*42[0-9]{8})'` ("no private 4-byte ASN in the best path") passed on a
+  path through AS 4200000001. Every AS path token must be a number now, as on NX-OS: a dotted one, or anything else,
+  is unexpected output and the check is an error, in `bgp_route` and `record --attributes`. Whether cEOS `| json`
+  follows the asdot setting is not confirmed live; the fix holds either way. Oracle `tests/oracles/FP-042-EOSASDOT`,
+  on output derived from the live cEOS 4.36.3M capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **`record --attributes` on SR Linux left out an AS path it couldn't read, without a warning** (case 4 of the 0.4.1
   advisory, GHSA-ggcf-664f-c9ff; a regression in 0.4.1). SR Linux prints no as-path container for an empty AS path
   (an iBGP peer's own route), and nothing in its answer tells that from a missing one. So the recorded check passed
@@ -285,6 +302,11 @@
   interface, an unnumbered session named after a bridge (`br0`) or a SONiC `VlanN` the downed port reached (the
   far end's devices are read only when the near end has stacked devices). Give
   such scenarios a `--settle` that covers the hold time, or take the link down on the far end. Planned for 0.4.3.
+- **A `ping` without `source` on a node with no lab address of the target's family** (red team 042-IB, verifier
+  042-IV case B2; FRR, SONiC and SR Linux): on an unnumbered node with no loopback, the kernel
+  can pick the management address as the source, and the reply can come back over the management network, so the
+  ping proves only the forward path. Not confirmed live (it depends on the target's `rp_filter`). Workaround: give
+  the check a `source` that is a lab address of the node, and add a loopback /32 to a node that has none.
 - **The corpus v2 case 18 race** is not removed; case 18 stays unscored. Planned for 0.4.3.
 - **A prefix-limit reset is still not proof that injected routes reached a peer**; the narrow attributable proof is
   planned for 0.4.3.

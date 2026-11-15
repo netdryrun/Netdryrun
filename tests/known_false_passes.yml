@@ -507,3 +507,27 @@
     - tests/test_oracle_guards_fp_042_frrlu.py
     - tests/test_labeled_unicast_042.py
     - tests/test_redteam.py
+- id: rt-0081-ping-source-of-the-other-family
+  what: >-
+    a ping check whose source is of the other address family than its target (IPv4 source and IPv6 target, or the
+    reverse) loaded and passed on FRR, SONiC and SR Linux, since busybox drops and iputils ignores a `-I` source of the
+    other family without an error and the ping left from another address (FRR and SR Linux 0.1.0 to 0.4.1, SONiC 0.2.0 to
+    0.4.1; red team 042-IB, verifier 042-IV); config loading refuses such a source now, on every driver
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-PINGSRCFAMILY/test_oracle_fp_042_pingsrcfamily.py
+    - tests/test_oracle_guards_fp_042_pingsrcfamily.py
+    - tests/test_ping_family_eos_asdot_042.py
+    - tests/test_redteam.py
+- id: rt-0083-eos-asdot-as-path-kept-as-text
+  what: >-
+    the Arista EOS driver kept an AS path printed in asdot (`64086.59905 65020`, under `bgp asn notation asdot`) as
+    text, so a bgp_route "no private 4-byte ASN" as_path_regex written in asplain passed on a path through 4200000001
+    (0.3.0 to 0.4.1; red team 042-IA, verifier 042-IV, asdot JSON not yet confirmed live); every AS path token must be
+    a number now and anything else is unexpected output, as on NX-OS
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-EOSASDOT/test_oracle_fp_042_eosasdot.py
+    - tests/test_oracle_guards_fp_042_eosasdot.py
+    - tests/test_ping_family_eos_asdot_042.py
+    - tests/test_redteam.py

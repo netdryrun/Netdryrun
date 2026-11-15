@@ -16,7 +16,7 @@ import ipaddress
 
 from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, RoutingDisabled,
                    add_path_range_why, as_int, canon_communities, check_vrf_name, load_json, must, must_bool, network,
-                   parser, unexpected)
+                   parser, render_as_path, unexpected)
 from .frr import _canon_addr, parse_ping
 from .stale import refuse_if_stale
 
@@ -233,14 +233,28 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
     return out
 
 
-_SEGMENT = re.compile(r"([{\[])([^}\]]*)([}\]])")
+_AS_TOKEN = re.compile(r"\{([^}]*)\}|\[([^\]]*)\]|\(([^)]*)\)|(\S+)")
+_ASN = re.compile(r"[0-9]+")
+MAX_ASN = 4294967295   # 4-byte ASNs: a larger number is no ASN
 
 
-def _as_path(printed: str) -> str:
+def _as_path(printed: object) -> str:
     """EOS's AS path in the netdryrun.yml form: sets {a,b} and confederation sets [a,b] comma-separated (EOS
-    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated."""
-    text = _SEGMENT.sub(lambda m: m.group(1) + ",".join(re.split(r"[\s,]+", m.group(2).strip())) + m.group(3), printed)
-    return " ".join(text.split())
+    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated.
+    Every ASN must be asplain: a dotted (asdot) token such as 64086.59905, which EOS prints under `bgp asn notation
+    asdot`, or any other token is unexpected output, as on NX-OS. Kept as text, a "must not contain" as_path_regex
+    written in asplain (the only form netdryrun.yml takes) would never see the ASN and pass (FP-042-EOSASDOT)."""
+    if not isinstance(printed, str):
+        raise unexpected(BGP_CMD, f"asPath: {str(printed)[:80]!r}")
+    segs: list[tuple[str, list]] = []
+    for m in _AS_TOKEN.finditer(printed):
+        aset, cset, cseq, asn = m.groups()
+        members = next(g for g in (aset, cset, cseq, asn) if g is not None).replace(",", " ").split()
+        if not members or not all(_ASN.fullmatch(x) and int(x) <= MAX_ASN for x in members):
+            raise unexpected(BGP_CMD, f"asPath: {printed[:80]!r}")
+        segs.append(("as-set" if aset is not None else "confed-set" if cset is not None
+                     else "confed-sequence" if cseq is not None else "as-sequence", members))
+    return render_as_path(segs)
 
 
 def _med(value: int) -> int | None:
@@ -263,7 +277,7 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
             nh = p.get("nextHop") or ""
             out.append(BgpPath(
                 best=must_bool(BGP_CMD, must(BGP_CMD, p, "routeType"), "active"),
-                as_path=_as_path(str(must(BGP_CMD, must(BGP_CMD, p, "asPathEntry"), "asPath"))),
+                as_path=_as_path(must(BGP_CMD, must(BGP_CMD, p, "asPathEntry"), "asPath")),
                 next_hop=_canon_addr(str(nh)) if nh else None,
                 local_pref=as_int(BGP_CMD, p["localPreference"]) if "localPreference" in p else None,
                 # no MED attribute: unknown, not 0. cEOS 4.36.3M also prints "med": 0 for a path received with
