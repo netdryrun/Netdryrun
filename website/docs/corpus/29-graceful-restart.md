@@ -49,4 +49,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 29
 ```
 
-Case file: [`corpus/cases/29-graceful-restart.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/29-graceful-restart.yml). Published result: netdryrun 0.4.2, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `61ae778`, run on 2026-11-15.
+Case file: [`corpus/cases/29-graceful-restart.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/29-graceful-restart.yml). Published result: netdryrun 0.4.2, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `83478f2`, run on 2026-11-15.
