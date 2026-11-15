@@ -123,10 +123,11 @@ beside it (nothing says whether that counter includes the labeled-unicast routes
 (`ipv4Vpn`, `ipv4Multicast`, link-state) does the same when the session doesn't list the unicast family, unless its
 name says it is only of the other IP version. `record` writes neither the `exact: 0` nor a check on the unnamed family:
 INCOMPLETE BASELINE lines name both, and `record` exits 1. The SR Linux driver keeps such a family under its own name
-(`ipv4-labeled-unicast`), so the rule covers it too (not seen live on SR Linux). Unchanged: a session that carries no
+(`ipv4-labeled-unicast`), so the rule covers it where SR Linux prints its counters (not seen live on SR Linux); one
+printed without `received-routes` is still dropped, and SR Linux 0.4.1 with counters passed `exact: 0` the same way. Unchanged: a session that carries no
 family of that version (IPv6 only, EVPN only) still passes `exact: 0` with "doesn't carry". **Workaround before you
-upgrade:** on a session that carries labeled-unicast, use `max: 0` (it fails there in 0.4.1) or `route ... present:
-false` checks instead of `exact: 0`, and remove the `exact: 0` lines `record` wrote for such sessions. Case
+upgrade:** on a session that carries labeled-unicast, use `max: 0` (it fails there in 0.4.1, but passes in 0.4.0 and
+earlier, so use only `route ... present: false` checks there) or `route ... present: false` checks instead of `exact: 0`, and remove the `exact: 0` lines `record` wrote for such sessions. Case
 `tests/redteam/RT-0080-frr-labeled-unicast-read-as-no-unicast.yml`, oracle `tests/oracles/FP-042-FRRLU`, from a live FRR
 10.4.1 capture.
 

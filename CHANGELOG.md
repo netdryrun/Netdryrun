@@ -79,8 +79,9 @@
   `exact: 0` for eBGP sessions, plus a check with `afi: ipv4LabeledUnicast` that `run` refuses. A labeled-unicast
   family of the check's IP version, or any family a check can't name that isn't of the other version only, now makes
   the unicast count unread: every bound fails with "can't be read", and `record` names the family and the unicast count
-  it can't record as INCOMPLETE BASELINE lines (exit 1). The same rule covers SR Linux, whose driver keeps such a
-  family (`ipv4-labeled-unicast`) under its own name. A session that carries no family of that version (IPv6 only,
+  it can't record as INCOMPLETE BASELINE lines (exit 1). On SR Linux the rule covers such a family
+  (`ipv4-labeled-unicast`) only where SR Linux prints its counters; one it prints without `received-routes` is still
+  dropped (see Not fixed). A session that carries no family of that version (IPv6 only,
   EVPN only) still passes `exact: 0`. Oracle `tests/oracles/FP-042-FRRLU`, from the live capture;
   [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
 - **A duplicate key inside a YAML merge source was accepted** (red team RT-0073, angle-5 red team on the 0.4.2
@@ -266,6 +267,11 @@
   that kept its forwarding state (F-bit set) hasn't sent End-of-RIB, as FRR and SONiC did before 0.4.2 (RT-0072). Not
   confirmed live on any of them. Workaround: add a `max` to the check (the convergence gate then waits for End-of-RIB), or
   pair the `min` with `route` checks.
+- **SR Linux: a labeled-unicast family printed without counters is dropped**, so a session that carries only
+  labeled-unicast can still pass `bgp_prefixes exact: 0` on ipv4-unicast with "doesn't carry" (red team 042-H
+  adversary review, synthetic input; not seen live). Also not checked live: VPN routes imported into the default VRF
+  beside a listed unicast family, EVPN type-5 routes in the default VRF on an EVPN-only session, and Arista EOS sessions
+  that carry only labeled-unicast. Workaround: `route ... present: false` checks on such sessions. Planned for 0.4.3.
 - **Arista EOS: `route ... protocol: bgp present: false` passes on a BGP aggregate** (red team 042-GV, A-RT-0077).
   The driver reads an `aggregate-address` route as protocol `aggregate`, not `bgp`, so the guard passes on the node's
   own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix
