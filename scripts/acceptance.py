@@ -357,7 +357,9 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 lone.write_text(yaml.safe_dump({"lab": "topology.clab.yml", "timeout": 20, **node_cfg, "checks": [c]},
                                                sort_keys=False))
                 pe = ctx.run(lone, cmd="check")
-                if pe.code != 2 or "Traceback" in pe.out or "routing-instance" not in pe.out:
+                # the refusal it must name: the matrix's run_error_match for this trap, else Junos's routing-instance
+                want = spec.get("run_error_match", {}).get(c["name"], "routing-instance")
+                if pe.code != 2 or "Traceback" in pe.out or not re.search(want, pe.out):
                     r.status = FAIL
                     notes.append(f"{c['name']}: exit {pe.code}, expected 2 (a run error on {drv})")
                     r.evidence = pe.out[-4000:]

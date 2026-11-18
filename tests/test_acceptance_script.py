@@ -61,6 +61,30 @@ def test_traps_are_filled_in():
     assert not any("{" in str(v) for t in traps for v in t.values())
 
 
+@pytest.mark.parametrize("drv", sorted(MATRIX["drivers"]))
+def test_a_trap_the_driver_refuses_is_listed_as_a_run_error(drv):
+    """A route trap naming a protocol the driver never reports is refused before deploy (RT-0024), exit 2: the matrix
+    must list it in run_error_traps, with a run_error_match the product's message meets. Found live on routeros in
+    the 0.4.2 acceptance on 11dabd2, the first run that got past record to the traps."""
+    import re
+    from netdryrun.drivers import DriverError, check_supported
+    mf = MATRIX["drivers"][drv]["mustfail"]
+    lab = SimpleNamespace(nodes={"r1": {}})
+    for t in acc.traps_for(SimpleNamespace(matrix=MATRIX), "r1", "10.0.0.2", "192.168.20.0/24"):
+        if t["type"] != "route" or "protocol" not in t:
+            continue
+        check = SimpleNamespace(name=t["name"], type="route", node="r1", params={k: v for k, v in t.items()
+                                                                              if k not in ("name", "type", "node")})
+        try:
+            check_supported(lab, check, override=drv)
+        except DriverError as e:
+            assert t["name"] in mf.get("run_error_traps", []), f"{drv} refuses {t['name']} but the matrix expects exit 1"
+            want = mf.get("run_error_match", {}).get(t["name"], "routing-instance")
+            assert re.search(want, str(e)), (want, str(e))
+        else:
+            assert t["name"] not in mf.get("run_error_traps", []) or t.get("vrf"), (drv, t["name"])
+
+
 def test_big30_and_brownfield_generators(tmp_path):
     acc.make_big30(tmp_path / "b30", MATRIX["integrator"]["big30"], ROOT)
     topo = yaml.safe_load((tmp_path / "b30" / "good" / "topology.clab.yml").read_text())["topology"]
