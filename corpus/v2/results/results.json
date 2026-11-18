@@ -1,14 +1,14 @@
 {
   "schema": "netdryrun.corpus/v1",
   "environment": {
-    "generated": "2026-11-15T15:46:31+00:00",
+    "generated": "2026-11-18T03:02:24+00:00",
     "netdryrun": "0.4.2",
     "containerlab": "0.81.1",
     "frr_image": "quay.io/frrouting/frr:10.4.1",
     "frr_image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
     "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-    "commit": "83478f2",
-    "verdict_tree": "0ddf556ca1841133c59425083b9caba48c22cb7e8217dc7271b143b9c972a8cd",
+    "commit": "ce79e10",
+    "verdict_tree": "690f560574f1485fc6e2a53fc428224feb1c6f124246cab1bfb3e15d90970f8a",
     "corpus": "v2",
     "rerun_args": " --corpus v2"
   },
@@ -48,7 +48,7 @@
           "error": null
         }
       },
-      "seconds": 335
+      "seconds": 340
     },
     {
       "id": "02-redistribute-connected-pe2",
@@ -93,7 +93,7 @@
           "error": null
         }
       },
-      "seconds": 334
+      "seconds": 340
     },
     {
       "id": "03-test-prefix-left-in-config",
@@ -136,7 +136,7 @@
           "error": null
         }
       },
-      "seconds": 335
+      "seconds": 341
     },
     {
       "id": "04-redundant-aggregate-typo",
@@ -178,7 +178,7 @@
           "error": null
         }
       },
-      "seconds": 338
+      "seconds": 344
     },
     {
       "id": "05-customer-max-prefix-removed",
@@ -221,7 +221,7 @@
           "error": null
         }
       },
-      "seconds": 174
+      "seconds": 182
     },
     {
       "id": "06-peer-import-filter-permit-all",
@@ -271,7 +271,7 @@
           "error": null
         }
       },
-      "seconds": 313
+      "seconds": 318
     },
     {
       "id": "07-customer-adds-prefixes",
@@ -313,7 +313,7 @@
           "error": null
         }
       },
-      "seconds": 339
+      "seconds": 338
     },
     {
       "id": "08-customer-announces-aggregate",
@@ -355,7 +355,7 @@
           "error": null
         }
       },
-      "seconds": 343
+      "seconds": 341
     },
     {
       "id": "09-ibgp-send-community-line-removed",
@@ -398,7 +398,7 @@
           "error": null
         }
       },
-      "seconds": 339
+      "seconds": 338
     },
     {
       "id": "10-ibgp-standard-communities-disabled",
@@ -446,7 +446,7 @@
           "error": null
         }
       },
-      "seconds": 531
+      "seconds": 534
     },
     {
       "id": "11-customer-max-prefix-warning-only",
@@ -489,7 +489,7 @@
           "error": null
         }
       },
-      "seconds": 176
+      "seconds": 181
     },
     {
       "id": "12-customer-max-prefix-raised",
@@ -532,7 +532,7 @@
           "error": null
         }
       },
-      "seconds": 336
+      "seconds": 339
     },
     {
       "id": "13-upstream-routes-tagged-as-customer",
@@ -577,7 +577,7 @@
           "error": null
         }
       },
-      "seconds": 335
+      "seconds": 339
     },
     {
       "id": "14-customer-gets-default-only",
@@ -626,7 +626,7 @@
           "error": null
         }
       },
-      "seconds": 416
+      "seconds": 417
     },
     {
       "id": "15-upstream-default-filtered",
@@ -669,7 +669,7 @@
           "error": null
         }
       },
-      "seconds": 416
+      "seconds": 418
     },
     {
       "id": "16-customer-session-peer-group",
@@ -717,7 +717,7 @@
           "error": null
         }
       },
-      "seconds": 333
+      "seconds": 341
     },
     {
       "id": "17-customer-region-community",
@@ -760,7 +760,7 @@
           "error": null
         }
       },
-      "seconds": 333
+      "seconds": 339
     },
     {
       "id": "18-aggregate-discard-route-removed",
@@ -807,7 +807,7 @@
           "error": null
         }
       },
-      "seconds": 444,
+      "seconds": 451,
       "nondeterministic": true,
       "runs": [
         {
@@ -828,12 +828,12 @@
         {
           "ping": "safe",
           "sessions": "safe",
-          "netdryrun": "error"
+          "netdryrun": "unsafe"
         },
         {
           "ping": "safe",
           "sessions": "safe",
-          "netdryrun": "error"
+          "netdryrun": "unsafe"
         }
       ],
       "run_details": [
@@ -1121,8 +1121,12 @@
             "error": null
           },
           "netdryrun": {
-            "status": "inconclusive",
+            "status": "failed",
             "failed_checks": [
+              "I2 upstream has our aggregate",
+              "I2 peer has our aggregate",
+              "I5 upstream receives 2 to 51 prefixes from us",
+              "I5 peer receives 2 to 51 prefixes from us",
               "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
               "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
             ],
@@ -1132,9 +1136,7 @@
               "I1 pe1-pe2 iBGP up",
               "I1 pe2-peer1 session up",
               "I2 upstream has customer route",
-              "I2 upstream has our aggregate",
               "I2 peer has customer route",
-              "I2 peer has our aggregate",
               "I3 customer has upstream route",
               "I3 customer has peer route",
               "I3 customer has default",
@@ -1143,8 +1145,6 @@
               "I4 no peer route leaked to upstream",
               "I4 no upstream route leaked to peer",
               "I4 no default leaked to peer",
-              "I5 upstream receives 2 to 51 prefixes from us",
-              "I5 peer receives 2 to 51 prefixes from us",
               "I6 customer has no BGP route for link 10.0.1.0/30",
               "I6 customer has no BGP route for link 10.0.2.0/30",
               "I6 customer has no BGP route for link 10.0.3.0/30",
@@ -1176,8 +1176,8 @@
               "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
               "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
             ],
-            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
-            "never_left": true,
+            "inconclusive_reason": null,
+            "never_left": false,
             "error": null
           }
         },
@@ -1207,8 +1207,12 @@
             "error": null
           },
           "netdryrun": {
-            "status": "inconclusive",
+            "status": "failed",
             "failed_checks": [
+              "I2 upstream has our aggregate",
+              "I2 peer has our aggregate",
+              "I5 upstream receives 2 to 51 prefixes from us",
+              "I5 peer receives 2 to 51 prefixes from us",
               "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
               "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
             ],
@@ -1218,9 +1222,7 @@
               "I1 pe1-pe2 iBGP up",
               "I1 pe2-peer1 session up",
               "I2 upstream has customer route",
-              "I2 upstream has our aggregate",
               "I2 peer has customer route",
-              "I2 peer has our aggregate",
               "I3 customer has upstream route",
               "I3 customer has peer route",
               "I3 customer has default",
@@ -1229,8 +1231,6 @@
               "I4 no peer route leaked to upstream",
               "I4 no upstream route leaked to peer",
               "I4 no default leaked to peer",
-              "I5 upstream receives 2 to 51 prefixes from us",
-              "I5 peer receives 2 to 51 prefixes from us",
               "I6 customer has no BGP route for link 10.0.1.0/30",
               "I6 customer has no BGP route for link 10.0.2.0/30",
               "I6 customer has no BGP route for link 10.0.3.0/30",
@@ -1262,8 +1262,8 @@
               "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
               "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
             ],
-            "inconclusive_reason": "inconclusive: the injected routes on ce1 did not all reach its BGP peers: 10.0.1.1 was not sent 10.100.16.0/24, 10.100.17.0/24, 10.100.18.0/24, 10.100.19.0/24, 10.100.20.0/24 and 195 more (not in the routes it advertised to them while the routes were in, or the session wasn't up from when they went in until then without a reset: an outbound filter, or a session that went down, reset or came up while the checks ran), so this scenario tested nothing",
-            "never_left": true,
+            "inconclusive_reason": null,
+            "never_left": false,
             "error": null
           }
         }
