@@ -188,6 +188,9 @@ integrator:
       - {match: 'leaf[1-3]: no global address on \S+ where Netdryrun reads it', why: 'SR Linux keeps a numbered link address on e1-Y.0 inside the NOS; the FRR end of the link has the subnet and it is guarded'}
       - {match: 'leaf6: no global address on \S+ where Netdryrun reads it', why: 'SONiC keeps the link address on EthernetN; the FRR end of the link has the subnet and it is guarded'}
       - {match: 'leaf[45]: could not read IPv6 routes \(VRF ''default'' has routing disabled', why: 'the lab does not enable IPv6 routing on cEOS: nothing routes IPv6 there'}
+      # each SR Linux leaf's own link /31 comes back from a spine with its own AS in the path; SR Linux keeps it as
+      # invalid for as-loop, which the driver can't classify yet, so record leaves that guard out (fail-closed, M-10)
+      - {match: 'leaf[1-3]: the guard against 10\.1\.[1-3]\.0/31 via BGP could not be evaluated on the lab \(error: \S+: the path from \S+ is invalid for as-loop, a reason the srlinux driver doesn''t read yet\)', why: 'M-10 (since 0.4.1): a path SR Linux rejects for as-loop is kept invalid for a reason the driver cannot classify yet; record refuses that guard and says so'}
   brownfield: {customer_prefixes: 1200, bogons: 600}
   concurrency: [different-labs, same-lab]
   schema: true
