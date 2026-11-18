@@ -7720,6 +7720,41 @@
    "class": "message-text",
    "argument": "The same LabError is raised at the same point, before any link goes down (exit 2); only its text differs, so no check result exists that could pass.",
    "reviewed": "isolated adversarial reviewer, 2026-11-16, mutation on 83478f2: confirmed"
+  },
+  "netdryrun.mgmt.x__eos_only_kernel_defaults__mutmut_18": {
+   "reason": "fam is read only in `'v6' if fam == 6 else ''` and in classify_eos(text, fam, m), which uses it only in the same == 6 test of its error text (mgmt.py:344): 5 and 4 send the same commands and give the same results and messages.",
+   "diff": "191307469fae7f7a",
+   "class": "equivalent",
+   "argument": "fam is read only in `'v6' if fam == 6 else ''` and in classify_eos(text, fam, m), which uses it only in the same == 6 test of its error text (mgmt.py:344): 5 and 4 send the same commands and give the same results and messages.",
+   "reviewed": "coordinator review (ndr-main), 2026-11-18, of the argument by a fresh Claude test writer: AGREE, read against mgmt.py at 7a82e4d."
+  },
+  "netdryrun.mgmt.x__eos_only_kernel_defaults__mutmut_58": {
+   "reason": "The default only matters for a via without an interface: str(None) ('None') or 'XXXX' matches no Management name (EOS_MGMT, ^Management\\d+), as '' doesn't, so mg is the same. As the accepted classify_eos 38/40/43.",
+   "diff": "0f1481275851cb62",
+   "class": "equivalent",
+   "argument": "The default only matters for a via without an interface: str(None) ('None') or 'XXXX' matches no Management name (EOS_MGMT, ^Management\\d+), as '' doesn't, so mg is the same. As the accepted classify_eos 38/40/43.",
+   "reviewed": "coordinator review (ndr-main), 2026-11-18, of the argument by a fresh Claude test writer: AGREE, read against mgmt.py at 7a82e4d."
+  },
+  "netdryrun.mgmt.x__eos_only_kernel_defaults__mutmut_60": {
+   "reason": "The default only matters for a via without an interface: str(None) ('None') or 'XXXX' matches no Management name (EOS_MGMT, ^Management\\d+), as '' doesn't, so mg is the same. As the accepted classify_eos 38/40/43.",
+   "diff": "1e5f2937a1665a32",
+   "class": "equivalent",
+   "argument": "The default only matters for a via without an interface: str(None) ('None') or 'XXXX' matches no Management name (EOS_MGMT, ^Management\\d+), as '' doesn't, so mg is the same. As the accepted classify_eos 38/40/43.",
+   "reviewed": "coordinator review (ndr-main), 2026-11-18, of the argument by a fresh Claude test writer: AGREE, read against mgmt.py at 7a82e4d."
+  },
+  "netdryrun.mgmt.x__eos_only_kernel_defaults__mutmut_63": {
+   "reason": "The default only matters for a via without an interface: str(None) ('None') or 'XXXX' matches no Management name (EOS_MGMT, ^Management\\d+), as '' doesn't, so mg is the same. As the accepted classify_eos 38/40/43.",
+   "diff": "630c9df60b8ff53e",
+   "class": "equivalent",
+   "argument": "The default only matters for a via without an interface: str(None) ('None') or 'XXXX' matches no Management name (EOS_MGMT, ^Management\\d+), as '' doesn't, so mg is the same. As the accepted classify_eos 38/40/43.",
+   "reviewed": "coordinator review (ndr-main), 2026-11-18, of the argument by a fresh Claude test writer: AGREE, read against mgmt.py at 7a82e4d."
+  },
+  "netdryrun.mgmt.x_prepare_eos__mutmut_98": {
+   "reason": "check_eos reads repair only as `not repair` (mgmt.py:483), and not None == not False; its own recursive call passes repair=False.",
+   "diff": "033669f517f02711",
+   "class": "equivalent",
+   "argument": "check_eos reads repair only as `not repair` (mgmt.py:483), and not None == not False; its own recursive call passes repair=False.",
+   "reviewed": "coordinator review (ndr-main), 2026-11-18, of the argument by a fresh Claude test writer: AGREE, read against mgmt.py at 7a82e4d."
   }
  }
 }

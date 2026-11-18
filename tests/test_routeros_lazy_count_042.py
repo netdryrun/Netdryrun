@@ -44,6 +44,17 @@ def test_a_stale_count_read_before_the_table_is_read_again():
     assert _session_reads(lab) == 2
 
 
+def _paths_read(lab):
+    return [c[1][4] for c in lab.calls]       # python3 -c HELPER GET <path> ...
+
+
+def test_the_second_read_asks_for_the_sessions_again_exactly():
+    lab = LazyLab(_stale(SESSIONS), SESSIONS)
+    RouterosDriver(lab, "r1").bgp_neighbors()
+    assert _paths_read(lab) == ["/routing/bgp/session", "/routing/bgp/connection", "/routing/route?routing-table=main",
+                                "/routing/bgp/session"]
+
+
 def test_a_count_still_off_after_the_second_read_is_an_error():
     lab = LazyLab(_stale(SESSIONS), _stale(SESSIONS))
     with pytest.raises(DriverError, match=r"received 0 prefixes \(prefix-count\) but the table lists 4 of its paths"):
