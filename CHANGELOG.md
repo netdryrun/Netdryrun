@@ -244,6 +244,21 @@
 
   Oracle `tests/oracles/FP-042-RTS01` (red-team finding RT-S01), from a live SR Linux 26.7.2 and FRR 10.4.1 capture.
 
+- **cEOS: a run on a large lab could stop with "a route out over the management network"** (acceptance, the 30-node
+  lab, on the 0.4.2 final candidate; 0.4.1). While cEOS is still starting, its table can list the
+  container's Linux default as a `kernel` route over Management0; once EOS has started it lists none. Netdryrun
+  checked one leaf inside that window and stopped the run (exit 2, no verdict).
+  - Only that route is waited out, up to 60 s, and then judged as before; it stays a run error if it is still there.
+  - Anything else over the management network (another route, a static with no config line, a default via another
+    address) is a run error at once, as before.
+- **RouterOS (beta): `record` and BGP checks refused a healthy session with "received 0 prefixes (prefix-count)"**
+  (acceptance, on the 0.4.2 final candidate; 0.4.1). RouterOS brings a session's `prefix-count` up to date only when
+  its route table is read: on CHR 7.23.8 it stayed 0 over four reads ten minutes after boot and was right just after
+  the table was read. Netdryrun read the sessions before the table, so the first read after a quiet spell refused.
+  - The sessions are read again after the table when a count differs from it; a count that still differs refuses, as
+    before (no verdict).
+  - The compatibility note that a 600 s timeout covers a lagging count is replaced.
+
 ### Changed
 
 - **`record --attributes` on SR Linux: a route its iBGP peer originates now gets a named gap instead of a check.**
@@ -263,6 +278,10 @@
 
 ### Not fixed in 0.4.2
 
+- **SR Linux: a path rejected for AS-loop makes `route ... present: false` and `bgp_route ... present: false` an
+  error, not a pass** (M-10, since 0.4.1), and `record` leaves that guard out as an INCOMPLETE BASELINE gap. On an
+  eBGP fabric this hits each leaf's own link subnet coming back from a spine. It fails closed: guard the prefix on a
+  node whose AS isn't in the path already. Planned for 0.4.3.
 - **Cases 1 and 2 of the 0.4.1 advisory** ([GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff),
   `advisories/0.4.1-known-false-passes/README.md`) are still open: Arista EOS `route ... present: false` with a
   protocol other than `bgp`, and SR Linux EVPN type-5 routes in an ip-vrf (case 3 is fixed above). Each has a

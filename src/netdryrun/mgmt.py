@@ -437,7 +437,42 @@ def prepare_eos(lab: Lab, m: Mgmt, log, sleep) -> None:
     if ours:
         _eos(lab, m.node, "\n".join(["configure", *(f"no {ln}" for ln in ours), "end"]))
         m.removed += ours
+    waited = 0.0
+    while waited < EOS_KERNEL_WAIT and _eos_only_kernel_defaults(lab, m):
+        sleep(2.0)
+        waited += 2.0
     check_eos(lab, m, "after deleting containerlab's default route", repair=False)
+
+
+# While cEOS is still starting, its table can list the container's own Linux default (Docker's, via eth0) as a
+# `kernel` route over Management0; once EOS has started it lists none, though Linux keeps it (30-node lab on
+# 014ab58, 2026-11-18: leaf4 showed it, leaf5 didn't; a settled cEOS showed none). Only that is waited out; it is
+# then judged as before, and anything else over Management is a run error at once.
+EOS_KERNEL_WAIT = 60.0
+
+
+def _eos_only_kernel_defaults(lab: Lab, m: Mgmt) -> bool:
+    """True when the only routes over Management (connected ones aside) are kernel defaults via a management
+    gateway, with no static of ours or another one in the running config."""
+    c_ours, c_other = eos_config_routes(_eos_config(lab, m.node, "running"), m)
+    if c_ours or c_other:
+        return False
+    seen = False
+    for fam in (4, 6):
+        text = _eos(lab, m.node, f"show ip{'v6' if fam == 6 else ''} route vrf all | json")
+        classify_eos(text, fam, m)   # unreadable output is a run error, as in check_eos
+        for v in json.loads(text)["vrfs"].values():
+            for prefix, r in ((v or {}).get("routes") or {}).items():
+                vias = r.get("vias") or []
+                mg = [x for x in vias if isinstance(x, dict) and EOS_MGMT.match(str(x.get("interface", "")))]
+                if not mg or (r.get("routeType") == "connected" and _in_mgmt_subnet(prefix, m)):
+                    continue
+                gws = [str(x.get("nexthopAddr", "")) for x in mg]
+                if not (prefix in ("0.0.0.0/0", "::/0") and r.get("routeType") == "kernel" and len(mg) == len(vias)
+                        and all(g and ipaddress.ip_address(g) in m.gateways for g in gws)):
+                    return False
+                seen = True
+    return seen
 
 
 def check_eos(lab: Lab, m: Mgmt, when: str, repair: bool = True) -> None:
