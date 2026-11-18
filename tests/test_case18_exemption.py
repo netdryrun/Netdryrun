@@ -277,7 +277,15 @@ def test_corpus_check_fails_the_88cf6bb_shape(tmp_path):
     """The refresh committed at 765cdbb: case 18 runs with an "error" and no status. corpus-check would have stopped it."""
     row = _row("caught", "caught", "not_proven", "caught", "caught")
     del row["run_details"]
-    ok, lines = gate.corpus_check("v2", _refreshed(tmp_path, row))
+    out = _refreshed(tmp_path, row)
+    # _refreshed merges the row into the committed case, so drop the committed run_details too: otherwise this test
+    # depends on how the committed refresh's runs fell (it passed on the ce79e10 refresh, whose runs match the row)
+    doc = json.loads(out.read_text())
+    for c in doc["cases"]:
+        if c["id"] == CID:
+            c.pop("run_details", None)
+    out.write_text(json.dumps(doc))
+    ok, lines = gate.corpus_check("v2", out)
     assert not ok and any("FAIL nondeterministic exemption" in x for x in lines)
 
 
