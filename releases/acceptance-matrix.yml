@@ -150,6 +150,8 @@ drivers:
         - {match: 'r1: could not read IPv6 routes \(IPv6 routes are not supported on routeros yet\)', why: 'compatibility.md: on MikroTik RouterOS (beta) IPv6 sessions and routes are refused with a clear message; the lab is IPv4'}
         - {match: 'r1: no global address on \S+ where Netdryrun reads it', why: 'the NOS keeps the link address inside the NOS, not on the container interface record reads; the FRR end of the link has the subnet and it is guarded; reading it through the driver is planned for 0.4.3'}
       record_wait: 600   # 0.4.2: CHR 7.23.8 prefix-count read 0 at 5 min, right at 10 min
+      record_again:
+        - {match: 'r1: could not read BGP state \(BGP session \S+ \([0-9.]+\) received 0 prefixes \(prefix-count\) but the table lists \d+ of its paths\)', why: 'CHR 7.23.8 sometimes keeps prefix-count at 0 even after the table read that usually refreshes it (acceptance on 014ab58 twice and on 0816220; right on 11dabd2 and in the probe): record refuses the read (fail-closed, no false pass) and tells the user to record again. The driver fix (wait for the count to settle) is planned for 0.4.3'}
       # the routeros driver reports only bgp, connected and static routes, so a route check naming ospf is refused
       # before deploy (red team RT-0024: present: false on a name never reported would always pass): exit 2 by design
       run_error_traps: [T-protocol]

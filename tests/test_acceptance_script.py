@@ -85,6 +85,23 @@ def test_a_trap_the_driver_refuses_is_listed_as_a_run_error(drv):
             assert t["name"] not in mf.get("run_error_traps", []) or t.get("vrf"), (drv, t["name"])
 
 
+def test_record_again_is_only_for_the_listed_refusal():
+    """routeros's record_again matches the refusal acceptance saw on 0816220 (CHR prefix-count still 0), and none of
+    the documented gaps, so a gap that isn't that refusal is never answered by recording again."""
+    import re
+    seen = ("INCOMPLETE BASELINE: r1: could not read BGP state (BGP session frr1-1 (10.0.100.2) received 0 prefixes "
+            "(prefix-count) but the table lists 2 of its paths), so no session, prefix count or BGP route of r1 is "
+            "recorded: fix the read and record again, or add checks by hand")
+    for name, d in MATRIX["drivers"].items():
+        again = [re.compile(k["match"]) for k in d["mustfail"].get("record_again", [])]
+        assert all(k.get("why") for k in d["mustfail"].get("record_again", [])), name
+        assert bool(again) == (name == "routeros"), name
+        for a in again:
+            assert a.search(seen)
+            assert not a.search(seen.replace("received 0 prefixes", "received 3 prefixes"))
+            assert not any(a.search(k["match"]) for k in d["mustfail"].get("known_gaps", []))
+
+
 def test_big30_and_brownfield_generators(tmp_path):
     acc.make_big30(tmp_path / "b30", MATRIX["integrator"]["big30"], ROOT)
     topo = yaml.safe_load((tmp_path / "b30" / "good" / "topology.clab.yml").read_text())["topology"]

@@ -317,8 +317,17 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 # record --deploy waits for VM nodes to answer before its --wait (0.4.1); a VM NOS needs a long wait
                 # for its sessions to come up (0.4.1 hand acceptance: 240 s RouterOS, 420-480 s Junos and NX-OS)
                 wait = ["--wait", str(spec["record_wait"])] if spec.get("record_wait") else []
-                p = sh([ctx.ndr, "record", good / "topology.clab.yml", "--deploy", "--out", good / "netdryrun.yml",
-                        "--force", *wait, *drivers], timeout=3600)
+                cmd = [ctx.ndr, "record", good / "topology.clab.yml", "--deploy", "--out", good / "netdryrun.yml",
+                       "--force", *wait, *drivers]
+                p = sh(cmd, timeout=3600)
+                # a refusal the product tells the user to answer by recording again (the matrix's record_again, each
+                # with why): one more record from a fresh deploy, as that user would; said in the item's note
+                again = [re.compile(k["match"]) for k in spec.get("record_again", [])]
+                first = sorted(set(re.findall(r"^\*\*\* (INCOMPLETE BASELINE: .*?) \*\*\*$", p.out, re.M)))
+                if p.code == 1 and again and any(a.search(g) for g in first for a in again):
+                    r.note = "recorded again after: " + " | ".join(g for g in first if any(a.search(g) for a in again))
+                    destroy(good / "topology.clab.yml")
+                    p = sh(cmd, timeout=3600)
             known = record_gaps(p, spec.get("known_gaps", []), good / "netdryrun.yml", drv)
             recorded = yaml.safe_load((good / "netdryrun.yml").read_text())
             for n, v in ex_nodes.items():   # the example's node settings (setup, driver), merged over record's
@@ -337,7 +346,8 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 recorded["nodes"] = {**base_nodes, **{n: {**base_nodes.get(n, {}), **v} for n, v in setup["bad"].items()}}
             (bad / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
             r.seconds += time.monotonic() - t0
-            notes = [f"record: {len(recorded['checks']) - len(hand)} checks" + (f" + {len(hand)} by hand" if hand else "")]
+            notes = [r.note] if r.note else []   # recorded again: said first
+            notes.append(f"record: {len(recorded['checks']) - len(hand)} checks" + (f" + {len(hand)} by hand" if hand else ""))
             if known:
                 notes.append(f"record exit 1 on {len(known)} known driver gap(s): " + " | ".join(known))
             # 2. the good lab must pass its own baseline, from a fresh deploy; it is kept for the traps
