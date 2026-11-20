@@ -399,7 +399,8 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 r.status = good_status
             r.note = "; ".join(notes)
         except (RuntimeError, AssertionError) as e:
-            r.status, r.note = FAIL, str(e).splitlines()[0]
+            # keep "recorded again" in front: the FAIL on ecf627e lost it and hid that record ran twice
+            r.status, r.note = FAIL, "; ".join(x for x in (r.note, str(e).splitlines()[0]) if x)
             r.evidence = str(e)[-4000:]
         finally:
             for d in (good, bad):

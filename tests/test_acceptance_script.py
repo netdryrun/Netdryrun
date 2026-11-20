@@ -86,8 +86,10 @@ def test_a_trap_the_driver_refuses_is_listed_as_a_run_error(drv):
 
 
 def test_record_again_is_only_for_the_listed_refusal():
-    """routeros's record_again matches the refusal acceptance saw on 0816220 (CHR prefix-count still 0), and none of
-    the documented gaps, so a gap that isn't that refusal is never answered by recording again."""
+    """routeros's record_again matches the refusal acceptance saw on 0816220 (CHR prefix-count still 0) and nothing
+    else, so a gap that isn't that refusal is never answered by recording again. When the refusal comes back after
+    the second record (ecf627e), it is a known gap only because hand checks stand in its place: a route check that
+    the legit route is there and one that the leaked prefix is not."""
     import re
     seen = ("INCOMPLETE BASELINE: r1: could not read BGP state (BGP session frr1-1 (10.0.100.2) received 0 prefixes "
             "(prefix-count) but the table lists 2 of its paths), so no session, prefix count or BGP route of r1 is "
@@ -100,6 +102,17 @@ def test_record_again_is_only_for_the_listed_refusal():
             assert a.search(seen)
             assert not a.search(seen.replace("received 0 prefixes", "received 3 prefixes"))
             assert not any(a.search(k["match"]) for k in d["mustfail"].get("known_gaps", []))
+        known = [re.compile(k["match"]) for k in d["mustfail"].get("known_gaps", [])]
+        if any(k.search(seen) for k in known):   # the refusal as a known gap: only after a second record, with hand checks
+            assert again, name
+            assert not any(k.search(seen.replace("received 0 prefixes", "received 3 prefixes")) for k in known), name
+            hand = d["mustfail"].get("hand_checks", [])
+            node = d["mustfail"]["node"]
+            assert any(c["type"] == "route" and c["node"] == node and c["prefix"] == "192.168.20.0/24"
+                       and c.get("present", True) for c in hand), name
+            assert any(c["type"] == "route" and c["node"] == node and c["prefix"] == "203.0.113.128/25"
+                       and c.get("present") is False for c in hand), name
+            assert all(c.get("why") for c in hand), name
 
 
 def test_big30_and_brownfield_generators(tmp_path):

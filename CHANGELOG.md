@@ -258,6 +258,10 @@
   - The sessions are read again after the table when a count differs from it; a count that still differs refuses, as
     before (no verdict).
   - The compatibility note that a 600 s timeout covers a lagging count is replaced.
+  - Known limit, not fixed in 0.4.2: on CHR 7.23.8 the count sometimes stays 0 even after the table is read (in several
+    final acceptance runs, once after a fresh deploy too). `record` then still refuses the session's BGP state, with
+    no verdict, and says so: record again, or add `route` checks by hand (they read the route table, not the count).
+    A driver fix that waits for the count to settle is planned for 0.4.3.
 
 ### Changed
 
