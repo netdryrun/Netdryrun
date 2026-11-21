@@ -1,0 +1,239 @@
+{
+ "layer": "after-publish",
+ "title": "Layer 7: after-publish proof",
+ "version": "0.4.2",
+ "started": "2026-11-21 10:59:17 UTC",
+ "seconds": 186.0,
+ "git": {
+  "sha": "61cd95de8b5446d6adf24deda43f9bfb6957ee20",
+  "dirty": false,
+  "branch": "HEAD"
+ },
+ "host": "Linux 6.18.58.1-microsoft-standard-WSL2 (x86_64)",
+ "python": "3.12.16",
+ "strict": true,
+ "tools": {
+  "uv": "0.13.6 (x86_64-unknown-linux-gnu)"
+ },
+ "checks": [
+  {
+   "id": "pypi",
+   "title": "PyPI serves netdryrun 0.4.2",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "HTTP 200",
+   "output": "",
+   "command": "",
+   "ended": 1795258757.7
+  },
+  {
+   "id": "pip-3.10",
+   "title": "pip install netdryrun==0.4.2 on Python 3.10: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 10.9,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258768.6
+  },
+  {
+   "id": "uvx-3.10",
+   "title": "uvx netdryrun@0.4.2 on Python 3.10: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 2.3,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258771.0
+  },
+  {
+   "id": "pip-3.11",
+   "title": "pip install netdryrun==0.4.2 on Python 3.11: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 10.7,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258781.7
+  },
+  {
+   "id": "uvx-3.11",
+   "title": "uvx netdryrun@0.4.2 on Python 3.11: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 2.4,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258784.0
+  },
+  {
+   "id": "pip-3.12",
+   "title": "pip install netdryrun==0.4.2 on Python 3.12: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 10.0,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258794.0
+  },
+  {
+   "id": "uvx-3.12",
+   "title": "uvx netdryrun@0.4.2 on Python 3.12: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 2.2,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258796.2
+  },
+  {
+   "id": "pip-3.13",
+   "title": "pip install netdryrun==0.4.2 on Python 3.13: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 9.8,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258806.0
+  },
+  {
+   "id": "uvx-3.13",
+   "title": "uvx netdryrun@0.4.2 on Python 3.13: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 2.1,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258808.1
+  },
+  {
+   "id": "pip-3.14",
+   "title": "pip install netdryrun==0.4.2 on Python 3.14: --version, validate, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 10.1,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258818.2
+  },
+  {
+   "id": "uvx-3.14",
+   "title": "uvx netdryrun@0.4.2 on Python 3.14: --version, MCP handshake",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 2.0,
+   "summary": "MCP handshake OK",
+   "output": "initialize: protocol 2025-06-18, server {'name': 'netdryrun', 'version': '0.4.2', 'websiteUrl': 'https://netdryrun.com'}\ntools/list: ['check_types', 'dry_run', 'get_result', 'record_baseline', 'run_checks', 'start_run', 'validate', 'verify_change']\nMCP handshake OK",
+   "command": "",
+   "ended": 1795258820.2
+  },
+  {
+   "id": "live-example",
+   "title": "frr-bgp from PyPI: `PASSED: 11 passed, 0 failed`, exit 0, no lab left",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 116.0,
+   "summary": "exit 0",
+   "output": "Netdryrun 0.4.2: 7 checks from /tmp/ndr-gate-publish-uh8zqioe/frr-bgp/netdryrun.yml\nDeploying lab ndr-frr-bgp (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...\nr1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)\nr2: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)\nr3: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)\nManagement default routes removed; settling 10s before the checks...\n  [PASS] r1: BGP session to 10.0.12.2 is established -- state is established (8.3s)\n  [PASS] r1: BGP session to 10.0.13.2 is established -- state is established (8.3s)\n  [PASS] r1: route 192.168.3.0/24 via bgp is present -- active via bgp (8.3s)\n  [PASS] r1: ping 192.168.3.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (8.3s)\nConvergence checks done; settling 10s before post-convergence checks...\n  [PASS] r1: prefixes from 10.0.12.2 >= 1 and <= 10 -- 2 ipv4-unicast prefixes accepted (held 10s, 4 samples) (10.1s)\n  [PASS] r1: BGP best path for 192.168.2.0/24 has as-path '65002', next hop 10.0.12.2 -- best path: as-path '65002', next hop 10.0.12.2, local-pref 100, MED 0, communities none (held 10s, 4 samples) (10.1s)\n  [PASS] r1: route 0.0.0.0/0 via bgp is absent -- absent (held 10s, 4 samples) (10.1s)\nScenario: r1-r2 link fails\n  the fault took effect after 0s (2 BGP session(s) over the downed links are down)\n  settling 10s before the scenario's checks\n  [PASS] [r1-r2 link fails] r1: route 192.168.2.0/24 via bgp is present -- active via bgp (held 13s, 3 samples) (21.2s)\n  [PASS] [r1-r2 link fails] r1: ping 192.168.2.1 from 192.168.1.1 expects success -- 3/3 replies (need 2) (held 13s, 3 samples) (21.2s)\n  [PASS] [r1-r2 link fails] r1: BGP best path for 192.168.2.0/24 has as-path '65003 65002', next hop 10.0.13.2 -- best path: as-path '65003 65002', next hop 10.0.13.2, local-pref 100, MED not set, communities none (held 10s, 4 samples) (10.1s)\n  [PASS] [r1-r2 link fails] r1: BGP session to 10.0.12.2 is down -- state is active (held 10s, 4 samples) (10.1s)\nRestored 1 link(s) and 0 route injection(s); settling 10s\nDestroying lab...\nPASSED: 11 passed, 0 failed (11 checks)",
+   "command": "",
+   "ended": 1795258944.2
+  },
+  {
+   "id": "latest-pypi",
+   "title": "PyPI's latest netdryrun is 0.4.2",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "PyPI latest: 0.4.2",
+   "output": "",
+   "command": "",
+   "ended": 1795258944.8
+  },
+  {
+   "id": "latest-github",
+   "title": "the GitHub latest release is v0.4.2 (notes pasted, marked latest)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "latest release: v0.4.2",
+   "output": "",
+   "command": "",
+   "ended": 1795258945.3
+  },
+  {
+   "id": "main-version",
+   "title": "main names 0.4.2: README status line, every netdryrun/Netdryrun@v ref, published-action.yml RELEASE",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "42 places say 0.4.2",
+   "output": "ok    README.md:35 status line v0.4.2\nok    .github/workflows/published-action.yml:20 RELEASE 0.4.2\nok    README.md:158 netdryrun/Netdryrun@v0.4.2\nok    examples/batfish-pipeline/github-workflow.yml:36 netdryrun/Netdryrun@v0.4.2\nok    website/docs/add.md:30 netdryrun/Netdryrun@v0.4.2\nok    website/docs/ai-agents.md:247 netdryrun/Netdryrun@v0.4.2\nok    website/docs/batfish.md:57 netdryrun/Netdryrun@v0.4.2\nok    website/docs/capabilities.json:20 netdryrun/Netdryrun@v0.4.2\nok    website/docs/capabilities.json:45 netdryrun/Netdryrun@v0.4.2\nok    website/docs/faq.md:18 netdryrun/Netdryrun@v0.4.2\nok    website/docs/github-action.md:3 netdryrun/Netdryrun@v0.4.2\nok    website/docs/github-action.md:21 netdryrun/Netdryrun@v0.4.2\nok    website/docs/github-action.md:82 netdryrun/Netdryrun@v0.4.2\nok    website/docs/github-action.md:90 netdryrun/Netdryrun@v0.4.2\nok    website/docs/github-action.md:115 netdryrun/Netdryrun@v0.4.2\nok    website/docs/github-action.md:136 netdryrun/Netdryrun@v0.4.2\nok    website/docs/github-action.md:159 netdryrun/Netdryrun@v0.4.2\nok    website/docs/guides/agent-pr.md:26 netdryrun/Netdryrun@v0.4.2\nok    website/docs/guides/frr-ci.md:194 netdryrun/Netdryrun@v0.4.2\nok    website/docs/guides/sonic-ci.md:173 netdryrun/Netdryrun@v0.4.2\nok    website/docs/guides/your-lab.md:154 netdryrun/Netdryrun@v0.4.2\nok    website/docs/index.md:123 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:132 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:336 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:901 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:1405 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:1466 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:1474 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:1499 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:1520 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:1543 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:1833 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:2397 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:2729 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:2944 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:3158 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:3209 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:5253 netdryrun/Netdryrun@v0.4.2\nok    website/docs/llms-full.txt:5626 netdryrun/Netdryrun@v0.4.2\nok    website/docs/news/posts/release-0.4.1.md:18 netdryrun/Netdryrun@v0.4.2\nok    website/docs/trust.md:17 netdryrun/Netdryrun@v0.4.2\nok    website/docs/tutorial.md:467 netdryrun/Netdryrun@v0.4.2",
+   "command": "",
+   "ended": 1795258946.6
+  },
+  {
+   "id": "site-version",
+   "title": "netdryrun.com names 0.4.2 (home page, llms.txt)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "5 mentions say 0.4.2",
+   "output": "ok    https://netdryrun.com/ \"softwareVersion\": \"0.4.2\"\nok    https://netdryrun.com/ netdryrun/Netdryrun@v0.4.2\nok    https://netdryrun.com/ Version 0.4.2\nok    https://netdryrun.com/llms.txt version 0.4.2\nok    https://netdryrun.com/llms.txt version 0.4.2",
+   "command": "",
+   "ended": 1795258947.6
+  },
+  {
+   "id": "mcp-registry",
+   "title": "the MCP Registry's latest io.github.netdryrun/netdryrun is 0.4.2",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "latest: 0.4.2; listed: 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.4.0, 0.4.1, 0.4.2",
+   "output": "",
+   "command": "",
+   "ended": 1795258948.4
+  },
+  {
+   "id": "surfaces-published",
+   "title": "every published surface names 0.4.2 and the released platforms (surfaces_agree.py published)",
+   "severity": "BLOCKER",
+   "status": "FAIL",
+   "seconds": 2.9,
+   "summary": "surfaces published: 1 problem(s) (version 0.4.2, platforms eos, frr, junos, nxos, routeros, sonic, srlinux)",
+   "output": "DISAGREE LobeHub: the listing shows version 0.3.1, expected 0.4.2\nsurfaces published: 1 problem(s) (version 0.4.2, platforms eos, frr, junos, nxos, routeros, sonic, srlinux)",
+   "command": "/home/ndr/rel042t/.venv/bin/python scripts/surfaces_agree.py published --version 0.4.2",
+   "ended": 1795258951.2
+  },
+  {
+   "id": "published-action",
+   "title": "latest published-action.yml run",
+   "severity": "MAJOR",
+   "status": "SKIP",
+   "seconds": 0.0,
+   "summary": "gh is not installed",
+   "output": "",
+   "command": "",
+   "ended": 1795258951.3
+  }
+ ],
+ "sections": [],
+ "attempt": {
+  "commit": "61cd95de8b5446d6adf24deda43f9bfb6957ee20",
+  "tree": "429fe2660fdeb0a3dbd919f1460d558cbce83827",
+  "key": "43a03c13aad23d6eb2e342e55185a05c4e2de63a9a0ebe95296dd4a554ffa76a",
+  "run_id": "rel042-after-publish-61cd95de-175917",
+  "cases": null,
+  "peak_child_rss_mb": 121.3,
+  "written": 1795258951.2873442
+ }
+}

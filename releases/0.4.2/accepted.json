@@ -2,7 +2,8 @@
  "checks": {
   "live/pack": "No check pack is sold yet: pack verification is paused by the roadmap until the demand test; it runs with --pack before any pack ships. Same as 0.4.1.",
   "live/scale": "Still not scripted (planned since 0.4.1, not done; carried to the 0.4.3 list). A 20-node lab was run by hand in pre-launch testing (it found the PR-comment size limit, fixed in 0.3.1). 0.4.2 is a fix release and changes no report-size path.",
-  "live/chaos-docker-restart": "Optional by RELEASING.md (Layer 5, Chaos): it restarts Docker, which stops every container on the machine, and the release runs on the one shared laptop (no separate lab machine since 2026-11-09). The other chaos cases in this live layer on f4b5e6a (SIGINT and SIGTERM in the deploy and in the checks, two runs of one lab at once, each with no lab left running) passed. Same decision as 0.4.1."
+  "live/chaos-docker-restart": "Optional by RELEASING.md (Layer 5, Chaos): it restarts Docker, which stops every container on the machine, and the release runs on the one shared laptop (no separate lab machine since 2026-11-09). The other chaos cases in this live layer on f4b5e6a (SIGINT and SIGTERM in the deploy and in the checks, two runs of one lab at once, each with no lab left running) passed. Same decision as 0.4.1.",
+  "after-publish/published-action": "Read through the public GitHub API, no gh CLI on the release machine (GET /repos/netdryrun/Netdryrun/actions/runs/44895037874 and its jobs): Published release run 92 on 89ce432 (main, RELEASE 0.4.2, uses pinned to the v0.4.2 commit 61cd95d) completed with conclusion success, all 8 jobs green: action-passes, action-catches-bad-change, and install on Python 3.10 to 3.15. Same evidence route as 0.4.1. https://github.com/netdryrun/Netdryrun/actions/runs/44895037874"
  },
  "mutants": {
   "netdryrun.verify.engine.x__advertisement__mutmut_60": {

@@ -2,11 +2,11 @@
 
 Written by `scripts/release_gate.py` (see [RELEASING.md](../../RELEASING.md)). Do not edit by hand: rerun a layer, or record a decision in `accepted.json` or `review.md`.
 
-**READY TO PUBLISH**: every layer before publishing ran on the same clean commit; no BLOCKER failed or was skipped; every MAJOR passed or was accepted. Tag it, then run `after-publish` to clear it.
+**NOT CLEARED**: 1 BLOCKER check(s) failed.
 
-**Layers not run yet:**
+**BLOCKER failures:**
 
-- Layer 7: after-publish proof
+- after-publish/surfaces-published: every published surface names 0.4.2 and the released platforms (surfaces_agree.py published)
 
 | Layer | Commit | Ran | Time | Result |
 |---|---|---|---|---|
@@ -15,7 +15,7 @@ Written by `scripts/release_gate.py` (see [RELEASING.md](../../RELEASING.md)). D
 | [Layer 4: mutation testing](#layer-4-mutation-testing) | `79de759842` | 2026-11-21 06:19:32 UTC | 206.1 min | 13 PASS |
 | [Layer 5: live matrix on the built package](#layer-5-live-matrix-on-the-built-package) | `79de759842` | 2026-11-20 22:09:05 UTC | 239.0 min | 3 ACCEPTED, 63 PASS |
 | [Layer 5b: acceptance from five angles](#layer-5b-acceptance-from-five-angles) | `79de759842` | 2026-11-21 03:18:59 UTC | 171.6 min | 46 PASS |
-| Layer 7: after-publish proof | | not run | | |
+| [Layer 7: after-publish proof](#layer-7-after-publish-proof) | `79de759842` | 2026-11-21 11:03:40 UTC | 3.1 min | 1 ACCEPTED, 1 FAIL, 17 PASS |
 
 ## Layer 1: static
 
@@ -550,6 +550,45 @@ Commit `79de75984253ec3727bb35fc2aec14bc957ea103` on `HEAD`; 2026-11-21 03:18:59
 | angle 5: two isolated red-teamers on new cases, verified (releases/ACCEPTANCE-PROMPT.md) | BLOCKER | **PASS** | 0.0 s | Result: no open false pass |
 
 Every item, with its evidence: [acceptance.md](acceptance.md).
+
+## Layer 7: after-publish proof
+
+Commit `79de75984253ec3727bb35fc2aec14bc957ea103` on `HEAD`; 2026-11-21 11:03:40 UTC; 3.1 min; Linux 6.18.58.1-microsoft-standard-WSL2 (x86_64); Python 3.12.16; --strict.
+
+Tools: uv 0.13.6 (x86_64-unknown-linux-gnu).
+
+| Check | Severity | Result | Time | Notes |
+|---|---|---|---|---|
+| PyPI serves netdryrun 0.4.2 | BLOCKER | **PASS** | 0.0 s | HTTP 200 |
+| pip install netdryrun==0.4.2 on Python 3.10: --version, validate, MCP handshake | BLOCKER | **PASS** | 11.3 s | MCP handshake OK |
+| uvx netdryrun@0.4.2 on Python 3.10: --version, MCP handshake | BLOCKER | **PASS** | 2.2 s | MCP handshake OK |
+| pip install netdryrun==0.4.2 on Python 3.11: --version, validate, MCP handshake | BLOCKER | **PASS** | 10.4 s | MCP handshake OK |
+| uvx netdryrun@0.4.2 on Python 3.11: --version, MCP handshake | BLOCKER | **PASS** | 2.4 s | MCP handshake OK |
+| pip install netdryrun==0.4.2 on Python 3.12: --version, validate, MCP handshake | BLOCKER | **PASS** | 10.3 s | MCP handshake OK |
+| uvx netdryrun@0.4.2 on Python 3.12: --version, MCP handshake | BLOCKER | **PASS** | 2.2 s | MCP handshake OK |
+| pip install netdryrun==0.4.2 on Python 3.13: --version, validate, MCP handshake | BLOCKER | **PASS** | 9.3 s | MCP handshake OK |
+| uvx netdryrun@0.4.2 on Python 3.13: --version, MCP handshake | BLOCKER | **PASS** | 2.2 s | MCP handshake OK |
+| pip install netdryrun==0.4.2 on Python 3.14: --version, validate, MCP handshake | BLOCKER | **PASS** | 10.6 s | MCP handshake OK |
+| uvx netdryrun@0.4.2 on Python 3.14: --version, MCP handshake | BLOCKER | **PASS** | 2.4 s | MCP handshake OK |
+| frr-bgp from PyPI: `PASSED: 11 passed, 0 failed`, exit 0, no lab left | BLOCKER | **PASS** | 1.9 min | exit 0 |
+| PyPI's latest netdryrun is 0.4.2 | BLOCKER | **PASS** | 0.0 s | PyPI latest: 0.4.2 |
+| the GitHub latest release is v0.4.2 (notes pasted, marked latest) | BLOCKER | **PASS** | 0.0 s | latest release: v0.4.2 |
+| main names 0.4.2: README status line, every netdryrun/Netdryrun@v ref, published-action.yml RELEASE | BLOCKER | **PASS** | 0.0 s | 42 places say 0.4.2 |
+| netdryrun.com names 0.4.2 (home page, llms.txt) | BLOCKER | **PASS** | 0.0 s | 5 mentions say 0.4.2 |
+| the MCP Registry's latest io.github.netdryrun/netdryrun is 0.4.2 | BLOCKER | **PASS** | 0.0 s | latest: 0.4.2; listed: 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.4.0, 0.4.1, 0.4.2 |
+| every published surface names 0.4.2 and the released platforms (surfaces_agree.py published) | BLOCKER | **FAIL** | 3.1 s | surfaces published: 1 problem(s) (version 0.4.2, platforms eos, frr, junos, nxos, routeros, sonic, srlinux) |
+| latest published-action.yml run | MAJOR | **ACCEPTED** | 0.0 s | gh is not installed (accepted: Read through the public GitHub API, no gh CLI on the release machine (GET /repos/netdryrun/Netdryrun/actions/runs/44895037874 and its jobs): Published release run 92 on 89ce432 (main, RELEASE 0.4.2, uses pinned to the v0.4.2 commit 61cd95d) completed with conclusion success, all 8 jobs green: action-passes, action-catches-bad-change, and install on Python 3.10 to 3.15. Same evidence route as 0.4.1. https://github.com/netdryrun/Netdryrun/actions/runs/44895037874) |
+
+<details><summary>FAIL: every published surface names 0.4.2 and the released platforms (surfaces_agree.py published)</summary>
+
+`/home/ndr/rel042t/.venv/bin/python scripts/surfaces_agree.py published --version 0.4.2`
+
+```text
+DISAGREE LobeHub: the listing shows version 0.3.1, expected 0.4.2
+surfaces published: 1 problem(s) (version 0.4.2, platforms eos, frr, junos, nxos, routeros, sonic, srlinux)
+```
+
+</details>
 
 ## Layer 6: independent review
 
