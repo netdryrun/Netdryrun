@@ -175,3 +175,331 @@ output:
     
     {"mode": "installed", "source": "/tmp/tmp.hSv0F7QUda/v/lib/python3.10/site-packages/netdryrun"}    [exit code of the command: 0]
 
+
+
+==========================================================================================================
+MERGE OF origin/main (6e77ebb, gate-noise) INTO THE BRANCH: re-captured on the merged tip
+==========================================================================================================
+
+The sections above ran at f84526a. The branch now merges origin/main 6e77ebb (merge commit 67e0474, parents 0ee5781
+and 6e77ebb) and one fix on top of it (71bb932). Sections 'M1' below ran at 67e0474, sections 'M2' at 71bb932; the
+times are Thailand time (UTC+7). Outputs are exactly as printed, filtered only where a filter is named.
+
+What the merge did to scripts/fastfix_gate.py: git auto-merged it; the merged hunks were read by hand. Both changes are
+in it (the first sections of M1 print the lines of each): this branch's fresh PYTHONPYCACHEPREFIX in run_pytest, and
+gate-noise's refusal of candidate src packages (compose, preflight), its LOG_FORMAT 2 and stable_command. The merged
+file's blob is scripts/fastfix_gate.py@09346cce724a (full: 09346cce724adf76b67ebe2c6fddecffe4c96fcf).
+
+One interaction was found by the container run and fixed in 71bb932: tests/test_fakes.py::
+test_the_command_log_is_the_same_on_two_runs_of_the_same_code runs pytest in a child with the parent's environment, and
+the container layer's NDR_TEST_INSTALLED=1 made the child abort. The first container run (M1, 1 failed) shows it; the
+second container run (M2) passes. In M2 the section 'the command-log test alone' sets NDR_TEST_INSTALLED=1 on the OUTER
+pytest too, so the outer pytest aborts by design: it is not a container shape and shows nothing about the fix.
+
+---- M1: at 67e0474 (the merge commit) ----
+
+### M1 the merged tip and the gate file's blob
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:25:03+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: git log -1 --format='%H %an <%ae> parents: %p'; git log -1 --format='origin/main = %H' origin/main; echo "git hash-object scripts/fastfix_gate.py = $(git hash-object scripts/fastfix_gate.py)"; echo "git rev-parse HEAD:scripts/fastfix_gate.py = $(git rev-parse HEAD:scripts/fastfix_gate.py)"; echo "git hash-object scripts/release_gate.py = $(git hash-object scripts/release_gate.py)"; git status --short | wc -l
+output:
+    67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac Netdryrun <hello@netdryrun.com> parents: 0ee5781 6e77ebb
+    origin/main = 6e77ebb490ccdd2a0904c6e87e2eeb2a2c8b54d6
+    git hash-object scripts/fastfix_gate.py = 09346cce724adf76b67ebe2c6fddecffe4c96fcf
+    git rev-parse HEAD:scripts/fastfix_gate.py = 09346cce724adf76b67ebe2c6fddecffe4c96fcf
+    git hash-object scripts/release_gate.py = 645070a65e8fac1152f787604ccf78f6af95c542
+    0
+    [exit code of the command: 0]
+
+### M1 both changes are in the merged scripts/fastfix_gate.py (grep of the lines of each)
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:25:03+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: grep -n 'PYTHONPYCACHEPREFIX' scripts/fastfix_gate.py; grep -n 'is not one of the packages under judgement\|would shadow the standard library\|LOG_FORMAT = \|def stable_command' scripts/fastfix_gate.py; grep -n 'LOADABLE = \|p.name.endswith(LOADABLE)' tests/import_guard.py; grep -n 'fakes.begin_session\|^import fakes\|import_guard import' tests/conftest.py
+output:
+    460:    env["PYTHONPYCACHEPREFIX"] = str(pyc)
+    363:    # only the product's own packages: another one (src/json, src/tempfile) would shadow the standard library inside
+    367:        raise GateError(f"{code.name}: src/{extra[0]} is not one of the packages under judgement "
+    399:        raise GateError(f"{tree.name}: src/{shadow[0]} would shadow the standard library or the gate's tools")
+    587:LOG_FORMAT = 2
+    608:def stable_command(text: str, roots: tuple[str, ...] = (), labels: dict[str, str] | None = None,
+    63:LOADABLE = tuple(s for s in (*importlib.machinery.EXTENSION_SUFFIXES, *importlib.machinery.BYTECODE_SUFFIXES,
+    73:            if p.is_file() and p.name.endswith(LOADABLE) and "__pycache__" not in p.relative_to(pkg).parts]
+    10:from import_guard import pytest_configure, pytest_report_header, pytest_sessionfinish  # noqa: F401  (aborts if netdryrun is not the source under test)
+    12:import fakes
+    15:fakes.begin_session()
+    [exit code of the command: 0]
+
+### M1 loosening against origin/main (the flips)
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:25:03+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base origin/main --python /home/ndr/.venvs/netdryrun/bin/python
+output filtered with: grep -a -E '^(BLOCKED|loosening:|  fixtures: fake-lab|  \(fixtures: the base)' | cut -c1-400
+output:
+      fixtures: fake-lab commands compared, 0 test(s) send something new
+    BLOCKED loosening flip with no reviewed allowlist entry: gate :: scripts/fastfix_gate.py@09346cce724a: FAIL -> PASS
+    BLOCKED loosening flip with no reviewed allowlist entry: gate :: scripts/release_gate.py@645070a65e8f: FAIL -> PASS
+    loosening: BLOCKED (2 unexplained flip(s), 0 problem(s))
+    [exit code of the command: 1]
+
+### M1 reproduce
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:26:41+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py reproduce --repo . --range origin/main..HEAD --python /home/ndr/.venvs/netdryrun/bin/python
+output filtered with: tail -3
+output:
+      7 commits, 0 fix commits, 31 oracles held at the candidate
+    reproduce: clean
+    [exit code of the command: 0]
+
+### M1 a candidate that plants src/json is refused (gate-noise's check, on the merged tip)
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:27:32+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: bash /home/ndr/cap2/jsonprobe.sh
+output:
+    base = 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+    candidate = 804130e1189dc6decdaade4be491f676a4c8b43f (base plus src/json/__init__.py, local only)
+    ERROR cand: src/json is not one of the packages under judgement (netdryrun); the gate runs no other package from the code under test
+    exit=2
+    [exit code of the command: 0]
+
+### M1 the .so probe at this tip
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:28:25+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: bash /home/ndr/cap2/probe_so.sh HEAD
+output:
+    Exit: /tmp/tmp.TJeWhSYW8r/src/netdryrun holds files python could import instead of the source beside them (['checks.cpython-310-x86_64-linux-gnu.so']): a compiled or planted module
+    rc=4
+    [exit code of the command: 0]
+
+### M1 the poisoned .pyc with and without PYTHONPYCACHEPREFIX
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:28:25+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: /home/ndr/.venvs/netdryrun/bin/python /home/ndr/cap2/probe_pyc.py
+output:
+    no prefix: WHO printed = 'planted bytecode' (rc=0)
+    fresh PYTHONPYCACHEPREFIX: WHO printed = 'python source' (rc=0)
+    [exit code of the command: 0]
+
+### M1 L-13 control: the real-mutmut test with both fixes in place
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:28:25+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+output filtered with: tail -3
+output:
+    .                                                                        [100%]
+    1 passed in 1.40s
+    [exit code of the command: 0]
+
+### M1 L-13 with B1 reverted (every non-.py file refused again)
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:28:27+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: grep -c 'p.suffix != ".py"' tests/import_guard.py; PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+output filtered with: tail -4
+output:
+    tests/test_import_guard.py:917: AssertionError
+    =========================== short test summary info ============================
+    FAILED tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+    1 failed in 0.70s
+    [exit code of the command: 1]
+
+### M1 L-13 with B2 reverted (git archive only from the checkout root)
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:28:28+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: grep -c '(root,)' tests/oldrelease.py; PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+output filtered with: tail -4
+output:
+    tests/test_import_guard.py:917: AssertionError
+    =========================== short test summary info ============================
+    FAILED tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+    1 failed in 0.86s
+    [exit code of the command: 1]
+
+### M1 working tree is back to the commit
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:28:29+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: git status --short | wc -l
+output:
+    0
+    [exit code of the command: 0]
+
+### M1 real mutmut on netdryrun.faults* (counts; the progress output is left out)
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:28:29+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: export PYTHONPYCACHEPREFIX=$(mktemp -d); PYTHONPATH=src timeout 3400 /home/ndr/.venvs/netdryrun/bin/python -m mutmut run --max-children 2 'netdryrun.faults*' > /home/ndr/cap2/mutmut.log 2>&1; echo mutmut-run-rc=$?; tail -c 300 /home/ndr/cap2/mutmut.log | tr '\r' '\n' | tail -3; PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m mutmut results --all true 2>&1 | awk '{print $NF}' | sort | uniq -c
+output:
+    mutmut-run-rc=0
+    🎉 netdryrun.faults.xǁRouteInjectionǁsessions__mutmut_8
+    🎉 netdryrun.faults.xǁRouteInjectionǁsessions__mutmut_9
+    
+      25676 checked
+        735 killed
+         88 survived
+          8 timeout
+    [exit code of the command: 0]
+
+### M1 full suite, PYTHONPATH=src
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:44:36+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider
+output filtered with: tail -3
+output:
+    ........................................................................ [ 99%]
+    ...............................................................          [100%]
+    8492 passed, 66 skipped, 1 xfailed in 462.42s (0:07:42)
+    [exit code of the command: 0]
+
+### M1 full suite, src put first by a launcher, no PYTHONPATH
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:52:19+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: env -u PYTHONPATH /home/ndr/.venvs/netdryrun/bin/python /home/ndr/cap2/launch.py
+output filtered with: tail -3
+output:
+    ........................................................................ [ 99%]
+    ...............................................................          [100%]
+    8492 passed, 66 skipped, 1 xfailed in 433.58s (0:07:13)
+    [exit code of the command: 0]
+
+### M1 ruff
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T04:59:34+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: /home/ndr/.venvs/netdryrun/bin/python -m ruff check .
+output filtered with: tail -2
+output:
+    All checks passed!
+    [exit code of the command: 0]
+
+### M1 full suite in the container shape (non-editable install, NDR_TEST_INSTALLED=1)
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T05:00:00+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone), unless the command says otherwise
+command: PYTHONPYCACHEPREFIX=$(mktemp -d) PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 /tmp/tmp.TmLtnuiiq2/v/bin/python -m pytest -q -p no:cacheprovider -rs; echo; cat /tmp/ndr-guard-proof
+output filtered with: tail -4
+output:
+    SKIPPED [1] tests/test_import_guard.py:113: the plain-container layer tests the installed copy
+    1 failed, 8490 passed, 67 skipped, 1 xfailed in 416.30s (0:06:56)
+    
+    {"mode": "installed", "source": "/tmp/tmp.TmLtnuiiq2/v/lib/python3.10/site-packages/netdryrun"}    [exit code of the command: 0]
+
+### M1 container run, repeated to name the failing test
+commit: 67e0474cfc2fd7bc67a2e121986e0515c3c7c8ac
+time:   2026-11-22T05:14:32+0700 (Thailand; the time the log was last written)
+command: the same pytest command as the container run above with -rfs, written to a log; shown: grep -a '^FAILED|^rc=|passed|^E ' | cut -c1-300 | head -4
+output:
+    E           AssertionError: Exit: NDR_TEST_INSTALLED=1 expects an installed copy of /home/ndr/test-import-guard/src/netdryrun, but netdryrun is imported from the checkout's own src (an editable install?)
+    E             
+    E           assert 4 == 0
+    E            +  where 4 = CompletedProcess(args=['/tmp/tmp.CyNSDHqBu1/v/bin/python', '-m', 'pytest', '-q', '-p', 'no:cacheprovider', '-o', 'addo...e/ndr/test-import-guard/src/netdryrun, but netdryrun is imported from the checkout's own src (an editable install?)\n").returncode
+
+---- M2: at 71bb932 (the merge plus the fix in tests/test_fakes.py) ----
+
+### M2 the tip after the child-env fix, and the gate file's blob
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:15:06+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: git log -1 --format='%H %an <%ae> parent: %p'; git diff --stat HEAD~1 HEAD | tail -2; echo "git hash-object scripts/fastfix_gate.py = $(git hash-object scripts/fastfix_gate.py)"; echo "git hash-object scripts/release_gate.py = $(git hash-object scripts/release_gate.py)"; git status --short | wc -l
+output:
+    71bb93249f17691c7f321033e5f49088adeadd26 Netdryrun <hello@netdryrun.com> parent: 67e0474
+     tests/test_fakes.py | 6 +++++-
+     1 file changed, 5 insertions(+), 1 deletion(-)
+    git hash-object scripts/fastfix_gate.py = 09346cce724adf76b67ebe2c6fddecffe4c96fcf
+    git hash-object scripts/release_gate.py = 645070a65e8fac1152f787604ccf78f6af95c542
+    0
+    [exit code of the command: 0]
+
+### M2 loosening against origin/main (the flips)
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:15:06+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base origin/main --python /home/ndr/.venvs/netdryrun/bin/python
+output filtered with: grep -a -E '^(BLOCKED|loosening:|  fixtures: fake-lab|  \(fixtures: the base)' | cut -c1-400
+output:
+      fixtures: fake-lab commands compared, 0 test(s) send something new
+    BLOCKED loosening flip with no reviewed allowlist entry: gate :: scripts/fastfix_gate.py@09346cce724a: FAIL -> PASS
+    BLOCKED loosening flip with no reviewed allowlist entry: gate :: scripts/release_gate.py@645070a65e8f: FAIL -> PASS
+    loosening: BLOCKED (2 unexplained flip(s), 0 problem(s))
+    [exit code of the command: 1]
+
+### M2 reproduce
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:16:43+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py reproduce --repo . --range origin/main..HEAD --python /home/ndr/.venvs/netdryrun/bin/python
+output filtered with: tail -3
+output:
+      8 commits, 0 fix commits, 31 oracles held at the candidate
+    reproduce: clean
+    [exit code of the command: 0]
+
+### M2 the command-log test alone, with the container layer's variable set in its environment
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:17:41+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: NDR_TEST_INSTALLED=1 NDR_TEST_SRC= env -u NDR_TEST_SRC PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider tests/test_fakes.py -k same_on_two_runs
+output filtered with: tail -3
+output:
+    Exit: NDR_TEST_INSTALLED=1 expects an installed copy of /home/ndr/test-import-guard/src/netdryrun, but netdryrun is imported from the checkout's own src (an editable install?)
+    [exit code of the command: 4]
+
+### M2 full suite, PYTHONPATH=src
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:17:41+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider
+output filtered with: tail -3
+output:
+    ........................................................................ [ 99%]
+    ...............................................................          [100%]
+    8492 passed, 66 skipped, 1 xfailed in 432.87s (0:07:12)
+    [exit code of the command: 0]
+
+### M2 full suite, src put first by a launcher, no PYTHONPATH
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:24:55+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: env -u PYTHONPATH /home/ndr/.venvs/netdryrun/bin/python /home/ndr/cap2/launch.py
+output filtered with: tail -3
+output:
+    ........................................................................ [ 99%]
+    ...............................................................          [100%]
+    8492 passed, 66 skipped, 1 xfailed in 403.72s (0:06:43)
+    [exit code of the command: 0]
+
+### M2 ruff
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:31:40+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: /home/ndr/.venvs/netdryrun/bin/python -m ruff check .
+output filtered with: tail -2
+output:
+    All checks passed!
+    [exit code of the command: 0]
+
+### M2 full suite in the container shape (non-editable install, NDR_TEST_INSTALLED=1)
+commit: 71bb93249f17691c7f321033e5f49088adeadd26
+time:   2026-11-22T05:32:05+0700 (Thailand)
+run in: /home/ndr/test-import-guard (a WSL Ubuntu clone)
+command: PYTHONPYCACHEPREFIX=$(mktemp -d) PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 /tmp/tmp.eIpvR9tjNW/v/bin/python -m pytest -q -p no:cacheprovider -rfs > /home/ndr/cap2/container.log 2>&1; echo pytest-rc=$?; tail -4 /home/ndr/cap2/container.log; echo; cat /tmp/ndr-guard-proof
+output:
+    pytest-rc=0
+    SKIPPED [65] tests/test_config_strict.py:369: not a netdryrun.yml snippet
+    SKIPPED [1] tests/test_fastfix_gate.py:857: needs git 2.36+ (--remerge-diff); older git blocks clean merges that touch the same file, which is conservative
+    SKIPPED [1] tests/test_import_guard.py:113: the plain-container layer tests the installed copy
+    8491 passed, 67 skipped, 1 xfailed in 435.28s (0:07:15)
+    
+    {"mode": "installed", "source": "/tmp/tmp.eIpvR9tjNW/v/lib/python3.10/site-packages/netdryrun"}    [exit code of the command: 0]
+
