@@ -31,6 +31,19 @@ BGP_STATES = ("idle", "connect", "active", "opensent", "openconfirm", "establish
 VRF_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}")
 INTERFACE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]{0,14}")   # Linux: at most 15 characters, no / or :
 
+
+def interface_peer(neighbor: Any) -> bool:
+    """A check's `neighbor` that names a BGP session by its interface (FRR `neighbor eth1 interface`: BGP unnumbered)
+    rather than by an address: an interface name that isn't an address and doesn't look like a mistyped one (digits
+    and dots only, such as 10.0.0.256, is an address with a typo, never an interface)."""
+    if not isinstance(neighbor, str) or not INTERFACE_NAME.fullmatch(neighbor) or re.fullmatch(r"[0-9.]+", neighbor):
+        return False
+    try:
+        ipaddress.ip_address(neighbor)
+    except ValueError:
+        return True
+    return False
+
 TOP_LEVEL_KEYS = ("lab", "timeout", "checks", "nodes", "scenarios")
 NODE_KEYS = ("driver", "setup", "peers")
 PEER_KEYS = ("eor",)
@@ -333,6 +346,11 @@ def _afi_default_fits(where: str, ctype: str, raw: Any, params: dict) -> None:
     (acceptance round B-2). IPv4 over an IPv6 session is real (RFC 8950), so it is allowed when written."""
     if ctype != "bgp_prefixes" or "afi" in raw:
         return
+    if interface_peer(params["neighbor"]):
+        # an interface-named (unnumbered) session carries IPv4 over IPv6 (RFC 8950), IPv6, or both: no default family
+        # says which, and a wrong one reads "doesn't carry"
+        raise ConfigError(f"{where}: neighbor {params['neighbor']} is an interface-named (BGP unnumbered) session, "
+                          "so afi has no default: set afi: ipv4-unicast or afi: ipv6-unicast")
     if ipaddress.ip_address(params["neighbor"]).version == 6:   # a %scope is read too (Python 3.9+)
         raise ConfigError(f"{where}: neighbor {params['neighbor']} is an IPv6 address, but afi defaults to "
                           "ipv4-unicast: set afi: ipv6-unicast (or afi: ipv4-unicast if this session carries IPv4 "
@@ -377,9 +395,14 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
         if ctype in ("route", "bgp_route"):
             params["prefix"] = str(ipaddress.ip_network(params["prefix"], strict=False))
         for key in ("neighbor", "target", "source", "next_hop"):
-            if key in params:
+            if key in params and not (key == "neighbor" and interface_peer(params[key])):
+                # a neighbor may also be an interface name: the session BGP unnumbered names by it (FRR
+                # `neighbor eth1 interface`); a driver that names sessions by address only refuses it before deploying
                 params[key] = str(ipaddress.ip_address(params[key]))
     except ValueError as e:
+        if "neighbor" in params and str(e).startswith(repr(params["neighbor"])):
+            raise ConfigError(f"{where}: neighbor {params['neighbor']!r} is neither an IP address nor an interface "
+                              "name (letters, digits and . _ @ -, at most 15 characters)") from None
         raise ConfigError(f"{where}: {e}") from None
     if "next_hop" in params and ipaddress.ip_address(params["next_hop"].split("%")[0]).is_link_local:
         # devices report a link-local next hop without its interface, and two sessions can share one (fe80::1 on

@@ -9,3 +9,6 @@ class SonicDriver(FrrDriver):
     name = "sonic"
     # BGP and static routes are active only once the ASIC programmed them (`offloaded: true`): frr._route
     offload = True
+    # SONiC's bgpd is FRR, but an interface-named (unnumbered) session hasn't been verified on a live SONiC node:
+    # refused before deploying until it is
+    interface_peers = False

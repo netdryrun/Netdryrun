@@ -1,0 +1,10 @@
+{
+ "vrfId": 0,
+ "vrfName": "default",
+ "tableVersion": 3,
+ "routerId": "10.0.0.2",
+ "defaultLocPrf": 100,
+ "localAS": 65000,
+ "routes": { "10.1.1.0/24": [{"valid":true,"bestpath":true,"selectionReason":"First path received","pathFrom":"external","prefix":"10.1.1.0","prefixLen":24,"network":"10.1.1.0/24","version":2,"metric":0,"weight":0,"peerId":"fe80::a8c1:abff:fe7e:8202","path":"65001","origin":"IGP","nexthops":[{"ip":"fe80::a8c1:abff:fe7e:8202","hostname":"r1","afi":"ipv6","scope":"global","used":true},{"ip":"fe80::a8c1:abff:fe7e:8202","hostname":"r1","afi":"ipv6","scope":"link-local"}]}]
+,"10.1.2.0/24": [{"valid":true,"bestpath":true,"selectionReason":"First path received","pathFrom":"external","prefix":"10.1.2.0","prefixLen":24,"network":"10.1.2.0/24","version":3,"metric":0,"weight":0,"peerId":"fe80::a8c1:abff:fe7e:8202","path":"65001","origin":"IGP","nexthops":[{"ip":"fe80::a8c1:abff:fe7e:8202","hostname":"r1","afi":"ipv6","scope":"global","used":true},{"ip":"fe80::a8c1:abff:fe7e:8202","hostname":"r1","afi":"ipv6","scope":"link-local"}]}]
+ }  } 
