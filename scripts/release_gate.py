@@ -760,10 +760,15 @@ def published_tag(args, git_) -> tuple[str | None, str]:
     for line in (remote or "").splitlines():
         sha_, _, ref = line.partition("\t")
         refs[ref.strip()] = sha_.strip()
-    published = refs.get(f"refs/tags/{tag}^{{}}") or refs.get(f"refs/tags/{tag}")
-    if not published:
+    peeled, ref = refs.get(f"refs/tags/{tag}^{{}}"), refs.get(f"refs/tags/{tag}")
+    if not peeled and not ref:
         return None, (f"can't confirm {tag} against origin (git ls-remote origin refs/tags/{tag} gave nothing): the "
                       "published tag must be checked against what was published")
+    # origin's peeled commit when it lists one; otherwise (a remote that lists no peeled refs, such as a bundle) its
+    # ref must be this very tag object, or the commit itself for a lightweight tag
+    published = peeled or ref
+    if not peeled and ref == git_("rev-parse", "--verify", "--end-of-options", f"refs/tags/{tag}"):
+        published = sha
     if published != sha:
         return None, (f"{tag} here is {sha[:10]}, but origin's {tag} is {published[:10]}: the local tag doesn't match "
                       "what was published")

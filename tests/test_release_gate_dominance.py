@@ -43,7 +43,7 @@ def answers(**over):
         if cmd[0] == "merge-base" and cmd[1] == "--is-ancestor":
             return a.get("is-ancestor", "")
         if cmd[0] == "rev-parse" and cmd[1] == "--verify":
-            return a.get("tag-sha", TAG_SHA)
+            return a.get("tag-object", "o" * 40) if cmd[-1].startswith("refs/tags/") else a.get("tag-sha", TAG_SHA)
         if cmd[0] == "show":
             if cmd[1] == "HEAD:CHANGELOG.md":
                 return a.get("changelog", CHANGELOG)
@@ -107,6 +107,15 @@ def test_a_published_release_that_cant_be_named_blocks_dominance_and_plants(tmp_
         assert c.status == gate.FAIL and c.severity == gate.BLOCKER and "can't name the published release" in c.summary
         assert why in c.summary, c.summary
     assert not any("--dominance" in cmd or cmd[2] == "plants" for cmd in runner.seen)
+
+
+@pytest.mark.parametrize("listed", [
+    f"{'o' * 40}\trefs/tags/v1.0.0",               # no peeled line (a bundle): the same tag object as here
+    f"{TAG_SHA}\trefs/tags/v1.0.0",                # a lightweight tag: the commit itself
+])
+def test_a_remote_that_lists_no_peeled_ref_is_compared_by_tag_object(tmp_path, listed):
+    checks = static(tmp_path, answers(**{"ls-remote": listed}), fake_runner(CLEAN))
+    assert checks["dominance"].status == gate.PASS, checks["dominance"].summary
 
 
 def test_an_annotated_tag_is_compared_by_the_commit_it_peels_to(tmp_path):
