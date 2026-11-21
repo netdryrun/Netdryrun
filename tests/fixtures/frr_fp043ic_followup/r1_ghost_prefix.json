@@ -1,0 +1,40 @@
+
+{
+  "prefix":"100.64.0.0/24",
+  "version":0,
+  "pathCount":1,
+  "paths":[
+    {
+      "aspath":{
+        "string":"Local",
+        "segments":[],
+        "length":0
+      },
+      "origin":"IGP",
+      "metric":0,
+      "weight":32768,
+      "valid":false,
+      "version":0,
+      "sourced":true,
+      "local":true,
+      "lastUpdate":{
+        "epoch":1795274053,
+        "string":"Sat Nov 21 15:14:13 2026"
+      },
+      "nexthops":[
+        {
+          "ip":"0.0.0.0",
+          "hostname":"r1",
+          "afi":"ipv4",
+          "accessible":false,
+          "importCheckEnabled":true,
+          "used":true
+        }
+      ],
+      "peer":{
+        "peerId":"0.0.0.0",
+        "routerId":"0.0.0.0"
+      }
+    }
+  ]
+}

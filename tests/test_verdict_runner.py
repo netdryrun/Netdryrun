@@ -46,6 +46,11 @@ class Clock:
 
 # bgpd's running config on a live FRR 10.4.1 router with BGP and no `network` (SOURCES.yml)
 BGPD_NO_NETWORK = (Path(__file__).parent / "fixtures" / "frr1041_rplu_r1_running_config.txt").read_text()
+# what a live FRR 10.4.1 router with `bgpd=no` answers the guard (tests/fixtures/frr_fp043ic_followup, SOURCES.yml)
+_OFF = Path(__file__).parent / "fixtures" / "frr_fp043ic_followup"
+BGPD_OFF = {tuple(frr_import_check.BGPD_CONFIG): (1, (_OFF / "off_bgpd_config.txt").read_text(), ""),
+            tuple(frr_import_check.DAEMONS): (0, (_OFF / "off_daemons").read_text(), ""),
+            tuple(frr_import_check.PROCESSES): (0, (_OFF / "r1_comm_bgpd_off.txt").read_text(), "")}
 
 class FakeLab:
     def __init__(self, clock, nodes=("r1", "r2", "r3"), kinds=None, existing=(), running=None, destroy_rc=0,
@@ -64,6 +69,7 @@ class FakeLab:
         self.deployed = self.destroyed = 0
         self.locked = False
         self.active_during_checks = None
+        self.dead: set[str] = set()   # nodes whose bgpd doesn't run: they answer the guard as FRR with bgpd=no
 
     def check_tools(self):
         pass
@@ -116,7 +122,9 @@ class FakeLab:
     def exec(self, node, cmd, timeout=60, input=None):
         # the FRR import-check guard (FP-043-FRRIMPORTCHK) reads bgpd's running config of every FRR router first: a
         # live FRR 10.4.1 one with BGP and no `network` statement, so there is no import-check entry to read
-        if cmd == frr_import_check.BGPD_CONFIG:
+        if node in self.dead and tuple(cmd) in BGPD_OFF:
+            return ExecResult(cmd, *BGPD_OFF[tuple(cmd)])
+        if cmd == frr_import_check.BGPD_CONFIG and node not in self.dead:
             return ExecResult(cmd, 0, BGPD_NO_NETWORK, "")
         return ExecResult(cmd, 1, "", f"not faked: {cmd}")
 
@@ -311,6 +319,8 @@ def make(monkeypatch, nodes=("r1", "r2", "r3"), kinds=None, **drivers_kw):
     clock = Clock()
     lab = FakeLab(clock, nodes=nodes, kinds=kinds)
     drivers = {n: Drv(clock, **drivers_kw.get(n, {"neighbors": up(), "routes": {"default": always}})) for n in nodes}
+    # a node whose BGP reads fail is a dead bgpd: the import-check guard reads it as one (review of 58eb8e0, MAJOR-2)
+    lab.dead = {n for n, kw in drivers_kw.items() if "neighbors_error" in kw}
     return Env(monkeypatch, clock, lab, drivers)
 
 

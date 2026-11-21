@@ -621,6 +621,8 @@ FAIL_SAFE = [
      lambda r: isinstance(r, list) and all(isinstance(x, frr_import_check.Entry) for x in r)),
     ("frr_import_check.parse_table_text", lambda t: frr_import_check.parse_table_text(t, "fuzz"), [],
      lambda r: isinstance(r, list) and all(isinstance(x, frr_import_check.Entry) for x in r)),
+    ("frr_import_check.parse_bgp_vrfs", frr_import_check.parse_bgp_vrfs, ["frr_fp043ic_followup/r1_bgp_vrfs.json"],
+     lambda r: isinstance(r, dict) and all(isinstance(k, str) and type(v) is int and v >= -1 for k, v in r.items())),
 ]
 FS_IDS = [c[0] for c in FAIL_SAFE]
 

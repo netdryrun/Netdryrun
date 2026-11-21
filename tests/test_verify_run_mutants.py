@@ -58,7 +58,7 @@ def patch_side(monkeypatch, snap, loaded_error: Exception | None = None):
     rec = SimpleNamespace(lab=lab, deployed=[], stable=[], collect=[], loaded=[])
 
     @contextmanager
-    def deployed(topology, setup, keep, log):
+    def deployed(topology, setup, keep, log, driver_of=None):   # driver_of: the import-check guard's reader
         rec.deployed.append((topology, setup, keep, log))
         yield lab
 

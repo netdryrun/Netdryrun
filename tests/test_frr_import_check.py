@@ -468,3 +468,283 @@ def test_verify_guards_each_boot_before_and_after_its_snapshot(monkeypatch, tmp_
         assert first[1:] == (True, "") and second[1:] == (False, "after the snapshot") and first[0] == second[0]
         assert first[0] == ["ce1", "pe1", "pe2", "peer1", "up1"]
     assert [c[1:] for c in calls if c not in own] in ([], [(False, ""), (False, "before the verdict")])
+
+
+# ------------------------------------------------------------------------- healthy states with no entry (review 58eb8e0)
+# Live answers of one FRR 10.4.1 router (tests/fixtures/frr_fp043ic_followup, SOURCES.yml): `network 198.51.100.0/24
+# route-map DENYALL` (deny), `network 192.0.2.0/24 backdoor`, a backed `network 203.0.113.0/24`, and `router bgp 65001
+# vrf GHOST` with no VRF device (its entry invalid and not registered). Main passed this lab; 58eb8e0 stopped it.
+
+FU = Path(__file__).resolve().parent / "fixtures" / "frr_fp043ic_followup"
+GHOST_TEXT = ["vtysh", "-c", "show bgp vrf GHOST import-check-table detail"]
+GHOST_JSON = ["vtysh", "-c", "show bgp vrf GHOST import-check-table detail json"]
+DENIED = ["vtysh", "-c", "show bgp ipv4 unicast 198.51.100.0/24 json"]
+BOOT_LOG = (FU / "r1_bootlog_bgpd.txt").read_text()
+
+
+def fu(name: str) -> str:
+    return (FU / name).read_text()
+
+
+def r1_answers(**change):
+    a = {("r1", tuple(ic.BGPD_CONFIG)): (0, fu("r1_bgpd_config.txt"), ""),
+         ("r1", tuple(JSON)): (0, fu("r1_table.json"), ""), ("r1", tuple(TEXT)): (0, fu("r1_table.txt"), ""),
+         ("r1", tuple(GHOST_JSON)): (0, fu("r1_ghost_table.json"), ""),
+         ("r1", tuple(GHOST_TEXT)): (0, fu("r1_ghost_table.txt"), ""),
+         ("r1", tuple(ic.VRFS)): (0, fu("r1_bgp_vrfs.json"), ""),
+         ("r1", tuple(DENIED)): (0, fu("r1_denied_prefix.json"), "")}
+    for k, v in change.items():
+        a[("r1", tuple({"config": ic.BGPD_CONFIG, "denied": DENIED, "vrfs": ic.VRFS, "ghost_json": GHOST_JSON,
+                        "ghost_text": GHOST_TEXT}[k]))] = v
+    return a
+
+
+def run_r1(answers, driver="frr", boot_log=BOOT_LOG, budget=60.0):
+    return run(Lab(answers, boot_log=boot_log), nodes={"r1": driver}, budget=budget)
+
+
+def test_followup_config_live():
+    default, ghost = ic.parse_bgpd_config(fu("r1_bgpd_config.txt"))
+    assert [(n.prefix, n.route_map, n.backdoor) for n in default.networks] == [
+        ("192.0.2.0/24", False, True), ("198.51.100.0/24", True, False), ("203.0.113.0/24", False, False)]
+    assert [n.prefix for n in default.checked] == ["198.51.100.0/24", "203.0.113.0/24"]   # a backdoor never announces
+    assert ghost.vrf == "GHOST" and [n.prefix for n in ghost.checked] == ["100.64.0.0/24"]
+    assert ic.parse_bgp_vrfs(fu("r1_bgp_vrfs.json")) == {"default": 0, "GHOST": -1}
+
+
+def test_a_route_map_denied_network_and_a_vrf_without_device_judge_normally():
+    """MAJOR-1: the live lab main passed is registered, each exemption named, and only after the route-map delay."""
+    out, clock, _ = run_r1(r1_answers())
+    assert out["r1"].startswith("registered; ")
+    assert "198.51.100.0/24 (vrf default) needs no entry: denied by its route-map" in out["r1"]
+    assert "100.64.0.0 (vrf GHOST) needs no entry: its VRF is not active in zebra" in out["r1"]
+    assert sum(clock.sleeps) >= ic.RMAP_DELAY_DEFAULT + ic.SAMPLE_GAP + 1.0
+
+
+def test_the_route_map_delay_comes_from_the_config():
+    cfg = fu("r1_bgpd_config.txt").replace("service integrated-vtysh-config\n",
+                                           "service integrated-vtysh-config\nbgp route-map delay-timer 30\n")
+    assert ic.route_map_delay(cfg) == 30
+    _, clock, _ = run_r1(r1_answers(config=(0, cfg, "")))
+    assert sum(clock.sleeps) >= 30 + ic.SAMPLE_GAP + 1.0
+    with pytest.raises(ic.Unknown):
+        ic.route_map_delay(cfg + "bgp route-map delay-timer 1\n")
+
+
+def test_a_deny_that_turns_into_a_path_within_the_delay_is_never_trusted():
+    """A route-map defined after the `network` (or changed while bgpd loads) is re-applied after the delay: a path of
+    its own with no entry is unknown, never a pass on the earlier deny."""
+    own = fu("r1_own_prefix.json").replace("203.0.113.0/24", "198.51.100.0/24")
+    seq = [(0, fu("r1_denied_prefix.json"), "")] * 3 + [(0, own, "")]
+    with pytest.raises(ic.ImportCheckError, match="198.51.100.0/24 .* a path of its own"):
+        run_r1(r1_answers(denied=seq))
+
+
+@pytest.mark.parametrize("why,kw,match", [
+    ("bgpd still loading", {"boot_log": "[45|bgpd] sending configuration\n"}, "still applying"),
+    ("no load in the log", {"boot_log": "nothing from vtysh -b\n"}, "doesn't show bgpd finished"),
+    ("SONiC: no load signal", {"driver": "sonic"}, "on a sonic router"),
+])
+def test_a_route_map_network_with_no_entry_is_exempt_only_on_proof(why, kw, match):
+    with pytest.raises(ic.ImportCheckError, match=match):
+        run_r1(r1_answers(), **kw)
+
+
+@pytest.mark.parametrize("answer", [
+    (1, "", "bgpd is not running"),                        # unreadable
+    (0, '{"warning":"something new"}', ""),                # a shape the reader doesn't know
+    (0, fu("r1_own_prefix.json"), ""),                     # an answer about another prefix
+])
+def test_a_route_map_deny_needs_bgpd_to_say_it_holds_no_path(answer):
+    with pytest.raises(ic.ImportCheckError, match="198.51.100.0/24"):
+        run_r1(r1_answers(denied=answer))
+
+
+def test_a_network_without_route_map_and_without_entry_is_still_unknown():
+    cfg = fu("r1_bgpd_config.txt").replace("network 198.51.100.0/24 route-map DENYALL", "network 198.51.100.0/24")
+    with pytest.raises(ic.ImportCheckError, match="no import-check entry for network.s. 198.51.100.0/24"):
+        run_r1(r1_answers(config=(0, cfg, "")))
+
+
+def test_a_vrf_without_device_is_exempt_only_on_bgpds_own_vrf_id():
+    active = fu("r1_bgp_vrfs.json").replace('"vrfId":-1', '"vrfId":7')
+    with pytest.raises(ic.ImportCheckError, match="text and JSON answers disagree"):   # "Unknown" is the inactive name
+        run_r1(r1_answers(vrfs=(0, active, "")))
+    with pytest.raises(ic.ImportCheckError, match="show bgp vrfs json"):
+        run_r1(r1_answers(vrfs=(1, "", "bgpd is not running")))
+    gone = fu("r1_bgp_vrfs.json").replace('"GHOST"', '"OTHER"')
+    with pytest.raises(ic.ImportCheckError, match="doesn't list the instance"):
+        run_r1(r1_answers(vrfs=(0, gone, "")))
+
+
+def test_an_announced_path_in_a_vrf_without_device_is_still_stuck():
+    j = fu("r1_ghost_table.json").replace('"bestpath":false,"valid":false', '"bestpath":true,"valid":true')
+    t = fu("r1_ghost_table.txt").replace("flags 0x0", "flags 0x18")
+    lab = Lab(r1_answers(ghost_json=(0, j, ""), ghost_text=(0, t, "")), boot_log=BOOT_LOG)
+    with pytest.raises(ic.ImportCheckError, match="100.64.0.0/24 in .router bgp 65001 vrf GHOST. is not registered"):
+        run(lab, remedy=False, nodes={"r1": "frr"}, budget=60.0)
+
+
+@pytest.mark.parametrize("text", [
+    "", "{}", '{"vrfs":{}}', '{"vrfs":{},"totalVrfs":1}', '{"vrfs":{"a":{"vrfId":"1"}},"totalVrfs":1}',
+    '{"vrfs":{"a":{"vrfId":-2}},"totalVrfs":1}', '{"vrfs":{"a":{"vrfId":1},"a":{"vrfId":-1}},"totalVrfs":2}',
+    '{"vrfs":{"a":{"vrfId":true}},"totalVrfs":1}', '{"vrfs":[],"totalVrfs":0}',
+])
+def test_bgp_vrfs_not_understood_is_unknown(text):
+    with pytest.raises(ic.Unknown):
+        ic.parse_bgp_vrfs(text)
+
+
+# ------------------------------------------------------------------------------------ bgpd off (review MAJOR-2)
+
+def off_answers(**change):
+    a = {("r1", tuple(ic.BGPD_CONFIG)): (1, fu("off_bgpd_config.txt"), ""),
+         ("r1", ("cat", "/etc/frr/frr.conf")): (0, fu("r1.conf"), ""),
+         ("r1", tuple(ic.DAEMONS)): (0, fu("off_daemons"), ""),
+         ("r1", tuple(ic.PROCESSES)): (0, fu("r1_comm_bgpd_off.txt"), "")}
+    for k, v in change.items():
+        a[("r1", tuple({"config": ic.BGPD_CONFIG, "daemons": ic.DAEMONS, "procs": ic.PROCESSES}[k]))] = v
+    return a
+
+
+def test_bgpd_off_is_skipped_on_positive_evidence():
+    """Agent eval T10: `bgpd=no` with `router bgp` in frr.conf. Nothing announces, so nothing is checked; main's
+    inconclusive verdict comes from the checks (test_verdict_runner)."""
+    out, _, _ = run(Lab(off_answers()), nodes={"r1": "frr"})
+    assert out == {"r1": ic.BGPD_DOWN}
+
+
+@pytest.mark.parametrize("change", [
+    {"config": (1, "", "% Can't open configuration file\n")},                       # another failure
+    {"daemons": (0, fu("off_daemons").replace("bgpd=no", "bgpd=yes"), "")},          # watchfrr runs it: starting/died
+    {"daemons": (0, fu("off_daemons").replace("bgpd=no\n", ""), "")},                # not said
+    {"daemons": (0, fu("off_daemons") + "bgpd=no\n", "")},                           # said twice
+    {"daemons": (1, "", "cat: can't open '/etc/frr/daemons'")},
+    {"procs": (0, fu("r1_comm_bgpd_on.txt"), "")},                                   # a bgpd process runs
+    {"procs": (1, fu("r1_comm_bgpd_off.txt"), "cat: can't open '/proc/99/comm'")},  # a list that can't be trusted
+    {"procs": (0, "", "")},
+])
+def test_bgpd_off_needs_every_piece_of_evidence(change):
+    with pytest.raises(ic.ImportCheckError, match="within 20s"):
+        run(Lab(off_answers(**change)), nodes={"r1": "frr"})
+
+
+def test_an_unreadable_boot_log_is_waited_for_then_an_error():
+    """MINOR-2: a failed boot-log read never skips the wait for bgpd's config load."""
+    class NoLog(Lab):
+        def boot_log(self, node):
+            return ExecResult([], 1, "", "Error response from daemon: No such container")
+    with pytest.raises(ic.ImportCheckError, match="boot log could not be read"):
+        run(NoLog(node_answers(j=REMEDIED_JSON, t=REMEDIED_TEXT)))
+
+
+# ------------------------------------------------------------------- verify honors driver settings (review MINOR-1)
+
+def test_verify_guards_a_router_its_guards_file_names_frr(monkeypatch, tmp_path):
+    """A router only `nodes.<node>.driver: frr` identifies (its image names no NOS) is guarded by verify as by run:
+    one reader, runner.driver_resolver (FX-0.4.0-verify-config-load)."""
+    from netdryrun.lab import Node
+    from netdryrun.verify import run as vrun
+
+    node = Node("x", "clab-t-x", "linux", "example.com/edge-router:1")
+    assert vrun._driver_or_none("x", node) is None   # detection alone can't place it
+
+    class DeployLab:
+        name, nodes = "t", {"x": node}
+
+        def __init__(self, topology):
+            pass
+
+        def check_tools(self):
+            pass
+
+        def acquire_lock(self):
+            pass
+
+        def release_lock(self):
+            pass
+
+        def existing_containers(self):
+            return set()
+
+        def deploy(self):
+            pass
+
+        def running_containers(self):
+            return {"clab-t-x"}
+
+        def destroy(self):
+            pass
+
+    guarded = []
+    monkeypatch.setattr(vrun, "Lab", DeployLab)
+    monkeypatch.setattr(ic, "guard", lambda lab, nodes, **kw: guarded.append((dict(nodes), kw["remedy"])) or {})
+    seen = {}
+    real = vrun.deployed
+
+    def deployed(topology, setup, keep, log, driver_of=None):
+        seen["driver_of"] = driver_of
+        return real(topology, setup, keep, log, driver_of=driver_of)
+    monkeypatch.setattr(vrun, "deployed", deployed)
+    monkeypatch.setattr(vrun, "expects_bgp", lambda exec_fn, n: (_ for _ in ()).throw(RuntimeError("past the guard")))
+    side = vrun.real_side(nodes={"x": "frr"}, setup={}, settle=0, timeout=1, keep_after=False, log=lambda _: None,
+                          drivers={"x": "frr"})
+    with pytest.raises(RuntimeError, match="past the guard"):
+        side("before", tmp_path / "t.clab.yml")
+    assert seen["driver_of"]("x", node) == "frr"
+    assert guarded == [({"x": "frr"}, True)]
+
+
+# ----------------------------------------------------------------------------- record --deploy (review MINOR-3)
+
+def _record_deploy(monkeypatch, tmp_path, guard):
+    from netdryrun import cli, lab as labmod, record as recmod
+    from netdryrun.lab import Node
+
+    events = []
+
+    class DeployLab:
+        name = "t"
+        nodes = {"r1": Node("r1", "clab-t-r1", "linux", "quay.io/frrouting/frr:10.4.1")}
+
+        def __init__(self, topology):
+            pass
+
+        def deploy(self):
+            events.append("deploy")
+
+        def destroy(self):
+            events.append("destroy")
+    topo = tmp_path / "t.clab.yml"
+    topo.write_text("name: t\n")
+    monkeypatch.setattr(labmod, "Lab", DeployLab)
+    monkeypatch.setattr(cli, "_await_vm_nodes", lambda lab, drivers: events.append("vm wait"))
+    monkeypatch.setattr("time.sleep", lambda s: events.append(f"sleep {s:g}"))
+    monkeypatch.setattr(recmod, "record", lambda *a, **k: (events.append("record") or (
+        {"lab": "t", "timeout": 120, "checks": [{"type": "route", "node": "r1", "prefix": "192.0.2.0/24"}]}, [])))
+
+    def spy(lab, nodes, **kw):
+        events.append(("guard", dict(nodes), kw["remedy"], kw.get("label", "")))
+        return guard(kw["remedy"])
+    monkeypatch.setattr(ic, "guard", spy)
+    out = tmp_path / "netdryrun.yml"
+    rc = cli.main(["record", str(topo), "--deploy", "--wait", "5", "--out", str(out)])
+    return rc, events, out
+
+
+def test_record_deploy_guards_before_and_after_recording(monkeypatch, tmp_path):
+    rc, events, out = _record_deploy(monkeypatch, tmp_path, lambda remedy: {"r1": "registered"})
+    assert rc == 0 and out.exists()
+    assert events == ["deploy", "vm wait", ("guard", {"r1": "frr"}, True, ""), "sleep 5", "record",
+                      ("guard", {"r1": "frr"}, False, "after the recording"), "destroy"]
+
+
+@pytest.mark.parametrize("stuck_when", [True, False])
+def test_record_deploy_on_a_stuck_boot_writes_nothing(monkeypatch, tmp_path, capsys, stuck_when):
+    def guard(remedy):
+        if remedy == stuck_when:
+            raise ic.ImportCheckError("FRR's import check is still stuck after the remedy: r1: 192.0.2.0/24")
+        return {"r1": "registered"}
+    rc, events, out = _record_deploy(monkeypatch, tmp_path, guard)
+    assert rc == 2 and not out.exists() and events[-1] == "destroy"
+    assert "import check" in capsys.readouterr().err
