@@ -103,6 +103,16 @@ evidence:
   - tests/fixtures/srl2672_fp043_present_run.txt
   - tests/fixtures/srl2672_fp043_present_single_report.json
   - tests/fixtures/srl2672_fp043_present_single_run.txt
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_default_attr_set_6.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_default_evpn_local_rib.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_bgp_rib_route.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_nh_3530614219.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_nhg_3530614221.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_oper_state.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_route_table_route.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_route_table_route_end.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_show_evpn_type5.txt
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_show_version.txt
   - tests/fixtures/srl2672_fp043_single_netdryrun.yml
   - tests/fixtures/srl2672_fp043_topology.clab.yml
 plant: plant.diff
