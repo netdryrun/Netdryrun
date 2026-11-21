@@ -1,0 +1,31 @@
+# Verdict Corpus v2 base network: a small provider (AS65000, routers pe1 + pe2) with one
+# customer (ce1), one upstream transit (up1) and one settlement-free peer (peer1).
+#
+#   ce1 (AS65100) --- pe1 ===iBGP=== pe2 --- peer1 (AS65300)
+#                      |
+#                     up1 (AS65200, transit, sends a default)
+#
+# Policy intent (see ../INTENT.md): customers' routes go everywhere; routes learned from
+# the upstream or the peer go to customers only (no free transit, i.e. no route leaks).
+name: fp043ic-c18
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    ce1:
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/ce1.conf:/etc/frr/frr.conf]
+    pe1:
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/pe1.conf:/etc/frr/frr.conf]
+    pe2:
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/pe2.conf:/etc/frr/frr.conf]
+    up1:
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/up1.conf:/etc/frr/frr.conf]
+    peer1:
+      binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/peer1.conf:/etc/frr/frr.conf]
+  links:
+    - endpoints: ["ce1:eth1", "pe1:eth1"]     # 10.0.1.0/30
+    - endpoints: ["pe1:eth2", "up1:eth1"]     # 10.0.2.0/30
+    - endpoints: ["pe1:eth3", "pe2:eth1"]     # 10.0.3.0/30
+    - endpoints: ["pe2:eth2", "peer1:eth1"]   # 10.0.4.0/30

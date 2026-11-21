@@ -1,0 +1,4 @@
+lab: uwl_topology.clab.yml
+timeout: 60
+checks:
+  - {type: route, node: r2, prefix: 198.51.100.0/24, present: false, name: "r2 does not have 198.51.100.0/24"}

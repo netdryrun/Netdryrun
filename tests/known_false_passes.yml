@@ -531,3 +531,15 @@
     - tests/test_oracle_guards_fp_042_eosasdot.py
     - tests/test_ping_family_eos_asdot_042.py
     - tests/test_redteam.py
+- id: rt-0084-frr-import-check-not-registered
+  what: >-
+    OPEN, no fix yet (oracle FP-043-FRRIMPORTCHK is red on main): on FRR, a `network` statement with no route behind it
+    stayed announced for the life of the lab when bgpd applied it before its zebra connection was up (import-check
+    entry invalid and not registered next to a valid sourced path), so a change that removed the route behind it
+    passed `run`/`check` and was approved by `verify` while production withdraws the prefix (corpus v2 case 18;
+    found 2026-11-21)
+  record: tests/redteam/RT-0084-frr-import-check-not-registered.yml
+  tests:
+    - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py
+    - tests/test_oracle_guards_fp_043_frrimportchk.py
+    - tests/test_redteam.py

@@ -1,0 +1,4 @@
+lab: uwl_topology.clab.yml
+timeout: 60
+checks:
+  - {type: route, node: r2, prefix: 198.51.100.0/24, present: true, name: "r2 has 198.51.100.0/24 (must fail: r1 has no route behind its network statement)"}

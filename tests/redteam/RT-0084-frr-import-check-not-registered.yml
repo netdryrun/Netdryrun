@@ -1,0 +1,21 @@
+id: RT-0084
+title: >-
+  FRR: a `network` statement with no route behind it stayed announced for the life of the lab when bgpd applied it
+  before its zebra connection was up (import check marked valid, registration with zebra never sent again), so a
+  change that removed the route behind it passed `run`/`check` (`route <neighbor> <prefix> present: true`) and was
+  approved by `verify`, while production (import check registered) withdraws the prefix. Corpus v2 case 18 was
+  approved this way
+found: "2026-11-21, investigation of corpus v2 case 18's nondeterministic verdicts (research/case18-race); oracle session oracle-frr-importchk"
+fixed_in: null
+# OPEN: no fix yet (oracle FP-043-FRRIMPORTCHK is red on main). FRR 10.4.1 bgpd (same code in 8.5.4, 10.2.1 and
+# master): bgp_isvalid_nexthop() answers valid while bgpd has no zebra connection, and bgp_nht_register_nexthops()
+# re-sends the nexthop cache on connect but not the import-check table. bgpd shows it: the import-check entry is
+# invalid and "Is not Registered" (JSON `"isRegistered": false`) next to a valid, sourced, best `network` path. Live on
+# the laptop's WSL with FRR 10.4.1 (tests/fixtures/frr_fp043ic, SOURCES.yml). Affected: every release with the FRR
+# driver (run/check since 0.1.0, verify since 0.4.0); not yet checked against archived tags.
+kind: pinned
+tests:
+  - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_stuck_import_check_is_never_judged_passing
+  - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_verify_never_approves_case_18_on_a_stuck_boot
+  - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_unreadable_import_check_table_is_an_error
+  - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_contradiction_alone_is_detected

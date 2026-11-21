@@ -1,0 +1,11 @@
+Netdryrun 0.4.2: 2 checks from c18_present_true.yml
+ce1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+pe1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+pe2: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+peer1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+up1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+Management default routes removed; settling 10s before the checks...
+  [PASS] I2 upstream has our aggregate -- active via bgp (3.4s)
+  [PASS] I2 peer has our aggregate -- active via bgp (3.4s)
+PASSED: 2 passed, 0 failed (2 checks)
+  wrote json report: /home/ndr/fp043ic/out/c18base/boot1/boot/report_c18_present_true.json
