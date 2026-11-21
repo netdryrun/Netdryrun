@@ -97,12 +97,15 @@ Nothing is waived or dropped unless the judge's output has exactly the shape its
 flip lines, the fixtures note, problem lines, then the summary) and the summary's flip and problem counts match the
 lines: a problem whose text runs past a newline can't hide anything after it.
 
-Each of these MAJORs, and the other fast-fix MAJORs (`dominance-skips`, `published-judge`, `plants-pending`), puts a
-fingerprint of its content in its summary (`[fingerprint <16 hex>]`: the waived and dropped lines, the skipped
-fixtures, the published commit). `accepted.json` accepts such a check only with that fingerprint pinned:
+Each of these MAJORs, the other fast-fix MAJORs (`dominance-skips`, `published-judge`, `plants-pending`), and the
+`static/corpus-fresh` and `unit/coverage` MAJORs put a fingerprint of their content in their summary
+(`[fingerprint <16 hex>]`: the waived and dropped lines, the skipped fixtures, the published commit, the stale
+corpora, the modules below their floors). `accepted.json` accepts such a check only with that fingerprint pinned:
 `{"checks": {"static/loosening": {"reason": "...", "fingerprint": "<16 hex>"}}}`. A plain reason, a missing or another
-fingerprint is not accepted, so an acceptance can't carry over to a candidate with other lines. MAJORs without a
-fingerprint (the live and after-publish layers, say) still take a plain reason.
+fingerprint is not accepted, so an acceptance can't carry over to a candidate with other lines. For these checks
+(`FINGERPRINTED` in `scripts/release_gate.py`) a record with no well-formed fingerprint is not accepted at all (it
+comes from an older gate or was edited): rerun the layer. Other MAJORs (the live and after-publish layers, say) still
+take a plain reason.
 
 Known limits (accepted for now):
 - The checks run from the candidate's own `release_gate.py`. A candidate that edits it shows up as a gate-file flip
