@@ -25,6 +25,16 @@
   up, one shut down, and a new prefix sent over one). Oracle `FP-042-UNNSESS` now requires a gap only for a session `record`
   leaves out: it required one even when every session is recorded.
 
+### Fixed
+
+- **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
+  overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get
+  the template's value instead of its own override, and the order of a merge list is reversed for longer keys (PyYAML
+  issue 953, still open). Netdryrun already refuses a merge list whose sources share a key, and every config key it
+  reads is longer than one character, so no verdict was found to change. The dependency is now `pyyaml>=6.0,!=6.0.4`,
+  and the tests check the installed PyYAML's merge behaviour directly, so another release with the same fault fails
+  the suite instead of reaching users.
+
 ## 0.4.2 (2026-11-21)
 
 ### Fixed
