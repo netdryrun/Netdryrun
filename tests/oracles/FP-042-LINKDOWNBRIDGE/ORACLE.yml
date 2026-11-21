@@ -13,3 +13,4 @@ bug: >-
   without a session adds nothing to wait for) are in tests/test_oracle_guards_fp_042_linkdownbridge.py
 evidence:
   - tests/test_oracle_guards_fp_042_linkdownbridge.py
+plant: plant.diff

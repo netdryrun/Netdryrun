@@ -6,3 +6,6 @@ bug: >-
 evidence:
   - tests/fixtures/frr_bgp_neighbors.txt
   - tests/test_oracle_guards_fp_042_capmsg.py
+plant: none
+plant_why: >-
+  Fixed in 1289ef1679 before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 1 of 3 reversed hunks that still apply don't bring the bug back: the plant needs a port by hand

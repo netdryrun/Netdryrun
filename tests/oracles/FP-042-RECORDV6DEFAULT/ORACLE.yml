@@ -11,3 +11,6 @@ bug: >-
   in tests/test_oracle_guards_fp_042_recordv6default.py
 evidence:
   - tests/test_oracle_guards_fp_042_recordv6default.py
+plant: none
+plant_why: >-
+  Fixed in 57eb8cad10 before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 2 of 4 reversed hunks that still apply don't bring the bug back: the plant needs a port by hand

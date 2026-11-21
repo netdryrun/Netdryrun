@@ -15,6 +15,7 @@ from netdryrun.drivers import DRIVERS, DriverError, detect, nxos
 from netdryrun.drivers.base import NoSuchInstance, Route
 from netdryrun.drivers.nxos import NxosDriver
 from netdryrun.lab import ExecResult, Lab as RealLab, LabError, Node
+from fakes import UnexpectedCommand, seen
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -44,11 +45,12 @@ class Lab:
         assert cmd[:2] == ["python3", "-c"] and cmd[2] == nxos.HELPER
         method, command = cmd[3], cmd[4]
         self.calls.append((method, command, timeout))
+        seen(f"{method} {command}")
         for needle, answer in self.rules:
             if needle in command:
                 rc, out, e = answer if isinstance(answer, tuple) else (0, answer, "")
                 return ExecResult(list(cmd), rc, out, e)
-        raise AssertionError(f"unexpected command: {command}")
+        raise UnexpectedCommand(command)
 
     def commands(self):
         return [c[1] for c in self.calls]

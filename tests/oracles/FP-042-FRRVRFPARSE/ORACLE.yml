@@ -10,3 +10,6 @@ bug: >-
 evidence:
   - tests/test_oracle_guards_fp_042_frrvrfparse.py
   - tests/fixtures/verify/show_vrf.txt
+plant: none
+plant_why: >-
+  Fixed in d59479b5ae before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 10 of 12 reversed hunks that still apply break the build instead of the verdict: the plant needs a port by hand

@@ -17,6 +17,7 @@ from netdryrun.drivers.routeros import RouterosDriver
 from netdryrun.drivers.sonic import SonicDriver
 from netdryrun.drivers.srlinux import SrlDriver
 from netdryrun.lab import ExecResult
+from fakes import UnexpectedCommand, seen
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -34,11 +35,12 @@ class Lab:
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
         self.calls.append(line)
+        seen(line)
         for needle, answer in self.rules:
             if needle in line:
                 rc, out = answer if isinstance(answer, tuple) else (0, answer)
                 return ExecResult(cmd, rc, out, "" if rc == 0 else "% failed")
-        raise AssertionError(f"unexpected command: {line}")
+        raise UnexpectedCommand(line)
 
 
 def _obj(d) -> str:
