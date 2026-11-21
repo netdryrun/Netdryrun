@@ -1,0 +1,177 @@
+Import guard v2, branch ndr/test-import-guard-v2, commit f84526a: results of the checks run on that commit.
+
+Every section gives the command, the commit checked out, the date (UTC) and the output lines the command printed
+(some outputs are cut with the filter named in the section; progress dots and spinners are left out of the mutmut run).
+Nothing here was written by hand except these notes. Produced in WSL Ubuntu, Python 3.10.12, pytest 9.1.1.
+
+Notes:
+- The mutmut run is not deterministic in its timeouts: an earlier run of the same command on the same code gave
+  735 killed, 88 survived, 8 timeout; this one gave 731 killed, 88 survived, 12 timeout.
+- The .so probe builds a tiny checkout (src/netdryrun/checks.py plus a compiled checks extension module beside it) and
+  runs pytest in it with tests/conftest.py, tests/import_guard.py and tests/fakes.py taken from the named commit.
+- The B1 and B2 revert checks edit one line of tests/import_guard.py or tests/oldrelease.py, run the test, and restore the file.
+
+## loosening against origin/main (the flips)
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T21:03:42Z
+origin/main: 6df498add4799838aaaba55dcd9462bd6191feb6
+run in: /home/ndr/test-import-guard
+command: /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base origin/main --python /home/ndr/.venvs/netdryrun/bin/python
+output filtered with: grep -a -E '^(BLOCKED|loosening:|  fixtures: fake-lab|  \(fixtures: the base)'
+output:
+      fixtures: fake-lab commands compared, 3 test(s) send something new
+    BLOCKED loosening flip with no reviewed allowlist entry: gate :: scripts/fastfix_gate.py@0d608ee7b1c0: FAIL -> PASS
+    BLOCKED loosening flip with no reviewed allowlist entry: gate :: scripts/release_gate.py@645070a65e8f: FAIL -> PASS
+    BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_startup_config_load::test_audit_f1_an_exec_command_that_failed_fails_the_deploy: FAIL -> PASS [new-read on *]
+    BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_verdict_keys_041::test_action_verify_match_without_a_declared_line_or_inconclusive_without_reason_is_no_verdict: FAIL -> PASS [new-read on *]
+    BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_verdict_keys_041::test_action_verify_no_change_needs_an_empty_diff_and_nothing_declared: FAIL -> PASS [new-read on *]
+      (fixtures: the base's guard test no longer holds on the candidate's code. It counts as PASS because the gate can't tell a pass from a changed status such as failed -> error; read the test's failure, and if the tool still refuses, allow it citing the updated test as evidence)
+    loosening: BLOCKED (5 unexplained flip(s), 0 problem(s))
+    [exit code of the command: 1]
+
+## reproduce
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:24:39Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py reproduce --repo . --range origin/main..HEAD --python /home/ndr/.venvs/netdryrun/bin/python
+output filtered with: tail -3
+output:
+      4 commits, 0 fix commits, 31 oracles held at the candidate
+    reproduce: clean
+    [exit code of the command: 0]
+
+## the .so probe at dffc022 (before the narrowing and the non-.py refusal)
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:37Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: bash /home/ndr/cap/probe_so.sh dffc022
+output:
+    loaded: /tmp/tmp.53CXhSqLpD/src/netdryrun/checks.cpython-310-x86_64-linux-gnu.so WHO = compiled extension
+    .
+    1 passed in 0.10s
+    rc=0
+    [exit code of the command: 0]
+
+## the .so probe at this commit
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:37Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: bash /home/ndr/cap/probe_so.sh HEAD
+output:
+    Exit: /tmp/tmp.Opsvh3bRa8/src/netdryrun holds files python could import instead of the source beside them (['checks.cpython-310-x86_64-linux-gnu.so']): a compiled or planted module
+    rc=4
+    [exit code of the command: 0]
+
+## the poisoned .pyc with and without PYTHONPYCACHEPREFIX
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:38Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: /home/ndr/.venvs/netdryrun/bin/python /home/ndr/cap/probe_pyc.py
+output:
+    no prefix: WHO printed = 'planted bytecode' (rc=0)
+    fresh PYTHONPYCACHEPREFIX: WHO printed = 'python source' (rc=0)
+    [exit code of the command: 0]
+
+## L-13 control: the real-mutmut test with both fixes in place
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:38Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+output filtered with: tail -3
+output:
+    .                                                                        [100%]
+    1 passed in 1.37s
+    [exit code of the command: 0]
+
+## L-13 with B1 reverted (every non-.py file refused again)
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:40Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: grep -c 'p.suffix != ".py"' tests/import_guard.py; PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+output filtered with: tail -4
+output:
+    tests/test_import_guard.py:917: AssertionError
+    =========================== short test summary info ============================
+    FAILED tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+    1 failed in 0.72s
+    [exit code of the command: 1]
+
+## L-13 with B2 reverted (git archive only from the checkout root)
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:41Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: grep -c '(root,)' tests/oldrelease.py; PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+output filtered with: tail -4
+output:
+    tests/test_import_guard.py:917: AssertionError
+    =========================== short test summary info ============================
+    FAILED tests/test_import_guard.py::test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export
+    1 failed in 1.01s
+    [exit code of the command: 1]
+
+## working tree is back to the commit
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:42Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: git status --short; git diff --stat | tail -1; echo clean-check-done
+output:
+    clean-check-done
+    [exit code of the command: 0]
+
+## real mutmut on netdryrun.faults* (counts; the progress output is left out)
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:25:42Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: export PYTHONPYCACHEPREFIX=$(mktemp -d); PYTHONPATH=src timeout 3400 /home/ndr/.venvs/netdryrun/bin/python -m mutmut run --max-children 2 'netdryrun.faults*' > /home/ndr/cap/mutmut.log 2>&1; echo mutmut-run-rc=$?; PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m mutmut results --all true 2>&1 | awk '{print $NF}' | sort | uniq -c
+output:
+    mutmut-run-rc=0
+      25676 checked
+        731 killed
+         88 survived
+         12 timeout
+    [exit code of the command: 0]
+
+## full suite, PYTHONPATH=src
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:41:53Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: PYTHONPATH=src /home/ndr/.venvs/netdryrun/bin/python -m pytest -q -p no:cacheprovider
+output filtered with: tail -2
+output:
+    ...............................................                          [100%]
+    8404 passed, 66 skipped, 1 xfailed in 367.00s (0:06:07)
+    [exit code of the command: 0]
+
+## full suite, src put first by a launcher, no PYTHONPATH
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:48:01Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: env -u PYTHONPATH /home/ndr/.venvs/netdryrun/bin/python /home/ndr/cap/launch.py
+output filtered with: tail -2
+output:
+    ...............................................                          [100%]
+    8404 passed, 66 skipped, 1 xfailed in 375.58s (0:06:15)
+    [exit code of the command: 0]
+
+## ruff
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:54:18Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: /home/ndr/.venvs/netdryrun/bin/python -m ruff check .
+output filtered with: tail -2
+output:
+    All checks passed!
+    [exit code of the command: 0]
+
+## full suite in the container shape (non-editable install, NDR_TEST_INSTALLED=1)
+commit: f84526ae9760aa55cbe151d9e23bfdd7de6a71d9
+date:   2026-11-21T20:54:41Z
+run in: /home/ndr/test-import-guard (unless the command says otherwise)
+command: PYTHONPYCACHEPREFIX=$(mktemp -d) PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 /tmp/tmp.hSv0F7QUda/v/bin/python -m pytest -q -p no:cacheprovider -rs; echo; cat /tmp/ndr-guard-proof
+output filtered with: tail -4
+output:
+    SKIPPED [1] tests/test_import_guard.py:113: the plain-container layer tests the installed copy
+    8403 passed, 67 skipped, 1 xfailed in 427.53s (0:07:07)
+    
+    {"mode": "installed", "source": "/tmp/tmp.hSv0F7QUda/v/lib/python3.10/site-packages/netdryrun"}    [exit code of the command: 0]
+
