@@ -4,13 +4,17 @@ flips:
     from: FAIL
     to: PASS
     kind: new-read
-    evidence: [tests/test_redteam.py, tests/redteam/RT-0058-srl-evpn-bgp-route-absent.yml, tests/fixtures/srl2672_fp043_present_leaf1_default_evpn_local_rib.json, tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_route_table_route.json, tests/fixtures/srl2672_fp043_present_leaf1_default_attr_set_6.json]
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0058-srl-evpn-bgp-route-absent.yml, tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_bgp_rib_route.json, tests/fixtures/srl2672_fp043_rt58_leaf1_default_evpn_local_rib.json, tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_route_table_route.json, tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_nhg_3530614221.json, tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_nh_3530614219.json, tests/fixtures/srl2672_fp043_rt58_leaf1_default_attr_set_6.json, tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_oper_state.json]
     why: >-
       RT-0058 is fixed in 0.4.3 (fixed_in: 0.4.3, accepted_limit removed), so it leaves the accepted-limits test and
-      is judged by test_driver_case_does_not_pass, which requires the check not to pass. Its outputs gain the live
-      SR Linux 26.7.2 captures of the new reads (the default instance's EVPN local-rib, the ip-vrf route-table row,
-      attr-set 6). tests/test_redteam.py is unchanged by this branch; it differs from main only because main moved on.
-    reviewed_by: "recheck-srl: RT-0058 now runs as a must-not-pass driver case on the live EVPN RIB, route-table and attr-set captures; no assertion weakened"
+      is judged by test_driver_case_does_not_pass and test_rt0058_fails_on_the_drivers_own_verdict (tests/test_redteam.py,
+      f47f9da), which require the driver's own verdict, never an error or an unanswered read. Every read the fixed
+      driver sends is answered from one live design-A run (SR Linux 26.7.2, srl2672_fp043_rt58_*): ipvrf's empty
+      bgp-rib, the default instance's EVPN local-rib, the ip-vrf route-table row on next-hop-group 3530614221, its
+      next hop 3530614219 (2.2.2.2), attr-set 6 and oper-state. On the branch the check fails with "unexpectedly in
+      the BGP table (1 path(s); ... next hop 2.2.2.2 ...)"; with main's srlinux.py it passes with "no BGP path", the
+      old false pass.
+    reviewed_by: "recheck-srl2: RT-0058 is fixed in 0.4.3 and leaves the accepted limits; it fails on the driver's own verdict (unexpectedly in the BGP table, next hop 2.2.2.2) with every read answered from the live rt58 run, next-hop-group and next hop included; fails on the plant and main's driver"
   - source: fixtures
     case: tests.test_verdict_drivers::test_srl_bgp_paths_commands
     from: FAIL
@@ -21,7 +25,7 @@ flips:
       bgp_paths in a named network-instance now also reads the default instance's EVPN local-rib and the ip-vrf's
       route-table row (RT-0058). The expected command list gains exactly those two reads, in order, answered {} by
       the fake. The `nope` instance still raises a DriverError from oper-state. Stricter: two more pinned commands.
-    reviewed_by: "recheck-srl: the expected command list gains the EVPN RIB and route-table reads; the nope case still raises NoSuchInstance from oper-state"
+    reviewed_by: "recheck-srl2: the expected command list gains exactly the EVPN RIB and route-table reads; the nope case still raises from oper-state"
   - source: fixtures
     case: tests.test_verdict_drivers::test_srl_evidence_is_kept_everywhere
     from: FAIL
@@ -32,7 +36,7 @@ flips:
       bgp_paths in a vrf now keeps the two new reads (EVPN local-rib, ip-vrf route-table) as evidence, so the
       asserted evidence count goes from 2 to 4; the fake answers the route-table read {}. Every other count is
       unchanged. Stricter: the test pins two more evidence entries.
-    reviewed_by: "recheck-srl: the bgp_paths evidence count in a vrf goes from 2 to 4 with the two new reads kept; other counts unchanged"
+    reviewed_by: "recheck-srl2: the bgp_paths evidence count in a vrf goes from 2 to 4, the two new reads; other counts unchanged"
   - source: fixtures
     case: tests.test_verdict_drivers::test_srl_local_pref_from_the_neighbor
     from: FAIL
@@ -43,7 +47,7 @@ flips:
       Only the shared _srl_paths_lab helper changed: it answers the new EVPN local-rib and route-table reads {} (SR
       Linux's answer for an empty container: nothing imported, nothing installed). Every assertion of the test is
       unchanged, so the local-pref logic it guards is judged as before.
-    reviewed_by: "recheck-srl: only the _srl_paths_lab helper answers the new reads with empty containers; every assertion is unchanged"
+    reviewed_by: "recheck-srl2: only the _srl_paths_lab helper answers the new reads with empty containers; every assertion unchanged"
   - source: fixtures
     case: tests.test_verdict_drivers::test_srl_routes
     from: FAIL
@@ -54,7 +58,7 @@ flips:
       routes in a named network-instance now also reads the default instance's EVPN local-rib (RT-0058). The
       expected command list gains that one read, in place; the route values and the default-instance call count
       are unchanged. Stricter: one more pinned command.
-    reviewed_by: "recheck-srl: one more expected command (the EVPN RIB read in a named vrf); route values and call counts unchanged"
+    reviewed_by: "recheck-srl2: one more expected command, the EVPN RIB read in a named vrf; route values and call counts unchanged"
   - source: fixtures
     case: tests.test_driver_false_pass::test_srl_existing_network_instance_without_the_route_is_a_real_absence
     from: FAIL
@@ -62,10 +66,11 @@ flips:
     kind: new-read
     evidence: [tests/test_driver_false_pass.py]
     why: >-
-      The test file is unchanged by this branch (it differs from main only because main moved on). Its catch-all
-      fake ("", "{\n}") now also answers the new EVPN local-rib and route-table reads with an empty container, which
-      is SR Linux's answer when nothing is imported, so absence is still []. The assertion is unchanged.
-    reviewed_by: "recheck-srl: test unchanged; the catch-all fake answers the new reads with an empty container and absence is still []; passes on main's src and the candidate's"
+      Main's version of the test passes with the candidate's src; only the command log shows the new EVPN local-rib
+      read. 2dcdd28 changed the test: it now pins every read in order (the instance's route table and BGP RIB, the
+      default instance's EVPN local-rib, then oper-state), and its catch-all fake answers the new reads with an empty
+      container, SR Linux's answer when nothing is imported, so absence is still []. No assertion is weakened.
+    reviewed_by: "recheck-srl2: passes on main's version with the candidate's src, flagged by the command log only; the branch's version pins the four reads in order and absence is still []"
   - source: fixtures
     case: tests.test_driver_false_pass::test_srl_unknown_network_instance_raises_instead_of_no_routes
     from: FAIL
@@ -73,7 +78,8 @@ flips:
     kind: new-read
     evidence: [tests/test_driver_false_pass.py]
     why: >-
-      The test file is unchanged by this branch (it differs from main only because main moved on). The catch-all
-      fake answers the new reads; the command log shows the driver still ends on the oper-state read and raises
-      NoSuchInstance for network-instance CUSTOMR, for routes and bgp_paths, the refusal the test guards.
-    reviewed_by: "recheck-srl: test unchanged; the command log shows the driver still raises NoSuchInstance from oper-state for routes and bgp_paths"
+      Main's version of the test passes with the candidate's src; only the command log shows the new EVPN local-rib
+      read. 2dcdd28 changed the test: it now pins the reads for routes and bgp_paths in order, ending on oper-state,
+      and the driver still raises NoSuchInstance for network-instance CUSTOMR, the refusal the test guards. No
+      assertion is weakened.
+    reviewed_by: "recheck-srl2: passes on main's version with the candidate's src, flagged by the command log only; the branch's version pins the reads and the driver still raises NoSuchInstance from oper-state"
