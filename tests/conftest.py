@@ -5,6 +5,7 @@ the mutation layer then ran `containerlab deploy` on a test topology through pas
 containers behind (2026-10-30). Every `containerlab deploy` or `destroy` a unit test reaches through `netdryrun.lab`
 fails here instead. A test that fakes `lab._run` itself replaces this guard, as before."""
 import pytest
+from import_guard import pytest_configure  # noqa: F401  (the session aborts if netdryrun is not the source under test)
 
 REAL_LAB_TOOLS = {"containerlab", "clab"}
 CHANGES_A_LAB = {"deploy", "destroy"}   # read-only commands (`containerlab version`) stay allowed

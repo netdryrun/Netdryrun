@@ -188,7 +188,10 @@ def registry_tests(registry: Path) -> list[str]:
 
 
 def _pytest(tests_tree: Path, src: Path, targets: list[str]) -> subprocess.CompletedProcess:
-    env = dict(os.environ, PYTHONPATH=str(src), PYTHONDONTWRITEBYTECODE="1")
+    # NDR_TEST_SRC declares which code these tests run against (tests/import_guard.py): the tests may be this PR's and the
+    # code the base branch's (fails-on-revert), which the guard would otherwise refuse as "not this checkout's src"
+    env = dict(os.environ, PYTHONPATH=str(src), PYTHONDONTWRITEBYTECODE="1", NDR_TEST_SRC=str(src))
+    env.pop("NDR_TEST_INSTALLED", None)
     check = subprocess.run([sys.executable, "-c", "import netdryrun; print(netdryrun.__file__)"], cwd=tests_tree,
                            env=env, capture_output=True, text=True)
     if not check.stdout.strip().startswith(str(src)):

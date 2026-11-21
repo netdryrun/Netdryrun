@@ -42,8 +42,12 @@ any release's source. Every case that fails there is a false pass that release h
 
 ```bash
 git archive v0.3.0 src | tar -x -C /tmp/old
-PYTHONPATH=/tmp/old/src:tests pytest tests/test_redteam.py
+NDR_TEST_SRC=/tmp/old/src PYTHONPATH=/tmp/old/src:tests pytest tests/test_redteam.py
 ```
+
+`NDR_TEST_SRC` declares that the old source is the one under test; without it the import guard in
+`tests/import_guard.py` aborts the run (exit 4), because the tests belong to a different checkout than the code. An
+abort or a collection error is not a clean run: only a finished run with its failures counted tells you anything.
 
 On 0.3.0 this fails RT-0001 to RT-0011 (eleven false passes). RT-0012, RT-0013, RT-0016 and RT-0017 are guards
 that 0.3.0 already passed, and say so in `fixed_in`.

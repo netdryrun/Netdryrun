@@ -1401,23 +1401,26 @@ def coverage_checks(layer: Layer, cov_json: Path | None) -> None:
               "; ".join(below) or "all at or above their floors", table, content=below)
 
 
+# Run inside the plain container: copy the tree (the mount is read-only), install it as a normal (non-editable) package
+# and test what pip built, not the source folder. NDR_TEST_INSTALLED=1 tells tests/import_guard.py to expect exactly
+# that: every .py file of the installed netdryrun byte-identical to /w/src/netdryrun, none missing, none extra.
+CONTAINER_SCRIPT = (
+    "set -e\n"
+    "if command -v containerlab >/dev/null || command -v docker >/dev/null; then echo 'not a plain environment'; exit 90; fi\n"
+    "mkdir /w && tar -C /src --exclude=./mutants --exclude=./.git --exclude=./releases -cf - . | tar -C /w -xf -\n"
+    # the acceptance matrix is read by its tests (tests/test_acceptance_script.py); the rest of releases/ is records
+    "mkdir -p /w/releases && cp /src/releases/acceptance-matrix.yml /w/releases/\n"
+    "cd /w && pip install -q --disable-pip-version-check --root-user-action=ignore '.[dev]'\n"
+    "python --version\n"
+    "NDR_TEST_INSTALLED=1 python -m pytest -q -p no:cacheprovider -rs\n")
+
+
 def unit_in_container(layer: Layer) -> None:
     title = f"unit tests in a plain {SLIM_IMAGE} container (no containerlab, no Docker)"
     if not layer.tool("docker", ["docker", "version", "--format", "{{.Server.Version}}"]):
         layer.add("pytest-container", title, BLOCKER, None, "Docker is not available")
         return
-    # Copy the tree inside the container (the mount is read-only) and install it as a normal
-    # package, so the tests run against what pip builds, not the source folder.
-    script = (
-        "set -e\n"
-        "if command -v containerlab >/dev/null || command -v docker >/dev/null; then echo 'not a plain environment'; exit 90; fi\n"
-        "mkdir /w && tar -C /src --exclude=./mutants --exclude=./.git --exclude=./releases -cf - . | tar -C /w -xf -\n"
-        # the acceptance matrix is read by its tests (tests/test_acceptance_script.py); the rest of releases/ is records
-        "mkdir -p /w/releases && cp /src/releases/acceptance-matrix.yml /w/releases/\n"
-        "cd /w && pip install -q --disable-pip-version-check --root-user-action=ignore '.[dev]'\n"
-        "python --version\n"
-        "python -m pytest -q -p no:cacheprovider -rs\n")
-    cmd = ["docker", "run", "--rm", "-v", f"{ROOT}:/src:ro", SLIM_IMAGE, "sh", "-c", script]
+    cmd = ["docker", "run", "--rm", "-v", f"{ROOT}:/src:ro", SLIM_IMAGE, "sh", "-c", CONTAINER_SCRIPT]
     p = run(cmd, timeout=1800)
     layer.add("pytest-container", title, BLOCKER, p.code == 0, pytest_summary(p.out), tail(p.out, 80), p.seconds,
               f"docker run --rm -v <repo>:/src:ro {SLIM_IMAGE} sh -c <install and pytest>")

@@ -106,6 +106,42 @@ def test_a_test_that_fails_on_the_old_code_passes_the_gate(repo):
     assert gate.fails_on_revert(base) == []
 
 
+# The real import guard (tests/import_guard.py) in the synthetic repo, so the gate runs in the shape it has in this repo:
+# this PR's tests (the checkout's) against the base branch's code, which the guard must be told to expect.
+GUARD = {"tests/import_guard.py": (ROOT / "tests" / "import_guard.py").read_text(encoding="utf-8"),
+         "tests/conftest.py": "from import_guard import pytest_configure  # noqa: F401\n"}
+FIXED = "def established(state):\n    return state.lower() == 'established'\n"
+
+
+@needs_git
+def test_fails_on_revert_runs_this_prs_tests_on_the_base_code_through_the_import_guard(repo):
+    base = commit(repo, {**PKG, **GUARD}, "base")
+    commit(repo, {"src/netdryrun/drivers/x.py": FIXED,
+                  "tests/test_x.py": "from netdryrun.drivers.x import established\n\n"
+                                     "def test_it():\n    assert established('established')\n"}, "fix")
+    assert gate.fails_on_revert(base) == []
+
+
+@needs_git
+def test_the_import_guard_does_not_hide_a_test_that_also_passes_on_the_base_code(repo):
+    base = commit(repo, {**PKG, **GUARD}, "base")
+    commit(repo, {"src/netdryrun/drivers/x.py": FIXED,
+                  "tests/test_x.py": "from netdryrun.drivers.x import established\n\n"
+                                     "def test_it():\n    assert established('Established')\n"}, "fix")
+    assert "also pass on the base branch's code" in gate.fails_on_revert(base)[0]
+
+
+@needs_git
+def test_known_false_passes_run_through_the_import_guard_too(repo):
+    base = commit(repo, {**PKG, **GUARD, "tests/known_false_passes.yml": "- id: x\n  tests: [tests/test_x.py]\n",
+                         "tests/test_x.py": "from netdryrun.drivers.x import established\n\n"
+                                            "def test_idle_is_not_up():\n    assert not established('Idle')\n"}, "base")
+    assert gate.known_false_passes(base) == []
+    commit(repo, {"src/netdryrun/drivers/x.py": "def established(state):\n    return True\n"}, "break it")
+    found = gate.known_false_passes(base)
+    assert found and "known false pass is back" in found[0]
+
+
 @needs_git
 def test_docs_only_changes_need_no_test(repo):
     base = commit(repo, PKG, "base")

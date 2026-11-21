@@ -75,7 +75,8 @@ GATE_MODULES = ("pytest", "_pytest", "pluggy", "yaml", "sitecustomize", "usercus
 # the fake labs' command log (tests/fakes.py): set only by the gate, per run, outside the tree under test
 COMMAND_LOG_ENV = "NDR_FAKE_COMMAND_LOG"
 CHILD_ENV_DROP = ("MUTANT_UNDER_TEST", "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONSTARTUP", "PYTHONHOME",
-                  "PYTEST_CURRENT_TEST", "PYTHONPATH", COMMAND_LOG_ENV)
+                  "PYTEST_CURRENT_TEST", "PYTHONPATH", COMMAND_LOG_ENV,
+                  "NDR_TEST_SRC", "NDR_TEST_INSTALLED")   # the import guard (tests/import_guard.py) expects each tree's own src
 # an oracle on the buggy parent fails by an assertion, or by pytest.raises seeing no refusal
 ASSERTION = re.compile(r"^(assert\b|AssertionError\b|Failed: DID NOT RAISE\b)")
 # what ships to users besides src/: swapped in from the code under test; a change to it needs a trailer
