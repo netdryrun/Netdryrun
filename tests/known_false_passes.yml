@@ -275,14 +275,11 @@
     selected, SR Linux EVPN type-5 in an ip-vrf, FRR/SONiC ping to the VRF device's own address; red team on the final
     0.4.1 candidate); case 4 (SR Linux record --attributes) is the next entry
   status: accepted-documented-limit
-  cases: [RT-0056, RT-0058, RT-0063]   # RT-0053 (the VRF device's own address) fixed in 0.4.2: see below
+  cases: [RT-0058]   # RT-0053 fixed in 0.4.2, RT-0056 and RT-0063 (EOS) fixed in 0.4.3: see below
   decided: "owner, 2026-11-09: ship 0.4.1 and publish the four as known limits; fix in 0.4.2 (GHSA-ggcf-664f-c9ff)"
   record: advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
   tests:
     - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
-    # case 1 (RT-0056, RT-0063), captured live 2026-11-21: red until the 0.4.3 fix reads every EOS candidate route
-    - tests/oracles/FP-043-EOSNONBGP/test_oracle_fp_043_eosnonbgp.py
-    - tests/test_oracle_guards_fp_043_eosnonbgp.py
 - id: rt-s01-record-as-path
   what: On SR Linux, `record --attributes` leaves out an AS path it can't read (an iBGP peer's own route) without a
     warning, so the baseline passes a later change of that path (regression in 0.4.1; fixed for 0.4.2, where the
@@ -533,4 +530,16 @@
     - tests/oracles/FP-042-EOSASDOT/test_oracle_fp_042_eosasdot.py
     - tests/test_oracle_guards_fp_042_eosasdot.py
     - tests/test_ping_family_eos_asdot_042.py
+    - tests/test_redteam.py
+- id: rt-0056-rt-0063-eos-candidate-not-selected
+  what: On Arista EOS, `route ... present false` with a protocol other than bgp passed while a route of that protocol
+    was in the RIB but not selected (a floating static behind an eBGP default, an OSPF default behind a static Null0;
+    case 1 of the 0.4.1 advisory, GHSA-ggcf-664f-c9ff; 0.2.0 to 0.4.2), because `show ip route <prefix>` lists only
+    the selected route and the driver read not-selected candidates from the BGP table only; 0.4.3 reads every
+    candidate from `show rib route ip|ipv6 vrf <vrf> <prefix> | json` (exact prefix only, an unread RIB is an error)
+  record: CHANGELOG.md (Unreleased, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  tests:
+    - tests/oracles/FP-043-EOSNONBGP/test_oracle_fp_043_eosnonbgp.py
+    - tests/test_oracle_guards_fp_043_eosnonbgp.py
+    - tests/test_eos_rib_candidates_043.py
     - tests/test_redteam.py

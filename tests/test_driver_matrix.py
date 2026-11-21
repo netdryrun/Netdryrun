@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 from test_checks import FakeClock
-from test_verdict_drivers import Lab
+from test_verdict_drivers import Lab, eos_rib
 
 from netdryrun.checks import Unready, converge_then_hold, is_post_convergence, run_check
 from netdryrun.config import AFIS, CHECK_TYPES, _validate_check
@@ -103,8 +103,8 @@ def eos_rules():
     def neighbors(text):
         return [("show ipv6 bgp summary", EOS_NO_V6_PEERS), ("show ip bgp summary", text)]
 
-    def routes(route_text, bgp_text):
-        return [("show ip route", route_text), ("show ip bgp", bgp_text)]
+    def routes(route_text, bgp_text, rib_text):
+        return [("show ip route", route_text), ("show rib route", rib_text), ("show ip bgp", bgp_text)]
 
     def paths(text):
         return [("show ip bgp", text)]
@@ -250,15 +250,29 @@ def _cells() -> list[Cell]:
     add("eos", "fail", "ipv6-unicast prefixes under min", {**px, "afi": "ipv6-unicast", "min": 1},
         neighbors(fx("eos_bgp_summary.txt")))
     r = {"type": "route", "prefix": "192.168.20.0/24"}
-    add("eos", "pass", "route present", r, routes(fx("eos_route.txt"), fx("eos_bgp_route.txt")))
+    # the RIB beside each routing table (DERIVED, shape of the cEOS 4.36.3M captures ceos4363m_fp043_*_rib_route.json):
+    # the selected eBGP route alone; the drop route selected with no other candidate, so the BGP table alone shows
+    # the leak
+    rib_bgp = eos_rib(prefix="192.168.20.0/24", bgp=True)
+    rib_drop = eos_rib(prefix="0.0.0.0/0", staticConfig=True)
+    add("eos", "pass", "route present", r, routes(fx("eos_route.txt"), fx("eos_bgp_route.txt"), rib_bgp))
     add("eos", "fail", "leaked route is installed", {**r, "present": False},
-        routes(fx("eos_route.txt"), fx("eos_bgp_route.txt")))
+        routes(fx("eos_route.txt"), fx("eos_bgp_route.txt"), rib_bgp))
     # the leaked default loses to a local drop route, yet it was received: present (0.3.0 runtime path R4)
     add("eos", "fail", "leak received but not selected",
         {"type": "route", "prefix": "0.0.0.0/0", "protocol": "bgp", "present": False},
-        routes(fx("eos_leak_route.txt"), fx("eos_leak_bgp.txt")))
+        routes(fx("eos_leak_route.txt"), fx("eos_leak_bgp.txt"), rib_drop))
     add("eos", "fail", "route via the wrong protocol", {**r, "protocol": "static"},
-        routes(fx("eos_route.txt"), fx("eos_bgp_route.txt")))
+        routes(fx("eos_route.txt"), fx("eos_bgp_route.txt"), rib_bgp))
+    # a floating static that lost to the eBGP default (live, ceos4363m_fp043_rt0056: RT-0056, FP-043-EOSNONBGP)
+    add("eos", "fail", "static candidate not selected",
+        {"type": "route", "prefix": "0.0.0.0/0", "protocol": "static", "present": False},
+        routes(fx("ceos4363m_fp043_rt0056_ip_route.json"), fx("ceos4363m_fp043_rt0056_ip_bgp.json"),
+               fx("ceos4363m_fp043_rt0056_rib_route.json")))
+    add("eos", "pass", "no candidate of the protocol",
+        {"type": "route", "prefix": "0.0.0.0/0", "protocol": "ospf", "present": False},
+        routes(fx("ceos4363m_fp043_rt0056_ip_route.json"), fx("ceos4363m_fp043_rt0056_ip_bgp.json"),
+               fx("ceos4363m_fp043_rt0056_rib_route.json")))
     br = {"type": "bgp_route", "prefix": "192.168.20.0/24"}
     add("eos", "pass", "bgp path present", br, paths(fx("eos_bgp_paths.txt")))
     add("eos", "fail", "leaked bgp path", {**br, "present": False}, paths(fx("eos_bgp_paths.txt")))

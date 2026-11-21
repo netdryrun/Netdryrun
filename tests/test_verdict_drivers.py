@@ -1080,6 +1080,14 @@ def eos_bgp(vrf="default", entries=None):
     return J({"vrfs": {vrf: {"bgpRouteEntries": entries or {}}}})
 
 
+def eos_rib(vrf="default", prefix=None, **best):
+    """DERIVED: `show rib route ip|ipv6 vrf <vrf> <prefix> | json` in the shape of the cEOS 4.36.3M captures
+    (ceos4363m_fp043_*_rib_route.json), each protocol key with one entry for `prefix` and only its bestRoute; no
+    protocol at all for a prefix with no candidate."""
+    return J({"vrfs": {vrf: {"ribRoutesByProtocol": {k: {"ribRoutes": {prefix: {"bestRoute": b}}}
+                                                       for k, b in best.items()}}}})
+
+
 def eos_path(peer="10.0.0.2", **kw):
     # cEOS 4.36.3M prints these on every path (each capture in tests/fixtures); a test sets them only to test them
     p = {"peerEntry": {"peerAddr": peer}}
@@ -1096,14 +1104,17 @@ def eos_path(peer="10.0.0.2", **kw):
 
 
 def test_eos_routes_commands():
-    lab = Lab([("route", eos_routes(**{"10.1.0.0/16": {"routeType": "eBGP"}})), ("bgp", eos_bgp())])
+    lab = Lab([("show rib route", eos_rib(prefix="10.1.0.0/16", bgp=True)),
+               ("route", eos_routes(**{"10.1.0.0/16": {"routeType": "eBGP"}})), ("bgp", eos_bgp())])
     obs = EosDriver(lab, "r1").routes("10.1.0.0/16")
     assert lab.lines() == ["Cli -p 15 -c show ip route vrf default 10.1.0.0/16 | json",
+                           "Cli -p 15 -c show rib route ip vrf default 10.1.0.0/16 | json",
                            "Cli -p 15 -c show ip bgp 10.1.0.0/16 vrf default | json"]
-    assert obs.value == [Route("10.1.0.0/16", "bgp", True)] and len(obs.evidence) == 2
-    lab = Lab([("route", eos_routes("red")), ("bgp", eos_bgp("red"))])
+    assert obs.value == [Route("10.1.0.0/16", "bgp", True)] and len(obs.evidence) == 3
+    lab = Lab([("show rib route", eos_rib("red")), ("route", eos_routes("red")), ("bgp", eos_bgp("red"))])
     assert EosDriver(lab, "r1").routes("2001:db8::/32", "red").value == []
     assert lab.lines() == ["Cli -p 15 -c show ipv6 route vrf red 2001:db8::/32 | json",
+                           "Cli -p 15 -c show rib route ipv6 vrf red 2001:db8::/32 | json",
                            "Cli -p 15 -c show ipv6 bgp 2001:db8::/32 vrf red | json"]
 
 
@@ -1299,7 +1310,7 @@ def test_default_vrf_everywhere():
     lab = Lab([("bgp-rib", "{}")])
     SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16")
     assert all("network-instance default " in ln for ln in lab.lines())
-    lab = Lab([("route", eos_routes()), ("bgp", eos_bgp())])
+    lab = Lab([("show rib route", eos_rib()), ("route", eos_routes()), ("bgp", eos_bgp())])
     EosDriver(lab, "r1").routes("10.1.0.0/16")
     EosDriver(lab, "r1").bgp_paths("10.1.0.0/16")
     EosDriver(lab, "r1").all_routes()

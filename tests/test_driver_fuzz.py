@@ -92,6 +92,24 @@ def eos_table_empty(key):
     return check
 
 
+def eos_rib_no_candidate(prefix):
+    """No candidate for exactly `prefix` (FP-043-EOSNONBGP): the RIB answer's protocols list none for that prefix (EOS
+    answers by longest match, so another prefix's entries may be there)."""
+    import ipaddress
+
+    def check(d) -> bool:
+        try:
+            by = d["vrfs"]["default"]["ribRoutesByProtocol"]
+            if "errors" in d or not isinstance(by, dict):
+                return False
+            return all(isinstance(v, dict) and isinstance(v["ribRoutes"], dict)
+                       and all(ipaddress.ip_network(str(k), strict=False) != ipaddress.ip_network(prefix)
+                               for k in v["ribRoutes"]) for v in by.values())
+        except (TypeError, KeyError, ValueError):
+            return False
+    return check
+
+
 def srl_no_neighbor_paths(d) -> bool:
     """No path any neighbor sent that counts or may count: an empty answer, or a local RIB route list none of whose
     rows names a neighbor without being flagged exactly as-loop or exactly rejected-route (RT-0068)."""
@@ -284,6 +302,15 @@ CASES = [
          ["eos_bgp_route.txt"], eos_table_empty("bgpRouteEntries")),
     Case("eos.parse_routes[leak]", lambda t: eos.parse_routes(EOS_NO_ROUTES, t, "0.0.0.0/0"),
          ["eos_leak_bgp.txt"], eos_table_empty("bgpRouteEntries")),
+    # every RIB candidate (FP-043-EOSNONBGP), the live captures: no candidate only from an answer with none for the prefix
+    Case("eos.parse_rib_candidates", lambda t: eos.parse_rib_candidates(t, "0.0.0.0/0"),
+         ["ceos4363m_fp043_rt0056_rib_route.json", "ceos4363m_fp043_rt0063_rib_route.json",
+          "ceos4363m_fp043_healthyA_rib_route.json", "ceos4363m_fp043_healthyB_rib_route.json",
+          "ceos4363m_fp043_ospfsel_rib_route.json", "ceos4363m_fp043_rt0056sel_rib_route.json"],
+         eos_rib_no_candidate("0.0.0.0/0")),
+    Case("eos.parse_routes[rib side]", lambda t: eos.parse_routes(EOS_NO_ROUTES, EOS_NO_BGP, "0.0.0.0/0", "default", t),
+         ["ceos4363m_fp043_rt0056_rib_route.json", "ceos4363m_fp043_rt0063_rib_route.json"],
+         eos_rib_no_candidate("0.0.0.0/0")),
     Case("eos.parse_all_routes", lambda t: eos.parse_all_routes(t), ["eos_route.txt", "eos_leak_route.txt"],
          eos_table_empty("routes")),
     Case("eos.parse_bgp_paths", lambda t: eos.parse_bgp_paths(t, "192.168.20.0/24"),

@@ -1,8 +1,9 @@
 """Arista EOS (cEOS-lab) driver: `Cli ... | json` state, ping from the EOS CLI.
 
-Routes are read from both the routing table (active routes) and the BGP table, because a
-received-but-not-selected BGP path only appears in the BGP table and must still count as present
-for `present: false` checks.
+Routes are read from the routing table (the route EOS selected), the RIB (every candidate of every protocol, selected
+or not) and the BGP table, because a candidate that lost route selection (a floating static behind a BGP default, an
+OSPF default behind a static drop route) or a received-but-not-selected BGP path must still count as present for
+`present: false` checks. `show ip route <prefix>` lists only the selected route (FP-043-EOSNONBGP).
 
 EOS keys every answer by VRF (`{"vrfs": {name: ...}}`). A VRF missing from that map is never read as
 "no routes": the VRF doesn't exist, or the output isn't what this driver knows. Both raise.
@@ -57,6 +58,7 @@ SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "sh
 ROUTE_CMD = "show ip route <prefix> | json"
 ALL_ROUTES_CMD = "show ip route | json"
 BGP_CMD = "show ip bgp <prefix> | json"
+RIB_CMD = "show rib route ip <prefix> | json"
 
 
 def _json(command: str, text: str) -> dict:
@@ -196,8 +198,46 @@ def _exact_entry(key: str, want) -> None:
 BGP_INACTIVE = {"errors": ["BGP inactive"]}   # cEOS with no BGP configured, rc 1 (eos_bgp_inactive.txt, live)
 
 
+# `show rib route ip|ipv6` keys its candidates by the source protocol; the static key is the config agent's name
+RIB_PROTOCOLS = {"staticConfig": "static"}
+
+
+def _rib_protocol(key: str, prefix: str) -> str:
+    """A `ribRoutesByProtocol` key as a netdryrun protocol name. Keys other than staticConfig name the protocol as
+    routeType does (bgp, ospf, ospf3, isis, connected) and go through the same map; a key it doesn't know is an error,
+    never a name no `protocol` matches (which would pass `present: false` on it)."""
+    return RIB_PROTOCOLS.get(key) or _protocol(key, prefix, RIB_CMD)
+
+
+@parser(RIB_CMD)
+def parse_rib_candidates(text: str, prefix: str, vrf: str = "default") -> list[tuple[str, bool, str]]:
+    """Every candidate EOS's RIB holds for exactly `prefix` in `vrf`, selected or not, from `show rib route ip|ipv6 vrf
+    <vrf> <prefix> | json` (cEOS 4.36.3M, live, FP-043-EOSNONBGP): [(protocol, bestRoute, raw key)].
+
+    The answer is keyed vrfs -> ribRoutesByProtocol -> <protocol> -> ribRoutes -> <prefix>, one entry per protocol with
+    `bestRoute`. Like `show ip route <prefix>`, EOS answers with the longest match (9.9.9.0/24 answers with the
+    0.0.0.0/0 routes): an entry for another prefix is skipped, never the asked one. `notInFec` is on a not-selected
+    route and on a selected Null0 route alike, so it says nothing about presence and isn't read. Anything this parser
+    doesn't know (no vrfs map, the VRF missing, a protocol key it can't map, an entry without bestRoute) raises:
+    an unreadable RIB is never "no candidate"."""
+    want = ipaddress.ip_network(prefix)
+    entry = _vrf(RIB_CMD, _json(RIB_CMD, text), vrf)
+    out = []
+    for key, proto in _table(RIB_CMD, entry, "ribRoutesByProtocol").items():
+        if not isinstance(proto, dict):
+            raise unexpected(RIB_CMD, f"{key}: {str(proto)[:150]}")
+        for pkey, r in _table(RIB_CMD, proto, "ribRoutes").items():
+            if not isinstance(r, dict):
+                raise unexpected(RIB_CMD, f"{key} {pkey}: {str(r)[:150]}")
+            if network(RIB_CMD, pkey) != want:
+                continue   # the longest match for the asked prefix: another prefix, never this one
+            out.append((_rib_protocol(str(key), prefix), must_bool(RIB_CMD, r, "bestRoute"), str(key)))
+    return out
+
+
 @parser(ROUTE_CMD)
-def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default") -> list[Route]:
+def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default",
+                 rib_text: str | None = None) -> list[Route]:
     want = ipaddress.ip_network(prefix)
     out = []
     for key, r in _table(ROUTE_CMD, _routing_vrf(ROUTE_CMD, _json(ROUTE_CMD, route_text), vrf), "routes").items():
@@ -206,10 +246,21 @@ def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = 
         if network(ROUTE_CMD, key) == want:
             out.append(Route(prefix, _protocol(str(must(ROUTE_CMD, r, "routeType")), prefix), _programmed(ROUTE_CMD, r),
                              raw_protocol=str(r["routeType"])))
+    if rib_text is not None:
+        # Every RIB candidate of a protocol the routing table doesn't list is present but not selected (a floating
+        # static behind a BGP default, an OSPF default behind a static drop route: RT-0056, RT-0063). The RIB keys
+        # one entry per protocol, so a protocol the routing table lists is that route. A candidate the RIB marks best
+        # while the routing table lists another protocol (the two reads raced) is added the same way, inactive:
+        # present for `present: false`, never active for `present: true`.
+        seen = {r.protocol for r in out}
+        for proto, _best, raw in parse_rib_candidates(rib_text, prefix, vrf):
+            if proto not in seen:
+                seen.add(proto)
+                out.append(Route(prefix, proto, False, raw_protocol=raw))
     # A BGP path can be "best" inside BGP and still not be installed (a static or connected route with
     # a better preference wins the routing table). Unless BGP is the installed route, every BGP path
     # learned from a neighbor, valid or not, is "present but not selected": a leak that must still fail
-    # `present: false`.
+    # `present: false`. (A BGP candidate the RIB listed above already says so.)
     has_installed_bgp = any(r.protocol == "bgp" for r in out)
     if bgp_text is None:   # the node runs no BGP (EosDriver._bgp_cli)
         return out
@@ -495,11 +546,14 @@ class EosDriver(Driver):
         ev: list[dict] = []
         fam = "ipv6" if ipaddress.ip_network(prefix).version == 6 else "ip"
         rt = self._cli(f"show {fam} route vrf {vrf} {prefix} | json", ev)
+        # every candidate, selected or not (FP-043-EOSNONBGP). A refusal (an EOS without `show rib route`) or any
+        # other failure raises: an unread RIB is never "no candidate"
+        rib = self._cli(f"show rib route {fam} vrf {vrf} {prefix} | json", ev)
         try:
             bgp = self._bgp_cli(f"show {fam} bgp {prefix} vrf {vrf} | json", ev)
         except NoSuchInstance:
             bgp = None   # no BGP on the node: no BGP path (the routing table answer above confirmed the VRF)
-        return Observation(parse_routes(rt, bgp, prefix, vrf), ev)
+        return Observation(parse_routes(rt, bgp, prefix, vrf, rib), ev)
 
     def bgp_paths(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

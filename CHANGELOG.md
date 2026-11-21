@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Arista EOS: `route ... present: false` with a protocol other than `bgp` passed while a route of that protocol
+  lost route selection** (case 1 of the 0.4.1 advisory,
+  [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); red team
+  RT-0056, RT-0063; 0.2.0 to 0.4.2). EOS's `show ip route <prefix>` lists only the route it selected, and the driver
+  read routes that weren't selected from the BGP table only. So a floating static (distance 250) behind an eBGP
+  default, or an OSPF default behind `ip route 0.0.0.0/0 Null0`, wasn't seen, and `protocol: static` (or `ospf`)
+  `present: false` passed. Confirmed live on cEOS 4.36.3M.
+  - The driver now also reads `show rib route ip|ipv6 vrf <vrf> <prefix> | json`, which lists every candidate of
+    every protocol with `bestRoute`. A candidate EOS didn't select counts as present but not active: it fails
+    `present: false` and doesn't pass `present: true` (unless the check says `active: false`).
+  - EOS answers that command by longest match (a `9.9.9.0/24` query answers with the `0.0.0.0/0` routes): only the
+    exact prefix is read.
+  - An EOS that refuses the command, a RIB answer the driver doesn't know (a protocol it can't name, a VRF missing),
+    or any other failed read makes the check an error, never a pass.
+
+  Oracle `tests/oracles/FP-043-EOSNONBGP`, from the live capture.
+
 ## 0.4.2 (2026-11-21)
 
 ### Fixed
