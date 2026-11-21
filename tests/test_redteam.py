@@ -8,7 +8,7 @@ See tests/redteam/README.md for the file format. Each kind runs through real cod
 
 It imports nothing from other test files and only long-standing package APIs, so it can run against an
 old release to show which cases it fails (each one a false pass that release had):
-    PYTHONPATH=<old>/src:tests pytest tests/test_redteam.py
+    NDR_TEST_SRC=<old>/src PYTHONPATH=<old>/src:tests pytest tests/test_redteam.py
 """
 from __future__ import annotations
 

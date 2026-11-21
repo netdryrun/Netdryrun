@@ -75,7 +75,10 @@ GATE_MODULES = ("pytest", "_pytest", "pluggy", "yaml", "sitecustomize", "usercus
 # the fake labs' command log (tests/fakes.py): set only by the gate, per run, outside the tree under test
 COMMAND_LOG_ENV = "NDR_FAKE_COMMAND_LOG"
 CHILD_ENV_DROP = ("MUTANT_UNDER_TEST", "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONSTARTUP", "PYTHONHOME",
-                  "PYTEST_CURRENT_TEST", "PYTHONPATH", COMMAND_LOG_ENV)
+                  "PYTEST_CURRENT_TEST", "PYTHONPATH", COMMAND_LOG_ENV,
+                  "NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF")   # the import guard (tests/import_guard.py) expects each tree's own src
+GUARD_FILE = "tests/import_guard.py"
+PROOF_ENV = "NDR_GUARD_PROOF"
 # an oracle on the buggy parent fails by an assertion, or by pytest.raises seeing no refusal
 ASSERTION = re.compile(r"^(assert\b|AssertionError\b|Failed: DID NOT RAISE\b)")
 # what ships to users besides src/: swapped in from the code under test; a change to it needs a trailer
@@ -424,6 +427,19 @@ class PytestRun:
         return sum(1 for o in self.outcomes.values() if o == outcome)
 
 
+def check_guard_proof(tree: Path, proof: Path, p: subprocess.CompletedProcess) -> None:
+    """The guard ran in default mode on this tree's own src, or the run counts for nothing (fail closed)."""
+    try:
+        got = json.loads(proof.read_text(encoding="utf-8"))
+        ok = got["mode"] == "default" and Path(got["source"]).resolve() == (tree / "src").resolve()
+    except (OSError, ValueError, KeyError, TypeError):
+        raise GateError(f"{tree.name}: the import guard left no proof that it ran (it aborted, or tests/conftest.py was "
+                        f"skipped): pytest exit {p.returncode}\n{(p.stdout + p.stderr)[-500:]}") from None
+    if not ok:
+        raise GateError(f"{tree.name}: the import guard ran in mode {got.get('mode')!r} on {got.get('source')!r}, not "
+                        f"on this tree's own src")
+
+
 def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_log: Path | None = None) -> PytestRun:
     """pytest on `targets` inside `tree`, configured by the tree's own pyproject.toml (the world's), report written
     outside the tree. Exit code and report must agree. With `command_log`, the fake labs record every command they
@@ -438,10 +454,22 @@ def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_
     cmd = [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", "-c", str(ini),
            "--rootdir", str(tree), "--confcutdir", str(tree), f"--junitxml={xml}", "--", *targets]
     env = child_env(tree)
+    pyc = work / f"pyc-{xml.stem}"      # a fresh bytecode cache: a .pyc planted in the tree's src/ is not read
+    shutil.rmtree(pyc, ignore_errors=True)
+    pyc.mkdir(parents=True)
+    env["PYTHONPYCACHEPREFIX"] = str(pyc)
     if command_log is not None:
         command_log.unlink(missing_ok=True)
         env[COMMAND_LOG_ENV] = str(command_log)
+    # a tree that has the import guard must show it ran (it writes this file when it passes): --confcutdir or a
+    # conftest that no longer loads it would otherwise let foreign code answer for the tree
+    proof = work / f"guard-proof-{xml.stem}.json" if (tree / GUARD_FILE).is_file() else None
+    if proof is not None:
+        proof.unlink(missing_ok=True)
+        env[PROOF_ENV] = str(proof)
     p = subprocess.run(cmd, cwd=tree, env=env, capture_output=True, text=True, timeout=1800)
+    if proof is not None:
+        check_guard_proof(tree, proof, p)
     outcomes: dict[str, str] = {}
     messages: dict[str, str] = {}
     details: dict[str, str] = {}

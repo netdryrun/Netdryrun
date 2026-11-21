@@ -187,14 +187,44 @@ def registry_tests(registry: Path) -> list[str]:
     return sorted({t for e in entries for t in (e.get("tests") or [])})
 
 
-def _pytest(tests_tree: Path, src: Path, targets: list[str]) -> subprocess.CompletedProcess:
-    env = dict(os.environ, PYTHONPATH=str(src), PYTHONDONTWRITEBYTECODE="1")
+GUARD_FILE = "tests/import_guard.py"
+
+
+def _guard_proof_problem(proof: Path, src: Path) -> str | None:
+    """tests/import_guard.py writes {"mode", "source"} to NDR_GUARD_PROOF when it passes. `--noconftest`, `--confcutdir` or
+    a PYTEST_ADDOPTS that does the same skip it, and then nothing aborts: no proof means the guard did not run."""
+    try:
+        got = json.loads(proof.read_text(encoding="utf-8"))
+        ok = got["mode"] == "declared" and Path(got["source"]).resolve() == src.resolve()
+    except (OSError, ValueError, KeyError, TypeError):
+        return "the import guard left no proof that it ran (it aborted, or tests/conftest.py was skipped)"
+    return None if ok else f"the import guard ran in mode {got.get('mode')!r} on {got.get('source')!r}, not on {src}"
+
+
+def _pytest(tests_tree: Path, src: Path, targets: list[str], require_guard: bool | None = None) -> subprocess.CompletedProcess:
+    """Run `targets` from `tests_tree` against the code in `src`. `require_guard`: the tests have the import guard (the
+    default: tests_tree does), so the run must show it passed."""
+    # NDR_TEST_SRC declares which code these tests run against (tests/import_guard.py): the tests may be this PR's and the
+    # code the base branch's (fails-on-revert), which the guard would otherwise refuse as "not this checkout's src"
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS", "PYTEST_PLUGINS")}
+    env.update(PYTHONPATH=str(src), PYTHONDONTWRITEBYTECODE="1", NDR_TEST_SRC=str(src))
     check = subprocess.run([sys.executable, "-c", "import netdryrun; print(netdryrun.__file__)"], cwd=tests_tree,
                            env=env, capture_output=True, text=True)
     if not check.stdout.strip().startswith(str(src)):
         raise SystemExit(f"netdryrun was imported from {check.stdout.strip() or check.stderr.strip()}, not {src}")
-    return subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *targets], cwd=tests_tree,
-                          env=env, capture_output=True, text=True)
+    if require_guard is None:
+        require_guard = (tests_tree / GUARD_FILE).is_file()
+    with tempfile.TemporaryDirectory() as tmp:
+        proof = Path(tmp) / "guard-proof.json"
+        env["NDR_GUARD_PROOF"] = str(proof)
+        env["PYTHONPYCACHEPREFIX"] = str(Path(tmp) / "pyc")      # a .pyc planted in src/ is not read
+        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *targets], cwd=tests_tree,
+                           env=env, capture_output=True, text=True)
+        problem = _guard_proof_problem(proof, src) if require_guard else None
+    if problem:
+        raise SystemExit(f"{problem}; pytest exited {r.returncode}:\n{(r.stdout + r.stderr)[-800:]}")
+    return r
 
 
 def known_false_passes(base: str) -> list[str]:
@@ -230,7 +260,7 @@ def fails_on_revert(base: str) -> list[str]:
                 "fails without the change"]
     with tempfile.TemporaryDirectory() as tmp:
         base_src = _export(base, Path(tmp) / "base") / "src"
-        r = _pytest(ROOT, base_src, tests)
+        r = _pytest(ROOT, base_src, tests, require_guard=(base_src.parent / GUARD_FILE).is_file())
     if r.returncode == 0:
         return [f"the changed tests ({', '.join(tests)}) also pass on the base branch's code, so they don't test the "
                 "change: add a test that fails without it"]

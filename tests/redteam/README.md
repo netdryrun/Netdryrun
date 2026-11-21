@@ -42,8 +42,17 @@ any release's source. Every case that fails there is a false pass that release h
 
 ```bash
 git archive v0.3.0 src | tar -x -C /tmp/old
-PYTHONPATH=/tmp/old/src:tests pytest tests/test_redteam.py
+NDR_TEST_SRC=/tmp/old/src PYTHONPATH=/tmp/old/src:tests pytest tests/test_redteam.py
 ```
 
-On 0.3.0 this fails RT-0001 to RT-0011 (eleven false passes). RT-0012, RT-0013, RT-0016 and RT-0017 are guards
-that 0.3.0 already passed, and say so in `fixed_in`.
+`NDR_TEST_SRC` declares that the old source is the one under test; without it the import guard in
+`tests/import_guard.py` aborts the run (exit 4), because the tests belong to a different checkout than the code. The
+run prints `ndr-import-guard: mode=declared source=<old>/src` in its header (leave `-q` off to see it); a run without
+that line did not run the guard and says nothing about the release.
+
+Only a finished run with its failures counted tells you anything: exit 1 with `N failed`. An abort (exit 4), a
+collection error or `N errors` is no result and never a clean one. Measured against the corpus of 2026-11-21 (tags
+v0.3.0, v0.3.3, v0.4.0 and v0.4.1 work; v0.1.0 and v0.2.0 were not tried): v0.3.0 fails 46 cases (3 of them `KeyError: 'junos'`, since v0.3.0 had no Junos driver, so 43 are false
+passes), v0.3.3 and v0.4.0 37, v0.4.1 11. The corpus has grown since each release, so a failing case is a false pass that release had or a guard
+it never had. tests/conftest.py tolerates a release without `netdryrun.mgmt`, and tests/test_import_guard.py runs this
+procedure on v0.4.1 when the tag is available.

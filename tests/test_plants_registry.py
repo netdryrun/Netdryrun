@@ -19,24 +19,36 @@ sys.modules[_spec.name] = ffg
 _spec.loader.exec_module(ffg)
 
 
+def _top() -> Path:
+    """The repository's top level. Under mutmut ROOT is mutants/, an untracked folder of the repository: git's pathspecs
+    are relative to the directory it is run in, so the history is read from the top level (tests/test_import_guard.py
+    runs this suite through real mutmut)."""
+    if shutil.which("git") is not None:
+        p = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+        if p.returncode == 0 and p.stdout.strip():
+            return Path(p.stdout.strip())
+    return ROOT
+
+
 def _full_history() -> bool:
     if shutil.which("git") is None:
         return False
-    p = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True)
+    p = subprocess.run(["git", "-C", str(_top()), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True)
     return p.returncode == 0 and p.stdout.strip() == "false"
 
 
 @pytest.mark.skipif(not _full_history(), reason="needs git and the full history (not a shallow clone)")
 def test_every_oracle_here_has_a_valid_plant_entry():
-    head = ffg.resolve(ROOT, "HEAD")
-    fixes = ffg.fixes_by_oracle(ROOT, head)
-    rule = ffg.plant_rule_commit(ROOT, head)
+    top = _top()
+    head = ffg.resolve(top, "HEAD")
+    fixes = ffg.fixes_by_oracle(top, head)
+    rule = ffg.plant_rule_commit(top, head)
     report, summary = ffg.Report(), {"not_applicable": [], "pending": []}
     ids = sorted(d.name for d in (ROOT / ffg.ORACLES).iterdir() if d.is_dir() and ffg.ID_RE.match(d.name))
     assert ids and rule is not None
     with tempfile.TemporaryDirectory(prefix="ndr-registry-") as tmp:
         planted = [oid for oid in ids
-                   if ffg.plant_registry(ROOT, head, ROOT, oid, fixes, rule, Path(tmp), report, summary) is not None]
+                   if ffg.plant_registry(top, head, ROOT, oid, fixes, rule, Path(tmp), report, summary) is not None]
     assert report.problems == [], "\n".join(report.problems)
     assert planted, "no oracle has a living plant"
     assert set(summary["pending"]) <= {oid for oid in ids if not fixes.get(oid)}
