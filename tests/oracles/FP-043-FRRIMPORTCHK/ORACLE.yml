@@ -1,0 +1,99 @@
+id: FP-043-FRRIMPORTCHK
+bug: >-
+  On FRR (10.4.1; same bgpd code in 8.5.4, 10.2.1 and master) a `network` statement with no route behind it stays
+  announced for the life of the lab when bgpd applied it before its zebra connection was up: the import check answers
+  valid with no zebra connection and its registration is never sent again, so bgpd shows the import-check entry
+  invalid and "Is not Registered" next to a valid, sourced, best path. netdryrun reads only the routes and passes
+  `route <neighbor> <prefix> present: true` (run/check) and approves the change in verify, while production (import
+  check registered) withdraws the prefix. Corpus v2 case 18 (research/case18-race); every release with the FRR driver
+evidence:
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot12/boot/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot12/boot/phase.json
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot12/boot/record.log
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot12/boot/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot12/boot/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot12/boot/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot12/summary.txt
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot13/boot/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot13/boot/phase.json
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot13/boot/record.log
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot13/boot/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot13/boot/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot13/boot/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18_healthy_boot13/summary.txt
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/boot/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/boot/phase.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/boot/record.log
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/boot/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/boot/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/boot/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/remedied/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/remedied/phase.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/remedied/record.log
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/remedied/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/remedied/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/remedied/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/remedy.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot1/summary.txt
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/boot/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/boot/phase.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/boot/record.log
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/boot/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/boot/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/boot/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/remedied/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/remedied/phase.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/remedied/record.log
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/remedied/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/remedied/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/remedied/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/remedy.json
+  - tests/fixtures/frr_fp043ic/c18_stuck_boot2/summary.txt
+  - tests/fixtures/frr_fp043ic/c18base_healthy_boot1/boot/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18base_healthy_boot1/boot/phase.json
+  - tests/fixtures/frr_fp043ic/c18base_healthy_boot1/boot/record.log
+  - tests/fixtures/frr_fp043ic/c18base_healthy_boot1/boot/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18base_healthy_boot1/boot/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18base_healthy_boot1/boot/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18base_healthy_boot1/summary.txt
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/boot/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/boot/phase.json
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/boot/record.log
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/boot/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/boot/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/boot/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/remedied/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/remedied/phase.json
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/remedied/record.log
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/remedied/report_c18_present_true.exit
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/remedied/report_c18_present_true.json
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/remedied/snapshot.json
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/remedy.json
+  - tests/fixtures/frr_fp043ic/c18base_stuck_boot2/summary.txt
+  - tests/fixtures/frr_fp043ic/lab/c18_present_true.yml
+  - tests/fixtures/frr_fp043ic/lab/c18_topology.clab.yml
+  - tests/fixtures/frr_fp043ic/lab/capture.sh
+  - tests/fixtures/frr_fp043ic/lab/daemons
+  - tests/fixtures/frr_fp043ic/lab/record.py
+  - tests/fixtures/frr_fp043ic/lab/uw_present_false.yml
+  - tests/fixtures/frr_fp043ic/lab/uw_present_true.yml
+  - tests/fixtures/frr_fp043ic/lab/uw_r1.conf
+  - tests/fixtures/frr_fp043ic/lab/uw_r2.conf
+  - tests/fixtures/frr_fp043ic/lab/uw_topology.clab.yml
+  - tests/fixtures/frr_fp043ic/lab/uwl_other.conf
+  - tests/fixtures/frr_fp043ic/lab/uwl_present_false.yml
+  - tests/fixtures/frr_fp043ic/lab/uwl_present_true.yml
+  - tests/fixtures/frr_fp043ic/lab/uwl_topology.clab.yml
+  - tests/fixtures/frr_fp043ic/lab/vtysh.conf
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/config_loaded.txt
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/phase.json
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/record.log
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/report_uw_present_false.exit
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/report_uw_present_false.json
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/report_uw_present_true.exit
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/report_uw_present_true.json
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/snapshot.json
+  - tests/fixtures/frr_fp043ic/uw_healthy_boot1/summary.txt
+  - tests/test_oracle_guards_fp_043_frrimportchk.py
+plant: plant.diff
+ported_from: c260a0c5086b58e77cf8f2e5ef2bccc25ddb7004

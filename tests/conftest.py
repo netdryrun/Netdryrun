@@ -57,6 +57,19 @@ def _no_readiness_wait(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_import_check_gap(monkeypatch):
+    """The FRR import-check guard (FP-043-FRRIMPORTCHK) takes two samples SAMPLE_GAP apart before every run's checks.
+    Unit tests' fakes answer the same at once, and many tests time their fake worlds from the run's start, so the two
+    samples are taken with no gap here (both are still taken and must agree; an unreadable or changing answer still
+    waits RETRY_GAP, so the time limit is still reached). tests/test_frr_import_check.py keeps the real gap."""
+    try:
+        from netdryrun.drivers import frr_import_check
+    except ImportError:     # an old release under NDR_TEST_SRC (red-team procedure) has no import-check guard
+        return
+    monkeypatch.setattr(frr_import_check, "SAMPLE_GAP", 0.0)
+
+
+@pytest.fixture(autouse=True)
 def _log_fake_lab_commands(tmp_path_factory):
     """With NDR_FAKE_COMMAND_LOG set (the release gate sets it, nothing else does), every command a test sends to a
     lab, fake or real, is logged through tests/fakes.py, so comparing two versions shows a new device read even where

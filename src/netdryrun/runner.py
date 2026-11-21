@@ -24,6 +24,7 @@ from .checks import (Result, Unready, _sample, hold_together, inconclusive_reaso
                      never_ready_nodes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
 from .drivers import BETA_DRIVERS, DriverError, Undetectable, check_supported, for_node, resolve
+from .drivers import frr_import_check
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
 from .faults import RouteInjection
@@ -217,9 +218,17 @@ class RunReport:
         return sum(not r.passed for r in self.results)
 
     @property
+    def import_check_gaps(self) -> dict[str, str]:
+        """Nodes whose FRR import check could not be told (environment.nodes.<node>.import_check "not checked: ...")."""
+        return {n: str(v["import_check"]) for n, v in sorted((self.environment.get("nodes") or {}).items())
+                if isinstance(v, dict) and str(v.get("import_check", "")).startswith("not checked")}
+
+    @property
     def status(self) -> str:
         if self.error:
             return "error"
+        if self.import_check_gaps:   # a pass (or a fail) there may rest on a route nothing backs: no verdict
+            return "inconclusive"
         if self.results and self.failed == 0:
             return "passed"
         return "inconclusive" if self.inconclusive_reason else "failed"
@@ -230,6 +239,9 @@ class RunReport:
         check is in a scenario whose injected routes never left their node (NeverLeft)."""
         if self.error:
             return None
+        gaps = self.import_check_gaps
+        if gaps:
+            return import_check_gap_reason(gaps)
         failed = [r for r in self.results if not r.passed]
         if failed and all(isinstance(r.detail, NeverLeft) for r in failed):
             return str(failed[0].detail)
@@ -238,6 +250,15 @@ class RunReport:
     @property
     def exit_code(self) -> int:
         return {"passed": 0, "failed": 1, "inconclusive": 3}.get(self.status, 2)
+
+
+def import_check_gap_reason(gaps: dict[str, str]) -> str:
+    """The INCONCLUSIVE reason when FRR's import check could not be told on some node (review of 83576ad): such a
+    node may announce a `network` no route backs, as on a stuck boot, so no check result there means anything."""
+    return (f"FRR's import check could not be checked on {', '.join(gaps)}, so a route there may be announced with "
+            "nothing behind it and the checks' results say nothing about the change: "
+            + "; ".join(f"{n}: {why.removeprefix('not checked: ')}" for n, why in gaps.items())
+            + ". Set `nodes.<node>.driver` for the node, or make it answer `vtysh`.")
 
 
 def error_report(path, error: str) -> RunReport:
@@ -331,9 +352,15 @@ def check_topology(config: Config) -> Lab:
 
 def _driver_of(config: Config):
     """The driver a node runs as: the config's override, else detected from its kind and image; None: unknown."""
+    return driver_resolver(config.drivers)
+
+
+def driver_resolver(overrides: dict[str, str]):
+    """(name, node) -> the driver it runs as: `nodes.<node>.driver` from the file, else detected; None: unknown. One
+    reader for run, check and verify (FX-0.4.0-verify-config-load)."""
     def driver_of(name: str, node) -> str | None:
         try:
-            return resolve(node, config.drivers.get(name))
+            return resolve(node, overrides.get(name))
         except DriverError:
             return None   # FRR in an image not named for it is still FRR: its rejected lines still count
     return driver_of
@@ -546,7 +573,14 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             for node, cmds in config.setup.items():
                 log(f"Running setup on {node}...")
                 lab.run_setup(node, cmds, log=log)
-        # After setup:, before the first check: no route out of the lab over the management network (red team round
+        # After setup:, before anything is judged: every FRR router in the lab (not only the checks' nodes) has its
+        # `network` statements registered with zebra (FP-043-FRRIMPORTCHK): a boot where bgpd applied them before its
+        # zebra connection announces them whatever the routes say. Remedied only on a lab this run deployed
+        import_check = frr_import_check.candidates(lab, _driver_of(config))
+        found = frr_import_check.guard(lab, import_check, remedy=deploy, clock=_clock, sleep=_sleep, log=log)
+        for name, what in found.items():
+            report.environment.setdefault("nodes", {}).setdefault(name, {})["import_check"] = what
+        # Before the first check: no route out of the lab over the management network (red team round
         # 4, B3; design e, option A): Docker's default route is deleted, any other is a run error
         every_check = config.checks + [c for sc in config.scenarios for c in sc.checks]
         state = mgmt.prepare(lab, every_check, log=log, sleep=_sleep)
@@ -644,6 +678,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             if m.readded:
                 env_nodes[name]["management_default"] = mgmt.describe(m, lab.nodes[name].kind)
                 log(f"{name}: management default route was back and removed again: {'; '.join(m.readded)}")
+        # Again before the verdict, detection only (a setup command, a late config or a fault can leave a `network`
+        # unregistered after the first read; the evidence is taken, so nothing is remedied now)
+        frr_import_check.guard(lab, import_check, remedy=False, clock=_clock, sleep=_sleep, log=log,
+                               label="before the verdict")
         by_node = config_load_by_node(lab, _driver_of(config), deployed=deploy)
         _config_load(lab, driver_for, report, by_node)
         rejected = rejected_config_message(by_node)

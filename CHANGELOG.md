@@ -57,6 +57,44 @@
   chosen path's local preference. An EVPN path's AS path
   isn't read (iBGP EVPN attributes leave it out), so `as_path` checks on it are an error. Oracle `tests/oracles/FP-043-SRLEVPNVRF`, from the live captures.
 
+- **FRR: a `network` statement with no route behind it no longer passes (RT-0084, oracle FP-043-FRRIMPORTCHK).**
+  On some lab boots FRR's bgpd applies its `network` statements before its connection to zebra is up. It then never
+  registers them for the import check, and announces each prefix for the life of the lab whatever the routes say,
+  where a production router withdraws it. A change that deleted the route behind a `network` could then pass `run`
+  and `check`, and `verify` could approve it (corpus v2 case 18 was approved this way). Found live on FRR 10.4.1; the
+  same code is in 8.5, 10.2 and master. Every release with the FRR driver was affected.
+  - After `setup:` and before anything is judged, Netdryrun now reads every FRR and SONiC router in the lab, not only
+    the checks' nodes: bgpd's running config, then the import-check table of each BGP instance by name (`vrf all`
+    answers nothing usable). Each `network` in an import-checked family needs its entry, and an entry that is invalid
+    next to a valid path, or not registered with zebra, is stuck.
+  - On a lab the run deployed (`run`, and each of `verify`'s four boots), a stuck router gets one `vtysh` call that
+    turns `bgp network import-check` off and on in that instance. The table is then read again and must be clean,
+    with the running config unchanged and no BGP session reset; otherwise the run is an error (exit `2`). The report's
+    `environment.nodes.<node>.import_check` says `registered` or what was remedied.
+  - `check` (a lab it didn't deploy) only detects: a stuck router is an error naming it and the command to run.
+  - The table is read again before the verdict (`run`, `check`) and after each snapshot (`verify`): stuck then is an
+    error. So is a table or config Netdryrun can't read within 120 s.
+  - Healthy configs with no usable entry still judge normally. A `backdoor` network is left out. A network its
+    route-map denies is accepted after bgpd's boot log shows the config loaded, when bgpd's BGP table answers that
+    it holds no path of its own for it, when bgpd shows the route-map either undefined (production denies too) or
+    applied with no change waiting, and when that stays true past the route-map delay. With `bgp route-map
+    delay-timer 0` bgpd never applies a route-map change, wherever the map is defined, so such a network is an error
+    that says to remove the timer: the lab could withhold a prefix production announces. A delay longer than the time limit is an error that says
+    so. An instance whose VRF
+    has no device is accepted when nothing in it is valid. A router with `bgpd=no` is skipped when vtysh, the
+    daemons file and the process list all say bgpd isn't running, so such a lab stays inconclusive (exit `3`).
+  - `verify` reads `nodes.<node>.driver` from the guards file for this check, as `run` does. `record --deploy` and
+    the MCP tool `record_baseline` remedy before recording and check again after; a stuck router then writes no
+    baseline.
+  - A node no driver claims (an FRR image not named for it) is asked for bgpd's running config and guarded as FRR
+    when it answers. A node that can't be told is a named gap: a console warning and `not checked` in the report; `run`,
+    `check` and `verify` are then INCONCLUSIVE (exit `3`) with the reason in every output (the JUnit report gets
+    an error testcase that carries it, so a CI test widget isn't green), and `record` writes an
+    `INCOMPLETE BASELINE` line (exit `1`).
+  - The toggle can briefly announce an unbacked prefix to a peer. It wasn't seen in 3 live tries, but the timing
+    isn't guaranteed. A peer with route-flap dampening may count it as a flap (see the config reference).
+  - SONiC runs FRR's bgpd and gets the same check, but it hasn't been run against a live SONiC lab yet. A SONiC
+    network with a route-map and no entry is an error, because SONiC logs no end of the config load.
 - **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
   overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get
   the template's value instead of its own override, and the order of a merge list is reversed for longer keys (PyYAML

@@ -1,0 +1,30 @@
+Building configuration...
+
+Current configuration:
+!
+frr version 10.4.1_git
+frr defaults traditional
+hostname r1
+domainname localdomain
+bgp route-map delay-timer 0
+service integrated-vtysh-config
+!
+route-map PERMIT permit 10
+exit
+!
+route-map ALL permit 10
+exit
+!
+router bgp 65001
+ bgp router-id 10.255.0.1
+ neighbor 10.0.12.2 remote-as 65002
+ !
+ address-family ipv4 unicast
+  network 198.51.100.0/24 route-map PERMIT
+  network 203.0.113.0/24
+  neighbor 10.0.12.2 route-map ALL in
+  neighbor 10.0.12.2 route-map ALL out
+ exit-address-family
+exit
+!
+end

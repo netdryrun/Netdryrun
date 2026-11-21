@@ -1,0 +1,155 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "passed",
+  "lab": "fp043ic-c18base",
+  "config": "c18_present_true.yml",
+  "started": "2026-11-21T12:43:22+00:00",
+  "finished": "2026-11-21T12:43:48+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "ce1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "pe1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "pe2": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "up1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "peer1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2
+  },
+  "warnings": {
+    "count": 0,
+    "items": []
+  },
+  "checks": [
+    {
+      "name": "I2 upstream has our aggregate",
+      "type": "route",
+      "params": {
+        "node": "up1",
+        "prefix": "192.0.2.0/24",
+        "protocol": "bgp"
+      },
+      "passed": true,
+      "detail": "active via bgp",
+      "attempts": 2,
+      "duration_s": 3.4,
+      "started": "2026-11-21T12:43:38+00:00",
+      "history": [
+        {
+          "t": 0.2,
+          "passed": true,
+          "detail": "active via bgp"
+        },
+        {
+          "t": 3.4,
+          "passed": true,
+          "detail": "active via bgp"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "up1",
+          "cmd": "vtysh -c show ip route 192.0.2.0/24 json",
+          "rc": 0,
+          "output": "{\n  \"192.0.2.0/24\":[\n    {\n      \"prefix\":\"192.0.2.0/24\",\n      \"prefixLen\":24,\n      \"protocol\":\"bgp\",\n      \"vrfId\":0,\n      \"vrfName\":\"default\",\n      \"selected\":true,\n      \"destSelected\":true,\n      \"distance\":20,\n      \"metric\":0,\n      \"installed\":true,\n      \"table\":254,\n      \"internalStatus\":16,\n      \"internalFlags\":8,\n      \"internalNextHopNum\":1,\n      \"internalNextHopActiveNum\":1,\n      \"nexthopGroupId\":17,\n      \"installedNexthopGroupId\":17,\n      \"receivedNexthopGroupId\":17,\n      \"uptime\":\"00:00:21\",\n      \"nexthops\":[\n        {\n          \"flags\":3,\n          \"fib\":true,\n          \"ip\":\"10.0.2.1\",\n          \"afi\":\"ipv4\",\n          \"interfaceIndex\":551,\n          \"interfaceName\":\"eth1\",\n          \"active\":true,\n          \"weight\":1\n        }\n      ]\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "up1",
+          "cmd": "vtysh -c show bgp ipv4 unicast 192.0.2.0/24 json",
+          "rc": 0,
+          "output": "{\n  \"prefix\":\"192.0.2.0/24\",\n  \"version\":2,\n  \"advertisedTo\":{\n    \"10.0.2.1\":{\n      \"hostname\":\"pe1\"\n    }\n  },\n  \"pathCount\":1,\n  \"paths\":[\n    {\n      \"aspath\":{\n        \"string\":\"65000\",\n        \"segments\":[\n          {\n            \"type\":\"as-sequence\",\n            \"list\":[\n              65000\n            ]\n          }\n        ],\n        \"length\":1\n      },\n      \"origin\":\"IGP\",\n      \"metric\":0,\n      \"valid\":true,\n      \"version\":2,\n      \"bestpath\":{\n        \"overall\":true,\n        \"selectionReason\":\"First path received\"\n      },\n      \"lastUpdate\":{\n        \"epoch\":1795265003,\n        \"string\":\"Sat Nov 21 12:43:23 2026\"\n      },\n      \"nexthops\":[\n        {\n          \"ip\":\"10.0.2.1\",\n          \"hostname\":\"pe1\",\n          \"afi\":\"ipv4\",\n          \"metric\":0,\n          \"accessible\":true,\n          \"used\":true\n        }\n      ],\n      \"peer\":{\n        \"peerId\":\"10.0.2.1\",\n        \"routerId\":\"10.255.0.1\",\n        \"hostname\":\"pe1\",\n        \"domainname\":\"localdomain\",\n        \"type\":\"external\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "I2 peer has our aggregate",
+      "type": "route",
+      "params": {
+        "node": "peer1",
+        "prefix": "192.0.2.0/24",
+        "protocol": "bgp"
+      },
+      "passed": true,
+      "detail": "active via bgp",
+      "attempts": 2,
+      "duration_s": 3.4,
+      "started": "2026-11-21T12:43:38+00:00",
+      "history": [
+        {
+          "t": 0.2,
+          "passed": true,
+          "detail": "active via bgp"
+        },
+        {
+          "t": 3.4,
+          "passed": true,
+          "detail": "active via bgp"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "peer1",
+          "cmd": "vtysh -c show ip route 192.0.2.0/24 json",
+          "rc": 0,
+          "output": "{\n  \"192.0.2.0/24\":[\n    {\n      \"prefix\":\"192.0.2.0/24\",\n      \"prefixLen\":24,\n      \"protocol\":\"bgp\",\n      \"vrfId\":0,\n      \"vrfName\":\"default\",\n      \"selected\":true,\n      \"destSelected\":true,\n      \"distance\":20,\n      \"metric\":0,\n      \"installed\":true,\n      \"table\":254,\n      \"internalStatus\":16,\n      \"internalFlags\":8,\n      \"internalNextHopNum\":1,\n      \"internalNextHopActiveNum\":1,\n      \"nexthopGroupId\":17,\n      \"installedNexthopGroupId\":17,\n      \"receivedNexthopGroupId\":17,\n      \"uptime\":\"00:00:21\",\n      \"nexthops\":[\n        {\n          \"flags\":3,\n          \"fib\":true,\n          \"ip\":\"10.0.4.1\",\n          \"afi\":\"ipv4\",\n          \"interfaceIndex\":549,\n          \"interfaceName\":\"eth1\",\n          \"active\":true,\n          \"weight\":1\n        }\n      ]\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "peer1",
+          "cmd": "vtysh -c show bgp ipv4 unicast 192.0.2.0/24 json",
+          "rc": 0,
+          "output": "{\n  \"prefix\":\"192.0.2.0/24\",\n  \"version\":3,\n  \"advertisedTo\":{\n    \"10.0.4.1\":{\n      \"hostname\":\"pe2\"\n    }\n  },\n  \"pathCount\":1,\n  \"paths\":[\n    {\n      \"aspath\":{\n        \"string\":\"65000\",\n        \"segments\":[\n          {\n            \"type\":\"as-sequence\",\n            \"list\":[\n              65000\n            ]\n          }\n        ],\n        \"length\":1\n      },\n      \"origin\":\"IGP\",\n      \"valid\":true,\n      \"version\":3,\n      \"bestpath\":{\n        \"overall\":true,\n        \"selectionReason\":\"First path received\"\n      },\n      \"lastUpdate\":{\n        \"epoch\":1795265003,\n        \"string\":\"Sat Nov 21 12:43:23 2026\"\n      },\n      \"nexthops\":[\n        {\n          \"ip\":\"10.0.4.1\",\n          \"hostname\":\"pe2\",\n          \"afi\":\"ipv4\",\n          \"metric\":0,\n          \"accessible\":true,\n          \"used\":true\n        }\n      ],\n      \"peer\":{\n        \"peerId\":\"10.0.4.1\",\n        \"routerId\":\"10.255.0.2\",\n        \"hostname\":\"pe2\",\n        \"domainname\":\"localdomain\",\n        \"type\":\"external\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

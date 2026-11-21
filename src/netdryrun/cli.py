@@ -143,8 +143,10 @@ def _cmd_record(args) -> int:
     import os
     import time
 
+    from .drivers import frr_import_check
     from .lab import Lab, LabError
     from .record import record, render
+    from .runner import driver_resolver
 
     topo = Path(args.topology).resolve()
     if not topo.exists():
@@ -179,11 +181,20 @@ def _cmd_record(args) -> int:
             print(f"Deploying lab {lab.name}, then waiting {args.wait:g}s for the network to converge...", flush=True)
             lab.deploy()
             _await_vm_nodes(lab, drivers)
+            # every FRR router's `network` statements registered with zebra before anything is recorded, remedied on
+            # this lab it deployed: a stuck one would be recorded as a route the change must keep (FP-043-FRRIMPORTCHK)
+            routers = frr_import_check.candidates(lab, driver_resolver(drivers))
+            found = frr_import_check.guard(lab, routers, remedy=True, clock=time.monotonic, sleep=time.sleep,
+                                           log=lambda m: print(m, flush=True))
             time.sleep(args.wait)
         mode = "exact" if args.exact_prefixes else "min" if args.min_prefixes else "range"
         data, warnings = record(topo, include_routes=not args.no_routes, prefix_mode=mode, attributes=args.attributes,
                                 guards=not args.no_guards, log=lambda m: print(m, flush=True), drivers=drivers,
                                 no_bgp_ok=frozenset(args.no_bgp or []))
+        if args.deploy:   # and still registered once the state is read (detection only): else nothing is written
+            frr_import_check.guard(lab, routers, remedy=False, clock=time.monotonic, sleep=time.sleep,
+                                   log=lambda m: print(m, flush=True), label="after the recording")
+            warnings = [*warnings, *frr_import_check.gap_warnings(found)]
     except LabError as e:
         print(f"lab error: {e}", file=sys.stderr)
         return 2

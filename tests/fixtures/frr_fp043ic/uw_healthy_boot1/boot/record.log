@@ -1,0 +1,14 @@
+Netdryrun 0.4.2: 1 checks from uw_present_true.yml
+r1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+r2: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+Management default routes removed; settling 10s before the checks...
+  [FAIL] r2 has 198.51.100.0/24 (must fail: r1 has no route behind its network statement) -- not active; seen: nothing (60.2s)
+FAILED: 0 passed, 1 failed (1 checks)
+  wrote json report: /home/ndr/fp043ic/out/uw/boot1/boot/report_uw_present_true.json
+Netdryrun 0.4.2: 1 checks from uw_present_false.yml
+r1: management default route none
+r2: management default route none
+Convergence checks done; settling 30s before post-convergence checks...
+  [PASS] r2 does not have 198.51.100.0/24 -- absent (held 10s, 4 samples) (10.0s)
+PASSED: 1 passed, 0 failed (1 checks)
+  wrote json report: /home/ndr/fp043ic/out/uw/boot1/boot/report_uw_present_false.json

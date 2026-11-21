@@ -1,0 +1,715 @@
+flips:
+  - source: fixtures
+    case: "tests.test_acceptance_041::test_a_healthy_lab_is_not_stopped_by_the_watch"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_acceptance_041.py]
+    why: "FP-043-FRRIMPORTCHK: node r1 runs vrnetlab/cisco_n9kv, which no driver claims, so the new probe calls exec, which main's FakeLab lacks. The updated fake answers r1's vtysh as a real vrnetlab container does (rc 127, Docker's executable-not-found line), so the probe classes it as not a router. The assertions are unchanged: failed with no error, and error naming clab-t-r1 and requires KVM."
+    reviewed_by: "recheck-frr: with main's FakeLab given an exec answering as a real vrnetlab container (rc 127), main's tests pass on the candidate's src; the probe runs once on r1"
+  - source: fixtures
+    case: "tests.test_acceptance_041::test_a_node_container_that_dies_ends_the_run_at_once"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_acceptance_041.py]
+    why: "FP-043-FRRIMPORTCHK: node r1 runs vrnetlab/cisco_n9kv, which no driver claims, so the new probe calls exec, which main's FakeLab lacks. The updated fake answers r1's vtysh as a real vrnetlab container does (rc 127, Docker's executable-not-found line), so the probe classes it as not a router. The assertions are unchanged: failed with no error, and error naming clab-t-r1 and requires KVM."
+    reviewed_by: "recheck-frr: with main's FakeLab given an exec answering as a real vrnetlab container (rc 127), main's tests pass on the candidate's src; the probe runs once on r1"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_bridge_a_ceos_node_or_an_unreadable_host_before_an_frr_node_never_ends_the_scan"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_bridge_has_no_boot_log_to_read"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_clean_boot_still_passes"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_driver_set_in_the_file_decides_that_a_node_is_frr"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_node_whose_driver_is_unknown_is_read_too"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_plain_host_with_an_unknown_driver_is_not_an_error"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_rejected_line_on_any_frr_node_makes_the_run_an_error[False]"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_a_rejected_line_on_any_frr_node_makes_the_run_an_error[True]"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_an_applied_line_passes_the_run"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_an_frr_log_with_no_sign_of_a_config_load_is_an_error"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_an_unreadable_boot_log_is_an_error"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_an_unreadable_running_config_or_file_keeps_the_error_and_says_why[conf]"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_an_unreadable_running_config_or_file_keeps_the_error_and_says_why[running]"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_an_unreadable_running_config_without_a_reason_says_so"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_no_running_config_is_read_without_a_failure_to_communicate"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_only_frr_nodes_are_read"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_only_the_daemons_that_answered_failure_to_communicate_are_read"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_the_error_names_every_node_and_every_line_exactly"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_frr_config_load::test_the_reason_keeps_the_last_200_characters"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_frr_config_load.py]
+    why: "FP-043-FRRIMPORTCHK: main's fakes refuse the import-check guard's reads (bgpd's running config). The updated test routes the guard to a view answering the live FRR 10.4.1 capture (BGP, no network) and the node's boot log, without counting those as the config-load check's reads, and answers a vtysh-less image with Docker's live rc 127. The config-load assertions are unchanged."
+    reviewed_by: "recheck-frr: the updated test answers the guard's reads with live FRR 10.4.1 captures; the config-load assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_mgmt::test_run_ends_with_an_error_when_a_route_out_appears"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
+  - source: fixtures
+    case: "tests.test_mgmt::test_run_records_a_route_deleted_again"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
+  - source: fixtures
+    case: "tests.test_mgmt::test_run_refuses_a_routing_node_whose_route_isnt_handled"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
+  - source: fixtures
+    case: "tests.test_mgmt::test_run_removes_the_route_after_setup_and_before_the_first_check"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_clean_cleanup_says_it_destroys_and_warns_of_nothing"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_cleanup_that_raises_is_warned"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_failed_cleanup_is_warned_with_its_output[1--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_failed_cleanup_is_warned_with_its_output[1-out-err-err]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_failed_cleanup_is_warned_with_its_output[2-out--out]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_kept_lab_says_how_to_destroy_it"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_scenario_that_does_not_recover_says_later_ones_are_skipped"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_a_signal_during_cleanup_is_honoured_and_named"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_run_hands_its_driver_overrides_to_the_scenarios"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_run_reads_the_sr_linux_load_on_a_lab_it_deployed"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_mutants::test_the_last_scenario_not_recovering_skips_nothing"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_mutants.py]
+    why: "FP-043-FRRIMPORTCHK: these tests run on FakeLab from test_runner_robustness, which on main has no exec, so the import-check guard's first read raises and every run ends in error. The candidate's fakes answer it with the live FRR 10.4.1 running-config capture (BGP, no network); SrlLab here passes r1 (FRR) to that answer. The mutant tests' assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the mutant tests' assertions are unchanged and pass with the candidate's fakes"
+  - source: fixtures
+    case: "tests.test_runner_robustness::test_negative_check_waits_for_every_bgp_session_on_its_node"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_robustness.py]
+    why: "FP-043-FRRIMPORTCHK: main's FakeLab has no exec, so the import-check guard's first read raises and the run ends in error. The updated FakeLab answers bgpd's running config with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network) and refuses anything else. The robustness assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the robustness assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_runner_robustness::test_scenario_positive_cannot_pass_on_pre_fault_state[0.0]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_robustness.py]
+    why: "FP-043-FRRIMPORTCHK: main's FakeLab has no exec, so the import-check guard's first read raises and the run ends in error. The updated FakeLab answers bgpd's running config with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network) and refuses anything else. The robustness assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the robustness assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_runner_robustness::test_scenario_positive_cannot_pass_on_pre_fault_state[10.0]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_robustness.py]
+    why: "FP-043-FRRIMPORTCHK: main's FakeLab has no exec, so the import-check guard's first read raises and the run ends in error. The updated FakeLab answers bgpd's running config with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network) and refuses anything else. The robustness assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the robustness assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_runner_robustness::test_scenario_waits_for_the_fault_to_show_in_bgp"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_runner_robustness.py]
+    why: "FP-043-FRRIMPORTCHK: main's FakeLab has no exec, so the import-check guard's first read raises and the run ends in error. The updated FakeLab answers bgpd's running config with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network) and refuses anything else. The robustness assertions are unchanged."
+    reviewed_by: "recheck-frr: same FakeLab exec gap; the robustness assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_bgp_node_with_no_neighbors_at_the_cap_fails_its_post_convergence_checks"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_bgp_node_with_no_neighbors_beside_a_working_node_is_a_failure"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_check_that_failed_in_a_never_left_scenario_stays_failed_exit_1"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_driver_that_cannot_verify_the_load_says_so"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_lab_that_never_reached_a_testable_state_is_inconclusive_with_scenarios_too"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_leak_slowed_by_a_peers_advertisement_interval_is_still_seen"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_node_without_bgp_checks_is_still_released_at_the_cap"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_real_failure_beside_a_never_left_scenario_stays_failed"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_rejected_config_line_makes_the_run_an_error_never_a_pass"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: main's FakeLab has no exec, so the import-check guard's first read raises. The updated FakeLab answers it, and the rejected boot log now ends with bgpd's processing-failure line as FRR 10.4.1 logs it (tests/fixtures/frr_boot_log_rejected.txt). The assertion is unchanged: status error, exit 2."
+    reviewed_by: "recheck-frr: the FakeLab exec gap; the boot log gains FRR 10.4.1's processing-failure line as live, and error exit 2 is still asserted"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_run_whose_only_failures_never_left_is_inconclusive_exit_3"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_a_scenario_without_injected_routes_still_streams_as_it_goes"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_agent_eval_t10_bgpd_off_everywhere_is_inconclusive_not_an_error"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_bgp_route_attribute_is_not_judged_on_a_temporary_best_path"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_checks_wait_on_the_runner_clock"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_cleanup_trouble_never_hides_the_results"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_deploy_setup_and_destroy"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_drivers_get_the_configured_override"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_each_kind_of_bgp_check_marks_its_node_as_running_bgp[bgp_prefixes]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_each_kind_of_bgp_check_marks_its_node_as_running_bgp[bgp_route]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_each_kind_of_bgp_check_marks_its_node_as_running_bgp[bgp_session]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_each_kind_of_bgp_check_marks_its_node_as_running_bgp[route-protocol-bgp]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_gate_uses_positive_results_to_skip_dead_nodes"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_gate_warning_when_a_node_never_answers"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_good_settle_and_hold[0.0]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_good_settle_and_hold[0]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_good_settle_and_hold[1000000000.0]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_hold_is_passed_to_the_post_convergence_checks"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_inject_routes_needs_an_frr_node"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_interrupted_by_sigterm"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_keep_leaves_the_lab_and_never_registers_it"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_keep_on_failure[False-0]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_keep_on_failure[True-1]"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_keep_on_failure_does_not_apply_to_an_interrupted_run"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_later_scenarios_are_skipped_when_the_network_does_not_recover"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_negative_checks_run_after_convergence_and_hold"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_no_deploy_means_no_setup_and_no_destroy"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_no_signal_during_cleanup_after_an_interrupt"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_node_that_never_reports_bgp_neighbors_is_released_at_the_cap_with_a_warning"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_node_without_bgp_neighbors_yet_is_not_converged"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_not_converged_checks_are_reported_once_and_not_held"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_only_passing_positive_checks_must_recover"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_positive_check_passes_on_two_samples_and_is_not_held"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_post_convergence_check_is_not_judged_on_two_early_samples"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_recovered_network_adds_nothing"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_report_started"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: main's FakeLab has no exec, so the import-check guard's first read raises. The updated FakeLab answers it with the live FRR 10.4.1 capture (BGP, no network). The test now also pins the node's import_check: registered in the report environment, an exact-equality assertion one key longer. Stricter."
+    reviewed_by: "recheck-frr: the FakeLab exec gap; the environment assertion gains import_check registered, nothing removed"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_results_of_every_phase_are_kept"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_run_defaults_settle_and_hold_10s"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_run_scenario_gate_ignores_sessions_a_top_level_check_expects_down"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_scenario_drivers_built_mid_scenario_get_their_override"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_scenario_recovery_is_checked"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_scenario_results_are_reported"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_scenarios_on_nodes_that_gave_state_still_run_after_an_unready_main_phase"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_settle_waits_at_least_30s_when_nothing_proved_convergence"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_short_advertisement_intervals_leave_the_windows_alone"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_signal_during_cleanup_is_raised_after_it"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_the_console_never_streams_a_pass_that_turns_inconclusive"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_the_no_neighbors_result_is_a_complete_failed_result"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_the_report_names_each_nodes_image_digest_and_nos_version"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"
+  - source: fixtures
+    case: "tests.test_verdict_runner::test_unreadable_snapshot_after_a_readable_failure_is_still_an_error"
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_verdict_runner.py]
+    why: "FP-043-FRRIMPORTCHK: the FRR import-check guard reads bgpd's running config on every FRR router before the checks, and main's FakeLab has no exec, so the guard's first read raises and the run ends in error. The updated FakeLab answers it with the live FRR 10.4.1 capture frr1041_rplu_r1_running_config.txt (BGP, no network), and the neighbors_error nodes with the live bgpd-off captures in tests/fixtures/frr_fp043ic_followup (vtysh can't reach bgpd, daemons bgpd=no, no bgpd process). This test's assertions are unchanged."
+    reviewed_by: "recheck-frr: new read answered by the updated FakeLab with live FRR 10.4.1 captures; the test's assertions are unchanged"

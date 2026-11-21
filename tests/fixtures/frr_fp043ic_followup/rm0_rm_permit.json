@@ -1,0 +1,20 @@
+{"bgpd":{
+  "PERMIT":{
+    "invoked":0,
+    "disabledOptimization":false,
+    "processedChange":true,
+    "rules":[
+      {
+        "sequenceNumber":10,
+        "type":"permit",
+        "invoked":0,
+        "cpuTimeMS":0,
+        "matchClauses":[],
+        "setClauses":[],
+        "action":"Exit routemap"
+      }
+    ],
+    "cpuTimeMS":0
+  }
+}
+}

@@ -20,6 +20,7 @@ from netdryrun.checks import Result
 from netdryrun.config import Check, Config, Fault, Scenario
 from netdryrun.drivers.base import BgpNeighbor, BgpPath, DriverError, NoSuchInstance, Observation, Route
 from netdryrun.lab import ExecResult, Lab, LabError, Node
+from netdryrun.drivers import frr_import_check
 
 
 # ----------------------------------------------------------------------------------------------- fakes
@@ -43,6 +44,14 @@ class Clock:
         return self.t - self.start
 
 
+# bgpd's running config on a live FRR 10.4.1 router with BGP and no `network` (SOURCES.yml)
+BGPD_NO_NETWORK = (Path(__file__).parent / "fixtures" / "frr1041_rplu_r1_running_config.txt").read_text()
+# what a live FRR 10.4.1 router with `bgpd=no` answers the guard (tests/fixtures/frr_fp043ic_followup, SOURCES.yml)
+_OFF = Path(__file__).parent / "fixtures" / "frr_fp043ic_followup"
+BGPD_OFF = {tuple(frr_import_check.BGPD_CONFIG): (1, (_OFF / "off_bgpd_config.txt").read_text(), ""),
+            tuple(frr_import_check.DAEMONS): (0, (_OFF / "off_daemons").read_text(), ""),
+            tuple(frr_import_check.PROCESSES): (0, (_OFF / "r1_comm_bgpd_off.txt").read_text(), "")}
+
 class FakeLab:
     def __init__(self, clock, nodes=("r1", "r2", "r3"), kinds=None, existing=(), running=None, destroy_rc=0,
                  destroy_error=None, deploy_error=None, addresses=None, links=None, set_link_error=None):
@@ -60,6 +69,7 @@ class FakeLab:
         self.deployed = self.destroyed = 0
         self.locked = False
         self.active_during_checks = None
+        self.dead: set[str] = set()   # nodes whose bgpd doesn't run: they answer the guard as FRR with bgpd=no
 
     def check_tools(self):
         pass
@@ -108,6 +118,15 @@ class FakeLab:
 
     def boot_log(self, node):   # a clean FRR boot: every config line loaded
         return ExecResult([], 0, "[45|bgpd] done", "")
+
+    def exec(self, node, cmd, timeout=60, input=None):
+        # the FRR import-check guard (FP-043-FRRIMPORTCHK) reads bgpd's running config of every FRR router first: a
+        # live FRR 10.4.1 one with BGP and no `network` statement, so there is no import-check entry to read
+        if node in self.dead and tuple(cmd) in BGPD_OFF:
+            return ExecResult(cmd, *BGPD_OFF[tuple(cmd)])
+        if cmd == frr_import_check.BGPD_CONFIG and node not in self.dead:
+            return ExecResult(cmd, 0, BGPD_NO_NETWORK, "")
+        return ExecResult(cmd, 1, "", f"not faked: {cmd}")
 
     def run_setup(self, node, cmds, log=None):
         self.events.append(("setup", node, tuple(cmds), log is not None))
@@ -300,6 +319,8 @@ def make(monkeypatch, nodes=("r1", "r2", "r3"), kinds=None, **drivers_kw):
     clock = Clock()
     lab = FakeLab(clock, nodes=nodes, kinds=kinds)
     drivers = {n: Drv(clock, **drivers_kw.get(n, {"neighbors": up(), "routes": {"default": always}})) for n in nodes}
+    # a node whose BGP reads fail is a dead bgpd: the import-check guard reads it as one (review of 58eb8e0, MAJOR-2)
+    lab.dead = {n for n, kw in drivers_kw.items() if "neighbors_error" in kw}
     return Env(monkeypatch, clock, lab, drivers)
 
 
@@ -457,7 +478,8 @@ def test_report_started(monkeypatch):
     assert iso(rep.started) and rep.lab_name == "t"
     assert rep.environment["nodes"]["r1"] == {"kind": "linux", "image": "quay.io/frrouting/frr:10.4.1",
                                               "config_load": "clean", "nos_version": "FRRouting 10.4.1_git",
-                                              "image_digest": "quay.io/frrouting/frr@sha256:" + "a" * 64}
+                                              "image_digest": "quay.io/frrouting/frr@sha256:" + "a" * 64,
+                                              "import_check": "registered"}
     assert set(rep.environment) == {"netdryrun", "containerlab", "python", "host", "nodes"}
 
 
@@ -1876,7 +1898,10 @@ def test_a_rejected_config_line_makes_the_run_an_error_never_a_pass(monkeypatch)
     the line."""
     e = make(monkeypatch, r1={"neighbors": up("10.0.12.2"), "routes": {"default": never}})
     clean = e.lab.boot_log
-    log = "[45|bgpd] sending configuration\nline 18: % Unknown command[31]:   neighbor 10.0.12.1 default-orignate\n"
+    # as FRR 10.4.1 logs it (tests/fixtures/frr_boot_log_rejected.txt): vtysh -b ends bgpd's part with the
+    # processing failure, which the import-check guard reads as "bgpd finished applying its config"
+    log = ("[45|bgpd] sending configuration\nline 18: % Unknown command[31]:   neighbor 10.0.12.1 default-orignate\n"
+           "[45|bgpd] Configuration file[/etc/frr/frr.conf] processing failure: 13\n")
     e.lab.boot_log = lambda node: ExecResult([], 0, log, "") if node == "r2" else clean(node)
     rep = e.run([leak("neg")], settle=10, hold=10)
     assert rep.status == "error" and rep.exit_code == 2

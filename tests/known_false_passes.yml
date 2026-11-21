@@ -544,4 +544,17 @@
     - tests/oracles/FP-043-SRLEVPNVRF/test_oracle_fp_043_srlevpnvrf.py
     - tests/test_oracle_guards_fp_043_srlevpnvrf.py
     - tests/test_srl_evpn_043.py
+- id: rt-0084-frr-import-check-not-registered
+  what: >-
+    On FRR, a `network` statement with no route behind it stayed announced for the life of the lab when bgpd applied
+    it before its zebra connection was up (import-check entry invalid and not registered next to a valid sourced
+    path), so a change that removed the route behind it passed `run`/`check` and was approved by `verify` while
+    production withdraws the prefix (corpus v2 case 18; found 2026-11-21, fixed for 0.4.3: every FRR/SONiC router's
+    import check is read before judging, remedied on a lab the run deployed, otherwise an error)
+  record: tests/redteam/RT-0084-frr-import-check-not-registered.yml
+  status: fixed
+  tests:
+    - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py
+    - tests/test_oracle_guards_fp_043_frrimportchk.py
+    - tests/test_frr_import_check.py
     - tests/test_redteam.py
