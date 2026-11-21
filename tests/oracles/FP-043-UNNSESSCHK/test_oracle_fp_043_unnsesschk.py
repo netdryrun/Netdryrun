@@ -151,6 +151,8 @@ def test_record_writes_the_unnumbered_sessions_checks(monkeypatch, ver):
         assert eth1.get("only") == R1_NOW, f"eth1 is eBGP: its prefixes are listed as for a numbered session: {eth1}"
     else:               # no totalRoutes: the count is pinned, never a bare range
         assert eth1.get("only") == R1_NOW or eth1.get("exact") == 2, eth1
+    # the family eth1 doesn't carry is pinned to exactly 0 from the live capture, as for a numbered eBGP session
+    assert {"type": "bgp_prefixes", "node": "r2", "neighbor": "eth1", "afi": "ipv6-unicast", "exact": 0} in checks,         f"eth1 carries no IPv6 today: exact 0 expected: {checks}"
     # (r1 and r3 aren't recorded here: their own link addresses are no gap of this oracle)
     named = [w for w in rec.baseline_gaps(warnings) if "BGP neighbor" in w and ("eth1" in w or "eth2" in w)]
     assert not named, f"the recorded sessions are still named as gaps: {named}"

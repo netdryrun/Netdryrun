@@ -260,7 +260,8 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
             # named gap of 0.4.2 (red team RT-0066, oracle FP-042-UNNSESS): `record` exits 1, never a silent omission
             if not (interface_peer(addr) and getattr(drv, "interface_peers", False)):
                 warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr!r} is an interface-named "
-                                f"(unnumbered) session, which the {getattr(drv, 'name', '?')} driver can't check, so "
+                                f"(unnumbered) session that no check can name on the {getattr(drv, 'name', '?')} "
+                                "driver (or the name is not a valid interface name), so "
                                 "neither its bgp_session nor its bgp_prefixes is recorded: a session that drops or a "
                                 "peer that sends more prefixes over it isn't caught by this baseline")
                 continue

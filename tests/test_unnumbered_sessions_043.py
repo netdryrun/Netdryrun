@@ -87,6 +87,27 @@ def test_frr_lists_what_an_interface_session_sent():
     assert lab.lines() == ["vtysh -c show bgp ipv4 unicast neighbors eth1 routes json"]
 
 
+def test_frr_lists_what_an_interface_session_in_a_vrf_sent():
+    routes = {"routes": {"10.1.1.0/24": [{"valid": True, "network": "10.1.1.0/24"}]}, "totalRoutes": 1,
+              "totalPaths": 1}
+    lab = Lab([("vrf red ipv4 unicast neighbors eth1 routes json", json.dumps(routes))])
+    got = FrrDriver(lab, "r1").bgp_received("eth1", "ipv4-unicast", "red").value
+    assert got == {"10.1.1.0/24"}
+    assert lab.lines() == ["vtysh -c show bgp vrf red ipv4 unicast neighbors eth1 routes json"]
+
+
+def test_record_writes_vrf_and_only_for_an_interface_session_in_a_vrf():
+    routes = {"routes": {"10.1.1.0/24": [{"valid": True, "network": "10.1.1.0/24"}]}, "totalRoutes": 1,
+              "totalPaths": 1}
+    lab = Lab([("vrf red ipv4 unicast neighbors eth1 routes json", json.dumps(routes))])
+    nbrs = {"eth1": BgpNeighbor("eth1", "established", {"ipv4-unicast": 1}, external=True)}
+    checks = rec._session_checks("r2", nbrs, "range", [], vrf="red", drv=FrrDriver(lab, "r2"))
+    assert {"type": "bgp_session", "node": "r2", "neighbor": "eth1", "vrf": "red"} in checks
+    mine = [c for c in checks if c["type"] == "bgp_prefixes" and c["afi"] == "ipv4-unicast"]
+    assert len(mine) == 1 and mine[0]["vrf"] == "red" and mine[0]["only"] == ["10.1.1.0/24"], mine
+    assert "vtysh -c show bgp vrf red ipv4 unicast neighbors eth1 routes json" in lab.lines()
+
+
 @pytest.mark.parametrize("bad", ["eth1;reboot", "eth 1", "10.0.0.256"])
 def test_frr_never_puts_a_bad_name_in_a_command(bad):
     lab = Lab([])
@@ -130,4 +151,4 @@ def test_record_names_the_gap_where_the_driver_cannot_check_it():
     checks = rec._session_checks("s1", unnumbered(), "range", warnings, drv=FakeDriver("sonic", False))
     assert not [c for c in checks if c["neighbor"] == "eth1"]
     gaps = rec.baseline_gaps(warnings)
-    assert [w for w in gaps if "eth1" in w and "sonic driver can't check" in w]
+    assert [w for w in gaps if "eth1" in w and "no check can name on the sonic driver" in w]
