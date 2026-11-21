@@ -1080,17 +1080,21 @@ def test_a_new_read_a_loose_fake_answers_is_found_by_the_command_log(drepo, tmp_
     assert "show bgp neighbors" in out
 
 
-# the command log is compared run against run: what only differs by run (a temporary directory's random name, the
-# trees' own paths, the environment's key order, the log's own path) is no new read; a new call is one, temp path or not
+# the command log is compared run against run. tests/fakes.py (log format 2) names the temporary paths a test made
+# itself; an older base's fakes logged them as they were, and for those rows only the product's own scratch directory
+# names are read as run names. What only differs by run (those names, the trees' own paths, key order) is no new read;
+# a new call is one, temp path or not, and so is any other path under /tmp
 
-def _log(path: Path, rows: list[tuple[str, object]]) -> Path:
-    path.write_text("".join(json.dumps({"test": t, "command": c if isinstance(c, str) else json.dumps(c)}) + "\n"
+def _log(path: Path, rows: list[tuple[str, object]], fmt: int | None = None) -> Path:
+    path.write_text("".join(json.dumps({"test": t, "command": c if isinstance(c, str) else json.dumps(c),
+                                        **({"log": fmt} if fmt is not None else {})}) + "\n"
                             for t, c in rows), encoding="utf-8")
     return path
 
 
 CASE = "tests.test_x::test_deploy"
 TEST = "tests/test_x.py::test_deploy"
+ROOTS = ("/tmp/ndr-fastfix-k2j3h4l5/base", "/tmp/ndr-fastfix-k2j3h4l5/mixed")
 
 
 def _deploy(topology: str, env_order: list[tuple[str, str]], root: str) -> dict:
@@ -1098,11 +1102,10 @@ def _deploy(topology: str, env_order: list[tuple[str, str]], root: str) -> dict:
                                          "kw": {"env": dict(env_order), "cwd": f"{root}/tests"}}}
 
 
-def _new_reads(tmp_path, base_rows, cand_rows, roots=("/tmp/ndr-fastfix-k2j3h4l5/base",
-                                                     "/tmp/ndr-fastfix-k2j3h4l5/mixed")):
+def _new_reads(tmp_path, base_rows, cand_rows, roots=ROOTS, fmt=None):
     report = ffg.Report()
-    base = ffg.read_commands(_log(tmp_path / "b.jsonl", base_rows), roots)
-    cand = ffg.read_commands(_log(tmp_path / "c.jsonl", cand_rows), roots)
+    base = ffg.read_commands(_log(tmp_path / "b.jsonl", base_rows, fmt), roots)
+    cand = ffg.read_commands(_log(tmp_path / "c.jsonl", cand_rows, fmt), roots)
     ffg.new_reads(report, 0, ffg.PytestRun(0, {}, {}, ""), {CASE: "FAIL"}, base, cand)
     return report.flips
 
@@ -1110,97 +1113,247 @@ def _new_reads(tmp_path, base_rows, cand_rows, roots=("/tmp/ndr-fastfix-k2j3h4l5
 ENV = [("HOME", "/home/u"), ("PATH", "/usr/bin"), ("_", "/usr/bin/env")]
 
 
-def test_a_random_temp_path_the_trees_paths_and_key_order_are_no_new_read(tmp_path):
-    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/base")),
-            (TEST, "cat /tmp/pytest-of-ndr/pytest-12/test_deploy0/t.yml")]
-    cand = [(TEST, _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[::-1],
-                           "/tmp/ndr-fastfix-k2j3h4l5/mixed")),
-            (TEST, "cat /tmp/pytest-of-ndr/pytest-13/test_deploy0/t.yml")]
+def test_an_older_logs_scratch_directory_the_trees_paths_and_key_order_are_no_new_read(tmp_path):
+    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, ROOTS[0])),
+            (TEST, "cat /tmp/pytest-of-ndr/<tmp>/test_deploy0/t.yml")]
+    cand = [(TEST, _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[::-1], ROOTS[1])),
+            (TEST, "cat /tmp/pytest-of-ndr/<tmp>/test_deploy0/t.yml")]
     assert _new_reads(tmp_path, base, cand) == []
 
 
 @pytest.mark.parametrize("extra", [
-    # a new call whose argument is a temporary path
+    # a new call whose argument is a scratch directory of the product's
     {"call": "exec", "args": {"cmd": ["cat", "/tmp/netdryrun-verify-zzzzzzzz/secret"]}},
-    "cat /tmp/pytest-of-ndr/pytest-13/test_deploy0/other.yml",
+    # the same scratch directory, another file in it
+    {"call": "exec", "args": {"cmd": ["cat", "/tmp/netdryrun-verify-f0bwtp86/secret"]}},
+    "cat /tmp/pytest-of-ndr/<tmp>/test_deploy0/other.yml",
     # the same call with another file under the temporary directory
-    _deploy("/tmp/netdryrun-verify-f0bwtp86/before/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/mixed"),
+    _deploy("/tmp/netdryrun-verify-f0bwtp86/before/t.clab.yml", ENV, ROOTS[1]),
     # the same call with another environment value
-    _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[:2] + [("_", "/bin/sh")],
-            "/tmp/ndr-fastfix-k2j3h4l5/mixed"),
+    _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[:2] + [("_", "/bin/sh")], ROOTS[1]),
+    # fixed device files and paths that only contain tmp (the reviewer's shapes)
+    "vtysh -f /tmp/frr.conf", "cat /tmp/ndr-secret.cfg", "cat /var/tmp/shadow", "cat /home/u/tmp/id_rsa",
+    "copy scp://h/tmp/evil.cfg running-config", "show vrf tmp_customer_b", "show interface tmpbr000002",
+    # a scratch directory's name not followed by a path in it, or not under the temp directory
+    "rm -rf /tmp/netdryrun-verify-zzzzzzzz", "cat /var/tmp/netdryrun-verify-zzzzzzzz/x",
 ])
-def test_a_new_command_next_to_a_temp_path_is_still_a_new_read(tmp_path, extra):
-    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/base"))]
-    cand = [(TEST, _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/mixed")),
-            (TEST, extra)]
-    flips = _new_reads(tmp_path, base, cand)
+@pytest.mark.parametrize("fmt", [None, ffg.LOG_FORMAT])
+def test_a_new_command_next_to_a_temp_path_is_still_a_new_read(tmp_path, extra, fmt):
+    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, ROOTS[0])),
+            (TEST, "vtysh -f /tmp/netdryrun-inject.conf"), (TEST, "show interface tmpbr000001")]
+    cand = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml" if fmt else
+                           "/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV, ROOTS[1])),
+            (TEST, "vtysh -f /tmp/netdryrun-inject.conf"), (TEST, "show interface tmpbr000001"), (TEST, extra)]
+    flips = _new_reads(tmp_path, base, cand, fmt=fmt)
     assert [(f.case, f.kind) for f in flips] == [(CASE, ffg.NEW_READ)], flips
 
 
+def test_two_scratch_directories_never_read_as_one(tmp_path):
+    """An older log: the base uses one scratch directory twice, the candidate two of the same shape."""
+    base = [(TEST, "clab deploy -t /tmp/netdryrun-verify-61i7icgq/t.yml"),
+            (TEST, "clab destroy -t /tmp/netdryrun-verify-61i7icgq/t.yml")]
+    cand = [(TEST, "clab deploy -t /tmp/netdryrun-verify-f0bwtp86/t.yml"),
+            (TEST, "clab destroy -t /tmp/netdryrun-verify-zzzzzzzz/t.yml")]
+    assert [f.kind for f in _new_reads(tmp_path, base, cand)] == [ffg.NEW_READ]
+    same = [(TEST, "clab deploy -t /tmp/netdryrun-verify-f0bwtp86/t.yml"),
+            (TEST, "clab destroy -t /tmp/netdryrun-verify-f0bwtp86/t.yml")]
+    assert _new_reads(tmp_path, base, same) == []
+
+
+def test_a_new_log_is_read_without_guessing_run_names(tmp_path):
+    """tests/fakes.py from log format 2 already named the temporary paths the test made: a path it left as it is was
+    not one of them, so another name there is a new read."""
+    base = [(TEST, "clab deploy -t /tmp/netdryrun-verify-61i7icgq/t.yml"), (TEST, "cat <tmp1>/t.yml")]
+    cand = [(TEST, "clab deploy -t /tmp/netdryrun-verify-f0bwtp86/t.yml"), (TEST, "cat <tmp1>/t.yml")]
+    assert [f.kind for f in _new_reads(tmp_path, base, cand, fmt=ffg.LOG_FORMAT)] == [ffg.NEW_READ]
+    assert _new_reads(tmp_path, base[1:], cand[1:], fmt=ffg.LOG_FORMAT) == []
+
+
 def test_stable_command_keeps_what_isnt_a_run_name():
-    assert ffg.stable_command("show bgp summary") == "show bgp summary"
-    assert ffg.stable_command('{"b": 1, "a": "/tmp/tmpab12cd34/x"}') == '{"a": "<tmp>/x", "b": 1}'
-    assert ffg.stable_command("/w/base/tests/x", ("/w/base",)) == "<root>/tests/x"
-    assert ffg.stable_command("7") == "7"
+    sc = ffg.stable_command
+    assert sc("show bgp summary") == "show bgp summary"
+    assert sc("7") == "7" and sc("null") == "null"
+    assert sc('{"b": 1, "a": "/tmp/tmpab12cd34/x"}') == '{"a": "/tmp/tmpab12cd34/x", "b": 1}'
+    assert sc('{"b": 1, "a": "/tmp/netdryrun-verify-61i7icgq/x"}', legacy=True) == '{"a": "<tmp1>/x", "b": 1}'
+    assert sc('"/tmp/netdryrun-verify-61i7icgq/x"', legacy=True) == '"<tmp1>/x"'
+    assert sc("/tmp/netdryrun-verify-61i7icgq/x") == "/tmp/netdryrun-verify-61i7icgq/x"      # format 2: as it is
+    # the trees' paths as whole path names only
+    assert sc("/w/base/tests/x", ("/w/base",)) == "<root>/tests/x"
+    assert sc('"/w/base/tests/x"', ("/w/base",)) == '"<root>/tests/x"'
+    assert sc("/w/base2/x /x/w/base", ("/w/base",)) == "/w/base2/x /x/w/base"
+    assert sc("/w/mixed/x /w/y", ("/w", "/w/mixed")) == "<root>/x <root>/y"          # the longer root first
+    # dict keys are never changed, so two keys can't merge into one
+    assert sc('{"/w/base/x": 1, "/tmp/netdryrun-verify-61i7icgq/y": 2}', ("/w/base",), legacy=True) == \
+        '{"/tmp/netdryrun-verify-61i7icgq/y": 2, "/w/base/x": 1}'
+    for kept in ("/tmp/frr.conf", "/var/tmp/netdryrun-verify-61i7icgq/x", "/tmp/netdryrun-verify-61i7icgq",
+                 "x/tmp/netdryrun-verify-61i7icgq/y", "/tmp/netdryrun-verify-61i7icgqz/y", "/tmp/tmpab12cd34/x",
+                 "tmp_customer_b", "/tmp/pytest-of-ndr/pytest-12/x"):
+        assert sc(kept, legacy=True) == kept, kept
 
 
-DEPLOY_DRIVER = DRIVERS + (
-    "\n    def deploy(self):\n"
-    "        import os\n"
-    "        import tempfile\n"
-    '        work = tempfile.mkdtemp(prefix="toy-verify-")\n'
-    '        return self.lab.run(["clab", "deploy", "-t", work + "/t.yml"], env=dict(os.environ))\n')
-DEPLOY_TEST = textwrap.dedent('''\
+def test_a_legacy_scratch_directory_is_numbered_per_test(tmp_path):
+    log = _log(tmp_path / "l.jsonl", [("tests/test_x.py::test_a", "cat /tmp/netdryrun-verify-61i7icgq/x"),
+                                      ("tests/test_x.py::test_b", "cat /tmp/netdryrun-verify-f0bwtp86/x"),
+                                      ("tests/test_x.py::test_a", "cat /tmp/netdryrun-verify-zzzzzzzz/x")])
+    assert ffg.read_commands(log) == {"tests.test_x::test_a": {"cat <tmp1>/x", "cat <tmp2>/x"},
+                                      "tests.test_x::test_b": {"cat <tmp1>/x"}}
 
 
-    class RunLab:
-        def run(self, cmd, env=None):
-            seen({"cmd": cmd, "env": env})
-            return "refused"
+# the reviewer's probes against the real profiler and environment record, in one gate run: a toy product package
+# named netdryrun (so tests/fakes.py's profiler watches it), the suite's own autouse fixture, one red-team test per
+# probe. Each probe's driver method changes from its base body to its candidate body; a probe flips as a new read
+# exactly when `want` says so.
+# Not here, known limits of the log itself rather than of its scrubbing: env=os.environ passed uncopied (logged by
+# type), a command sent twice or in another order (each test's commands are a set), names drawn at random by the code
+# (uuid, pid, set order: those flip a comment-only change, which only ever asks for more review), and code that
+# rewrites the log file.
+PROBES = {
+    "control_new_exec": ('return self.lab.exec("r1", ["show", "version"])',
+                         'self.lab.exec("r1", ["show", "bgp"])\nreturn self.lab.exec("r1", ["show", "version"])', True),
+    "comment_only": ('return self.lab.exec("r1", ["show", "version"])',
+                     '# comment\nreturn self.lab.exec("r1", ["show", "version"])', False),
+    "env_copy_comment_only": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                              '# comment\nreturn self.lab.run(["clab", "deploy"], env=dict(os.environ))', False),
+    "env_global_mutation": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                            'os.environ["NETDRYRUN_SKIP_LIVE"] = "1"\n'
+                            'try:\n    return self.lab.run(["clab", "deploy"], env=dict(os.environ))\n'
+                            'finally:\n    os.environ.pop("NETDRYRUN_SKIP_LIVE")', True),
+    "env_global_set_and_left": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                                'os.environ["NETDRYRUN_DEBUG"] = "1"\n'
+                                'return self.lab.run(["clab", "deploy"], env=dict(os.environ))', True),
+    "env_global_pop": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                       'v = os.environ.pop("NDR_PROBE_CRED")\n'
+                       'try:\n    return self.lab.run(["clab", "deploy"], env=dict(os.environ))\n'
+                       'finally:\n    os.environ["NDR_PROBE_CRED"] = v', True),
+    "env_credential_leak": ('return self.lab.run(["clab", "deploy"], env={k: v for k, v in os.environ.items() '
+                            'if k != "NDR_PROBE_CRED"})',
+                            'return self.lab.run(["clab", "deploy"], env=dict(os.environ))', True),
+    "env_set_inherited_value": ('return self.lab.run(["clab", "deploy"], env={**os.environ})',
+                                'return self.lab.run(["clab", "deploy"], env={**os.environ, '
+                                '"NDR_PROBE_CRED": os.environ["NDR_PROBE_CRED"]})', False),
+    "tmp_fixed_file": ('return self.lab.exec("r1", ["cat", "/tmp/ndr-a.cfg"])',
+                       'self.lab.exec("r1", ["cat", "/tmp/ndr-secret.cfg"])\n'
+                       'return self.lab.exec("r1", ["cat", "/tmp/ndr-a.cfg"])', True),
+    "tmp_fixed_file_str": ('return self.lab.exec("r1", "cat /tmp/startup.cfg")',
+                           'self.lab.exec("r1", "rm /tmp/startup.cfg")\n'
+                           'return self.lab.exec("r1", "cat /tmp/startup.cfg")', True),
+    "tmp_device_path_swap": ('return self.lab.exec("r1", "bash cat /tmp/running.cfg")',
+                             'self.lab.exec("r1", "bash cat /tmp/candidate.cfg")\n'
+                             'return self.lab.exec("r1", "bash cat /tmp/running.cfg")', True),
+    "frr_inject_new_device_file": ('return self.lab.exec("r1", ["vtysh", "-f", "/tmp/netdryrun-inject.conf"])',
+                                   'self.lab.exec("r1", ["vtysh", "-f", "/tmp/frr.conf"])\n'
+                                   'return self.lab.exec("r1", ["vtysh", "-f", "/tmp/netdryrun-inject.conf"])', True),
+    "var_tmp": ('return self.lab.exec("r1", ["cat", "/var/tmp/a.log"])',
+                'self.lab.exec("r1", ["cat", "/var/tmp/shadow"])\nreturn self.lab.exec("r1", ["cat", "/var/tmp/a.log"])',
+                True),
+    "home_tmp": ('return self.lab.exec("r1", ["cat", "/home/u/tmp/a.cfg"])',
+                 'self.lab.exec("r1", ["cat", "/home/u/tmp/id_rsa"])\n'
+                 'return self.lab.exec("r1", ["cat", "/home/u/tmp/a.cfg"])', True),
+    "url_tmp": ('return self.lab.exec("r1", ["copy", "scp://h/tmp/a.cfg", "running-config"])',
+                'self.lab.exec("r1", ["copy", "scp://h/tmp/evil.cfg", "running-config"])\n'
+                'return self.lab.exec("r1", ["copy", "scp://h/tmp/a.cfg", "running-config"])', True),
+    "vrf_name": ('return self.lab.exec("r1", ["show", "vrf", "tmp_customer_a"])',
+                 'self.lab.exec("r1", ["show", "vrf", "tmp_customer_b"])\n'
+                 'return self.lab.exec("r1", ["show", "vrf", "tmp_customer_a"])', True),
+    "iface_name": ('return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])',
+                   'self.lab.exec("r1", ["shutdown", "interface", "tmpbr000002"])\n'
+                   'return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])', True),
+    "iface_same_verb": ('return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])',
+                        'self.lab.exec("r1", ["show", "interface", "tmpbr000002"])\n'
+                        'return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])', True),
+    "dict_key_collision": ('return self.lab.exec("r1", {"/tmp/a.cfg": "read"})',
+                           'return self.lab.exec("r1", {"/tmp/a.cfg": "read", "/tmp/shadow": "read"})', True),
+    "mkdtemp_comment_only": ('d = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                             'return self.lab.run(["clab", "deploy", "-t", d + "/after/t.yml"], env=dict(os.environ))',
+                             '# comment\nd = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                             'return self.lab.run(["clab", "deploy", "-t", d + "/after/t.yml"], env=dict(os.environ))',
+                             False),
+    "mkdtemp_new_file": ('d = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                         'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])',
+                         'd = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                         'self.lab.run(["cat", d + "/secret"])\n'
+                         'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])', True),
+    "second_mkdtemp_same_shape": ('d = tempfile.mkdtemp(prefix="v-")\n'
+                                  'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])',
+                                  'd = tempfile.mkdtemp(prefix="v-")\ne = tempfile.mkdtemp(prefix="w-")\n'
+                                  'self.lab.run(["clab", "destroy", "-t", e + "/t.yml"])\n'
+                                  'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])', True),
+    "tempdir_comment_only": ('with tempfile.TemporaryDirectory() as d:\n'
+                             '    return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])',
+                             '# comment\nwith tempfile.TemporaryDirectory() as d:\n'
+                             '    return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])', False),
+    "tmp_path_comment_only": ('return self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])',
+                              '# comment\nreturn self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])', False),
+    "tmp_path_new_file": ('return self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])',
+                          'self.lab.run(["cat", str(tmp / "secret")])\n'
+                          'return self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])', True),
+}
+PROBE_CONFTEST = textwrap.dedent('''\
+    import pytest
+
+    from fakes import logging_commands
 
 
-    def test_deploy_is_refused():
-        assert FrrDriver(RunLab()).deploy() == "refused"
+    @pytest.fixture(autouse=True)
+    def _log_fake_lab_commands(tmp_path_factory):
+        undo = logging_commands(tmp_path_factory.getbasetemp)
+        try:
+            yield
+        finally:
+            undo()
     ''')
 
 
-def _deploy_repo(tmp_path) -> Repo:
+def _probe_driver(which: int) -> str:
+    out = "import os\nimport tempfile\n\n\nclass Driver:\n    def __init__(self, lab):\n        self.lab = lab\n"
+    for name, bodies in PROBES.items():
+        out += f"\n    def p_{name}(self, tmp):\n" + textwrap.indent(bodies[which], " " * 8) + "\n"
+    return out
+
+
+def _probe_tests() -> str:
+    out = textwrap.dedent('''\
+        from netdryrun import judge
+        from netdryrun.drivers import Driver
+
+
+        class Lab:
+            def run(self, cmd, env=None):
+                return "ok"
+
+            def exec(self, node, cmd):
+                return "ok"
+
+
+        def test_refuses_negative():
+            assert not judge(-1)
+        ''')
+    for name in PROBES:
+        out += f"\n\ndef test_{name}(tmp_path):\n    assert Driver(Lab()).p_{name}(tmp_path) == \"ok\"\n"
+    return out
+
+
+@needs_git
+def test_each_reviewer_probe_is_a_new_read_exactly_when_it_reads_something_new(tmp_path, monkeypatch):
+    monkeypatch.setenv("NDR_PROBE_CRED", "s3cret")
     r = Repo(tmp_path / "r")
     r.write("pyproject.toml", '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
-    r.write("src/toy/__init__.py", JUDGE)
-    r.write("src/toy/drivers.py", DEPLOY_DRIVER)
-    r.write("tests/conftest.py", "")
+    r.write("src/netdryrun/__init__.py", JUDGE)
+    r.write("src/netdryrun/drivers.py", _probe_driver(0))
+    r.write("tests/conftest.py", PROBE_CONFTEST)
     r.write("tests/fakes.py", FAKES)
-    r.write("tests/test_redteam.py", REDTEAM + "\n\n" + DRIVER_TESTS + DEPLOY_TEST)
-    r.write("tests/test_pinned.py", PINNED)
+    r.write("tests/test_redteam.py", _probe_tests())
+    r.write("tests/test_pinned.py", PINNED.replace("from toy", "from netdryrun"))
     r.write("tests/redteam/RT-0001-zero.yml", RT_PINNED)
-    r.write("data/bad.yml", "bad: [-5, -2]\n")
     r.write("corpus/results/results.json", BASE_RESULTS)
-    r.base = r.commit("base")
-    return r
-
-
-@needs_git
-def test_a_change_that_touches_no_code_finds_no_new_read_in_a_logged_environment_and_temp_dir(tmp_path):
-    """The fake is sent the whole environment (which holds the log's own path) and a mkdtemp path: a comment-only
-    change is still no flip."""
-    r = _deploy_repo(tmp_path)
-    r.write("tests/test_pinned.py", PINNED + "# a comment\n")
-    r.commit("comment", No_Oracle="comment only")
-    code, out, data = dominance(r, r.base, tmp_path)
-    assert code == 0 and data["flips"] == [], out
-
-
-@needs_git
-def test_a_new_command_with_a_temp_path_argument_is_still_found(tmp_path):
-    r = _deploy_repo(tmp_path)
-    r.write("src/toy/drivers.py", DEPLOY_DRIVER.replace(
-        '        return self.lab.run(["clab", "deploy"',
-        '        self.lab.run(["cat", work + "/secret"])\n        return self.lab.run(["clab", "deploy"'))
-    r.commit("read a file too", No_Oracle="new read, verdict unchanged")
-    code, out, data = dominance(r, r.base, tmp_path)
-    kinds = {f["case"]: f["kind"] for f in data["flips"]}
-    assert code == 1 and kinds.get("tests.test_redteam::test_deploy_is_refused") == "new-read", out
+    base = r.commit("base")
+    r.write("src/netdryrun/drivers.py", _probe_driver(1))
+    r.commit("probes", No_Oracle="probes")
+    code, out, data = dominance(r, base, tmp_path)
+    assert data is not None, out
+    flips = {f["case"].rsplit("::test_", 1)[1] for f in data["flips"] if f["kind"] == "new-read"}
+    assert flips == {name for name, (_, _, want) in PROBES.items() if want}, out
+    assert code == 1 and all(f["kind"] == "new-read" for f in data["flips"]), out
 
 
 @needs_git

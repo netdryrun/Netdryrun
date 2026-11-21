@@ -538,25 +538,40 @@ def changed_drivers(files: set[str]) -> list[str]:
     return sorted(out)
 
 
-def temp_path_pattern() -> re.Pattern:
-    """A temporary directory's own random name: the first component under the temp directory (or /tmp), and pytest's
-    pytest-of-<user>/pytest-<n> pair as one. What follows it in the path is kept."""
+# tests/fakes.py from log format 2 replaces the temporary paths each test made itself (<tmp1>, <pytest-tmp>). An older
+# base's fakes logged them as they were: for those logs only the product's own scratch directory names
+# (tempfile.mkdtemp(prefix="netdryrun-<what>-") directly under the temp directory, followed by a path inside it) are
+# replaced, numbered in the order a test's log names them, so two of them never merge. Nothing else under /tmp is.
+LOG_FORMAT = 2
+LEGACY_TEMP = r"netdryrun-[a-z]+-[a-z0-9_]{8}"
+PATH_CHAR = r"[\w.~:/\\-]"
+
+
+def legacy_temp_pattern() -> re.Pattern:
+    """A product scratch directory in an older log: <temp dir>/netdryrun-<what>-<8 random>, starting a path (nothing
+    path-like before it) and followed by a separator."""
     dirs = {tempfile.gettempdir(), os.path.realpath(tempfile.gettempdir()), "/tmp"}
     alts = "|".join(re.escape(d.rstrip("/\\")) for d in sorted(dirs, key=len, reverse=True) if d.rstrip("/\\"))
-    return re.compile(rf"(?:{alts})[/\\]+(?:pytest-of-[^/\\\s\"']+[/\\]+pytest-\d+|[^/\\\s\"']+)")
+    return re.compile(rf"(?<!{PATH_CHAR})(?:{alts})[/\\]{LEGACY_TEMP}(?=[/\\])")
 
 
-def stable_command(text: str, roots: tuple[str, ...] = ()) -> str:
-    """A logged command as the same text on every run of the same code: the trees under test as <root>, a temporary
-    directory's random name as <tmp> (the rest of its path kept), JSON with sorted keys. Only those names go: a new
-    call, or a new argument next to a temporary path, still reads as new (a base whose fakes log less scrubbed)."""
-    temp = temp_path_pattern()
+def stable_command(text: str, roots: tuple[str, ...] = (), labels: dict[str, str] | None = None,
+                   legacy: bool = False) -> str:
+    """A logged command as the same text on every run of the same code: the trees under test as <root> (whole path
+    names only), JSON with sorted keys, and in an older log (`legacy`) the product's scratch directories as <tmpN>
+    (`labels`: the test's numbering so far). Dict keys are never changed, so two keys can't merge; a new call, or a
+    new argument next to a temporary path, still reads as new."""
+    labels = {} if labels is None else labels
+    temp = legacy_temp_pattern() if legacy else None
     ordered = sorted((r for r in roots if r), key=len, reverse=True)
 
     def scrub(s: str) -> str:
         for r in ordered:
-            s = s.replace(r, "<root>")
-        return temp.sub("<tmp>", s)
+            if r in s:
+                s = re.sub(rf"(?<![\w.~-]){re.escape(r)}(?![\w.~-])", "<root>", s)
+        if temp is not None:
+            s = temp.sub(lambda m: labels.setdefault(m.group(0), f"<tmp{len(labels) + 1}>"), s)
+        return s
 
     def walk(v):
         if isinstance(v, str):
@@ -564,14 +579,16 @@ def stable_command(text: str, roots: tuple[str, ...] = ()) -> str:
         if isinstance(v, list):
             return [walk(x) for x in v]
         if isinstance(v, dict):
-            return {scrub(k): walk(x) for k, x in v.items()}
+            return {k: walk(x) for k, x in v.items()}
         return v
     try:
         data = json.loads(text)
     except ValueError:
         return scrub(text)
+    if isinstance(data, str):
+        return json.dumps(scrub(data))
     if not isinstance(data, (dict, list)):
-        return scrub(text)
+        return text
     return json.dumps(walk(data), sort_keys=True)
 
 
@@ -581,10 +598,14 @@ def read_commands(path: Path, roots: tuple[str, ...] = ()) -> dict[str, set[str]
     if not path.is_file():
         return None
     out: dict[str, set[str]] = {}
+    labels: dict[str, dict[str, str]] = {}
     for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
         try:
             row = json.loads(line)
-            out.setdefault(junit_key(row["test"]), set()).add(stable_command(str(row["command"]), roots))
+            key = junit_key(row["test"])
+            command = stable_command(str(row["command"]), roots, labels.setdefault(key, {}),
+                                     legacy=row.get("log") != LOG_FORMAT)
+            out.setdefault(key, set()).add(command)
         except (ValueError, KeyError, TypeError, AttributeError):
             raise GateError(f"the fake labs' command log is unreadable at line {n}") from None
     return out or None
@@ -704,7 +725,7 @@ def loosening(repo: Path, base_ref: str, cand_ref: str, python: str, dominance: 
         # one log path for both runs (read in between): the path is in the environment the code under test may
         # pass on, so two paths would log two different commands for the same code
         log = work / "cmd.jsonl"
-        roots = (str(base_tree), str(work / "mixed"), str(work))
+        roots = (str(base_tree), str(work / "mixed"))
         base_run = run_pytest(base_tree, targets, python, work / "r", log)
         base_cmds = read_commands(log, roots)
         mixed = compose(base_tree, cand_tree, work / "mixed")
