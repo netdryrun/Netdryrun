@@ -1,0 +1,19 @@
+{
+  "index": "873408404",
+  "backup-next-hop-group": "0",
+  "backup-active": false,
+  "fib-programming": {
+    "last-successful-operation-type": "add",
+    "last-successful-operation-timestamp": "2026-11-21T13:50:15.043Z (18 minutes ago)",
+    "pending-operation-type": "none",
+    "last-failed-operation-type": "none"
+  },
+  "next-hop": [
+    {
+      "id": 0,
+      "next-hop": "873408401",
+      "resolved": "true",
+      "resource-allocation-failed": false
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+Netdryrun 0.4.2: 11 checks from /home/ndr/labs/fix-srl-evpn/C/netdryrun.yml
+ce1: management default route none
+leaf1: management default route not applicable (nokia_srlinux)
+leaf2: management default route not applicable (nokia_srlinux)
+leaf3: management default route not applicable (nokia_srlinux)
+  [PASS] B-ce-session-up -- state is established (6.9s)
+warning: convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)
+Convergence checks done; settling 10s before post-convergence checks...
+  [PASS] B-nh-leaf2-must-fail -- best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none (held 12s, 2 samples) (12.0s)
+  [PASS] B-lp100-must-fail -- best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none (held 12s, 2 samples) (12.0s)
+  [FAIL] B-nh-leaf3-lp200-must-pass -- local-pref is 100, expected 200; next hop is 2.2.2.2, expected 3.3.3.3 (best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none) (4.6s)
+  [FAIL] B-absent-must-fail -- unexpectedly in the BGP table (1 path(s); as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none) (4.6s)
+  [FAIL] B-route-bgp-absent-must-fail -- unexpectedly present via bgp-evpn (4.6s)
+  [PASS] B-ce-route-must-pass -- best path: as-path '65100', next hop 10.1.0.2, local-pref 100, MED 0, communities none (held 12s, 2 samples) (12.0s)
+  [FAIL] A-nh-leaf2-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+  [FAIL] A-lp100-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+  [FAIL] A-nh-leaf3-lp200-must-pass -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+  [FAIL] A-absent-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+FAILED: 4 passed, 7 failed (11 checks; 6 with a convergence warning)
+  wrote json report: srl2672_fp043_twope_one_report.json
+exit 1

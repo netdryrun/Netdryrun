@@ -1,0 +1,23 @@
+Netdryrun 0.4.2: 11 checks from /home/ndr/labs/fix-srl-evpn/C/netdryrun.yml
+ce1: management default route none
+leaf1: management default route not applicable (nokia_srlinux)
+leaf2: management default route not applicable (nokia_srlinux)
+leaf3: management default route not applicable (nokia_srlinux)
+  [PASS] B-ce-session-up -- state is established (5.7s)
+warning: convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)
+Convergence checks done; settling 10s before post-convergence checks...
+  [FAIL] B-nh-leaf2-must-fail -- error: 10.66.0.0/24: network-instance 'ipvrfb' forwards to 2.2.2.2, 3.3.3.3, and the 2 imported EVPN paths have next hops 2.2.2.2, 3.3.3.3: not exactly one of them, so the srlinux driver can't tell which one is its best path (8.4s)
+  [FAIL] B-lp100-must-fail -- error: 10.66.0.0/24: network-instance 'ipvrfb' forwards to 2.2.2.2, 3.3.3.3, and the 2 imported EVPN paths have next hops 2.2.2.2, 3.3.3.3: not exactly one of them, so the srlinux driver can't tell which one is its best path (8.4s)
+  [FAIL] B-nh-leaf3-lp200-must-pass -- error: 10.66.0.0/24: network-instance 'ipvrfb' forwards to 2.2.2.2, 3.3.3.3, and the 2 imported EVPN paths have next hops 2.2.2.2, 3.3.3.3: not exactly one of them, so the srlinux driver can't tell which one is its best path (8.4s)
+  [FAIL] B-absent-must-fail -- error: 10.66.0.0/24: network-instance 'ipvrfb' forwards to 2.2.2.2, 3.3.3.3, and the 2 imported EVPN paths have next hops 2.2.2.2, 3.3.3.3: not exactly one of them, so the srlinux driver can't tell which one is its best path (8.4s)
+  [FAIL] B-route-bgp-absent-must-fail -- unexpectedly present via bgp-evpn (8.4s)
+  [PASS] B-ce-route-must-pass -- best path: as-path '65100', next hop 10.1.0.2, local-pref 100, MED 0, communities none (held 14s, 2 samples) (13.8s)
+  [FAIL] A-nh-leaf2-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+  [FAIL] A-lp100-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+  [FAIL] A-nh-leaf3-lp200-must-pass -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+  [FAIL] A-absent-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (121.7s)
+FAILED: 2 passed, 9 failed (11 checks; 6 with a convergence warning)
+  wrote json report: srl2672_fp043_twope_ecmp_report.json
+exit 1
