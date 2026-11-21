@@ -11,14 +11,20 @@ NDR_FAKE_COMMAND_LOG when the gate sets it (and nowhere otherwise). Comparing tw
 versions of the code shows a command only the newer one sends, even when a fake that matches by substring answered
 it without complaint.
 
-Not every fake calls `seen`, so tests/conftest.py also installs `command_profiler()` while the log is on: it records
-every call to a method named `exec` or `exec_root` (the only way code under test reaches a device, fake or real),
-whatever fake answers it, including the ones in tests/oracles/.
+Not every fake calls `seen`, so tests/conftest.py also installs `command_profiler()` while the log is on. It logs at
+the boundary, not by name: every call that code in src/netdryrun makes straight into code under tests/ (a fake
+class's method, a lambda or function bound in its place under any name, *args or keyword-only alike) or into
+unittest.mock (MagicMock, mock.patch). The fake labs are the only test code the product calls, so whatever answers
+exec, exec_root, netns_exec or anything else a later driver uses is logged with its arguments. A callback a test
+hands in (a fake clock, say) is logged too: a change to what the code passes it then shows as new, which only ever
+asks for more review. Arguments are logged as plain data; other objects by their type, and the test's working
+directory as <root>, so two runs of one test log the same lines.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import threading
 
@@ -45,15 +51,66 @@ def seen(command: object) -> None:
         f.write(json.dumps({"test": test, "command": text}) + "\n")
 
 
-def command_profiler():
-    """A sys.setprofile hook that logs every exec/exec_root call through `seen` (install it only while logging)."""
+_TMP = re.compile(r"pytest-\d+|tmp[A-Za-z0-9_]{6,}")
+
+
+def _plain(value: object, root: str, depth: int = 0) -> object:
+    """`value` as stable JSON: strings, numbers, lists and dicts as they are (the test's working directory and
+    temporary names scrubbed), anything else by its type name (its repr may hold an address)."""
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, (str, os.PathLike, bytes)):
+        text = os.fsdecode(value) if not isinstance(value, bytes) else value.decode("utf-8", "replace")
+        return _TMP.sub("<tmp>", text.replace(root, "<root>"))
+    if depth > 4:
+        return type(value).__name__
+    if isinstance(value, (list, tuple)):
+        return [_plain(v, root, depth + 1) for v in value]
+    if isinstance(value, (set, frozenset)):
+        return sorted((_plain(v, root, depth + 1) for v in value), key=repr)
+    if isinstance(value, dict):
+        return {str(k): _plain(v, root, depth + 1) for k, v in value.items()}
+    return type(value).__name__
+
+
+def _package_root() -> str:
+    try:
+        import netdryrun
+        return os.path.dirname(os.path.abspath(netdryrun.__file__)) + os.sep
+    except ImportError:
+        return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "netdryrun") + os.sep
+
+
+def command_profiler(code_root: str | None = None, fake_root: str | None = None):
+    """A sys.setprofile hook (install it only while logging) that logs, through `seen`, every call from code under
+    `code_root` (src/netdryrun) into code under `fake_root` (tests/) or unittest.mock, with its arguments."""
+    import unittest.mock
+    code_root = code_root or _package_root()
+    fakes = (fake_root or os.path.dirname(os.path.abspath(__file__)) + os.sep,)
+    mock_file = os.path.abspath(unittest.mock.__file__)
+    callers: dict = {}
+    callees: dict = {}
+
     def profile(frame, event, arg):
-        if event != "call" or frame.f_code.co_name not in ("exec", "exec_root"):
+        if event != "call" or frame.f_back is None:
+            return
+        caller = frame.f_back.f_code
+        inside = callers.get(caller)
+        if inside is None:
+            inside = callers[caller] = os.path.abspath(caller.co_filename).startswith(code_root)
+        if not inside:
             return
         code = frame.f_code
-        args = [frame.f_locals.get(n) for n in code.co_varnames[:code.co_argcount] if n != "self"]
-        if len(args) >= 2:
-            seen({"call": code.co_name, "node": args[0], "cmd": args[1]})
+        fake = callees.get(code)
+        if fake is None:
+            where = os.path.abspath(code.co_filename)
+            fake = callees[code] = where.startswith(fakes) or where == mock_file
+        if not fake:
+            return
+        n = code.co_argcount + code.co_kwonlyargcount + bool(code.co_flags & 0x04) + bool(code.co_flags & 0x08)
+        root = os.getcwd()
+        args = {k: _plain(frame.f_locals.get(k), root) for k in code.co_varnames[:n] if k not in ("self", "cls")}
+        seen({"call": code.co_name, "args": args})
     return profile
 
 

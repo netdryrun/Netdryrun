@@ -1159,6 +1159,17 @@ def test_drivers_of_a_node_id(key, drivers):
     assert ffg.drivers_of(key) == drivers
 
 
+@pytest.mark.parametrize("nodeid,key", [
+    ("tests/test_x.py::test_y", "tests.test_x::test_y"),
+    ("tests/test_x.py::TestC::test_y[p]", "tests.test_x.TestC::test_y[p]"),
+    ("tests/test_x.py::test_y[a::b]", "tests.test_x::test_y[a::b]"),            # "::" inside a parameter id
+    ("tests/test_x.py::TestC::test_y[a::b-c[d]]", "tests.test_x.TestC::test_y[a::b-c[d]]"),
+    ("tests/oracles/FP-1/test_oracle_fp_1.py::t", "tests.oracles.FP-1.test_oracle_fp_1::t"),
+])
+def test_junit_key_matches_junit_names(nodeid, key):
+    assert ffg.junit_key(nodeid) == key
+
+
 @pytest.mark.parametrize("msg,hit", [
     ("fakes.UnexpectedCommand: unexpected command: show bgp", True),
     ("AssertionError: unexpected command: show bgp", True),
@@ -1312,6 +1323,9 @@ def test_a_port_that_does_more_than_the_reverse_blocks(repo, tmp_path, how, expe
     _plant(repo, ported, ORACLE_PLANT + f"ported_from: {fix}\n")
     code, out, _ = plants(repo, tmp_path)
     assert code == 1 and expect in out, out
+    # the fix is in this change too: the reproduce check holds its port to the same rules
+    code, out = repo.reproduce(repo.base)
+    assert code == 1 and f"Fixes-Oracle: FP-1: plant.diff {expect}" in out, out
 
 
 @needs_git
@@ -1324,6 +1338,38 @@ def test_a_plant_caught_outside_the_oracles_own_folder_blocks(repo, tmp_path):
     _oracle(repo, test=ORACLE_TEST.replace("from toy import judge", "from toy import refused")
             .replace("assert not judge(int(CAPTURE.read_text()))", "refused(int(CAPTURE.read_text()))"))
     repo.write("src/toy/__init__.py", with_check.replace("x > LIMIT", "x > LIMIT and x != 7"))
+    fix = repo.commit("fix FP-1", Fixes_Oracle="FP-1", Session="fixer")
+    _plant(repo, _reverse(repo, fix))
+    code, out, data = plants(repo, tmp_path)
+    assert code == 1 and "not by an assertion raised in tests/oracles/FP-1/" in out, out
+    assert data["caught"] == 0 and data["oracles"] == {"FP-1": "caught elsewhere"}
+
+
+ORACLE_FAKE_TEST = textwrap.dedent('''\
+    from toy import probe
+
+
+    class Lab:
+        def exec(self, cmd):
+            if cmd != "show ok":
+                raise AssertionError("unexpected " f"command {cmd!r}")   # as a frozen oracle's fake words it
+            return "7"
+
+
+    def test_probe_reads_the_right_table():
+        assert probe(Lab()) == "7"
+    ''')
+
+
+@needs_git
+def test_a_plant_caught_only_by_a_fakes_refusal_in_the_oracles_folder_blocks(repo, tmp_path):
+    """The plant changes only the command sent. The oracle folder's own fake refuses it, raising inside
+    tests/oracles/FP-1/, so only the refusal wording tells it apart from the oracle's assertion."""
+    probe = JUDGE_P + '\n\ndef probe(lab):\n    return lab.exec("show bad")\n'
+    repo.write("src/toy/__init__.py", probe)
+    repo.commit("room to grow", No_Oracle="layout only, judge() is unchanged")
+    _oracle(repo, test=ORACLE_FAKE_TEST)
+    repo.write("src/toy/__init__.py", probe.replace("show bad", "show ok"))
     fix = repo.commit("fix FP-1", Fixes_Oracle="FP-1", Session="fixer")
     _plant(repo, _reverse(repo, fix))
     code, out, data = plants(repo, tmp_path)

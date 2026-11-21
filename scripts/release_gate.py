@@ -611,8 +611,11 @@ SKIPS_TITLE = "every must-not-pass fixture ran at the published release on this 
 JUDGE_TITLE = "the published release's own fastfix_gate.py judged dominance and plants"
 PENDING_TITLE = "no oracle without a fix has waited since the published release (fastfix_gate.py plants)"
 # the one published release whose fastfix_gate.py predates the dominance and plants commands: only the release after
-# it may be judged by its own copy (the bootstrap), and the gate says so with a MAJOR to accept knowingly
+# it (exactly BOOTSTRAP_NEXT, while origin has no newer v* tag) may be judged by its own copy, and the gate says so
+# with a MAJOR to accept knowingly; any later release without the commands at its published tag fails
 BOOTSTRAP_TAG = "v0.4.2"
+BOOTSTRAP_NEXT = "0.4.3"
+RELEASE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 
 
 def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
@@ -657,28 +660,30 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
         published_checks(layer, args, git_, runner, head)
 
 
-def published_judge(git_, tag: str, marker: str, dest: Path) -> tuple[Path | None, str, bool]:
-    """(script, which, bootstrap): the published tag's fastfix_gate.py when it has the command. Only the release after
-    BOOTSTRAP_TAG may fall back to this commit's own (committed) copy; any other tag without the command fails."""
-    own = git_("show", f"{tag}:scripts/fastfix_gate.py")
+def published_judge(git_, tag: str, sha: str, version: str, marker: str, dest: Path) -> tuple[Path | None, str, bool]:
+    """(script, which, bootstrap): the published commit's fastfix_gate.py (read by its verified sha, never by a name
+    another ref could shadow) when it has the command. Only release BOOTSTRAP_NEXT, against BOOTSTRAP_TAG, may fall
+    back to this commit's own committed copy (published_tag has already refused a newer v* tag at origin); anything
+    else without the command fails."""
+    own = git_("show", f"{sha}:scripts/fastfix_gate.py")
     if own and marker in own:
         dest.write_text(own + "\n", encoding="utf-8")
-        return dest, f"the published release's fastfix_gate.py ({tag})", False
-    if tag != BOOTSTRAP_TAG:
-        return None, (f"{tag}'s fastfix_gate.py has no such command, and only the release after {BOOTSTRAP_TAG} may be "
-                      "judged by its own copy"), False
+        return dest, f"the published release's fastfix_gate.py ({tag}, {sha[:10]})", False
+    if tag != BOOTSTRAP_TAG or version != BOOTSTRAP_NEXT:
+        return None, (f"{tag}'s fastfix_gate.py has no such command, and only release {BOOTSTRAP_NEXT} against "
+                      f"{BOOTSTRAP_TAG} may be judged by its own copy (this is {version} against {tag})"), False
     mine = git_("show", "HEAD:scripts/fastfix_gate.py")
     if not mine:
         return None, "can't read HEAD's committed scripts/fastfix_gate.py", False
     dest.write_text(mine + "\n", encoding="utf-8")
-    return dest, (f"BOOTSTRAP: this commit's own fastfix_gate.py ({tag} predates the command; allowed only for the "
-                  f"release after {BOOTSTRAP_TAG})"), True
+    return dest, (f"BOOTSTRAP: this commit's own fastfix_gate.py ({tag} predates the command; allowed only for "
+                  f"{BOOTSTRAP_NEXT})"), True
 
 
 def published_checks(layer: Layer, args, git_, runner, head: str | None) -> None:
     """Dominance and the living plants, against the published release, each judged by the published release's own
     fastfix_gate.py (never a base the caller picks)."""
-    tag, why = published_tag(args, git_) if head else (None, "can't read HEAD")
+    tag, sha, why = published_tag(args, git_) if head else (None, None, "can't read HEAD")
     if tag is None:
         for id_, title in (("dominance", DOMINANCE_TITLE), ("plants", PLANTS_TITLE)):
             layer.add(id_, title, BLOCKER, False, f"can't name the published release: {why}")
@@ -686,20 +691,22 @@ def published_checks(layer: Layer, args, git_, runner, head: str | None) -> None
     tmp = Path(tempfile.mkdtemp(prefix="ndr-published-judge-"))
     booted = []
     try:
-        script, which, boot = published_judge(git_, tag, '"--dominance"', tmp / "dominance_judge.py")
+        script, which, boot = published_judge(git_, tag, sha, args.version, '"--dominance"',
+                                              tmp / "dominance_judge.py")
         booted += ["dominance"] * boot
         if script is None:
             layer.add("dominance", DOMINANCE_TITLE, BLOCKER, False, which)
         else:
-            dominance_checks(layer, args, runner, head, tag, why, script, which)
-        script, which, boot = published_judge(git_, tag, 'add_parser("plants"', tmp / "plants_judge.py")
+            dominance_checks(layer, args, runner, head, sha, why, script, which)
+        script, which, boot = published_judge(git_, tag, sha, args.version, 'add_parser("plants"',
+                                              tmp / "plants_judge.py")
         booted += ["plants"] * boot
         if script is None:
             layer.add("plants", PLANTS_TITLE, BLOCKER, False, which)
         else:
             out = gate_dir(args) / "plants.json"
             out.unlink(missing_ok=True)
-            cmd = [sys.executable, script, "plants", "--repo", ROOT, "--candidate", head, "--base", tag, "--json", out]
+            cmd = [sys.executable, script, "plants", "--repo", ROOT, "--candidate", head, "--base", sha, "--json", out]
             layer.add_proc("plants", PLANTS_TITLE, BLOCKER, cmd, runner(cmd, timeout=3600),
                            f"{plants_summary(out)}, by {which}")
             try:
@@ -713,7 +720,7 @@ def published_checks(layer: Layer, args, git_, runner, head: str | None) -> None
                 layer.add("plants-pending", PENDING_TITLE, MAJOR, False, f"no readable plants record ({e})")
         layer.add("published-judge", JUDGE_TITLE, MAJOR, not booted,
                   f"BOOTSTRAP: {' and '.join(booted)} judged by this commit's own fastfix_gate.py, because {tag} "
-                  f"predates the commands; accept this once, for the release after {BOOTSTRAP_TAG} only"
+                  f"predates the commands; accept this once, for {BOOTSTRAP_NEXT} only"
                   if booted else f"{tag}'s copy")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -737,51 +744,72 @@ def plants_summary(path: Path) -> str:
 CHANGELOG_HEADING = re.compile(r"^## (\d+\.\d+\.\d+)\b", re.M)
 
 
-def published_tag(args, git_) -> tuple[str | None, str]:
-    """(the published release's tag, or None; why). It defaults to the newest v* tag reachable from HEAD other than
-    the candidate's own, must be an ancestor of HEAD, must name the newest release in CHANGELOG.md other than the
-    candidate's own, and must be the commit origin's tag names (a local tag moved by hand, or no way to ask origin,
-    fails)."""
+def origin_tags(git_) -> dict[str, tuple[str, str | None]] | None:
+    """Every tag origin lists: name -> (its ref's object, the commit it peels to when origin lists that)."""
+    out: dict[str, list] = {}
+    for line in (git_("ls-remote", "--tags", "origin") or "").splitlines():
+        obj, _, ref = line.partition("\t")
+        ref = ref.strip()
+        if not ref.startswith("refs/tags/"):
+            continue
+        name = ref[len("refs/tags/"):]
+        entry = out.setdefault(name.removesuffix("^{}"), [None, None])
+        entry[1 if name.endswith("^{}") else 0] = obj.strip()
+    return {k: (v[0], v[1]) for k, v in out.items() if v[0]} or None
+
+
+def published_tag(args, git_) -> tuple[str | None, str | None, str]:
+    """(the published release's tag and the commit it names, or None, None; why). It defaults to the newest v* tag
+    reachable from HEAD other than the candidate's own. It is read only as refs/tags/<tag> (a ref such as refs/<tag>
+    can't stand in), must be an ancestor of HEAD, must name the newest release in CHANGELOG.md other than the
+    candidate's own, must be the commit origin publishes under that name, and origin may list no newer v* release
+    (other than the candidate's own). A tag moved by hand, no way to ask origin, or a skipped release fails."""
     tag = getattr(args, "published_tag", None) or git_("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*",
                                                        "--exclude", f"v{args.version}", "HEAD")
     if not tag:
-        return None, "no published v* tag is reachable from HEAD (pass --published-tag)"
-    sha = git_("rev-parse", "--verify", "--end-of-options", f"{tag}^{{commit}}")
-    if not sha:
-        return None, f"{tag} is not a tag or commit here"
+        return None, None, "no published v* tag is reachable from HEAD (pass --published-tag)"
+    mine = RELEASE_TAG.match(tag)
+    if not mine:
+        return None, None, f"{tag} is not a release tag (vX.Y.Z)"
+    obj = git_("rev-parse", "--verify", "--end-of-options", f"refs/tags/{tag}")
+    sha = git_("rev-parse", "--verify", "--end-of-options", f"refs/tags/{tag}^{{commit}}")
+    if not obj or not sha:
+        return None, None, f"refs/tags/{tag} is not a tag here"
     if git_("merge-base", "--is-ancestor", sha, "HEAD") is None:
-        return None, f"{tag} is not an ancestor of HEAD"
+        return None, None, f"{tag} is not an ancestor of HEAD"
     changelog = git_("show", "HEAD:CHANGELOG.md") or ""
     newest = next((v for v in CHANGELOG_HEADING.findall(changelog) if v != args.version), None)
     if newest is None or tag != f"v{newest}":
-        return None, f"{tag} is not the newest release in CHANGELOG.md other than {args.version} ({newest or 'none'})"
-    remote = git_("ls-remote", "origin", f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}")
-    refs = {}
-    for line in (remote or "").splitlines():
-        sha_, _, ref = line.partition("\t")
-        refs[ref.strip()] = sha_.strip()
-    peeled, ref = refs.get(f"refs/tags/{tag}^{{}}"), refs.get(f"refs/tags/{tag}")
-    if not peeled and not ref:
-        return None, (f"can't confirm {tag} against origin (git ls-remote origin refs/tags/{tag} gave nothing): the "
-                      "published tag must be checked against what was published")
-    # origin's peeled commit when it lists one; otherwise (a remote that lists no peeled refs, such as a bundle) its
-    # ref must be this very tag object, or the commit itself for a lightweight tag
-    published = peeled or ref
-    if not peeled and ref == git_("rev-parse", "--verify", "--end-of-options", f"refs/tags/{tag}"):
-        published = sha
+        return None, None, (f"{tag} is not the newest release in CHANGELOG.md other than {args.version} "
+                            f"({newest or 'none'})")
+    remote = origin_tags(git_)
+    if not remote or tag not in remote:
+        return None, None, (f"can't confirm {tag} against origin (git ls-remote --tags origin doesn't list it): the "
+                            "published tag must be checked against what was published")
+    ref, peeled = remote[tag]
+    # origin's peeled commit when it lists one; otherwise (a lightweight tag, or a remote such as a bundle that lists
+    # no peeled refs) origin's ref must be this very tag object, which names this very commit
+    published = peeled or (sha if ref == obj else ref)
     if published != sha:
-        return None, (f"{tag} here is {sha[:10]}, but origin's {tag} is {published[:10]}: the local tag doesn't match "
-                      "what was published")
-    return tag, f"{tag} ({sha[:10]}, as origin has it)"
+        return None, None, (f"{tag} here is {sha[:10]}, but origin's {tag} is {published[:10]}: the local tag doesn't "
+                            "match what was published")
+    key = tuple(map(int, mine.groups()))
+    newer = sorted((tuple(map(int, m.groups())), name) for name in remote
+                   if (m := RELEASE_TAG.match(name)) and name != f"v{args.version}"
+                   and tuple(map(int, m.groups())) > key)
+    if newer:
+        return None, None, (f"origin has {newer[-1][1]}, newer than {tag}: the candidate is judged against the newest "
+                            "published release")
+    return tag, sha, f"{tag} ({sha[:10]}, as origin has it)"
 
 
-def dominance_checks(layer: Layer, args, runner, head: str, tag: str, why: str, script: Path, which: str) -> None:
+def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, script: Path, which: str) -> None:
     """The candidate against the release users have: no FAIL/UNKNOWN -> PASS since the published tag that a reviewed
     allowlist entry doesn't cover. Its JSON (gate/dominance.json) carries the new device reads the report turns
     into live runs, and the fixtures the gate host skipped at the tag (not compared: MAJOR)."""
     out = gate_dir(args) / "dominance.json"
     out.unlink(missing_ok=True)
-    cmd = [sys.executable, script, "loosening", "--repo", ROOT, "--base", tag, "--candidate", head, "--dominance",
+    cmd = [sys.executable, script, "loosening", "--repo", ROOT, "--base", sha, "--candidate", head, "--dominance",
            "--json", out]
     layer.add_proc("dominance", DOMINANCE_TITLE, BLOCKER, cmd, runner(cmd, timeout=3600),
                    f"clean since {why}, by {which}")
@@ -800,7 +828,8 @@ def dominance_checks(layer: Layer, args, runner, head: str, tag: str, why: str, 
     same = sum(1 for s in guards if isinstance(s, dict) and s.get("same_at_candidate") is True)
     both = f" ({same} of them skipped the same way at the candidate)" if same else ""
     layer.add("dominance-skips", SKIPS_TITLE, MAJOR,
-              not guards, f"{len(guards)} not compared (skipped at {tag}){both}" if guards else "none skipped",
+              not guards, f"{len(guards)} not compared (skipped at the published release, {sha[:10]}){both}"
+              if guards else "none skipped",
               "\n".join(f"{s.get('case')} ({s.get('origin')}): {s.get('reason')}" if isinstance(s, dict) else str(s)
                         for s in guards))
 

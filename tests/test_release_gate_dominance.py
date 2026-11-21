@@ -36,20 +36,23 @@ def args(tmp_path, **kw):
 
 def answers(**over):
     a = {"merge-base": "b" * 40, "rev-parse": HEAD, "describe": "v1.0.0", "show-base": "BASE", "show-tag": TAG_JUDGE,
-         "show-head": HEAD_JUDGE, "ls-remote": f"{TAG_SHA}\trefs/tags/v1.0.0"}
+         "show-head": HEAD_JUDGE, "ls-remote": f"{TAG_SHA}\trefs/tags/v1.0.0\n{'a' * 40}\trefs/tags/v0.9.0"}
     a.update(over)
 
     def git_(*cmd):
         if cmd[0] == "merge-base" and cmd[1] == "--is-ancestor":
             return a.get("is-ancestor", "")
         if cmd[0] == "rev-parse" and cmd[1] == "--verify":
-            return a.get("tag-object", "o" * 40) if cmd[-1].startswith("refs/tags/") else a.get("tag-sha", TAG_SHA)
+            assert cmd[-1].startswith("refs/tags/"), cmd           # never a short name another ref could shadow
+            return a.get("tag-sha", TAG_SHA) if cmd[-1].endswith("^{commit}") else a.get("tag-object", "o" * 40)
         if cmd[0] == "show":
             if cmd[1] == "HEAD:CHANGELOG.md":
                 return a.get("changelog", CHANGELOG)
             if cmd[1].startswith("HEAD:"):
                 return a["show-head"]
-            return a["show-tag"] if cmd[1].startswith("v") else a["show-base"]
+            return a["show-tag"] if cmd[1].startswith(TAG_SHA) else a["show-base"]
+        if cmd[0] == "ls-remote":
+            assert cmd[1:] == ("--tags", "origin"), cmd
         return a[cmd[0]]
     return git_
 
@@ -92,12 +95,18 @@ def static(tmp_path, git_, runner, **kw):
     ({"is-ancestor": None}, "is not an ancestor of HEAD"),
     ({"changelog": "## 1.1.0\n\n## 0.9.0\n"}, "is not the newest release in CHANGELOG.md"),
     ({"describe": "v0.9.0"}, "is not the newest release in CHANGELOG.md"),
-    ({"tag-sha": None}, "is not a tag or commit here"),
+    ({"tag-sha": None}, "refs/tags/v1.0.0 is not a tag here"),
+    ({"describe": "v1.0"}, "is not a release tag"),
     # what was published: origin's tag, not whatever the local tag says
     ({"ls-remote": None}, "can't confirm v1.0.0 against origin"),
     ({"ls-remote": ""}, "can't confirm v1.0.0 against origin"),
     ({"ls-remote": f"{'m' * 40}\trefs/tags/v1.0.0"}, "doesn't match what was published"),
     ({"ls-remote": f"{'o' * 40}\trefs/tags/v1.0.0\n{'m' * 40}\trefs/tags/v1.0.0^{{}}"}, "doesn't match"),
+    ({"ls-remote": f"{TAG_SHA}\trefs/tags/v1.0.1"}, "can't confirm v1.0.0 against origin"),
+    # a release published after this one: the candidate is judged against the newest
+    ({"ls-remote": f"{TAG_SHA}\trefs/tags/v1.0.0\n{'n' * 40}\trefs/tags/v1.0.1"}, "origin has v1.0.1, newer than"),
+    ({"ls-remote": f"{TAG_SHA}\trefs/tags/v1.0.0\n{'n' * 40}\trefs/tags/v1.0.10\n{'n' * 40}\trefs/tags/v1.0.9"},
+     "origin has v1.0.10, newer than"),
 ])
 def test_a_published_release_that_cant_be_named_blocks_dominance_and_plants(tmp_path, over, why):
     runner = fake_runner(CLEAN)
@@ -114,6 +123,12 @@ def test_a_published_release_that_cant_be_named_blocks_dominance_and_plants(tmp_
     f"{TAG_SHA}\trefs/tags/v1.0.0",                # a lightweight tag: the commit itself
 ])
 def test_a_remote_that_lists_no_peeled_ref_is_compared_by_tag_object(tmp_path, listed):
+    checks = static(tmp_path, answers(**{"ls-remote": listed}), fake_runner(CLEAN))
+    assert checks["dominance"].status == gate.PASS, checks["dominance"].summary
+
+
+def test_the_candidates_own_tag_at_origin_is_not_a_newer_release(tmp_path):
+    listed = f"{TAG_SHA}\trefs/tags/v1.0.0\n{HEAD}\trefs/tags/v1.1.0\n{'x' * 40}\trefs/tags/v2-beta"
     checks = static(tmp_path, answers(**{"ls-remote": listed}), fake_runner(CLEAN))
     assert checks["dominance"].status == gate.PASS, checks["dominance"].summary
 
@@ -135,10 +150,11 @@ def test_the_published_release_judges_even_when_the_fastfix_base_is_old(tmp_path
     assert runner.judges["loosening"].startswith("BASE")              # the change's own base judges the change
     assert runner.judges["dominance"].startswith("TAG") and runner.judges["plants"].startswith("TAG")
     dom = next(cmd for cmd in runner.seen if "--dominance" in cmd)
-    assert dom[dom.index("--base") + 1] == "v1.0.0" and dom[dom.index("--candidate") + 1] == HEAD
+    # the verified commit, never the tag's name (which another ref could shadow)
+    assert dom[dom.index("--base") + 1] == TAG_SHA and dom[dom.index("--candidate") + 1] == HEAD
     plants = next(cmd for cmd in runner.seen if cmd[2] == "plants")
-    assert plants[plants.index("--base") + 1] == "v1.0.0"
-    assert "published release's fastfix_gate.py (v1.0.0)" in checks["dominance"].summary
+    assert plants[plants.index("--base") + 1] == TAG_SHA
+    assert "published release's fastfix_gate.py (v1.0.0, tttttttttt)" in checks["dominance"].summary
 
 
 def test_an_empty_fastfix_range_still_runs_dominance_and_plants(tmp_path):
@@ -152,12 +168,13 @@ def test_a_published_release_without_the_commands_fails_unless_it_is_the_bootstr
     runner = fake_runner(CLEAN)
     checks = static(tmp_path, answers(**{"show-tag": "OLD JUDGE"}), runner)
     for id_ in ("dominance", "plants"):
-        assert checks[id_].status == gate.FAIL and "only the release after v0.4.2" in checks[id_].summary
+        assert checks[id_].status == gate.FAIL and "only release 0.4.3 against v0.4.2" in checks[id_].summary
     assert not any("--dominance" in cmd or cmd[2] == "plants" for cmd in runner.seen)
 
 
 def test_the_bootstrap_release_uses_its_committed_copy_and_says_so_with_a_major(tmp_path, monkeypatch):
     monkeypatch.setattr(gate, "BOOTSTRAP_TAG", "v1.0.0")
+    monkeypatch.setattr(gate, "BOOTSTRAP_NEXT", "1.1.0")
     runner = fake_runner(CLEAN)
     checks = static(tmp_path, answers(**{"show-tag": "OLD JUDGE"}), runner)
     # HEAD's committed blob, never the working tree's file
@@ -165,6 +182,25 @@ def test_the_bootstrap_release_uses_its_committed_copy_and_says_so_with_a_major(
     assert "BOOTSTRAP" in checks["dominance"].summary
     pj = checks["published-judge"]
     assert (pj.status, pj.severity) == (gate.FAIL, gate.MAJOR) and "BOOTSTRAP" in pj.summary
+
+
+@pytest.mark.parametrize("listed,why", [
+    # 1.1.0 is out: 1.0.0 is not the published release any more, whatever CHANGELOG.md's headings say
+    (f"{TAG_SHA}\trefs/tags/v1.0.0\n{'n' * 40}\trefs/tags/v1.1.0", "origin has v1.1.0, newer than v1.0.0"),
+    # even when origin lists nothing newer: only the release right after the bootstrap tag may judge itself
+    (f"{TAG_SHA}\trefs/tags/v1.0.0", "only release 1.1.0 against v1.0.0 may be judged by its own copy"),
+])
+def test_a_later_release_cant_reach_the_bootstrap(tmp_path, monkeypatch, listed, why):
+    """A 1.2.0 candidate names the bootstrap tag and hides 1.1.0 from the CHANGELOG heading pattern."""
+    monkeypatch.setattr(gate, "BOOTSTRAP_TAG", "v1.0.0")
+    monkeypatch.setattr(gate, "BOOTSTRAP_NEXT", "1.1.0")
+    runner = fake_runner(CLEAN)
+    git_ = answers(**{"show-tag": "OLD JUDGE", "ls-remote": listed,
+                      "changelog": "## 1.2.0\n\n## [1.1.0] (see above)\n\n## 1.0.0\n"})
+    checks = static(tmp_path, git_, runner, version="1.2.0", published_tag="v1.0.0")
+    for id_ in ("dominance", "plants"):
+        assert checks[id_].status == gate.FAIL and why in checks[id_].summary, checks[id_].summary
+    assert not any("--dominance" in cmd or cmd[2] == "plants" for cmd in runner.seen)
 
 
 @pytest.mark.parametrize("code", [1, 2])
@@ -267,6 +303,38 @@ def test_a_candidate_that_edits_its_own_judge_to_pass_is_still_blocked(published
     assert checks["published-judge"].status == gate.PASS
     data = json.loads((tmp_path / "out" / "gate" / "dominance.json").read_text(encoding="utf-8"))
     assert {f["case"].split("@")[0] for f in data["flips"]} == {"c1", "scripts/fastfix_gate.py"}
+
+
+@needs_git
+@pytest.mark.parametrize("decoy", ["refs/v1.0.0", "v1.0.0"])     # refs/<tag>, and $GIT_DIR/<tag>: both outrank tags
+def test_a_ref_that_shadows_a_lightweight_published_tag_cant_supply_the_judge(published, tmp_path, decoy):
+    """origin lists no peeled line for a lightweight tag (gh release create makes those), and git's short-name lookup
+    tries refs/<name> and $GIT_DIR/<name> before refs/tags/<name>: a forged commit there, merged with -s ours so it is
+    an ancestor, carried a judge that passes everything."""
+    repo, git_ = published
+    real = _git(repo, "rev-parse", "v1.0.0^{commit}")
+    _git(repo, "tag", "-d", "v1.0.0")
+    _git(repo, "push", "-q", "origin", ":refs/tags/v1.0.0")
+    _git(repo, "tag", "v1.0.0", real)                                  # lightweight, as published
+    _git(repo, "push", "-q", "origin", "v1.0.0")
+    _git(repo, "checkout", "-q", "-b", "forge", real)
+    (repo / "scripts" / "fastfix_gate.py").write_text('# FORGED add_parser("plants" "--dominance"\n', encoding="utf-8")
+    _git(repo, "commit", "-q", "-am", "forged judge")
+    forged = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "merge", "-q", "-s", "ours", "-m", "keep ours", "forge")
+    if decoy.startswith("refs/"):
+        _git(repo, "update-ref", decoy, forged)
+    else:
+        (repo / ".git" / decoy).write_text(forged + "\n", encoding="utf-8")
+    assert _git(repo, "rev-parse", "v1.0.0^{commit}") == forged          # the short name now means the forgery
+    runner = fake_runner({**CLEAN, "candidate": _git(repo, "rev-parse", "HEAD")})
+    checks = static(tmp_path / "out", git_, runner, fastfix_base="HEAD")
+    assert checks["dominance"].status == gate.PASS, checks["dominance"].summary
+    assert "FORGED" not in runner.judges["dominance"] and "FORGED" not in runner.judges["plants"]
+    assert runner.judges["dominance"].rstrip("\n") == SCRIPT.read_text(encoding="utf-8").rstrip("\n")
+    dom = next(cmd for cmd in runner.seen if "--dominance" in cmd)
+    assert dom[dom.index("--base") + 1] == real
 
 
 @needs_git

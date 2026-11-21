@@ -51,9 +51,20 @@ Exit codes: 0 clean, 1 blocked, 2 couldn't run (missing git, unreadable input). 
 
 `release_gate.py static --candidate` also compares the candidate with the published release (`loosening
 --dominance`) and re-plants every oracle's bug (`plants`). Both are judged by the published tag's own
-`fastfix_gate.py`, never by a copy the caller picks; the tag must be the commit origin publishes under that name. Only
-the release right after v0.4.2 (whose copy predates the two commands) is judged by its own committed copy, and the
-gate records that as a MAJOR to accept once.
+`fastfix_gate.py`, never by a copy the caller picks. The tag is read only as `refs/tags/<tag>` and passed on as the
+commit it names; it must be the commit origin publishes under that name, and origin may list no newer release. Only
+release 0.4.3 against v0.4.2 (whose copy predates the two commands) is judged by its own committed copy, and the gate
+records that as a MAJOR to accept once; from 0.4.4 the fallback can't be reached.
+
+Known limits (accepted for now):
+- The checks run from the candidate's own `release_gate.py`. A candidate that edits it shows up as a gate-file flip
+  (`scripts/release_gate.py@<blob>`) needing an allowlist entry, but only when an honest copy runs the comparison;
+  running the published release's orchestrator, or CI pinned to main, would close this.
+- `reviewed_by` and every `Session:` trailer are attestations, not proof: one author can write commits under two
+  session names, and the review record's content isn't checked. A session ledger kept outside the repository would
+  make them verifiable.
+- "origin" is whatever the local git config says. Pointing it (or a `url.*.insteadOf` rule) at a copy that agrees
+  with a moved tag passes the check; it takes deliberate local tampering.
 
 While the published release's tests keep no command log (v0.4.2 has no `tests/fakes.py`), a new read that a lenient
 fake answers can't be seen; the report says so and asks for live runs on every network OS whose driver changed.
