@@ -94,4 +94,7 @@ def test_an_accepted_limit_is_published_and_pinned():
     import yaml as _yaml
     marked = {_yaml.safe_load(p.read_text(encoding="utf-8"))["id"] for p in (ROOT / "tests" / "redteam").glob("RT-*.yml")
               if _yaml.safe_load(p.read_text(encoding="utf-8")).get("accepted_limit")}
-    assert marked == accepted_cases == {"RT-0048", "RT-0056", "RT-0063"}   # RT-0053 fixed in 0.4.2 (oracle FP-042-VRFDEV), RT-0058 in 0.4.3 (oracle FP-043-SRLEVPNVRF), (marked, accepted_cases)
+    # RT-0053 fixed in 0.4.2 (oracle FP-042-VRFDEV); RT-0058 fixed in 0.4.3 (oracle FP-043-SRLEVPNVRF); RT-0056 and
+    # RT-0063 fixed in 0.4.3 (oracle FP-043-EOSNONBGP); RT-0085 and RT-0086 (EOS own aggregate) fixed in 0.4.3
+    # (oracle FP-043-EOSAGG)
+    assert marked == accepted_cases == {"RT-0048"}, (marked, accepted_cases)

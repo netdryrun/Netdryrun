@@ -1,0 +1,94 @@
+flips:
+  - source: fixtures
+    case: tests.test_driver_false_pass::test_eos_vrf_missing_from_answer_raises
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_driver_false_pass.py, tests/fixtures/ceos4363m_fix043_nosuchvrf_rib_route.json]
+    why: >-
+      FP-043-EOSNONBGP: the test body is unchanged; the candidate sends the RIB read too, and the test's fake answers
+      it with the same VRF-less output. Every read still raises "not in the output" for the missing VRF, so the
+      refusal the test guards is the one that fires.
+    reviewed_by: "adv-eos-agg: test unchanged; with the RIB read every read still raises not in the output for the missing VRF"
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_eos_routes_rules
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_verdict_drivers.py, tests/fixtures/ceos4363m_advagg_network_ip_bgp.json]
+    why: >-
+      FP-043-EOSAGG: the BGP table is now read in full. (1) An entry with a malformed key ("10.1.0.0/16 ") that main
+      never read past now must raise. (2) The node's own network path in the input carries
+      routeDetail.redistributionProtocol Static, as live cEOS 4.36.3M prints it (ceos4363m_advagg_network_ip_bgp.json);
+      every route list main asserted is still asserted, and the bare own path main used must now be refused.
+    reviewed_by: "adv-eos-agg: every route list main asserted is still asserted, the malformed key and the bare own path now raise, the input change mirrors the live capture"
+  - source: fixtures
+    case: tests.test_redteam::test_driver_case_does_not_pass[RT-0016-eos-leak-received-not-selected]
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0016-eos-leak-received-not-selected.yml, tests/fixtures/ceos4363m_fp043_rt0063_rib_route.json, tests/fixtures/ceos4363m_fp043_rt0056_rib_route.txt]
+    why: >-
+      Main's case has no answer for the new RIB read, so it ended in a harness error, not for its reason. The case
+      now answers it live-shaped: derived from the cEOS 4.36.3M capture ceos4363m_fp043_rt0063_rib_route.json (static
+      Null0 default best) with the losing BGP default keyed bgp as eos_leak_bgp.txt has it, since the RIB lists every
+      candidate (ceos4363m_fp043_rt0056_rib_route.txt). It ends "unexpectedly present via bgp", and test_redteam.py
+      now fails any case with an unanswered command.
+    reviewed_by: "adv-eos-agg: the live-shaped RIB answer lets the case fail for its own reason (unexpectedly present via bgp); the BGP-table revert mutant is killed in test_redteam_reverts_043"
+  - source: fixtures
+    case: tests.test_redteam::test_driver_case_does_not_pass[RT-0025-eos-ospf6-never-matches]
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0025-eos-ospf6-never-matches.yml, tests/fixtures/ceos4363m_fix043_v6_rib_route.json]
+    why: >-
+      Main's case has no answer for the new RIB read, so it ended in a harness error, not for its reason. The case
+      now answers it live-shaped: derived from the live cEOS 4.36.3M IPv6 RIB capture ceos4363m_fix043_v6_rib_route.json
+      with the route keyed ospf3 as routeType names OSPFv3 (no live OSPFv3 RIB capture exists). Reverting the EOS map
+      and Route's family names makes the case pass, so it fails for its own reason.
+    reviewed_by: "adv-eos-agg: RIB answer derived from the live IPv6 capture; reverting both name layers makes the case pass, so it guards its own reason"
+  - source: fixtures
+    case: tests.test_redteam::test_driver_case_does_not_pass[RT-0037-eos-unmapped-route-type-passes-present-false]
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0037-eos-unmapped-route-type-passes-present-false.yml, tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json]
+    why: >-
+      Main's case has no answer for the new RIB read and its routing-table answer lacked routingDisabled, so it
+      errored before the routeType read it guards. It now answers the RIB read with the live cEOS 4.36.3M
+      no-candidate capture ceos4363m_fix043_absent_rib_route_9.json, and its routing-table answer carries
+      routingDisabled and the programmed flags as every live answer prints them. Passing the unmapped routeType
+      through raw makes the case pass, so it fails for its own reason.
+    reviewed_by: "adv-eos-agg: live empty-RIB answer and live-shaped routing table; passing the unmapped routeType through raw makes the case pass"
+  - source: fixtures
+    case: tests.test_drivers_harden_041::test_eos_mapped_route_types[bgpAggregate-aggregate]
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_drivers_harden_041.py]
+    why: >-
+      FP-043-EOSAGG: bgpAggregate now maps to bgp, as FRR names its own aggregate (live, the same scenario on both),
+      so the old parameter pair bgpAggregate-aggregate is replaced by bgpAggregate-bgp with the same exact-equality
+      assertion, and a plain aggregate routeType joins the unmapped-is-an-error must-raise list. One vocabulary
+      across drivers; nothing relaxed.
+    reviewed_by: "adv-eos-agg: the pair is renamed to bgpAggregate-bgp with the same assertion and aggregate joins the must-raise list"
+  - source: fixtures
+    case: tests.test_false_passes_041::test_eos_route_types[bgpAggregate-10.0.0.0/24-aggregate]
+    from: FAIL
+    to: PASS
+    evidence: [tests/test_false_passes_041.py]
+    why: >-
+      FP-043-EOSAGG: the same rename as test_drivers_harden_041: bgpAggregate maps to bgp, as FRR names its own
+      aggregate, so the parameter becomes bgpAggregate-10.0.0.0/24-bgp with the same exact-equality assertion on
+      _protocol. Protocol aggregate on EOS is refused in preflight. Nothing relaxed.
+    reviewed_by: "adv-eos-agg: the same rename to bgpAggregate-10.0.0.0/24-bgp with an unchanged assertion"
+  - source: fixtures
+    case: tests.test_verdict_drivers::test_eos_route_types[aggregate-aggregate]
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_verdict_drivers.py]
+    why: >-
+      FP-043-EOSAGG: a plain aggregate routeType is no longer mapped (only BGP's own bgpAggregate is, to bgp), so the
+      pair aggregate-aggregate is replaced by bgpAggregate-bgp and aggregate is added to
+      test_eos_route_type_it_cannot_map_is_an_error, which requires a DriverError. Stricter: aggregate now must raise.
+    reviewed_by: "adv-eos-agg: replaced by bgpAggregate-bgp, and a plain aggregate routeType is now in the must-raise test"

@@ -1,0 +1,63 @@
+{
+    "vrfs": {
+        "default": {
+            "vrf": "default",
+            "routerId": "30.30.30.30",
+            "asn": "65030",
+            "bgpRouteEntries": {
+                "10.79.1.0/24": {
+                    "address": "10.79.1.0",
+                    "maskLength": 24,
+                    "bgpRoutePaths": [
+                        {
+                            "nextHop": "",
+                            "reasonNotBestpath": "noReason",
+                            "weight": 0,
+                            "tag": 0,
+                            "routeType": {
+                                "stale": false,
+                                "valid": true,
+                                "suppressed": false,
+                                "active": true,
+                                "backup": false,
+                                "ecmpHead": false,
+                                "ecmp": false,
+                                "ecmpContributor": false,
+                                "atomicAggregator": false,
+                                "queued": false,
+                                "luRoute": false,
+                                "sixPeRoute": false,
+                                "ucmp": false,
+                                "implicitEcmpFast": false,
+                                "origin": "Incomplete"
+                            },
+                            "peerEntry": {
+                                "peerAddr": "",
+                                "peerRouterId": "30.30.30.30"
+                            },
+                            "asPathEntry": {
+                                "asPathType": "Local",
+                                "asPath": ""
+                            },
+                            "routeDetail": {
+                                "nextHopVrfName": "",
+                                "communityList": [],
+                                "extCommunityList": [],
+                                "extCommunityListRaw": [],
+                                "largeCommunityList": [],
+                                "rxSafi": "Unicast",
+                                "origin": "Incomplete",
+                                "redistributionProtocol": "Static",
+                                "recvdFromRRClient": false,
+                                "recmpEligible": false,
+                                "tunnelRibEligible": false
+                            },
+                            "timestamp": 1795288561
+                        }
+                    ],
+                    "totalPaths": 1
+                }
+            }
+        }
+    }
+}

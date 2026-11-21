@@ -1,0 +1,11 @@
+lab: topology.clab.yml
+timeout: 60
+checks:
+  - {name: agg-bgp-absent, type: route, node: ceos1, prefix: 10.66.0.0/16, protocol: bgp, present: false}
+  - {name: agg-bgp-candidate, type: route, node: ceos1, prefix: 10.66.0.0/16, protocol: bgp, active: false}
+  - {name: agg-bgp-selected, type: route, node: ceos1, prefix: 10.66.0.0/16, protocol: bgp}
+  - {name: agg-selected, type: route, node: ceos1, prefix: 10.66.0.0/16, protocol: aggregate}
+  - {name: agg-absent, type: route, node: ceos1, prefix: 10.66.0.0/16, protocol: aggregate, present: false}
+  - {name: agg-static-absent, type: route, node: ceos1, prefix: 10.66.0.0/16, protocol: static, present: false}
+  - {name: agg-any-absent, type: route, node: ceos1, prefix: 10.66.0.0/16, present: false}
+  - {name: agg-more-specific-static, type: route, node: ceos1, prefix: 10.66.1.0/24, protocol: static}

@@ -1,0 +1,33 @@
+{
+    "vrfs": {
+        "default": {
+            "ribRoutesByProtocol": {
+                "connected": {
+                    "ribRoutes": {
+                        "10.0.200.0/30": {
+                            "bestRoute": true,
+                            "preference": 0,
+                            "metric": 0,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795263599,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": false,
+                                    "ipNextHop": {
+                                        "interface": "Ethernet1"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

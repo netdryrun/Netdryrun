@@ -1,8 +1,10 @@
 """Arista EOS (cEOS-lab) driver: `Cli ... | json` state, ping from the EOS CLI.
 
-Routes are read from both the routing table (active routes) and the BGP table, because a
-received-but-not-selected BGP path only appears in the BGP table and must still count as present
-for `present: false` checks.
+Routes are read from the routing table (the route EOS selected), the RIB (every candidate of every protocol, selected
+or not) and the BGP table, because a candidate that lost route selection (a floating static behind a BGP default, an
+OSPF default behind a static drop route) or a received-but-not-selected BGP path must still count as present for
+`present: false` checks. `show ip route <prefix>` lists only the selected route (FP-043-EOSNONBGP). The node's own
+BGP aggregate is `bgp` in all three reads, selected or not, as on FRR (FP-043-EOSAGG).
 
 EOS keys every answer by VRF (`{"vrfs": {name: ...}}`). A VRF missing from that map is never read as
 "no routes": the VRF doesn't exist, or the output isn't what this driver knows. Both raise.
@@ -23,22 +25,23 @@ from .stale import refuse_if_stale
 PROTOCOLS = {"ebgp": "bgp", "ibgp": "bgp", "bgp": "bgp", "connected": "connected", "static": "static",
              "ospf": "ospf", "ospfintraarea": "ospf", "ospfinterarea": "ospf", "ospfexternaltype1": "ospf",
              "ospfexternaltype2": "ospf", "isis": "isis", "isislevel1": "isis", "isislevel2": "isis",
-             "aggregate": "aggregate", "droproute": "static", "dropped": "static"}  # static discard (Null0)
+             # the node's own BGP aggregate (`aggregate-address`) is bgp, as on FRR and NX-OS (FP-043-EOSAGG, RT-0087)
+             "bgpaggregate": "bgp", "droproute": "static", "dropped": "static"}  # static discard (Null0)
 
 
 def _protocol(rtype: str, prefix: str, command: str = "show ip route <prefix> | json") -> str:
     """An EOS routeType as a netdryrun protocol name. Every OSPF route type (intra, inter, external, NSSA, and
     any later one) is ospf, and in an IPv6 table it is OSPFv3, ospf6: the map once had no name that gave ospf6, so
-    `protocol: ospf6 present: false` never matched an EOS route (red team RT-0025). Any other route type this
-    driver doesn't map (a nexthop-group static, a leaked route, one a later EOS adds) is an error: 0.4.0 passed
-    the raw name through, which no `protocol` matched, so `present: false` on it passed (acceptance 0.4.1)."""
+    `protocol: ospf6 present: false` never matched an EOS route (red team RT-0025). The node's own BGP aggregate
+    (routeType bgpAggregate) is bgp: 0.4.2 read it as `aggregate`, so `protocol: bgp present: false` passed on it
+    while FRR fails the same check (RT-0085, FP-043-EOSAGG). Any other route type this driver doesn't map (a
+    nexthop-group static, a leaked route, an aggregate that isn't BGP's, one a later EOS adds) is an error: 0.4.0
+    passed the raw name through, which no `protocol` matched, so `present: false` on it passed (acceptance 0.4.1)."""
     raw, rtype = rtype, rtype.lower().replace(" ", "")
     if rtype.startswith("ospf"):
         return "ospf6" if ":" in prefix else "ospf"   # by family: OSPFv3 carrying IPv4 is ospf (Route normalises it too)
     if rtype.startswith("isis"):
         return "isis"
-    if "aggregate" in rtype:   # aggregate, bgpAggregate: a name that never matched would pass present: false
-        return "aggregate"
     if rtype not in PROTOCOLS:
         raise unexpected(command, f"routeType {raw!r} (read as {rtype!r}) is not one this driver maps to a protocol")
     return PROTOCOLS[rtype]
@@ -57,6 +60,7 @@ SUMMARY_CMD = {"ipv4-unicast": "show ip bgp summary | json", "ipv6-unicast": "sh
 ROUTE_CMD = "show ip route <prefix> | json"
 ALL_ROUTES_CMD = "show ip route | json"
 BGP_CMD = "show ip bgp <prefix> | json"
+RIB_CMD = "show rib route ip <prefix> | json"
 
 
 def _json(command: str, text: str) -> dict:
@@ -149,6 +153,18 @@ def _learned(p: dict) -> bool:
     return bool(_peer(p))
 
 
+def _own_aggregate(p: dict) -> bool:
+    """The node's own BGP aggregate (`aggregate-address`): routeType.localAgg true and no peer (cEOS 4.36.3M prints
+    localAgg only on such a path, live, ceos4363m_eosagg_*). Not a boolean, or on a path from a neighbor, is output
+    this driver doesn't know."""
+    flag = must(BGP_CMD, p, "routeType").get("localAgg", False) if isinstance(p.get("routeType"), dict) else None
+    if flag is not True and flag is not False:
+        raise unexpected(BGP_CMD, f"routeType.localAgg is {flag!r}, not a boolean: {str(p)[:150]}")
+    if flag and _peer(p):
+        raise unexpected(BGP_CMD, f"a path from neighbor {_peer(p)} marked localAgg: {str(p)[:150]}")
+    return flag
+
+
 def _peer(p: dict) -> str:
     """The neighbor a path came from: peerEntry.peerAddr, "" for the router's own paths. Missing is an error."""
     peer = must(BGP_CMD, p, "peerEntry") if isinstance(p, dict) else None
@@ -196,8 +212,55 @@ def _exact_entry(key: str, want) -> None:
 BGP_INACTIVE = {"errors": ["BGP inactive"]}   # cEOS with no BGP configured, rc 1 (eos_bgp_inactive.txt, live)
 
 
+# `show rib route ip|ipv6` keys its candidates by the source protocol; the static key is the config agent's name
+RIB_PROTOCOLS = {"staticConfig": "static"}
+
+
+def _rib_protocol(key: str, prefix: str) -> str:
+    """A `ribRoutesByProtocol` key as a netdryrun protocol name. Keys other than staticConfig name the protocol as
+    routeType does (bgp, ospf, ospf3, isis, connected) and go through the same map; a key it doesn't know is an error,
+    never a name no `protocol` matches (which would pass `present: false` on it). That includes `routeInput` ("Route
+    Input": a plain cEOS lists 0.0.0.0/8 and 127.0.0.0/8 under it, live), vrfLeak, gribi and dynamicPolicy: nothing in
+    the answer says which configuration made such an entry, so a check on its exact prefix is an error."""
+    return RIB_PROTOCOLS.get(key) or _protocol(key, prefix, RIB_CMD)
+
+
+@parser(RIB_CMD)
+def parse_rib_candidates(text: str, prefix: str, vrf: str = "default") -> list[tuple[str, bool, str]]:
+    """Every candidate EOS's RIB holds for exactly `prefix` in `vrf`, selected or not, from `show rib route ip|ipv6 vrf
+    <vrf> <prefix> | json` (cEOS 4.36.3M, live, FP-043-EOSNONBGP): [(protocol, bestRoute, raw key)].
+
+    The answer is keyed vrfs -> ribRoutesByProtocol -> <protocol> -> ribRoutes -> <prefix>, one entry per protocol with
+    `bestRoute`. Like `show ip route <prefix>`, EOS answers with the longest match (9.9.9.0/24 answers with the
+    0.0.0.0/0 routes): an entry for another prefix is skipped, never the asked one. `notInFec` is on a not-selected
+    route and on a selected Null0 route alike, so it says nothing about presence and isn't read. Anything this parser
+    doesn't know (no vrfs map, the VRF missing, a protocol key it can't map, an entry without bestRoute) raises:
+    an unreadable RIB is never "no candidate"."""
+    want = ipaddress.ip_network(prefix)
+    entry = _vrf(RIB_CMD, _json(RIB_CMD, text), vrf)
+    out = []
+    for key, proto in _table(RIB_CMD, entry, "ribRoutesByProtocol").items():
+        if not isinstance(proto, dict):
+            raise unexpected(RIB_CMD, f"{key}: {str(proto)[:150]}")
+        for pkey, r in _table(RIB_CMD, proto, "ribRoutes").items():
+            if not isinstance(r, dict):
+                raise unexpected(RIB_CMD, f"{key} {pkey}: {str(r)[:150]}")
+            if network(RIB_CMD, pkey) != want:
+                continue   # the longest match for the asked prefix: another prefix, never this one
+            out.append((_rib_protocol(str(key), prefix), must_bool(RIB_CMD, r, "bestRoute"), str(key)))
+    return out
+
+
 @parser(ROUTE_CMD)
-def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default") -> list[Route]:
+def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default",
+                 rib_text: str | None = None) -> list[Route]:
+    """The routes for exactly `prefix`: the routing table's selected route, every other RIB candidate (not selected),
+    and the BGP table's paths for the prefix that aren't the installed route (not selected).
+
+    The node's own BGP aggregate is `bgp` in every read, selected or not, as FRR and NX-OS name it (FP-043-EOSAGG,
+    RT-0087): routeType bgpAggregate in the routing table, the RIB's `bgp` entry, the BGP table's path with
+    routeType.localAgg. 0.4.2 named it `aggregate` while selected (RT-0085) and nothing while a static won (RT-0086);
+    the first fix named it `bgp` only while it lost, so its name hung on selection."""
     want = ipaddress.ip_network(prefix)
     out = []
     for key, r in _table(ROUTE_CMD, _routing_vrf(ROUTE_CMD, _json(ROUTE_CMD, route_text), vrf), "routes").items():
@@ -206,18 +269,50 @@ def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = 
         if network(ROUTE_CMD, key) == want:
             out.append(Route(prefix, _protocol(str(must(ROUTE_CMD, r, "routeType")), prefix), _programmed(ROUTE_CMD, r),
                              raw_protocol=str(r["routeType"])))
-    # A BGP path can be "best" inside BGP and still not be installed (a static or connected route with
-    # a better preference wins the routing table). Unless BGP is the installed route, every BGP path
-    # learned from a neighbor, valid or not, is "present but not selected": a leak that must still fail
-    # `present: false`.
-    has_installed_bgp = any(r.protocol == "bgp" for r in out)
+    # the routing table's route is a BGP-learned path (eBGP, iBGP), not the node's own aggregate, programmed or not
+    installed_learned = any(r.protocol == "bgp" and r.raw_protocol.lower() != "bgpaggregate" for r in out)
+    rib_bgp = None   # a bgp entry only the RIB lists: what it is comes from the BGP table below
+    if rib_text is not None:
+        # Every RIB candidate of a protocol the routing table doesn't list is present but not selected (a floating
+        # static behind a BGP default, an OSPF default behind a static drop route: RT-0056, RT-0063; the node's own
+        # aggregate behind a static: RT-0086). The RIB keys one entry per protocol, so a protocol the routing table
+        # lists is that route: a selected aggregate (bgpAggregate, bgp) is the RIB's `bgp` entry, never a second bgp
+        # candidate (adversary review of FP-043-EOSNONBGP). Any other candidate the RIB marks best while the routing
+        # table selects another protocol (a change between the two reads) is added the same way, inactive: present
+        # for `present: false`, never active for `present: true`.
+        seen = {r.protocol for r in out}
+        for proto, _best, raw in parse_rib_candidates(rib_text, prefix, vrf):   # bestRoute: read, must be a boolean
+            if proto not in seen:
+                seen.add(proto)
+                out.append(Route(prefix, proto, False, raw_protocol=raw))
+                if proto == "bgp":
+                    rib_bgp = raw
     if bgp_text is None:   # the node runs no BGP (EosDriver._bgp_cli)
+        if rib_bgp is not None:
+            raise unexpected(RIB_CMD, f"a {rib_bgp!r} entry for {prefix} in vrf {vrf} on a node that runs no BGP: "
+                                      "neither the node's own aggregate nor a learned path")
         return out
+    own_agg = learned = False
     for key, e in _bgp_entries(BGP_CMD, bgp_text, vrf).items():
         _exact_entry(key, want)
-        if not has_installed_bgp and any(_learned(p) for p in e["bgpRoutePaths"]):
-            out.append(Route(prefix, "bgp", False))
-            break
+        for p in e["bgpRoutePaths"]:
+            own_agg = _own_aggregate(p) or own_agg
+            learned = _learned(p) or learned
+    if rib_bgp is not None and not (own_agg or learned):
+        # Never a bgp route nothing classifies: the RIB says bgp, the BGP table has neither the node's own aggregate
+        # nor a path from a neighbor for the prefix (a change between the reads, or output this driver doesn't know)
+        raise unexpected(RIB_CMD, f"a {rib_bgp!r} entry for {prefix} in vrf {vrf} that the BGP table (`{BGP_CMD}`) "
+                                  "doesn't list as the node's own aggregate (localAgg) or as a path from a neighbor")
+    # A BGP path can be "best" inside BGP and still not be installed (a static or connected route with a better
+    # preference, or the node's own aggregate, wins the routing table). Unless a learned path is the installed route,
+    # every BGP path learned from a neighbor, valid or not, is "present but not selected": a leak that must still fail
+    # `present: false`, and that `protocol: bgp active: false` sees whatever else holds the prefix.
+    if learned and not installed_learned:
+        out.append(Route(prefix, "bgp", False))
+    # The node's own aggregate in the BGP table (it is sent to peers) is a bgp route the node holds, whatever the
+    # RIB said; the routing table or the RIB lists it already when either has a bgp entry.
+    if own_agg and not any(r.protocol == "bgp" for r in out):
+        out.append(Route(prefix, "bgp", False, raw_protocol="localAgg"))
     return out
 
 
@@ -230,6 +325,53 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
         net = str(network(ALL_ROUTES_CMD, key))
         out.append(Route(net, _protocol(str(must(ALL_ROUTES_CMD, r, "routeType")), net, ALL_ROUTES_CMD),
                          _programmed(ALL_ROUTES_CMD, r), raw_protocol=str(r["routeType"])))
+    return out
+
+
+_parse_routes_three_reads = parse_routes
+
+
+def _redistributed(p: dict) -> bool:
+    """A path the node originates from another route (`network` statement, redistribution): EOS names that route's
+    protocol in routeDetail.redistributionProtocol ("Static", "Connected"; live, cEOS 4.36.3M,
+    ceos4363m_advagg_network_ip_bgp.json, eos_bgp_paths_local.txt). The node's own aggregate has no such field
+    (ceos4363m_advagg_aostatic_ip_bgp.json). Missing, empty or not a string: not shown to be redistributed."""
+    detail = p.get("routeDetail")
+    proto = detail.get("redistributionProtocol") if isinstance(detail, dict) else None
+    return isinstance(proto, str) and bool(proto.strip())
+
+
+@parser(ROUTE_CMD)
+def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default",
+                 rib_text: str | None = None) -> list[Route]:
+    """parse_routes of the three reads, with every path of the node's own (no peer) classified (adversary review of
+    FP-043-EOSAGG, F4). An own path is the node's aggregate (routeType.localAgg true: a bgp route, named by the reads
+    above) or originated from another route (routeDetail.redistributionProtocol: a `network` statement or
+    redistribution, whose route is that other protocol's). An own path with neither is refused: on an EOS that
+    doesn't print localAgg it may be an aggregate, `advertise-only` (in neither the routing table nor the RIB, and
+    advertised) or behind a static for the same prefix, and reading it as anything would be a guess (FP-042-FRR102:
+    a missing key needs another source). A redistributed own path with nothing in the routing table and nothing in
+    the RIB has lost the route it came from but is still in the BGP table, so still sent: a bgp route, not
+    selected. Only with a RIB answer read: without one an empty routing table doesn't show that no other protocol
+    holds the prefix.
+
+    Limit: a static route whose next hop doesn't resolve is in none of the three reads on EOS (live, cEOS 4.36.3M),
+    so `protocol: static present: false` passes while it is configured (compatibility page, EOS limits)."""
+    out = _parse_routes_three_reads(route_text, bgp_text, prefix, vrf, rib_text)
+    if bgp_text is None:
+        return out
+    redistributed = False
+    for key, e in _bgp_entries(BGP_CMD, bgp_text, vrf).items():   # every entry is the prefix's: checked above
+        for p in e["bgpRoutePaths"]:
+            if _peer(p) or must(BGP_CMD, p, "routeType").get("localAgg") is True:
+                continue
+            if not _redistributed(p):
+                raise unexpected(BGP_CMD, f"{key}: a path of the node's own with neither routeType.localAgg (its "
+                                          "aggregate) nor routeDetail.redistributionProtocol (a `network` statement "
+                                          f"or redistribution): {str(p)[:150]}")
+            redistributed = True
+    if redistributed and not out and rib_text is not None:
+        return [Route(prefix, "bgp", False, raw_protocol="own path")]
     return out
 
 
@@ -392,7 +534,10 @@ def parse_eos_add_path_off(text: str, vrf: str, address: str) -> set[str]:
 
 class EosDriver(Driver):
     name = "eos"
-    route_protocols = frozenset({"bgp", "connected", "static", "ospf", "ospf6", "isis", "aggregate"})
+    # No `aggregate`: the node's own BGP aggregate is bgp, as on FRR, which refuses `protocol: aggregate` too; EOS has no
+    # other aggregate route this driver maps, so the name would match nothing and pass `present: false` (RT-0086,
+    # FP-043-EOSAGG). Refused before the run, never read as absent.
+    route_protocols = frozenset({"bgp", "connected", "static", "ospf", "ospf6", "isis"})
     # bgp_neighbors reads the IPv4 and IPv6 unicast summaries only: an EVPN count would always read 0
     unsupported_afis = frozenset({"evpn"})
     # cEOS 4.36.3M prints "med": 0 for a path received with no MED (interop IOP-2): no output field tells them apart
@@ -495,11 +640,14 @@ class EosDriver(Driver):
         ev: list[dict] = []
         fam = "ipv6" if ipaddress.ip_network(prefix).version == 6 else "ip"
         rt = self._cli(f"show {fam} route vrf {vrf} {prefix} | json", ev)
+        # every candidate, selected or not (FP-043-EOSNONBGP). A refusal (an EOS without `show rib route`) or any
+        # other failure raises: an unread RIB is never "no candidate"
+        rib = self._cli(f"show rib route {fam} vrf {vrf} {prefix} | json", ev)
         try:
             bgp = self._bgp_cli(f"show {fam} bgp {prefix} vrf {vrf} | json", ev)
         except NoSuchInstance:
             bgp = None   # no BGP on the node: no BGP path (the routing table answer above confirmed the VRF)
-        return Observation(parse_routes(rt, bgp, prefix, vrf), ev)
+        return Observation(parse_routes(rt, bgp, prefix, vrf, rib), ev)
 
     def bgp_paths(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

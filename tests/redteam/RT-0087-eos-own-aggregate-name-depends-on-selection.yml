@@ -1,0 +1,24 @@
+id: RT-0087
+title: >-
+  Arista EOS: the node's own BGP aggregate (`aggregate-address`) is named by whether it won route selection, never as
+  FRR names it: selected, it is protocol aggregate, so `route <agg> protocol: bgp, present: false` passes (RT-0085);
+  behind a static for the same prefix it is nothing on 0.4.2 (`protocol: bgp` and `protocol: aggregate` with
+  `present: false` both pass) and a not-selected bgp candidate on ndr/fix-eos-nonbgp (`protocol: aggregate, present:
+  false` passes, RT-0086). FRR names its own aggregate bgp in both states and refuses protocol aggregate. IPv4, IPv6
+  and a VRF alike
+found: >-
+  2026-11-21, oracle session oracle-eos-agg (FP-043-EOSAGG), live on cEOS 4.36.3M and FRR 10.4.1 on the same scenario
+  (lab ndr-eosagg); shapes first raised by red team 042-GV (A-RT-0077) and the adversary re-check of
+  ndr/fix-eos-nonbgp 49dc098
+fixed_in: 0.4.3
+# Fixed on ndr/fix-eos-agg (oracle FP-043-EOSAGG green): the EOS driver names the aggregate bgp in every read
+# (routeType bgpAggregate; the RIB's B entry and the BGP table's localAgg path behind a static), refuses
+# `protocol: aggregate` before the run as FRR does, and RT-0085 and RT-0086 are fixed cases now. Workaround for released versions: bgp_route with
+# present: false on the prefix fails in both shapes (the BGP table lists the own aggregate). Expected behaviour and
+# the live EOS/FRR verdict table: tests/oracles/FP-043-EOSAGG/README.md.
+kind: pinned
+tests:
+  - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py::test_selected_own_aggregate_fails_bgp_present_false_as_on_frr
+  - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py::test_selected_own_aggregate_passes_bgp_present_true_as_on_frr
+  - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py::test_own_aggregate_behind_a_static_is_never_absent
+  - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py::test_same_bgp_verdicts_as_frr_on_the_same_scenario

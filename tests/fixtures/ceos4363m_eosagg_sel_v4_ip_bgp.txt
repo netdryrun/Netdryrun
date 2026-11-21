@@ -1,0 +1,9 @@
+BGP routing table information for VRF default
+Router identifier 30.30.30.30, local AS number 65030
+BGP routing table entry for 10.66.0.0/16
+ Paths: 1 available
+  Local
+    - from - (0.0.0.0)
+      Origin INCOMPLETE, metric 0, localpref -, IGP metric -, weight 0, tag 0
+      Received 00:00:33 ago, valid, local, best, local-aggregate
+      Rx SAFI: Unicast

@@ -6,25 +6,7 @@ title: >-
   not-selected route only from the BGP table, so a non-BGP route that is present but not selected is never seen (FRR
   lists it: zebra prints every entry for the prefix, and the same check fails there)
 found: 2026-11-09, red team A (drivers)
-fixed_in: null
-accepted_limit:
-  decided: 'owner, 2026-11-09: ship 0.4.1 and publish the four as known limits (no source change after the final gate runs);
-    fix in 0.4.2'
-  mitigation: check the route where it comes from, and add a positive route check that the selected route has the expected
-    protocol
-  fix_in: '0.4.3: read every candidate route on EOS'
-  detail: absent
-  published:
-    website/docs/reference/config.md:
-    - accepted for 0.4.1; RT-0056, RT-0063
-    - lists only the route it selected
-    website/docs/trust.md:
-    - (RT-0056, RT-0063)
-    CHANGELOG.md:
-    - '**Arista EOS** (RT-0056, RT-0063)'
-    advisories/0.4.1-known-false-passes/README.md:
-    - RT-0063)
-    - reads every candidate route
+fixed_in: 0.4.3
 kind: driver
 driver: eos
 check:
@@ -34,6 +16,10 @@ check:
   protocol: static
   present: false
 outputs:
+  # 0.4.3 reads the RIB: every candidate, the floating static (250, bestRoute false) beside the selected eBGP default
+  # (live capture, cEOS 4.36.3M, oracle FP-043-EOSNONBGP)
+  - needle: "show rib route ip vrf default 0.0.0.0/0"
+    fixture: ceos4363m_fp043_rt0056_rib_route.json
   # the selected route only: the eBGP default (shape of tests/fixtures/eos_route_longest_match.txt, cEOS live)
   - needle: "show ip route vrf default 0.0.0.0/0"
     output: |

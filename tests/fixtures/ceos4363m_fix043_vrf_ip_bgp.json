@@ -1,0 +1,10 @@
+{
+    "vrfs": {
+        "blue": {
+            "vrf": "blue",
+            "routerId": "10.88.0.1",
+            "asn": "65030",
+            "bgpRouteEntries": {}
+        }
+    }
+}

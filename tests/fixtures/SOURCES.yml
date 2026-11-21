@@ -724,6 +724,117 @@
     from the pece2_* run (attr-sets 9 and 11), so every answer for design B comes from this run. Captured for oracle
     FP-043-SRLEVPNVRF design B (the fixed driver's reads, which pece2_* doesn't hold)
   added: ndr/fix-srl-evpn
+- files: [ceos4363m_fp043_*_ip_route.json, ceos4363m_fp043_*_ip_bgp.json, ceos4363m_fp043_*_rib_route.json,
+          ceos4363m_fp043_*_rib_route.txt, ceos4363m_fp043_rt0056_ip_route_9.json, ceos4363m_fp043_rt0056_ip_bgp_9.json,
+          ceos4363m_fp043_rt0056_rib_route_9.json, ceos4363m_fp043_*_ip_route_detail.txt,
+          ceos4363m_fp043_rt0056_ip_route_static.txt, ceos4363m_fp043_rt0063_ip_route_ospf.txt,
+          ceos4363m_fp043_rt0063_ospf_database.txt, ceos4363m_fp043_*_running_config.txt,
+          ceos4363m_fp043_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df) ceos1 with FRR
+    10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442) frr1,
+    containerlab 0.81.1, lab ndr-fp043 (eBGP 65030-65020 on Ethernet1, OSPF area 0 on Ethernet2), the laptop's WSL,
+    2026-11-21 11:25-11:28 UTC (18:25-18:28 Thailand time). Each file is the stdout, byte for byte, of `docker exec
+    clab-ndr-fp043-ceos1 Cli -p 15 -c "<command>"` (stderr empty, rc 0), the commands listed in
+    ceos4363m_fp043_capture.sh, which ran the phases in this order. rt0056: frr1 sends an eBGP default (selected, 200)
+    and ceos1 has `ip route 0.0.0.0/0 10.0.201.2 250` (not selected). rt0056sel: the eBGP neighbor shut, the static is
+    selected. healthyA: the static removed, the eBGP default only. rt0063: frr1 stops the BGP default and originates an
+    OSPF default (`default-information originate always`), ceos1 has `ip route 0.0.0.0/0 Null0` (selected, 1; the OSPF
+    default not selected). ospfsel: the Null0 route removed, the OSPF default selected. healthyB: Null0 back, frr1's
+    OSPF default withdrawn. Before the phases, frr1's eth2 MTU was set to 1500 and `ip ospf mtu-ignore` added on eth2 so
+    OSPF reached FULL (cEOS Ethernet2 is 1500). Captured for oracle FP-043-EOSNONBGP (red team RT-0056, RT-0063)
+  added: ndr/oracle-eos-nonbgp
+- files: [ceos4363m_fp043_*_report.json, ceos4363m_fp043_*_check.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (main 24f6666, PYTHONPATH=src) `check ceos4363m_fp043_netdryrun.yml --settle 2 --hold 6 --json`
+    on lab ndr-fp043 in each phase above, 2026-11-21, every run exit 1: rt0056 PASSED static-default-absent (the
+    floating static is in the RIB, RT-0056); rt0063 PASSED ospf-default-absent (the OSPF default is in the RIB,
+    RT-0063); healthyA passed static-default-absent and healthyB ospf-default-absent with no such candidate; the
+    selected route failed its own check in each phase
+  added: ndr/oracle-eos-nonbgp
+- files: [ceos4363m_fp043_topology.clab.yml, ceos4363m_fp043_ceos1.cfg, ceos4363m_fp043_frr1.conf,
+          ceos4363m_fp043_netdryrun.yml, ceos4363m_fp043_capture.sh]
+  kind: lab-input
+  source: >-
+    the topology, startup configs, checks and capture script of lab ndr-fp043 (RT-0056, RT-0063), 2026-11-21; frr1
+    also bind-mounted the stock vtysh.conf and the examples/arista-frr daemons file with ospfd=yes; the script changed
+    the configs live between phases (it calls ~/fp043/cli.sh, which is `docker exec clab-ndr-fp043-ceos1 Cli -p 15 -c
+    "$1"`)
+  added: ndr/oracle-eos-nonbgp
+- files: [ceos4363m_fix043_*_rib_route.json, ceos4363m_fix043_*_rib_route_9.json, ceos4363m_fix043_*_rib_route.txt,
+          ceos4363m_fix043_*_ip_route.json, ceos4363m_fix043_absent_ip_route_9.json, ceos4363m_fix043_*_ip_bgp.json,
+          ceos4363m_fix043_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df) ceos1 with FRR
+    10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442) frr1,
+    containerlab 0.81.1, lab ndr-fix043 (the oracle FP-043-EOSNONBGP's topology and startup configs), the laptop's WSL,
+    2026-11-21 12:20-12:26 UTC (19:20-19:26 Thailand time). Each file is the stdout, byte for byte, of `docker exec
+    clab-ndr-fix043-ceos1 Cli -p 15 -c "<command>"`, the commands and exit codes listed in ceos4363m_fix043_LOG.txt
+    (stderr empty; rc 0 except nosuchvrf_rib_route.json, rc 1). rt0056/rt0063_rib_route.txt: the oracle's phases again.
+    The rest after `vrf instance blue`, `ip routing vrf blue`, Loopback1 in vrf blue 10.88.0.1/24, `ip route vrf blue
+    10.88.0.0/24 Null0 250`, `ipv6 unicast-routing`, Loopback2 2001:db8:5::1/64, `ipv6 route 2001:db8:5::/64 Null0
+    250`, `vrf instance red` (no ip routing) and `router bgp 65030` `vrf blue` `rd 65030:1`, with no default route:
+    absent_* asks 9.9.9.0/24 or 2001:db8:99::/64 (no route), connected_* 10.0.200.0/30, vrf_* vrf blue, nosuchvrf_* a
+    VRF that doesn't exist, norouting_* vrf red, v6_* 2001:db8:5::/64. Captured for the FP-043-EOSNONBGP fix
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043_*_report.json, ceos4363m_fix043_*_check.txt, ceos4363m_fix043_VERDICTS.txt,
+          ceos4363m_fix043_LOG.txt]
+  kind: report
+  source: >-
+    netdryrun with the FP-043-EOSNONBGP fix (bf3d4cd, PYTHONPATH=src) `check <yml> --settle 2 --hold 6 --json` on lab
+    ndr-fix043 in the oracle's phases (rt0056, healthyA, rt0063, healthyB, with ceos4363m_fix043_proof.yml) and after
+    the extra config (extra, with ceos4363m_fix043_extra.yml), 2026-11-21, every run exit 1 (each phase has checks
+    that must fail); VERDICTS.txt is one line per check, LOG.txt the capture script's log. static-default-absent fails
+    in rt0056 and ospf-default-absent in rt0063 ("unexpectedly present via static|ospf (not selected)"); both pass in
+    their healthy phase; present with active false passes on the candidate that lost selection; vrf blue and IPv6
+    statics behind a connected route fail present false
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043_topology.clab.yml, ceos4363m_fix043_proof.yml, ceos4363m_fix043_extra.yml,
+          ceos4363m_fix043_capture.sh]
+  kind: lab-input
+  source: >-
+    the topology, checks and capture script of lab ndr-fix043, 2026-11-21; the startup configs and frr1's daemons and
+    vtysh.conf were the oracle's (ceos4363m_fp043_ceos1.cfg, ceos4363m_fp043_frr1.conf); the script changed the configs
+    live between phases as the oracle's does, and set frr1's eth2 MTU to 1500 with `ip ospf mtu-ignore` first
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043b_*_rib_route.json, ceos4363m_fix043b_*_rib_route.txt, ceos4363m_fix043b_*_ip_route.json,
+          ceos4363m_fix043b_*_ip_bgp.json, ceos4363m_fix043b_rib_all.txt, ceos4363m_fix043b_rib_all_end.txt,
+          ceos4363m_fix043b_ip_route_all_end.txt, ceos4363m_fix043b_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df) ceos1 with FRR
+    10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442) frr1,
+    containerlab 0.81.1, lab ndr-fix043b (the oracle FP-043-EOSNONBGP's topology and startup configs), the laptop's
+    WSL, 2026-11-21 13:32-13:44 UTC (20:32-20:44 Thailand time), for the adversary review of the fix. Each file is the
+    stdout, byte for byte, of `docker exec clab-ndr-fix043b-ceos1 Cli -p 15 -c "<command>"`, the commands listed in
+    ceos4363m_fix043b_LOG.txt (stderr empty, rc 0). martian0/martian127 and rib_all: before any change, a plain cEOS's
+    Route Input entries 0.0.0.0/8 and 127.0.0.0/8. agg: after `ip route 10.66.1.0/24 Null0` and `router bgp 65030`
+    `network 10.66.1.0/24` `aggregate-address 10.66.0.0/16` (with the round-1 extras still configured). aggleak: frr1
+    also `ip route 10.66.0.0/16 blackhole` and `network 10.66.0.0/16` in ipv4 unicast. unresolved and ospfrange: after
+    `ip route 10.77.0.0/24 192.0.2.99`, Loopback3 10.55.1.1/24 in OSPF area 0.0.0.1 and `area 0.0.0.1 range
+    10.55.0.0/16`; rib_all_end and ip_route_all_end at the end
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043b_*_report.json, ceos4363m_fix043b_*_check.txt, ceos4363m_fix043b_VERDICTS.txt,
+          ceos4363m_fix043b_LOG.txt]
+  kind: report
+  source: >-
+    netdryrun on ndr/fix-eos-nonbgp after the adversary review (the merge of main a24265b plus the aggregate change,
+    from the working tree, PYTHONPATH=src) `check <yml> --settle 2 --hold 6 --json` on lab ndr-fix043b, 2026-11-21,
+    every run exit 1 (each phase has checks that must fail); VERDICTS.txt is one line per check, LOG.txt the script's
+    log. The oracle's phases with ceos4363m_fix043_proof.yml and the extras with ceos4363m_fix043_extra.yml give the
+    round-1 verdicts again; agg (ceos4363m_fix043b_agg.yml): `protocol: bgp present: false` passes and `protocol: bgp
+    active: false` fails on ceos1's own aggregate; aggleak: with frr1's eBGP 10.66.0.0/16 behind it, both flip
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043b_topology.clab.yml, ceos4363m_fix043b_agg.yml, ceos4363m_fix043b_capture.sh]
+  kind: lab-input
+  source: >-
+    the topology, aggregate checks and capture script of lab ndr-fix043b, 2026-11-21; the startup configs were the
+    oracle's (ceos4363m_fp043_ceos1.cfg, ceos4363m_fp043_frr1.conf), frr1's daemons the examples/arista-frr file with
+    ospfd=yes and its vtysh.conf the stock one; the script changed the configs live between phases
+  added: ndr/fix-eos-nonbgp
 - files: [unnsesschk1021_capture.txt, unnsesschk1021_r2_show_version.txt, unnsesschk1021_r2_neighbors_up.json,
           unnsesschk1021_r2_neighbors_down.json, unnsesschk1021_r2_neighbors_more.json,
           unnsesschk1021_r2_eth1_ipv4_routes_up.json, unnsesschk1021_r2_eth1_ipv4_routes_more.json,
@@ -862,3 +973,105 @@
     r1's frr.conf in the rm0, rmcap and rm0e captures above (rm0_r1.conf and rm0e_r1.conf are the reviews'
     ~/recheck-frr-live/rm0 and rm0e labs unchanged)
   added: ndr/fix-frr-importchk
+- files: [ceos4363m_rcheos_aggstatic_*_route.json, ceos4363m_rcheos_aggstatic_rib_route.txt,
+          ceos4363m_rcheos_aggstatic_ip_bgp.json, ceos4363m_rcheos_aggstatic_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (the laptop's ceos:4.36.3M, sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df)
+    ceos1 with FRR 10.4.1 (quay.io/frrouting/frr:10.4.1) frr1 on one link, containerlab 0.81.1, lab ndr-rcheos, the
+    laptop's WSL, 2026-11-21 14:06 UTC (21:06 Thailand time), by the adversary re-check of ndr/fix-eos-nonbgp 49dc098.
+    Each file is the stdout of `docker exec clab-ndr-rcheos-ceos1 Cli -p 15 -c "<command>"`, the commands and exit
+    codes in ceos4363m_rcheos_aggstatic_LOG.txt (rc 0). ceos1 (ceos4363m_rcheos_aggstatic_ceos1.cfg) has
+    `aggregate-address 10.66.0.0/16`, `2001:db8:66::/48` and, in vrf blue, `10.67.0.0/16`; phase A
+    (ceos4363m_rcheos_aggstatic_phaseA.sh) stopped frr1 redistributing its statics, so nothing is learned for them, and
+    added `ip route 10.66.0.0/16 Null0`, `ipv6 route 2001:db8:66::/48 Null0` and `ip route vrf blue 10.67.0.0/16
+    Null0`: the static wins (1 against 200) and the RIB lists the aggregate under bgp, not best (red team RT-0086)
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_rcheos_aggstatic_report.json, ceos4363m_rcheos_aggstatic_check.txt, ceos4363m_rcheos_aggstatic_LOG.txt]
+  kind: report
+  source: >-
+    netdryrun on ndr/fix-eos-nonbgp 49dc098 `check ceos4363m_rcheos_aggstatic_aggA.yml --settle 2 --hold 6 --json` on
+    lab ndr-rcheos in phase A, 2026-11-21 (exit 1), by the adversary re-check: v4-agg-absent and v6-agg-absent
+    (`protocol: aggregate present: false`) passed while the aggregates were configured and lost to the statics
+    (RT-0086); LOG.txt is the capture log of that lab (phase A, then phase O for an OSPF range, not kept here)
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_rcheos_aggstatic_topology.clab.yml, ceos4363m_rcheos_aggstatic_ceos1.cfg,
+          ceos4363m_rcheos_aggstatic_frr1.conf, ceos4363m_rcheos_aggstatic_phaseA.sh, ceos4363m_rcheos_aggstatic_aggA.yml]
+  kind: lab-input
+  source: >-
+    the topology, startup configs, phase A script and checks of lab ndr-rcheos (adversary re-check of
+    ndr/fix-eos-nonbgp, 2026-11-21); frr1 also bind-mounted a daemons file and the stock vtysh.conf (not kept here)
+  added: ndr/fix-eos-nonbgp
+- files: ["ceos4363m_eosagg_*_v[46]_*", ceos4363m_eosagg_*_blue_*, ceos4363m_eosagg_show_version.txt,
+          ceos4363m_eosagg_running_config_start.txt, ceos4363m_eosagg_running_config_end.txt,
+          ceos4363m_eosagg_LOG.txt]
+  kind: live-capture
+  source: >-
+    Arista ceos:4.36.3M (sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df), node ceos1 of lab ndr-eosagg (containerlab 0.81.1, the laptop's WSL Ubuntu-ndr, 2026-11-21 about 14:28-15:00 UTC, 21:28-22:00 Thailand time; ceos1 AS 65030 and frr2 AS 65040 hold the same aggregates 10.66.0.0/16, 2001:db8:66::/48 and vrf blue 10.67.0.0/16 and peer with frr up1, which accepts nothing from them), in seven phases set by ceos4363m_eosagg_capture.sh: sel (aggregate selected, own contributor), selms (the contributor learned from up1), exact (up1 also sends the exact prefix), exactstatic (exact plus a static for the prefix), static (a static wins, the aggregate behind it), healthystatic (the static only), healthy (nothing). Each <phase>_<v4|v6|blue>_<file> is ceos1's answer to `docker exec
+    clab-ndr-eosagg-ceos1 Cli -p 15 -c "<command>"` (show ip|ipv6 route vrf V P | json, show rib route ip|ipv6 vrf V P
+    [| json], show ip|ipv6 bgp P vrf V [| json]) as logged with rc, command and time in ceos4363m_eosagg_LOG.txt
+    (every rc 0, stderr empty), bytes unchanged. Captured for oracle FP-043-EOSAGG
+  added: ndr/oracle-eos-agg
+- files: ["frr1041_eosagg_*_v[46]_*", frr1041_eosagg_*_blue_*, frr1041_eosagg_*_vrf.txt, frr1041_eosagg_show_version.txt,
+          frr1041_eosagg_running_config_start.txt, frr1041_eosagg_running_config_end.txt]
+  kind: live-capture
+  source: >-
+    FRR quay.io/frrouting/frr:10.4.1 (sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442), node frr2 of the same lab ndr-eosagg (containerlab 0.81.1, the laptop's WSL Ubuntu-ndr, 2026-11-21 about 14:28-15:00 UTC, 21:28-22:00 Thailand time; ceos1 AS 65030 and frr2 AS 65040 hold the same aggregates 10.66.0.0/16, 2001:db8:66::/48 and vrf blue 10.67.0.0/16 and peer with frr up1, which accepts nothing from them), the same phases and changes as ceos1. Each file is frr2's answer to `docker
+    exec clab-ndr-eosagg-frr2 vtysh -c "<command>"` (show ip|ipv6 route [vrf V] P [json], show bgp [vrf V] ipv4|ipv6
+    unicast P [json], show vrf), logged in ceos4363m_eosagg_LOG.txt, bytes unchanged. Captured for oracle
+    FP-043-EOSAGG
+  added: ndr/oracle-eos-agg
+- files: [ceos4363m_eosagg_*_verdicts_main.txt, ceos4363m_eosagg_*_verdicts_fix.txt, frr1041_eosagg_*_verdicts.txt,
+          frr1041_eosagg_aggrefused_check.txt]
+  kind: report
+  source: >-
+    verdicts the real drivers gave live on lab ndr-eosagg, 2026-11-21, after each phase's captures:
+    ceos4363m_eosagg_probe.py ran 8 route checks on each prefix through check_supported, run_check and hold_together
+    against ceos1 with netdryrun main a5244a0 (_main) and ndr/fix-eos-nonbgp 49dc098 (_fix), and against frr2 with main;
+    frr1041_eosagg_aggrefused_check.txt is `netdryrun check` (main) on frr2 with `protocol: aggregate`, refused before
+    the run (exit 2)
+  added: ndr/oracle-eos-agg
+- files: [ceos4363m_eosagg_topology.clab.yml, ceos4363m_eosagg_ceos1.cfg, frr1041_eosagg_frr2.conf,
+          frr1041_eosagg_up1.conf, frr1041_eosagg_vrf.sh, ceos4363m_eosagg_capture.sh, ceos4363m_eosagg_lib.sh,
+          ceos4363m_eosagg_probe.py]
+  kind: lab-input
+  source: >-
+    the topology, startup configs and scripts of lab ndr-eosagg, 2026-11-21: frr1041_eosagg_vrf.sh made frr2's kernel
+    vrf blue and its BGP vrf blue aggregate after deploy; capture.sh (with lib.sh) set each phase and captured;
+    probe.py gave the verdict files
+  added: ndr/oracle-eos-agg
+- files: [ceos4363m_advagg_advonly_ip_route.json, ceos4363m_advagg_advonly_rib_route.json,
+          ceos4363m_advagg_advonly_ip_bgp.json]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos:4.36.3M) ceos1 of lab ndr-advagg (containerlab, the laptop's WSL Ubuntu-ndr, with FRR
+    10.4.1 up1 as its eBGP peer), 2026-11-21 18:41 UTC (2026-11-22 01:41 Thailand time), the adversary review of
+    FP-043-EOSAGG (session adv-eos-agg). ceos1 runs ceos4363m_advagg_ceos1.cfg: `aggregate-address 10.70.0.0/16
+    advertise-only` with its contributor `network 10.70.1.0/24` (ip route 10.70.1.0/24 Null0). Each file is the
+    stdout of `docker exec clab-ndr-advagg-ceos1 Cli -p 15 -c "<command>"`: show ip route vrf default 10.70.0.0/16 |
+    json (no route), show rib route ip vrf default 10.70.0.0/16 | json (no candidate), show ip bgp 10.70.0.0/16 vrf
+    default | json (the node's own path, localAgg true): an advertise-only aggregate is in neither the routing table
+    nor the RIB, and is advertised. Copied for the F4 follow-up of the FP-043-EOSAGG fix
+  added: ndr/fix-eos-agg-v3
+- files: [ceos4363m_advagg_ceos1.cfg]
+  kind: lab-input
+  source: >-
+    the startup config of ceos1 in lab ndr-advagg (adversary review of FP-043-EOSAGG, 2026-11-21): the aggregate
+    variants it probed (advertise-only, as-set summary-only, attribute-map, match-map, behind a static)
+  added: ndr/fix-eos-agg-v3
+- files: [ceos4363m_advagg_aostatic_ip_route.json, ceos4363m_advagg_aostatic_rib_route.json,
+          ceos4363m_advagg_aostatic_ip_bgp.json, ceos4363m_advagg_network_ip_route.json,
+          ceos4363m_advagg_network_rib_route.json, ceos4363m_advagg_network_ip_bgp.json]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos:4.36.3M) ceos1 of lab ndr-advagg (containerlab, the laptop's WSL Ubuntu-ndr, with FRR
+    10.4.1 up1 as its eBGP peer), 2026-11-21 19:16 UTC (2026-11-22 02:16 Thailand time), the re-check of the
+    FP-043-EOSAGG review follow-up (session adv-eos-agg, its cap3). ceos1 runs ceos4363m_advagg_ceos1.cfg. Each file
+    is the stdout of `docker exec clab-ndr-advagg-ceos1 Cli -p 15 -c "<command>"` for vrf default: aostatic is
+    10.80.0.0/16, `aggregate-address 10.80.0.0/16 advertise-only` beside `ip route 10.80.0.0/16 Null0` (show ip route:
+    the static; show rib route ip: the static only; show ip bgp: the node's own path, localAgg true, no
+    redistributionProtocol); network is 10.79.1.0/24, `network 10.79.1.0/24` of `ip route 10.79.1.0/24 Null0` (show ip
+    route: the static; show rib route ip: the static, plus the covering 10.79.0.0/16 aggregate's bgp entry; show ip
+    bgp: the node's own path, no localAgg, routeDetail.redistributionProtocol "Static"). Copied unchanged for the
+    follow-up that refuses an own path with neither field
+  added: ndr/fix-eos-agg-v3

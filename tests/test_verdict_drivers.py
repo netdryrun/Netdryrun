@@ -1087,6 +1087,14 @@ def eos_bgp(vrf="default", entries=None):
     return J({"vrfs": {vrf: {"bgpRouteEntries": entries or {}}}})
 
 
+def eos_rib(vrf="default", prefix=None, **best):
+    """DERIVED: `show rib route ip|ipv6 vrf <vrf> <prefix> | json` in the shape of the cEOS 4.36.3M captures
+    (ceos4363m_fp043_*_rib_route.json), each protocol key with one entry for `prefix` and only its bestRoute; no
+    protocol at all is the live answer for a prefix with no candidate (ceos4363m_fix043_absent_rib_route_9.json)."""
+    return J({"vrfs": {vrf: {"ribRoutesByProtocol": {k: {"ribRoutes": {prefix: {"bestRoute": b}}}
+                                                       for k, b in best.items()}}}})
+
+
 def eos_path(peer="10.0.0.2", **kw):
     # cEOS 4.36.3M prints these on every path (each capture in tests/fixtures); a test sets them only to test them
     p = {"peerEntry": {"peerAddr": peer}}
@@ -1103,27 +1111,32 @@ def eos_path(peer="10.0.0.2", **kw):
 
 
 def test_eos_routes_commands():
-    lab = Lab([("route", eos_routes(**{"10.1.0.0/16": {"routeType": "eBGP"}})), ("bgp", eos_bgp())])
+    lab = Lab([("show rib route", eos_rib(prefix="10.1.0.0/16", bgp=True)),
+               ("route", eos_routes(**{"10.1.0.0/16": {"routeType": "eBGP"}})), ("bgp", eos_bgp())])
     obs = EosDriver(lab, "r1").routes("10.1.0.0/16")
     assert lab.lines() == ["Cli -p 15 -c show ip route vrf default 10.1.0.0/16 | json",
+                           "Cli -p 15 -c show rib route ip vrf default 10.1.0.0/16 | json",
                            "Cli -p 15 -c show ip bgp 10.1.0.0/16 vrf default | json"]
-    assert obs.value == [Route("10.1.0.0/16", "bgp", True)] and len(obs.evidence) == 2
-    lab = Lab([("route", eos_routes("red")), ("bgp", eos_bgp("red"))])
+    assert obs.value == [Route("10.1.0.0/16", "bgp", True)] and len(obs.evidence) == 3
+    lab = Lab([("show rib route", eos_rib("red")), ("route", eos_routes("red")), ("bgp", eos_bgp("red"))])
     assert EosDriver(lab, "r1").routes("2001:db8::/32", "red").value == []
     assert lab.lines() == ["Cli -p 15 -c show ipv6 route vrf red 2001:db8::/32 | json",
+                           "Cli -p 15 -c show rib route ipv6 vrf red 2001:db8::/32 | json",
                            "Cli -p 15 -c show ipv6 bgp 2001:db8::/32 vrf red | json"]
 
 
 @pytest.mark.parametrize("rtype,proto", [("eBGP", "bgp"), ("iBGP", "bgp"), ("connected", "connected"),
                                          ("static", "static"), ("OSPF Inter Area", "ospf"), ("isisLevel2", "isis"),
-                                         ("Dropped", "static"), ("aggregate", "aggregate")])
+                                         ("Dropped", "static"), ("bgpAggregate", "bgp")])
 def test_eos_route_types(rtype, proto):
     out = eos.parse_routes(eos_routes(**{"10.1.0.0/16": {"routeType": rtype}}), eos_bgp(), "10.1.0.0/16")
     assert out == [Route("10.1.0.0/16", proto, True)]
 
 
 @pytest.mark.parametrize("route,detail", [({"routeType": "weird type"}, "is not one this driver maps to a protocol"),
-                                          ({}, "no routeType")], ids=["unmapped", "missing"])
+                                          # an aggregate that isn't BGP's own (bgpAggregate) has no name (FP-043-EOSAGG)
+                                          ({"routeType": "aggregate"}, "is not one this driver maps to a protocol"),
+                                          ({}, "no routeType")], ids=["unmapped", "aggregate", "missing"])
 def test_eos_route_type_it_cannot_map_is_an_error(route, detail):
     """0.4.0 passed an unmapped (or missing) routeType through as its raw name, which no protocol matched: 0.4.1."""
     with pytest.raises(DriverError, match=detail):
@@ -1135,20 +1148,31 @@ def test_eos_routes_rules():
     # `show ip route` answers with the longest match, so a covering route there is skipped; `show ip bgp` answers
     # exactly the prefix asked (cEOS 4.36.3M, probed 2026-11-02), so an entry for another one is unexpected
     static = eos_routes(**{pfx: {"routeType": "static"}, "10.0.0.0/8": {"routeType": "eBGP"}})
-    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}})
+    # the node's own path of a `network` statement names its source route (live, ceos4363m_advagg_network_ip_bgp.json)
+    own = eos_path("", routeDetail={"redistributionProtocol": "Static"})
+    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [own]}})
     assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True)]   # own path; covering route skipped
-    other = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}, "10.1.0.0/24": {"bgpRoutePaths": [eos_path()]}})
+    # an own path that is neither the aggregate (localAgg) nor redistributed is unexpected (re-check of the
+    # FP-043-EOSAGG follow-up): never read as the static's `network` route
+    with pytest.raises(DriverError, match="redistributionProtocol"):
+        eos.parse_routes(static, eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}}), pfx)
+    other = eos_bgp(entries={pfx: {"bgpRoutePaths": [own]}, "10.1.0.0/24": {"bgpRoutePaths": [eos_path()]}})
     with pytest.raises(DriverError) as e:
         eos.parse_routes(static, other, pfx)
     assert str(e.value) == ("unexpected output from `show ip bgp <prefix> | json`: an entry for 10.1.0.0/24 in the "
                             "answer for 10.1.0.0/16")
-    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path(""), eos_path()]}})
+    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [own, eos_path()]}})
     assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True), Route(pfx, "bgp", False)]
     installed = eos_routes(**{pfx: {"routeType": "eBGP"}})
     assert eos.parse_routes(installed, learned, pfx) == [Route(pfx, "bgp", True)]
-    two = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"totalPaths": 1, "bgpRoutePaths": [eos_path()]},
-                                                      "10.1.0.0/16 ": {"totalPaths": 1, "bgpRoutePaths": [eos_path()]}}}}})
+    two = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"totalPaths": 2, "bgpRoutePaths": [eos_path(), eos_path()]}}}}})
     assert eos.parse_routes(eos_routes(), two, pfx) == [Route(pfx, "bgp", False)]   # added once
+    # every entry is checked to be the asked prefix (FP-043-EOSAGG reads every path for the own aggregate): one that
+    # isn't is unexpected, where 0.4.2 stopped reading at the first learned path
+    spaced = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"totalPaths": 1, "bgpRoutePaths": [eos_path()]},
+                                                         "10.1.0.0/16 ": {"totalPaths": 1, "bgpRoutePaths": [eos_path()]}}}}})
+    with pytest.raises(DriverError):
+        eos.parse_routes(eos_routes(), spaced, pfx)
     assert eos.parse_routes(eos_routes("red"), eos_bgp("red"), pfx, "red") == []
     for rt, bgp in ((eos_routes(**{pfx: "x"}), eos_bgp()), (eos_routes(**{"x": {}}), eos_bgp()),
                     (eos_routes(), eos_bgp(entries={pfx: {"bgpRoutePaths": [{}]}})),
@@ -1307,7 +1331,7 @@ def test_default_vrf_everywhere():
     lab = Lab([("bgp-rib", "{}")])
     SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16")
     assert all("network-instance default " in ln for ln in lab.lines())
-    lab = Lab([("route", eos_routes()), ("bgp", eos_bgp())])
+    lab = Lab([("show rib route", eos_rib()), ("route", eos_routes()), ("bgp", eos_bgp())])
     EosDriver(lab, "r1").routes("10.1.0.0/16")
     EosDriver(lab, "r1").bgp_paths("10.1.0.0/16")
     EosDriver(lab, "r1").all_routes()

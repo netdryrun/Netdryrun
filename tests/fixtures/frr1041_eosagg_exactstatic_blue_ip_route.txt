@@ -1,0 +1,10 @@
+Routing entry for 10.67.0.0/16
+  Known via "static", distance 1, metric 0, vrf blue, best
+  Last update 00:00:11 ago
+  * unreachable (blackhole), weight 1
+
+Routing entry for 10.67.0.0/16
+  Known via "bgp", distance 200, metric 0, vrf blue
+  Last update 00:07:46 ago
+    unreachable (blackhole), weight 1
+

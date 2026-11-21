@@ -3,7 +3,7 @@
 **Affected:** netdryrun 0.4.1 and earlier, and the `netdryrun/Netdryrun@v0.4.1` and earlier Actions (each entry gives
 the drivers). **Severity:** Moderate, as [GHSA-g4f6-4624-2pjv](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-g4f6-4624-2pjv):
 each case needs a specific driver, config and lab state, and each has a check that catches it today (given below).
-**Patched versions:** cases 3 and 4 are fixed in 0.4.2, case 2 in 0.4.3; case 1 is not fixed yet, planned for 0.4.3. **Found by:** our own release gate (two isolated
+**Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are fixed on main, to ship in 0.4.3 (unreleased: every released version has them). **Found by:** our own release gate (two isolated
 adversarial reviewers and a fresh verifier on the final 0.4.1 candidate, 9 November 2026), before any outside user
 reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were confirmed against recorded
 router output (EOS from live fixtures), not yet through a Netdryrun live run. We publish them now to be safe. 0.4.1
@@ -25,7 +25,8 @@ prefix, and the driver looked for routes that weren't selected in the BGP table 
 `route prefix: 0.0.0.0/0, protocol: static` (or `ospf`) `, present: false` passed. FRR, SONiC and NX-OS list every
 candidate and fail the same check. *Workaround:* on EOS, don't rely on `present: false` with a protocol other than
 `bgp`: check the route where it comes from (for OSPF, on the neighbor that advertises it, if that isn't EOS), and add a
-positive `route` check that the route EOS selected has the protocol you expect. *Planned for 0.4.3:* reads every candidate route.
+positive `route` check that the route EOS selected has the protocol you expect. *Fixed on main, to ship in 0.4.3 (unreleased):* reads every candidate route
+(`show rib route ip|ipv6 vrf <vrf> <prefix> | json`), reproduced live on cEOS 4.36.3M (oracle FP-043-EOSNONBGP).
 
 **2. SR Linux EVPN: `bgp_route present: false` in an ip-vrf didn't see imported type-5 routes** (RT-0058). 0.3.0
 and later, SR Linux. In an ip-vrf without its own `protocols bgp` (the usual EVPN layer-3 design), the

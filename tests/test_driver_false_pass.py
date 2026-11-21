@@ -129,10 +129,17 @@ def test_eos_vrf_missing_from_answer_raises():
 def test_eos_existing_vrf_without_the_route_is_a_real_absence():
     route = _obj({"vrfs": {"red": {"routingDisabled": False, "routes": {}}}})
     bgp = _obj({"vrfs": {"red": {"bgpRouteEntries": {}}}})
-    assert EosDriver(Lab([("route", route), ("bgp", bgp)]), "c").routes("10.0.0.0/24", vrf="red").value == []
+    rib = _obj({"vrfs": {"red": {"ribRoutesByProtocol": {}}}})   # the live no-candidate shape (ceos4363m_fix043_*)
+    assert EosDriver(Lab([("show rib", rib), ("route", route), ("bgp", bgp)]), "c").routes(
+        "10.0.0.0/24", vrf="red").value == []
     # a BGP answer without the VRF can't be told from unknown output: conservative, it raises
     with pytest.raises(DriverError, match="not in the output"):
-        EosDriver(Lab([("route", route), ("bgp", _obj({"vrfs": {}}))]), "c").routes("10.0.0.0/24", vrf="red")
+        EosDriver(Lab([("show rib", rib), ("route", route), ("bgp", _obj({"vrfs": {}}))]), "c").routes(
+            "10.0.0.0/24", vrf="red")
+    # so can a RIB answer without it (FP-043-EOSNONBGP): never "no candidate"
+    with pytest.raises(DriverError, match="not in the output"):
+        EosDriver(Lab([("show rib", _obj({"vrfs": {}})), ("route", route), ("bgp", bgp)]), "c").routes(
+            "10.0.0.0/24", vrf="red")
 
 
 def _srl_lab(instance_state: str):
