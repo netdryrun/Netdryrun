@@ -515,16 +515,15 @@ NH_CMD = "info from state /network-instance <vrf> route-table next-hop <id>"
 def _index(command: str, value) -> str:
     """A route-table index from device output that goes back into a CLI command: digits only."""
     s = str(value)
-    if isinstance(value, bool) or not s.isdigit():
+    if isinstance(value, bool) or not (s.isascii() and s.isdigit()):   # str.isdigit() takes '²' and Arabic digits
         raise unexpected(command, f"index {s[:40]!r}")
     return s
 
 
 @parser(ROUTE_CMD)
-def parse_installed_evpn_group(text: str, prefix: str) -> str:
-    """The next-hop-group of the route the ip-vrf forwards `prefix` with, which must be an EVPN route (route-type
-    bgp-evpn, active and in the FIB). Asked only to tell several imported EVPN paths apart: when the ip-vrf forwards
-    with another route, or not at all, nothing says which of them is best, an error."""
+def parse_installed_evpn_group(text: str, prefix: str) -> str | None:
+    """The next-hop-group of the EVPN route (route-type bgp-evpn, active and in the FIB) the ip-vrf forwards `prefix`
+    with, None when it forwards with another route or not at all (the caller decides whether that is an error)."""
     want = ipaddress.ip_network(prefix)
     key = "ipv6-prefix" if want.version == 6 else "ipv4-prefix"
     groups = []
@@ -535,10 +534,7 @@ def parse_installed_evpn_group(text: str, prefix: str) -> str:
             groups.append(_index(ROUTE_CMD, must(ROUTE_CMD, r, "next-hop-group")))
     if len(groups) > 1:
         raise unexpected(ROUTE_CMD, f"{want}: {len(groups)} active bgp-evpn routes")
-    if not groups:
-        raise DriverError(f"{want}: the ip-vrf forwards with no EVPN route, so the srlinux driver can't tell which of "
-                          "the EVPN paths imported into it is its best path")
-    return groups[0]
+    return groups[0] if groups else None
 
 
 @parser(NHG_CMD)
@@ -802,36 +798,55 @@ class SrlDriver(Driver):
         `best-route` in the EVPN RIB is per NLRI, and the NLRI holds the route-distinguisher: two PEs that advertise
         the same prefix (dual-homed, anycast) give two paths, both best-route and both imported. The EVPN RIB doesn't
         say which one the ip-vrf chose, and the first in RIB order (the lowest RD) passed `next_hop`/`local_pref`
-        checks on a path the ip-vrf doesn't use (adversary on 02a0060, live). With one candidate it is the path. With
-        more, the ip-vrf decides: its active bgp-evpn route's next-hop-group, resolved to the VTEP addresses, must name
-        exactly one candidate's next hop and nothing else. ECMP over several, a next hop that no candidate or several
-        carry, or no active bgp-evpn route at all: an error, never the first path."""
+        checks on a path the ip-vrf doesn't use (adversary on 02a0060, live). So the ip-vrf decides: when it holds an
+        active bgp-evpn route, that route's next-hop-group, resolved to the VTEP addresses, must name exactly one
+        candidate's next hop and nothing else, with one candidate as with several. ECMP over several, a next hop that
+        no candidate or several carry, or (with several candidates) no active bgp-evpn route at all: an error, never
+        the first path. One candidate with no active bgp-evpn route (not installed yet, or another route preferred) is
+        that candidate. In design B the ip-vrf's own bgp-evpn row must carry the chosen path's local-pref."""
         cands = [n for n, r in enumerate(evpn) if r["best-route"]]
-        if len(cands) <= 1:
-            return cands[0] if cands else None
-        if installed is None:
+        if not cands:
+            return None
+        if installed is None:   # the default network-instance: no ip-vrf route table to ask
+            if len(cands) == 1:
+                return cands[0]
             raise DriverError(f"{prefix}: {len(cands)} EVPN paths imported into network-instance {vrf!r} are best in "
                               "the EVPN RIB; the srlinux driver can't tell which one it uses there")
-        group = parse_installed_evpn_group(installed, prefix)
-        hops = parse_next_hop_group(self._cli(
-            f"info from state /network-instance {vrf} route-table next-hop-group {group}", ev), group)
-        vteps = {parse_next_hop_address(self._cli(
-            f"info from state /network-instance {vrf} route-table next-hop {h}", ev), h) for h in hops}
         for n in cands:
             read[n] = self._read_evpn_path(evpn[n], False, ev)
-        used = [n for n in cands if read[n].next_hop in vteps]
-        if len(used) != 1 or vteps != {read[used[0]].next_hop}:
-            raise DriverError(
-                f"{prefix}: network-instance {vrf!r} forwards to {', '.join(sorted(vteps))}, and the "
-                f"{len(cands)} imported EVPN paths have next hops {', '.join(str(read[n].next_hop) for n in cands)}: "
-                "not exactly one of them, so the srlinux driver can't tell which one is its best path")
-        n = used[0]
+        group = parse_installed_evpn_group(installed, prefix)
+        if group is None:
+            # one candidate: the ip-vrf may not have installed it yet (or prefers another route); several: nothing
+            # says which of them is best
+            if len(cands) > 1:
+                raise DriverError(f"{prefix}: network-instance {vrf!r} forwards with no EVPN route, so the srlinux "
+                                  f"driver can't tell which of the {len(cands)} EVPN paths imported into it is its best")
+            n = cands[0]
+        else:
+            # one candidate or several: the VTEPs the ip-vrf forwards to must be exactly one candidate's next hop
+            # (adversary re-check of a470a6f: a lone best-route path while the ip-vrf forwards elsewhere)
+            hops = parse_next_hop_group(self._cli(
+                f"info from state /network-instance {vrf} route-table next-hop-group {group}", ev), group)
+            vteps = {parse_next_hop_address(self._cli(
+                f"info from state /network-instance {vrf} route-table next-hop {h}", ev), h) for h in hops}
+            used = [n for n in cands if read[n].next_hop in vteps]
+            if len(used) != 1 or vteps != {read[used[0]].next_hop}:
+                raise DriverError(
+                    f"{prefix}: network-instance {vrf!r} forwards to {', '.join(sorted(vteps))}, and the "
+                    f"{len(cands)} imported EVPN path(s) best in the EVPN RIB have next hops "
+                    f"{', '.join(str(read[n].next_hop) for n in cands)}: not exactly one of them, so the srlinux driver "
+                    "can't tell which one is its best path")
+            n = used[0]
         evpn_rows = [r for r in rows if _imported(r) == "bgp-evpn" and _best(r)]
         if evpn_rows:
-            # design B: the ip-vrf's own bgp-evpn row carries the attributes it took from the path it chose
-            mine = _json(self._cli(f"info from state /network-instance {vrf} bgp-rib attr-sets attr-set "
-                                   f"{_index(ATTR_CMD, evpn_rows[0].get('attr-id'))}", ev), ATTR_CMD)
-            if "local-pref" in mine and as_int(ATTR_CMD, mine["local-pref"]) != read[n].local_pref:
+            # design B, one candidate or several: the ip-vrf's own bgp-evpn row carries the local-pref it took from
+            # the path it chose. Its attr-set must be the one asked for and hold a local-pref (every capture does)
+            attr_id = _index(ATTR_CMD, evpn_rows[0].get("attr-id"))
+            mine = _json(self._cli(f"info from state /network-instance {vrf} bgp-rib attr-sets attr-set {attr_id}",
+                                   ev), ATTR_CMD)
+            if not isinstance(mine, dict) or str(mine.get("index")) != attr_id or "local-pref" not in mine:
+                raise unexpected(ATTR_CMD, f"network-instance {vrf!r} attr-set {attr_id}: {str(mine)[:150]}")
+            if as_int(ATTR_CMD, mine["local-pref"]) != read[n].local_pref:
                 raise DriverError(f"{prefix}: network-instance {vrf!r} carries local-pref {mine['local-pref']}, but "
                                   f"the EVPN path it forwards with (next hop {read[n].next_hop}) has "
                                   f"{read[n].local_pref}; the srlinux driver can't tell which one is its best path")
