@@ -12,6 +12,11 @@ check:
   protocol: ospf6
   present: false
 outputs:
+  # rib (0.4.3 reads `show rib route` too): DERIVED from the live cEOS 4.36.3M IPv6 answer
+  # tests/fixtures/ceos4363m_fix043_v6_rib_route.json, the route keyed ospf3 as routeType names OSPFv3 (no live
+  # OSPFv3 RIB capture; tests/test_eos_rib_candidates_043.py::test_ipv6_ospf3_is_ospf6 derives it the same way)
+  - needle: "show rib route"
+    output: '{"vrfs": {"default": {"ribRoutesByProtocol": {"ospf3": {"ribRoutes": {"2001:db8:77::/48": {"bestRoute": true, "preference": 110, "metric": 20, "metricType": "metric", "pendingAttributes": false, "tag": 0, "communityList": [], "recmpEligible": false, "loopedRoute": false, "lastUpdateEpochTime": 1795263967, "resolvedNextHops": [{"transportType": "ipv6", "notInFec": false, "ipNextHop": {"nextHop": "fe80::2", "interface": "Ethernet1"}}]}}}}}}}'
   - needle: "show ipv6 route"
     output: |
       {

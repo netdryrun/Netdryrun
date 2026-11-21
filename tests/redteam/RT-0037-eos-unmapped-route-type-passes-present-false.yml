@@ -12,7 +12,13 @@ check:
   protocol: static
   present: false
 outputs:
+  # rib (0.4.3 reads `show rib route` too): the live cEOS 4.36.3M answer with no candidate
+  # (tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json). No nexthop-group lab was run, so which RIB key EOS
+  # gives such a route is unknown: the case judges the routing table's routeType alone, as it did before the RIB read
+  - {needle: "show rib route", fixture: ceos4363m_fix043_absent_rib_route_9.json}
   - needle: "show ip route"
-    output: '{"vrfs": {"default": {"routes": {"10.1.0.0/16": {"routeType": "nexthopGroupStaticRoute", "kernelProgrammed": true, "hardwareProgrammed": true}}}}}'
+    # routingDisabled and the allRoutesProgrammed flags as every live cEOS 4.36.3M answer prints them (added with the
+    # RIB answer: without routingDisabled the answer is an error before the routeType this case guards is read)
+    output: '{"vrfs": {"default": {"routingDisabled": false, "allRoutesProgrammedHardware": true, "allRoutesProgrammedKernel": true, "defaultRouteState": "notSet", "routes": {"10.1.0.0/16": {"routeType": "nexthopGroupStaticRoute", "kernelProgrammed": true, "hardwareProgrammed": true}}}}}'
   - needle: "show ip bgp"
     output: '{"vrfs": {"default": {"bgpRouteEntries": {}}}}'

@@ -6,5 +6,11 @@ kind: driver
 driver: eos
 check: {type: route, node: r1, prefix: 0.0.0.0/0, protocol: bgp, present: false}
 outputs:
+# rib (0.4.3 reads `show rib route` too): DERIVED from the live cEOS 4.36.3M answer
+# tests/fixtures/ceos4363m_fp043_rt0063_rib_route.json (a static Null0 default best, another protocol's default
+# not best), the losing entry keyed bgp, preference 200 and via 10.0.200.2 as eos_leak_bgp.txt has it; the RIB
+# lists every candidate, the losing BGP default included (live, ceos4363m_fp043_rt0056_rib_route.txt)
+  - needle: "show rib route"
+    output: '{"vrfs": {"default": {"ribRoutesByProtocol": {"staticConfig": {"ribRoutes": {"0.0.0.0/0": {"bestRoute": true, "preference": 1, "metric": 0, "metricType": "metric", "pendingAttributes": false, "tag": 0, "communityList": [], "recmpEligible": false, "loopedRoute": false, "lastUpdateEpochTime": 1795260429, "resolvedNextHops": [{"transportType": "ipv4", "notInFec": true, "ipNextHop": {"interface": "Null0"}}]}}}, "bgp": {"ribRoutes": {"0.0.0.0/0": {"bestRoute": false, "preference": 200, "metric": 0, "metricType": "metric", "pendingAttributes": false, "tag": 0, "communityList": [], "recmpEligible": false, "loopedRoute": false, "lastUpdateEpochTime": 1795260429, "resolvedNextHops": [{"transportType": "ipv4", "notInFec": true, "ipNextHop": {"nextHop": "10.0.200.2", "interface": "Ethernet1", "arpResolved": true}}]}}}}}}}'
   - {needle: "show ip route", fixture: eos_leak_route.txt}
   - {needle: "show ip bgp", fixture: eos_leak_bgp.txt}

@@ -71,7 +71,7 @@ class Lab:
     """A node answering each command with the first output whose needle is in the command line."""
 
     def __init__(self, rules):
-        self.rules, self.nodes = rules, {}
+        self.rules, self.nodes, self.unanswered = rules, {}, []
 
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
@@ -79,6 +79,7 @@ class Lab:
         for needle, (rc, out, err) in self.rules:
             if needle in line:
                 return ExecResult(list(cmd), rc, out, err)
+        self.unanswered.append(line)
         raise UnexpectedCommand(line)
 
 
@@ -166,12 +167,19 @@ def _run_driver_case(case):
         return None   # refused before anything runs (exit 2): never a pass
     if _refused_by_driver(check, case["driver"]):
         return None   # refused before the lab deploys (exit 2), as `run` and `check` do: never a pass
-    driver = DRIVERS[case["driver"]](Lab(rules), check.node)
+    lab = Lab(rules)
+    driver = DRIVERS[case["driver"]](lab, check.node)
     clock = FakeClock()
     if is_post_convergence(check):
         [r] = hold_together([check], {check.node: driver}, hold=10, clock=clock, sleep=clock.sleep)
     else:
         r = run_check(check, driver, clock=clock, sleep=clock.sleep)
+    # A command the case has no answer for ends the check in an error before the driver logic the case guards runs:
+    # that is a case testing nothing, never a caught false pass (adversary review of FP-043-EOSAGG, F1: three EOS
+    # cases had no answer for the RIB read 0.4.3 added). The case's outputs must answer every read the driver makes.
+    if lab.unanswered:
+        pytest.fail(f"{case['id']}: the fake lab has no answer for {sorted(set(lab.unanswered))}: add the device's "
+                    "answer to the case's outputs (a case that ends in this error tests nothing)")
     return r
 
 
