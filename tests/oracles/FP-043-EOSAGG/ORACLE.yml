@@ -243,3 +243,4 @@ evidence:
   - tests/fixtures/frr1041_eosagg_up1.conf
   - tests/fixtures/frr1041_eosagg_vrf.sh
   - tests/fixtures/SOURCES.yml
+plant: plant.diff
