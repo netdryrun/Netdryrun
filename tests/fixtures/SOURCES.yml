@@ -695,6 +695,35 @@
     group id differs from the present_* run's 207317093, so red team case RT-0058 takes every answer from this run.
     Captured for RT-0058 (the 0.4.3 driver's next-hop-group and next-hop reads, FX-0.4.3-srl-rt0058-case-unanswered-nhg)
   added: ndr/fix-srl-evpn
+- files: [srl2672_fp043_pece2b_leaf1*, srl2672_fp043_pece2b_ce1_running.conf]
+  kind: live-capture
+  source: >-
+    The same SR Linux image as srl2672_fp043_present_* (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8,
+    show version v26.7.2 build 519-g94fbd638fa8) and FRR 10.4.1 for ce1, containerlab 0.81.1, lab srl-evpn-oracle
+    redeployed unchanged from srl2672_fp043_pece_topology.clab.yml, srl2672_fp043_pece_leaf1.cli,
+    srl2672_fp043_leaf2.cli and srl2672_fp043_pece_ce1.conf (design B; ce1's daemons and vtysh.conf are
+    srl2672_fp043_twope_configs_daemons and srl2672_fp043_twope_configs_vtysh.conf), the laptop's WSL, 2026-11-22. As
+    for pece2_*, ce1 then got the outbound route-map ONLY-OWN with vtysh (prefix-list OWN 10.77.0.0/24; `neighbor
+    10.1.0.1 route-map ONLY-OWN out`, `clear bgp 10.1.0.1 soft out`); pece2b_ce1_running.conf is `vtysh -c 'show
+    running-config'` on ce1 right after, the same configuration as srl2672_fp043_pece2_ce1_running.conf. Once ipvrf's
+    route table showed 10.99.0.0/24 active via bgp-evpn and its bgp-rib held only the bgp-evpn row from 0.0.0.0, one
+    run at 05:06:42-05:06:48+07:00: the fix branch's driver (ndr/fix-srl-evpn 14b5ce6) ran bgp_paths(10.99.0.0/24,
+    ipvrf) once against leaf1 through a lab that sent each read as `docker exec clab-srl-evpn-oracle-leaf1 sr_cli
+    --output-format json "<command>"` and kept its stdout in a file, byte for byte: ipvrf_bgp_rib_route = `info from
+    state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.99.0.0/24 neighbor *
+    origin-protocol * path-id *`; default_evpn_local_rib = `... default bgp-rib afi-safi evpn evpn local-rib`;
+    ipvrf_route_table_route = `... ipvrf route-table ipv4-unicast route 10.99.0.0/24 id * route-type * route-owner *
+    origin-network-instance *`; default_attr_set_8 = `... default bgp-rib attr-sets attr-set 8` (the imported EVPN
+    path's); ipvrf_nhg_3692599526 = `... ipvrf route-table next-hop-group 3692599526` (the group the route names);
+    ipvrf_nh_3692599523 = `... ipvrf route-table next-hop 3692599523` (its one next hop, 2.2.2.2); ipvrf_attr_set_10 =
+    `... ipvrf bgp-rib attr-sets attr-set 10` (the ip-vrf's bgp-evpn row's). Those seven are every read the driver
+    sent. The same way, after it: ipvrf_bgp_neighbors = `... ipvrf protocols bgp neighbor *`, default_bgp_neighbors =
+    `... default protocols bgp neighbor *`, show_evpn_type5 = `show network-instance default protocols bgp routes evpn
+    route-type 5 detail` and show_version = `show version` (without --output-format), and
+    ipvrf_route_table_route_end = the route-table read again at the end (the same group and route). The ids differ
+    from the pece2_* run (attr-sets 9 and 11), so every answer for design B comes from this run. Captured for oracle
+    FP-043-SRLEVPNVRF design B (the fixed driver's reads, which pece2_* doesn't hold)
+  added: ndr/fix-srl-evpn
 - files: [unnsesschk1021_capture.txt, unnsesschk1021_r2_show_version.txt, unnsesschk1021_r2_neighbors_up.json,
           unnsesschk1021_r2_neighbors_down.json, unnsesschk1021_r2_neighbors_more.json,
           unnsesschk1021_r2_eth1_ipv4_routes_up.json, unnsesschk1021_r2_eth1_ipv4_routes_more.json,
