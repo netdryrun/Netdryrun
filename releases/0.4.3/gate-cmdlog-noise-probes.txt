@@ -1,0 +1,378 @@
+Probe results for the fake-lab command-log change on ndr/gate-cmdlog-noise (commit 0694995)
+
+What this is: the real output of `scripts/fastfix_gate.py` runs on commit 0694995, captured to support the
+allowlist entry for the gate-file flip `gate :: scripts/fastfix_gate.py@a8cfb442fc95: FAIL -> PASS`.
+Every probe below is a local candidate commit made on top of 0694995 and judged by 0694995's own gate
+(`loosening --base 0694995`); none of those probe commits is pushed. Section 1 is the branch itself
+against main. Lines are copied from the run logs; where a section has more than 40 lines of one kind,
+the first 3 are kept and the rest are counted, and the 190-name fixture-target list is omitted.
+Exit codes: 0 clean, 1 blocked, 2 error (refused, no verdict). <reviewer-harness> is the reviewer's own probe
+scripts (toy.py, legacy.py), which are not part of this repository.
+
+Summary
+  section                          flips  gate result     exit
+  loosening-vs-main                    1  BLOCKED         1
+  comment-1                            0  clean           0
+  comment-2                            0  clean           0
+  frr-tmp-conf                        37  BLOCKED         1
+  verify-tmp-dir-arg                   2  BLOCKED         1
+  import-tmpdir                     1329  BLOCKED         1
+  import-docker-host                1328  BLOCKED         1
+  planted-src-json                     -  ERROR           2
+
+====================================================================================================
+1. The branch's own loosening check against main
+====================================================================================================
+Candidate = 0694995 (this change's last code commit), base = main at 6df498a. Expected: one flip, the gate's
+own file, which the allowlist entry this file supports explains; fake-lab commands show nothing new.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+date: 2026-11-22T03:54:09+07:00 to 2026-11-22T03:55:31+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base origin/main --python /home/ndr/.venvs/netdryrun/bin/python
+
+output:
+  corpus/results/results.json: 30 cases compared
+  corpus/v2/results/results.json: 18 cases compared
+  fixtures: 65 skipped at the base on this machine, not compared
+  fixtures: 2867 cases compared
+  fixtures: fake-lab commands compared, 0 test(s) send something new
+  fixture targets (190): [the 190 target names, identical in every section, omitted]
+BLOCKED loosening flip with no reviewed allowlist entry: gate :: scripts/fastfix_gate.py@a8cfb442fc95: FAIL -> PASS
+loosening: BLOCKED (1 unexplained flip(s), 0 problem(s))
+exit=1
+
+====================================================================================================
+2a. Comment-only probe, run 1
+====================================================================================================
+Candidate = 0694995 plus one comment line appended to src/netdryrun/lab.py, drivers/frr.py and verify/run.py.
+Expected: 0 flips (the command log must not flag noise).
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+probe candidate:   2a1198ecdb7d79e546641817d2c69db9eead2c40 (local, not pushed)
+date: 2026-11-22T03:55:32+07:00 to 2026-11-22T03:57:00+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base 069499502341a47e67bf83bbcbfadc17cae48c04 --python /home/ndr/.venvs/netdryrun/bin/python
+
+probe edit (lines added/removed):
+  +# recheck-cmdlog2 comment-only probe
+  +# recheck-cmdlog2 comment-only probe
+  +# recheck-cmdlog2 comment-only probe
+
+output:
+  corpus/results/results.json: 30 cases compared
+  corpus/v2/results/results.json: 18 cases compared
+  fixtures: 65 skipped at the base on this machine, not compared
+  fixtures: 2867 cases compared
+  fixtures: fake-lab commands compared, 0 test(s) send something new
+  fixture targets (190): [the 190 target names, identical in every section, omitted]
+loosening: clean
+exit=0
+
+====================================================================================================
+2b. Comment-only probe, run 2 (same edit, fresh clone)
+====================================================================================================
+Expected: 0 flips again.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+probe candidate:   6b11bacea94d7ed2f9a35a8bd6a4b975287122b2 (local, not pushed)
+date: 2026-11-22T03:57:00+07:00 to 2026-11-22T03:58:29+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base 069499502341a47e67bf83bbcbfadc17cae48c04 --python /home/ndr/.venvs/netdryrun/bin/python
+
+probe edit (lines added/removed):
+  +# recheck-cmdlog2 comment-only probe
+  +# recheck-cmdlog2 comment-only probe
+  +# recheck-cmdlog2 comment-only probe
+
+output:
+  corpus/results/results.json: 30 cases compared
+  corpus/v2/results/results.json: 18 cases compared
+  fixtures: 65 skipped at the base on this machine, not compared
+  fixtures: 2867 cases compared
+  fixtures: fake-lab commands compared, 0 test(s) send something new
+  fixture targets (190): [the 190 target names, identical in every section, omitted]
+loosening: clean
+exit=0
+
+====================================================================================================
+3. FRR driver sends a new command with a fixed /tmp path
+====================================================================================================
+Candidate = 0694995 plus a second `vtysh -f /tmp/frr.conf` in RouteInjection (src/netdryrun/faults.py).
+Expected: blocked, 37 flips, each naming the new command.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+probe candidate:   1b2f3403713f48bb7b00367f1bb09b0b81ff6295 (local, not pushed)
+date: 2026-11-22T03:58:30+07:00 to 2026-11-22T03:59:58+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base 069499502341a47e67bf83bbcbfadc17cae48c04 --python /home/ndr/.venvs/netdryrun/bin/python
+
+probe edit (lines added/removed):
+  +        self._vtysh("-f", "/tmp/frr.conf", timeout=300)
+
+output:
+  corpus/results/results.json: 30 cases compared
+  corpus/v2/results/results.json: 18 cases compared
+  fixtures: 65 skipped at the base on this machine, not compared
+  fixtures: 2867 cases compared
+  fixtures :: tests.test_inject_sent_counts::test_a_destination_listed_as_a_bare_path_list_is_read: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_drop_count_that_went_down_is_a_reset: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_dynamic_peer_is_never_counted_as_reached: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_family_no_established_session_carries_never_left_though_the_other_did: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_family_with_no_session_at_apply_never_left_even_if_one_came_up: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_filter_that_lets_one_of_three_through_names_the_two_held_back: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_listing_that_cant_be_read_before_the_injection_counts_as_having_them_all: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_peer_not_sent_the_routes_within_the_bound_is_quiet_even_if_they_arrive_later: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_peer_that_came_up_while_the_routes_were_in_is_quiet[sent-it-at-the-end]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_peer_that_came_up_while_the_routes_were_in_is_quiet[sent-nothing]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_peer_that_was_down_before_the_injection_and_still_is_is_not_waited_for: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_peer_that_went_down_while_the_routes_were_in_did_not_get_them: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_peer_whose_resets_cant_be_read_did_not_get_them: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_prefix_advertised_from_a_learned_path_did_not_carry_the_injection: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_prefix_limit_reset_during_the_injection_is_inconclusive_never_passed: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "ce1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_prefix_the_peer_already_had_an_entry_for_is_never_read_as_delivered: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_session_that_reset_while_the_routes_were_in_did_not_get_them: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_session_up_for_less_than_the_injection_reset_while_the_routes_were_in[shorter]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_session_up_for_less_than_the_injection_reset_while_the_routes_were_in[unread]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_a_session_up_since_before_the_injection_is_steady: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[count-vs-list]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[no-path]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[not-json]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[warning]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_an_add_path_peer_proves_nothing_and_is_quiet: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_an_advertised_listing_of_the_other_family_is_unknown: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_an_advertised_path_with_another_as_path_did_not_carry_the_injection: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them[clear]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "ce1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them[linkdown]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "ce1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them[maxprefix]: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "ce1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_routes_denied_outbound_towards_every_peer_never_left: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_routes_in_every_peers_advertised_routes_left: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_routes_that_reached_one_peer_but_not_another_did_not_leave: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_session_states_unreadable_at_restore_are_unknown_not_left: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_the_checks_wait_until_every_peer_is_sent_the_routes: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_two_injections_on_one_node_are_each_proven_by_their_own_prefixes: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures :: tests.test_inject_sent_counts::test_without_add_path_only_the_best_path_is_sent: new command(s) at the candidate: {"args": {"cmd": ["vtysh", "-f", "/tmp/frr.conf"], "input": null, "node": "r1", "timeout": 300}, "call": "exec"}
+  fixtures: fake-lab commands compared, 37 test(s) send something new
+  fixture targets (190): [the 190 target names, identical in every section, omitted]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_destination_listed_as_a_bare_path_list_is_read: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_drop_count_that_went_down_is_a_reset: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_dynamic_peer_is_never_counted_as_reached: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_family_no_established_session_carries_never_left_though_the_other_did: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_family_with_no_session_at_apply_never_left_even_if_one_came_up: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_filter_that_lets_one_of_three_through_names_the_two_held_back: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_listing_that_cant_be_read_before_the_injection_counts_as_having_them_all: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_peer_not_sent_the_routes_within_the_bound_is_quiet_even_if_they_arrive_later: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_peer_that_came_up_while_the_routes_were_in_is_quiet[sent-it-at-the-end]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_peer_that_came_up_while_the_routes_were_in_is_quiet[sent-nothing]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_peer_that_was_down_before_the_injection_and_still_is_is_not_waited_for: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_peer_that_went_down_while_the_routes_were_in_did_not_get_them: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_peer_whose_resets_cant_be_read_did_not_get_them: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_prefix_advertised_from_a_learned_path_did_not_carry_the_injection: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_prefix_limit_reset_during_the_injection_is_inconclusive_never_passed: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_prefix_the_peer_already_had_an_entry_for_is_never_read_as_delivered: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_session_that_reset_while_the_routes_were_in_did_not_get_them: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_session_up_for_less_than_the_injection_reset_while_the_routes_were_in[shorter]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_session_up_for_less_than_the_injection_reset_while_the_routes_were_in[unread]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_a_session_up_since_before_the_injection_is_steady: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[count-vs-list]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[no-path]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[not-json]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_advertised_routes_that_cant_be_read_are_unknown_not_left[warning]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_an_add_path_peer_proves_nothing_and_is_quiet: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_an_advertised_listing_of_the_other_family_is_unknown: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_an_advertised_path_with_another_as_path_did_not_carry_the_injection: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them[clear]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them[linkdown]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_any_reset_while_the_routes_were_in_means_the_peer_did_not_get_them[maxprefix]: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_routes_denied_outbound_towards_every_peer_never_left: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_routes_in_every_peers_advertised_routes_left: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_routes_that_reached_one_peer_but_not_another_did_not_leave: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_session_states_unreadable_at_restore_are_unknown_not_left: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_the_checks_wait_until_every_peer_is_sent_the_routes: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_two_injections_on_one_node_are_each_proven_by_their_own_prefixes: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_inject_sent_counts::test_without_add_path_only_the_best_path_is_sent: FAIL -> PASS [new-read on *]
+  (fixtures: the base's guard test no longer holds on the candidate's code. It counts as PASS because the gate can't tell a pass from a changed status such as failed -> error; read the test's failure, and if the tool still refuses, allow it citing the updated test as evidence)
+loosening: BLOCKED (37 unexplained flip(s), 0 problem(s))
+exit=1
+
+====================================================================================================
+4. verify_change makes its work dir under /dev/shm (dir= argument)
+====================================================================================================
+Candidate = 0694995 plus tempfile.mkdtemp(prefix=..., dir="/dev/shm") in src/netdryrun/verify/run.py.
+Expected: blocked; the temp label keeps its parent directory, so /dev/shm/<ptmp1> differs from /tmp/<ptmp1>.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+probe candidate:   e09c0538004c4f14a03758fde7a16a44bb61c3ac (local, not pushed)
+date: 2026-11-22T03:59:59+07:00 to 2026-11-22T04:01:27+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base 069499502341a47e67bf83bbcbfadc17cae48c04 --python /home/ndr/.venvs/netdryrun/bin/python
+
+probe edit (lines added/removed):
+  -    work = Path(tempfile.mkdtemp(prefix="netdryrun-verify-"))
+  +    work = Path(tempfile.mkdtemp(prefix="netdryrun-verify-", dir="/dev/shm"))
+
+output:
+  corpus/results/results.json: 30 cases compared
+  corpus/v2/results/results.json: 18 cases compared
+  fixtures: 65 skipped at the base on this machine, not compared
+  fixtures: 2867 cases compared
+  fixtures :: tests.test_verdict_keys_041::test_action_verify_match_without_a_declared_line_or_inconclusive_without_reason_is_no_verdict: new command(s) at the candidate: {"args": {"label": "after", "on_up": null, "topology": "/dev/shm/<ptmp1>/after/topology.clab.yml"}, "call": "side"}; {"args": {"label": "before", "on_up": null, "topology": "/dev/shm/<ptmp1>/before/topology.clab.yml"}, "call": "side"}; {"args": {"label": "rerun-after", "on_up": null, "topology": "/d
+  fixtures :: tests.test_verdict_keys_041::test_action_verify_no_change_needs_an_empty_diff_and_nothing_declared: new command(s) at the candidate: {"args": {"label": "after", "on_up": null, "topology": "/dev/shm/<ptmp1>/after/topology.clab.yml"}, "call": "side"}; {"args": {"label": "before", "on_up": null, "topology": "/dev/shm/<ptmp1>/before/topology.clab.yml"}, "call": "side"}; {"args": {"label": "rerun-after", "on_up": null, "topology": "/d
+  fixtures: fake-lab commands compared, 2 test(s) send something new
+  fixture targets (190): [the 190 target names, identical in every section, omitted]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_verdict_keys_041::test_action_verify_match_without_a_declared_line_or_inconclusive_without_reason_is_no_verdict: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.test_verdict_keys_041::test_action_verify_no_change_needs_an_empty_diff_and_nothing_declared: FAIL -> PASS [new-read on *]
+  (fixtures: the base's guard test no longer holds on the candidate's code. It counts as PASS because the gate can't tell a pass from a changed status such as failed -> error; read the test's failure, and if the tool still refuses, allow it citing the updated test as evidence)
+loosening: BLOCKED (2 unexplained flip(s), 0 problem(s))
+exit=1
+
+====================================================================================================
+5. TMPDIR set at import time
+====================================================================================================
+Candidate = 0694995 plus `os.environ["TMPDIR"] = "/dev/shm"; tempfile.tempdir = None` at import of
+src/netdryrun/verify/run.py. Expected: blocked; every logged call carries the changed environment.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+probe candidate:   0ffb85f61b4137b8d6d2c2b8ae9025fa023dd7fc (local, not pushed)
+date: 2026-11-22T04:01:28+07:00 to 2026-11-22T04:02:55+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base 069499502341a47e67bf83bbcbfadc17cae48c04 --python /home/ndr/.venvs/netdryrun/bin/python
+
+probe edit (lines added/removed):
+  +import os as _os
+  +_os.environ["TMPDIR"] = "/dev/shm"
+  +tempfile.tempdir = None
+
+output:
+  corpus/results/results.json: 30 cases compared
+  corpus/v2/results/results.json: 18 cases compared
+  fixtures: 65 skipped at the base on this machine, not compared
+  fixtures: 2867 cases compared
+  fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_driver_prefix_count_is_not_the_add_path_counter: new command(s) at the candidate: {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp ipv4 unicast neighbors 10.0.12.2 routes json"], "input": null, "node": "r1", "timeout": 60}, "call": "exec"}, "<environment now>": {"TMPDIR": "/dev/shm"}}; {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp neighbors json"], "input": nul
+  fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_min_4_does_not_pass_on_two_prefixes: new command(s) at the candidate: {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp ipv4 unicast neighbors 10.0.12.2 routes json"], "input": null, "node": "r1", "timeout": 60}, "call": "exec"}, "<environment now>": {"TMPDIR": "/dev/shm"}}; {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp neighbors json"], "input": nul
+  fixtures :: tests.oracles.FP-042-CAPMSG.test_oracle_fp_042_capmsg::test_device_text_never_erases_a_gap: new command(s) at the candidate: {"<command>": {"args": {"a": [], "lab_": "OneNodeLab", "name": "r1"}, "call": "<lambda>"}, "<environment now>": {"TMPDIR": "/dev/shm"}}; {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp neighbors json"], "input": null, "node": "r1", "timeout": 60}, "call": "exec"}, "<environment now>": {"TMP
+  [... 1326 more lines of this same form omitted; 1329 in all]
+  fixtures: fake-lab commands compared, 1329 test(s) send something new
+  fixture targets (190): [the 190 target names, identical in every section, omitted]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_driver_prefix_count_is_not_the_add_path_counter: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_min_4_does_not_pass_on_two_prefixes: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.oracles.FP-042-CAPMSG.test_oracle_fp_042_capmsg::test_device_text_never_erases_a_gap: FAIL -> PASS [new-read on *]
+  [... 1326 more lines of this same form omitted; 1329 in all]
+  (fixtures: the base's guard test no longer holds on the candidate's code. It counts as PASS because the gate can't tell a pass from a changed status such as failed -> error; read the test's failure, and if the tool still refuses, allow it citing the updated test as evidence)
+loosening: BLOCKED (1329 unexplained flip(s), 0 problem(s))
+exit=1
+
+====================================================================================================
+6. DOCKER_HOST set at import time
+====================================================================================================
+Candidate = 0694995 plus `os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"` at import of
+src/netdryrun/lab.py. Expected: blocked; every logged call carries the changed environment.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+probe candidate:   ddbee891b73d8b860e7e35e4d8971660c994f7f9 (local, not pushed)
+date: 2026-11-22T04:02:55+07:00 to 2026-11-22T04:04:23+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base 069499502341a47e67bf83bbcbfadc17cae48c04 --python /home/ndr/.venvs/netdryrun/bin/python
+
+probe edit (lines added/removed):
+  +import os as _os
+  +_os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"
+
+output:
+  corpus/results/results.json: 30 cases compared
+  corpus/v2/results/results.json: 18 cases compared
+  fixtures: 65 skipped at the base on this machine, not compared
+  fixtures: 2867 cases compared
+  fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_driver_prefix_count_is_not_the_add_path_counter: new command(s) at the candidate: {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp ipv4 unicast neighbors 10.0.12.2 routes json"], "input": null, "node": "r1", "timeout": 60}, "call": "exec"}, "<environment now>": {"DOCKER_HOST": "ssh://elsewhere.invalid"}}; {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp neighbors 
+  fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_min_4_does_not_pass_on_two_prefixes: new command(s) at the candidate: {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp ipv4 unicast neighbors 10.0.12.2 routes json"], "input": null, "node": "r1", "timeout": 60}, "call": "exec"}, "<environment now>": {"DOCKER_HOST": "ssh://elsewhere.invalid"}}; {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp neighbors 
+  fixtures :: tests.oracles.FP-042-CAPMSG.test_oracle_fp_042_capmsg::test_device_text_never_erases_a_gap: new command(s) at the candidate: {"<command>": {"args": {"a": [], "lab_": "OneNodeLab", "name": "r1"}, "call": "<lambda>"}, "<environment now>": {"DOCKER_HOST": "ssh://elsewhere.invalid"}}; {"<command>": {"args": {"cmd": ["vtysh", "-c", "show bgp neighbors json"], "input": null, "node": "r1", "timeout": 60}, "call": "exec"}, "<envi
+  [... 1325 more lines of this same form omitted; 1328 in all]
+  fixtures: fake-lab commands compared, 1328 test(s) send something new
+  fixture targets (190): [the 190 target names, identical in every section, omitted]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_driver_prefix_count_is_not_the_add_path_counter: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.oracles.FP-042-ADDPATH.test_oracle_fp_042_addpath::test_min_4_does_not_pass_on_two_prefixes: FAIL -> PASS [new-read on *]
+BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.oracles.FP-042-CAPMSG.test_oracle_fp_042_capmsg::test_device_text_never_erases_a_gap: FAIL -> PASS [new-read on *]
+  [... 1325 more lines of this same form omitted; 1328 in all]
+  (fixtures: the base's guard test no longer holds on the candidate's code. It counts as PASS because the gate can't tell a pass from a changed status such as failed -> error; read the test's failure, and if the tool still refuses, allow it citing the updated test as evidence)
+loosening: BLOCKED (1328 unexplained flip(s), 0 problem(s))
+exit=1
+
+====================================================================================================
+7. Planted src/json package (shadows the standard library)
+====================================================================================================
+Candidate = 0694995 plus a new src/json/__init__.py. Expected: refused with ERROR (exit 2) and no verdict:
+the judged run takes only the product's own packages from the code under test.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+probe candidate:   01f608481df110f4d467238a6631988fa8370332 (local, not pushed)
+date: 2026-11-22T04:04:23+07:00 to 2026-11-22T04:05:08+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python scripts/fastfix_gate.py loosening --repo . --base 069499502341a47e67bf83bbcbfadc17cae48c04 --python /home/ndr/.venvs/netdryrun/bin/python
+
+probe edit (lines added/removed):
+  +"""planted: shadows the standard library json."""
+
+output:
+ERROR cand: src/json is not one of the packages under judgement (netdryrun); the gate runs no other package from the code under test
+exit=2
+
+====================================================================================================
+8. Toy probe table
+====================================================================================================
+A tiny repository (src/netdryrun plus tests built from this commit's tests/fakes.py and conftest pattern),
+base vs candidate differing in one driver edit, judged by this commit's `fastfix_gate.py loosening`. `want` is
+whether the gate should block, `got` whether it did. The one BAD row is the documented limit: a value put with
+os.putenv on a call that passes an explicit environment copy, where the change has no effect, still shows
+(noise that blocks, never a missed change).
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+date: 2026-11-22T04:05:08+07:00 to 2026-11-22T04:05:20+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python <reviewer-harness>/toy.py /home/ndr/spec043e/repo
+
+output:
+OK  control_new_cmd                            want=True  got=True  exit=1 ['new-read']
+OK  comment_only                               want=False got=False exit=0 []
+OK  env_import_set_copy                        want=True  got=True  exit=1 ['new-read']
+OK  env_import_set_os_environ_itself           want=True  got=True  exit=1 ['new-read']
+OK  env_import_set_environ_copy_method         want=True  got=True  exit=1 ['new-read']
+OK  env_import_set_inherited_none              want=True  got=True  exit=1 ['new-read']
+OK  env_putenv_inherited_none                  want=True  got=True  exit=1 ['new-read']
+BAD env_putenv_copy_noeffect                   want=False got=True  exit=1 ['new-read']
+OK  env_copy_at_import_then_set                want=True  got=True  exit=1 ['new-read']
+OK  env_mapping_proxy                          want=True  got=True  exit=1 ['new-read']
+OK  tmp_location_dir_arg                       want=True  got=True  exit=1 ['new-read']
+OK  tmp_location_tempfile_tempdir              want=True  got=True  exit=1 ['new-read']
+OK  tmp_location_TMPDIR_env                    want=True  got=True  exit=1 ['new-read']
+OK  osmkdir_gettempdir_new_cmd_fixed           want=True  got=True  exit=1 ['new-read']
+OK  osmkdir_gettempdir_new_cmd_random          want=True  got=True  exit=1 ['new-read']
+OK  osmkdir_inside_ptmp_new_cmd                want=True  got=True  exit=1 ['new-read']
+OK  ptmp_swap_two_dirs                         want=True  got=True  exit=1 ['new-read']
+OK  ptmp_sibling_dir                           want=True  got=True  exit=1 ['new-read']
+exit=0
+
+====================================================================================================
+9. Old-format (version 1) command logs
+====================================================================================================
+Reads two version-1 logs with this commit's read_commands. Documented limit: an old-format log can't tell two
+temp directories apart once they swap; a change of location is still seen.
+
+commit under test: 0694995 (069499502341a47e67bf83bbcbfadc17cae48c04)
+date: 2026-11-22T04:05:20+07:00 to 2026-11-22T04:05:20+07:00 (Thailand time)
+machine: WSL (Ubuntu), the project venv, a fresh clone of the branch
+command:
+  $ /home/ndr/.venvs/netdryrun/bin/python <reviewer-harness>/legacy.py /home/ndr/spec043e/repo
+
+output:
+legacy two-dir swap seen: False {'tests.test_a::test_x': {'["cat", "/tmp/netdryrun-verify-<2>/y"]', '["vtysh", "-f", "/tmp/netdryrun-verify-<1>/x.conf"]'}} {'tests.test_a::test_x': {'["cat", "/tmp/netdryrun-verify-<2>/y"]', '["vtysh", "-f", "/tmp/netdryrun-verify-<1>/x.conf"]'}}
+legacy location change seen: True
+exit=0

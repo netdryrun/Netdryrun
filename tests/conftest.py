@@ -9,6 +9,11 @@ import importlib
 import pytest
 from import_guard import pytest_configure, pytest_report_header, pytest_sessionfinish  # noqa: F401  (aborts if netdryrun is not the source under test)
 
+import fakes
+
+# the release gate's command log (tests/fakes.py) begins before any test module imports the product
+fakes.begin_session()
+
 REAL_LAB_TOOLS = {"containerlab", "clab"}
 CHANGES_A_LAB = {"deploy", "destroy"}   # read-only commands (`containerlab version`) stay allowed
 
@@ -52,12 +57,12 @@ def _no_readiness_wait(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _log_fake_lab_commands():
+def _log_fake_lab_commands(tmp_path_factory):
     """With NDR_FAKE_COMMAND_LOG set (the release gate sets it, nothing else does), every command a test sends to a
     lab, fake or real, is logged through tests/fakes.py, so comparing two versions shows a new device read even where
     the fake answers anything (tests/fakes.py)."""
     from fakes import logging_commands
-    undo = logging_commands()
+    undo = logging_commands(tmp_path_factory.getbasetemp)
     try:
         yield
     finally:

@@ -360,6 +360,12 @@ def compose(world: Path, code: Path, dest: Path) -> Path:
     from the code under test reaches the run (no root conftest, no pytest config, no src/sitecustomize.py)."""
     if not packages(world):
         raise GateError(f"{world.name}: no package under src/ to judge")
+    # only the product's own packages: another one (src/json, src/tempfile) would shadow the standard library inside
+    # the judged run, the fake labs' log writer included, so the code under test would judge itself
+    extra = sorted(set(packages(code)) - set(packages(world)))
+    if extra:
+        raise GateError(f"{code.name}: src/{extra[0]} is not one of the packages under judgement "
+                        f"({', '.join(packages(world))}); the gate runs no other package from the code under test")
     shutil.copytree(world, dest, symlinks=True)
     shutil.rmtree(dest / "src")
     (dest / "src").mkdir()
@@ -387,6 +393,10 @@ def preflight(tree: Path, python: str) -> None:
     names = packages(tree)
     if not names:
         raise GateError(f"{tree.name}: no package under src/")
+    shadow = sorted(n for n in (p.stem if p.suffix == ".py" else p.name for p in (tree / "src").iterdir())
+                    if n not in names and (n in sys.stdlib_module_names or n in GATE_MODULES))
+    if shadow:
+        raise GateError(f"{tree.name}: src/{shadow[0]} would shadow the standard library or the gate's tools")
     code = ("import importlib.util as u,sys\n"
             "for n in sys.argv[1:]:\n"
             "    s=u.find_spec(n)\n"
@@ -566,17 +576,93 @@ def changed_drivers(files: set[str]) -> list[str]:
     return sorted(out)
 
 
-def read_commands(path: Path) -> dict[str, set[str]] | None:
-    """junit key -> the commands the fake labs were sent in that test; None when nothing was logged."""
+# tests/fakes.py from log format 2 replaces the temporary paths the run made itself (<tmp1>, <ptmp1>, <pytest-tmp>) and
+# marks its rows "log": 2. An older base's fakes logged them as they were, with no "log" key: for those rows only the
+# product's own scratch directory names (tempfile.mkdtemp(prefix="netdryrun-<what>-") directly under the temp
+# directory, followed by a path inside it) lose their 8 random characters, numbered per <what> in the order a test's
+# log names them, so two of them never merge and a directory of another <what> never reads as the same one. Nothing
+# else under /tmp is replaced. A row with any other "log" value is refused. Limit while the base is older than format
+# 2: two directories of one <what> that trade places between two commands of one test read the same (each is numbered
+# by where it first appears); it ends once the base's fakes log format 2.
+LOG_FORMAT = 2
+LEGACY_TEMP = r"(?P<what>netdryrun-[a-z]+-)[a-z0-9_]{8}"
+PATH_CHAR = r"[\w.~:/\\-]"
+
+
+def legacy_temp_pattern() -> re.Pattern:
+    """A product scratch directory in an older log: <temp dir>/netdryrun-<what>-<8 random>, starting a path (nothing
+    path-like before it) and followed by a separator."""
+    dirs = {tempfile.gettempdir(), os.path.realpath(tempfile.gettempdir()), "/tmp"}
+    alts = "|".join(re.escape(d.rstrip("/\\")) for d in sorted(dirs, key=len, reverse=True) if d.rstrip("/\\"))
+    return re.compile(rf"(?<!{PATH_CHAR})(?P<dir>(?:{alts})[/\\]){LEGACY_TEMP}(?=[/\\])")
+
+
+def legacy_label(m: re.Match, labels: dict[str, str]) -> str:
+    """<temp dir>/netdryrun-<what>-<N>: the Nth directory of that <what> this test's log names."""
+    if m.group(0) not in labels:
+        head = m.group("dir") + m.group("what")
+        labels[m.group(0)] = f"{head}<{1 + sum(1 for v in labels.values() if v.startswith(head + '<'))}>"
+    return labels[m.group(0)]
+
+
+def stable_command(text: str, roots: tuple[str, ...] = (), labels: dict[str, str] | None = None,
+                   legacy: bool = False) -> str:
+    """A logged command as the same text on every run of the same code: the trees under test as <root> (whole path
+    names only), JSON with sorted keys, and in an older log (`legacy`) the product's scratch directories by their
+    <what> and number (`labels`: the test's numbering so far). Dict keys are never changed, so two keys can't merge; a new call, or a
+    new argument next to a temporary path, still reads as new."""
+    labels = {} if labels is None else labels
+    temp = legacy_temp_pattern() if legacy else None
+    ordered = sorted((r for r in roots if r), key=len, reverse=True)
+
+    def scrub(s: str) -> str:
+        for r in ordered:
+            if r in s:
+                s = re.sub(rf"(?<![\w.~-]){re.escape(r)}(?![\w.~-])", "<root>", s)
+        if temp is not None:
+            s = temp.sub(lambda m: legacy_label(m, labels), s)
+        return s
+
+    def walk(v):
+        if isinstance(v, str):
+            return scrub(v)
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        if isinstance(v, dict):
+            return {k: walk(x) for k, x in v.items()}
+        return v
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return scrub(text)
+    if isinstance(data, str):
+        return json.dumps(scrub(data))
+    if not isinstance(data, (dict, list)):
+        return text
+    return json.dumps(walk(data), sort_keys=True)
+
+
+def read_commands(path: Path, roots: tuple[str, ...] = ()) -> dict[str, set[str]] | None:
+    """junit key -> the commands the fake labs were sent in that test (stable_command); None when nothing was
+    logged."""
     if not path.is_file():
         return None
     out: dict[str, set[str]] = {}
+    labels: dict[str, dict[str, str]] = {}
     for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
         try:
             row = json.loads(line)
-            out.setdefault(junit_key(row["test"]), set()).add(str(row["command"]))
+            key = junit_key(row["test"])
+            known = "log" not in row or row["log"] == LOG_FORMAT
+            if known:
+                command = stable_command(str(row["command"]), roots, labels.setdefault(key, {}),
+                                         legacy="log" not in row)
+                out.setdefault(key, set()).add(command)
         except (ValueError, KeyError, TypeError, AttributeError):
             raise GateError(f"the fake labs' command log is unreadable at line {n}") from None
+        if not known:
+            raise GateError(f"the fake labs' command log is in a format this gate doesn't know at line {n}: "
+                            f"{str(row.get('log'))[:40]}")
     return out or None
 
 
@@ -691,13 +777,17 @@ def loosening(repo: Path, base_ref: str, cand_ref: str, python: str, dominance: 
         # 2. must-not-pass fixtures: the base's world with the base's code, then with the candidate's code
         origins: dict[str, str] = {}
         targets = fixture_targets(base_tree, origins)
-        logs = work / "cmd-base.jsonl", work / "cmd-cand.jsonl"
-        base_run = run_pytest(base_tree, targets, python, work / "r", logs[0])
-        cand_run = run_pytest(compose(base_tree, cand_tree, work / "mixed"), targets, python, work / "r", logs[1])
-        base_cmds = read_commands(logs[0])
+        # one log path for both runs (read in between): the path is in the environment the code under test may
+        # pass on, so two paths would log two different commands for the same code
+        log = work / "cmd.jsonl"
+        roots = (str(base_tree), str(work / "mixed"))
+        base_run = run_pytest(base_tree, targets, python, work / "r", log)
+        base_cmds = read_commands(log, roots)
+        mixed = compose(base_tree, cand_tree, work / "mixed")
+        cand_run = run_pytest(mixed, targets, python, work / "r", log)
         report.command_log_at_base = base_cmds is not None
         report.changed_drivers = changed_drivers(changed_files(repo, base, cand))
-        fixture_compare(base_run, cand_run, report, base_cmds, read_commands(logs[1]), origins)
+        fixture_compare(base_run, cand_run, report, base_cmds, read_commands(log, roots), origins)
         report.notes.append(f"fixture targets ({len(targets)}): {', '.join(targets)}")
         # 3. the allowlist
         apply_allowlist(repo, base, cand, cand_tree, report, dominance)

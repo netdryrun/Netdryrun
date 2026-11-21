@@ -239,6 +239,27 @@ def test_candidate_cannot_take_over_the_harness(repo, plant, text):
 
 
 @needs_git
+@pytest.mark.parametrize("plant", ["src/json/__init__.py", "src/tempfile/__init__.py", "src/toy_extra/__init__.py"])
+def test_the_gate_runs_no_package_but_the_products_from_the_code_under_test(repo, plant):
+    """A package beside the product's (src/json, src/tempfile) would shadow the standard library inside the judged
+    run, the fake labs' log writer included: the code under test would judge itself."""
+    repo.write("src/toy/__init__.py", JUDGE.replace("LIMIT = 0", "LIMIT = -10"))
+    repo.write(plant, "def dumps(*a, **k):\n    return ''\n")
+    repo.commit("loosen and plant a package")
+    code, out = repo.loosening(repo.base)
+    assert code == ffg.ERROR and f"{plant.split('/')[1]} is not one of the packages under judgement" in out, out
+
+
+@pytest.mark.parametrize("plant", ["json.py", "tempfile", "pytest.py"])
+def test_a_tree_whose_src_shadows_the_standard_library_is_refused(tmp_path, plant):
+    (tmp_path / "src" / "toy").mkdir(parents=True)
+    (tmp_path / "src" / "toy" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "src" / plant).mkdir() if "." not in plant else (tmp_path / "src" / plant).write_text("")
+    with pytest.raises(ffg.GateError, match=f"src/{plant.split('.')[0]} would shadow"):
+        ffg.preflight(tmp_path, sys.executable)
+
+
+@needs_git
 def test_skipped_fixture_counts_as_pass(repo):
     repo.write("src/toy/__init__.py", JUDGE + "\nimport pytest\npytest.skip('nope', allow_module_level=True)\n")
     repo.commit("skip everything")
@@ -1078,6 +1099,393 @@ def test_a_new_read_a_loose_fake_answers_is_found_by_the_command_log(drepo, tmp_
     loose = flips["tests.test_redteam::test_loose_fake_answers_anything_bgp"]
     assert code == 1 and (loose["kind"], loose["from"], loose["to"]) == ("new-read", "FAIL", "PASS"), out
     assert "show bgp neighbors" in out
+
+
+# the command log is compared run against run. tests/fakes.py (log format 2) names the temporary paths a test made
+# itself; an older base's fakes logged them as they were, and for those rows only the product's own scratch directory
+# names are read as run names. What only differs by run (those names, the trees' own paths, key order) is no new read;
+# a new call is one, temp path or not, and so is any other path under /tmp
+
+def _log(path: Path, rows: list[tuple[str, object]], fmt: int | None = None) -> Path:
+    path.write_text("".join(json.dumps({"test": t, "command": c if isinstance(c, str) else json.dumps(c),
+                                        **({"log": fmt} if fmt is not None else {})}) + "\n"
+                            for t, c in rows), encoding="utf-8")
+    return path
+
+
+CASE = "tests.test_x::test_deploy"
+TEST = "tests/test_x.py::test_deploy"
+ROOTS = ("/tmp/ndr-fastfix-k2j3h4l5/base", "/tmp/ndr-fastfix-k2j3h4l5/mixed")
+
+
+def _deploy(topology: str, env_order: list[tuple[str, str]], root: str) -> dict:
+    return {"call": "<lambda>", "args": {"cmd": ["containerlab", "deploy", "-t", topology],
+                                         "kw": {"env": dict(env_order), "cwd": f"{root}/tests"}}}
+
+
+def _new_reads(tmp_path, base_rows, cand_rows, roots=ROOTS, fmt=None):
+    report = ffg.Report()
+    base = ffg.read_commands(_log(tmp_path / "b.jsonl", base_rows, fmt), roots)
+    cand = ffg.read_commands(_log(tmp_path / "c.jsonl", cand_rows, fmt), roots)
+    ffg.new_reads(report, 0, ffg.PytestRun(0, {}, {}, ""), {CASE: "FAIL"}, base, cand)
+    return report.flips
+
+
+ENV = [("HOME", "/home/u"), ("PATH", "/usr/bin"), ("_", "/usr/bin/env")]
+
+
+def test_an_older_logs_scratch_directory_the_trees_paths_and_key_order_are_no_new_read(tmp_path):
+    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, ROOTS[0])),
+            (TEST, "cat /tmp/pytest-of-ndr/<tmp>/test_deploy0/t.yml")]
+    cand = [(TEST, _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[::-1], ROOTS[1])),
+            (TEST, "cat /tmp/pytest-of-ndr/<tmp>/test_deploy0/t.yml")]
+    assert _new_reads(tmp_path, base, cand) == []
+
+
+@pytest.mark.parametrize("extra", [
+    # a new call whose argument is a scratch directory of the product's
+    {"call": "exec", "args": {"cmd": ["cat", "/tmp/netdryrun-verify-zzzzzzzz/secret"]}},
+    # the same scratch directory, another file in it
+    {"call": "exec", "args": {"cmd": ["cat", "/tmp/netdryrun-verify-f0bwtp86/secret"]}},
+    "cat /tmp/pytest-of-ndr/<tmp>/test_deploy0/other.yml",
+    # the same call with another file under the temporary directory
+    _deploy("/tmp/netdryrun-verify-f0bwtp86/before/t.clab.yml", ENV, ROOTS[1]),
+    # the same call with another environment value
+    _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[:2] + [("_", "/bin/sh")], ROOTS[1]),
+    # fixed device files and paths that only contain tmp (the reviewer's shapes)
+    "vtysh -f /tmp/frr.conf", "cat /tmp/ndr-secret.cfg", "cat /var/tmp/shadow", "cat /home/u/tmp/id_rsa",
+    "copy scp://h/tmp/evil.cfg running-config", "show vrf tmp_customer_b", "show interface tmpbr000002",
+    # a scratch directory's name not followed by a path in it, or not under the temp directory
+    "rm -rf /tmp/netdryrun-verify-zzzzzzzz", "cat /var/tmp/netdryrun-verify-zzzzzzzz/x",
+])
+@pytest.mark.parametrize("fmt", [None, ffg.LOG_FORMAT])
+def test_a_new_command_next_to_a_temp_path_is_still_a_new_read(tmp_path, extra, fmt):
+    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, ROOTS[0])),
+            (TEST, "vtysh -f /tmp/netdryrun-inject.conf"), (TEST, "show interface tmpbr000001")]
+    cand = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml" if fmt else
+                           "/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV, ROOTS[1])),
+            (TEST, "vtysh -f /tmp/netdryrun-inject.conf"), (TEST, "show interface tmpbr000001"), (TEST, extra)]
+    flips = _new_reads(tmp_path, base, cand, fmt=fmt)
+    assert [(f.case, f.kind) for f in flips] == [(CASE, ffg.NEW_READ)], flips
+
+
+def test_two_scratch_directories_never_read_as_one(tmp_path):
+    """An older log: the base uses one scratch directory twice, the candidate two of the same shape."""
+    base = [(TEST, "clab deploy -t /tmp/netdryrun-verify-61i7icgq/t.yml"),
+            (TEST, "clab destroy -t /tmp/netdryrun-verify-61i7icgq/t.yml")]
+    cand = [(TEST, "clab deploy -t /tmp/netdryrun-verify-f0bwtp86/t.yml"),
+            (TEST, "clab destroy -t /tmp/netdryrun-verify-zzzzzzzz/t.yml")]
+    assert [f.kind for f in _new_reads(tmp_path, base, cand)] == [ffg.NEW_READ]
+    same = [(TEST, "clab deploy -t /tmp/netdryrun-verify-f0bwtp86/t.yml"),
+            (TEST, "clab destroy -t /tmp/netdryrun-verify-f0bwtp86/t.yml")]
+    assert _new_reads(tmp_path, base, same) == []
+
+
+def test_a_new_log_is_read_without_guessing_run_names(tmp_path):
+    """tests/fakes.py from log format 2 already named the temporary paths the test made: a path it left as it is was
+    not one of them, so another name there is a new read."""
+    base = [(TEST, "clab deploy -t /tmp/netdryrun-verify-61i7icgq/t.yml"), (TEST, "cat <tmp1>/t.yml")]
+    cand = [(TEST, "clab deploy -t /tmp/netdryrun-verify-f0bwtp86/t.yml"), (TEST, "cat <tmp1>/t.yml")]
+    assert [f.kind for f in _new_reads(tmp_path, base, cand, fmt=ffg.LOG_FORMAT)] == [ffg.NEW_READ]
+    assert _new_reads(tmp_path, base[1:], cand[1:], fmt=ffg.LOG_FORMAT) == []
+
+
+def test_stable_command_keeps_what_isnt_a_run_name():
+    sc = ffg.stable_command
+    assert sc("show bgp summary") == "show bgp summary"
+    assert sc("7") == "7" and sc("null") == "null"
+    assert sc('{"b": 1, "a": "/tmp/tmpab12cd34/x"}') == '{"a": "/tmp/tmpab12cd34/x", "b": 1}'
+    assert sc('{"b": 1, "a": "/tmp/netdryrun-verify-61i7icgq/x"}', legacy=True) == \
+        '{"a": "/tmp/netdryrun-verify-<1>/x", "b": 1}'
+    assert sc('"/tmp/netdryrun-verify-61i7icgq/x"', legacy=True) == '"/tmp/netdryrun-verify-<1>/x"'
+    # each kind numbered from 1, so a directory of another kind ahead of it renumbers nothing
+    assert sc("cat /tmp/netdryrun-cfg-aaaaaaaa/x /tmp/netdryrun-verify-61i7icgq/x", legacy=True) == \
+        "cat /tmp/netdryrun-cfg-<1>/x /tmp/netdryrun-verify-<1>/x"
+    assert sc("/tmp/netdryrun-verify-61i7icgq/x") == "/tmp/netdryrun-verify-61i7icgq/x"      # format 2: as it is
+    # the trees' paths as whole path names only
+    assert sc("/w/base/tests/x", ("/w/base",)) == "<root>/tests/x"
+    assert sc('"/w/base/tests/x"', ("/w/base",)) == '"<root>/tests/x"'
+    assert sc("/w/base2/x /x/w/base", ("/w/base",)) == "/w/base2/x /x/w/base"
+    assert sc("/w/mixed/x /w/y", ("/w", "/w/mixed")) == "<root>/x <root>/y"          # the longer root first
+    # dict keys are never changed, so two keys can't merge into one
+    assert sc('{"/w/base/x": 1, "/tmp/netdryrun-verify-61i7icgq/y": 2}', ("/w/base",), legacy=True) == \
+        '{"/tmp/netdryrun-verify-61i7icgq/y": 2, "/w/base/x": 1}'
+    for kept in ("/tmp/frr.conf", "/var/tmp/netdryrun-verify-61i7icgq/x", "/tmp/netdryrun-verify-61i7icgq",
+                 "x/tmp/netdryrun-verify-61i7icgq/y", "/tmp/netdryrun-verify-61i7icgqz/y", "/tmp/tmpab12cd34/x",
+                 "tmp_customer_b", "/tmp/pytest-of-ndr/pytest-12/x"):
+        assert sc(kept, legacy=True) == kept, kept
+
+
+def test_a_legacy_scratch_directory_is_numbered_per_test(tmp_path):
+    log = _log(tmp_path / "l.jsonl", [("tests/test_x.py::test_a", "cat /tmp/netdryrun-verify-61i7icgq/x"),
+                                      ("tests/test_x.py::test_b", "cat /tmp/netdryrun-verify-f0bwtp86/x"),
+                                      ("tests/test_x.py::test_a", "cat /tmp/netdryrun-verify-zzzzzzzz/x")])
+    assert ffg.read_commands(log) == {
+        "tests.test_x::test_a": {"cat /tmp/netdryrun-verify-<1>/x", "cat /tmp/netdryrun-verify-<2>/x"},
+        "tests.test_x::test_b": {"cat /tmp/netdryrun-verify-<1>/x"}}
+
+
+@pytest.mark.parametrize("base_rows,cand_rows", [
+    # one scratch directory replaced by one of another kind (the release judge's base is an older tag)
+    (["cat /tmp/netdryrun-cfg-aaaaaaaa/startup"], ["cat /tmp/netdryrun-sec-zzzzzzzz/startup"]),
+    # two directories of two kinds, each now read for the other's file
+    (["cat /tmp/netdryrun-a-aaaaaaaa/x", "cat /tmp/netdryrun-b-bbbbbbbb/y"],
+     ["cat /tmp/netdryrun-b-cccccccc/x", "cat /tmp/netdryrun-a-dddddddd/y"]),
+])
+def test_an_older_logs_scratch_directory_keeps_its_kind(tmp_path, base_rows, cand_rows):
+    flips = _new_reads(tmp_path, [(TEST, r) for r in base_rows], [(TEST, r) for r in cand_rows])
+    assert [f.kind for f in flips] == [ffg.NEW_READ], flips
+
+
+@pytest.mark.parametrize("fmt", [1, 3, "2", None])
+def test_a_log_in_a_format_the_gate_doesnt_know_is_refused(tmp_path, fmt):
+    """Rows with no "log" key are an older base's; any other value is neither that nor format 2."""
+    path = tmp_path / "l.jsonl"
+    path.write_text(json.dumps({"test": TEST, "command": "x", "log": fmt}) + "\n", encoding="utf-8")
+    with pytest.raises(ffg.GateError, match="format this gate doesn't know at line 1"):
+        ffg.read_commands(path)
+
+
+# the reviewer's probes against the real profiler and environment record, in one gate run: a toy product package
+# named netdryrun (so tests/fakes.py's profiler watches it), the suite's own autouse fixture, one red-team test per
+# probe. Each probe's driver method changes from its base body to its candidate body; a probe flips as a new read
+# exactly when `want` says so.
+# Not here, known limits of the log itself rather than of its scrubbing: env=os.environ passed uncopied (logged by
+# type), a command sent twice or in another order (each test's commands are a set), names drawn at random by the code
+# (uuid, pid, set order: those flip a comment-only change, which only ever asks for more review), and code that
+# rewrites the log file.
+PROBES = {
+    "control_new_exec": ('return self.lab.exec("r1", ["show", "version"])',
+                         'self.lab.exec("r1", ["show", "bgp"])\nreturn self.lab.exec("r1", ["show", "version"])', True),
+    "comment_only": ('return self.lab.exec("r1", ["show", "version"])',
+                     '# comment\nreturn self.lab.exec("r1", ["show", "version"])', False),
+    "env_copy_comment_only": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                              '# comment\nreturn self.lab.run(["clab", "deploy"], env=dict(os.environ))', False),
+    "env_global_mutation": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                            'os.environ["NETDRYRUN_SKIP_LIVE"] = "1"\n'
+                            'try:\n    return self.lab.run(["clab", "deploy"], env=dict(os.environ))\n'
+                            'finally:\n    os.environ.pop("NETDRYRUN_SKIP_LIVE")', True),
+    "env_global_pop": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                       'v = os.environ.pop("NDR_PROBE_CRED")\n'
+                       'try:\n    return self.lab.run(["clab", "deploy"], env=dict(os.environ))\n'
+                       'finally:\n    os.environ["NDR_PROBE_CRED"] = v', True),
+    "env_credential_leak": ('return self.lab.run(["clab", "deploy"], env={k: v for k, v in os.environ.items() '
+                            'if k != "NDR_PROBE_CRED"})',
+                            'return self.lab.run(["clab", "deploy"], env=dict(os.environ))', True),
+    "env_set_inherited_value": ('return self.lab.run(["clab", "deploy"], env={**os.environ})',
+                                'return self.lab.run(["clab", "deploy"], env={**os.environ, '
+                                '"NDR_PROBE_CRED": os.environ["NDR_PROBE_CRED"]})', False),
+    "tmp_fixed_file": ('return self.lab.exec("r1", ["cat", "/tmp/ndr-a.cfg"])',
+                       'self.lab.exec("r1", ["cat", "/tmp/ndr-secret.cfg"])\n'
+                       'return self.lab.exec("r1", ["cat", "/tmp/ndr-a.cfg"])', True),
+    "tmp_fixed_file_str": ('return self.lab.exec("r1", "cat /tmp/startup.cfg")',
+                           'self.lab.exec("r1", "rm /tmp/startup.cfg")\n'
+                           'return self.lab.exec("r1", "cat /tmp/startup.cfg")', True),
+    "tmp_device_path_swap": ('return self.lab.exec("r1", "bash cat /tmp/running.cfg")',
+                             'self.lab.exec("r1", "bash cat /tmp/candidate.cfg")\n'
+                             'return self.lab.exec("r1", "bash cat /tmp/running.cfg")', True),
+    "frr_inject_new_device_file": ('return self.lab.exec("r1", ["vtysh", "-f", "/tmp/netdryrun-inject.conf"])',
+                                   'self.lab.exec("r1", ["vtysh", "-f", "/tmp/frr.conf"])\n'
+                                   'return self.lab.exec("r1", ["vtysh", "-f", "/tmp/netdryrun-inject.conf"])', True),
+    "var_tmp": ('return self.lab.exec("r1", ["cat", "/var/tmp/a.log"])',
+                'self.lab.exec("r1", ["cat", "/var/tmp/shadow"])\nreturn self.lab.exec("r1", ["cat", "/var/tmp/a.log"])',
+                True),
+    "home_tmp": ('return self.lab.exec("r1", ["cat", "/home/u/tmp/a.cfg"])',
+                 'self.lab.exec("r1", ["cat", "/home/u/tmp/id_rsa"])\n'
+                 'return self.lab.exec("r1", ["cat", "/home/u/tmp/a.cfg"])', True),
+    "url_tmp": ('return self.lab.exec("r1", ["copy", "scp://h/tmp/a.cfg", "running-config"])',
+                'self.lab.exec("r1", ["copy", "scp://h/tmp/evil.cfg", "running-config"])\n'
+                'return self.lab.exec("r1", ["copy", "scp://h/tmp/a.cfg", "running-config"])', True),
+    "vrf_name": ('return self.lab.exec("r1", ["show", "vrf", "tmp_customer_a"])',
+                 'self.lab.exec("r1", ["show", "vrf", "tmp_customer_b"])\n'
+                 'return self.lab.exec("r1", ["show", "vrf", "tmp_customer_a"])', True),
+    "iface_name": ('return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])',
+                   'self.lab.exec("r1", ["shutdown", "interface", "tmpbr000002"])\n'
+                   'return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])', True),
+    "iface_same_verb": ('return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])',
+                        'self.lab.exec("r1", ["show", "interface", "tmpbr000002"])\n'
+                        'return self.lab.exec("r1", ["show", "interface", "tmpbr000001"])', True),
+    "dict_key_collision": ('return self.lab.exec("r1", {"/tmp/a.cfg": "read"})',
+                           'return self.lab.exec("r1", {"/tmp/a.cfg": "read", "/tmp/shadow": "read"})', True),
+    "mkdtemp_comment_only": ('d = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                             'return self.lab.run(["clab", "deploy", "-t", d + "/after/t.yml"], env=dict(os.environ))',
+                             '# comment\nd = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                             'return self.lab.run(["clab", "deploy", "-t", d + "/after/t.yml"], env=dict(os.environ))',
+                             False),
+    "mkdtemp_new_file": ('d = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                         'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])',
+                         'd = tempfile.mkdtemp(prefix="netdryrun-verify-")\n'
+                         'self.lab.run(["cat", d + "/secret"])\n'
+                         'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])', True),
+    "second_mkdtemp_same_shape": ('d = tempfile.mkdtemp(prefix="v-")\n'
+                                  'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])',
+                                  'd = tempfile.mkdtemp(prefix="v-")\ne = tempfile.mkdtemp(prefix="w-")\n'
+                                  'self.lab.run(["clab", "destroy", "-t", e + "/t.yml"])\n'
+                                  'return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])', True),
+    "tempdir_comment_only": ('with tempfile.TemporaryDirectory() as d:\n'
+                             '    return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])',
+                             '# comment\nwith tempfile.TemporaryDirectory() as d:\n'
+                             '    return self.lab.run(["clab", "deploy", "-t", d + "/t.yml"])', False),
+    "tmp_path_comment_only": ('return self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])',
+                              '# comment\nreturn self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])', False),
+    "tmp_path_new_file": ('return self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])',
+                          'self.lab.run(["cat", str(tmp / "secret")])\n'
+                          'return self.lab.run(["clab", "deploy", "-t", str(tmp / "t.yml")])', True),
+    # an environment copy cut down to a few keys is logged whole, the log's own path with it: one path for both runs
+    "env_filtered_ndr_comment": ('return self.lab.run(["clab", "deploy"], env={k: v for k, v in os.environ.items() '
+                                 'if k.startswith("NDR_")})',
+                                 '# comment\nreturn self.lab.run(["clab", "deploy"], env={k: v for k, v in '
+                                 'os.environ.items() if k.startswith("NDR_")})', False),
+    # a file from the source tree while the test runs elsewhere: the gate names the trees, not the working directory
+    "tree_path_cwd_elsewhere_comment": ('return self.lab.exec("r1", ["load", str(Path(__file__).resolve().parent / '
+                                        '"t.j2")])',
+                                        '# comment\nreturn self.lab.exec("r1", ["load", str(Path(__file__).resolve()'
+                                        '.parent / "t.j2")])', False,
+                                        "def test_{n}(monkeypatch, tmp_path):\n    monkeypatch.chdir(tmp_path)\n"
+                                        "    assert Driver(Lab()).p_{n}(tmp_path) == \"ok\"\n"),
+    # product and test temp directories are numbered apart: one more product directory made before the test's own
+    # renumbers nothing, and the product's directory never reads as the test's
+    "renumber_noise_extra_mkdtemp": ('u = tmp()\nreturn self.lab.exec("r1", ["vtysh", "-f", u + "/frr.conf"])',
+                                     'tempfile.mkdtemp()\nu = tmp()\n'
+                                     'return self.lab.exec("r1", ["vtysh", "-f", u + "/frr.conf"])', False,
+                                     "def test_{n}():\n    assert Driver(Lab()).p_{n}(lambda: tempfile.mkdtemp()) "
+                                     "== \"ok\"\n"),
+    "renumber_hides_swap": ('u = tmp()\nreturn self.lab.exec("r1", ["vtysh", "-f", u + "/frr.conf"])',
+                            's = tempfile.mkdtemp()\nu = tmp()\n'
+                            'return self.lab.exec("r1", ["vtysh", "-f", s + "/frr.conf"])', True,
+                            "def test_{n}():\n    assert Driver(Lab()).p_{n}(lambda: tempfile.mkdtemp()) == \"ok\"\n"),
+    # makers the session wraps in the tempfile module before the product imports it
+    "from_import_mkdtemp_comment": ('return self.lab.exec("r1", ["cat", mkdtemp() + "/a"])',
+                                    '# comment\nreturn self.lab.exec("r1", ["cat", mkdtemp() + "/a"])', False),
+    "mktemp_comment": ('return self.lab.exec("r1", ["cat", tempfile.mktemp()])',
+                       '# comment\nreturn self.lab.exec("r1", ["cat", tempfile.mktemp()])', False),
+    # a directory a module-scoped fixture made outside any test
+    "module_fixture_mkdtemp_comment": ('return self.lab.exec("r1", ["cat", tmp + "/a.cfg"])',
+                                       '# comment\nreturn self.lab.exec("r1", ["cat", tmp + "/a.cfg"])', False,
+                                       "@pytest.fixture(scope=\"module\")\ndef mod_dir_{n}():\n"
+                                       "    return tempfile.mkdtemp()\n\n\ndef test_{n}(mod_dir_{n}):\n"
+                                       "    assert Driver(Lab()).p_{n}(mod_dir_{n}) == \"ok\"\n"),
+    'tmp_location_dir_arg': ('w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])',
+        'alt = os.path.join(tempfile.gettempdir(), "ndr-alt")\nos.makedirs(alt, exist_ok=True)\nw = tempfile.mkdtemp(prefix="netdryrun-verify-", dir=alt)\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])', True),
+    'tmp_location_tempfile_tempdir': ('w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])',
+        'alt = os.path.join(tempfile.gettempdir(), "ndr-alt")\nos.makedirs(alt, exist_ok=True)\nold = tempfile.tempdir\ntempfile.tempdir = alt\ntry:\n    w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nfinally:\n    tempfile.tempdir = old\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])', True),
+    'tmp_location_TMPDIR_env': ('w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])',
+        'alt = os.path.join(tempfile.gettempdir(), "ndr-alt")\nos.makedirs(alt, exist_ok=True)\nold, prev = tempfile.tempdir, os.environ.get("TMPDIR")\nos.environ["TMPDIR"] = alt\ntempfile.tempdir = None\ntry:\n    w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nfinally:\n    tempfile.tempdir = old\n    os.environ.pop("TMPDIR") if prev is None else os.environ.__setitem__("TMPDIR", prev)\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])', True),
+    'env_inherited_none': ('return self.lab.run(["clab", "deploy"], env=None)',
+        'os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"\ntry:\n    return self.lab.run(["clab", "deploy"], env=None)\nfinally:\n    os.environ.pop("DOCKER_HOST")', True),
+    'env_os_environ_itself': ('return self.lab.run(["clab", "deploy"], env=os.environ)',
+        'os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"\ntry:\n    return self.lab.run(["clab", "deploy"], env=os.environ)\nfinally:\n    os.environ.pop("DOCKER_HOST")', True),
+    'env_mapping_proxy': ('return self.lab.run(["clab", "deploy"], env=__import__("types").MappingProxyType(dict(os.environ)))',
+        'os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"\ntry:\n    return self.lab.run(["clab", "deploy"], env=__import__("types").MappingProxyType(dict(os.environ)))\nfinally:\n    os.environ.pop("DOCKER_HOST")', True),
+    'env_putenv_inherited': ('return self.lab.run(["clab", "deploy"], env=None)',
+        'os.putenv("DOCKER_HOST", "ssh://elsewhere.invalid")\ntry:\n    return self.lab.run(["clab", "deploy"], env=None)\nfinally:\n    os.unsetenv("DOCKER_HOST")', True),
+    # last: the value it leaks into os.environ is in every later test's environment copy (a real new read there too)
+    "env_global_set_and_left": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
+                                'os.environ["NETDRYRUN_DEBUG"] = "1"\n'
+                                'return self.lab.run(["clab", "deploy"], env=dict(os.environ))', True),
+}
+PROBE_CONFTEST = textwrap.dedent('''\
+    import pytest
+
+    import fakes
+    from fakes import logging_commands
+
+    fakes.begin_session()
+
+
+    @pytest.fixture(autouse=True)
+    def _log_fake_lab_commands(tmp_path_factory):
+        undo = logging_commands(tmp_path_factory.getbasetemp)
+        try:
+            yield
+        finally:
+            undo()
+    ''')
+
+
+def _probe_driver(which: int, probes: dict = PROBES, top: str = "", extra: str = "") -> str:
+    out = (top + "import os\nimport tempfile\nfrom pathlib import Path\nfrom tempfile import mkdtemp\n\n\n"
+           "class Driver:\n    def __init__(self, lab):\n        self.lab = lab\n")
+    for name, bodies in probes.items():
+        out += f"\n    def p_{name}(self, tmp):\n" + textwrap.indent(bodies[which], " " * 8) + "\n"
+    return out + extra
+
+
+def _probe_tests(probes: dict = PROBES, head: str = "") -> str:
+    out = textwrap.dedent('''\
+        import tempfile
+
+        import pytest
+
+        from netdryrun import judge
+        from netdryrun.drivers import Driver
+
+
+        class Lab:
+            def run(self, cmd, env=None):
+                return "ok"
+
+            def exec(self, node, cmd):
+                return "ok"
+
+
+        def test_refuses_negative():
+            assert not judge(-1)
+        ''')
+    out += head
+    for name, probe in probes.items():
+        test = probe[3] if len(probe) > 3 else "def test_{n}(tmp_path):\n    assert Driver(Lab()).p_{n}(tmp_path) == \"ok\"\n"
+        out += "\n\n" + test.format(n=name)
+    return out
+
+
+def _probe_repo(tmp_path, base_driver: str, cand_driver: str, tests: str) -> tuple[Repo, str]:
+    r = Repo(tmp_path / "r")
+    r.write("pyproject.toml", '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
+    r.write("src/netdryrun/__init__.py", JUDGE)
+    r.write("src/netdryrun/drivers.py", base_driver)
+    r.write("tests/conftest.py", PROBE_CONFTEST)
+    r.write("tests/fakes.py", FAKES)
+    r.write("tests/test_redteam.py", tests)
+    r.write("tests/test_pinned.py", PINNED.replace("from toy", "from netdryrun"))
+    r.write("tests/redteam/RT-0001-zero.yml", RT_PINNED)
+    r.write("corpus/results/results.json", BASE_RESULTS)
+    base = r.commit("base")
+    r.write("src/netdryrun/drivers.py", cand_driver)
+    r.commit("probes", No_Oracle="probes")
+    return r, base
+
+
+@needs_git
+def test_each_reviewer_probe_is_a_new_read_exactly_when_it_reads_something_new(tmp_path, monkeypatch):
+    monkeypatch.setenv("NDR_PROBE_CRED", "s3cret")
+    r, base = _probe_repo(tmp_path, _probe_driver(0), _probe_driver(1), _probe_tests())
+    code, out, data = dominance(r, base, tmp_path)
+    assert data is not None, out
+    flips = {f["case"].rsplit("::test_", 1)[1] for f in data["flips"] if f["kind"] == "new-read"}
+    assert flips == {name for name, probe in PROBES.items() if probe[2]}, out
+    assert code == 1 and all(f["kind"] == "new-read" for f in data["flips"]), out
+
+
+ENV_COPY = {"env_copy": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',) * 2 + (True,)}
+
+
+@needs_git
+@pytest.mark.parametrize("top,extra,head", [
+    # the product sets a value at import, before any test starts
+    ('import os as _os\n_os.environ["NDR_SSH_JUMP"] = "jump.example"\n', "", ""),
+    # an earlier test calls product code that leaks a value into os.environ
+    ("", '\n\ndef prep():\n    os.environ["NDR_SSH_JUMP"] = "jump.example"\n',
+     "\n\nfrom netdryrun.drivers import prep\n\n\ndef test_a_prep():\n    prep()\n"),
+], ids=["import-time", "earlier-test"])
+def test_an_environment_value_set_before_the_test_starts_is_a_new_read(tmp_path, top, extra, head):
+    base_extra = "\n\ndef prep():\n    pass\n" if extra else ""
+    r, base = _probe_repo(tmp_path, _probe_driver(0, ENV_COPY, extra=base_extra),
+                          _probe_driver(1, ENV_COPY, top=top, extra=extra), _probe_tests(ENV_COPY, head))
+    code, out, data = dominance(r, base, tmp_path)
+    assert data is not None, out
+    flips = {f["case"].rsplit("::", 1)[1]: f["kind"] for f in data["flips"]}
+    assert code == 1 and flips == {"test_env_copy": "new-read"}, out
 
 
 @needs_git
