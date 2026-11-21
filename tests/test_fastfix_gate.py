@@ -916,3 +916,429 @@ def test_a_guard_the_base_skips_but_the_candidate_fails_blocks(tmp_path):
     r.commit("new input, accepted")
     code, out = r.loosening(base)
     assert code == 1 and "test_refuses_the_new_input" in out, out
+
+
+# ------------------------------------------------------------------------------------------------ dominance, new reads
+
+FAKES = (Path(__file__).resolve().parent / "fakes.py").read_text(encoding="utf-8")
+DRIVERS = textwrap.dedent('''\
+    class FrrDriver:
+        def __init__(self, lab):
+            self.lab = lab
+
+        def session(self):
+            return self.lab.exec("r1", ["vtysh", "-c", "show bgp summary"])
+    ''')
+DRIVER_TESTS = textwrap.dedent('''\
+    import pytest
+
+    from fakes import UnexpectedCommand, seen
+    from toy.drivers import FrrDriver
+
+
+    class Lab:
+        def __init__(self, rules):
+            self.rules = rules
+
+        def exec(self, node, cmd):
+            line = " ".join(cmd)
+            seen(line)
+            for needle, out in self.rules:
+                if needle in line:
+                    return out
+            raise UnexpectedCommand(line)
+
+
+    @pytest.mark.parametrize("driver", [FrrDriver], ids=["FrrDriver"])
+    def test_down_session_is_refused(driver):
+        assert driver(Lab([("show bgp summary", "down")])).session() == "down"
+
+
+    def test_session_read_is_refused():
+        assert FrrDriver(Lab([("show bgp summary", "down")])).session() == "down"
+
+
+    def test_loose_fake_answers_anything_bgp():
+        assert FrrDriver(Lab([("show bgp", "down")])).session() == "down"
+    ''')
+NEW_READ_DRIVER = DRIVERS.replace('        return self.lab.exec("r1", ["vtysh", "-c", "show bgp summary"])',
+                                  '        self.lab.exec("r1", ["vtysh", "-c", "show bgp neighbors"])\n'
+                                  '        return self.lab.exec("r1", ["vtysh", "-c", "show bgp summary"])')
+
+
+@pytest.fixture
+def drepo(tmp_path) -> Repo:
+    """The toy verifier with a driver, a shared fake lab (tests/fakes.py, as the product has it) and driver tests in
+    the red team."""
+    r = Repo(tmp_path / "r")
+    r.write("pyproject.toml", '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
+    r.write("src/toy/__init__.py", JUDGE)
+    r.write("src/toy/drivers.py", DRIVERS)
+    r.write("tests/conftest.py", "")
+    r.write("tests/fakes.py", FAKES)
+    r.write("tests/test_redteam.py", REDTEAM + "\n\n" + DRIVER_TESTS)
+    r.write("tests/test_pinned.py", PINNED)
+    r.write("tests/redteam/RT-0001-zero.yml", RT_PINNED)
+    r.write("data/bad.yml", "bad: [-5, -2]\n")
+    r.write("corpus/results/results.json", BASE_RESULTS)
+    r.base = r.commit("base")
+    return r
+
+
+def dominance(r: Repo, base: str, tmp: Path, *extra: str) -> tuple[int, str, dict | None]:
+    out = tmp / "dominance.json"
+    out.unlink(missing_ok=True)
+    code, text = run_main(["loosening", "--repo", str(r.path), "--base", base, "--json", str(out), *extra])
+    return code, text, json.loads(out.read_text(encoding="utf-8")) if out.is_file() else None
+
+
+@needs_git
+def test_dominance_corpus_flip_since_the_tag_blocks_and_is_in_the_json(repo, tmp_path):
+    repo.git("tag", "v1.0.0", repo.base)
+    repo.write("README.md", "docs\n")
+    repo.commit("docs")
+    repo.write("corpus/results/results.json", results(c1="safe", c2="safe", c3="error", c4=["unsafe", "safe", "unsafe"]))
+    repo.commit("c1 passes now")
+    code, out, data = dominance(repo, "v1.0.0", tmp_path, "--dominance")
+    assert code == 1 and ":: c1: FAIL -> PASS" in out, out
+    assert data["base"] == repo.base and data["candidate"] == repo.git("rev-parse", "HEAD")
+    assert data["compared"] == {"corpus": 4, "fixtures": 3}
+    assert [(f["case"], f["kind"], f["allowed_by"]) for f in data["flips"]] == [("c1", "verdict", None)]
+
+
+@needs_git
+def test_new_read_refused_by_a_fake_names_its_driver_or_every_driver(drepo, tmp_path):
+    drepo.write("src/toy/drivers.py", NEW_READ_DRIVER)
+    drepo.commit("read the neighbors too")
+    code, out, data = dominance(drepo, drepo.base, tmp_path)
+    assert code == 1, out
+    kinds = {f["case"]: (f["kind"], f["drivers"]) for f in data["flips"]}
+    assert kinds["tests.test_redteam::test_down_session_is_refused[FrrDriver]"] == ("new-read", ["frr"])
+    # a node id that names no driver: every driver's live run
+    assert kinds["tests.test_redteam::test_session_read_is_refused"] == ("new-read", ["*"])
+    assert "new-read on frr" in out
+
+
+@needs_git
+def test_a_new_read_a_loose_fake_answers_is_found_by_the_command_log(drepo, tmp_path):
+    """A fake that matches by substring answers the new command and the test still holds: only the command log
+    shows the read is new."""
+    drepo.write("src/toy/drivers.py", NEW_READ_DRIVER)
+    drepo.commit("read the neighbors too")
+    code, out, data = dominance(drepo, drepo.base, tmp_path)
+    flips = {f["case"]: f for f in data["flips"]}
+    loose = flips["tests.test_redteam::test_loose_fake_answers_anything_bgp"]
+    assert code == 1 and (loose["kind"], loose["from"], loose["to"]) == ("new-read", "FAIL", "PASS"), out
+    assert "show bgp neighbors" in out
+
+
+@needs_git
+def test_code_that_turns_the_command_log_off_blocks(drepo, tmp_path):
+    drepo.write("src/toy/__init__.py", JUDGE + "\nimport os\nos.environ.pop('NDR_FAKE_COMMAND_LOG', None)\n")
+    drepo.commit("tidy the environment", No_Oracle="environment tidy, nothing on a verdict path")
+    code, out, _ = dominance(drepo, drepo.base, tmp_path)
+    assert code == 1 and "turned the log off" in out, out
+
+
+def _allow_new_read(r: Repo, kind: str | None = "new-read", reviewer: str = "reviewer-2", session: str = "allower"):
+    r.write("src/toy/drivers.py", NEW_READ_DRIVER)
+    r.write("tests/test_redteam.py", REDTEAM + "\n\n" + DRIVER_TESTS.replace(
+        '[("show bgp summary", "down")]', '[("show bgp neighbors", "x"), ("show bgp summary", "down")]'))
+    r.commit("read the neighbors too, and answer them in the fakes", Session="fixer",
+             No_Oracle="new read, verdict unchanged, see the updated fixtures")
+    cases = ["tests.test_redteam::test_down_session_is_refused[FrrDriver]",
+             "tests.test_redteam::test_session_read_is_refused", "tests.test_redteam::test_loose_fake_answers_anything_bgp"]
+    entries = "".join(textwrap.dedent(f"""\
+          - source: fixtures
+            case: "{c}"
+            from: FAIL
+            to: PASS
+            evidence: [tests/test_redteam.py]
+            why: The driver now also reads the neighbor table; the fake answers it in the updated test.
+            reviewed_by: "{reviewer}: the updated test asserts the same refusal of the down session"
+        """) + (f"  kind: {kind}\n" if kind else "") for c in cases)
+    r.write("fastfix/allow/new-read.yml", "flips:\n" + entries)
+    r.commit("allow the new read", Session=session)
+
+
+@needs_git
+def test_a_reviewed_new_read_is_allowed_and_stays_in_the_json(drepo, tmp_path):
+    _allow_new_read(drepo)
+    code, out, data = dominance(drepo, drepo.base, tmp_path)
+    assert code == 0, out
+    reads = [f for f in data["flips"] if f["kind"] == "new-read"]
+    assert len(reads) == 3 and all(f["allowed_by"] == "fastfix/allow/new-read.yml" for f in reads), data["flips"]
+
+
+@needs_git
+@pytest.mark.parametrize("kind,reviewer,expect", [
+    (None, "reviewer-2", "is a new device read: its entry must say kind: new-read"),
+    ("new-read", "fixer", "not a fresh session"),
+    ("new-read", "x", "reviewed_by is '<session>"),
+])
+def test_a_new_read_needs_its_own_reviewed_entry(drepo, tmp_path, kind, reviewer, expect):
+    _allow_new_read(drepo, kind=kind, reviewer=reviewer)
+    code, out, _ = dominance(drepo, drepo.base, tmp_path)
+    assert code == 1 and expect in out, out
+
+
+@needs_git
+def test_dominance_notes_an_entry_that_matches_no_flip_since_the_tag(repo, tmp_path):
+    repo.git("tag", "v1.0.0", repo.base)
+    _flip_c1(repo)
+    repo.write("fastfix/allow/c1.yml", ALLOW)
+    repo.commit("allow c1", Session="reviewer")
+    repo.write("corpus/results/results.json", BASE_RESULTS)     # c1 back to unsafe: the entry allows nothing now
+    repo.commit("c1 unsafe again", Session="fixer")
+    code, out, _ = dominance(repo, "v1.0.0", tmp_path, "--dominance")
+    assert code == 0 and "(no effect here)" in out, out
+    code, out, _ = dominance(repo, "v1.0.0", tmp_path)
+    assert code == 1 and "stale or pre-loaded" in out, out
+
+
+@needs_git
+def test_a_fixture_skipped_at_the_base_is_listed_with_its_origin(tmp_path):
+    r = Repo(tmp_path / "r")
+    r.write("src/toy/__init__.py", JUDGE)
+    r.write("tests/test_redteam.py", REDTEAM + "\n\ndef test_needs_a_tool():\n    import pytest\n"
+                                              "    pytest.skip('this machine lacks the tool')\n")
+    r.write("data/bad.yml", "bad: [-5]\n")
+    r.write("tests/redteam/README.md", "")
+    r.write("corpus/results/results.json", BASE_RESULTS)
+    base = r.commit("base with an environment skip")
+    r.write("README.md", "x")
+    r.commit("docs")
+    code, out, data = dominance(r, base, tmp_path)
+    assert code == 0, out
+    assert data["skipped_at_base"] == [{"case": "tests.test_redteam::test_needs_a_tool", "target": "tests/test_redteam.py",
+                                        "origin": "redteam", "reason": "this machine lacks the tool"}]
+
+
+@pytest.mark.parametrize("key,drivers", [
+    ("tests.test_verdict_drivers::test_x[SrlDriver]", ("srlinux",)),
+    ("tests.test_verdict_drivers::test_x[RouterosDriver]", ("routeros",)),
+    ("tests.test_frr_drivers_mutants_042b::test_count", ("frr",)),
+    ("tests.test_nxos::test_hist", ("nxos",)),
+    ("tests.test_eos_addpath_042::test_paths[SonicDriver]", ("sonic",)),
+    ("tests.test_redteam::test_rt_0042", ("*",)),
+    ("tests.test_verify_snapshot::test_adj", ("*",)),
+])
+def test_drivers_of_a_node_id(key, drivers):
+    assert ffg.drivers_of(key) == drivers
+
+
+@pytest.mark.parametrize("msg,hit", [
+    ("fakes.UnexpectedCommand: unexpected command: show bgp", True),
+    ("AssertionError: unexpected command: show bgp", True),
+    ("unexpected command: show bgp", True),
+    ("assert 'up' == 'down'", False),
+    ("KeyError: 'unexpected command: x'", False),     # not the shared refusal (the driver-exception rule covers it)
+])
+def test_unexpected_command_message(msg, hit):
+    assert bool(ffg.UNEXPECTED.match(msg)) is hit
+
+
+# ------------------------------------------------------------------------------------------------ living plants
+
+JUDGE_P = "LIMIT = 0\n\n\ndef judge(x):\n    return x > LIMIT\n\n\ndef helper():\n    return None\n"
+FIXED_P = JUDGE_P.replace("x > LIMIT", "x > LIMIT and x != 7")
+ORACLE_PLANT = ORACLE_YML + "plant: plant.diff\n"
+
+
+def _fixed(r: Repo, judge: str = FIXED_P) -> str:
+    """The toy with room after judge(), its FP-1 oracle, and the fix. Returns the fix's sha."""
+    r.write("src/toy/__init__.py", JUDGE_P)
+    r.commit("room to grow", No_Oracle="layout only, judge() is unchanged")
+    _oracle(r)
+    r.write("src/toy/__init__.py", judge)
+    return r.commit("fix FP-1", Fixes_Oracle="FP-1", Session="fixer")
+
+
+def _reverse(r: Repo, fix: str) -> str:
+    return r.git("diff", fix, f"{fix}^", "--", "src", "action.yml", "templates") + "\n"
+
+
+def _plant(r: Repo, text: str, meta: str = ORACLE_PLANT, session: str = "planter") -> str:
+    r.write("tests/oracles/FP-1/ORACLE.yml", meta)
+    r.write("tests/oracles/FP-1/plant.diff", text)
+    return r.commit("plant FP-1", Oracle="FP-1", Session=session)
+
+
+def plants(r: Repo, tmp: Path, base: str | None = None) -> tuple[int, str, dict | None]:
+    out = tmp / "plants.json"
+    out.unlink(missing_ok=True)
+    code, text = run_main(["plants", "--repo", str(r.path), "--candidate", "HEAD", "--json", str(out),
+                           *(["--base", base] if base else [])])
+    return code, text, json.loads(out.read_text(encoding="utf-8")) if out.is_file() else None
+
+
+@needs_git
+def test_a_living_plant_is_caught(repo, tmp_path):
+    fix = _fixed(repo)
+    _plant(repo, _reverse(repo, fix))
+    code, out, data = plants(repo, tmp_path, repo.base)
+    assert code == 0, out
+    assert (data["caught"], data["applied"], data["total"], data["not_applicable"]) == (1, 1, 1, [])
+    code, out = repo.reproduce(repo.base)
+    assert code == 0 and "the plant is the fix's exact reverse" in out, out
+
+
+@needs_git
+def test_a_plant_that_no_longer_applies_blocks(repo, tmp_path):
+    fix = _fixed(repo)
+    _plant(repo, _reverse(repo, fix))
+    repo.write("src/toy/__init__.py", FIXED_P.replace("x > LIMIT and x != 7", "x > LIMIT and x not in (7,)"))
+    repo.commit("rewrite the refusal", No_Oracle="same refusal, written as a set")
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and "plant FP-1 no longer applies; re-port it" in out, out
+
+
+@needs_git
+def test_an_oracle_that_passes_with_its_plant_blocks(repo, tmp_path):
+    """Vacuous: a later change refuses 7 a second way, so putting the bug back changes nothing the oracle sees."""
+    fix = _fixed(repo)
+    _plant(repo, _reverse(repo, fix))
+    repo.write("src/toy/__init__.py", FIXED_P + "\n\n_plain = judge\n\n\ndef judge(x):\n    return _plain(x) and x != 7\n")
+    repo.commit("belt and braces", No_Oracle="a second refusal of the captured value")
+    code, out, data = plants(repo, tmp_path)
+    assert code == 1 and "oracle FP-1 no longer catches its bug" in out, out
+    assert data["caught"] == 0 and data["oracles"] == {"FP-1": "not caught"}
+
+
+@needs_git
+def test_a_plant_that_breaks_an_import_blocks(repo, tmp_path):
+    fix = _fixed(repo, JUDGE_P.replace("def judge(x):\n    return x > LIMIT",
+                                       "def refuses(x):\n    return x == 7\n\n\ndef judge(x):\n"
+                                       "    return x > LIMIT and not refuses(x)"))
+    _plant(repo, _reverse(repo, fix))
+    text = (repo.path / "src/toy/__init__.py").read_text(encoding="utf-8")
+    repo.write("src/toy/__init__.py", text + "\n\nSEVEN = refuses(7)\n")
+    repo.commit("use refuses() at import", No_Oracle="a constant, nothing on a verdict path")
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and "plant FP-1 breaks the build, not the verdict" in out, out
+
+
+@needs_git
+@pytest.mark.parametrize("how,expect", [
+    ("weaker", "plant is not the fix's exact reverse"),
+    ("ported-but-exact-applies", "exact reverse still applies"),
+    ("outside-shipped", "doesn't ship"),
+])
+def test_a_plant_that_is_not_the_fixs_reverse_blocks(repo, tmp_path, how, expect):
+    fix = _fixed(repo)
+    exact = _reverse(repo, fix)
+    if how == "outside-shipped":
+        text = exact.replace("src/toy/__init__.py", "tests/conftest.py")
+    else:   # a plant that puts back less than the fix took out: 7 stays refused through a back door
+        text = exact.replace("+    return x > LIMIT", "+    return x > LIMIT and x != 8")
+    _plant(repo, text, ORACLE_PLANT + (f"ported_from: {fix}\n" if how == "ported-but-exact-applies" else ""))
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and expect in out, out
+    if how == "weaker":
+        code, out = repo.reproduce(repo.base)
+        assert code == 1 and "plant is not the fix's exact reverse" in out, out
+
+
+@needs_git
+def test_a_ported_plant_is_accepted_once_the_exact_reverse_stops_applying(repo, tmp_path):
+    fix = _fixed(repo)
+    repo.write("src/toy/__init__.py", FIXED_P.replace("x > LIMIT and x != 7", "x > LIMIT and x not in (7,)"))
+    repo.commit("rewrite the refusal", No_Oracle="same refusal, written as a set")
+    repo.write("src/toy/__init__.py", JUDGE_P)
+    ported = repo.git("diff", "--", "src") + "\n"
+    repo.git("checkout", "--", "src")
+    _plant(repo, ported, ORACLE_PLANT + f"ported_from: {fix}\n")
+    code, out, data = plants(repo, tmp_path)
+    assert code == 0 and data["caught"] == 1, out
+
+
+@needs_git
+def test_a_plant_swapped_while_the_old_one_still_applies_blocks(repo, tmp_path):
+    fix = _fixed(repo)
+    _plant(repo, _reverse(repo, fix))
+    base = repo.git("rev-parse", "HEAD")
+    # an easier plant: it also deletes helper(), which the oracle never looks at
+    easier = _reverse(repo, fix).rstrip("\n") + "\n"
+    _plant(repo, easier.replace("-    return x > LIMIT and x != 7", "-    return x > LIMIT and x != 7 "),
+           session="planter-2")
+    code, out, _ = plants(repo, tmp_path, base)
+    assert code == 1 and "plant FP-1 swapped while the old one still applies" in out, out
+
+
+@needs_git
+def test_a_re_port_from_the_session_that_broke_the_plant_blocks(repo, tmp_path):
+    fix = _fixed(repo)
+    _plant(repo, _reverse(repo, fix))
+    base = repo.git("rev-parse", "HEAD")
+    repo.write("src/toy/__init__.py", FIXED_P.replace("x > LIMIT and x != 7", "x > LIMIT and x not in (7,)"))
+    repo.commit("rewrite the refusal", No_Oracle="same refusal, written as a set", Session="refactorer")
+    repo.write("src/toy/__init__.py", JUDGE_P)
+    ported = repo.git("diff", "--", "src") + "\n"
+    repo.git("checkout", "--", "src")
+    _plant(repo, ported, ORACLE_PLANT + f"ported_from: {fix}\n", session="refactorer")
+    code, out, _ = plants(repo, tmp_path, base)
+    assert code == 1 and "re-ports it from a session that changed shipped code" in out, out
+
+
+@needs_git
+def test_plant_none_is_only_for_fixes_older_than_the_rule(repo, tmp_path):
+    none = ORACLE_YML + "plant: none\nplant_why: fixed before plants existed; its fix was refactored away since then\n"
+    _fixed(repo)
+    repo.write("tests/oracles/FP-1/ORACLE.yml", none)
+    repo.commit("FP-1 predates plants", Oracle="FP-1", Session="planter")     # this commit brings the rule
+    code, out, data = plants(repo, tmp_path)
+    assert code == 0 and data["not_applicable"] == ["FP-1"], out
+    # a new oracle fixed after the rule can't say none
+    repo.write("tests/fixtures/fp2.txt", "8\n")
+    repo.write("tests/oracles/FP-2/ORACLE.yml", none.replace("FP-1", "FP-2").replace("fp1", "fp2"))
+    repo.write("tests/oracles/FP-2/test_oracle_fp_2.py", ORACLE_TEST.replace("fp1", "fp2"))
+    repo.commit("oracle FP-2", Oracle="FP-2", Session="oracle-writer")
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and "oracle FP-2: plant: none on an oracle with no fix yet" in out, out
+    repo.write("src/toy/__init__.py", FIXED_P.replace("x != 7", "x not in (7, 8)"))
+    repo.commit("fix FP-2", Fixes_Oracle="FP-2", Session="fixer-2")
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and "oracle FP-2: plant: none is only for oracles fixed before plants were required" in out, out
+
+
+@needs_git
+def test_a_new_oracle_without_a_fix_needs_no_plant_yet(repo, tmp_path):
+    fix = _fixed(repo)
+    _plant(repo, _reverse(repo, fix))
+    repo.write("tests/fixtures/fp2.txt", "8\n")
+    repo.write("tests/oracles/FP-2/ORACLE.yml", ORACLE_YML.replace("FP-1", "FP-2").replace("fp1", "fp2"))
+    repo.write("tests/oracles/FP-2/test_oracle_fp_2.py", ORACLE_TEST.replace("fp1", "fp2"))
+    repo.commit("oracle FP-2", Oracle="FP-2", Session="oracle-writer")
+    code, out, data = plants(repo, tmp_path)
+    assert code == 0 and data["pending"] == ["FP-2"], out
+    # once fixed, it needs its plant
+    repo.write("src/toy/__init__.py", FIXED_P.replace("x != 7", "x not in (7, 8)"))
+    repo.commit("fix FP-2", Fixes_Oracle="FP-2", Session="fixer-2")
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and "oracle FP-2 is fixed" in out and "names no plant" in out, out
+
+
+@needs_git
+def test_a_symlinked_plant_blocks(repo, tmp_path):
+    fix = _fixed(repo)
+    repo.write("plants/fp1.diff", _reverse(repo, fix))
+    repo.write("tests/oracles/FP-1/ORACLE.yml", ORACLE_PLANT)
+    try:
+        os.symlink(os.path.join("..", "..", "..", "plants", "fp1.diff"), repo.path / "tests/oracles/FP-1/plant.diff")
+    except (OSError, NotImplementedError):
+        pytest.skip("this machine can't make a symlink")
+    repo.commit("plant FP-1 by link", Oracle="FP-1", Session="planter")
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and "symlink" in out, out
+
+
+def test_plants_without_git_fail_closed(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(ffg.shutil, "which", lambda name: None)
+    assert ffg.main(["plants", "--repo", str(tmp_path)]) == 2
+    assert "git is not available" in capsys.readouterr().out
+
+
+def test_normalise_diff_ignores_index_lines_and_line_ends():
+    a = "diff --git a/src/x.py b/src/x.py\nindex 1234567..89abcde 100644\n--- a/src/x.py\n+++ b/src/x.py\n"
+    b = a.replace("index 1234567..89abcde", "index 1234567890ab..89abcdef0123").replace("\n", "\r\n")
+    assert ffg.normalise_diff(a) == ffg.normalise_diff(b)

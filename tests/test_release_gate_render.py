@@ -39,6 +39,9 @@ def write(tmp_path, layers, accepted=None, review=True, stranger=FRESH):
     for name, checks in layers.items():
         (tmp_path / "gate").mkdir(exist_ok=True)
         (tmp_path / "gate" / f"{name}.json").write_text(json.dumps(record(name, checks)))
+    # static --candidate's record of the published-release comparison: no new device reads here
+    (tmp_path / "gate").mkdir(exist_ok=True)
+    (tmp_path / "gate" / "dominance.json").write_text(json.dumps({"candidate": "a", "flips": []}))
     if accepted is not None:
         (tmp_path / "accepted.json").write_text(json.dumps({"checks": accepted}))
     if review:
@@ -57,7 +60,8 @@ gate = SimpleNamespace(**{k: getattr(gate, k) for k in dir(gate) if not k.starts
 gate.render = render
 
 
-PRE = {"static": [("s", "BLOCKER", "PASS")], "unit": [("u", "BLOCKER", "PASS")], "mutation": [("m", "BLOCKER", "PASS")],
+PRE = {"static": [("s", "BLOCKER", "PASS"), ("dominance", "BLOCKER", "PASS")], "unit": [("u", "BLOCKER", "PASS")],
+       "mutation": [("m", "BLOCKER", "PASS")],
        "acceptance": [("a", "BLOCKER", "PASS")]}
 
 
