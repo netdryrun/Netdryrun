@@ -74,6 +74,9 @@ exclude = ["examples/agent-eval/results", "examples/agent-eval/validation",
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# This checkout's own src comes first on sys.path, so a run tests the code beside it, not whichever clone last ran
+# an editable install into a shared venv. tests/conftest.py aborts the session if netdryrun still comes from elsewhere.
+pythonpath = ["src"]
 
 # Lint for bugs, not style: pyflakes, pycodestyle errors, bugbear and pylint's error class.
 # Run by the release gate's static layer (python scripts/release_gate.py static).
