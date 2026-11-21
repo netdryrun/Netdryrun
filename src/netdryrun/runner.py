@@ -24,9 +24,9 @@ from .checks import (Result, Unready, _sample, hold_together, inconclusive_reaso
                      never_ready_nodes, run_round_robin)
 from .config import Check, Config, ConfigError, Scenario, load
 from .drivers import BETA_DRIVERS, DriverError, Undetectable, check_supported, for_node, resolve
+from .drivers import frr_import_check
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
-from .drivers import frr_import_check
 from .faults import RouteInjection
 from . import mgmt
 from .lab import NXOS_KINDS, ROUTEROS_KINDS, VM_KINDS, Lab, LabError, LinkDev
