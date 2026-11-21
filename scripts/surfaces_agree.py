@@ -14,7 +14,11 @@ generated docs left them out, the GitHub description named them, and three offic
                 one-line description, is fine; one that names some must name all, and nothing unreleased).
   published   (after-publish layer, and weekly; read-only HTTP GETs)
               the GitHub repository description, PyPI's latest release (version, status line), the MCP Registry's
-              latest entry, LobeHub's listing and netdryrun.com/llms.txt name the expected version and platforms.
+              latest entry and netdryrun.com/llms.txt name the expected version and platforms.
+              LobeHub's listing is a WARN, never a problem (owner 2026-11-21): it is a third-party mirror of the MCP
+              Registry that we can't update (we don't run its registration command), and it has listed 0.3.1 since
+              0.3.x while the Registry moved on. A blocker we can't clear would stop every release; the media check
+              still watches it.
 
 Fail-closed: a surface that can't be read, a block that is missing, a driver with no name pattern, or no release tag
 to compare with is a problem, never a pass. Exit 0 agree, 1 disagree, 2 couldn't run.
@@ -168,14 +172,18 @@ def http_get(url: str, accept: str = "*/*") -> str:
         return r.read().decode("utf-8", "replace")
 
 
-def published_problems(version: str, released: set[str], unreleased: set[str], get=http_get) -> list[str]:
+def published_problems(version: str, released: set[str], unreleased: set[str], get=http_get,
+                       warnings: list[str] | None = None) -> list[str]:
+    """The problems (each one fails the check). Surfaces we don't control (LobeHub) go to `warnings` instead."""
     problems = []
+    warnings = [] if warnings is None else warnings
 
-    def read(surface: str, url: str, accept: str = "*/*") -> str | None:
+    def read(surface: str, url: str, accept: str = "*/*", into: list[str] | None = None) -> str | None:
         try:
             return get(url, accept)
-        except Exception as e:   # any failure to read is a problem, never a pass
-            problems.append(f"{surface}: couldn't read {url} ({type(e).__name__}: {str(e)[:120]})")
+        except Exception as e:   # any failure to read is a problem (or, for a mirror, a warning), never a pass
+            (problems if into is None else into).append(
+                f"{surface}: couldn't read {url} ({type(e).__name__}: {str(e)[:120]})")
             return None
 
     gh = read("GitHub repository description", "https://github.com/netdryrun/Netdryrun")
@@ -219,13 +227,14 @@ def published_problems(version: str, released: set[str], unreleased: set[str], g
         except (ValueError, AttributeError) as e:
             problems.append(f"MCP Registry: unreadable JSON ({e})")
 
-    lobe = read("LobeHub", "https://lobehub.com/mcp/netdryrun-netdryrun", "text/markdown")   # its listing as Markdown
+    # LobeHub mirrors the Registry on its own schedule and we can't update it: a WARN, never a problem (see the top)
+    lobe = read("LobeHub", "https://lobehub.com/mcp/netdryrun-netdryrun", "text/markdown", into=warnings)
     if lobe is not None:
         m = re.search(r"\|\s*Version\s*\|\s*([^|\s]+)\s*\|", lobe)
         if not m:
-            problems.append("LobeHub: no version on the listing page")
+            warnings.append("LobeHub: no version on the listing page")
         elif m.group(1) != version:
-            problems.append(f"LobeHub: the listing shows version {m.group(1)}, expected {version}")
+            warnings.append(f"LobeHub: the listing shows version {m.group(1)}, expected {version}")
 
     llms = read("netdryrun.com llms.txt", "https://netdryrun.com/llms.txt")
     if llms is not None:
@@ -253,8 +262,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR {e}")
         return 2
     released, unreleased = set(f["drivers"]), set(sync_facts.UNRELEASED)
+    warnings: list[str] = []
     problems = (static_problems(release=args.release) if args.cmd == "static"
-                else published_problems(args.version or f["version"], released, unreleased))
+                else published_problems(args.version or f["version"], released, unreleased, warnings=warnings))
+    for x in warnings:
+        print(f"WARN {x}")
     for x in problems:
         print(f"DISAGREE {x}")
     print(f"surfaces {args.cmd}: {'agree' if not problems else f'{len(problems)} problem(s)'}"

@@ -210,9 +210,21 @@ def test_a_registry_whose_latest_is_another_version_is_red():
     assert any("MCP Registry: the latest entry is '0.4.1'" in x for x in p), p
 
 
-def test_a_stale_lobehub_listing_is_red():
-    p = published(**{"https://lobehub.com/mcp/netdryrun-netdryrun": "| Version    | 0.3.1   |"})
-    assert any("LobeHub: the listing shows version 0.3.1" in x for x in p), p
+def lobehub(page):
+    warnings = []
+    p = sa.published_problems(V, REL, set(), get=pages(**{"https://lobehub.com/mcp/netdryrun-netdryrun": page}),
+                              warnings=warnings)
+    return p, warnings
+
+
+def test_a_stale_lobehub_listing_is_a_warning_not_a_problem():
+    """Owner 2026-11-21: LobeHub is a mirror we can't update; stale since 0.3.x, so it warns and never blocks."""
+    p, w = lobehub("| Version    | 0.3.1   |")
+    assert p == [] and any("LobeHub: the listing shows version 0.3.1" in x for x in w), (p, w)
+    p, w = lobehub(OSError("timed out"))
+    assert p == [] and any(x.startswith("LobeHub: couldn't read") for x in w), (p, w)
+    p, w = lobehub(f"| Version | {V} |")
+    assert p == [] and w == []
 
 
 def test_llms_txt_with_old_platforms_is_red():
@@ -222,8 +234,8 @@ def test_llms_txt_with_old_platforms_is_red():
 
 
 def test_a_surface_that_cant_be_read_is_red_never_a_pass():
-    p = published(**{"https://lobehub.com/mcp/netdryrun-netdryrun": OSError("timed out")})
-    assert any(x.startswith("LobeHub: couldn't read") for x in p), p
+    p = published(**{"https://netdryrun.com/llms.txt": OSError("timed out")})
+    assert any(x.startswith("netdryrun.com llms.txt: couldn't read") for x in p), p
 
 
 def test_exit_codes(tmp_path):
