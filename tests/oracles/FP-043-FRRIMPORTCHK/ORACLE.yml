@@ -95,3 +95,5 @@ evidence:
   - tests/fixtures/frr_fp043ic/uw_healthy_boot1/boot/snapshot.json
   - tests/fixtures/frr_fp043ic/uw_healthy_boot1/summary.txt
   - tests/test_oracle_guards_fp_043_frrimportchk.py
+plant: plant.diff
+ported_from: c260a0c5086b58e77cf8f2e5ef2bccc25ddb7004
