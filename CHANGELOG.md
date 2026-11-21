@@ -18,6 +18,11 @@
     exact prefix is read.
   - An EOS that refuses the command, a RIB answer the driver doesn't know (a protocol it can't name, a VRF missing),
     or any other failed read makes the check an error, never a pass.
+  - A BGP aggregate is `bgpAggregate` in the routing table and `bgp` in the RIB: the RIB's best `bgp` entry is then
+    the aggregate itself, not a BGP candidate (a BGP-learned path for the prefix still counts, from the BGP table).
+  - A RIB entry under a key the driver doesn't map (`routeInput`, which a plain cEOS lists for `0.0.0.0/8` and
+    `127.0.0.0/8`; `vrfLeak`, `gribi`, `dynamicPolicy`) makes a `route` check on exactly that prefix an error, where
+    0.4.2 read the routing table only.
 
   Oracle `tests/oracles/FP-043-EOSNONBGP`, from the live capture.
 
