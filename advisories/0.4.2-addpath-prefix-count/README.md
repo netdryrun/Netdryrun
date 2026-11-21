@@ -8,6 +8,9 @@ peer that sends add-path and a count-only check; an `only:` list catches it toda
 0.4.2 candidate, 12 and 13 November 2026), before any outside user reported it. **Evidence:** reproduced in containerlab
 labs with FRR 10.4.1 (RT-0067), SR Linux 26.7.2 (RT-0068) and cEOS 4.36.3M (RT-0069).
 
+GitHub advisory: [GHSA-hcc6-p4rp-w376](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-hcc6-p4rp-w376)
+(one advisory for every 0.4.2 case in this file).
+
 ## What happened
 
 `bgp_prefixes` read a neighbor's prefix count from a counter the device keeps per neighbor. When the neighbor uses BGP
