@@ -209,3 +209,31 @@ def test_a_fingerprinted_major_is_not_accepted_for_other_content(tmp_path, entry
     text, cleared = fingerprinted(tmp_path, entry)
     assert not cleared, text
     assert "NOT accepted" in text and why in text, text
+
+
+@pytest.mark.parametrize("fp", ["", None, "short", "0123456789ABCDEF"])
+@pytest.mark.parametrize("entry", ["historic lines reviewed", {"reason": "historic lines reviewed"},
+                                   {"reason": "historic lines reviewed", "fingerprint": ""}])
+def test_a_check_the_gate_fingerprints_is_never_accepted_without_one(tmp_path, fp, entry):
+    # a record whose fingerprint was emptied (an older gate, or an edit) can't fall back to a plain reason
+    args = write(tmp_path, {**PRE, "live": [("l", "BLOCKER", "PASS")], "after-publish": [("p", "BLOCKER", "PASS")],
+                            "static": [("s", "BLOCKER", "PASS"), ("dominance", "BLOCKER", "PASS"),
+                                       ("loosening", "MAJOR", "FAIL")]},
+                 accepted={"static/loosening": entry if fp is None else {**entry, "fingerprint": fp}
+                           if isinstance(entry, dict) else entry})
+    path = tmp_path / "gate" / "static.json"
+    rec = json.loads(path.read_text())
+    for c in rec["checks"]:
+        if c["id"] == "loosening":
+            c["fingerprint"] = fp
+    path.write_text(json.dumps(rec))
+    text, cleared = gate.render(args)
+    assert not cleared, text
+    assert "NOT accepted" in text, text
+
+
+def test_every_fingerprinted_check_id_is_one_the_gate_adds():
+    src = (ROOT / "scripts" / "release_gate.py").read_text(encoding="utf-8")
+    for key in gate.FINGERPRINTED:
+        layer, cid = key.split("/")
+        assert f'Layer("{layer}", args)' in src and f'"{cid}"' in src, key
