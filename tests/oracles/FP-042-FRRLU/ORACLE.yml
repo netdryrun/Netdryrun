@@ -34,3 +34,5 @@ evidence:
   - tests/fixtures/frr_custleak_neighbors.txt
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_frrlu.py
+plant: plant.diff
+ported_from: be7ac46f7b9e93c45f361036a867f12ea5de9023

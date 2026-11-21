@@ -11,3 +11,6 @@ bug: >-
   tests/test_oracle_guards_fp_042_recordvrfnosess.py
 evidence:
   - tests/test_oracle_guards_fp_042_recordvrfnosess.py
+plant: none
+plant_why: >-
+  Fixed in 606d2386c3 before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 3 of 6 reversed hunks that still apply break the build instead of the verdict: the plant needs a port by hand

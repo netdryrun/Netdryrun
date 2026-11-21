@@ -12,6 +12,7 @@ from netdryrun.verify import frr
 from netdryrun.verify.snapshot import (AsPath, ItemKey, NodeSnapshot, Snapshot, SnapshotError, canon_community,
                                        canon_ext_communities, canon_large_community, canon_set, parse_asn)
 from verify_helpers import FIX, base, fixture, fixture_commands, fixture_header, nh, rib
+from fakes import UnexpectedCommand, seen
 
 OUTPUTS = fixture_commands()          # command -> fixture file
 ADJ_OUT_UP1 = frr.adj_command("default", "ipv4", "10.0.2.2", "out")
@@ -29,10 +30,11 @@ class FakeNode:
         assert argv[:2] == ["vtysh", "-c"]
         cmd = argv[2]
         self.calls.append(cmd)
+        seen(cmd)
         if cmd in self.fail:
             return 1, "", "Exiting: failed to connect to any daemons."
         if cmd not in self.texts:
-            raise AssertionError(f"unexpected command {cmd!r}")
+            raise UnexpectedCommand(cmd)
         return 0, self.texts[cmd], ""
 
 

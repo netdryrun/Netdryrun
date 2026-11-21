@@ -20,3 +20,6 @@ evidence:
   - tests/fixtures/srl_rt_s01_record_041.yml
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_rts01.py
+plant: none
+plant_why: >-
+  Fixed in d0351fe23c before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 1 of 2 reversed hunks that still apply don't bring the bug back: the plant needs a port by hand

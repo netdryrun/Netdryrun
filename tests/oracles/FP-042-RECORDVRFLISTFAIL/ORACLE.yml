@@ -11,3 +11,5 @@ bug: >-
   tests/test_oracle_guards_fp_042_recordvrflistfail.py
 evidence:
   - tests/test_oracle_guards_fp_042_recordvrflistfail.py
+plant: plant.diff
+ported_from: 57eb8cad10a69ab0d8e1794932d614f3ba0d42e5

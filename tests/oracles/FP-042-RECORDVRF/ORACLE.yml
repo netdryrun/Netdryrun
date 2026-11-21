@@ -9,3 +9,6 @@ bug: >-
   tests/test_oracle_guards_fp_042_recordvrf.py
 evidence:
   - tests/test_oracle_guards_fp_042_recordvrf.py
+plant: none
+plant_why: >-
+  Fixed in 0b40056766 before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 1 of 6 reversed hunks that still apply don't bring the bug back: the plant needs a port by hand

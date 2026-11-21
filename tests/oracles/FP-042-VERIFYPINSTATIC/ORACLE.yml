@@ -10,3 +10,5 @@ bug: >-
   tests/test_oracle_guards_fp_042_verifypinstatic.py
 evidence:
   - tests/test_oracle_guards_fp_042_verifypinstatic.py
+plant: plant.diff
+ported_from: 5f0b7d77a726b009ea72166208a9ea987f42c3cb

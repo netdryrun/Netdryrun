@@ -15,6 +15,7 @@ from netdryrun.drivers import srlinux
 from netdryrun.drivers.base import DriverError
 from netdryrun.lab import ExecResult
 from pathlib import Path
+from fakes import UnexpectedCommand, seen
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -30,10 +31,11 @@ class Lab:
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
         self.calls.append(line)
+        seen(line)
         for needle, answer in self.rules:
             if needle in line:
                 return ExecResult(cmd, 0, answer, "")
-        raise AssertionError(f"unexpected command: {line}")
+        raise UnexpectedCommand(line)
 
 
 def lab():

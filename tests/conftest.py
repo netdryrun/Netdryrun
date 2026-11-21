@@ -40,3 +40,16 @@ def _no_import_check_gap(monkeypatch):
     waits RETRY_GAP, so the time limit is still reached). tests/test_frr_import_check.py keeps the real gap."""
     from netdryrun.drivers import frr_import_check
     monkeypatch.setattr(frr_import_check, "SAMPLE_GAP", 0.0)
+
+
+@pytest.fixture(autouse=True)
+def _log_fake_lab_commands():
+    """With NDR_FAKE_COMMAND_LOG set (the release gate sets it, nothing else does), every command a test sends to a
+    lab, fake or real, is logged through tests/fakes.py, so comparing two versions shows a new device read even where
+    the fake answers anything (tests/fakes.py)."""
+    from fakes import logging_commands
+    undo = logging_commands()
+    try:
+        yield
+    finally:
+        undo()

@@ -19,3 +19,4 @@ evidence:
   - tests/fixtures/srl_local_ipv6.json
   - tests/fixtures/junos_local_interfaces_terse.json
   - tests/test_oracle_guards_fp_042_addrload.py
+plant: plant.diff

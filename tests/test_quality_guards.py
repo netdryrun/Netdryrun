@@ -137,6 +137,7 @@ def test_the_tag_check_blocks_stale_results(monkeypatch):
     monkeypatch.setattr(gate, "stale_corpora", lambda root=None: {"v2": "ran on unrecorded verdict code"})
     monkeypatch.setattr(gate, "git", lambda *a: "")
     monkeypatch.setattr(gate, "http_status", lambda url: 404)
+    monkeypatch.setattr(gate, "canonical_tags", lambda url=None: "")
     layer = gate.Layer("static", gate.argparse.Namespace(strict=True, version="0.0.0"))
     gate.candidate_checks(layer, "0.0.0")
     by_id = {c.id: c for c in layer.checks}
@@ -144,10 +145,27 @@ def test_the_tag_check_blocks_stale_results(monkeypatch):
     assert by_id["corpus-v1-tagged-fresh"].status == gate.PASS
 
 
+@pytest.mark.parametrize("listed,status,summary", [
+    ("", "PASS", "unused"),
+    ("z" * 40 + "\trefs/tags/v0.0.0", "FAIL", "exists at origin"),    # released at origin, not fetched here
+    (None, "FAIL", "can't ask"),                                       # origin unreachable: never a pass
+])
+def test_the_tag_must_be_unused_at_origin_too(monkeypatch, listed, status, summary):
+    monkeypatch.setattr(gate, "stale_corpora", lambda root=None: {})
+    monkeypatch.setattr(gate, "git", lambda *a: "")
+    monkeypatch.setattr(gate, "http_status", lambda url: 404)
+    layer = gate.Layer("static", gate.argparse.Namespace(strict=True, version="0.0.0"))
+    gate.candidate_checks(layer, "0.0.0", ls_remote=lambda: listed)
+    c = {c.id: c for c in layer.checks}["tag-unused"]
+    assert c.status == getattr(gate, status) and summary in c.summary, c.summary
+
+
 def test_the_static_layer_names_stale_corpora_as_a_major():
     import inspect
     src = inspect.getsource(gate.layer_static)
-    assert "stale_corpora()" in src and '"corpus-fresh"' in src
+    assert "corpus_fresh_check(layer, stale_corpora())" in src
+    check = inspect.getsource(gate.corpus_fresh_check)
+    assert '"corpus-fresh"' in check and "MAJOR, not stale" in check
 
 
 def _live(monkeypatch, stale, corpus_ok=True):

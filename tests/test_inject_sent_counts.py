@@ -429,7 +429,7 @@ def test_restore_removes_the_injected_config_whatever_goes_wrong_reading():
     lab = Boom([live("before"), live("after")])
     inj = applied(lab, "r1", [R1])
     removed = []
-    inj._apply_config = removed.append
+    inj._apply_config = lambda lines: removed.append(lines)
     inj.restore()
     assert inj.left is None and removed and any(ln.startswith("  no network 100.64.0.0/24") for ln in removed[0])
 

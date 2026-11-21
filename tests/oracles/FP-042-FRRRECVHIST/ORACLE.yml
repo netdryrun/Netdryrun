@@ -15,3 +15,4 @@ evidence:
   - tests/fixtures/frr1041_rt0066_r1_neighbor_routes.json
   - tests/fixtures/frr1041_rt0066_r1_bgp_neighbors.json
   - tests/fixtures/SOURCES.yml
+plant: plant.diff

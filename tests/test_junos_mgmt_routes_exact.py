@@ -13,6 +13,7 @@ from netdryrun.drivers import DriverError, junos
 from netdryrun.drivers.base import NoSuchInstance
 from netdryrun.drivers.junos import JunosDriver
 from netdryrun.lab import ExecResult
+from fakes import UnexpectedCommand, seen
 
 FIX = Path(__file__).parent / "fixtures"
 CMD = "show route table <table>"
@@ -258,8 +259,9 @@ class Lab:
         assert line.startswith(head) and line.endswith(tail), line
         command = line[len(head):-len(tail)]
         self.calls.append(command)
+        seen(command)
         if command not in self.answers:
-            raise AssertionError(f"unexpected command: {command}")
+            raise UnexpectedCommand(command)
         return ExecResult(cmd, 0, self.answers[command], "")
 
 

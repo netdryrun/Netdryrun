@@ -1,0 +1,18 @@
+diff --git a/src/netdryrun/drivers/frr.py b/src/netdryrun/drivers/frr.py
+--- a/src/netdryrun/drivers/frr.py
++++ b/src/netdryrun/drivers/frr.py
+@@ -902,13 +902,7 @@ class FrrDriver(Driver):
+         from .addresses import parse_ip_j_addr
+         vrf = check_vrf_name(vrf)
+         cmd = ["ip", "-j", "addr"] + ([] if vrf == "default" else ["show", "vrf", vrf])
+-        out = parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+-        if vrf != "default":
+-            # `show vrf X` lists the interfaces enslaved to X, not the VRF device itself; an address on it (the usual
+-            # VRF loopback, `ip addr add A dev X`) is answered by the node too (RT-0053)
+-            dev = ["ip", "-j", "addr", "show", "dev", vrf]
+-            out += parse_ip_j_addr(self._exec(dev, []), skip_enslaved=False, command=" ".join(dev))
+-        return out
++        return parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+ 
+     def ping(self, target: str, source: str | None, count: int, vrf: str = "default") -> Observation:
+         vrf = check_vrf_name(vrf)

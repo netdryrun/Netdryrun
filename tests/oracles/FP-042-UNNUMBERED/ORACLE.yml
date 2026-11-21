@@ -16,3 +16,6 @@ evidence:
   - tests/fixtures/frr1021u_spine01_show_bgp_neighbors_json.txt
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_unnumbered.py
+plant: none
+plant_why: >-
+  Fixed in b1b433519a before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 2 of 6 reversed hunks that still apply break the build instead of the verdict: the plant needs a port by hand

@@ -24,3 +24,5 @@ evidence:
   - tests/fixtures/frr1041_rpgr_peer_restarted.conf
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_frrgrstale.py
+plant: plant.diff
+ported_from: 723a2674a60a43db1b69fc25fc67f849f9b9d56c
