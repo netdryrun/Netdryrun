@@ -1143,14 +1143,20 @@ def test_eos_routes_rules():
     # `show ip route` answers with the longest match, so a covering route there is skipped; `show ip bgp` answers
     # exactly the prefix asked (cEOS 4.36.3M, probed 2026-11-02), so an entry for another one is unexpected
     static = eos_routes(**{pfx: {"routeType": "static"}, "10.0.0.0/8": {"routeType": "eBGP"}})
-    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}})
+    # the node's own path of a `network` statement names its source route (live, ceos4363m_advagg_network_ip_bgp.json)
+    own = eos_path("", routeDetail={"redistributionProtocol": "Static"})
+    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [own]}})
     assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True)]   # own path; covering route skipped
-    other = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}, "10.1.0.0/24": {"bgpRoutePaths": [eos_path()]}})
+    # an own path that is neither the aggregate (localAgg) nor redistributed is unexpected (re-check of the
+    # FP-043-EOSAGG follow-up): never read as the static's `network` route
+    with pytest.raises(DriverError, match="redistributionProtocol"):
+        eos.parse_routes(static, eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path("")]}}), pfx)
+    other = eos_bgp(entries={pfx: {"bgpRoutePaths": [own]}, "10.1.0.0/24": {"bgpRoutePaths": [eos_path()]}})
     with pytest.raises(DriverError) as e:
         eos.parse_routes(static, other, pfx)
     assert str(e.value) == ("unexpected output from `show ip bgp <prefix> | json`: an entry for 10.1.0.0/24 in the "
                             "answer for 10.1.0.0/16")
-    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [eos_path(""), eos_path()]}})
+    learned = eos_bgp(entries={pfx: {"bgpRoutePaths": [own, eos_path()]}})
     assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True), Route(pfx, "bgp", False)]
     installed = eos_routes(**{pfx: {"routeType": "eBGP"}})
     assert eos.parse_routes(installed, learned, pfx) == [Route(pfx, "bgp", True)]

@@ -331,26 +331,47 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
 _parse_routes_three_reads = parse_routes
 
 
+def _redistributed(p: dict) -> bool:
+    """A path the node originates from another route (`network` statement, redistribution): EOS names that route's
+    protocol in routeDetail.redistributionProtocol ("Static", "Connected"; live, cEOS 4.36.3M,
+    ceos4363m_advagg_network_ip_bgp.json, eos_bgp_paths_local.txt). The node's own aggregate has no such field
+    (ceos4363m_advagg_aostatic_ip_bgp.json). Missing, empty or not a string: not shown to be redistributed."""
+    detail = p.get("routeDetail")
+    proto = detail.get("redistributionProtocol") if isinstance(detail, dict) else None
+    return isinstance(proto, str) and bool(proto.strip())
+
+
 @parser(ROUTE_CMD)
 def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default",
                  rib_text: str | None = None) -> list[Route]:
-    """parse_routes of the three reads, plus the node's own path that nothing else originates (adversary review of
-    FP-043-EOSAGG, F4). `aggregate-address P advertise-only` puts the aggregate in neither the routing table nor the
-    RIB (live, cEOS 4.36.3M, ceos4363m_advagg_advonly_*): the BGP table's own path is the only read that shows it,
-    and the node sends it to its peers. A `network` statement or redistribution needs a route in the RIB to
-    originate from, so an own path (no peer) with nothing in the routing table and nothing in the RIB has no source
-    but BGP itself: a bgp route, not selected, whatever routeType.localAgg says or whether EOS prints it
-    (FP-042-FRR102: a missing key is never a guess). Only with a RIB answer read: without one an empty routing table
-    doesn't show that no other protocol holds the prefix.
+    """parse_routes of the three reads, with every path of the node's own (no peer) classified (adversary review of
+    FP-043-EOSAGG, F4). An own path is the node's aggregate (routeType.localAgg true: a bgp route, named by the reads
+    above) or originated from another route (routeDetail.redistributionProtocol: a `network` statement or
+    redistribution, whose route is that other protocol's). An own path with neither is refused: on an EOS that
+    doesn't print localAgg it may be an aggregate, `advertise-only` (in neither the routing table nor the RIB, and
+    advertised) or behind a static for the same prefix, and reading it as anything would be a guess (FP-042-FRR102:
+    a missing key needs another source). A redistributed own path with nothing in the routing table and nothing in
+    the RIB has lost the route it came from but is still in the BGP table, so still sent: a bgp route, not
+    selected. Only with a RIB answer read: without one an empty routing table doesn't show that no other protocol
+    holds the prefix.
 
     Limit: a static route whose next hop doesn't resolve is in none of the three reads on EOS (live, cEOS 4.36.3M),
     so `protocol: static present: false` passes while it is configured (compatibility page, EOS limits)."""
     out = _parse_routes_three_reads(route_text, bgp_text, prefix, vrf, rib_text)
-    if out or bgp_text is None or rib_text is None:
+    if bgp_text is None:
         return out
-    for e in _bgp_entries(BGP_CMD, bgp_text, vrf).values():   # every entry is the prefix's: checked above
-        if any(not _peer(p) for p in e["bgpRoutePaths"]):
-            return [Route(prefix, "bgp", False, raw_protocol="own path")]
+    redistributed = False
+    for key, e in _bgp_entries(BGP_CMD, bgp_text, vrf).items():   # every entry is the prefix's: checked above
+        for p in e["bgpRoutePaths"]:
+            if _peer(p) or must(BGP_CMD, p, "routeType").get("localAgg") is True:
+                continue
+            if not _redistributed(p):
+                raise unexpected(BGP_CMD, f"{key}: a path of the node's own with neither routeType.localAgg (its "
+                                          "aggregate) nor routeDetail.redistributionProtocol (a `network` statement "
+                                          f"or redistribution): {str(p)[:150]}")
+            redistributed = True
+    if redistributed and not out and rib_text is not None:
+        return [Route(prefix, "bgp", False, raw_protocol="own path")]
     return out
 
 

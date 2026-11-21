@@ -1,12 +1,14 @@
-"""The node's own BGP path that routeType.localAgg doesn't mark (adversary review of FP-043-EOSAGG, F4).
+"""The node's own BGP paths that routeType.localAgg doesn't mark (adversary review of FP-043-EOSAGG, F4 and its
+re-check).
 
 `aggregate-address P advertise-only` puts the aggregate in neither the routing table nor the RIB (live, cEOS 4.36.3M,
 ceos4363m_advagg_advonly_*): the BGP table's own path is the only read that shows it, and the node sends it to its
 peers. 0.4.3's fix named that path bgp by its localAgg flag, read with a default of false, so on an EOS that doesn't
-print the flag `protocol: bgp present: false` would pass while the aggregate is advertised. A `network` statement or
-redistribution needs a route in the RIB to originate from; an own path with nothing in the routing table or the RIB
-has no source but BGP itself, so it is a bgp route whatever the flag says (FP-042-FRR102: a missing key needs another
-source, never a guess). Answers built here are marked DERIVED: a captured answer with one thing changed.
+print the flag `protocol: bgp present: false` would have passed while the aggregate is advertised. A `network`
+statement's own path names the route it comes from in routeDetail.redistributionProtocol (live,
+ceos4363m_advagg_network_*); the aggregate's has no such field, behind a static too (ceos4363m_advagg_aostatic_*).
+An own path with neither field is refused (FP-042-FRR102: a missing key needs another source, never a guess).
+Answers built here are marked DERIVED: a captured answer with one thing changed.
 """
 from __future__ import annotations
 
@@ -69,12 +71,20 @@ def _verdicts(bgp: str) -> dict[str, bool]:
 EXPECTED = {"bgp-absent": False, "any-absent": False, "bgp-candidate": True, "bgp-active": False}
 
 
-@pytest.mark.parametrize("bgp", [pytest.param(BGP, id="live-localAgg-true"),
-                                 pytest.param(BGP_NOFLAG, id="DERIVED-localAgg-missing"),
+def test_a_live_advertise_only_aggregate_is_a_bgp_route_not_selected():
+    assert [(r.protocol, r.active) for r in parse_routes(ROUTE, BGP, ADV, "default", RIB)] == [("bgp", False)]
+    assert _verdicts(BGP) == EXPECTED
+
+
+@pytest.mark.parametrize("bgp", [pytest.param(BGP_NOFLAG, id="DERIVED-localAgg-missing"),
                                  pytest.param(_flag_false(), id="DERIVED-localAgg-false")])
-def test_an_advertise_only_aggregate_is_a_bgp_route_whatever_the_flag_says(bgp):
-    assert [(r.protocol, r.active) for r in parse_routes(ROUTE, bgp, ADV, "default", RIB)] == [("bgp", False)]
-    assert _verdicts(bgp) == EXPECTED
+def test_an_advertise_only_aggregate_without_the_flag_is_refused(bgp):
+    """No flag and no redistributionProtocol: neither the aggregate nor a `network` statement by any read."""
+    with pytest.raises(DriverError, match="neither routeType.localAgg .* nor routeDetail.redistributionProtocol"):
+        parse_routes(ROUTE, bgp, ADV, "default", RIB)
+    with pytest.raises(DriverError, match="redistributionProtocol"):
+        parse_routes(ROUTE, bgp, ADV)   # without the RIB read too
+    assert set(_verdicts(bgp).values()) == {False}   # an error is never a pass, `present: false` included
 
 
 def test_the_derived_answer_differs_from_the_live_one_only_by_the_flag():
@@ -82,24 +92,6 @@ def test_the_derived_answer_differs_from_the_live_one_only_by_the_flag():
     live = json.loads(BGP)
     del live["vrfs"]["default"]["bgpRouteEntries"][ADV]["bgpRoutePaths"][0]["routeType"]["localAgg"]
     assert live == json.loads(BGP_NOFLAG)
-
-
-def test_without_a_rib_read_an_empty_routing_table_proves_nothing_so_no_route_is_added():
-    """No RIB answer (bgp_paths' VRF check, or an older caller): an empty routing table doesn't show that no other
-    protocol holds the prefix, so the rule needs the RIB (routes() always reads it). A network statement's own path
-    stays out of the route check, as test_router_own_bgp_route_is_not_a_received_route_anywhere requires."""
-    assert parse_routes(ROUTE, BGP_NOFLAG, ADV) == []
-
-
-def test_a_rib_with_another_protocols_candidate_is_the_source_so_no_bgp_route_is_added():
-    """DERIVED: the advertise-only answers with a static candidate in the RIB (not selected): the own path then has
-    a source to originate from, and the static is the only route read."""
-    rib = json.loads(RIB)
-    rib["vrfs"]["default"]["ribRoutesByProtocol"] = json.loads(fx("ceos4363m_rcheos_aggstatic_rib_route.json"))[
-        "vrfs"]["default"]["ribRoutesByProtocol"]
-    rib["vrfs"]["default"]["ribRoutesByProtocol"].pop("bgp")
-    rib = json.dumps(rib).replace("10.66.0.0/16", ADV)
-    assert [r.protocol for r in parse_routes(ROUTE, BGP_NOFLAG, ADV, "default", rib)] == ["static"]
 
 
 def test_an_unflagged_own_path_beside_a_rib_bgp_entry_is_an_error():
@@ -114,18 +106,65 @@ def test_an_unflagged_own_path_beside_a_rib_bgp_entry_is_an_error():
                      fx("ceos4363m_rcheos_aggstatic_rib_route.json"))
 
 
-def test_an_unflagged_own_path_beside_a_route_of_another_protocol_is_not_read_as_bgp():
-    """DERIVED: the aggregate-behind-a-static answers with the RIB's bgp entry gone and localAgg removed: what a
-    `network` statement of a static prefix looks like (the static is in both reads, the own path in the BGP table).
-    The static is the route it originates from, so no bgp route is added. This is the documented limit of the rule:
-    an EOS that prints no localAgg and holds an advertise-only aggregate beside a static for the same prefix reads
-    the same way (live 4.36.3M prints the flag on the aggregate, and the first test reads it)."""
-    rib = json.loads(fx("ceos4363m_rcheos_aggstatic_rib_route.json"))
-    rib["vrfs"]["default"]["ribRoutesByProtocol"].pop("bgp")
-    bgp = json.loads(fx("ceos4363m_rcheos_aggstatic_ip_bgp.json"))
-    for e in bgp["vrfs"]["default"]["bgpRouteEntries"].values():
-        for p in e["bgpRoutePaths"]:
-            p["routeType"].pop("localAgg", None)
-    out = parse_routes(fx("ceos4363m_rcheos_aggstatic_ip_route.json"), json.dumps(bgp), "10.66.0.0/16", "default",
-                       json.dumps(rib))
-    assert [(r.protocol, r.active) for r in out] == [("static", True)]
+# live, cap3 of the re-check: 10.80.0.0/16 advertise-only beside `ip route 10.80.0.0/16 Null0`, and the `network
+# 10.79.1.0/24` route of `ip route 10.79.1.0/24 Null0`
+AO, NET = "10.80.0.0/16", "10.79.1.0/24"
+AO_READS = [fx(f"ceos4363m_advagg_aostatic_{n}.json") for n in ("ip_route", "ip_bgp", "rib_route")]
+NET_READS = [fx(f"ceos4363m_advagg_network_{n}.json") for n in ("ip_route", "ip_bgp", "rib_route")]
+
+
+def _own_path(bgp: str, prefix: str, edit) -> str:
+    data = json.loads(bgp)
+    [path] = data["vrfs"]["default"]["bgpRouteEntries"][prefix]["bgpRoutePaths"]
+    edit(path)
+    return json.dumps(data)
+
+
+def _routes(reads, prefix):
+    route, bgp, rib = reads
+    return [(r.protocol, r.active) for r in parse_routes(route, bgp, prefix, "default", rib)]
+
+
+def test_a_live_advertise_only_aggregate_behind_a_static_is_the_static_and_a_bgp_route():
+    assert "redistributionProtocol" not in AO_READS[1] and '"localAgg": true' in AO_READS[1]
+    assert _routes(AO_READS, AO) == [("static", True), ("bgp", False)]
+
+
+def test_a_live_network_statement_is_its_static_route_only():
+    """The own path names its source (redistributionProtocol "Static"); the RIB answer's bgp entry is the covering
+    10.79.0.0/16 aggregate, not the prefix's."""
+    assert '"redistributionProtocol": "Static"' in NET_READS[1] and "localAgg" not in NET_READS[1]
+    assert _routes(NET_READS, NET) == [("static", True)]
+
+
+def test_an_advertise_only_aggregate_behind_a_static_without_the_flag_is_refused_not_read_as_a_network_route():
+    """DERIVED: the live 10.80.0.0/16 answers with localAgg removed. They read exactly like a `network` statement
+    of the static except for redistributionProtocol, so the missing field is refused, never read as the static
+    alone (which would pass `protocol: bgp present: false` while the aggregate is advertised)."""
+    bgp = _own_path(AO_READS[1], AO, lambda p: p["routeType"].pop("localAgg"))
+    with pytest.raises(DriverError, match="redistributionProtocol"):
+        parse_routes(AO_READS[0], bgp, AO, "default", AO_READS[2])
+
+
+@pytest.mark.parametrize("edit", [pytest.param(lambda p: p["routeDetail"].pop("redistributionProtocol"), id="missing"),
+                                  pytest.param(lambda p: p["routeDetail"].update(redistributionProtocol=""), id="empty"),
+                                  pytest.param(lambda p: p["routeDetail"].update(redistributionProtocol=None), id="null"),
+                                  pytest.param(lambda p: p.pop("routeDetail"), id="no-routeDetail")])
+def test_a_network_statement_without_its_source_is_refused(edit):
+    """DERIVED: the live 10.79.1.0/24 answers with the source field taken away."""
+    with pytest.raises(DriverError, match="redistributionProtocol"):
+        parse_routes(NET_READS[0], _own_path(NET_READS[1], NET, edit), NET, "default", NET_READS[2])
+
+
+def test_a_redistributed_own_path_whose_route_is_gone_is_still_a_bgp_route():
+    """DERIVED: the live 10.79.1.0/24 BGP answer with the static gone from the routing table and the RIB (a change
+    between the reads, or a route withdrawn while BGP still holds the path): the path is in the BGP table and sent,
+    so it is a bgp route, not selected. Without a RIB read an empty routing table proves nothing, and nothing is
+    added (test_router_own_bgp_route_is_not_a_received_route_anywhere)."""
+    route = json.loads(NET_READS[0])
+    route["vrfs"]["default"]["routes"] = {}
+    rib = json.loads(NET_READS[2])
+    rib["vrfs"]["default"]["ribRoutesByProtocol"].pop("staticConfig")
+    assert [(r.protocol, r.active) for r in parse_routes(json.dumps(route), NET_READS[1], NET, "default",
+                                                         json.dumps(rib))] == [("bgp", False)]
+    assert parse_routes(json.dumps(route), NET_READS[1], NET) == []

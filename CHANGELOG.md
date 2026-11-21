@@ -67,10 +67,12 @@
   - A RIB `bgp` entry that the BGP table doesn't show as the node's own aggregate or as a path from a neighbor, an
     unmapped aggregate route type, or a `localAgg` flag that isn't a boolean, makes the check an error.
   - An `aggregate-address ... advertise-only` aggregate is in neither the routing table nor the RIB (live), only in
-    the BGP table, and it is advertised. A path of the node's own in the BGP table is `bgp` (not selected) whenever
-    neither the routing table nor the RIB holds any route for the prefix, whether or not EOS marks it `localAgg`: a
-    `network` statement needs a route there to originate from, and an EOS that doesn't print the flag must not make
-    the aggregate read as absent.
+    the BGP table, and it is advertised; behind a static for the same prefix it is the static plus that BGP path
+    (live). Every path of the node's own in the BGP table must say what it is: `localAgg` marks the aggregate (a
+    `bgp` route), and a `network` statement or redistribution names its source route in `redistributionProtocol`
+    (live). A path of the node's own with neither makes the check an error, so an EOS that doesn't print `localAgg`
+    can't make the aggregate read as absent or as a `network` route. A `network` path whose source route is in
+    neither the routing table nor the RIB is still sent, so it is `bgp`, not selected.
   - **Stricter on replay:** a 0.4.2 baseline with `route ... protocol: bgp present: false` on the node's own
     aggregate prefix now fails, where 0.4.2 passed it. The aggregate is a BGP route the node holds and sends:
     record the baseline again, or change the check to `present: true`.

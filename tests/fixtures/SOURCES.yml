@@ -802,3 +802,19 @@
     the startup config of ceos1 in lab ndr-advagg (adversary review of FP-043-EOSAGG, 2026-11-21): the aggregate
     variants it probed (advertise-only, as-set summary-only, attribute-map, match-map, behind a static)
   added: ndr/fix-eos-agg-v3
+- files: [ceos4363m_advagg_aostatic_ip_route.json, ceos4363m_advagg_aostatic_rib_route.json,
+          ceos4363m_advagg_aostatic_ip_bgp.json, ceos4363m_advagg_network_ip_route.json,
+          ceos4363m_advagg_network_rib_route.json, ceos4363m_advagg_network_ip_bgp.json]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos:4.36.3M) ceos1 of lab ndr-advagg (containerlab, the laptop's WSL Ubuntu-ndr, with FRR
+    10.4.1 up1 as its eBGP peer), 2026-11-21 19:16 UTC (2026-11-22 02:16 Thailand time), the re-check of the
+    FP-043-EOSAGG review follow-up (session adv-eos-agg, its cap3). ceos1 runs ceos4363m_advagg_ceos1.cfg. Each file
+    is the stdout of `docker exec clab-ndr-advagg-ceos1 Cli -p 15 -c "<command>"` for vrf default: aostatic is
+    10.80.0.0/16, `aggregate-address 10.80.0.0/16 advertise-only` beside `ip route 10.80.0.0/16 Null0` (show ip route:
+    the static; show rib route ip: the static only; show ip bgp: the node's own path, localAgg true, no
+    redistributionProtocol); network is 10.79.1.0/24, `network 10.79.1.0/24` of `ip route 10.79.1.0/24 Null0` (show ip
+    route: the static; show rib route ip: the static, plus the covering 10.79.0.0/16 aggregate's bgp entry; show ip
+    bgp: the node's own path, no localAgg, routeDetail.redistributionProtocol "Static"). Copied unchanged for the
+    follow-up that refuses an own path with neither field
+  added: ndr/fix-eos-agg-v3

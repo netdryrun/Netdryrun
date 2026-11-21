@@ -1,0 +1,49 @@
+{
+    "vrfs": {
+        "default": {
+            "ribRoutesByProtocol": {
+                "staticConfig": {
+                    "ribRoutes": {
+                        "10.79.1.0/24": {
+                            "bestRoute": true,
+                            "preference": 1,
+                            "metric": 0,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795288561,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": true,
+                                    "ipNextHop": {
+                                        "interface": "Null0"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "bgp": {
+                    "ribRoutes": {
+                        "10.79.0.0/16": {
+                            "bestRoute": false,
+                            "preference": 200,
+                            "metric": 0,
+                            "metricType": "MED",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795288563
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

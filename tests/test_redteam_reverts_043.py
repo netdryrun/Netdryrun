@@ -5,6 +5,7 @@ so tests/test_redteam.py (which asserts it doesn't) catches the revert; without 
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from netdryrun.drivers.base import DriverError
 from test_redteam import _run_driver_case
 
 CORPUS = Path(__file__).parent / "redteam"
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _case(stem: str) -> dict:
@@ -79,3 +81,47 @@ def test_a_case_without_an_answer_for_a_read_fails_instead_of_counting_as_caught
     case["outputs"] = [o for o in case["outputs"] if o["needle"] != "show rib route"]
     with pytest.raises(pytest.fail.Exception, match="no answer for .*show rib route"):
         _run_driver_case(case)
+
+
+# RT-0016's second answer set (re-check of v3): the case above now catches the leak through the RIB's losing bgp
+# entry, so a revert that only drops the BGP table's "learned, not installed" route survives it. Here the RIB
+# doesn't list the leak, as for a leaked default whose next hop doesn't resolve (in the BGP table, marked not valid;
+# not captured live for BGP: an unresolved static is in no EOS read, the F6 limit). The driver counts a received
+# path, valid or not, as present (test_eos_invalid_received_path_counts_as_present), so only the BGP-table read can
+# catch the leak.
+def _rt0016_bgp_table_only() -> dict:
+    """DERIVED from RT-0016: the RIB answer without its bgp entry, and eos_leak_bgp.txt's path marked valid false
+    and inactive (nothing else changed)."""
+    case = _case("RT-0016-eos-leak-received-not-selected")
+    outputs = []
+    for o in case["outputs"]:
+        if o["needle"] == "show rib route":
+            rib = json.loads(o["output"])
+            del rib["vrfs"]["default"]["ribRoutesByProtocol"]["bgp"]
+            o = {"needle": o["needle"], "output": json.dumps(rib)}
+        elif o["needle"] == "show ip bgp":
+            bgp = json.loads((FIXTURES / o["fixture"]).read_text(encoding="utf-8"))
+            for e in bgp["vrfs"]["default"]["bgpRouteEntries"].values():
+                for p in e["bgpRoutePaths"]:
+                    p["routeType"].update(valid=False, active=False)
+            o = {"needle": o["needle"], "output": json.dumps(bgp)}
+        outputs.append(o)
+    return {**case, "id": "RT-0016 (BGP table only)", "outputs": outputs}
+
+
+def _no_learned_route(monkeypatch):
+    """RT-0016's own rule taken out: a path from a neighbor is never "present, not selected" from the BGP table."""
+    monkeypatch.setattr(eos, "_learned", lambda p: False)
+
+
+def test_rt0016_bgp_table_only_answers_fail_the_case_for_its_own_reason():
+    case = _rt0016_bgp_table_only()
+    assert "bgp" not in json.dumps([o for o in case["outputs"] if o["needle"] == "show rib route"])
+    r = _run_driver_case(case)
+    assert r is not None and r.passed is False and "unexpectedly present via bgp" in r.detail, r and r.detail
+
+
+def test_rt0016_bgp_table_only_answers_catch_the_dropped_learned_route(monkeypatch):
+    _no_learned_route(monkeypatch)
+    r = _run_driver_case(_rt0016_bgp_table_only())
+    assert r is not None and r.passed is True, r and r.detail
