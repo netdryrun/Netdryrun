@@ -28,8 +28,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import release_gate  # noqa: E402
 
-STRIPPED = ("PYTHONPATH", "NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS")
-CONFTEST = "from import_guard import pytest_configure  # noqa: F401\n"
+STRIPPED = ("PYTHONPATH", "NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS", "PYTHONPYCACHEPREFIX")
+CONFTEST = "from import_guard import pytest_configure, pytest_sessionfinish  # noqa: F401\n"
 
 
 def make_checkout(tmp_path, *, src="link", test="def test_ok():\n    assert True\n") -> Path:
@@ -277,8 +277,8 @@ def test_the_container_layer_installs_a_real_package_and_tells_the_guard():
     assert len(pip) == 1 and "'.[dev]'" in pip[0] and " -e " not in pip[0], pip      # what pip builds, not the source folder
     assert pip[0].startswith("cd /w && "), pip                                         # the copy, not the read-only mount
     run = [ln for ln in lines if "-m pytest" in ln]
-    assert run == ["PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 "
-                   "python -m pytest -q -p no:cacheprovider -rs"], run
+    assert run == ["PYTHONPYCACHEPREFIX=$(mktemp -d) PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof "
+                   "NDR_TEST_INSTALLED=1 python -m pytest -q -p no:cacheprovider -rs"], run   # pip's .pyc files are not read
     i = lines.index(run[0])
     assert lines[lines.index(pip[0]) + 1:i] == ["python --version", "rm -f /tmp/ndr-guard-proof"]   # nothing between
     assert len(lines) == i + 2 and lines[i + 1].startswith("grep -q ") and '"installed"' in lines[i + 1]   # the proof
@@ -338,7 +338,7 @@ def test_a_declared_src_may_be_a_symlink(tmp_path):
 
 
 # ---- the header and the proof file -------------------------------------------------------------------------------------
-HEADER_CONFTEST = "from import_guard import pytest_configure, pytest_report_header  # noqa: F401\n"
+HEADER_CONFTEST = "from import_guard import pytest_configure, pytest_report_header, pytest_sessionfinish  # noqa: F401\n"
 
 
 def test_the_header_names_the_mode_and_the_source(tmp_path):
@@ -604,3 +604,197 @@ def test_the_unit_layer_fails_a_run_without_the_right_proof_even_if_pytest_exite
     check, _ = _unit_layer(monkeypatch, tmp_path, proof)
     assert check.status == release_gate.FAIL, check
     assert "import guard" in check.summary
+
+
+# ---- round 4: files that are not .py, the session-finish check, stale proofs, bytecode, the conftest tolerance --------
+def tiny_checkout(tmp_path, test, *, extra_src=()):
+    """A checkout with a two-module netdryrun (small, so planting a file in it is cheap), the real guard."""
+    tree = make_checkout(tmp_path, src="empty", test=test)
+    pkg = tree / "src" / "netdryrun"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "checks.py").write_text("VALUE = 1\n", encoding="utf-8")
+    for rel, data in extra_src:
+        f = pkg / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(data)
+    return tree
+
+
+@pytest.mark.parametrize("planted", [("checks.cpython-310-x86_64-linux-gnu.so", b"\x7fELF"), ("checks.pyc", b"\x00"),
+                                     ("data.json", b"{}"), ("sub/helper.so", b"\x7fELF")])
+@pytest.mark.parametrize("mode", ["default", "declared"])
+def test_a_file_that_is_not_py_in_the_verified_src_aborts_before_any_test_runs(tmp_path, planted, mode):
+    """The compiled module is not loaded when the guard checks (only the package is), and python prefers it to the .py
+    beside it: the guard has to look at the files, not only at what is loaded."""
+    tree = tiny_checkout(tmp_path, "import netdryrun.checks\n\ndef test_ok():\n    assert netdryrun.checks.VALUE == 1\n",
+                         extra_src=[planted])
+    extra = {"NDR_TEST_SRC": tree / "src"} if mode == "declared" else {}
+    p = run_pytest(tree, pythonpath=tree / "src", **extra)
+    aborted(p, "not .py", planted[0].split("/")[-1])
+
+
+def test_bytecode_caches_in_the_verified_src_are_fine(tmp_path):
+    tree = tiny_checkout(tmp_path, "def test_ok():\n    assert True\n", extra_src=[("__pycache__/checks.cpython-310.pyc", b"\x00")])
+    p = run_pytest(tree, pythonpath=tree / "src")
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+
+
+def test_a_module_imported_during_the_session_from_elsewhere_fails_the_session_and_leaves_no_proof(tmp_path):
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / "late.py").write_text("x = 1\n", encoding="utf-8")
+    probe = ("import sys, types\n\ndef test_a_module_arrives_late():\n"
+             "    m = types.ModuleType('netdryrun.late')\n"
+             f"    m.__file__ = {str(elsewhere / 'late.py')!r}\n"
+             "    sys.modules['netdryrun.late'] = m\n")
+    tree, proof = tiny_checkout(tmp_path, probe), tmp_path / "proof.json"
+    p = run_pytest(tree, pythonpath=tree / "src", NDR_GUARD_PROOF=proof)
+    assert p.returncode == 4, out(p)
+    assert "1 passed" in p.stdout and "netdryrun.late" in p.stderr, out(p)         # the test ran; the session still fails
+    assert not proof.exists()
+
+
+def test_a_clean_session_writes_the_proof_only_at_the_end(tmp_path):
+    proof = tmp_path / "proof.json"
+    probe = f"import os\n\ndef test_no_proof_yet():\n    assert not os.path.exists({str(proof)!r})\n"
+    tree = tiny_checkout(tmp_path, probe)
+    p = run_pytest(tree, pythonpath=tree / "src", NDR_GUARD_PROOF=proof)
+    assert p.returncode == 0 and proof.is_file(), out(p)
+    assert json.loads(proof.read_text(encoding="utf-8"))["mode"] == "default"
+
+
+def test_the_session_finish_check_is_skipped_when_the_guard_did_not_run():
+    class Cfg:
+        pass
+
+    class Session:
+        config = Cfg()
+        exitstatus = 0
+    s = Session()
+    import_guard.pytest_sessionfinish(s, 0)
+    assert s.exitstatus == 0
+
+
+# ---- non-.py files in installed mode, compared by content (G7) --------------------------------------------------------
+def test_a_data_file_that_differs_in_content_is_caught_in_installed_mode(tmp_path):
+    tests_dir = tmp_path / "checkout" / "tests"
+    tests_dir.mkdir(parents=True)
+    own = tmp_path / "checkout" / "src" / "netdryrun"
+    site = tmp_path / "site" / "netdryrun"
+    for d, data in ((own, "1"), (site, "2")):
+        d.mkdir(parents=True)
+        (d / "__init__.py").write_text("", encoding="utf-8")
+        (d / "table.json").write_text(data, encoding="utf-8")
+    mods = {"netdryrun": mod(site / "__init__.py")}
+    problem, _ = import_problem(mods, tests_dir, {"NDR_TEST_INSTALLED": "1"})
+    assert problem and "table.json" in problem and "different" in problem
+    (site / "table.json").write_text("1", encoding="utf-8")
+    assert import_problem(mods, tests_dir, {"NDR_TEST_INSTALLED": "1"})[0] is None
+
+
+# ---- a planted .pyc in the installed package (the container script's empty bytecode cache) ----------------------------
+def _poison_pyc(pkg: Path, monkeypatch) -> None:
+    import importlib.util
+    from importlib import _bootstrap_external as be
+    monkeypatch.setattr(sys, "pycache_prefix", None)      # this session's own prefix (the container's) is not the target's
+    src = pkg / "checks.py"
+    st = src.stat()
+    code = compile(src.read_text(encoding="utf-8") + "\nPOISON = 1\n", str(src), "exec")
+    pyc = Path(importlib.util.cache_from_source(str(src)))
+    pyc.parent.mkdir(exist_ok=True)
+    pyc.write_bytes(be._code_to_timestamp_pyc(code, int(st.st_mtime), st.st_size))
+
+
+def test_a_planted_pyc_runs_in_place_of_the_compared_source_unless_the_bytecode_cache_is_empty(tmp_path, monkeypatch):
+    """The bytes of every file but __pycache__ are compared, so a .pyc with the source's mtime and size gets through the
+    guard; PYTHONPYCACHEPREFIX (set by the container script) makes python ignore it."""
+    site = installed_copy(tmp_path)
+    _poison_pyc(site / "netdryrun", monkeypatch)
+    probe = "import netdryrun.checks as c\n\ndef test_poison():\n    assert hasattr(c, 'POISON') is {}\n"
+    tree = make_checkout(tmp_path / "a", test=probe.format("True"))
+    p = run_pytest(tree, pythonpath=site, NDR_TEST_INSTALLED="1")
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)            # the attack is real without the prefix
+    empty = tmp_path / "empty-cache"
+    empty.mkdir()
+    tree = make_checkout(tmp_path / "b", test=probe.format("False"))
+    p = run_pytest(tree, pythonpath=site, NDR_TEST_INSTALLED="1", PYTHONPYCACHEPREFIX=empty)
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+
+
+# ---- a stale proof must not stand in for a run (R1, F1) ----------------------------------------------------------------
+def test_the_release_gate_deletes_a_proof_left_from_an_earlier_run(monkeypatch, tmp_path):
+    (tmp_path / "guard-proof-3.11.json").write_text(
+        json.dumps({"mode": "default", "source": str(ROOT / "src")}), encoding="utf-8")
+    check, _ = _unit_layer(monkeypatch, tmp_path, None)          # this run writes none (the guard did not run)
+    assert check.status == release_gate.FAIL, check
+
+
+def test_the_fastfix_gate_deletes_a_proof_left_from_an_earlier_run(tmp_path):
+    gate = _load_fastfix()
+    tree = make_checkout(tmp_path)
+    (tree / "tests" / "conftest.py").write_text("", encoding="utf-8")                    # the guard is never loaded
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "guard-proof-junit-0.json").write_text(
+        json.dumps({"mode": "default", "source": str(tree / "src")}), encoding="utf-8")
+    with pytest.raises(gate.GateError, match="left no proof"):
+        gate.run_pytest(tree, ["tests/test_ok.py"], sys.executable, work)
+
+
+# ---- the mutation layer's environment (R7) -----------------------------------------------------------------------------
+def test_the_mutation_layer_runs_mutmut_with_a_scrubbed_environment(monkeypatch, tmp_path):
+    import argparse
+    seen = []
+
+    def fake_run(cmd, **kw):
+        cmd = [str(c) for c in cmd]
+        if "run" in cmd and "mutmut" in " ".join(cmd):
+            seen.append(kw.get("env"))
+            return release_gate.Proc(1, "failed to collect stats", 0.0)
+        return release_gate.Proc(0, "mutmut 3.8", 0.0)
+
+    monkeypatch.setattr(release_gate, "run", fake_run)
+    monkeypatch.setattr(release_gate, "ROOT", tmp_path)
+    for k in ("NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS"):
+        monkeypatch.setenv(k, "x")
+    args = argparse.Namespace(strict=False, version="x", modules=["checks"], mutation_timeout=5, jobs=1,
+                              pin_accepted=False)
+    release_gate.layer_mutation(args)
+    assert len(seen) == 1 and seen[0] is not None
+    assert not {"NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS"} & set(seen[0])
+
+
+# ---- the conftest's tolerance of an old release (T1, T2) -----------------------------------------------------------------
+import conftest as ct  # noqa: E402  (tests/conftest.py)
+
+
+def _raising(exc):
+    def f(name, *a, **k):
+        raise exc
+    return f
+
+
+def test_a_release_without_mgmt_is_tolerated_and_nothing_else_is(monkeypatch):
+    monkeypatch.setattr(ct.importlib, "import_module", _raising(ModuleNotFoundError("no mgmt", name="netdryrun.mgmt")))
+    assert ct.load_mgmt() is None
+    for exc in (ModuleNotFoundError("x", name="yaml_missing"), ImportError("cannot import name"),
+                ImportError("x", name="netdryrun"), ValueError("boom"), SyntaxError("bad")):
+        monkeypatch.setattr(ct.importlib, "import_module", _raising(exc))
+        with pytest.raises(type(exc)):
+            ct.load_mgmt()
+
+
+def test_the_real_mgmt_gets_no_readiness_wait():
+    from netdryrun import mgmt
+    assert ct.load_mgmt() is mgmt and mgmt.READY_BUDGET == 0.0
+
+
+def test_a_renamed_ready_budget_fails_instead_of_being_skipped(monkeypatch):
+    ns = types.SimpleNamespace()
+    with pytest.raises(AttributeError):
+        ct.disable_ready_wait(monkeypatch, load=lambda: ns)
+    ns.READY_BUDGET = 5.0
+    ct.disable_ready_wait(monkeypatch, load=lambda: ns)
+    assert ns.READY_BUDGET == 0.0
+    ct.disable_ready_wait(monkeypatch, load=lambda: None)          # an old release: nothing to disable

@@ -1438,7 +1438,9 @@ CONTAINER_SCRIPT = (
     "cd /w && pip install -q --disable-pip-version-check --root-user-action=ignore '.[dev]'\n"
     "python --version\n"
     "rm -f /tmp/ndr-guard-proof\n"
-    "PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 python -m pytest -q -p no:cacheprovider -rs\n"
+    # an empty bytecode cache: a .pyc planted in the installed package's __pycache__ (with the source's mtime and size)
+    # would run in place of the .py the guard compared
+    "PYTHONPYCACHEPREFIX=$(mktemp -d) PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 python -m pytest -q -p no:cacheprovider -rs\n"
     "grep -q '\"mode\": \"installed\"' /tmp/ndr-guard-proof\n")
 
 

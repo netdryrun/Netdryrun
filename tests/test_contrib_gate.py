@@ -109,7 +109,7 @@ def test_a_test_that_fails_on_the_old_code_passes_the_gate(repo):
 # The real import guard (tests/import_guard.py) in the synthetic repo, so the gate runs in the shape it has in this repo:
 # this PR's tests (the checkout's) against the base branch's code, which the guard must be told to expect.
 GUARD = {"tests/import_guard.py": (ROOT / "tests" / "import_guard.py").read_text(encoding="utf-8"),
-         "tests/conftest.py": "from import_guard import pytest_configure, pytest_report_header  # noqa: F401\n"}
+         "tests/conftest.py": "from import_guard import pytest_configure, pytest_report_header, pytest_sessionfinish  # noqa: F401\n"}
 FIXED = "def established(state):\n    return state.lower() == 'established'\n"
 
 
@@ -432,3 +432,14 @@ def test_a_tree_without_the_guard_needs_no_proof(tmp_path):
     (tree / "src" / "netdryrun" / "__init__.py").write_text("", encoding="utf-8")
     (tree / "tests" / "test_ok.py").write_text("def test_ok():\n    assert True\n", encoding="utf-8")
     assert gate._pytest(tree, tree / "src", ["tests/test_ok.py"]).returncode == 0
+
+
+@needs_git
+def test_fails_on_revert_refuses_a_pr_whose_tests_no_longer_load_the_guard(repo):
+    """The base has the guard; the PR's checkout empties conftest.py, so nothing aborts and nothing is proven."""
+    base = commit(repo, {**PKG, **GUARD}, "base")
+    commit(repo, {"tests/conftest.py": "", "src/netdryrun/drivers/x.py": FIXED,
+                  "tests/test_x.py": "from netdryrun.drivers.x import established\n\n"
+                                     "def test_it():\n    assert established('established')\n"}, "fix")
+    with pytest.raises(SystemExit, match="left no proof"):
+        gate.fails_on_revert(base)

@@ -17,15 +17,18 @@ tested ("ndr-import-guard: mode=... source=..."). The expected source is one of:
                              <checkout>/src/netdryrun, with none missing and none extra, and it must not be the
                              checkout's own src (an `-e` install would be). Only the exact value "1" counts.
 
-Every loaded `netdryrun` module is checked, not only the package, and must be a .py file inside the verified tree (a
-.so or .pyc next to a module is refused). After a pass in the first two modes this puts the verified src first on
-PYTHONPATH, so a child `python -m netdryrun` runs the same code instead of whatever the shared venv's editable install
-points at.
+Every loaded `netdryrun` module is checked, not only the package, and must be a .py file inside the verified tree.
+At configure time only the modules imported so far are loaded (the package), so in the first two modes any file under
+the verified netdryrun/ that is not a .py file (a .so, a .pyc, a data file; __pycache__ excepted) is refused too, and in
+installed mode every file is compared byte for byte. The loaded modules are checked again when the session finishes,
+which covers what the tests imported: a failure there makes the session exit 4 and no proof is written. After a pass
+in the first two modes this puts the verified src first on PYTHONPATH, so a child `python -m netdryrun` runs the same
+code instead of whatever the shared venv's editable install points at.
 
-Proof for the gates: when NDR_GUARD_PROOF=<file> is set, a passing guard writes {"mode", "source"} there (created
-exclusively, so a nested pytest cannot overwrite it) and drops the variable. A gate that runs pytest on a tree with this
-guard requires the file: `--noconftest`, `PYTEST_ADDOPTS=--noconftest` and `--confcutdir` skip conftest.py, and then
-nothing aborts and nothing is written.
+Proof for the gates: when NDR_GUARD_PROOF=<file> is set, a guard that passed at configure AND at session finish writes
+{"mode", "source"} there (created exclusively, so a nested pytest cannot overwrite it); the variable is dropped from the
+environment at configure. A gate that runs pytest on a tree with this guard requires the file: `--noconftest`,
+`PYTEST_ADDOPTS=--noconftest` and `--confcutdir` skip conftest.py, and then nothing aborts and nothing is written.
 
 Known limits: it checks the interpreter that runs pytest. A child started with `-I` or `-E`, with a stripped
 environment, or by a test that rebuilds `sys.modules`, is not covered; neither is a session that never loads this
@@ -53,6 +56,13 @@ def _files(pkg: Path) -> dict[str, bytes]:
     """Every file of the package except bytecode caches: a .so or a data file counts."""
     return {p.relative_to(pkg).as_posix(): p.read_bytes() for p in sorted(pkg.rglob("*"))
             if p.is_file() and "__pycache__" not in p.relative_to(pkg).parts}
+
+
+def _not_py(pkg: Path) -> list[str]:
+    """Files under the package that python could load in place of, or beside, a .py module or that the tests do not
+    cover: anything but .py (a .so, a .pyc, a data file), bytecode caches excepted."""
+    return [p.relative_to(pkg).as_posix() for p in sorted(pkg.rglob("*"))
+            if p.is_file() and p.suffix != ".py" and "__pycache__" not in p.relative_to(pkg).parts]
 
 
 def import_problem(modules, tests_dir: Path, env) -> tuple[str | None, Path | None, str | None]:
@@ -108,6 +118,10 @@ def import_problem(modules, tests_dir: Path, env) -> tuple[str | None, Path | No
         return (f"netdryrun is imported from {actual}, not from {want} ({how}); {n} is at {f}. Another clone's editable "
                 f"install or a PYTHONPATH entry is shadowing it, so these tests would not test this code. Put "
                 f"<checkout>/src first on PYTHONPATH, or declare the source you mean with {SRC_ENV}=<dir>."), None, None
+    odd = _not_py(want) if want.is_dir() else []
+    if odd:
+        return (f"{want} holds files that are not .py ({odd[:3]}): a compiled or planted module would load instead of "
+                f"the source it sits beside"), None, None
     return None, src, mode
 
 
@@ -127,23 +141,40 @@ def write_proof(path: str, mode: str, source: str) -> None:
         json.dump({"mode": mode, "source": source}, f)
 
 
-def pytest_configure(config):
-    problem, src, mode = None, None, None
+def _verify() -> tuple[str | None, Path | None, str | None]:
     try:
         import netdryrun  # noqa: F401
-        problem, src, mode = import_problem(sys.modules, Path(__file__).parent, os.environ)
+        return import_problem(sys.modules, Path(__file__).parent, os.environ)
     except BaseException as e:   # fail closed: an import that raises or exits, a path that cannot be read
-        problem = f"the import guard could not verify where netdryrun comes from ({type(e).__name__}: {e})"
+        return f"the import guard could not verify where netdryrun comes from ({type(e).__name__}: {e})", None, None
+
+
+def pytest_configure(config):
+    problem, src, mode = _verify()
     if problem:
         pytest.exit(problem, returncode=EXIT_CODE)
     where = str(src) if src is not None else str(Path(sys.modules["netdryrun"].__file__).resolve().parent)
     if src is not None:
         os.environ["PYTHONPATH"] = children_use(src, os.environ)
-    proof = os.environ.pop(PROOF_ENV, None)
-    if proof:
-        write_proof(proof, mode, where)
+    config.ndr_import_guard_proof = os.environ.pop(PROOF_ENV, None)
     config.ndr_import_guard_ran = True
     config.ndr_import_guard = (mode, where)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """The tests import more of netdryrun than the package: check again what is loaded now, and write the proof only if
+    it still all comes from the verified source."""
+    config = session.config
+    if not getattr(config, "ndr_import_guard_ran", False):
+        return
+    problem, _, mode = _verify()
+    if problem:
+        sys.stderr.write(f"\nndr-import-guard: {problem}\n")
+        session.exitstatus = EXIT_CODE
+        return
+    proof = getattr(config, "ndr_import_guard_proof", None)
+    if proof:
+        write_proof(proof, config.ndr_import_guard[0], config.ndr_import_guard[1])
 
 
 def pytest_report_header(config):
