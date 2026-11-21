@@ -81,6 +81,14 @@ base other than v0.4.2's commit (so it expires with 0.4.3), when a waiver's comm
 differs, when a line is not a `BLOCKED <that sha>` line or is a flip, an oracle failure or a plant, when a field is
 missing, when any other file sits in `fastfix/historic/`, and when a waived line isn't printed by any judge in the run.
 
+The published v0.4.2 judge names a gate-file flip by its bare path, while the judge after it names it
+`<path>@<blob>`, so no allowlist can satisfy both: the entry one needs is a stale entry to the other. For release 0.4.3
+against v0.4.2's commit only (the change's base and the published release both), the release gate drops two kinds of
+line from v0.4.2's loosening run, the bare flip `gate :: <path>: FAIL -> PASS` and the stale-entry line for
+`<path>@<blob>`, and only for a gate file whose exact `<path>@<blob>` entry, with the candidate's own blob, is in an
+allowlist changed in the change and was allowed by the dominance run on this commit. Every dropped line is listed in
+the check's output, and a run that needed it is a MAJOR to accept, never a PASS. Any other line still blocks.
+
 Known limits (accepted for now):
 - The checks run from the candidate's own `release_gate.py`. A candidate that edits it shows up as a gate-file flip
   (`scripts/release_gate.py@<blob>`) needing an allowlist entry, but only when an honest copy runs the comparison;

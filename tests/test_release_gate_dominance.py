@@ -45,11 +45,15 @@ def answers(**over):
         if cmd[0] == "rev-parse" and cmd[1] == "--verify":
             if cmd[-1] == "HEAD^{commit}":
                 return a.get("rev-parse", HEAD)
+            if cmd[-1].startswith("HEAD:"):                         # a gate file's blob at the candidate
+                return a.get("blobs", {}).get(cmd[-1][len("HEAD:"):])
             assert cmd[-1].startswith("refs/tags/"), cmd           # never a short name another ref could shadow
             return a.get("tag-sha", TAG_SHA) if cmd[-1].endswith("^{commit}") else a.get("tag-object", "o" * 40)
         if cmd[0] == "show":
             if cmd[1] == "HEAD:CHANGELOG.md":
                 return a.get("changelog", CHANGELOG)
+            if cmd[1].startswith("HEAD:fastfix/allow/"):
+                return a.get("allow", {}).get(cmd[1][len("HEAD:"):])
             if cmd[1].startswith(f"HEAD:{gate.HISTORIC_DIR}/"):
                 return a.get("historic", {}).get(cmd[1][len("HEAD:"):])
             if cmd[1].startswith("HEAD:"):
@@ -59,6 +63,8 @@ def answers(**over):
             return "\n".join(a.get("historic", {}))
         if cmd[0] == "rev-list":
             return a.get("rev-list", "")
+        if cmd[0] == "diff":
+            return a.get("diff", "")
         assert cmd[0] != "ls-remote", "origin is asked by URL (canonical_tags), never through the local git"
         return a[cmd[0]]
     git_.ls_remote = lambda: a["ls-remote"]                        # the published repository, asked by URL
@@ -588,3 +594,129 @@ def test_a_broken_judge_run_is_never_waived(tmp_path, monkeypatch):
                       "rev-list": f"{S1}\n{S2}", "patch-ids": {S1: "p" + S1[:39], S2: "p" + S2[:39]}})
     checks = static(tmp_path, git_, fake_runner(CLEAN, {**CODES, "reproduce": 2}, outs=OUTS))
     assert (checks["reproduce-first"].status, checks["reproduce-first"].severity) == (gate.FAIL, gate.BLOCKER)
+
+
+# ---- the gate-naming bridge: the published v0.4.2 judge names a gate flip by bare path, the next judge by
+# <path>@<blob>; for one release against one base, the frozen judge's two gate-naming lines are dropped only for a
+# gate file whose exact entry the dominance run allowed, each one named, and the run is a MAJOR, never a PASS
+
+ALLOW = "fastfix/allow/0.4.3-gate.yml"
+B1, B2 = "a" * 12, "b" * 12
+GATES = {"scripts/fastfix_gate.py": B1, "scripts/release_gate.py": B2}
+
+
+def bare(path):
+    return f"BLOCKED loosening flip with no reviewed allowlist entry: gate :: {path}: FAIL -> PASS"
+
+
+def stale(path, blob, file=ALLOW):
+    return (f"BLOCKED {file}: allows gate :: {path}@{blob} FAIL -> PASS, which is not a flip in this change (stale or "
+            "pre-loaded entries block)")
+
+
+def gate_entry(path, blob):
+    return {"source": "gate", "case": f"{path}@{blob}", "from": "FAIL", "to": "PASS", "evidence": ["r.txt"],
+            "why": "x" * 40, "reviewed_by": "r"}
+
+
+BRIDGE_LINES = [ln for p, b in GATES.items() for ln in (bare(p), stale(p, b))]
+
+
+def dominance_record(allowed_by=ALLOW, candidate=HEAD, flips=None):
+    return {"candidate": candidate, "skipped_at_base": [], "flips": flips if flips is not None else [
+        {"source": "gate", "case": f"{p}@{b}", "from": "FAIL", "to": "PASS", "kind": "gate", "allowed_by": allowed_by}
+        for p, b in GATES.items()]}
+
+
+def bridge_git(entries=None, blobs=None, changed=ALLOW, **over):
+    allow = {"flips": entries if entries is not None else [gate_entry(p, b) for p, b in GATES.items()]}
+    return answers(**{"merge-base": TAG_SHA, "diff": changed, "allow": {ALLOW: json.dumps(allow)},
+                      "blobs": {p: b + "0" * 28 for p, b in (blobs or GATES).items()}, **over})
+
+
+def bridged(tmp_path, monkeypatch, lines=None, flips=None, entries=None, blobs=None, changed=ALLOW,
+            bridge_bases=None, version="1.1.0", dominance_code=0, record_candidate=HEAD, loosening_code=1, **over):
+    monkeypatch.setattr(gate, "NAMING_BRIDGE", bridge_bases if bridge_bases is not None else {"1.1.0": TAG_SHA})
+    out = "\n".join((BRIDGE_LINES if lines is None else lines)
+                    + ["loosening: BLOCKED (2 unexplained flip(s), 2 problem(s))"])
+    record = dominance_record(candidate=record_candidate, flips=flips)
+    runner = fake_runner(record, {"loosening": loosening_code, "dominance": dominance_code}, outs={"loosening": out})
+    return static(tmp_path, bridge_git(entries, blobs, changed, **over), runner, version=version)
+
+
+def test_the_frozen_judges_gate_naming_lines_are_dropped_by_name_and_the_run_is_a_major(tmp_path, monkeypatch):
+    c = bridged(tmp_path, monkeypatch)["loosening"]
+    assert (c.status, c.severity) == (gate.FAIL, gate.MAJOR), (c.severity, c.summary)
+    assert "gate-naming bridge" in c.summary and "accept in accepted.json" in c.summary, c.summary
+    for ln in BRIDGE_LINES:
+        assert f"dropped by the gate-naming bridge: {ln}" in c.output
+
+
+def test_the_gate_lists_of_both_gates_agree():
+    spec = importlib.util.spec_from_file_location("ff_for_bridge", SCRIPT)
+    ff = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = ff
+    spec.loader.exec_module(ff)
+    assert gate.GATE_FILES == ff.GATE_FILES and gate.ALLOW_DIR == ff.ALLOW_DIR
+
+
+VERDICT = "BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: tests.t::test_x: FAIL -> PASS"
+SURF = "scripts/surfaces_agree.py"
+NO_SESSION = f"BLOCKED {S2[:10]} has no Session: trailer, so the allowlist's independence can't be shown"
+STALE_VERDICT = (f"BLOCKED {ALLOW}: allows fixtures :: tests.t::test_x FAIL -> PASS, which is not a flip in this "
+                 "change (stale or pre-loaded entries block)")
+
+
+@pytest.mark.parametrize("name,kw", [
+    # a bare gate flip with no <path>@<blob> entry that dominance allowed (surfaces_agree, not in the allowlist)
+    ("bare-no-entry", {"lines": BRIDGE_LINES + [bare(SURF)]}),
+    # an entry whose blob is not the candidate's file
+    ("blob-differs", {"blobs": {"scripts/fastfix_gate.py": "c" * 12, "scripts/release_gate.py": B2}}),
+    # the stale line names a blob dominance didn't allow
+    ("stale-other-blob", {"lines": BRIDGE_LINES + [stale("scripts/fastfix_gate.py", "d" * 12)]}),
+    # dominance didn't allow the flip (still unexplained there), or saw it under another name
+    ("not-allowed", {"flips": dominance_record(allowed_by=None)["flips"]}),
+    ("bare-at-dominance", {"flips": [{"source": "gate", "case": p, "from": "FAIL", "to": "PASS", "allowed_by": ALLOW}
+                                     for p in GATES]}),
+    # the allowlist at HEAD lacks the exact entry, wasn't changed in this change, or the stale line names another file
+    ("entry-missing", {"entries": [gate_entry("scripts/release_gate.py", B2)]}),
+    ("allowlist-unchanged", {"changed": ""}),
+    ("other-file", {"lines": BRIDGE_LINES + [stale("scripts/fastfix_gate.py", B1, "fastfix/allow/other.yml")]}),
+    # a non-gate (verdict) flip, and any other frozen-judge line
+    ("verdict-flip", {"lines": BRIDGE_LINES + [VERDICT]}),
+    ("other-line", {"lines": BRIDGE_LINES + [NO_SESSION]}),
+    ("stale-verdict-entry", {"lines": BRIDGE_LINES + [STALE_VERDICT]}),
+    # another base, another published release, another version
+    ("other-base", {"merge-base": "c" * 40}),
+    ("published-elsewhere", {"merge-base": "b" * 40, "bridge_bases": {"1.1.0": "b" * 40}}),
+    ("other-version", {"bridge_bases": {"1.0.9": TAG_SHA}}),
+    # a dominance run that broke, or a record from another candidate
+    ("dominance-broken", {"dominance_code": 2}),
+    ("foreign-record", {"record_candidate": "f" * 40}),
+    # the frozen judge itself broke: nothing it printed is dropped
+    ("loosening-broken", {"loosening_code": 2}),
+])
+def test_the_gate_naming_bridge_drops_nothing_it_shouldnt(tmp_path, monkeypatch, name, kw):
+    c = bridged(tmp_path, monkeypatch, **kw)["loosening"]
+    assert (c.status, c.severity) == (gate.FAIL, gate.BLOCKER), (name, c.severity, c.summary)
+
+
+def test_the_bridge_never_touches_reproduce_or_dominance(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "NAMING_BRIDGE", {"1.1.0": TAG_SHA})
+    lines = "\n".join(BRIDGE_LINES)
+    checks = static(tmp_path, bridge_git(), fake_runner(dominance_record(), {"reproduce": 1, "dominance": 1},
+                                                        outs={"reproduce": lines, "dominance": lines}))
+    for id_ in ("reproduce-first", "dominance"):
+        assert (checks[id_].status, checks[id_].severity) == (gate.FAIL, gate.BLOCKER), id_
+
+
+def test_the_bridge_and_a_historic_record_together_are_still_a_major(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "HISTORIC_BASES", {"1.1.0": TAG_SHA})
+    record = {"release": "1.1.0", "base": TAG_SHA, "waivers": [waiver(S2, [NO_SESSION])]}
+    c = bridged(tmp_path, monkeypatch, lines=BRIDGE_LINES + [NO_SESSION], **{
+        "historic": {f"{gate.HISTORIC_DIR}/1.1.0.json": json.dumps(record)}, "rev-list": f"{S2}\n{HEAD}",
+        "patch-ids": {S2: "p" + S2[:39]}})
+    lo = c["loosening"]
+    assert (lo.status, lo.severity) == (gate.FAIL, gate.MAJOR) and "historic record" in lo.summary \
+        and "gate-naming bridge" in lo.summary, lo.summary
+    assert f"waived: {NO_SESSION}" in lo.output and c["historic-record"].status == gate.PASS
