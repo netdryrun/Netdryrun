@@ -1,0 +1,7 @@
+Current BGP import check cache:
+ 203.0.113.0 valid [IGP metric 0], #paths 1
+  Resolved prefix 203.0.113.0/24
+  blackhole
+  Last update: Sat Nov 21 15:14:12 2026
+  Paths:
+    1/1 203.0.113.0/24 VRF default flags 0x18

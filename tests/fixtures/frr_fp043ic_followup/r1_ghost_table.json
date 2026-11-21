@@ -1,0 +1,3 @@
+{
+"ipv4":{"100.64.0.0":{"valid":false,"complete":false,"pathCount":1,"isRegistered":false,"lastUpdate":{"epoch":1795260624,"string":"Sat Nov 21 11:30:24 2026"},"paths":[{"afi":"IPv4","safi":"unicast","prefix":"100.64.0.0/24","vrf":"Unknown","flags":{"igpChanged":false,"damped":false,"history":false,"bestpath":false,"valid":false,"attrChanged":false,"deterministicMedCheck":false,"deterministicMedSelected":false,"stale":false,"removed":false,"counted":false,"multipath":false,"multipathChanged":false,"ribAttributeChanged":false,"nexthopSelf":false,"linkBandwidthChanged":false,"acceptOwn":false}}]}
+},"ipv6":{}}

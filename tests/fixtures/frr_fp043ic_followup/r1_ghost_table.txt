@@ -1,0 +1,6 @@
+Current BGP import check cache:
+ 100.64.0.0 invalid, #paths 1
+  Is not Registered
+  Last update: Sat Nov 21 11:30:24 2026
+  Paths:
+    1/1 100.64.0.0/24 VRF GHOST flags 0x0

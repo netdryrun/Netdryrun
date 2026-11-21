@@ -1,0 +1,5 @@
+lab: c18_topology.clab.yml
+timeout: 60
+checks:
+  - {type: route, node: up1, prefix: 192.0.2.0/24, protocol: bgp, name: "I2 upstream has our aggregate"}
+  - {type: route, node: peer1, prefix: 192.0.2.0/24, protocol: bgp, name: "I2 peer has our aggregate"}

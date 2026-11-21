@@ -1,0 +1,2 @@
+[45|bgpd] sending configuration
+[45|bgpd] done

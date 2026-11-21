@@ -19,6 +19,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from netdryrun.drivers import DriverError, addresses, eos, frr, junos, nxos, routeros_state, srlinux
+from netdryrun.drivers import frr_import_check
 from netdryrun.drivers.routeros_rest import classify_reply
 
 FIX = Path(__file__).parent / "fixtures"
@@ -649,6 +650,20 @@ FAIL_SAFE = [
     # reads a whole boot log: it finds vtysh's error lines or nothing, and never crashes
     ("frr.parse_config_load_errors", frr.parse_config_load_errors,
      ["frr_boot_log_rejected.txt", "frr_boot_log_clean.txt"], lambda r: isinstance(r, list) and all(isinstance(x, str) for x in r)),
+    # the FRR import-check guard (FP-043-FRRIMPORTCHK): anything not a complete, understood answer raises (Unknown is a
+    # DriverError), never "no networks" or "no entries"; every cut of the live answers: test_frr_import_check.py
+    ("frr_import_check.parse_bgpd_config", frr_import_check.parse_bgpd_config, [],
+     lambda r: isinstance(r, list) and all(isinstance(x, frr_import_check.Instance) for x in r)),
+    ("frr_import_check.parse_table_json", lambda t: frr_import_check.parse_table_json(t, "fuzz"), [],
+     lambda r: isinstance(r, list) and all(isinstance(x, frr_import_check.Entry) for x in r)),
+    ("frr_import_check.parse_table_text", lambda t: frr_import_check.parse_table_text(t, "fuzz"), [],
+     lambda r: isinstance(r, list) and all(isinstance(x, frr_import_check.Entry) for x in r)),
+    ("frr_import_check.parse_route_map", lambda t: frr_import_check.parse_route_map(t, "EARLYDENY"),
+     ["frr_fp043ic_followup/rmcap_rm_earlydeny.json"],
+     lambda r: r is None or (isinstance(r, tuple) and len(r) == 2 and type(r[0]) is int and r[0] >= 0
+                             and type(r[1]) is bool)),
+    ("frr_import_check.parse_bgp_vrfs", frr_import_check.parse_bgp_vrfs, ["frr_fp043ic_followup/r1_bgp_vrfs.json"],
+     lambda r: isinstance(r, dict) and all(isinstance(k, str) and type(v) is int and v >= -1 for k, v in r.items())),
 ]
 FS_IDS = [c[0] for c in FAIL_SAFE]
 

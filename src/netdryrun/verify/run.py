@@ -30,6 +30,7 @@ from typing import Callable
 
 from ..config import ConfigError, load_yaml
 from ..drivers import DRIVERS, BetaDriver, DriverError, Undetectable, detect, resolve
+from ..drivers import frr_import_check
 from ..lab import Lab, LabError
 from .converge import Inconclusive, stable_snapshot
 from .engine import VerifyError, baseline_problems, diff, match
@@ -513,8 +514,19 @@ def collect(lab: Lab, nodes: dict[str, str], cmd_timeout: float = 60) -> Snapsho
     return Snapshot(snaps, unobserved_reasons(lab, nodes))
 
 
+def _driver_or_none(name: str, node) -> str | None:
+    """The driver detection gives a node (verify's own FRR nodes all detect as FRR), or None."""
+    try:
+        return detect(node)
+    except DriverError:
+        return None
+
+
 @contextmanager
-def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Callable[[str], None]):
+def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Callable[[str], None],
+             driver_of: Callable[[str, object], str | None] | None = None):
+    """`driver_of`: (name, node) -> driver, the guards file's `nodes.<node>.driver` honored (runner.driver_resolver);
+    without it, detection alone."""
     from ..runner import _ACTIVE, _signals_deferred
 
     lab = Lab(topology)
@@ -536,7 +548,16 @@ def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Calla
             raise LabError(f"lab containers not running: {', '.join(sorted(missing))}")
         for node, cmds in setup.items():
             lab.run_setup(node, cmds, log=log)
+        # Every boot (before, after and both reruns), before the snapshot: every FRR router's `network` statements
+        # registered with zebra, remedied when bgpd applied them before its zebra connection (FP-043-FRRIMPORTCHK);
+        # a router that can't be read, or stays stuck, ends verify with no verdict
+        routers = frr_import_check.candidates(lab, driver_of or _driver_or_none)
+        found = frr_import_check.guard(lab, routers, remedy=True, clock=time.monotonic, sleep=time.sleep, log=log)
+        lab.import_check_gaps = {n: why for n, why in found.items() if why.startswith("not checked")}
         yield lab
+        # and again once the side's evidence is taken (detection only): stuck now, the snapshot can't be trusted
+        frr_import_check.guard(lab, routers, remedy=False, clock=time.monotonic, sleep=time.sleep, log=log,
+                               label="after the snapshot")
     finally:
         with _signals_deferred():
             if started and not keep:
@@ -587,12 +608,21 @@ def expects_bgp(exec_fn, node: str) -> bool:
 
 
 def real_side(*, nodes: dict[str, str], setup: dict, settle: float, timeout: float, keep_after: bool,
-              log: Callable[[str], None]):
+              log: Callable[[str], None], drivers: dict[str, str] | None = None):
     """The default way to get one side's snapshot: deploy, wait for a stable snapshot, run `on_up` (the
-    guards, on the after lab), destroy."""
+    guards, on the after lab), destroy. `drivers`: the guards file's `nodes.<node>.driver` settings."""
+    from ..runner import driver_resolver
+
     def side(label: str, topology: Path, on_up=None):
         t0 = time.monotonic()
-        with deployed(topology, setup, keep_after and label == "after", log) as lab:
+        with deployed(topology, setup, keep_after and label == "after", log,
+                      driver_of=driver_resolver(drivers or {})) as lab:
+            gaps = getattr(lab, "import_check_gaps", None) or {}
+            if gaps:   # no snapshot from a boot whose announcements can't be trusted: the side is INCONCLUSIVE
+                from ..runner import import_check_gap_reason
+                return (Inconclusive(import_check_gap_reason(gaps), [f"{n}: {why}" for n, why in gaps.items()]),
+                        round(time.monotonic() - t0, 1), None)
+
             def exec_fn(node, argv):
                 r = lab.exec(node, argv, timeout=60)
                 return r.rc, r.stdout, r.stderr
@@ -720,7 +750,7 @@ def verify(topology: str, before: str, after: str, intent_path: str, *, guards: 
                 res.warnings.append(f"node {name} is not observed ({why})")
         check_nodes(res.intent, nodes)
         side = side_fn or real_side(nodes=nodes, setup=gcfg.setup if gcfg else {}, settle=settle, timeout=timeout,
-                                    keep_after=keep, log=log)
+                                    keep_after=keep, log=log, drivers=gcfg.drivers if gcfg else {})
 
         snap_b, tb, _ = side("before", before_topo)
         res.timings["before_s"] = tb

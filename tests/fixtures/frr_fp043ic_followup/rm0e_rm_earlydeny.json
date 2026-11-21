@@ -1,0 +1,20 @@
+{"bgpd":{
+  "EARLYDENY":{
+    "invoked":1,
+    "disabledOptimization":false,
+    "processedChange":true,
+    "rules":[
+      {
+        "sequenceNumber":10,
+        "type":"deny",
+        "invoked":1,
+        "cpuTimeMS":0,
+        "matchClauses":[],
+        "setClauses":[],
+        "action":"Exit routemap"
+      }
+    ],
+    "cpuTimeMS":0
+  }
+}
+}

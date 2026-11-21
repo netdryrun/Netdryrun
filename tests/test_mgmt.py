@@ -15,6 +15,7 @@ import pytest
 
 from netdryrun import checks, mgmt, runner
 from netdryrun.config import Check
+from netdryrun.drivers import frr_import_check
 from netdryrun.drivers.frr import FrrDriver
 from netdryrun.lab import ExecResult, Lab, LabError, Node
 from netdryrun.mgmt import ManagementPathError
@@ -407,11 +408,28 @@ def test_eos_unreadable_routes_are_a_run_error():
 # ------------------------------------------------------------------------------------------- the run
 
 def _route_lab(e):
-    """The runner tests' fake lab, with Docker and the capture's routes on every node."""
+    """The runner tests' fake lab, with Docker and the capture's routes on every node. Each read of bgpd's running
+    config (the FRR import check, FP-043-FRRIMPORTCHK) is an event too, so a test can pin it."""
     rl = RouteLab(nodes=list(e.lab.nodes))
     e.lab.docker_inspect, e.lab.exec_root, e.lab.tables = rl.docker_inspect, rl.exec_root, rl.tables
     rl.events = e.lab.events
+    vtysh = e.lab.exec
+
+    def exec_(node, cmd, timeout=60, input=None):
+        if cmd == frr_import_check.BGPD_CONFIG:
+            e.lab.events.append(("bgpd-config", node))
+        return vtysh(node, cmd, timeout, input)
+    e.lab.exec = exec_
     return rl
+
+
+def _import_checked(e, rep):
+    """The run read bgpd's running config of every FRR router (`vtysh -d bgpd -c 'show running-config'`) and found
+    every `network` registered with zebra (the FRR import check, FP-043-FRRIMPORTCHK)."""
+    assert frr_import_check.BGPD_CONFIG == ["vtysh", "-d", "bgpd", "-c", "show running-config"]
+    assert {ev[1] for ev in e.lab.events if ev[0] == "bgpd-config"} == set(e.lab.nodes)
+    assert {n: v.get("import_check") for n, v in rep.environment["nodes"].items()} == \
+        dict.fromkeys(e.lab.nodes, "registered")
 
 
 def test_run_removes_the_route_after_setup_and_before_the_first_check(monkeypatch):
@@ -423,6 +441,10 @@ def test_run_removes_the_route_after_setup_and_before_the_first_check(monkeypatc
     assert kinds.index("setup") < kinds.index("del") < kinds.index("check")
     assert rep.environment["nodes"]["r1"]["management_default"].startswith("removed: default via 172.31.99.1")
     assert any("settling" in x for x in e.logs)
+    # the import check reads every router after setup:, before the first check (FP-043-FRRIMPORTCHK)
+    _import_checked(e, rep)
+    kinds = [ev[0] for ev in e.lab.events if ev[0] in ("setup", "bgpd-config", "check")]
+    assert kinds.index("setup") < kinds.index("bgpd-config") < kinds.index("check")
 
 
 def test_run_ends_with_an_error_when_a_route_out_appears(monkeypatch):
@@ -431,6 +453,7 @@ def test_run_ends_with_an_error_when_a_route_out_appears(monkeypatch):
     e.drivers["r1"].on_call = lambda: rl.tables["r1"].__setitem__(4, FRR_V4_AFTER + "\n10.77.0.0/16 via 172.31.99.1 dev eth0 proto static")
     rep = e.run([route("a")])
     assert rep.status == "error" and "after the positive checks" in rep.error
+    _import_checked(e, rep)
 
 
 # ------------------------------------------------------------------------------------------- Junos (probe only)
@@ -527,6 +550,7 @@ def test_run_refuses_a_routing_node_whose_route_isnt_handled(monkeypatch):
     monkeypatch.setattr(runner, "resolve", lambda node, override=None: "frr")
     rep = e.run([route("a")])
     assert rep.status == "error" and "read with the frr driver" in rep.error
+    _import_checked(e, rep)   # the FRR import check read r1 (and every router) before the refusal
 
 
 # ------------------------------------------------------------------------------------------- images without `ip`
@@ -845,3 +869,4 @@ def test_run_records_a_route_deleted_again(monkeypatch):
     assert "back and removed again: default via 172.31.99.1 dev eth0 (after the positive checks)" in \
         rep.environment["nodes"]["r1"]["management_default"]
     assert any(x.startswith("r1: management default route was back and removed again: ") for x in e.logs)
+    _import_checked(e, rep)
