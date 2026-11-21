@@ -277,7 +277,15 @@ def test_corpus_check_fails_the_88cf6bb_shape(tmp_path):
     """The refresh committed at 765cdbb: case 18 runs with an "error" and no status. corpus-check would have stopped it."""
     row = _row("caught", "caught", "not_proven", "caught", "caught")
     del row["run_details"]
-    ok, lines = gate.corpus_check("v2", _refreshed(tmp_path, row))
+    out = _refreshed(tmp_path, row)
+    # _refreshed merges the row into the committed case, so drop the committed run_details too: otherwise this test
+    # depends on how the committed refresh's runs fell (it passed on the ce79e10 refresh, whose runs match the row)
+    doc = json.loads(out.read_text())
+    for c in doc["cases"]:
+        if c["id"] == CID:
+            c.pop("run_details", None)
+    out.write_text(json.dumps(doc))
+    ok, lines = gate.corpus_check("v2", out)
     assert not ok and any("FAIL nondeterministic exemption" in x for x in lines)
 
 
@@ -728,6 +736,12 @@ def test_audit_f12_a_results_change_between_layers_is_code(monkeypatch):
     msg = gate.code_differs({"static": "b" * 40, "live": "a" * 40})
     assert msg and "corpus/v2/results/results.json" in msg
     calls["diff"] = "releases/0.4.1/GATE.md\ncorpus/v2/AMENDMENTS.md"
+    # 2026-11-13: Markdown is prose-only only when no script or test names it (a gate script reads AMENDMENTS.md)
+    from types import SimpleNamespace
+    named = {"value": True}
+    monkeypatch.setattr(gate, "run", lambda cmd, timeout=60: SimpleNamespace(code=0 if named["value"] else 1, out=""))
+    assert "corpus/v2/AMENDMENTS.md" in gate.code_differs({"static": "b" * 40, "live": "a" * 40})
+    named["value"] = False
     assert gate.code_differs({"static": "b" * 40, "live": "a" * 40}) is None
 
 

@@ -1,0 +1,17 @@
+id: RT-0075
+title: >-
+  route 0.0.0.0/0 protocol bgp active: false passed on Cisco NX-OS (beta driver) after the peer withdrew the default:
+  NX-OS keeps a withdrawn path listed with `pathhistory: "true"` (a dampening history entry) or `pathdeleted: "true"`
+  (a path being deleted), not valid and not best, and the driver read it as a received BGP route the routing table
+  doesn't use ("present via bgp (not selected)"). The FRR form is RT-0070.
+found: "2026-11-14, angle-5 red team on 82fb052 (A-RT-0073 with A-RT-0077); derived from live NX-OS 10.4(8) captures, the FRR twin confirmed live"
+fixed_in: 0.4.2
+kind: pinned
+# The answers are derived in test code from the live captures nxos_bgp_default.txt and nxos_route_default.txt (a
+# derived answer is never a fixture), so the case pins the oracle FP-042-NXOSHIST and the unit tests of the fix, which
+# also cover parse_bgp_paths (bgp_route and record). Affected: the NX-OS beta driver of 0.4.1, its first release.
+tests:
+  - tests/oracles/FP-042-NXOSHIST/test_oracle_fp_042_nxoshist.py::test_active_false_does_not_pass_on_a_history_path
+  - tests/oracles/FP-042-NXOSHIST/test_oracle_fp_042_nxoshist.py::test_active_false_does_not_pass_on_a_deleted_path
+  - tests/test_nxos_history_042.py::test_a_withdrawn_path_is_no_bgp_route
+  - tests/test_nxos_history_042.py::test_a_withdrawn_path_is_no_bgp_path

@@ -1,0 +1,36 @@
+id: RT-0078
+title: >-
+  `link_down` on an interface whose BGP session runs over a VLAN subinterface stacked on it (r1 eth1, session on
+  eth1.100@eth1) watched no session: the sessions over a downed link were found from that interface's own addresses
+  (only its link-local), so the run logged "no BGP session runs over the downed links" and judged at once, and r2
+  behind a containerlab bridge kept r1's route for its 180 s hold time: `route 10.1.0.0/24 protocol bgp` on r2 passed
+  in a lab with no backup path
+found: "2026-11-15, red team 042-GV on the 0.4.2 final candidate (B-RT-0078)"
+fixed_in: 0.4.2
+kind: pinned
+# The reproduction needs a whole scenario on a fake kernel: the oracle FP-042-LINKDOWNSTACKED runs the real Lab,
+# runner._link_sessions and run_scenario on iproute2 and /sys/class/net answers with eth1.100@eth1; the unit tests
+# cover what a fault takes down with an interface (VLAN on VLAN, macvlan, a bond or bridge only once every member
+# goes down), the far end's subinterface name for an unnumbered session, and every unreadable device stopping the
+# scenario (exit 2). Affected: 0.3.1 (the wait for the sessions over the downed links came in) to 0.4.1; 0.2.0 and
+# 0.3.0 waited for no session at all.
+#
+# The same class, left open by the first fix (5f0b7d7) and found by adversary n5d on it: a port of a bridge that keeps
+# another port (r1 eth1 and eth2 in br0, the session address on br0; SONiC's Vlan100@Bridge, whose Bridge vlanmgr's
+# `dummy` member keeps up). The bridge never goes down, so nothing was watched. The oracle FP-042-LINKDOWNBRIDGE and
+# tests/test_scenario_bridge_ports_042.py pin it: Lab.link_tree reads the link kinds (one `ip -d -j link show`), a
+# bridge that keeps another port counts its addresses on the far end and the far end's addresses on the near end, a
+# far end whose addresses can't be read from its kernel (a NOS or VM kind) or that bridges further stops the scenario
+# (exit 2), a bond keeps the all-members rule, a VRF device and a tunnel bound to the downed device never count as
+# down. Affected as above (0.3.1 to 0.4.1, and the 0.4.2 candidates with 5f0b7d7).
+tests:
+  - tests/oracles/FP-042-LINKDOWNSTACKED/test_oracle_fp_042_linkdownstacked.py::test_link_sessions_finds_the_session_on_the_vlan_subinterface
+  - tests/oracles/FP-042-LINKDOWNSTACKED/test_oracle_fp_042_linkdownstacked.py::test_link_down_on_a_vlan_trunk_parent_is_not_judged_before_the_fault
+  - tests/test_scenario_stacked_links_042.py::test_the_scenario_waits_for_the_far_end_and_the_route_check_fails
+  - tests/test_scenario_stacked_links_042.py::test_a_stacked_device_that_cannot_be_read_stops_the_scenario
+  - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py::test_link_sessions_finds_the_session_on_a_bridge_that_keeps_another_port
+  - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py::test_link_down_on_a_bridge_port_is_not_judged_before_the_fault
+  - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py::test_sonic_link_down_on_a_vlan_member_port_is_not_judged_before_the_fault
+  - tests/test_scenario_bridge_ports_042.py::test_the_bridge_scenario_waits_for_the_far_end_and_the_route_check_fails
+  - tests/test_scenario_bridge_ports_042.py::test_sonic_svi_session_is_watched_on_both_ends
+  - tests/test_scenario_bridge_ports_042.py::test_fault_reach

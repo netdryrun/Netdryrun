@@ -1,0 +1,16 @@
+Codes: K - kernel route, C - connected, L - local, S - static,
+       R - RIP, O - OSPF, I - IS-IS, B - BGP, E - EIGRP, N - NHRP,
+       T - Table, v - VNC, V - VNC-Direct, A - Babel, F - PBR,
+       f - OpenFabric, t - Table-Direct,
+       > - selected route, * - FIB route, q - queued, r - rejected, b - backup
+       t - trapped, o - offload failure
+
+IPv4 unicast VRF default:
+K>* 0.0.0.0/0 [0/0] via 172.20.20.1, eth0, weight 1, 00:02:15
+C>* 10.0.12.0/30 is directly connected, eth1, weight 1, 00:02:14
+L>* 10.0.12.1/32 is directly connected, eth1, weight 1, 00:02:14
+B>* 10.80.1.0/24 [20/0] via 10.0.12.2, eth1, label implicit-null, weight 1, 00:02:12
+B>* 10.80.2.0/24 [20/0] via 10.0.12.2, eth1, label implicit-null, weight 1, 00:02:12
+B>* 10.80.3.0/24 [20/0] via 10.0.12.2, eth1, label implicit-null, weight 1, 00:02:12
+C>* 172.20.20.0/24 is directly connected, eth0, weight 1, 00:02:15
+L>* 172.20.20.2/32 is directly connected, eth0, weight 1, 00:02:15

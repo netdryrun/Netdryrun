@@ -20,7 +20,7 @@ from . import __version__
 from .checks import Unready, _evaluate
 from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
 from .drivers import DriverError, Undetectable, detect, for_node, resolve
-from .drivers.base import NoSuchInstance, is_bgp
+from .drivers.base import NAMED_FAMILIES, Driver, NoSuchInstance, cannot_read_ipv6, is_bgp, unicast_unread
 from .lab import Lab, LabError
 
 MAX_ROUTES_PER_NODE = 50
@@ -44,6 +44,9 @@ def prefix_range(count: int) -> dict:
 # change there, so `record` exits 1 (acceptance 0.4.1 on d87aa3e: srl1's read failed, record exited 0, and a must-fail
 # change on srl1 passed the baseline; j1 was still booting and recorded nothing)
 MISSING_NODE = "BASELINE MISSES A NODE"
+# Every marker a gap line can start with: render puts each such line first in the file, and the MCP record_baseline
+# description names each one, since that tool returns the YAML only (oracle FP-042-MCPMISSNODE)
+GAP_MARKERS = ("INCOMPLETE BASELINE", MISSING_NODE)
 NOT_ROUTERS = frozenset({"bridge", "ovs-bridge", "host", "ext-container"})
 
 
@@ -51,9 +54,30 @@ def baseline_gaps(warnings: list[str]) -> list[str]:
     """The warnings that make `record` exit 1: a node missing from the baseline, and every INCOMPLETE BASELINE line
     from a read that failed or a state that couldn't be recorded (code review of the 0.4.1 batch: one session recorded
     on a node kept exit 0 while its prefix counts or routes were left out). The two size caps ("only the first ...")
-    are limits of the format, said in the file, not gaps in what was read."""
+    are limits of the format, said in the file, not gaps in what was read. Only those two lines, exactly as
+    _routes_cap and _links_cap write them, are left out: a substring test let a gap line that quotes the device's
+    words ("only the first ...") drop out, and `record` exited 0 (oracle FP-042-CAPMSG)."""
     return [w for w in warnings
-            if w.startswith(MISSING_NODE) or (w.startswith("INCOMPLETE BASELINE") and "only the first" not in w)]
+            if w.startswith(GAP_MARKERS) and not _is_size_cap(w)]
+
+
+def _routes_cap(where: str, count: int, fam: int) -> str:
+    return (f"INCOMPLETE BASELINE: {where} has {count} BGP routes (IPv{fam}); only the first {MAX_ROUTES_PER_NODE} are "
+            "recorded as checks. A change to any other route goes unnoticed: add checks for the routes that matter")
+
+
+def _links_cap(name: str, count: int) -> str:
+    return (f"INCOMPLETE BASELINE: {name} has {count} link subnets; only the first {MAX_LINK_GUARDS_PER_NODE} are "
+            "guarded. A leak of another one goes unnoticed: add guards for the ones that matter")
+
+
+def _is_size_cap(w: str) -> bool:
+    m = re.fullmatch(r"INCOMPLETE BASELINE: (.+) has (\d+) BGP routes \(IPv([46])\); only the first \d+ are recorded "
+                     r"as checks\. .*", w, re.S)
+    if m and w == _routes_cap(m.group(1), int(m.group(2)), int(m.group(3))):
+        return True
+    m = re.fullmatch(r"INCOMPLETE BASELINE: (.+) has (\d+) link subnets; only the first \d+ are guarded\. .*", w, re.S)
+    return bool(m and w == _links_cap(m.group(1), int(m.group(2))))
 
 
 def _runs_a_router(lab, name: str) -> bool | None:
@@ -75,8 +99,8 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     With `guards` (the default from 0.3.3: a prefix range has room for one leaked default route, so the
     no-default-route guard is what catches it), the standard guard recipes that can be read from the lab: no
     default route via BGP, and no link subnet of the topology via BGP, on every BGP node, except what the node
-    learns via BGP today. Guards are recorded in the default VRF only.
-    Every VRF the node lists is recorded; a check outside the default VRF carries `vrf:`."""
+    learns via BGP today. Every VRF the node lists is recorded, its guards included in every VRF with a BGP instance,
+    sessions or not (each judged on what that VRF learns today); a check outside the default VRF carries `vrf:`."""
     if prefix_mode not in ("range", "exact", "min"):
         raise ValueError(f"prefix_mode must be range, exact or min, got {prefix_mode!r}")
     lab = Lab(topology)
@@ -86,9 +110,12 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
     unknown = sorted(set(drivers) - set(lab.nodes))
     if unknown:
         raise ValueError(f"--driver names nodes not in the topology: {', '.join(unknown)}")
-    link_subnets = _link_subnets(lab, warnings) if guards else []
+    link_local_only: dict[str, list[str]] = {}   # node -> interfaces with link-local addresses only
+    link_subnets = _link_subnets(lab, warnings, link_local_only) if guards else []
+    drvs: dict = {}
     routing: list[str] = []
     no_bgp: set[str] = set()
+    seen: set[str] = set()   # nodes with recorded state: a guard of a VRF without sessions alone is none
     for name, node in lab.nodes.items():
         try:
             resolve(node, drivers[name]) if name in drivers else detect(node)
@@ -114,6 +141,7 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
             continue
         routing.append(name)
         drv = for_node(lab, name, drivers[name]) if name in drivers else for_node(lab, name)
+        drvs[name] = drv
         log(f"recording {name} ({drv.name})")
         if drv.name == "sonic":
             warnings.append(f"{name}: SONiC is configured after boot; add its commands under nodes.{name}.setup "
@@ -122,14 +150,23 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
         try:
             vrfs += [v for v in drv.vrfs().value if v != "default"]
         except DriverError as e:
-            warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
+            if type(drv).vrfs is not Driver.vrfs:
+                # a driver that lists VRFs (FRR, SONiC, Junos, NX-OS, RouterOS) whose read failed: every other VRF
+                # goes unrecorded, no session, route or guard, so it is a gap, never a comment (adversary n4f on
+                # 606d238, B1; the same plain warning since 0.4.0)
+                warnings.append(f"INCOMPLETE BASELINE: {name}: could not list its VRFs ({e}), so only the default VRF "
+                                "is recorded and no other VRF has a session, route or guard: fix the read and record "
+                                "again, or add checks for other VRFs by hand")
+            else:   # a driver that can't list VRFs (EOS, SR Linux): the documented default-VRF-only limit
+                warnings.append(f"{name}: only the default VRF is recorded ({e}); add checks for other VRFs by hand")
         for vrf in vrfs:
             checks += _record_vrf(drv, name, vrf, warnings, include_routes, prefix_mode, attributes,
-                                  link_subnets if guards and vrf == "default" else None, sleep, no_bgp)
+                                  link_subnets if guards else None, sleep, no_bgp, seen)
+    _unnumbered(link_local_only, drvs, warnings)
     for name in routing:
         if name in no_bgp and name in no_bgp_ok:
             continue   # the user said it runs no BGP (--no-bgp): its "no BGP instance" answer is the expected state
-        if not any(c.get("node") == name for c in checks):
+        if name not in seen:
             # "no BGP instance" is also what a NOS answers while its BGP is still starting (FRR before bgpd loads its
             # config, cEOS "BGP inactive", SONiC before setup): never a reason to leave a node out silently (code
             # review of the batch, M1)
@@ -142,8 +179,10 @@ def record(topology: Path, include_routes: bool = True, prefix_mode: str = "rang
 
 
 def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: bool, prefix_mode: str,
-                attributes: bool, link_subnets: list[str] | None, sleep, no_bgp: set | None = None) -> list[dict]:
-    """One VRF of one node: its sessions, routes and (with `link_subnets`) guards."""
+                attributes: bool, link_subnets: list[str] | None, sleep, no_bgp: set | None = None,
+                seen: set | None = None) -> list[dict]:
+    """One VRF of one node: its sessions, routes and (with `link_subnets`) guards. `seen` gets the node's name when
+    this VRF records state of the node (a session, a route, or the guards of a VRF with sessions)."""
     at = {} if vrf == "default" else {"vrf": vrf}
     where = name if vrf == "default" else f"{name} (vrf {vrf})"
     try:
@@ -160,11 +199,13 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
         return []
     checks = _session_checks(name, neighbors, prefix_mode, warnings, vrf, drv)
     bgp_now: dict[int, set[str]] = {}   # every BGP route the node has today, received selected or not
+    no_v6 = False   # the node answered that IPv6 routes can't be read here at all (not a read that failed)
     if include_routes or link_subnets is not None:
         for fam in (4, 6):
             try:
                 every = [r for r in drv.all_routes(vrf=vrf, family=fam).value if is_bgp(r.protocol)]
             except DriverError as e:
+                no_v6 = no_v6 or (fam == 6 and cannot_read_ipv6(e))
                 # without include_routes only the guards needed them, and _guards says what that leaves out
                 warnings.append(f"INCOMPLETE BASELINE: {where}: could not read IPv{fam} routes ({e}), so none is "
                                 "recorded as a check: fix the read and record again, or add checks by hand"
@@ -175,9 +216,7 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
                 continue
             routes = [r for r in every if r.active]
             if len(routes) > MAX_ROUTES_PER_NODE:
-                warnings.append(f"INCOMPLETE BASELINE: {where} has {len(routes)} BGP routes (IPv{fam}); only the "
-                                f"first {MAX_ROUTES_PER_NODE} are recorded as checks. A change to any other route "
-                                "goes unnoticed: add checks for the routes that matter")
+                warnings.append(_routes_cap(where, len(routes), fam))
             for r in sorted(routes, key=lambda r: r.prefix)[:MAX_ROUTES_PER_NODE]:
                 checks.append({"type": "route", "node": name, "prefix": r.prefix, "protocol": "bgp", **at})
                 if attributes:
@@ -190,8 +229,17 @@ def _record_vrf(drv, name: str, vrf: str, warnings: list[str], include_routes: b
                         continue
                     if c:
                         checks.append(c)
-    if link_subnets is not None and neighbors:
-        checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep)
+    state = bool(checks) or bool(neighbors)
+    if link_subnets is not None:
+        # every VRF with a BGP instance gets the guards, with its `vrf:` (angle-5 red team on 82fb052, RT-0076): 0.4.1
+        # wrote them in the default VRF only, so a default route leaked into a customer VRF passed every recorded
+        # check. Sessions or not (adversary n4c on cf460d6, B1): a VRF fed only by `import vrf` (a shared-services or
+        # route-leak VRF), or a default VRF whose sessions are all in VRFs, takes a leaked default as quietly
+        checks += _guards(name, drv, neighbors, bgp_now, link_subnets, warnings, sleep=sleep, vrf=vrf, no_v6=no_v6)
+    if seen is not None and state and checks:
+        # the guards of a VRF without sessions are no state read from the node: a node with nothing else (BGP still
+        # starting, or a driver that answers an empty table for no BGP) stays a node the baseline misses
+        seen.add(name)
     return checks
 
 
@@ -206,7 +254,13 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
         try:
             ipaddress.ip_address(addr)
         except ValueError:
-            warnings.append(f"{where}: BGP neighbor {addr!r} is not an IP address (unnumbered?); not recorded")
+            # an interface-named session (FRR `neighbor eth1 interface`: BGP unnumbered). netdryrun.yml can't name it
+            # yet, so no check can be written; leaving it out silently let a session drop or a prefix flood pass the
+            # baseline (red team RT-0066, oracle FP-042-UNNSESS): the gap is named and `record` exits 1
+            warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr!r} is an interface-named (unnumbered) "
+                            "session, which a check can't name yet, so neither its bgp_session nor its bgp_prefixes "
+                            "is recorded: a session that drops or a peer that sends more prefixes over it isn't "
+                            "caught by this baseline")
             continue
         if n.ambiguous:
             warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} is {len(n.ambiguous)} sessions "
@@ -223,10 +277,29 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
         for afi, count in sorted(n.prefixes.items()):
             if afi in unsupported:
                 continue
+            if afi not in NAMED_FAMILIES:
+                # a family a check can't name (FRR ipv4LabeledUnicast): a check on it is refused by `run`, and its
+                # counter isn't what the node installs (RT-0080, FP-042-FRRLU), so it is a gap
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} carries {afi}, a family no check "
+                                "can count; not recorded: a change to the routes it carries isn't caught by this "
+                                "baseline: add route checks by hand")
+                continue
+            hidden = unicast_unread(afi, n.prefixes)
+            if hidden:
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the session also carries "
+                                f"{', '.join(hidden)}, whose routes the node can install as {afi} routes without "
+                                f"counting them, so the {afi} prefix count can't be read; not recorded: add route "
+                                "checks by hand")
+                continue
+            if afi in n.prefixes_unread and afi not in n.prefixes_upto:
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count {count} "
+                                f"isn't settled ({n.prefixes_unread[afi]}); not recorded: record again once it "
+                                "settles, or add a check by hand")
+                continue
             if afi in n.prefixes_upto:
+                range_why = n.prefixes_upto_why.get(afi) or "hidden routes Netdryrun can't classify"
                 warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count is "
-                                f"{count} to {n.prefixes_upto[afi]} (hidden routes Netdryrun can't classify); "
-                                "not recorded: add a check by hand")
+                                f"{count} to {n.prefixes_upto[afi]} ({range_why}); not recorded: add a check by hand")
                 continue
             c = {"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, **at}
             if prefix_mode == "exact":
@@ -242,8 +315,17 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
             # an eBGP session that doesn't carry a unicast family today: exact 0 there, so the day that family is
             # added and sends a prefix the check fails (acceptance round B-3; a family a session doesn't carry
             # satisfies only exact: 0, see checks._bgp_prefixes)
+            # A labeled-unicast family of that IP version (or a family no check names) is no "doesn't carry": the
+            # node installs its routes as unicast routes, so exact 0 would be false the day it is recorded (RT-0080)
             for afi in ("ipv4-unicast", "ipv6-unicast"):
                 if afi not in n.prefixes and afi not in unsupported:
+                    hidden = unicast_unread(afi, n.prefixes)
+                    if hidden:
+                        warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the session lists "
+                                        f"no {afi} family but carries {', '.join(hidden)}, whose routes the node can "
+                                        f"install as {afi} routes, so `exact: 0` on {afi} isn't recorded: add route "
+                                        "checks by hand")
+                        continue
                     checks.append({"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, "exact": 0, **at})
     return checks
 
@@ -277,60 +359,100 @@ def _closed_world(c: dict, drv, where: str, addr: str, afi: str, count: int, war
                     "with present: false for prefixes that must never arrive")
 
 
-def _link_subnets(lab, warnings: list[str]) -> list[str]:
+def _link_subnets(lab, warnings: list[str], link_local_only: dict[str, list[str]] | None = None) -> list[str]:
     """The subnets of the topology's links, from the addresses on their interfaces. An interface whose
-    addresses can't be read is a warning: its subnet gets no guard, and the file says so."""
+    addresses can't be read is a warning: its subnet gets no guard, and the file says so. An interface with
+    link-local addresses only goes to `link_local_only` (when given), for _unnumbered to decide once the node's BGP
+    sessions are known; without it, it is a gap here."""
     nets: set = set()
     for end in (e for link in lab.links for e in link):
         node = lab.nodes.get(end[0])
         if node is None or node.kind in ("bridge", "ovs-bridge"):   # a host or bridge endpoint: nothing to read
             continue
         try:
-            found = {a.network for a in lab.interface_addresses(*end) if not a.ip.is_link_local}
+            # only IPv6 fe80::/10 makes a link "unnumbered": an IPv4 169.254.0.0/16 address is a numbered subnet
+            # with a guard like any other (oracle FP-042-UNNSESS)
+            found = {a.network for a in lab.interface_addresses(*end) if not (a.version == 6 and a.ip.is_link_local)}
         except LabError as e:
             warnings.append(f"INCOMPLETE BASELINE: {end[0]}: could not read the addresses of {end[1]} ({e}); its "
                             "link subnet has no guard")
             continue
         if not found:
             # Unnumbered, or the NOS keeps the address elsewhere (SONiC on EthernetN, SR Linux on e1-Y.0 in
-            # srbase-default): either way no guard can be written from it, so say so
-            warnings.append(f"INCOMPLETE BASELINE: {end[0]}: no global address on {end[1]} where Netdryrun reads "
-                            "it (unnumbered, or kept on another interface by the NOS); its link subnet has no guard")
+            # srbase-default): no guard can be written from it. Only a BGP session over the interface itself says
+            # which (_unnumbered); without that, say so
+            if link_local_only is not None:
+                link_local_only.setdefault(end[0], []).append(end[1])
+            else:
+                warnings.append(_no_global(end[0], end[1]))
         nets |= found
     return [str(n) for n in sorted(nets, key=lambda n: (n.version, n))]
 
 
+def _no_global(node: str, interface: str, why: str = "") -> str:
+    return (f"INCOMPLETE BASELINE: {node}: no global address on {interface} where Netdryrun reads it (unnumbered, or "
+            f"kept on another interface by the NOS{why}); its link subnet has no guard")
+
+
+def _unnumbered(link_local_only: dict[str, list[str]], drvs: dict, warnings: list[str]) -> None:
+    """An interface with link-local addresses only is BGP unnumbered, with no subnet to guard, only when the node
+    has a BGP session over that interface itself (FRR keys it by the interface name: `neighbor eth1 interface`).
+    Anything else stays a gap: no driver, BGP sessions that can't be read, or no session over the interface (the
+    address may be kept elsewhere: SONiC on EthernetN, SR Linux on e1-Y.0). Oracle FP-042-UNNUMBERED."""
+    for node, interfaces in link_local_only.items():
+        drv = drvs.get(node)
+        if drv is None:
+            warnings += [_no_global(node, i, "; no driver to read its BGP sessions") for i in interfaces]
+            continue
+        try:
+            sessions = set(drv.bgp_neighbors("default").value)   # keyed by address, or interface name (FRR)
+        except DriverError as e:
+            warnings += [_no_global(node, i, f"; its BGP sessions couldn't be read: {e}") for i in interfaces]
+            continue
+        for i in interfaces:
+            if i in sessions:
+                warnings.append(f"{node}: {i} is BGP unnumbered (link-local addresses only, a BGP session over {i}): "
+                                "no link subnet on it to guard")
+            else:
+                warnings.append(_no_global(node, i))
+
+
 def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_subnets: list[str],
-            warnings: list[str], sleep=time.sleep) -> list[dict]:
-    """The standard guards for one BGP node: checks that must hold on what the network does today. Each one
+            warnings: list[str], sleep=time.sleep, vrf: str = "default", no_v6: bool = False) -> list[dict]:
+    """The standard guards for one VRF of a BGP node (`neighbors` and `bgp_now` are that VRF's): checks that must
+    hold on what the network does today, each with the VRF's `vrf:` outside the default VRF. Each one
     is evaluated on the recording lab with the real check before it is written: a guard the baseline itself
     fails (a default received from upstream but not selected, which the routing table doesn't list) is left
     out, and a warning, a comment in the file, says why. A sample that errors is no answer: it is retried, and
-    a guard that never gets a real answer is left out with an INCOMPLETE BASELINE line."""
+    a guard that never gets a real answer is left out with an INCOMPLETE BASELINE line. `no_v6`: the IPv6 route read
+    answered that the node can't have its IPv6 routes read in this VRF (cannot_read_ipv6), not that the read failed."""
     v6 = (any(":" in a for a in neighbors) or bool(bgp_now.get(6))   # IPv6 neighbors or routes, or IPv6
           or any("ipv6" in afi for n in neighbors.values() for afi in n.prefixes))   # carried over IPv4
-    # an eBGP session that doesn't carry IPv6 today still gets the ::/0 guard, so a family added later can't leak a
-    # default unseen (acceptance round B-3), wherever IPv6 routes can be read
-    ebgp = any(n.state == "established" and n.external is not False for n in neighbors.values())
+    at = {} if vrf == "default" else {"vrf": vrf}
+    where = name if vrf == "default" else f"{name} (vrf {vrf})"   # every message names the VRF
     out = []
     for fam, default in ((4, "0.0.0.0/0"), (6, "::/0")):
-        if fam == 6 and not v6 and not (ebgp and 6 in bgp_now):
+        # ::/0 is guarded wherever the VRF's IPv6 routes can be read, IPv6 BGP today or not: a family added later
+        # (acceptance round B-3, eBGP) or an `import vrf` that brings IPv6 into a VRF without IPv6 or eBGP sessions
+        # (adversary n4f on 606d238, C1) can't leak a default unseen; where they can't be read and nothing says the
+        # VRF carries IPv6, nothing is claimed. "Can't be read" is the driver's answer (RouterOS's not-supported, cEOS
+        # with IPv6 routing off), never one read that failed: a timeout on a driver that reads IPv6 is the gap line
+        # below, so --no-routes can't drop ::/0 and the IPv6 link guards with exit 0 (adversary n4i on 57eb8ca, B1)
+        if fam == 6 and not v6 and no_v6:
             continue
         if fam not in bgp_now:   # its routes couldn't be read: a guard against what it has today can't be built
-            warnings.append(f"INCOMPLETE BASELINE: {name}: IPv{fam} routes could not be read, so no IPv{fam} "
+            warnings.append(f"INCOMPLETE BASELINE: {where}: IPv{fam} routes could not be read, so no IPv{fam} "
                             "guards (no default route, no link subnet) were recorded for it")
             continue
         if default in bgp_now[fam]:
-            warnings.append(f"{name}: learns {default} via BGP today; no 'no default route' guard recorded")
+            warnings.append(f"{where}: learns {default} via BGP today; no 'no default route' guard recorded")
             continue
-        out.append({"type": "route", "node": name, "prefix": default, "protocol": "bgp", "present": False})
+        out.append({"type": "route", "node": name, "prefix": default, "protocol": "bgp", "present": False, **at})
     # a subnet the node learns via BGP today, or whose family couldn't be read, gets no guard
     links = [n for n in link_subnets if n not in bgp_now.get(6 if ":" in n else 4, {n})]
     if len(links) > MAX_LINK_GUARDS_PER_NODE:
-        warnings.append(f"INCOMPLETE BASELINE: {name} has {len(links)} link subnets; only the first "
-                        f"{MAX_LINK_GUARDS_PER_NODE} are guarded. A leak of another one goes unnoticed: add guards "
-                        "for the ones that matter")
-    out += [{"type": "route", "node": name, "prefix": n, "protocol": "bgp", "present": False}
+        warnings.append(_links_cap(where, len(links)))
+    out += [{"type": "route", "node": name, "prefix": n, "protocol": "bgp", "present": False, **at}
             for n in links[:MAX_LINK_GUARDS_PER_NODE]]
     kept = []
     for g in out:
@@ -345,10 +467,10 @@ def _guards(name: str, drv, neighbors: dict, bgp_now: dict[int, set[str]], link_
         if ok:
             kept.append(g)
         elif isinstance(detail, Unready):
-            warnings.append(f"INCOMPLETE BASELINE: {name}: the guard against {g['prefix']} via BGP could not be "
+            warnings.append(f"INCOMPLETE BASELINE: {where}: the guard against {g['prefix']} via BGP could not be "
                             f"evaluated on the lab ({why}); not recorded: add it by hand once the node answers")
         else:
-            warnings.append(f"{name}: no guard against {g['prefix']} via BGP: the baseline lab already fails it ({why})")
+            warnings.append(f"{where}: no guard against {g['prefix']} via BGP: the baseline lab already fails it ({why})")
     return kept
 
 
@@ -367,11 +489,26 @@ def _attribute_check(drv, node: str, prefix: str, vrf: str = "default", warnings
             warnings.append(f"{node}: {prefix}: no bgp_route check: its best path is the node's own route, which isn't "
                             "a BGP path (check it on a neighbor)")
         return None
-    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf})}
-    if best.as_path is not None:
-        c["as_path"] = best.as_path
+    if best.as_path is None:
+        # The driver couldn't read the best path's AS path (SR Linux prints no as-path container for an empty path
+        # and the driver can't tell that from a missing one: RT-S01). A check without as_path would pass once the
+        # path changes, so none is written, and the gap is named: never a quieter baseline
+        if warnings is not None:
+            where = node if vrf == "default" else f"{node} vrf {vrf}"
+            warnings.append(f"INCOMPLETE BASELINE: {where}: {prefix}: no bgp_route check: the best path's AS path "
+                            "couldn't be read (on SR Linux, an empty AS path prints no as-path container), so a "
+                            "check of its attributes would pass a changed path. Until 0.4.3, check that path's AS "
+                            "path on the peer that sends it")
+        return None
+    c: dict = {"type": "bgp_route", "node": node, "prefix": prefix, **({} if vrf == "default" else {"vrf": vrf}),
+               "as_path": best.as_path}
     if best.local_pref is not None:
         c["local_pref"] = best.local_pref
+    elif warnings is not None:
+        # never silently dropped (RT-S01): named, but not a gap, since a path without LOCAL_PREF (eBGP-learned on some
+        # drivers) is a real answer
+        warnings.append(f"{node}: {prefix}: local_pref is not recorded: the driver read no local preference on the "
+                        "best path")
     carried = best.all_communities()
     aliases = getattr(drv, "community_aliases", None)
     if carried and aliases is not None and aliases().value:
@@ -410,7 +547,7 @@ def render(data: dict, warnings: list[str]) -> str:
     # one comment line per warning: device output in a warning must not add YAML (a setup command) to the file
     head += [f"# warning: {' '.join(str(w).split())}" for w in warnings]
     incomplete = [" ".join(str(w).split()) for w in warnings
-                  if str(w).startswith(("INCOMPLETE BASELINE", MISSING_NODE))]
+                  if str(w).startswith(GAP_MARKERS)]
     if incomplete:   # first in the file, so nobody commits a partial baseline without seeing it
         head = [f"# {w}" for w in incomplete] + ["#"] + head
     return "\n".join(head) + "\n" + yaml.safe_dump(data, sort_keys=False, width=200)

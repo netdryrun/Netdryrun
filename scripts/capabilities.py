@@ -77,7 +77,7 @@ LIMITS = [
     "verify_change: IPv4 and IPv6 unicast only; sessions carrying other address families, and unnumbered BGP "
     "neighbors, are refused (exit 2).",
     "Settle and hold stretch to the longest BGP advertisement interval a driver reads, except on Arista EOS, where "
-    "a configured out-delay is not read yet: raise --settle and --hold above it there (planned for 0.4.1).",
+    "a configured out-delay is not read yet: raise --settle and --hold above it there (planned for 0.4.3).",
     "A route that crosses several peers with long advertisement intervals can take one interval per hop, and "
     "update-delay is not read: raise --settle for those.",
     "A lab whose state never settles gives INCONCLUSIVE (exit 3): this says nothing about the change; retry at "
@@ -86,8 +86,9 @@ LIMITS = [
     "verify_change does not observe nodes passed as unobserved (hosts), IGP adjacency state (OSPF and IS-IS routes are "
     "compared, their adjacencies are not), or the data plane beyond a standing guard's ping checks: an undeclared "
     "change there does not fail.",
-    "record covers every active VRF on FRR and SONiC; on Nokia SR Linux and Arista EOS it records the default VRF "
-    "only, with a warning.",
+    "record covers every active VRF on FRR and SONiC, and on the Junos, NX-OS and RouterOS beta drivers (a VRF list "
+    "that can't be read there, or on FRR and SONiC isn't zebra's VRF list, is an INCOMPLETE BASELINE line); on Nokia SR "
+    "Linux and Arista EOS it records the default VRF only, with a warning.",
 ]
 
 EXIT_CODES = {

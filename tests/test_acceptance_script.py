@@ -61,6 +61,60 @@ def test_traps_are_filled_in():
     assert not any("{" in str(v) for t in traps for v in t.values())
 
 
+@pytest.mark.parametrize("drv", sorted(MATRIX["drivers"]))
+def test_a_trap_the_driver_refuses_is_listed_as_a_run_error(drv):
+    """A route trap naming a protocol the driver never reports is refused before deploy (RT-0024), exit 2: the matrix
+    must list it in run_error_traps, with a run_error_match the product's message meets. Found live on routeros in
+    the 0.4.2 acceptance on 11dabd2, the first run that got past record to the traps."""
+    import re
+    from netdryrun.drivers import DriverError, check_supported
+    mf = MATRIX["drivers"][drv]["mustfail"]
+    lab = SimpleNamespace(nodes={"r1": {}})
+    for t in acc.traps_for(SimpleNamespace(matrix=MATRIX), "r1", "10.0.0.2", "192.168.20.0/24"):
+        if t["type"] != "route" or "protocol" not in t:
+            continue
+        check = SimpleNamespace(name=t["name"], type="route", node="r1", params={k: v for k, v in t.items()
+                                                                              if k not in ("name", "type", "node")})
+        try:
+            check_supported(lab, check, override=drv)
+        except DriverError as e:
+            assert t["name"] in mf.get("run_error_traps", []), f"{drv} refuses {t['name']} but the matrix expects exit 1"
+            want = mf.get("run_error_match", {}).get(t["name"], "routing-instance")
+            assert re.search(want, str(e)), (want, str(e))
+        else:
+            assert t["name"] not in mf.get("run_error_traps", []) or t.get("vrf"), (drv, t["name"])
+
+
+def test_record_again_is_only_for_the_listed_refusal():
+    """routeros's record_again matches the refusal acceptance saw on 0816220 (CHR prefix-count still 0) and nothing
+    else, so a gap that isn't that refusal is never answered by recording again. When the refusal comes back after
+    the second record (ecf627e), it is a known gap only because hand checks stand in its place: a route check that
+    the legit route is there and one that the leaked prefix is not."""
+    import re
+    seen = ("INCOMPLETE BASELINE: r1: could not read BGP state (BGP session frr1-1 (10.0.100.2) received 0 prefixes "
+            "(prefix-count) but the table lists 2 of its paths), so no session, prefix count or BGP route of r1 is "
+            "recorded: fix the read and record again, or add checks by hand")
+    for name, d in MATRIX["drivers"].items():
+        again = [re.compile(k["match"]) for k in d["mustfail"].get("record_again", [])]
+        assert all(k.get("why") for k in d["mustfail"].get("record_again", [])), name
+        assert bool(again) == (name == "routeros"), name
+        for a in again:
+            assert a.search(seen)
+            assert not a.search(seen.replace("received 0 prefixes", "received 3 prefixes"))
+            assert not any(a.search(k["match"]) for k in d["mustfail"].get("known_gaps", []))
+        known = [re.compile(k["match"]) for k in d["mustfail"].get("known_gaps", [])]
+        if any(k.search(seen) for k in known):   # the refusal as a known gap: only after a second record, with hand checks
+            assert again, name
+            assert not any(k.search(seen.replace("received 0 prefixes", "received 3 prefixes")) for k in known), name
+            hand = d["mustfail"].get("hand_checks", [])
+            node = d["mustfail"]["node"]
+            assert any(c["type"] == "route" and c["node"] == node and c["prefix"] == "192.168.20.0/24"
+                       and c.get("present", True) for c in hand), name
+            assert any(c["type"] == "route" and c["node"] == node and c["prefix"] == "203.0.113.128/25"
+                       and c.get("present") is False for c in hand), name
+            assert all(c.get("why") for c in hand), name
+
+
 def test_big30_and_brownfield_generators(tmp_path):
     acc.make_big30(tmp_path / "b30", MATRIX["integrator"]["big30"], ROOT)
     topo = yaml.safe_load((tmp_path / "b30" / "good" / "topology.clab.yml").read_text())["topology"]

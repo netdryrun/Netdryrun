@@ -1,0 +1,13 @@
+id: RT-0066
+title: >-
+  record on a BGP-unnumbered FRR fabric left every interface-named session (neighbor eth1 interface) out of the
+  baseline with a plain warning and exited 0, so a dropped session or a prefix flood over it passed the baseline
+found: "2026-11-10, Layer 6 red team on the 0.4.2 candidate f220469"
+fixed_in: 0.4.2
+kind: pinned
+# The reproduction is the oracle FP-042-UNNSESS (a whole record run on a fake lab from a live capture). Filed here in
+# 0.4.2 so the number the CHANGELOG cites exists and stays contiguous.
+tests:
+  - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py::test_every_unnumbered_neighbor_is_recorded_or_a_named_gap
+  - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py::test_a_point_to_point_address_is_its_subnet_or_a_gap
+  - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py::test_a_169_254_link_is_numbered_and_guarded

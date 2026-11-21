@@ -49,11 +49,15 @@ class Mgmt:
     vrfs: set = field(default_factory=lambda: {"default"})   # Junos: the instances read
     tables: str = "all"                         # "all", or "main" where the node's `ip` can't list every table
     via: str = "container"                      # "container": the node's own `ip`; "helper": NETNS_HELPER_IMAGE
+    holder: str = ""                            # the namespace holder containerlab made for this node, if any
 
 
 def docker_mgmt(lab: Lab, node: str) -> Mgmt:
     """The container's network mode, and every Docker network it is attached to (each is management: R9)."""
-    data = lab.docker_inspect(node)
+    return _mgmt_of(node, lab.docker_inspect(node))
+
+
+def _mgmt_of(node: str, data: dict) -> Mgmt:
     try:
         mode = str(data["HostConfig"]["NetworkMode"])
         nets = data["NetworkSettings"]["Networks"] or {}
@@ -433,7 +437,42 @@ def prepare_eos(lab: Lab, m: Mgmt, log, sleep) -> None:
     if ours:
         _eos(lab, m.node, "\n".join(["configure", *(f"no {ln}" for ln in ours), "end"]))
         m.removed += ours
+    waited = 0.0
+    while waited < EOS_KERNEL_WAIT and _eos_only_kernel_defaults(lab, m):
+        sleep(2.0)
+        waited += 2.0
     check_eos(lab, m, "after deleting containerlab's default route", repair=False)
+
+
+# While cEOS is still starting, its table can list the container's own Linux default (Docker's, via eth0) as a
+# `kernel` route over Management0; once EOS has started it lists none, though Linux keeps it (30-node lab on
+# 014ab58, 2026-11-18: leaf4 showed it, leaf5 didn't; a settled cEOS showed none). Only that is waited out; it is
+# then judged as before, and anything else over Management is a run error at once.
+EOS_KERNEL_WAIT = 60.0
+
+
+def _eos_only_kernel_defaults(lab: Lab, m: Mgmt) -> bool:
+    """True when the only routes over Management (connected ones aside) are kernel defaults via a management
+    gateway, with no static of ours or another one in the running config."""
+    c_ours, c_other = eos_config_routes(_eos_config(lab, m.node, "running"), m)
+    if c_ours or c_other:
+        return False
+    seen = False
+    for fam in (4, 6):
+        text = _eos(lab, m.node, f"show ip{'v6' if fam == 6 else ''} route vrf all | json")
+        classify_eos(text, fam, m)   # unreadable output is a run error, as in check_eos
+        for v in json.loads(text)["vrfs"].values():
+            for prefix, r in ((v or {}).get("routes") or {}).items():
+                vias = r.get("vias") or []
+                mg = [x for x in vias if isinstance(x, dict) and EOS_MGMT.match(str(x.get("interface", "")))]
+                if not mg or (r.get("routeType") == "connected" and _in_mgmt_subnet(prefix, m)):
+                    continue
+                gws = [str(x.get("nexthopAddr", "")) for x in mg]
+                if not (prefix in ("0.0.0.0/0", "::/0") and r.get("routeType") == "kernel" and len(mg) == len(vias)
+                        and all(g and ipaddress.ip_address(g) in m.gateways for g in gws)):
+                    return False
+                seen = True
+    return seen
 
 
 def check_eos(lab: Lab, m: Mgmt, when: str, repair: bool = True) -> None:
@@ -520,6 +559,9 @@ def prepare(lab: Lab, checks: list, log=lambda _: None, sleep=None) -> dict[str,
         if node.kind in NOT_CONTAINERS:
             continue
         m = docker_mgmt(lab, name)
+        own = own_holder(lab, name, m)
+        if own is not None:
+            m = own                      # the namespace is the node's own, held by containerlab's holder for it
         state[name] = m
         if m.mode == "host":
             continue                     # the Docker host's own namespace: never touched (R1); checks on it refused
@@ -554,10 +596,46 @@ def describe(m: Mgmt, kind: str) -> str:
     if m.mode.startswith("container:"):
         return f"not touched (shares {m.mode[len('container:'):]}'s namespace)"
     if not m.kind:
-        return f"not applicable ({kind})"
+        return f"not applicable ({kind})" + (f"; in its namespace holder {m.holder}" if m.holder else "")
     how = " (read from outside: no `ip` in the image)" if m.via == "helper" else ""
     back = f"; back and removed again: {'; '.join(m.readded)}" if m.readded else ""
     return (("removed: " + "; ".join(m.removed)) if m.removed else "none") + how + back
+
+
+def own_holder(lab: Lab, name: str, m: Mgmt) -> Mgmt | None:
+    """containerlab 0.83 runs an SR Linux node in the network namespace of a holder container it makes for that node
+    (clab-<lab>-<node>-netns; FP-042-SRLNETNS). That namespace is the node's own: the holder's Docker networks are read
+    as the node's management networks, so a ping over them is still refused.
+
+    Only a holder that names itself containerlab's, for this lab and this node, counts: labels containerlab=<lab>,
+    clab-internal-node=true and clab-root-node-name=<node>, found under the very name or id the node's NetworkMode
+    gives, and holding its own namespace (not host, not another container's, not none). Anything else is None, and the
+    node's checks stay refused (refuse_checks)."""
+    if not m.mode.startswith("container:"):
+        return None
+    ref = m.mode[len("container:"):]
+    read = getattr(lab, "docker_inspect_container", None)
+    if not ref or read is None or not isinstance(getattr(lab, "name", None), str):
+        return None
+    try:
+        data = read(ref)
+    except LabError:
+        return None
+    labels = (data.get("Config") or {}).get("Labels") if isinstance(data.get("Config"), dict) else None
+    if not isinstance(labels, dict) or (labels.get("containerlab"), labels.get("clab-internal-node"),
+                                        labels.get("clab-root-node-name")) != (lab.name, "true", name):
+        return None
+    hid, hname = str(data.get("Id") or ""), str(data.get("Name") or "").lstrip("/")
+    if not (hid and hid.startswith(ref)) and hname != ref.lstrip("/"):
+        return None
+    try:
+        h = _mgmt_of(name, data)
+    except LabError:
+        return None
+    if h.mode in ("host", "none", "") or h.mode.startswith("container:"):
+        return None
+    h.cid, h.holder = m.cid, hname or hid[:12]
+    return h
 
 
 def _owner(lab: Lab, state: dict, m: Mgmt) -> Mgmt | None:

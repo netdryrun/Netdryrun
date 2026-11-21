@@ -135,6 +135,9 @@ class FakeLab:
     def peers_of(self, node, iface):
         return Lab.peers_of(self, node, iface)
 
+    def link_tree(self, node):   # plain links: nothing stacked on them (oracle FP-042-LINKDOWNSTACKED)
+        return {}
+
     def link_events(self):
         return [e[1:4] for e in self.events if e[0] == "link"]
 

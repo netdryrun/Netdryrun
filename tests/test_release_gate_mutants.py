@@ -260,6 +260,7 @@ def test_a_mutation_record_carries_over_only_for_byte_identical_modules(tmp_path
     def git(*args):
         calls.append(args)
         assert args[:3] == ("diff", "--name-only", "a" * 40) and args[3] == "HEAD" and args[4] == "--"
+        assert args[6] == "tests"   # the kills came from that commit's tests: they must be unchanged too
         return changed.get(args[5], "")
     monkeypatch.setattr(gate, "git", git)
     layer = gate.Layer("mutation", SimpleNamespace(strict=True))
@@ -267,8 +268,8 @@ def test_a_mutation_record_carries_over_only_for_byte_identical_modules(tmp_path
     by_id = {c.id: c for c in layer.checks}
     assert set(by_id) == {f"mutants-{m}" for m in gate.VERDICT_MODULES if m != "drivers"}
     assert by_id["mutants-verify.frr"].status == gate.PASS
-    assert by_id["mutants-verify.frr"].summary == (f"carried over from aaaaaaa: {gate.VERDICT_MODULES['verify.frr']} is "
-                                                   "byte-identical at this commit. verify.frr summary")
+    assert by_id["mutants-verify.frr"].summary == (f"carried over from aaaaaaa: {gate.VERDICT_MODULES['verify.frr']} and "
+                                                   "tests/ are byte-identical at this commit. verify.frr summary")
     assert by_id["mutants-verify.frr"].output == "verify.frr output"
     assert by_id["mutants-checks"].status == gate.FAIL
     assert "src/netdryrun/checks.py changed since aaaaaaa: mutate it at this commit" in by_id["mutants-checks"].summary
@@ -286,6 +287,16 @@ def test_a_carried_failure_stays_a_failure_and_an_unreadable_diff_is_not_identic
     by_id = {c.id: c for c in layer.checks}
     assert by_id[data["checks"][0]["id"]].status == gate.FAIL
     assert by_id["mutants-config"].status == gate.FAIL and "git can't compare" in by_id["mutants-config"].summary
+
+
+def test_a_changed_test_suite_never_carries_old_kills(tmp_path, monkeypatch):
+    """Layer 6 change-impact review, 2026-11-13: a module's source can be byte-identical while a test that killed its
+    mutants was deleted or weakened; then nothing carries over."""
+    monkeypatch.setattr(gate, "git", lambda *a: "tests/test_checks.py")
+    layer = gate.Layer("mutation", SimpleNamespace(strict=True))
+    gate.carry_mutation(layer, str(_prev_record(tmp_path)), [])
+    assert layer.checks and all(c.status == gate.FAIL for c in layer.checks)
+    assert all("tests/test_checks.py changed since" in c.summary for c in layer.checks)
 
 
 def test_a_verdict_module_neither_mutated_nor_carried_fails_the_layer():

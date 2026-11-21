@@ -1,0 +1,6 @@
+Netdryrun 0.4.2: 1 checks from checks-control.yml
+peer: management default route none
+r1: management default route none
+  [PASS] fgr-control-min3-must-pass -- 3 ipv4-unicast prefixes accepted (3.9s)
+PASSED: 1 passed, 0 failed (1 checks)
+  wrote json report: /mnt/c/NetCL Business/wt/repro-042c/capture/gr_control_report.json

@@ -1,0 +1,89 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "passed",
+  "lab": "ndr-rpdamp",
+  "config": "checks.yml",
+  "started": "2026-11-13T00:52:00+00:00",
+  "finished": "2026-11-13T00:52:20+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.12.16",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "r1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "isp": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 1,
+    "failed": 0,
+    "total": 1
+  },
+  "warnings": {
+    "count": 0,
+    "items": []
+  },
+  "checks": [
+    {
+      "name": "damp-history-must-not-pass",
+      "type": "route",
+      "params": {
+        "node": "r1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "bgp",
+        "active": false
+      },
+      "passed": true,
+      "detail": "present via bgp (not selected)",
+      "attempts": 2,
+      "duration_s": 3.7,
+      "started": "2026-11-13T00:52:14+00:00",
+      "history": [
+        {
+          "t": 0.3,
+          "passed": true,
+          "detail": "present via bgp (not selected)"
+        },
+        {
+          "t": 3.7,
+          "passed": true,
+          "detail": "present via bgp (not selected)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show ip route 0.0.0.0/0 json",
+          "rc": 0,
+          "output": "{\n  \"0.0.0.0/0\":[]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show bgp ipv4 unicast 0.0.0.0/0 json",
+          "rc": 0,
+          "output": "\n{\n  \"prefix\":\"0.0.0.0/0\",\n  \"version\":2,\n  \"pathCount\":1,\n  \"paths\":[\n    {\n      \"aspath\":{\n        \"string\":\"65002\",\n        \"segments\":[\n          {\n            \"type\":\"as-sequence\",\n            \"list\":[\n              65002\n            ]\n          }\n        ],\n        \"length\":1\n      },\n      \"dampeningHistoryEntry\":true,\n      \"origin\":\"IGP\",\n      \"metric\":0,\n      \"version\":2,\n      \"multipath\":true,\n      \"dampeningPenalty\":980,\n      \"dampeningFlapCount\":1,\n      \"peerUptime\":\"00:00:26\",\n      \"peerUptimeMsec\":26000,\n      \"peerUptimeEstablishedEpoch\":1794531112,\n      \"lastUpdate\":{\n        \"epoch\":1794531068,\n        \"string\":\"Fri Nov 13 00:51:08 2026\"\n      },\n      \"nexthops\":[\n        {\n          \"ip\":\"10.0.12.2\",\n          \"hostname\":\"isp\",\n          \"afi\":\"ipv4\",\n          \"metric\":0,\n          \"accessible\":true,\n          \"used\":true\n        }\n      ],\n      \"peer\":{\n        \"peerId\":\"10.0.12.2\",\n        \"routerId\":\"2.2.2.2\",\n        \"hostname\":\"isp\",\n        \"domainname\":\"localdomain\",\n        \"type\":\"external\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

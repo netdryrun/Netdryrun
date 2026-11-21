@@ -245,6 +245,26 @@ def traps_for(ctx: Ctx, node: str, neighbor: str, legit: str) -> list[dict]:
     return out
 
 
+def record_gaps(p, known: list, baseline: Path, who: str) -> list[str]:
+    """record's exit: 0 is no gap; 1 with INCOMPLETE BASELINE lines, every one a documented limit the matrix lists
+    (each with why), returns the gaps so the item can go on with the baseline record wrote, as a user who read record's
+    error would; anything else raises, naming every gap the matrix doesn't list."""
+    if p.code == 0:
+        return []
+    if p.code == 1 and "INCOMPLETE BASELINE" in p.out:
+        gaps = sorted(set(re.findall(r"^\*\*\* (INCOMPLETE BASELINE: .*?) \*\*\*$", p.out, re.M)))
+        # record's own size-cap lines don't count toward its exit code (record._is_size_cap): leave them out here too
+        gaps = [g for g in gaps if not re.search(r" has \d+ (link subnets|BGP routes \(IPv[46]\)); only the first \d+ "
+                                                 r"are (guarded|recorded)", g)]
+        allowed = [re.compile(k["match"]) for k in known]
+        unknown = [g for g in gaps if not any(a.search(g) for a in allowed)]
+        if gaps and not unknown and baseline.exists():
+            return gaps
+        raise RuntimeError(f"record failed: exit 1 on gap(s) not listed as known for {who}: {unknown or 'none parsed'}"
+                           f"\n{p.out[-3000:]}")
+    raise RuntimeError(f"record failed: exit {p.code}\n{p.out[-3000:]}")
+
+
 def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
     base = ctx.work / "mustfail" / drv
     shutil.rmtree(base, ignore_errors=True)
@@ -263,6 +283,9 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 apply(d / spec["file"], spec["filter"])
         if spec.get("file"):
             apply(bad / spec["file"], spec["drop_match"])
+    for e in spec.get("peer_edits", []):   # the same on both labs (a prefix the good filter must reject)
+        for d in (good, bad):
+            apply(d / e["file"], e["replace"])
     setup = None
     if spec.get("setup_last"):   # SONiC: configured after boot by setup commands
         setup = {"good": cfg_good["nodes"], "bad": json.loads(json.dumps(cfg_good["nodes"]))}
@@ -291,17 +314,30 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                        timeout=1800)
                 destroy(good / "topology.clab.yml")
             else:
-                # record --deploy waits for VM nodes to answer before its --wait (0.4.1)
-                p = sh([ctx.ndr, "record", good / "topology.clab.yml", "--deploy", "--out", good / "netdryrun.yml",
-                        "--force", *drivers], timeout=3600)
-            if p.code != 0:
-                raise RuntimeError(f"record failed: exit {p.code}\n{p.out[-3000:]}")
+                # record --deploy waits for VM nodes to answer before its --wait (0.4.1); a VM NOS needs a long wait
+                # for its sessions to come up (0.4.1 hand acceptance: 240 s RouterOS, 420-480 s Junos and NX-OS)
+                wait = ["--wait", str(spec["record_wait"])] if spec.get("record_wait") else []
+                cmd = [ctx.ndr, "record", good / "topology.clab.yml", "--deploy", "--out", good / "netdryrun.yml",
+                       "--force", *wait, *drivers]
+                p = sh(cmd, timeout=3600)
+                # a refusal the product tells the user to answer by recording again (the matrix's record_again, each
+                # with why): one more record from a fresh deploy, as that user would; said in the item's note
+                again = [re.compile(k["match"]) for k in spec.get("record_again", [])]
+                first = sorted(set(re.findall(r"^\*\*\* (INCOMPLETE BASELINE: .*?) \*\*\*$", p.out, re.M)))
+                if p.code == 1 and again and any(a.search(g) for g in first for a in again):
+                    r.note = "recorded again after: " + " | ".join(g for g in first if any(a.search(g) for a in again))
+                    destroy(good / "topology.clab.yml")
+                    p = sh(cmd, timeout=3600)
+            known = record_gaps(p, spec.get("known_gaps", []), good / "netdryrun.yml", drv)
             recorded = yaml.safe_load((good / "netdryrun.yml").read_text())
             for n, v in ex_nodes.items():   # the example's node settings (setup, driver), merged over record's
                 if isinstance(v, dict):
                     recorded.setdefault("nodes", {}).setdefault(n, {}).update(v)
             if ex_timeout and ex_timeout > recorded.get("timeout", 0):
                 recorded["timeout"] = ex_timeout
+            # the checks record's gap lines tell a user to add by hand (the matrix gives them, each with why)
+            hand = [{k: v for k, v in c.items() if k != "why"} for c in spec.get("hand_checks", [])]
+            recorded["checks"] = list(recorded.get("checks") or []) + hand
             (good / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
             if setup:   # merged over the example's settings (driver), never replacing them (code review of the batch)
                 base_nodes = json.loads(json.dumps(recorded.get("nodes", {})))
@@ -310,7 +346,10 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 recorded["nodes"] = {**base_nodes, **{n: {**base_nodes.get(n, {}), **v} for n, v in setup["bad"].items()}}
             (bad / "netdryrun.yml").write_text(yaml.safe_dump(recorded, sort_keys=False))
             r.seconds += time.monotonic() - t0
-            notes = [f"record: {len(recorded['checks'])} checks"]
+            notes = [r.note] if r.note else []   # recorded again: said first
+            notes.append(f"record: {len(recorded['checks']) - len(hand)} checks" + (f" + {len(hand)} by hand" if hand else ""))
+            if known:
+                notes.append(f"record exit 1 on {len(known)} known driver gap(s): " + " | ".join(known))
             # 2. the good lab must pass its own baseline, from a fresh deploy; it is kept for the traps
             expect_run(ctx, r, good, 0, None, "--keep")
             if r.status != PASS:
@@ -328,7 +367,9 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 lone.write_text(yaml.safe_dump({"lab": "topology.clab.yml", "timeout": 20, **node_cfg, "checks": [c]},
                                                sort_keys=False))
                 pe = ctx.run(lone, cmd="check")
-                if pe.code != 2 or "Traceback" in pe.out or "routing-instance" not in pe.out:
+                # the refusal it must name: the matrix's run_error_match for this trap, else Junos's routing-instance
+                want = spec.get("run_error_match", {}).get(c["name"], "routing-instance")
+                if pe.code != 2 or "Traceback" in pe.out or not re.search(want, pe.out):
                     r.status = FAIL
                     notes.append(f"{c['name']}: exit {pe.code}, expected 2 (a run error on {drv})")
                     r.evidence = pe.out[-4000:]
@@ -358,7 +399,8 @@ def mustfail(ctx: Ctx, r: Result, drv: str, spec: dict) -> None:
                 r.status = good_status
             r.note = "; ".join(notes)
         except (RuntimeError, AssertionError) as e:
-            r.status, r.note = FAIL, str(e).splitlines()[0]
+            # keep "recorded again" in front: the FAIL on ecf627e lost it and hid that record ran twice
+            r.status, r.note = FAIL, "; ".join(x for x in (r.note, str(e).splitlines()[0]) if x)
             r.evidence = str(e)[-4000:]
         finally:
             for d in (good, bad):
@@ -393,6 +435,8 @@ def readme_in_container(ctx: Ctx, r: Result, eu: dict) -> None:
     wheel = next((ctx.work / "dist").glob("netdryrun-*.whl"))
     box = ctx.work / "enduser"
     shutil.rmtree(box, ignore_errors=True)
+    if box.exists():   # files the container wrote as root survive rmtree: start in a fresh folder (rehearsal on 79e6205)
+        box = ctx.work / f"enduser-{int(time.time())}"
     box.mkdir()
     shutil.copy(wheel, box / wheel.name)
     steps, want = [], []
@@ -580,9 +624,16 @@ def big30(ctx: Ctx, r: Result, variant: str, code: int) -> None:
             t0 = time.monotonic()
             destroy(good / "topology.clab.yml")
             r.note += f", destroy {time.monotonic() - t0:.0f} s"
-        if p.code != 0 or q.code != 0:
-            r.status, r.evidence = FAIL, (p.out if p.code else q.out)[-4000:]
+        if p.code != 0:
+            r.status, r.evidence = FAIL, p.out[-4000:]
             return
+        try:
+            gaps = record_gaps(q, spec.get("known_gaps", []), base / "baseline.yml", "big30")
+        except RuntimeError as e:
+            r.status, r.note, r.evidence = FAIL, str(e).splitlines()[0], str(e)[-4000:]
+            return
+        if gaps:
+            r.note += f", record exit 1 on {len(gaps)} known gap(s)"
         rec = yaml.safe_load((base / "baseline.yml").read_text())
         rec.update(lab="topology.clab.yml", timeout=600, nodes=boot["nodes"])
         for v in ("good", "bad"):
@@ -836,7 +887,7 @@ def make_big30(base: Path, spec: dict, src: Path) -> None:
 # ------------------------------------------------------------------------------------------------- angle 4
 
 MCP_SMOKE = r'''
-import asyncio, json, os, shutil, subprocess, sys, time
+import asyncio, json, os, re, shutil, subprocess, sys, time
 from pathlib import Path
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -901,7 +952,11 @@ async def main():
             problems.append(f"verify_change: no {guards} to pass as the standing guards")
         v = await call("verify_change", topology=str(before / "topology.clab.yml"), before=str(before), after=str(after),
                        intent=sys.argv[6], guards=str(guards))
-        if v.get("status") not in ("matched", "failed", "no_change"):
+        known = sys.argv[7] if len(sys.argv) > 7 else ""
+        if v.get("status") == "inconclusive" and known and re.search(known, json.dumps(v)):
+            # a documented, fail-safe INCONCLUSIVE (the acceptance matrix names it and why): reported, not a problem
+            print("KNOWN " + json.dumps({"status": v.get("status"), "match": known}))
+        elif v.get("status") not in ("matched", "failed", "no_change"):
             problems.append(f"verify_change: status {v.get('status')}: {str(v)[:300]}")
         if v.get("guards_source") != "explicit":
             problems.append(f"verify_change: guards_source {v.get('guards_source')!r}, not the explicit guards")
@@ -925,7 +980,8 @@ def mcp(ctx: Ctx, r: Result) -> None:
     shutil.copytree(ctx.src / "examples" / spec["example"], work / "lab")
     intent = spec.get("intent", "intent:\n  - prefix: 10.101.0.0/24\n    appears_on: [edge1, up1, peer1]\n")
     with LabLock(ctx.args.lock, r.id):
-        p = sh([ctx.python, "-c", MCP_SMOKE, ctx.ndr, work, ctx.src, spec["leaky"], spec["fix"], intent], timeout=5400)
+        p = sh([ctx.python, "-c", MCP_SMOKE, ctx.ndr, work, ctx.src, spec["leaky"], spec["fix"], intent,
+                spec.get("verify_known_inconclusive", {}).get("match", "")], timeout=5400)
         left = leftovers()
     res = re.search(r"^RESULTS (.*)$", p.out, re.M)
     probs = re.search(r"^PROBLEMS (.*)$", p.out, re.M)
@@ -935,6 +991,8 @@ def mcp(ctx: Ctx, r: Result) -> None:
     r.expected = "leaky change: DO NOT APPLY; fix: passed; record and verify answer"
     r.got = "; ".join(problems) or "as expected"
     r.note = ", ".join(f"{s['tool']} {s['tokens']} tokens" for s in sizes)
+    if re.search(r"^KNOWN ", p.out, re.M):
+        r.note += f"; verify_change INCONCLUSIVE, known: {spec['verify_known_inconclusive']['why']}"
     r.status = PASS if not problems and not left and "Traceback" not in p.out else FAIL
     if left:
         r.note += f"; left behind: {', '.join(left)}"

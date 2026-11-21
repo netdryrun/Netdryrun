@@ -1,0 +1,16 @@
+Netdryrun 0.4.2: 3 checks from netdryrun.yml
+Deploying lab ndr-repro042 (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...
+r1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+r2: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+r3: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+Management default routes removed; settling 10s before the checks...
+  [PASS] addpath-min4-must-fail -- 4 ipv4-unicast prefixes accepted (8.0s)
+  [PASS] vrf-own-address-must-not-pass -- 3/3 replies (need 2) (8.0s)
+warning: convergence: r1 reported no BGP neighbors (vrf RED) by the cap (180s), although checks in the file expect BGP on it
+Convergence checks done; settling 10s before post-convergence checks...
+  [FAIL] addpath-exact2-must-pass -- 4 ipv4-unicast prefixes accepted (0.1s)
+      warning: convergence: r1 reported no BGP neighbors (vrf RED) by the cap (180s), although checks in the file expect BGP on it
+Lab ndr-repro042 left running for debugging; destroy with: containerlab destroy -t /mnt/c/NetCL Business/wt/repro-042/topology.clab.yml --cleanup
+FAILED: 2 passed, 1 failed (3 checks; 1 with a convergence warning)
+  wrote json report: /mnt/c/NetCL Business/wt/repro-042/capture/report.json
+run exit 1

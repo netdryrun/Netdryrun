@@ -266,12 +266,15 @@ def test_frr_own_address_commands_exactly():
     assert lab.lines() == ["ip -j addr"]
     assert ipaddress.ip_interface("172.20.20.2/24") in got
     d.local_addresses("red")
-    assert lab.lines()[-1] == "ip -j addr show vrf red"
+    # a named VRF: its enslaved interfaces, then the VRF device itself (an address on it is the node's own, RT-0053)
+    assert lab.lines()[-2:] == ["ip -j addr show vrf red", "ip -j addr show dev red"]
 
 
 def test_frr_named_vrf_keeps_enslaved_interfaces_and_errors_name_the_command():
     vrf_answer = json.dumps([{"ifname": "eth2", "master": "red", "addr_info": [{"local": "10.1.0.1", "prefixlen": 30}]}])
-    d = FrrDriver(Lab([("ip -j addr show vrf red", vrf_answer), ("ip -j addr", "[{\"addr_info\": [5]}]")]), "r1")
+    dev_answer = json.dumps([{"ifname": "red", "addr_info": []}])
+    d = FrrDriver(Lab([("ip -j addr show vrf red", vrf_answer), ("ip -j addr show dev red", dev_answer),
+                       ("ip -j addr", "[{\"addr_info\": [5]}]")]), "r1")
     assert [str(a) for a in d.local_addresses("red")] == ["10.1.0.1/30"]
     with pytest.raises(DriverError) as x:
         d.local_addresses()

@@ -1,0 +1,5 @@
+lab: topology.clab.yml
+timeout: 60
+checks:
+  # F-GR: peer sent 4 prefixes, restarted (GR) and now sends 3; inside the stale window min 4 must FAIL
+  - {name: fgr-min4-must-fail, type: bgp_prefixes, node: r1, neighbor: 10.0.13.2, min: 4}

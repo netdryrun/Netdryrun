@@ -1,0 +1,53 @@
+
+{
+  "prefix":"0.0.0.0/0",
+  "version":2,
+  "pathCount":1,
+  "paths":[
+    {
+      "aspath":{
+        "string":"65002",
+        "segments":[
+          {
+            "type":"as-sequence",
+            "list":[
+              65002
+            ]
+          }
+        ],
+        "length":1
+      },
+      "dampeningHistoryEntry":true,
+      "origin":"IGP",
+      "metric":0,
+      "version":2,
+      "multipath":true,
+      "dampeningPenalty":996,
+      "dampeningFlapCount":1,
+      "peerUptime":"00:00:08",
+      "peerUptimeMsec":8000,
+      "peerUptimeEstablishedEpoch":1794531112,
+      "lastUpdate":{
+        "epoch":1794531068,
+        "string":"Fri Nov 13 00:51:08 2026"
+      },
+      "nexthops":[
+        {
+          "ip":"10.0.12.2",
+          "hostname":"isp",
+          "afi":"ipv4",
+          "metric":0,
+          "accessible":true,
+          "used":true
+        }
+      ],
+      "peer":{
+        "peerId":"10.0.12.2",
+        "routerId":"2.2.2.2",
+        "hostname":"isp",
+        "domainname":"localdomain",
+        "type":"external"
+      }
+    }
+  ]
+}

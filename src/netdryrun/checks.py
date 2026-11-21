@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from .config import BGP_ATTRIBUTES, Check, community_name
 from .drivers import Driver
-from .drivers.base import DriverError, Observation, protocol_matches
+from .drivers.base import DriverError, Observation, protocol_matches, unicast_unread
 from .mgmt import ManagementPathError
 
 REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
@@ -80,6 +80,14 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
         # from a down session would satisfy "max" by accident
         return False, f"session is {n.state}; prefix counts are only meaningful when established", obs.evidence
     afi = p.get("afi", "ipv4-unicast")
+    hidden = unicast_unread(afi, n.prefixes)
+    if hidden:
+        # a labeled-unicast family (or one no check names) whose routes the node may install as `afi` routes without
+        # counting them there: neither "doesn't carry" nor the unicast counter is the count (RT-0080, FP-042-FRRLU)
+        return False, (f"the {afi} prefix count of the session to {p['neighbor']} can't be read: it carries "
+                       f"{', '.join(hidden)}, which Netdryrun doesn't count and whose routes the node can install as "
+                       f"{afi} routes (labeled-unicast does) without counting them as {afi} prefixes; check those "
+                       "routes with route checks"), obs.evidence
     if afi not in n.prefixes:
         # every driver lists the families an established session carries, 0 prefixes included: this one isn't
         # carried. Nothing of it can arrive, which is all `exact: 0` claims (and stops being true once the family
@@ -112,13 +120,20 @@ def _counted(n, afi: str, count: int, low: int, high: int | None, evidence: list
     def within(c: int) -> bool:
         return low <= c and (high is None or c <= high)
 
+    if afi in n.prefixes_unread and afi not in n.prefixes_upto:
+        # the driver says the count isn't settled (FRR: graceful-restart stale paths until End-of-RIB, RT-0072):
+        # no bound is judged on it, not even one it meets; a later sample may be settled
+        return False, Unready(f"error: {count} {afi} prefixes counted, not a settled count: "
+                              f"{n.prefixes_unread[afi]}"), evidence
     top = n.prefixes_upto.get(afi, count)
     if top == count:
         return within(count), f"{count} {afi} prefixes accepted", evidence
     # Some received routes are hidden for a reason the device doesn't give, so the count is somewhere from
     # `count` to `top`: judged only when every value in that range gives the same answer (interop IOP-7)
-    span = (f"{count} to {top} {afi} prefixes accepted ({top - count} received route(s) hidden: rejected by "
-            "import policy or with a next hop the node can't use, which its output doesn't tell apart)")
+    # (add-path: the counter counts paths, so the range has another reason, which the driver names)
+    why = n.prefixes_upto_why.get(afi) or (f"{top - count} received route(s) hidden: rejected by import policy or "
+                                           "with a next hop the node can't use, which its output doesn't tell apart")
+    span = f"{count} to {top} {afi} prefixes accepted ({why})"
     if within(count) and within(top):
         return True, span, evidence
     if top < low or (high is not None and count > high):

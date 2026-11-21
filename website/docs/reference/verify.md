@@ -6,7 +6,7 @@ description: netdryrun verify compares a lab before and after a change. You decl
 # verify
 
 !!! note "0.4, FRR only"
-    `netdryrun verify` is new in 0.4 and is not released yet. It snapshots FRR nodes only; SR Linux, SONiC and Arista EOS follow. A topology with a node of another kind is refused (exit code `2`).
+    `netdryrun verify` was released in 0.4.0. It snapshots FRR nodes only; SR Linux, SONiC and Arista EOS follow. A topology with a node of another kind is refused (exit code `2`).
 
 Checks test what someone thought of. `verify` inverts that: **you declare what the change is meant to do, and every other difference in the network's behavior fails.**
 
@@ -120,7 +120,9 @@ intent:
 
 `with:` accepts `from`, `next_hop`, `as_path`, `origin`, `local_pref`, `med`, `weight`, `communities`, `ext_communities`, `large_communities`, `cluster_list`, `originator_id`, `protocol`, `distance` and `metric`. Each value must equal exactly; communities are the exact set. **With BGP attributes in `with:`, the line explains only the paths (and received routes) that match them.** In the example, a new path for 10.101.0.0/24 on up1 from any neighbor but 10.0.2.1, or with another AS path, is an undeclared difference, best path or not: from 0.4.1 a second path from a peer the line doesn't name fails the verdict (0.4.0 explained every new path for the prefix once the best one matched).
 
-It explains every new item for that prefix on the listed nodes, and every advertisement of the prefix *to* a listed node. An advertisement to any other neighbor, inside or outside the lab, needs its own line (see [advertisement](#advertisement)). Best-path changes on routes that already existed always need their own line.
+**The pins describe the route the node selects** (from 0.4.2). `protocol`, `distance` and `metric` must hold for every RIB entry the node selected for the prefix. BGP attributes must hold for the BGP best path, and the selected route must be BGP's: when the node selects and installs another route for the prefix (a static at distance 1 beside the pinned BGP path), the line is not met ("the selected route is a static route, not BGP"). With pins, a RIB entry they don't describe (a floating static beside the selected BGP route, or the BGP entry under `protocol: static`) is an undeclared difference too. 0.4.0 and 0.4.1 compared BGP pins with the BGP best path alone and explained every RIB entry for the prefix, so a static that won got INTENT MATCHED.
+
+It explains every new item for that prefix on the listed nodes (with `with:`, those the pins describe), and every advertisement of the prefix *to* a listed node. An advertisement to any other neighbor, inside or outside the lab, needs its own line (see [advertisement](#advertisement)). Best-path changes on routes that already existed always need their own line.
 
 ### disappears_from
 
@@ -262,7 +264,7 @@ On a pull request, [the Action](../github-action.md#verify-a-change-against-its-
 
 ## Nodes verify does not snapshot, and slow boots
 
-verify 0.4 snapshots FRR nodes only. A node on any other platform (SR Linux, SONiC, Arista EOS, Juniper cJunosEvolved) is refused before a lab boots (exit code `2`), naming it. Pass `--unobserved NODE` to run without it: the lab still boots it, but **changes on that node are not compared**, and every output says so (a warning in the console, the Markdown summary, the JSON report and the MCP result). A Juniper collector for verify is planned for 0.4.1.
+verify 0.4 snapshots FRR nodes only. A node on any other platform (SR Linux, SONiC, Arista EOS, Juniper cJunosEvolved) is refused before a lab boots (exit code `2`), naming it. Pass `--unobserved NODE` to run without it: the lab still boots it, but **changes on that node are not compared**, and every output says so (a warning in the console, the Markdown summary, the JSON report and the MCP result). A Juniper collector for verify is planned; it is not in 0.4.2.
 
 **Slow boots.** `--timeout` (default 300 s) is per lab, from the deploy to a stable snapshot. cJunosEvolved took 4 to 19 minutes to boot in our runs, and an approval boots each side twice, so a lab with a Junos node needs about `--timeout 1500` (the Action's `timeout` input) and a job timeout of about two hours; the MCP tool is a poor fit for such labs (client timeouts), so use the CLI or the Action. With the default, a node still booting never yields an approval: the sessions to it are down, which is an unhealthy baseline (exit code `3`) on the *before* side or a difference on the *after* side, and a lab that never settles is INCONCLUSIVE (exit code `3`). Don't pass `--allow-unhealthy-baseline` to get past a node that hasn't booted: with its sessions down on both sides, its routes are compared absent against absent.
 

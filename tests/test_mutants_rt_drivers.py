@@ -34,19 +34,20 @@ def exact(msg):
 
 # ------------------------------------------------------------------------------------------- addresses._load
 
-def test_load_skips_text_before_the_json_and_reads_either_bracket():
-    assert addresses._load("c", 'banner line\n{"a": 1}') == {"a": 1}
-    assert addresses._load("c", "noise [1, 2]") == [1, 2]
-    assert addresses._load("c", 'x {"a": [1]}') == {"a": [1]}  # the earlier bracket wins
+def test_load_reads_the_whole_answer_with_only_whitespace_around_it_and_either_bracket():
+    # FP-042-ADDRLOAD: text before the JSON was skipped (0.4.1), so malformed output read as no addresses
+    assert addresses._load("c", '{"a": 1}') == {"a": 1}
+    assert addresses._load("c", " \n\t[1, 2]\n\n") == [1, 2]
+    for text in ('banner line\n{"a": 1}', "noise [1, 2]", 'x {"a": [1]}', '{"a": 1} x'):
+        with pytest.raises(DriverError, match=r"^unexpected output from `c`: not JSON "):
+            addresses._load("c", text)
 
 
 def test_load_error_names_the_command_and_the_error_and_cuts_the_text_at_120():
-    text = "n" * 200                                            # no bracket at all
+    text = "n" * 200                                            # not JSON at all
     cut = "n" * 120
-    # Python's own wording of the min() error differs between versions (3.12: "iterable argument is empty"): only
-    # Netdryrun's part of the message is pinned
-    with pytest.raises(DriverError, match=r"^unexpected output from `my cmd`: not JSON \(min\(\) [^)]+\): '"
-                                          + cut + r"'$"):
+    with pytest.raises(DriverError, match=exact(
+            "unexpected output from `my cmd`: not JSON (Expecting value: line 1 column 1 (char 0)): '" + cut + "'")):
         addresses._load("my cmd", text)
     with pytest.raises(DriverError, match=exact(
             "unexpected output from `my cmd`: not JSON (Expecting value: line 1 column 2 (char 1)): '[nope'")):

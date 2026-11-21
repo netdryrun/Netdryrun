@@ -1,0 +1,5 @@
+lab: topology.clab.yml
+timeout: 30
+checks:
+  # after isp withdraws the default: it must NOT read as present (not selected) on r1
+  - {name: damp-history-must-not-pass, type: route, node: r1, prefix: 0.0.0.0/0, protocol: bgp, active: false}

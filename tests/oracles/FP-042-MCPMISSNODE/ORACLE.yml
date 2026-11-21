@@ -1,0 +1,11 @@
+id: FP-042-MCPMISSNODE
+bug: >-
+  The MCP `record_baseline` tool returns only the YAML, and its description names one gap signal, a first line
+  starting "# INCOMPLETE BASELINE"; a routing node with no recorded check (one answering "no BGP instance": an
+  OSPF-only router, a cEOS before its BGP starts) makes the first line "# BASELINE MISSES A NODE" (record.MISSING_NODE,
+  CLI exit 1), which the description doesn't name, so an agent following the contract reads a partial baseline as
+  complete (angle-5 red team on 82fb052, B-RT-0075, offline through the real record() and the MCP tool list). The
+  guards (the INCOMPLETE BASELINE signal and the missing-node gap line stay) are in
+  tests/test_oracle_guards_fp_042_mcpmissnode.py
+evidence:
+  - tests/test_oracle_guards_fp_042_mcpmissnode.py

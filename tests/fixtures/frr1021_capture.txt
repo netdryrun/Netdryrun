@@ -1,0 +1,82 @@
+# FP-042-FRR102 capture (FRR 10.2.1, BGP unnumbered), from the 0.4.2 session's wt/oracle-cap/FP-042-FRR102
+date: 2026-11-09T20:20:40+07:00
+lab: martimy/clab-bgp-frr ac5b96c2f25a798f3c81ca2d04439cc1af48a77b
+
+quay.io/frrouting/frr:10.2.1
+frr image: quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1
+
+node: leaf01 (AS 65001; `network 192.168.11.0/24` and `network 192.168.12.0/24`; peers eth1, eth2 unnumbered)
+own prefix: 192.168.11.0/24 (its network statement); learned prefix: 192.168.21.0/24 (leaf02's, via both spines)
+each command ran as vtysh -c '<command>' on leaf01; the frr1021_*.txt fixtures are its output byte for byte
+the same lab's `netdryrun record` (0.4.1 from PyPI) exited 1 with 18 gaps: 12 unnumbered link subnets with no guard, and 6 guards (each leaf's two LAN prefixes) that stopped on `no pathCount`
+
+## frr1021_own_prefix_json: `show bgp ipv4 unicast 192.168.11.0/24 json` (rc=0)
+
+## frr1021_own_prefix_text: `show bgp ipv4 unicast 192.168.11.0/24` (rc=0)
+
+## frr1021_own_route_json: `show ip route 192.168.11.0/24 json` (rc=0)
+
+## frr1021_learned_prefix_json: `show bgp ipv4 unicast 192.168.21.0/24 json` (rc=0)
+
+## frr1021_learned_prefix_text: `show bgp ipv4 unicast 192.168.21.0/24` (rc=0)
+
+## frr1021_learned_route_json: `show ip route 192.168.21.0/24 json` (rc=0)
+
+## frr1021_table_json: `show bgp ipv4 unicast json` (rc=0)
+
+## frr1021_show_version: `show version` (rc=0)
+FRRouting 10.2.1_git (leaf01) on Linux(6.18.54.1-microsoft-standard-WSL2).
+Copyright 1996-2005 Kunihiro Ishiguro, et al.
+configured with:
+    '--prefix=/usr' '--sysconfdir=/etc' '--localstatedir=/var' '--sbindir=/usr/lib/frr' '--libdir=/usr/lib' '--enable-rpki' '--enable-vtysh' '--enable-multipath=64' '--enable-vty-group=frrvty' '--enable-user=frr' '--enable-group=frr' '--enable-pcre2posix' '--enable-scripting' 'CC=gcc' 'CXX=g++'
+
+## frr1021_own_prefix_json_detail: `show bgp ipv4 unicast 192.168.11.0/24 json detail` (rc=1)
+% Unknown command: show bgp ipv4 unicast 192.168.11.0/24 json detail
+
+## frr1021_learned_prefix_json_detail: `show bgp ipv4 unicast 192.168.21.0/24 json detail` (rc=1)
+% Unknown command: show bgp ipv4 unicast 192.168.21.0/24 json detail
+
+## frr1021_running_config: `show running-config` (rc=0)
+Building configuration...
+
+Current configuration:
+!
+frr version 10.2.1_git
+frr defaults traditional
+hostname leaf01
+domainname localdomain
+no ipv6 forwarding
+!
+interface eth3
+ ip address 192.168.11.1/24
+exit
+!
+interface eth4
+ ip address 192.168.12.1/24
+exit
+!
+interface lo
+ ip address 10.10.10.21/32
+exit
+!
+router bgp 65001
+ bgp router-id 10.10.10.21
+ bgp log-neighbor-changes
+ no bgp ebgp-requires-policy
+ no bgp enforce-first-as
+ no bgp hard-administrative-reset
+ no bgp graceful-restart notification
+ timers bgp 3 9
+ neighbor SPINE peer-group
+ neighbor SPINE remote-as 65000
+ neighbor SPINE advertisement-interval 0
+ neighbor eth1 interface peer-group SPINE
+ neighbor eth2 interface peer-group SPINE
+ !
+ address-family ipv4 unicast
+  network 192.168.11.0/24
+  network 192.168.12.0/24
+ exit-address-family
+exit
+!
+end

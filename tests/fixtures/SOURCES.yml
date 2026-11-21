@@ -350,3 +350,223 @@
     cEOS 4.36.3M with no BGP configured (one node, a loopback only), 2026-11-08: `Cli -p 15 -c "show ip bgp
     10.99.3.2/32 vrf default | json"`, rc 1; the same answer for the IPv6, summary and VRF RED reads. HQ wt/a5-live/e
   added: ndr/gate-fixes-0.4.1
+- files: [frr1021u_capture.txt, frr1021u_leaf01_ip_o_addr_show_dev_eth1.txt, frr1021u_leaf01_ip_o_addr_show_dev_eth2.txt,
+          frr1021u_leaf01_ip_o_addr_show_dev_eth3.txt, frr1021u_leaf01_show_bgp_neighbors_json.txt,
+          frr1021u_spine01_ip_o_addr_show_dev_eth1.txt, frr1021u_spine01_ip_o_addr_show_dev_eth2.txt,
+          frr1021u_spine01_ip_o_addr_show_dev_eth3.txt, frr1021u_spine01_show_bgp_neighbors_json.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.2.1 (quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1), lab
+    martimy/clab-bgp-frr @ ac5b96c (BGP unnumbered), nodes leaf01 and spine01, 2026-11-09: `ip -o addr show dev ethN`
+    and `vtysh -c 'show bgp neighbors json'`, listed in frr1021u_capture.txt; captured by the 0.4.2 session for oracle
+    FP-042-UNNUMBERED
+  added: ndr/oracles-0.4.2
+- files: [frr1021_capture.txt, frr1021_own_prefix_json.txt, frr1021_own_prefix_text.txt, frr1021_own_route_json.txt,
+          frr1021_learned_prefix_json.txt, frr1021_learned_prefix_text.txt, frr1021_learned_route_json.txt,
+          frr1021_table_json.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.2.1 (quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1), lab
+    martimy/clab-bgp-frr @ ac5b96c (BGP unnumbered), node leaf01, 2026-11-09: `vtysh -c '<command>'`, commands and
+    exit codes in frr1021_capture.txt; captured by the 0.4.2 session for oracle FP-042-FRR102
+  added: ndr/oracles-0.4.2
+- files: [clab083_srl_netns_capture.txt, clab083_srl_netns_inspect_srl1.json, clab083_srl_netns_inspect_srl1_netns.json,
+          clab083_srl_netns_inspect_frr1.json]
+  kind: live-capture
+  source: >-
+    containerlab 0.83.0 with examples/srl-frr deployed as ndr-srl-netns (SR Linux 26.7.2,
+    ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8; FRR 10.4.1), the
+    laptop's WSL, 2026-11-10: `docker inspect --format '{{json .}}'` of srl1, its namespace holder
+    clab-ndr-srl-netns-srl1-netns and frr1, and netdryrun 0.4.1 `check` (exit 2), in clab083_srl_netns_capture.txt;
+    captured by the 0.4.2 session for oracle FP-042-SRLNETNS
+  added: ndr/oracles-0.4.2
+- files: [clab083_srl_netns_topology.clab.yml]
+  kind: lab-input
+  source: >-
+    the topology deployed for the clab083_srl_netns capture: examples/srl-frr/topology.clab.yml with its name changed
+    to ndr-srl-netns, 2026-11-10
+  added: ndr/oracles-0.4.2
+- files: [srl_rt_s01_capture.txt, srl_rt_s01_empty_bgp_rib.txt, srl_rt_s01_empty_attr_set.txt, srl_rt_s01_empty_show.txt,
+          srl_rt_s01_prepended_bgp_rib.txt, srl_rt_s01_prepended_attr_set.txt, srl_rt_s01_prepended_show.txt,
+          srl_rt_s01_empty_again_bgp_rib.txt, srl_rt_s01_empty_again_attr_set.txt, srl_rt_s01_empty_again_show.txt]
+  kind: live-capture
+  source: >-
+    SR Linux 26.7.2 (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8)
+    iBGP with FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    both in AS 65010, the laptop's WSL, 2026-11-10: srl1's `sr_cli --output-format json` local-RIB and attr-set reads
+    for 192.168.20.0/24 in three phases (empty AS path, FRR prepending 64666, empty again), commands in
+    srl_rt_s01_capture.txt; captured by the 0.4.2 session for oracle RT-S01
+  added: ndr/oracles-0.4.2
+- files: [srl_rt_s01_srl1.cli, srl_rt_s01_frr1.conf]
+  kind: lab-input
+  source: >-
+    the configs deployed for the srl_rt_s01 capture: examples/srl-frr with FRR moved into AS 65010 (iBGP), 2026-11-10
+  added: ndr/oracles-0.4.2
+- files: [srl_rt_s01_record_041.yml]
+  kind: report
+  source: >-
+    netdryrun 0.4.1 `record --attributes` on the running srl_rt_s01 lab, 2026-11-10 (exit 1; its output in
+    srl_rt_s01_capture.txt)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rt0066_r1_bgp_neighbors.json, frr1041_rt0066_r1_neighbor_routes.json,
+          frr1041_rt0066_r1_neighbor_routes.txt, frr1041_rt0066_r1_bgp_ipv4.json, frr1041_repro042_r1_show_version.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-repro042 (r2 sends r1 2 prefixes with addpath-tx-all-paths, 2 paths each), the
+    laptop's WSL, 2026-11-12: r1's vtysh answers read with docker exec after `netdryrun run --keep`; captured for
+    oracle FP-042-ADDPATH (red team RT-0066)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_repro042_topology.clab.yml, frr1041_repro042_r1.conf, frr1041_repro042_r2.conf,
+          frr1041_repro042_r3.conf]
+  kind: lab-input
+  source: >-
+    the topology and FRR configs deployed for lab ndr-repro042 (RT-0066 add-path, RT-0053 VRF device address),
+    2026-11-12
+  added: ndr/oracles-0.4.2
+- files: [frr1041_repro042_report.json, frr1041_repro042_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (79e6205) `run --keep --json` on lab ndr-repro042, 2026-11-12 (exit 1): addpath-min4-must-fail
+    and vrf-own-address-must-not-pass passed
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rt0053_r1_ip_addr_vrf_RED.json, frr1041_rt0053_r1_ip_addr_dev_RED.json,
+          frr1041_rt0053_r1_ping_vrf_own.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-repro042 (VRF device RED with 10.255.1.1/32 on the device itself), the laptop's
+    WSL, 2026-11-12: r1's `ip -j addr show vrf RED`, `ip -j addr show dev RED` and `ip vrf exec RED ping -c 3 -W 1
+    10.255.1.1`, read with docker exec after `netdryrun run --keep`; captured for oracle FP-042-VRFDEV (red team
+    RT-0053)
+  added: ndr/oracles-0.4.2
+- files: [srl2672_rt0068_srl1_bgp_neighbors.json, srl2672_rt0068_srl1_bgp_rib_ipv4.json,
+          srl2672_rt0068_srl1_neighbor_state.txt]
+  kind: live-capture
+  source: >-
+    Nokia SR Linux 26.7.2 (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8),
+    containerlab 0.81.1, lab ndr-rpsrl (frr1 sends srl1 2 prefixes with addpath-tx-all-paths, 2 paths each; srl1 has
+    add-paths receive), the laptop's WSL, 2026-11-13: the two JSON files are the sr_cli answers netdryrun read for
+    srl-addpath-min4-must-fail, copied byte for byte from the report's evidence; the text file is `sr_cli "info from
+    state /network-instance default protocols bgp neighbor 10.0.100.2"` read with docker exec after `netdryrun run
+    --keep`; captured for oracle FP-042-SRLADDPATH (red team RT-0068)
+  added: ndr/oracles-0.4.2
+- files: [srl2672_rpsrl_topology.clab.yml, srl2672_rpsrl_netdryrun.yml, srl2672_rpsrl_srl1.cli, srl2672_rpsrl_frr1.conf,
+          srl2672_rpsrl_frr2.conf]
+  kind: lab-input
+  source: the topology, checks and configs deployed for lab ndr-rpsrl (RT-0068 SR Linux add-path), 2026-11-13
+  added: ndr/oracles-0.4.2
+- files: [srl2672_rpsrl_report.json, srl2672_rpsrl_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `run --keep --json` on lab ndr-rpsrl, 2026-11-13 (exit 1): srl-addpath-min4-must-fail
+    passed and srl-addpath-exact2-must-pass failed, both reading 4 prefixes
+  added: ndr/oracles-0.4.2
+- files: [ceos4363m_rt0069_ceos1_ip_bgp_summary_vrf.json, ceos4363m_rt0069_ceos1_ipv6_bgp_summary_vrf.json,
+          ceos4363m_rt0069_ceos1_ip_bgp_summary.json, ceos4363m_rt0069_ceos1_ip_bgp_neighbor.json,
+          ceos4363m_rt0069_ceos1_ip_bgp.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df), containerlab
+    0.81.1, lab ndr-rpeos (frr1 sends ceos1 2 prefixes with addpath-tx-all-paths, 2 paths each; ceos1 has
+    additional-paths receive), the laptop's WSL, 2026-11-13: the two *_summary_vrf files are the Cli answers netdryrun
+    read for eos-addpath-min4-must-fail, copied byte for byte from the report's evidence; `show ip bgp summary |
+    json`, `show ip bgp neighbors 10.0.200.2 | json` and `show ip bgp` read with docker exec after `netdryrun run
+    --keep`; captured for oracle FP-042-EOSADDPATH (red team RT-0069)
+  added: ndr/oracles-0.4.2
+- files: [ceos4363m_rpeos_topology.clab.yml, ceos4363m_rpeos_netdryrun.yml, ceos4363m_rpeos_ceos1.cfg,
+          ceos4363m_rpeos_frr1.conf, ceos4363m_rpeos_frr2.conf]
+  kind: lab-input
+  source: the topology, checks and configs deployed for lab ndr-rpeos (RT-0069 cEOS additional-paths), 2026-11-13
+  added: ndr/oracles-0.4.2
+- files: [ceos4363m_rpeos_report.json, ceos4363m_rpeos_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `run --keep --json` on lab ndr-rpeos, 2026-11-13 (exit 1): eos-addpath-min4-must-fail
+    passed and eos-addpath-exact2-must-pass failed, both reading 4 prefixes
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rt0070_r1_ip_route_default.json, frr1041_rt0070_r1_bgp_default.json,
+          frr1041_rt0070_r1_bgp_default_before.json, frr1041_rt0070_r1_bgp_default_after.json,
+          frr1041_rt0070_r1_bgp_default_after.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-rpdamp (r1 with bgp dampening; isp sends a default-originate, then removes it), the
+    laptop's WSL, 2026-11-13: frr1041_rt0070_r1_ip_route_default.json and frr1041_rt0070_r1_bgp_default.json are the
+    vtysh answers netdryrun read for damp-history-must-not-pass, copied byte for byte from the report's evidence;
+    `show bgp ipv4 unicast 0.0.0.0/0 json` before and after the withdrawal, and its text form after, read with docker
+    exec; captured for oracle FP-042-FRRDAMP (red team RT-0070)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpdamp_topology.clab.yml, frr1041_rpdamp_checks.yml, frr1041_rpdamp_r1.conf, frr1041_rpdamp_isp.conf]
+  kind: lab-input
+  source: the topology, checks and FRR configs deployed for lab ndr-rpdamp (RT-0070 dampening history), 2026-11-13
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpdamp_report.json, frr1041_rpdamp_check.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `check --json` on lab ndr-rpdamp after isp withdrew the default, 2026-11-13 (exit 0):
+    damp-history-must-not-pass passed ("present via bgp (not selected)")
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpgr_r1_neighbors_stale.json, frr1041_rpgr_r1_neighbors_after_eor.json,
+          frr1041_rpgr_r1_ipv4_stale.txt, frr1041_rpgr_r1_ipv4_after_eor.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-rpgr (r1 a graceful-restart helper; peer, with preserve-fw-state, sends 4 prefixes, is
+    changed to send 3 with coalesce-time 90000, and its bgpd is killed and restarted by watchfrr), the laptop's WSL,
+    2026-11-13: frr1041_rpgr_r1_neighbors_stale.json is the vtysh answer netdryrun read for fgr-min4-must-fail inside
+    the stale window (End-of-RIB from the peer pending, acceptedPrefixCounter 4) and
+    frr1041_rpgr_r1_neighbors_after_eor.json the one it read for fgr-control-min3-must-pass after End-of-RIB, both
+    copied byte for byte from the reports' evidence; `show bgp ipv4 unicast` in the window (4 paths marked S) and after
+    End-of-RIB (3 paths), read with docker exec; captured for oracle FP-042-FRRGRSTALE (repro-042c F-GR)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpgr_topology.clab.yml, frr1041_rpgr_checks.yml, frr1041_rpgr_checks_control.yml,
+          frr1041_rpgr_r1.conf, frr1041_rpgr_peer.conf, frr1041_rpgr_peer_restarted.conf]
+  kind: lab-input
+  source: >-
+    the topology, checks and FRR configs deployed for lab ndr-rpgr (F-GR graceful-restart stale window), 2026-11-13;
+    frr1041_rpgr_peer_restarted.conf is the config written over the peer's bind-mounted frr.conf before its bgpd was
+    killed, which the restarted bgpd loaded
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rpgr_report.json, frr1041_rpgr_check.txt, frr1041_rpgr_control_report.json,
+          frr1041_rpgr_control_check.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (f3747e3) `check --json` on lab ndr-rpgr, 2026-11-13: inside the stale window (exit 0)
+    fgr-min4-must-fail passed ("4 ipv4-unicast prefixes accepted") while the peer sent 3; after End-of-RIB (exit 0)
+    fgr-control-min3-must-pass passed ("3 ipv4-unicast prefixes accepted")
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rplu_r1_neighbors.json, frr1041_rplu_r1_neighbor_10.0.12.2.json, frr1041_rplu_r1_bgp_ipv4_unicast.json,
+          frr1041_rplu_r1_bgp_ipv4_unicast.txt, frr1041_rplu_r1_bgp_ipv4_labeled_unicast.txt, frr1041_rplu_r1_ip_route.json,
+          frr1041_rplu_r1_ip_route.txt, frr1041_rplu_r1_bgp_summary.txt, frr1041_rplu_r1_running_config.txt,
+          frr1041_rplu_r1_ip_route_10.80.1.0.json, frr1041_rplu_r1_bgp_ipv4_unicast_10.80.1.0.json]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, lab ndr-rplu (r1 with one eBGP session to r2, 10.0.12.2, activated only under `address-family
+    ipv4 labeled-unicast`; r2 sends 10.80.1-3.0/24 over it), the laptop's WSL, 2026-11-15 (07:11-07:18 Thailand time),
+    two deploys of the same lab. Second deploy: frr1041_rplu_r1_neighbors.json is the `show bgp neighbors json` answer
+    netdryrun read for lu-exact0-must-fail-eor-not-sent (the false pass), copied byte for byte from
+    frr1041_rplu_eor_report.json's evidence; the others were read with `docker exec clab-ndr-rplu-r1 vtysh -c '<command>'`
+    just before that check ran (`show bgp neighbors 10.0.12.2 json`, `show bgp ipv4 unicast [json]`, `show bgp ipv4
+    labeled-unicast`, `show ip route [json]`, `show bgp summary`, `show running-config`). First deploy:
+    frr1041_rplu_r1_ip_route_10.80.1.0.json and frr1041_rplu_r1_bgp_ipv4_unicast_10.80.1.0.json are the answers
+    netdryrun read for lu-route-present-control, copied byte for byte from frr1041_rplu_report.json's evidence;
+    captured for oracle FP-042-FRRLU (RT-0080, repro-042d)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rplu_topology.clab.yml, frr1041_rplu_checks.yml, frr1041_rplu_checks_eor.yml, frr1041_rplu_r1.conf,
+          frr1041_rplu_r2.conf]
+  kind: lab-input
+  source: >-
+    the topology, checks and FRR configs deployed for lab ndr-rplu (RT-0080, labeled-unicast-only session), 2026-11-15;
+    the nodes also bind-mounted a stock daemons file (zebra, bgpd, staticd) and vtysh.conf (integrated config)
+  added: ndr/oracles-0.4.2
+- files: [frr1041_rplu_report.json, frr1041_rplu_check.txt, frr1041_rplu_eor_report.json, frr1041_rplu_eor_check.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (83d4de0) `check --json` on lab ndr-rplu, 2026-11-15: with checks.yml (exit 1) lu-exact0-must-fail
+    failed closed at the End-of-RIB gate ("End-of-RIB not received on r1 from: 10.0.12.2 ... declare
+    nodes.r1.peers.<address>.eor: not_sent"); with checks_eor.yml, which declares that (exit 1),
+    lu-exact0-must-fail-eor-not-sent PASSED ("0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)") while
+    r1 had r2's 3 prefixes installed via BGP, and lu-max0-control failed
+  added: ndr/oracles-0.4.2

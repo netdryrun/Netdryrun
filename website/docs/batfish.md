@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.1
+      - uses: netdryrun/Netdryrun@v0.4.2
         with:
           path: examples/batfish-pipeline
 ```

@@ -21,6 +21,7 @@ from . import __version__, report
 from .config import CHECK_TYPES, ConfigError
 from .drivers import DriverError
 from .lab import Lab, LabError
+from .record import GAP_MARKERS   # the record_baseline description names every one
 from .agent_result import (CHECKS_PASSED, DO_NOT_APPLY, INCONCLUSIVE, RESULT_SCHEMA, TESTED_FILES_MAX,  # noqa: F401
                            VERDICT_ENUM, VERDICTS, _check, _containers, _evidence, _failures, _next_diagnostic,
                            _show_command, _summary, _text, hold_to_files)
@@ -399,10 +400,14 @@ def run_checks(path: str) -> str:
     prefixes it sends today, or an exact count where the driver can't list them) and BGP route. Call it when no
     checks exist, before changing the configs, then dry-run the change against this baseline. With
     attributes=true, also pin each BGP route's AS path, local preference and communities. By default it also
-    adds the standard guards (no default route and no link subnet via BGP on each BGP node); guards=false
-    leaves them out. A first line
-    starting "# INCOMPLETE BASELINE" means routes were left out: say so to the human. Returns the YAML;
-    nothing is written to disk. Show it to the human: the checks belong to the network team.
+    adds the standard guards (no default route, 0.0.0.0/0 and ::/0 where IPv6 routes can be read, and no link
+    subnet via BGP, in each VRF with a BGP instance, the default VRF included, sessions or not, on drivers that
+    list VRFs; EOS and SR Linux record the default VRF only); guards=false
+    leaves them out. Returns the YAML; nothing is written to disk. Gap lines come first: a first line starting
+    """ + " or ".join(f'"# {m}"' for m in GAP_MARKERS) + """ means the baseline misses something (a
+    route, a prefix count, a guard, a VRF, or a whole node, which `netdryrun record` exits 1 on): say so to the
+    human.
+    Show it to the human: the checks belong to the network team.
     """))
 def record_baseline(topology: str, deploy: bool = True, wait_seconds: float = 45, attributes: bool = False,
                     guards: bool = True) -> str:

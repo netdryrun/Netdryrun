@@ -1,0 +1,172 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "ndr-repro042",
+  "config": "netdryrun.yml",
+  "started": "2026-11-12T20:42:32+00:00",
+  "finished": "2026-11-12T20:46:15+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.12.16",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "r1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "r2": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "r3": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 2,
+    "failed": 1,
+    "total": 3
+  },
+  "warnings": {
+    "count": 1,
+    "items": [
+      {
+        "check": "addpath-exact2-must-pass",
+        "code": "gate-no-neighbors",
+        "node": "r1",
+        "session": null,
+        "text": "convergence: r1 reported no BGP neighbors (vrf RED) by the cap (180s), although checks in the file expect BGP on it"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "addpath-min4-must-fail",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.12.2",
+        "min": 4
+      },
+      "passed": true,
+      "detail": "4 ipv4-unicast prefixes accepted",
+      "attempts": 2,
+      "duration_s": 8.0,
+      "started": "2026-11-12T20:42:46+00:00",
+      "history": [
+        {
+          "t": 2.4,
+          "passed": true,
+          "detail": "4 ipv4-unicast prefixes accepted"
+        },
+        {
+          "t": 8.0,
+          "passed": true,
+          "detail": "4 ipv4-unicast prefixes accepted"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show bgp neighbors json",
+          "rc": 0,
+          "output": "{\n  \"10.0.12.2\":{\n    \"remoteAs\":65002,\n    \"localAs\":65001,\n    \"localAsReplaceAsDualAs\":false,\n    \"nbrExternalLink\":true,\n    \"localRole\":\"undefined\",\n    \"remoteRole\":\"undefined\",\n    \"hostname\":\"r2\",\n    \"domainname\":\"localdomain\",\n    \"bgpVersion\":4,\n    \"remoteRouterId\":\"2.2.2.2\",\n    \"localRouterId\":\"1.1.1.1\",\n    \"bgpState\":\"Established\",\n    \"bgpTimerUpMsec\":17000,\n    \"bgpTimerUpString\":\"00:00:17\",\n    \"bgpTimerUpEstablishedEpoch\":1794516155,\n    \"bgpTimerLastRead\":2000,\n    \"bgpTimerLastWrite\":2000,\n    \"bgpInUpdateElapsedTimeMsecs\":16000,\n    \"bgpTimerConfiguredHoldTimeMsecs\":9000,\n    \"bgpTimerConfiguredKeepAliveIntervalMsecs\":3000,\n    \"bgpTimerHoldTimeMsecs\":9000,\n    \"bgpTimerKeepAliveIntervalMsecs\":3000,\n    \"bgpTcpMssConfigured\":0,\n    \"bgpTcpMssSynced\":9448,\n    \"extendedOptionalParametersLength\":false,\n    \"bgpTimerConfiguredConditionalAdvertisementsSec\":60,\n    \"neighborCapabilities\":{\n      \"4byteAs\":\"advertisedAndReceived\",\n      \"extendedMessage\":\"advertisedAndReceived\",\n      \"addPath\":{\n        \"ipv4Unicast\":{\n          \"txAdvertisedAndReceived\":false,\n          \"txAdvertised\":false,\n          \"txReceived\":true,\n          \"rxAdvertisedAndReceived\":true,\n          \"rxAdvertised\":true,\n          \"rxReceived\":true\n        }\n      },\n      \"pathsLimit\":{\n        \"ipv4Unicast\":{\n          \"advertisedAndReceived\":true,\n          \"advertisedPathsLimit\":0,\n          \"receivedPathsLimit\":0\n        }\n      },\n      \"dynamic\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestart\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestartByPeer\":{},\n      \"routeRefresh\":\"advertisedAndReceived\",\n      \"enhancedRouteRefresh\":\"advertisedAndReceived\",\n      \"multiprotocolExtensions\":{\n        \"ipv4Unicast\":{\n          \"advertisedAndReceived\":true\n        }\n      },\n      \"hostName\":{\n        \"advHostName\":\"r1\",\n        \"advDomainName\":\"localdomain\",\n        \"rcvHostName\":\"r2\",\n        \"rcvDomainName\":\"localdomain\"\n      },\n      \"softwareVersion\":{\n        \"advertisedSoftwareVersion\":\"FRRouting\\/10.4.1_git\",\n        \"receivedSoftwareVersion\":\"FRRouting\\/10.4.1_git\"\n      },\n      \"linkLocalNextHop\":{\n        \"advertised\":true,\n        \"received\":true\n      },\n      \"gracefulRestart\":\"advertisedAndReceived\",\n      \"gracefulRestartRemoteTimerMsecs\":120000,\n      \"addressFamiliesByPeer\":\"none\"\n    },\n    \"gracefulRestartInfo\":{\n      \"endOfRibSend\":{\n        \"ipv4Unicast\":true\n      },\n      \"endOfRibRecv\":{\n        \"ipv4Unicast\":true\n      },\n      \"localGrMode\":\"Helper*\",\n      \"remoteGrMode\":\"Helper\",\n      \"rBit\":true,\n      \"nBit\":true,\n      \"timers\":{\n        \"configuredRestartTimer\":120,\n        \"configuredLlgrStaleTime\":0,\n        \"receivedRestartTimer\":120\n      },\n      \"ipv4Unicast\":{\n        \"fBit\":false,\n        \"endOfRibStatus\":{\n          \"endOfRibSend\":true,\n          \"endOfRibSentAfterUpdate\":true,\n          \"endOfRibRecv\":true\n        },\n        \"timers\":{\n          \"stalePathTimer\":360,\n          \"llgrStaleTime\":0\n        }\n      }\n    },\n    \"messageStats\":{\n      \"depthInq\":0,\n      \"depthOutq\":0,\n      \"opensSent\":1,\n      \"opensRecv\":1,\n      \"notificationsSent\":0,\n      \"notificationsRecv\":0,\n      \"updatesSent\":2,\n      \"updatesRecv\":5,\n      \"keepalivesSent\":6,\n      \"keepalivesRecv\":6,\n      \"routeRefreshSent\":0,\n      \"routeRefreshRecv\":0,\n      \"capabilitySent\":0,\n      \"capabilityRecv\":0,\n      \"totalSent\":9,\n      \"totalRecv\":12\n    },\n    \"prefixStats\":{\n      \"inboundFiltered\":0,\n      \"aspathLoop\":0,\n      \"originatorLoop\":0,\n      \"clusterLoop\":0,\n      \"invalidNextHop\":0,\n      \"withdrawn\":0,\n      \"attributesDiscarded\":0\n    },\n    \"minBtwnAdvertisementRunsTimerMsecs\":0,\n    \"addressFamilyInfo\":{\n      \"ipv4Unicast\":{\n        \"updateGroupId\":1,\n        \"subGroupId\":1,\n        \"packetQueueLength\":0,\n        \"commAttriSentToNbr\":\"extendedAndStandard\",\n        \"acceptedPrefixCounter\":4,\n        \"sentPrefixCounter\":2\n      }\n    },\n    \"connectionsEstablished\":1,\n    \"connectionsDropped\":0,\n    \"lastReset\":\"never\",\n    \"externalBgpNbrMaxHopsAway\":1,\n    \"hostLocal\":\"10.0.12.1\",\n    \"portLocal\":179,\n    \"hostForeign\":\"10.0.12.2\",\n    \"portForeign\":38390,\n    \"nexthop\":\"10.0.12.1\",\n    \"nexthopGlobal\":\"::\",\n    \"nexthopLocal\":\"::\",\n    \"bgpConnection\":\"sharedNetwork\",\n    \"connectRetryTimer\":10,\n    \"estimatedRttInMsecs\":2,\n    \"readThread\":\"on\",\n    \"writeThread\":\"on\"\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "addpath-exact2-must-pass",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "r1",
+        "neighbor": "10.0.12.2",
+        "exact": 2
+      },
+      "passed": false,
+      "detail": "4 ipv4-unicast prefixes accepted",
+      "attempts": 1,
+      "duration_s": 0.1,
+      "started": "2026-11-12T20:46:14+00:00",
+      "history": [
+        {
+          "t": 0.1,
+          "passed": false,
+          "detail": "4 ipv4-unicast prefixes accepted"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "vtysh -c show bgp neighbors json",
+          "rc": 0,
+          "output": "{\n  \"10.0.12.2\":{\n    \"remoteAs\":65002,\n    \"localAs\":65001,\n    \"localAsReplaceAsDualAs\":false,\n    \"nbrExternalLink\":true,\n    \"localRole\":\"undefined\",\n    \"remoteRole\":\"undefined\",\n    \"hostname\":\"r2\",\n    \"domainname\":\"localdomain\",\n    \"bgpVersion\":4,\n    \"remoteRouterId\":\"2.2.2.2\",\n    \"localRouterId\":\"1.1.1.1\",\n    \"bgpState\":\"Established\",\n    \"bgpTimerUpMsec\":212000,\n    \"bgpTimerUpString\":\"00:03:32\",\n    \"bgpTimerUpEstablishedEpoch\":1794516162,\n    \"bgpTimerLastRead\":2000,\n    \"bgpTimerLastWrite\":2000,\n    \"bgpInUpdateElapsedTimeMsecs\":211000,\n    \"bgpTimerConfiguredHoldTimeMsecs\":9000,\n    \"bgpTimerConfiguredKeepAliveIntervalMsecs\":3000,\n    \"bgpTimerHoldTimeMsecs\":9000,\n    \"bgpTimerKeepAliveIntervalMsecs\":3000,\n    \"bgpTcpMssConfigured\":0,\n    \"bgpTcpMssSynced\":9448,\n    \"extendedOptionalParametersLength\":false,\n    \"bgpTimerConfiguredConditionalAdvertisementsSec\":60,\n    \"neighborCapabilities\":{\n      \"4byteAs\":\"advertisedAndReceived\",\n      \"extendedMessage\":\"advertisedAndReceived\",\n      \"addPath\":{\n        \"ipv4Unicast\":{\n          \"txAdvertisedAndReceived\":false,\n          \"txAdvertised\":false,\n          \"txReceived\":true,\n          \"rxAdvertisedAndReceived\":true,\n          \"rxAdvertised\":true,\n          \"rxReceived\":true\n        }\n      },\n      \"pathsLimit\":{\n        \"ipv4Unicast\":{\n          \"advertisedAndReceived\":true,\n          \"advertisedPathsLimit\":0,\n          \"receivedPathsLimit\":0\n        }\n      },\n      \"dynamic\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestart\":\"advertisedAndReceived\",\n      \"longLivedGracefulRestartByPeer\":{},\n      \"routeRefresh\":\"advertisedAndReceived\",\n      \"enhancedRouteRefresh\":\"advertisedAndReceived\",\n      \"multiprotocolExtensions\":{\n        \"ipv4Unicast\":{\n          \"advertisedAndReceived\":true\n        }\n      },\n      \"hostName\":{\n        \"advHostName\":\"r1\",\n        \"advDomainName\":\"localdomain\",\n        \"rcvHostName\":\"r2\",\n        \"rcvDomainName\":\"localdomain\"\n      },\n      \"softwareVersion\":{\n        \"advertisedSoftwareVersion\":\"FRRouting\\/10.4.1_git\",\n        \"receivedSoftwareVersion\":\"FRRouting\\/10.4.1_git\"\n      },\n      \"linkLocalNextHop\":{\n        \"advertised\":true,\n        \"received\":true\n      },\n      \"gracefulRestart\":\"advertisedAndReceived\",\n      \"gracefulRestartRemoteTimerMsecs\":120000,\n      \"addressFamiliesByPeer\":\"none\"\n    },\n    \"gracefulRestartInfo\":{\n      \"endOfRibSend\":{\n        \"ipv4Unicast\":true\n      },\n      \"endOfRibRecv\":{\n        \"ipv4Unicast\":true\n      },\n      \"localGrMode\":\"Helper*\",\n      \"remoteGrMode\":\"Helper\",\n      \"rBit\":true,\n      \"nBit\":true,\n      \"timers\":{\n        \"configuredRestartTimer\":120,\n        \"configuredLlgrStaleTime\":0,\n        \"receivedRestartTimer\":120\n      },\n      \"ipv4Unicast\":{\n        \"fBit\":false,\n        \"endOfRibStatus\":{\n          \"endOfRibSend\":true,\n          \"endOfRibSentAfterUpdate\":true,\n          \"endOfRibRecv\":true\n        },\n        \"timers\":{\n          \"stalePathTimer\":360,\n          \"llgrStaleTime\":0\n        }\n      }\n    },\n    \"messageStats\":{\n      \"depthInq\":0,\n      \"depthOutq\":0,\n      \"opensSent\":1,\n      \"opensRecv\":1,\n      \"notificationsSent\":0,\n      \"notificationsRecv\":0,\n      \"updatesSent\":2,\n      \"updatesRecv\":5,\n      \"keepalivesSent\":71,\n      \"keepalivesRecv\":71,\n      \"routeRefreshSent\":0,\n      \"routeRefreshRecv\":0,\n      \"capabilitySent\":0,\n      \"capabilityRecv\":0,\n      \"totalSent\":74,\n      \"totalRecv\":77\n    },\n    \"prefixStats\":{\n      \"inboundFiltered\":0,\n      \"aspathLoop\":0,\n      \"originatorLoop\":0,\n      \"clusterLoop\":0,\n      \"invalidNextHop\":0,\n      \"withdrawn\":0,\n      \"attributesDiscarded\":0\n    },\n    \"minBtwnAdvertisementRunsTimerMsecs\":0,\n    \"addressFamilyInfo\":{\n      \"ipv4Unicast\":{\n        \"updateGroupId\":1,\n        \"subGroupId\":1,\n        \"packetQueueLength\":0,\n        \"commAttriSentToNbr\":\"extendedAndStandard\",\n        \"acceptedPrefixCounter\":4,\n        \"sentPrefixCounter\":2\n      }\n    },\n    \"connectionsEstablished\":1,\n    \"connectionsDropped\":0,\n    \"lastReset\":\"never\",\n    \"externalBgpNbrMaxHopsAway\":1,\n    \"hostLocal\":\"10.0.12.1\",\n    \"portLocal\":179,\n    \"hostForeign\":\"10.0.12.2\",\n    \"portForeign\":38390,\n    \"nexthop\":\"10.0.12.1\",\n    \"nexthopGlobal\":\"::\",\n    \"nexthopLocal\":\"::\",\n    \"bgpConnection\":\"sharedNetwork\",\n    \"connectRetryTimer\":10,\n    \"estimatedRttInMsecs\":1,\n    \"readThread\":\"on\",\n    \"writeThread\":\"on\"\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-no-neighbors",
+          "node": "r1",
+          "session": null,
+          "text": "convergence: r1 reported no BGP neighbors (vrf RED) by the cap (180s), although checks in the file expect BGP on it"
+        }
+      ]
+    },
+    {
+      "name": "vrf-own-address-must-not-pass",
+      "type": "ping",
+      "params": {
+        "node": "r1",
+        "vrf": "RED",
+        "target": "10.255.1.1",
+        "expect": "success"
+      },
+      "passed": true,
+      "detail": "3/3 replies (need 2)",
+      "attempts": 2,
+      "duration_s": 8.0,
+      "started": "2026-11-12T20:42:46+00:00",
+      "history": [
+        {
+          "t": 2.4,
+          "passed": true,
+          "detail": "3/3 replies (need 2)"
+        },
+        {
+          "t": 8.0,
+          "passed": true,
+          "detail": "3/3 replies (need 2)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "r1",
+          "cmd": "ip vrf exec RED ping -c 3 -W 1 10.255.1.1",
+          "rc": 0,
+          "output": "PING 10.255.1.1 (10.255.1.1): 56 data bytes\n64 bytes from 10.255.1.1: seq=0 ttl=64 time=0.060 ms\n64 bytes from 10.255.1.1: seq=1 ttl=64 time=0.094 ms\n64 bytes from 10.255.1.1: seq=2 ttl=64 time=0.098 ms\n\n--- 10.255.1.1 ping statistics ---\n3 packets transmitted, 3 packets received, 0% packet loss\nround-trip min/avg/max = 0.060/0.084/0.098 ms\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+lab: topology.clab.yml
+timeout: 240
+checks:
+  # 2 prefixes (10.40/24, 10.41/24), 2 paths each over add-path: min 4 must FAIL, exact 2 must PASS
+  - {name: srl-addpath-min4-must-fail, type: bgp_prefixes, node: srl1, neighbor: 10.0.100.2, min: 4}
+  - {name: srl-addpath-exact2-must-pass, type: bgp_prefixes, node: srl1, neighbor: 10.0.100.2, exact: 2}

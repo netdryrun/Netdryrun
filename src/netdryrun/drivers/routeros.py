@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import ipaddress
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, canon_communities,
-                   check_vrf_name, unexpected)
+from .base import (IPV6_ROUTES_UNSUPPORTED, BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation,
+                   Route, canon_communities, check_vrf_name, unexpected)
 from .routeros_rest import HELPER, Reply, classify_reply
 from .routeros_state import (
     RoutingRoute,
@@ -104,7 +104,7 @@ class RouterosDriver(Driver):
     def _v4_prefix(prefix: str) -> str:
         net = ipaddress.ip_network(prefix, strict=False)
         if net.version != 4:
-            raise DriverError(f"{prefix}: IPv6 routes are not supported on routeros yet")
+            raise DriverError(f"{prefix}: {IPV6_ROUTES_UNSUPPORTED.format('routeros')}")
         return str(net)
 
     own_address_families = frozenset({4, 6})   # what local_addresses reads (round 4, RT-0044)
@@ -127,6 +127,18 @@ class RouterosDriver(Driver):
             if s.afi != "ip":
                 raise DriverError(f"BGP session {s.name} ({s.remote_address}) is {s.afi}: IPv6 sessions are not supported on routeros yet")
         paths = self._paths(table, ev) if any(s.established for s in sessions) else []
+
+        def off(s) -> bool:
+            listed = {p.prefix for p in paths if p.kind == "bgp" and p.session == s.name and p.prefix}
+            return s.established and s.received_count is not None and len(listed) != s.received_count
+        if any(off(s) for s in sessions):
+            # RouterOS brings a session's prefix-count up to date only when its routing table is read: it stayed 0
+            # over four reads ten minutes after boot and read right just after `/routing/route` (live CHR 7.23.8,
+            # 2026-11-18). So it is read once more, after the table; a count that still differs is an error below
+            sessions = [s for s in parse_sessions(self._rows("/routing/bgp/session", ev)) if s.vrf == vrf]
+            for s in sessions:
+                if s.afi != "ip":
+                    raise DriverError(f"BGP session {s.name} ({s.remote_address}) is {s.afi}: IPv6 sessions are not supported on routeros yet")
         out: dict[str, BgpNeighbor] = {}
         for s in sessions:
             n = BgpNeighbor(s.remote_address, "established" if s.established else "active", eor=dict(s.eor))
@@ -157,7 +169,7 @@ class RouterosDriver(Driver):
     def all_routes(self, vrf: str = "default", family: int = 4) -> Observation:
         vrf = check_vrf_name(vrf)
         if family == 6:
-            raise DriverError("IPv6 routes are not supported on routeros yet")
+            raise DriverError(IPV6_ROUTES_UNSUPPORTED.format(self.name))
         ev: list[dict] = []
         table = self._confirm_table(vrf, ev)
         found = [Route(p.prefix, p.kind, p.active) for p in self._paths(table, ev)

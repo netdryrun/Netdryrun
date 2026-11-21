@@ -1,0 +1,20 @@
+id: RT-0077
+title: >-
+  verify: an `appears_on` line with BGP pins (`with: {from: 10.0.1.2, as_path: "65100"}`) got INTENT MATCHED when the
+  route the node selects and installs is a distance-1 static to another next hop: _pins_ok compared the BGP pins with
+  bgpd's best path only (bgpd keeps it when zebra prefers the static), and every RIB entry for the prefix was explained,
+  the static included, so the node forwarded the prefix away from the pinned neighbor under an approved verdict
+found: "2026-11-15, red team 042-GV on the 0.4.2 final candidate (B-RT-0077)"
+fixed_in: 0.4.2
+kind: pinned
+# The reproduction runs the real FRR collector and verify engine on edge1 output derived from the live FRR 10.4.1
+# captures in tests/fixtures/verify (oracle FP-042-VERIFYPINSTATIC); the unit tests cover every selected entry meeting
+# protocol, distance and metric pins, BGP pins on a non-BGP selected route, and a RIB entry the pins don't describe
+# staying undeclared. Affected: 0.4.0 (verify came in, CLI, MCP verify_change and the Action's mode: verify) to 0.4.1.
+# Not yet captured live: the red team's lab recipe (up1 announcing, edge1 removing an inbound deny and adding
+# `ip route 10.101.0.0/24 10.0.5.9`) would show the bgpd and zebra JSON of this state.
+tests:
+  - tests/oracles/FP-042-VERIFYPINSTATIC/test_oracle_fp_042_verifypinstatic.py::test_bgp_pins_never_explain_a_static_route_that_edge1_installs
+  - tests/test_verify_pins_selected_042.py::test_bgp_pins_fail_when_a_static_is_the_selected_route
+  - tests/test_verify_pins_selected_042.py::test_bgp_pins_leave_a_static_rib_entry_beside_the_pinned_route_undeclared
+  - tests/test_verify_pins_selected_042.py::test_every_selected_entry_must_meet_a_rib_pin_not_only_the_first

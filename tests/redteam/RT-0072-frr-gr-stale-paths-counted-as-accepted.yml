@@ -1,0 +1,20 @@
+id: RT-0072
+title: >-
+  bgp_prefixes min: 4 passed on FRR while the neighbor sent 3: after the neighbor restarted with graceful restart and
+  its F-bit set, bgpd kept its old paths marked stale until End-of-RIB and counted them in acceptedPrefixCounter, and
+  `min` is a positive check judged before any End-of-RIB wait ("4 ipv4-unicast prefixes accepted"). SONiC shares the
+  driver.
+found: "2026-11-13, red team on the 0.4.2 candidate; captured live on FRR 10.4.1 (lab ndr-rpgr, repro-042c F-GR) the same day"
+fixed_in: 0.4.2
+kind: driver
+driver: frr
+check:
+  type: bgp_prefixes
+  node: r1
+  neighbor: 10.0.13.2
+  min: 4
+outputs:
+  # live capture (oracle FP-042-FRRGRSTALE): Established, ipv4Unicast fBit true, End-of-RIB pending, the counter at 4
+  # with 4 stale paths; the restarted peer sends 3
+  - needle: "show bgp neighbors json"
+    fixture: frr1041_rpgr_r1_neighbors_stale.json

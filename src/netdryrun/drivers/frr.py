@@ -7,11 +7,13 @@ a `present: false` check pass.
 from __future__ import annotations
 
 import ipaddress
+import json
 import re
 from collections import Counter
+from dataclasses import replace
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
-                   check_vrf_name, load_json, network, parser, render_as_path, unexpected)
+from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, add_path_range_why,
+                   as_int, canon_communities, check_vrf_name, load_json, network, parser, render_as_path, unexpected)
 
 AFI_NAMES = {"ipv4Unicast": "ipv4-unicast", "ipv6Unicast": "ipv6-unicast", "l2VpnEvpn": "evpn"}
 
@@ -237,10 +239,116 @@ def parse_bgp_neighbors(text: str) -> dict[str, BgpNeighbor]:
         mrai = info.get("minBtwnAdvertisementRunsTimerMsecs")
         adv = as_int(NEIGHBORS_CMD, mrai) / 1000 if mrai is not None else None
         external = True if info.get("nbrExternalLink") is True else False if info.get("nbrInternalLink") is True else None
+        # graceful restart: stale paths still in the counter, End-of-RIB pending (RT-0072): no settled count
+        unsettled = gr_stale_window(addr, info, prefixes) if state == "established" else {}
         # "Idle (Admin)" -> "idle": the first word is the FSM state
         _keep_down(out, _canon_addr(addr), BgpNeighbor(addr, state, prefixes, adv_interval=adv, external=external,
-                                                       eor=frr_eor(info) if state == "established" else {}))
+                                                       eor=frr_eor(info) if state == "established" else {},
+                                                       prefixes_unread=unsettled))
     return out
+
+
+def gr_stale_window(addr: str, info: dict, prefixes: dict[str, int]) -> dict[str, str]:
+    """Families of one established neighbor of `show bgp neighbors json` whose acceptedPrefixCounter isn't a settled
+    count: graceful restart kept the peer's paths, marked stale, and End-of-RIB from it hasn't arrived yet. FRR counts
+    stale paths as accepted, so the counter is the table from before the restart, not what the peer sends now (red team
+    RT-0072, oracle FP-042-FRRGRSTALE: FRR 10.4.1, `min: 4` passed on 4 stale paths while the peer sent 3).
+
+    Decided from what FRR prints (the 10.4.1 window capture frr1041_rpgr_r1_neighbors_stale.json and every FRR neighbor
+    capture in tests/fixtures): `gracefulRestartInfo.<afi>.fBit` is the peer's Forwarding State bit for the family.
+    Only with it set does bgpd keep the stale paths over the reconnect (with it clear they are flushed when the session
+    comes back, repro-042c F-GR run 1). So a family is unsettled when fBit is true and End-of-RIB isn't read as
+    received (`endOfRibStatus.endOfRibRecv` true and the top-level `endOfRibRecv` map listing the family as true;
+    anything else, pending or the two reads disagreeing, is unsettled). Unchanged: graceful restart off (local mode
+    `Disable`, no `gracefulRestartInfo`, no block for the family: nothing is kept), fBit false (every steady-session
+    capture), End-of-RIB received (the settled count). Fails closed: a family block or fBit that is there but isn't
+    what FRR prints, or a block with End-of-RIB status and no fBit, leaves the count unsettled until End-of-RIB is
+    read as received. The value is the reason, for the check's detail (BgpNeighbor.prefixes_unread)."""
+    g = info.get("gracefulRestartInfo")
+    if not isinstance(g, dict) or str(g.get("localGrMode", "")).rstrip("*") == "Disable":
+        return {}
+    recv_map = g.get("endOfRibRecv")
+    out = {}
+    for afi in (info.get("addressFamilyInfo") or {}):
+        if afi not in g:
+            continue
+        name, block = AFI_NAMES.get(afi, afi), g[afi]
+        counted = f"FRR's acceptedPrefixCounter ({prefixes.get(name, '?')})"
+        if not isinstance(block, dict) or ("fBit" in block and not isinstance(block["fBit"], bool)):
+            out[name] = (f"the graceful-restart state of {addr} in {afi} is output this driver doesn't know "
+                         f"({str(block)[:80]}), so {counted} may count stale paths")
+            continue
+        if block.get("fBit", "endOfRibStatus" in block) is not True:
+            continue   # F-bit clear (or no graceful restart for the family): no stale path survives the reconnect
+        status = block.get("endOfRibStatus")
+        recv = status.get("endOfRibRecv") if isinstance(status, dict) else None
+        listed = recv_map.get(afi) if isinstance(recv_map, dict) else None
+        if recv is True and listed is True:
+            continue
+        if recv is False and listed is None:
+            out[name] = (f"graceful restart: End-of-RIB from {addr} in {afi} is still pending and the peer kept its "
+                         f"forwarding state, so {counted} still counts the stale paths kept from before the restart")
+        else:
+            out[name] = (f"graceful restart: End-of-RIB from {addr} in {afi} can't be read as received "
+                         f"(endOfRibStatus.endOfRibRecv {recv!r}, endOfRibRecv map {listed!r}), so {counted} may "
+                         "still count stale paths")
+    return out
+
+
+def listed_stale(text: str, cmd: str) -> int:
+    """Paths flagged stale in `show bgp ... neighbors N routes json` (graceful restart: kept from before the peer
+    restarted, End-of-RIB pending). A flag that isn't a boolean is unexpected output."""
+    data = load_json(cmd, text)
+    routes = data.get("routes") if isinstance(data, dict) else None
+    stale = 0
+    for paths in (routes.values() if isinstance(routes, dict) else []):
+        for p in (paths if isinstance(paths, list) else []):
+            if isinstance(p, dict) and "stale" in p:
+                if not isinstance(p["stale"], bool):
+                    raise unexpected(cmd, f"stale: {str(p['stale'])[:40]!r}")
+                stale += p["stale"]
+    return stale
+
+
+def add_path_rx(text: str) -> set[tuple[str, str, str]]:
+    """(neighbor key, neighbor as FRR names it, afi) for every established session whose peer may send this node
+    several paths per prefix: its add-path TX capability (`neighborCapabilities.addPath.<afi>.txReceived` or
+    `txAdvertisedAndReceived`) is anything but a clear false, or isn't listed. FRR's acceptedPrefixCounter then counts
+    paths, not prefixes (RT-0066: 2 prefixes with 2 paths each read as 4, so `min: 4` passed)."""
+    data = _bgp_json(NEIGHBORS_CMD, text)
+    out = set()
+    for addr, info in data.items():
+        if not isinstance(info, dict) or [w.lower() for w in str(info.get("bgpState", "")).split()[:1]] != ["established"]:
+            continue
+        caps = info.get("neighborCapabilities")
+        ap = caps.get("addPath") if isinstance(caps, dict) else None
+        for afi in (info.get("addressFamilyInfo") or {}):
+            entry = ap.get(afi) if isinstance(ap, dict) else None
+            known_off = isinstance(entry, dict) and all(entry.get(k, False) is False
+                                                        for k in ("txReceived", "txAdvertisedAndReceived"))
+            if not known_off:
+                out.add((_canon_addr(addr), addr, AFI_NAMES.get(afi, afi)))
+    return out
+
+
+def count_neighbor_prefixes(text: str, cmd: str, accepted: int) -> int:
+    """Distinct prefixes in `show bgp ... neighbors N routes json`, the routes this node accepted from N, one key per
+    prefix and its paths listed under it. The listing's paths must add up to FRR's acceptedPrefixCounter for the same
+    neighbor and family, or the two answers disagree and the count is an error, never a guess."""
+    data = load_json(cmd, text)
+    if not isinstance(data, dict):
+        raise unexpected(cmd, text)
+    routes = data.get("routes", {} if not data else None)
+    if not isinstance(routes, dict) or not all(isinstance(p, list) for p in routes.values()):
+        raise unexpected(cmd, str(data)[:300])
+    # FRR's counter leaves out history (dampened) and removed paths; the listing may show them (Layer 6 review)
+    live = {pfx: [p for p in ps if not (isinstance(p, dict) and _withdrawn(cmd, p))] for pfx, ps in routes.items()}
+    routes = {pfx: ps for pfx, ps in live.items() if ps}
+    paths = sum(len(p) for p in routes.values())
+    if paths != accepted:
+        raise DriverError(f"`{cmd}`: lists {paths} paths over {len(routes)} prefixes, but the neighbor's "
+                          f"acceptedPrefixCounter is {accepted}: the prefix count can't be read")
+    return len(routes)
 
 
 def frr_eor(info: dict) -> dict[str, str]:
@@ -385,20 +493,65 @@ def parse_received(text: str, family: int) -> set[str]:
         for p in paths:
             if not isinstance(p, dict) or not isinstance(p.get("network"), str)                     or network(RECEIVED_CMD, p["network"]) != net:
                 raise unexpected(RECEIVED_CMD, f"{key} path: {str(p)[:150]}")
+        # a prefix listed only by paths the neighbor withdrew (a dampening history entry, a path being removed) is no
+        # prefix it sends: listed, `record` wrote it into `only` and the prefix coming back passed (red team RT-0071,
+        # oracle FP-042-FRRRECVHIST). One live path keeps it; a damped (suppressed) path is still announced
+        if all([_withdrawn(RECEIVED_CMD, p) for p in paths]):   # every flag read: one that isn't a boolean raises
+            continue
         out.add(str(net))
     # bgpd closes the listing with its own route total (FRR 10.4.1; its totalPaths counts every path of those
     # prefixes, from any neighbor): a listing that disagrees was cut or misread, and a prefix missing from it would
-    # never fail `only`
+    # never fail `only`. The total counts the withdrawn prefixes too, so the check is on every key listed
     if data.get("totalRoutes") != len(routes):
         raise unexpected(RECEIVED_CMD, f"{len(routes)} routes listed, totalRoutes {data.get('totalRoutes')!r}")
     return out
 
 
-def _path_count(command: str, data: dict) -> None:
+PATHS_TEXT_CMD = "show bgp <afi> unicast <prefix>"
+_PATHS_AVAILABLE = re.compile(r"^\s*Paths: \((\d+) available\b", re.M)
+
+
+def needs_text_count(text: str) -> bool:
+    """A `show bgp ... <prefix> json` answer that lists paths without pathCount (FRR 10.2.1, captured: oracle
+    FP-042-FRR102): the path count must then come from the text answer before the paths are believed."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return False
+    return isinstance(data, dict) and isinstance(data.get("paths"), list) and "pathCount" not in data
+
+
+def parse_paths_available(text: str, prefix: str) -> int:
+    """`show bgp <afi> unicast <prefix>` (text): the count in "Paths: (N available, best #k ...)", which FRR 10.2.1
+    prints where its JSON leaves pathCount out (tests/fixtures/frr1021_*_prefix_text.txt). Exactly one such line for
+    exactly this prefix, or no count: never a guess."""
+    # FRR prints "BGP routing table entry for 192.168.21.0/24, version 5": the prefix ends at the comma
+    head = re.search(r"BGP routing table entry for ([^\s,]+)", text)
+    found = _PATHS_AVAILABLE.findall(text)
+    try:
+        same = bool(head) and ipaddress.ip_network(head.group(1), strict=False) == ipaddress.ip_network(prefix)
+    except ValueError:   # an entry line naming no prefix this parser can read
+        same = False
+    if not same or len(found) != 1:
+        raise DriverError(f"bgpd listed the BGP paths for {prefix} without pathCount, and its text answer "
+                          f"(`{PATHS_TEXT_CMD}`) gives no single path count for {prefix} to check them against: "
+                          "the paths can't be trusted, so no verdict on them")
+    return int(found[0])
+
+
+def _path_count(command: str, data: dict, text_count: int | None = None, prefix: str = "") -> None:
     """`pathCount` must equal the paths listed: a path dropped from under its count must never read as one path
-    less, or as no path (0.4.1, the shape of the Junos fuzz finding of 2026-11-01)."""
+    less, or as no path (0.4.1, the shape of the Junos fuzz finding of 2026-11-01). Where bgpd prints no pathCount
+    (FRR 10.2.1), the text answer's "N available" is the count instead (text_count); without it there is no verdict
+    on the paths, named, never a guess (oracle FP-042-FRR102)."""
     if "pathCount" not in data:
-        raise unexpected(command, f"no pathCount: {str({k: v for k, v in data.items() if k != 'paths'})[:150]}")
+        if text_count is None:
+            raise DriverError(f"bgpd listed the BGP paths for {prefix or data.get('prefix')} without pathCount: the "
+                              f"count comes from the text answer (`{PATHS_TEXT_CMD}`), which wasn't read, so no "
+                              "verdict on them")
+        if text_count != len(data["paths"]):
+            raise unexpected(command, f"{text_count} paths available (text answer), but {len(data['paths'])} listed")
+        return
     count = as_int(command, data["pathCount"])
     if count != len(data["paths"]):
         raise unexpected(command, f"pathCount {count}, but {len(data['paths'])} paths listed")
@@ -438,14 +591,15 @@ def _communities(p: dict, key: str) -> list[str]:
     return obj["string"].split()
 
 
-def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
-    """Path objects for exactly `prefix` from `show bgp ... <prefix> json`. `{}` means no path."""
+def _bgp_paths_raw(command: str, text: str, prefix: str, text_count: int | None = None) -> list[dict]:
+    """Path objects for exactly `prefix` from `show bgp ... <prefix> json`. `{}` means no path. text_count: the text
+    answer's path count, for a bgpd that prints no pathCount (see _path_count)."""
     data = _bgp_json(command, text)
     if not data:
         return []
     if not isinstance(data.get("paths"), list) or "prefix" not in data:
         raise unexpected(command, text)
-    _path_count(command, data)
+    _path_count(command, data, text_count, prefix)
     if network(command, data["prefix"]) != ipaddress.ip_network(prefix):
         # bgpd answers for exactly the prefix asked, `{}` without it (FRR 10.4.1): an answer for another one is output
         # this parser doesn't know, never "no path" (read as no path, it made `present: false` pass)
@@ -461,7 +615,28 @@ def _bgp_paths_raw(command: str, text: str, prefix: str) -> list[dict]:
             # the stale timer ends. Such a path is neither present nor gone yet, so no check can pass on it
             raise DriverError(f"{prefix}: BGP path from {(p.get('peer') or {}).get('peerId', '?')} is stale "
                               "(graceful restart in progress): not settled")
-    return data["paths"]
+    return [p for p in data["paths"] if not _withdrawn(command, p)]
+
+
+# flags bgpd prints (only when set) on a path the peer withdrew but bgpd still lists: a dampening history entry
+# (`dampeningHistoryEntry` in a prefix's detail, `history` in a table or neighbor listing) and a path being removed
+WITHDRAWN_FLAGS = ("dampeningHistoryEntry", "history", "removed")
+
+
+def _withdrawn(command: str, p: dict) -> bool:
+    """A path bgpd keeps after the peer withdrew it. With `bgp dampening`, a withdrawn route stays listed as a history
+    entry (no `valid`, no best path, "(history entry)" in the text answer) until its penalty decays; read as a path,
+    a withdrawn default passed `route ... protocol bgp active: false` as "present via bgp (not selected)" (red team
+    RT-0070, oracle FP-042-FRRDAMP). Such a path is no path. A damped (suppressed) path is kept: the peer still
+    announces it, so the route is received, present and never active (`dampeningSuppressed` / `damped`). A flag that
+    isn't a boolean is output this parser doesn't know."""
+    out = False
+    for k in WITHDRAWN_FLAGS:
+        if k in p:
+            if not isinstance(p[k], bool):
+                raise unexpected(command, f"{k}: {str(p[k])[:40]!r}")
+            out = out or p[k]
+    return out
 
 
 def _learned(p: dict) -> bool:
@@ -476,7 +651,8 @@ def _learned(p: dict) -> bool:
 
 
 @parser(ROUTE_CMD)
-def parse_routes(text: str, prefix: str, bgp_text: str | None = None, offload: bool = False) -> list[Route]:
+def parse_routes(text: str, prefix: str, bgp_text: str | None = None, offload: bool = False,
+                 bgp_count: int | None = None) -> list[Route]:
     """Routing-table entries for `prefix`, plus a not-installed BGP route when the BGP table has a path
     learned from a neighbor that zebra doesn't hold (invalid next hop, not selected): it was received,
     so it counts as present, as on EOS and SR Linux. zebra answers for exactly the prefix asked, `{}` without it
@@ -488,13 +664,13 @@ def parse_routes(text: str, prefix: str, bgp_text: str | None = None, offload: b
             raise unexpected(ROUTE_CMD, f"a route for {net} in the answer for {want}")
     out = [_route(prefix, e, offload=offload) for entries in table.values() for e in entries]
     if bgp_text is not None:
-        paths = _bgp_paths_for_route_check(bgp_text, prefix)   # read even when zebra has it: a stale path is an error
+        paths = _bgp_paths_for_route_check(bgp_text, prefix, bgp_count)   # read even when zebra has it: a stale path is an error
         if not any(r.protocol == "bgp" for r in out) and any(_learned(p) for p in paths):
             out.append(Route(prefix, "bgp", False))
     return out
 
 
-def _bgp_paths_for_route_check(text: str, prefix: str) -> list[dict]:
+def _bgp_paths_for_route_check(text: str, prefix: str, text_count: int | None = None) -> list[dict]:
     """The BGP side of a route check. No BGP instance in the VRF means no BGP paths (the VRF itself is
     confirmed separately); any other warning or shape is an error."""
     data = load_json(BGP_PATHS_CMD, text)
@@ -502,7 +678,7 @@ def _bgp_paths_for_route_check(text: str, prefix: str) -> list[dict]:
         return []
     if isinstance(data, dict) and isinstance(data.get("warning"), str) and _NO_INSTANCE.search(data["warning"]):
         return []
-    return _bgp_paths_raw(BGP_PATHS_CMD, text, prefix)
+    return _bgp_paths_raw(BGP_PATHS_CMD, text, prefix, text_count)
 
 
 @parser(ALL_ROUTES_CMD)
@@ -519,12 +695,13 @@ def _next_hop(hops: list) -> str | None:
 
 
 @parser(BGP_PATHS_CMD)
-def parse_bgp_paths(text: str, prefix: str, default_local_pref: int | None = 100) -> list[BgpPath]:
+def parse_bgp_paths(text: str, prefix: str, default_local_pref: int | None = 100,
+                    text_count: int | None = None) -> list[BgpPath]:
     """`show bgp <afi> unicast <prefix> json`. A path without locPrf carries no LOCAL_PREF attribute
     (eBGP-learned or local), and FRR applies the instance's default local preference to it. Every path
     is listed, valid or not, best or not."""
     out = []
-    for p in _bgp_paths_raw(BGP_PATHS_CMD, text, prefix):
+    for p in _bgp_paths_raw(BGP_PATHS_CMD, text, prefix, text_count):
         segs = _segments(p)
         out.append(BgpPath(
             best=bool((p.get("bestpath") or {}).get("overall")),
@@ -549,13 +726,25 @@ def parse_default_local_pref(text: str) -> int | None:
     return as_int(BGP_TABLE_CMD, v) if v is not None else None
 
 
+# zebra's `show vrf` lines (zebra_vrf.c): "vrf NAME id N table T", "vrf NAME id N netns NS" or "vrf NAME inactive",
+# each with " (configured)" when configured; the "netns-based vrfs" header with the netns backend
+_VRF_LINE = re.compile(r"\s*vrf\s+(\S+)\s+(inactive|id\s+\d+\s+(?:table\s+\d+|netns\s+\S+))(?:\s+\(configured\))?\s*")
+_VRF_HEADER = re.compile(r"\s*netns-based vrfs\s*")
+
+
+@parser(VRF_CMD)
 def parse_vrfs(text: str) -> dict[str, bool]:
-    """zebra's `show vrf`: "vrf NAME id N table T" (active) or "vrf NAME inactive"; default not listed."""
+    """zebra's `show vrf`: "vrf NAME id N table T" (active) or "vrf NAME inactive"; default not listed. An empty
+    answer is no VRFs (zebra prints nothing on a node without one); any other line is not zebra's VRF list (a daemon
+    message, an unknown command, a banner, JSON) and raises, never "no VRFs" (adversary n4i on 57eb8ca, D2)."""
     out = {}
     for line in text.splitlines():
-        m = re.match(r"\s*vrf\s+(\S+)\s*(.*)$", line)
-        if m:
-            out[m.group(1)] = not m.group(2).startswith("inactive")
+        if not line.strip() or _VRF_HEADER.fullmatch(line):
+            continue
+        m = _VRF_LINE.fullmatch(line)
+        if not m:
+            raise unexpected(VRF_CMD, text)
+        out[m.group(1)] = m.group(2) != "inactive"
     return out
 
 
@@ -574,6 +763,13 @@ class FrrDriver(Driver):
 
     def _vtysh(self, command: str, evidence: list[dict]) -> str:
         return self._exec(["vtysh", "-c", command], evidence)
+
+    def _text_count(self, json_text: str, vrf_part: str, afi: str, prefix: str, evidence: list[dict]) -> int | None:
+        """Where bgpd lists a prefix's paths without pathCount (FRR 10.2.1), read the count from the text answer of
+        the same command, so a dropped path is still caught (oracle FP-042-FRR102). None when pathCount is printed."""
+        if not needs_text_count(json_text):
+            return None
+        return parse_paths_available(self._vtysh(f"show bgp{vrf_part} {afi} unicast {prefix}", evidence), prefix)
 
     def _confirm_vrf(self, vrf: str, evidence: list[dict]) -> None:
         """Before an empty answer is trusted: zebra answers `{}` for a VRF that doesn't exist, exactly as
@@ -597,9 +793,36 @@ class FrrDriver(Driver):
         vrf = check_vrf_name(vrf)
         ev: list[dict] = []
         cmd = "show bgp neighbors json" if vrf == "default" else f"show bgp vrf {vrf} neighbors json"
-        neighbors = parse_bgp_neighbors(self._vtysh(cmd, ev))
+        text = self._vtysh(cmd, ev)
+        neighbors = parse_bgp_neighbors(text)
         if not neighbors:
             self._confirm_vrf(vrf, ev)
+        # with add-path from the peer, acceptedPrefixCounter counts paths: count the prefixes it lists (RT-0066)
+        vrf_part = "" if vrf == "default" else f" vrf {vrf}"
+        for key, name, afi in sorted(add_path_rx(text)):
+            n = neighbors.get(key)
+            if n is None or afi not in n.prefixes or afi in n.prefixes_unread:
+                continue   # unread: a graceful-restart window, no count to refine until End-of-RIB
+            if afi not in ("ipv4-unicast", "ipv6-unicast"):
+                # no per-neighbor listing read for this family (EVPN, ...): the counter's P paths are 1 to P
+                # prefixes, judged only where the whole range agrees, otherwise no verdict (never the path count)
+                paths = n.prefixes[afi]
+                neighbors[key] = n = replace(
+                    n, prefixes={**n.prefixes, afi: min(paths, 1)}, prefixes_upto={**n.prefixes_upto, afi: paths},
+                    prefixes_upto_why={**n.prefixes_upto_why, afi: add_path_range_why(paths)},
+                    prefixes_unread={**n.prefixes_unread, afi: f"the peer may send add-path in {afi}, so FRR's "
+                                     f"acceptedPrefixCounter ({paths}) counts paths, not prefixes"})
+                continue
+            rcmd = f"show bgp{vrf_part} {afi.split('-')[0]} unicast neighbors {name} routes json"
+            listing = self._vtysh(rcmd, ev)
+            stale = listed_stale(listing, rcmd)
+            if stale:   # stale paths listed though the neighbor's graceful-restart state didn't say so: not settled
+                neighbors[key] = replace(n, prefixes_unread={**n.prefixes_unread, afi: (
+                    f"`{rcmd}` lists {stale} stale path(s) (graceful restart, End-of-RIB pending), so FRR's "
+                    f"acceptedPrefixCounter ({n.prefixes[afi]}) still counts paths from before the restart")})
+                continue
+            count = count_neighbor_prefixes(listing, rcmd, n.prefixes[afi])
+            neighbors[key] = replace(n, prefixes={**n.prefixes, afi: count})
         return Observation(neighbors, ev)
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
@@ -610,7 +833,8 @@ class FrrDriver(Driver):
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         text = self._vtysh(f"show {fam} route{vrf_part} {prefix} json", ev)
         bgp = self._vtysh(f"show bgp{vrf_part} {afi} unicast {prefix} json", ev)
-        routes = parse_routes(text, prefix, bgp, offload=self.offload)
+        routes = parse_routes(text, prefix, bgp, offload=self.offload, bgp_count=self._text_count(bgp, vrf_part, afi,
+                                                                                                    prefix, ev))
         if not routes:
             self._confirm_vrf(vrf, ev)
         return Observation(routes, ev)
@@ -655,14 +879,15 @@ class FrrDriver(Driver):
         afi = "ipv6" if ipaddress.ip_network(prefix).version == 6 else "ipv4"
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         text = self._vtysh(f"show bgp{vrf_part} {afi} unicast {prefix} json", ev)
-        paths = parse_bgp_paths(text, prefix, default_local_pref=None)
+        count = self._text_count(text, vrf_part, afi, prefix, ev)
+        paths = parse_bgp_paths(text, prefix, default_local_pref=None, text_count=count)
         if not paths:
             self._confirm_vrf(vrf, ev)
         if any(p.local_pref is None for p in paths):
             # Some path has no LOCAL_PREF attribute: read the default it gets (an empty table listing)
             default = parse_default_local_pref(
                 self._vtysh(f"show bgp{vrf_part} ipv4 unicast 255.255.255.255/32 longer-prefixes json", ev))
-            paths = parse_bgp_paths(text, prefix, default_local_pref=default)
+            paths = parse_bgp_paths(text, prefix, default_local_pref=default, text_count=count)
         return Observation(paths, ev)
 
     def community_aliases(self) -> Observation:
@@ -677,7 +902,13 @@ class FrrDriver(Driver):
         from .addresses import parse_ip_j_addr
         vrf = check_vrf_name(vrf)
         cmd = ["ip", "-j", "addr"] + ([] if vrf == "default" else ["show", "vrf", vrf])
-        return parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+        out = parse_ip_j_addr(self._exec(cmd, []), skip_enslaved=vrf == "default", command=" ".join(cmd))
+        if vrf != "default":
+            # `show vrf X` lists the interfaces enslaved to X, not the VRF device itself; an address on it (the usual
+            # VRF loopback, `ip addr add A dev X`) is answered by the node too (RT-0053)
+            dev = ["ip", "-j", "addr", "show", "dev", vrf]
+            out += parse_ip_j_addr(self._exec(dev, []), skip_enslaved=False, command=" ".join(dev))
+        return out
 
     def ping(self, target: str, source: str | None, count: int, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

@@ -333,7 +333,7 @@ def test_a_guard_sample_that_errors_is_retried_then_loud():
 
     warnings: list[str] = []
     out = record._guards("r1", Drv(), {"10.0.0.2": BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 1})},
-                         {4: set()}, ["10.0.12.0/30"], warnings, sleep=lambda s: None)
+                         {4: set()}, ["10.0.12.0/30"], warnings, sleep=lambda s: None, no_v6=True)
     assert out == [] and Drv.calls == 2 * record.GUARD_SAMPLES
     loud = [w for w in warnings if w.startswith("INCOMPLETE BASELINE")]
     assert len(loud) == 2 and all("could not be evaluated" in w for w in loud), warnings
@@ -350,7 +350,7 @@ def test_a_guard_sample_that_errors_is_retried_then_loud():
 
     warnings = []
     out = record._guards("r1", Flaky(), {"10.0.0.2": BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 1})},
-                         {4: set()}, [], warnings, sleep=lambda s: None)
+                         {4: set()}, [], warnings, sleep=lambda s: None, no_v6=True)
     assert [g["prefix"] for g in out] == ["0.0.0.0/0"] and not warnings
 
 

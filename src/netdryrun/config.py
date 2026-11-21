@@ -188,8 +188,9 @@ def _only(where: str, value: Any, afi: str) -> list[str]:
 
 def _ping_target(where: str, params: dict) -> None:
     """A ping target must be another host the ping leaves the node for (red team B-9006): never unspecified, loopback,
-    multicast or limited broadcast, and never the source address itself. A target that is one of the pinging node's own
-    addresses is refused at run time (Driver.local_addresses)."""
+    multicast or limited broadcast, and never the source address itself. A source is of the target's address family
+    (FP-042-PINGSRCFAMILY). A target that is one of the pinging node's own addresses is refused at run time
+    (Driver.local_addresses)."""
     ip = ipaddress.ip_address(params["target"].split("%")[0])
     if getattr(ip, "ipv4_mapped", None) is not None:
         # ::ffff:a.b.c.d is an IPv4 target in IPv6 form: the node's own IPv4 addresses would never be compared with it
@@ -201,8 +202,18 @@ def _ping_target(where: str, params: dict) -> None:
     if why:
         raise ConfigError(f"{where}: target {params['target']} is {why}: a ping to it never leaves the node, so it "
                           "says nothing about the network")
-    if params.get("source") and ipaddress.ip_address(params["source"].split("%")[0]) == ip:
+    if not params.get("source"):
+        return
+    src = ipaddress.ip_address(params["source"].split("%")[0])
+    if src == ip:
         raise ConfigError(f"{where}: target {params['target']} is the source address: the node pings itself")
+    if src.version != ip.version:
+        # the ping tools drop (busybox) or ignore (iputils) a -I source of the other family without an error: the ping
+        # leaves from another address and the return path to the source is never tested (FP-042-PINGSRCFAMILY)
+        raise ConfigError(f"{where}: source {params['source']} is an IPv{src.version} address and target "
+                          f"{params['target']} an IPv{ip.version} address: a ping can't leave from a source of the "
+                          f"other family (the ping tool would send it from another address, so the path back to "
+                          f"{params['source']} would never be tested); give a source of the target's family")
 
 
 def _describe(ctype: str, p: dict[str, Any]) -> str:
@@ -551,47 +562,67 @@ class _StrictLoader(yaml.SafeLoader):
         return out
 
     def construct_mapping(self, node, deep=False):
-        if isinstance(node, yaml.MappingNode):
-            merges = [(k, v) for k, v in node.value if k.tag == self.MERGE]
-            if len(merges) > 1:
-                # PyYAML keeps the last `<<` and drops the first, keys and all: a guard written as `<<: *guard`
-                # then `<<: *other` vanished (angle-5 red team on d87aa3e, RT-0050)
+        self._check_keys(node)
+        return super().construct_mapping(node, deep=deep)
+
+    def _check_keys(self, node) -> None:
+        """Refuse a duplicate key in this mapping and in every mapping it merges, at any merge depth.
+
+        A merge source is never constructed: PyYAML's flatten_mapping copies its pairs into the mapping that merges it,
+        so its own keys were never checked and `prefix: 0.0.0.0/0` then `prefix: 192.0.2.0/24` in a guard template
+        used only through `<<` kept the last one silently (angle-5 red team on 82fb052, RT-0073). Each node is checked
+        once, on first sight, before flatten_mapping rewrites it in place (a flattened source holds the merged keys and
+        its own overrides side by side, which is no duplicate in the file)."""
+        if not isinstance(node, yaml.MappingNode):
+            return
+        checked = self.__dict__.setdefault("_ndr_checked", set())
+        if id(node) in checked:
+            return
+        checked.add(id(node))
+        merges = [(k, v) for k, v in node.value if k.tag == self.MERGE]
+        if len(merges) > 1:
+            # PyYAML keeps the last `<<` and drops the first, keys and all: a guard written as `<<: *guard`
+            # then `<<: *other` vanished (angle-5 red team on d87aa3e, RT-0050)
+            raise yaml.constructor.ConstructorError(
+                "while reading a mapping", node.start_mark,
+                f"two `<<` merge keys in one mapping (first on line {merges[0][0].start_mark.line + 1}): YAML keeps "
+                "only one of them; write one `<<: [*a, *b]` with sources that don't share a key, or the keys "
+                "themselves", merges[1][0].start_mark)
+        for _, value in merges:
+            sources = value.value if isinstance(value, yaml.SequenceNode) else [value]
+            for src in sources:
+                # the source's own keys (and its own merges) before the sources are compared with each other: a
+                # duplicate inside one source is that source's error, wherever it is merged
+                self._check_keys(src)
+            if isinstance(value, yaml.SequenceNode):
+                # YAML keeps the first source's value for a key two sources share, without a word
+                seen_src: dict = {}
+                for src in value.value:
+                    for k in self._keys(src):
+                        try:
+                            if k in seen_src:
+                                raise yaml.constructor.ConstructorError(
+                                    "while reading a mapping", node.start_mark,
+                                    f"merge sources share the key {k!r} (lines {seen_src[k] + 1} and "
+                                    f"{src.start_mark.line + 1}): YAML would keep one value without a word; "
+                                    "write that key explicitly", value.start_mark)
+                            seen_src[k] = src.start_mark.line
+                        except TypeError:
+                            continue
+        seen: dict[Any, int] = {}
+        for key_node, _ in node.value:
+            if key_node.tag == self.MERGE:
+                continue   # one `<<` merge is allowed, and explicit keys override it
+            key = self.construct_object(key_node, deep=True)
+            try:
+                first = seen.get(key)
+            except TypeError:
+                continue   # unhashable key: SafeLoader reports it
+            if first is not None:
                 raise yaml.constructor.ConstructorError(
                     "while reading a mapping", node.start_mark,
-                    f"two `<<` merge keys in one mapping (first on line {merges[0][0].start_mark.line + 1}): YAML keeps "
-                    "only one of them; write one `<<: [*a, *b]` with sources that don't share a key, or the keys "
-                    "themselves", merges[1][0].start_mark)
-            for _, value in merges:
-                if isinstance(value, yaml.SequenceNode):
-                    # YAML keeps the first source's value for a key two sources share, without a word
-                    seen_src: dict = {}
-                    for src in value.value:
-                        for k in self._keys(src):
-                            try:
-                                if k in seen_src:
-                                    raise yaml.constructor.ConstructorError(
-                                        "while reading a mapping", node.start_mark,
-                                        f"merge sources share the key {k!r} (lines {seen_src[k] + 1} and "
-                                        f"{src.start_mark.line + 1}): YAML would keep one value without a word; "
-                                        "write that key explicitly", value.start_mark)
-                                seen_src[k] = src.start_mark.line
-                            except TypeError:
-                                continue
-            seen: dict[Any, int] = {}
-            for key_node, _ in node.value:
-                if key_node.tag == self.MERGE:
-                    continue   # one `<<` merge is allowed, and explicit keys override it
-                key = self.construct_object(key_node, deep=True)
-                try:
-                    first = seen.get(key)
-                except TypeError:
-                    continue   # unhashable key: SafeLoader reports it
-                if first is not None:
-                    raise yaml.constructor.ConstructorError(
-                        "while reading a mapping", node.start_mark,
-                        f"duplicate key {key!r} (first defined on line {first + 1})", key_node.start_mark)
-                seen[key] = key_node.start_mark.line
-        return super().construct_mapping(node, deep=deep)
+                    f"duplicate key {key!r} (first defined on line {first + 1})", key_node.start_mark)
+            seen[key] = key_node.start_mark.line
 
 
 def load_yaml(text: str, source: str = "<yaml>") -> Any:

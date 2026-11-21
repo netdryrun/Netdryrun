@@ -1,0 +1,21 @@
+id: RT-0068
+title: >-
+  bgp_prefixes min 4 passed on SR Linux with 2 prefixes accepted: with `add-paths receive true` the peer sent each
+  prefix with 2 paths, and the driver read received-routes (6) minus the AS-loop paths (2), a count of paths, as the
+  prefix count
+found: "2026-11-13, red team on the 0.4.2 candidate; captured live on SR Linux 26.7.2 (lab ndr-rpsrl) the same day"
+fixed_in: 0.4.2
+kind: driver
+driver: srlinux
+check:
+  type: bgp_prefixes
+  node: srl1
+  neighbor: 10.0.100.2
+  min: 4
+outputs:
+  # live capture (oracle FP-042-SRLADDPATH): received-routes 6, rejected 0; the RIB holds 2 AS-loop paths and 4
+  # valid ones, 2 per prefix
+  - needle: "protocols bgp neighbor"
+    fixture: srl2672_rt0068_srl1_bgp_neighbors.json
+  - needle: "bgp-rib afi-safi ipv4-unicast ipv4-unicast"
+    fixture: srl2672_rt0068_srl1_bgp_rib_ipv4.json

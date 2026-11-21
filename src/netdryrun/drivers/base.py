@@ -21,6 +21,25 @@ class NoSuchInstance(DriverError):
     BGP sessions exist (a scenario's snapshot) can read it as "none"."""
 
 
+class RoutingDisabled(NoSuchInstance):
+    """The device answered that routing is off in the VRF for the family asked for (cEOS `routingDisabled: true`): no
+    route is there because nothing routes there. A definitive answer about the node, unlike a read that failed."""
+
+
+# A driver's constant answer for a family it can't read at all (RouterOS): the text, so every caller can tell it from a
+# read that failed (adversary n4i on 57eb8ca, B1)
+IPV6_ROUTES_UNSUPPORTED = "IPv6 routes are not supported on {} yet"
+_IPV6_ROUTES_UNSUPPORTED = re.compile(r"IPv6 routes are not supported on [A-Za-z0-9_-]+ yet")
+
+
+def cannot_read_ipv6(e: DriverError) -> bool:
+    """True when an IPv6 route read raised because the node can't have IPv6 routes read there: the driver doesn't read
+    IPv6 routes at all (RouterOS's not-supported answer), or the device said IPv6 routing is off in the VRF (cEOS).
+    Every other error is a read that failed (a timeout, rc != 0, output that couldn't be read, a VRF the answer doesn't
+    list), never "nothing to read"."""
+    return isinstance(e, RoutingDisabled) or bool(_IPV6_ROUTES_UNSUPPORTED.fullmatch(str(e)))
+
+
 # Same syntax as config.VRF_NAME. Checked again here: the name goes into device CLI strings, and a
 # driver must never be handed a name it would read as something else.
 _VRF_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}")
@@ -133,8 +152,13 @@ class BgpNeighbor:
     # doesn't give (Junos hides routes import policy rejected and routes whose next hop it can't use alike): the
     # reference count, received minus rejected by import policy, is then from prefixes[afi] to this (interop IOP-7)
     prefixes_upto: dict[str, int] = field(default_factory=dict)
-    # afi -> why the hidden routes behind a prefixes_upto range couldn't be read (a failed command, unreadable output)
+    # afi -> why the hidden routes behind a prefixes_upto range couldn't be read (a failed command, unreadable output);
+    # without a prefixes_upto range: why the count isn't settled at all (FRR graceful restart, End-of-RIB pending and
+    # stale paths still counted, RT-0072), so no bound is judged on it and `record` leaves it out
     prefixes_unread: dict[str, str] = field(default_factory=dict, compare=False)
+    # afi -> why the count is a prefixes_upto range, where it isn't hidden routes (add-path: a counter of paths that
+    # may be fewer prefixes); wording only, for the check's detail and record's warning
+    prefixes_upto_why: dict[str, str] = field(default_factory=dict, compare=False)
     # seconds between advertisements to this neighbor (MRAI) as the device reports it, or the platform's default
     # where it reports none; None: not known. A route can arrive this late after the session looks settled.
     # A timer, not the session's identity: not part of equality.
@@ -154,11 +178,53 @@ class BgpNeighbor:
     eor: dict[str, str] = field(default_factory=dict, compare=False)
 
 
+# The address families a check can name (config.AFIS). A driver keeps every other family a session lists under the
+# device's own name (FRR and SONiC `ipv4LabeledUnicast`, `ipv4Vpn`; SR Linux `ipv4-labeled-unicast`), so it reaches
+# BgpNeighbor.prefixes as it is.
+NAMED_FAMILIES = ("ipv4-unicast", "ipv6-unicast", "evpn")
+
+
+def unicast_unread(afi: str, families) -> list[str]:
+    """The families among `families` (one session's BgpNeighbor.prefixes keys) that leave its `afi` unicast count
+    unread, sorted; [] when the count (or the family's absence) can be read.
+
+    A labeled-unicast family carries routes of its IP version that the node installs as unicast routes: FRR 10.4.1
+    lists an LU-only session as `ipv4LabeledUnicast` alone, with acceptedPrefixCounter 0, while the peer's 3 routes are
+    installed as BGP IPv4 unicast routes (red team RT-0080, oracle FP-042-FRRLU), so "doesn't carry ipv4-unicast" and
+    `exact: 0` were false. Fails closed:
+    - the unicast family isn't listed: every family a check can't name blocks it, unless its name says it is only the
+      other IP version (`ipv6LabeledUnicast` doesn't block ipv4-unicast); a session that lists only named families
+      (an IPv6-only session for ipv4-unicast) still reads as not carrying it;
+    - the unicast family is listed with its own count: a labeled-unicast family of the same IP version (or of none
+      the name says) blocks it, since nothing says whether that count includes its routes; another family of the
+      version (VPN, multicast) keeps its routes in another table and doesn't.
+    EVPN is a named family and never blocks."""
+    if afi not in ("ipv4-unicast", "ipv6-unicast"):
+        return []
+    own, other = ("ipv4", "ipv6") if afi == "ipv4-unicast" else ("ipv6", "ipv4")
+    out = []
+    for fam in families:
+        if fam in NAMED_FAMILIES:
+            continue
+        word = re.sub(r"[^a-z0-9]", "", str(fam).lower())
+        if other in word and own not in word:
+            continue   # a family of the other IP version only
+        if afi in families and "labeled" not in word:
+            continue
+        out.append(str(fam))
+    return sorted(out)
+
+
 # Protocol names that come in a pair, one per address family: OSPF of any version on an IPv4 prefix is ospf (OSPFv2,
 # or OSPFv3 carrying IPv4, RFC 5838), on IPv6 ospf6; RIP on IPv4 is rip, on IPv6 ripng. A driver that named OSPFv3 by
 # its version alone reported an IPv4 route as ospf6, which validate refuses for IPv4, so `protocol: ospf present:
 # false` never matched it and passed (angle-5 red team on d87aa3e, RT-0044, RT-0045; Junos, SR Linux, EOS, NX-OS).
 _FAMILY_NAMES = {"ospf": ("ospf", "ospf6"), "ospf6": ("ospf", "ospf6"), "rip": ("rip", "ripng"), "ripng": ("rip", "ripng")}
+
+
+def add_path_range_why(paths: int) -> str:
+    """The reason a range of 1 to `paths` prefixes gives, where the counter counts add-path paths (EOS, FRR EVPN)."""
+    return f"{paths} paths counted: the peer may send add-path, so a prefix may have several"
 
 
 @dataclass

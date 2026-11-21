@@ -295,7 +295,14 @@ FRR_NBR = J({"10.0.0.2": {"bgpState": "Established",
                           "addressFamilyInfo": {"ipv4Unicast": {"acceptedPrefixCounter": 3},
                                                 "ipv6Unicast": {"acceptedPrefixCounter": "4"},
                                                 "l2VpnEvpn": {"acceptedPrefixCounter": 5},
-                                                "ipv4Multicast": {"acceptedPrefixCounter": 6}}},
+                                                "ipv4Multicast": {"acceptedPrefixCounter": 6}},
+                          # as FRR 10.4.1 prints it (tests/fixtures/frr_bgp_neighbors.txt): rx only, the peer sends
+                          # one path per prefix, so acceptedPrefixCounter is the prefix count (RT-0066)
+                          "neighborCapabilities": {"addPath": {
+                              "ipv4Unicast": {"rxAdvertisedAndReceived": True, "rxAdvertised": True, "rxReceived": True},
+                              "ipv6Unicast": {"rxAdvertisedAndReceived": True, "rxAdvertised": True, "rxReceived": True},
+                              "l2VpnEvpn": {"rxAdvertisedAndReceived": True, "rxAdvertised": True, "rxReceived": True},
+                              "ipv4Multicast": {"rxAdvertisedAndReceived": True}}}},
              "2001:db8:0::1": {"bgpState": "Idle (Admin)"},
              "eth1": {"bgpState": "Active", "addressFamilyInfo": {}}})
 SHOW_VRF = "vrf red id 5 table 1001\nvrf blue inactive\n"
@@ -639,10 +646,15 @@ def test_parse_ping(text, expected):
 # what every live SR Linux route-table row carries (srl_route.txt): no FIB operation pending or failed
 SRL_FIB_OK = {"suppressed": False, "pending-operation-type": "none", "last-failed-operation-type": "none"}
 
+# every live SR Linux neighbor prints add-paths per family (srl_bgp_neighbors.txt): off here, so received-routes
+# counts prefixes (with it on, the prefixes are counted from the RIB: tests/test_srl_addpath_042.py)
+SRL_NO_ADD_PATH = {"add-paths": {"receive": False, "send": False}}
 SRL_NBR = J({"neighbor": [
     {"peer-address": "10.0.0.2", "session-state": "Established",
-     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "oper-state": "up", "received-routes": 5, "rejected-routes": 1},
-                  {"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": "4", "rejected-routes": 0},
+     "afi-safi": [{"afi-safi-name": "ipv4-unicast", "oper-state": "up", "received-routes": 5, "rejected-routes": 1,
+                   **SRL_NO_ADD_PATH},
+                  {"afi-safi-name": "ipv6-unicast", "oper-state": "up", "received-routes": "4", "rejected-routes": 0,
+                   **SRL_NO_ADD_PATH},
                   {"afi-safi-name": "evpn"}]},
     {"peer-address": "2001:db8:0::1", "session-state": "idle"},
 ]})
@@ -997,20 +1009,31 @@ def eos_summary(vrf="default", **peers):
     return J({"vrfs": {vrf: {"peers": peers}}})
 
 
+def eos_peer(addr, vrf="default", **families):
+    """`show ip bgp neighbors <addr> vrf <vrf> | json` for one peer: receivingAddPaths.enabled per family, as cEOS
+    4.36.3M prints it (eos_eor_received.txt: false where the peer sends no add-path)."""
+    caps = {f: {"receivingAddPaths": {"receiveCapabilityAdvertised": True, "sendCapabilityReceived": on,
+                                      "enabled": on}} for f, on in families.items()}
+    return J({"vrfs": {vrf: {"peerList": [{"peerAddress": addr, "neighborCapabilities": {"addPathsCaps": caps}}]}}})
+
+
 def test_eos_bgp_neighbors_commands_and_counts():
     v4 = eos_summary(**{"10.0.0.2": {"peerState": "Established", "prefixAccepted": 3},
                         "10.0.0.3": {"peerState": "Idle (Admin)"}})
     v6 = eos_summary(**{"10.0.0.2": {"peerState": "Established", "prefixAccepted": "5"},
                         "2001:db8:0::1": {"peerState": "Active", "prefixAccepted": 0}})
-    lab = Lab([("ipv6 bgp summary", v6), ("ip bgp summary", v4)])
+    lab = Lab([("ipv6 bgp summary", v6), ("ip bgp summary", v4),
+               ("bgp neighbors 10.0.0.2", eos_peer("10.0.0.2", ipv4Unicast=False, ipv6Unicast=False))])
     obs = EosDriver(lab, "r1").bgp_neighbors()
+    # the summaries, then the add-path state of each established peer with more than one path in a family (RT-0069)
     assert lab.lines() == ["Cli -p 15 -c show ip bgp summary vrf default | json",
-                           "Cli -p 15 -c show ipv6 bgp summary vrf default | json"]
+                           "Cli -p 15 -c show ipv6 bgp summary vrf default | json",
+                           "Cli -p 15 -c show ip bgp neighbors 10.0.0.2 vrf default | json"]
     n = obs.value
     assert n["10.0.0.2"] == BgpNeighbor("10.0.0.2", "established", {"ipv4-unicast": 3, "ipv6-unicast": 5})
     assert n["10.0.0.3"] == BgpNeighbor("10.0.0.3", "idle", {})
     assert n["2001:db8::1"] == BgpNeighbor("2001:db8:0::1", "active", {"ipv6-unicast": 0})
-    assert len(obs.evidence) == 2
+    assert len(obs.evidence) == 3
     lab = Lab([("ipv6 bgp summary", eos_summary("red")), ("ip bgp summary", eos_summary("red"))])
     assert EosDriver(lab, "r1").bgp_neighbors("red").value == {}
     assert lab.lines() == ["Cli -p 15 -c show ip bgp summary vrf red | json",

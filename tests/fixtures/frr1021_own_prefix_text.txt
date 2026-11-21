@@ -1,0 +1,8 @@
+BGP routing table entry for 192.168.11.0/24, version 1
+Paths: (1 available, best #1, table default)
+  Advertised to non peer-group peers:
+  eth1 eth2
+  Local
+    0.0.0.0 from 0.0.0.0 (10.10.10.21)
+      Origin IGP, metric 0, weight 32768, valid, sourced, local, best (First path received)
+      Last update: Mon Nov  9 13:21:12 2026

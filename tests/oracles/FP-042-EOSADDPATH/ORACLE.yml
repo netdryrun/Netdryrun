@@ -1,0 +1,19 @@
+id: FP-042-EOSADDPATH
+bug: >-
+  With BGP additional-paths receive on cEOS, `show ip bgp summary | json` prefixAccepted counts paths, and the EOS
+  driver reads it as the prefix count, so `bgp_prefixes node ceos1 neighbor 10.0.200.2 min: 4` passes with only 2
+  prefixes accepted (4 paths) (red team RT-0069, captured live on cEOS 4.36.3M, lab ndr-rpeos, 2026-11-13)
+evidence:
+  - tests/fixtures/ceos4363m_rt0069_ceos1_ip_bgp_summary_vrf.json
+  - tests/fixtures/ceos4363m_rt0069_ceos1_ipv6_bgp_summary_vrf.json
+  - tests/fixtures/ceos4363m_rt0069_ceos1_ip_bgp_summary.json
+  - tests/fixtures/ceos4363m_rt0069_ceos1_ip_bgp_neighbor.json
+  - tests/fixtures/ceos4363m_rt0069_ceos1_ip_bgp.txt
+  - tests/fixtures/ceos4363m_rpeos_report.json
+  - tests/fixtures/ceos4363m_rpeos_run.txt
+  - tests/fixtures/ceos4363m_rpeos_topology.clab.yml
+  - tests/fixtures/ceos4363m_rpeos_netdryrun.yml
+  - tests/fixtures/ceos4363m_rpeos_ceos1.cfg
+  - tests/fixtures/ceos4363m_rpeos_frr1.conf
+  - tests/fixtures/ceos4363m_rpeos_frr2.conf
+  - tests/fixtures/SOURCES.yml

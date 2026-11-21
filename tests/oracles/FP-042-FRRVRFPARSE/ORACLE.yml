@@ -1,0 +1,12 @@
+id: FP-042-FRRVRFPARSE
+bug: >-
+  FRR's VRF list (FrrDriver.vrfs, frr.parse_vrfs on `vtysh -c "show vrf"`) skips every line that isn't `vrf NAME ...`,
+  so when vtysh exits 0 with an answer that is not zebra's VRF list (a daemon-connection message, an unknown-command
+  error, a banner, any JSON) it returns no VRFs and no warning, and record records the default VRF only, as on a node
+  without VRFs (adversary n4i on 57eb8ca, D2). An unrecognised non-empty answer must raise DriverError (fail closed),
+  never read as an empty list. The guards (the live capture tests/fixtures/verify/show_vrf.txt still lists cust on
+  FRR and SONiC; an empty answer is still no VRFs; inactive, default and the netns header still parse; rc != 0 still
+  raises) are in tests/test_oracle_guards_fp_042_frrvrfparse.py
+evidence:
+  - tests/test_oracle_guards_fp_042_frrvrfparse.py
+  - tests/fixtures/verify/show_vrf.txt

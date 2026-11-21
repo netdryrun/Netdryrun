@@ -1,0 +1,22 @@
+id: RT-0082
+title: >-
+  A ping check with an IPv6 `source` and an IPv4 `target` loaded and passed on FRR, SONiC and SR Linux, the reverse of
+  RT-0081: the ping tools drop or ignore the IPv6 `-I` source, so the ping left from the egress interface's IPv4
+  address and the return path to the requested source was never tested
+found: "2026-11-15, red team 042-IB (RT-0112-a), verifier 042-IV on 3d71d5a (tool behaviour checked locally on busybox 1.30.1 and iputils 20211215)"
+fixed_in: 0.4.2
+kind: config
+# Same root cause and fix as RT-0081 (config._ping_target compares the families), the other direction. Affected:
+# FRR and SR Linux 0.1.0 to 0.4.1, SONiC 0.2.0 to 0.4.1.
+topology: |
+  name: t
+  topology:
+    nodes:
+      r1: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+      r3: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+    links:
+      - endpoints: ["r1:eth1", "r3:eth1"]
+config: |
+  lab: topology.clab.yml
+  checks:
+    - {type: ping, node: r1, source: "2001:db8:1::1", target: 10.0.3.1}

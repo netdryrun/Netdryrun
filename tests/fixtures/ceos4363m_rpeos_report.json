@@ -1,0 +1,134 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "ndr-rpeos",
+  "config": "netdryrun.yml",
+  "started": "2026-11-13T00:49:48+00:00",
+  "finished": "2026-11-13T00:51:00+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.12.16",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "ceos1": {
+        "kind": "arista_ceos",
+        "image": "ceos:4.36.3M",
+        "management_default": "none",
+        "nos_version": null,
+        "image_digest": "ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df",
+        "config_load": "clean"
+      },
+      "frr1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      },
+      "frr2": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "removed: default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 1,
+    "failed": 1,
+    "total": 2
+  },
+  "warnings": {
+    "count": 0,
+    "items": []
+  },
+  "checks": [
+    {
+      "name": "eos-addpath-min4-must-fail",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "ceos1",
+        "neighbor": "10.0.200.2",
+        "min": 4
+      },
+      "passed": true,
+      "detail": "4 ipv4-unicast prefixes accepted",
+      "attempts": 2,
+      "duration_s": 4.2,
+      "started": "2026-11-13T00:50:30+00:00",
+      "history": [
+        {
+          "t": 0.6,
+          "passed": true,
+          "detail": "4 ipv4-unicast prefixes accepted"
+        },
+        {
+          "t": 4.2,
+          "passed": true,
+          "detail": "4 ipv4-unicast prefixes accepted"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp summary vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"peers\": {\n                \"10.0.200.2\": {\n                    \"version\": 4,\n                    \"msgReceived\": 10,\n                    \"msgSent\": 10,\n                    \"inMsgQueue\": 0,\n                    \"outMsgQueue\": 0,\n                    \"asn\": \"65020\",\n                    \"prefixAccepted\": 4,\n                    \"prefixReceived\": 4,\n                    \"upDownTime\": 1794531018.885729,\n                    \"underMaintenance\": false,\n                    \"peerState\": \"Established\",\n                    \"prefixAdvertised\": 1\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 bgp summary vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"peers\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "eos-addpath-exact2-must-pass",
+      "type": "bgp_prefixes",
+      "params": {
+        "node": "ceos1",
+        "neighbor": "10.0.200.2",
+        "exact": 2
+      },
+      "passed": false,
+      "detail": "4 ipv4-unicast prefixes accepted",
+      "attempts": 1,
+      "duration_s": 0.6,
+      "started": "2026-11-13T00:50:56+00:00",
+      "history": [
+        {
+          "t": 0.6,
+          "passed": false,
+          "detail": "4 ipv4-unicast prefixes accepted"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp summary vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"peers\": {\n                \"10.0.200.2\": {\n                    \"version\": 4,\n                    \"msgReceived\": 17,\n                    \"msgSent\": 19,\n                    \"inMsgQueue\": 0,\n                    \"outMsgQueue\": 0,\n                    \"asn\": \"65020\",\n                    \"prefixAccepted\": 4,\n                    \"prefixReceived\": 4,\n                    \"upDownTime\": 1794531020.163273,\n                    \"underMaintenance\": false,\n                    \"peerState\": \"Established\",\n                    \"prefixAdvertised\": 1\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 bgp summary vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"peers\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

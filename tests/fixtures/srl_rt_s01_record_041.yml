@@ -1,0 +1,93 @@
+# INCOMPLETE BASELINE: srl1: no global address on e1-1 where Netdryrun reads it (unnumbered, or kept on another interface by the NOS); its link subnet has no guard
+#
+# Recorded by netdryrun 0.4.1 record on 2026-11-09T17:22:09+00:00.
+# This is a baseline of the network's behavior when it was recorded. Review it before committing:
+# remove anything that is allowed to change, and add negative checks (route present: false,
+# ping expect: failure) for things that must never happen. Docs: https://netdryrun.com/reference/config/
+# warning: INCOMPLETE BASELINE: srl1: no global address on e1-1 where Netdryrun reads it (unnumbered, or kept on another interface by the NOS); its link subnet has no guard
+# warning: srl1: only the default VRF is recorded (listing VRFs is not supported on srlinux yet); add checks for other VRFs by hand
+lab: ../../../../../../home/ndr/cap-rts01/srl-frr/topology.clab.yml
+timeout: 120
+checks:
+- type: bgp_session
+  node: srl1
+  neighbor: 10.0.100.2
+- type: bgp_prefixes
+  node: srl1
+  neighbor: 10.0.100.2
+  afi: ipv4-unicast
+  min: 1
+  max: 3
+- type: route
+  node: srl1
+  prefix: 192.168.20.0/24
+  protocol: bgp
+- type: bgp_route
+  node: srl1
+  prefix: 192.168.20.0/24
+  local_pref: 100
+  without_communities:
+  - accept-own
+  - accept-own-nexthop
+  - blackhole
+  - graceful-shutdown
+  - internet
+  - llgr-stale
+  - no-advertise
+  - no-export
+  - no-export-subconfed
+  - no-llgr
+  - no-peer
+  - route-filter-translated-v4
+  - route-filter-translated-v6
+  - route-filter-v4
+  - route-filter-v6
+- type: route
+  node: srl1
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+- type: route
+  node: srl1
+  prefix: 10.0.100.0/30
+  protocol: bgp
+  present: false
+- type: bgp_session
+  node: frr1
+  neighbor: 10.0.100.1
+- type: bgp_prefixes
+  node: frr1
+  neighbor: 10.0.100.1
+  afi: ipv4-unicast
+  min: 2
+  max: 4
+- type: route
+  node: frr1
+  prefix: 192.168.10.1/32
+  protocol: bgp
+- type: bgp_route
+  node: frr1
+  prefix: 192.168.10.1/32
+  as_path: ''
+  local_pref: 100
+  without_communities:
+  - accept-own
+  - accept-own-nexthop
+  - blackhole
+  - graceful-shutdown
+  - internet
+  - llgr-stale
+  - no-advertise
+  - no-export
+  - no-export-subconfed
+  - no-llgr
+  - no-peer
+  - route-filter-translated-v4
+  - route-filter-translated-v6
+  - route-filter-v4
+  - route-filter-v6
+- type: route
+  node: frr1
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false

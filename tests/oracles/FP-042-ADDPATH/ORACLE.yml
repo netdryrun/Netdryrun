@@ -1,0 +1,19 @@
+id: FP-042-ADDPATH
+bug: >-
+  With BGP add-path (the neighbor sends several paths per prefix), FRR's `show bgp neighbors json`
+  acceptedPrefixCounter counts paths, and the FRR driver reads it as the prefix count, so `bgp_prefixes node r1
+  neighbor 10.0.12.2 min: 4` passes with only 2 prefixes accepted (4 paths) (red team RT-0066, captured live on FRR
+  10.4.1, lab ndr-repro042, 2026-11-12)
+evidence:
+  - tests/fixtures/frr1041_rt0066_r1_bgp_neighbors.json
+  - tests/fixtures/frr1041_rt0066_r1_neighbor_routes.json
+  - tests/fixtures/frr1041_rt0066_r1_neighbor_routes.txt
+  - tests/fixtures/frr1041_rt0066_r1_bgp_ipv4.json
+  - tests/fixtures/frr1041_repro042_r1_show_version.txt
+  - tests/fixtures/frr1041_repro042_report.json
+  - tests/fixtures/frr1041_repro042_run.txt
+  - tests/fixtures/frr1041_repro042_topology.clab.yml
+  - tests/fixtures/frr1041_repro042_r1.conf
+  - tests/fixtures/frr1041_repro042_r2.conf
+  - tests/fixtures/frr1041_repro042_r3.conf
+  - tests/fixtures/SOURCES.yml

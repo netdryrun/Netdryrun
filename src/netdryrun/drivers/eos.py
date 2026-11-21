@@ -14,8 +14,9 @@ import re
 
 import ipaddress
 
-from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int, canon_communities,
-                   check_vrf_name, load_json, must, must_bool, network, parser, unexpected)
+from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, RoutingDisabled,
+                   add_path_range_why, as_int, canon_communities, check_vrf_name, load_json, must, must_bool, network,
+                   parser, render_as_path, unexpected)
 from .frr import _canon_addr, parse_ping
 from .stale import refuse_if_stale
 
@@ -93,8 +94,8 @@ def _routing_vrf(command: str, data: dict, vrf: str) -> dict:
     if disabled is not True and disabled is not False:
         raise unexpected(command, f"vrf {vrf}: routingDisabled is {disabled!r}, not a boolean")
     if disabled:
-        raise NoSuchInstance(f"VRF {vrf!r} has routing disabled (`{command}`): nothing routes there, so no route "
-                             "check means anything in it")
+        raise RoutingDisabled(f"VRF {vrf!r} has routing disabled (`{command}`): nothing routes there, so no route "
+                              "check means anything in it")
     return entry
 
 
@@ -232,14 +233,28 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
     return out
 
 
-_SEGMENT = re.compile(r"([{\[])([^}\]]*)([}\]])")
+_AS_TOKEN = re.compile(r"\{([^}]*)\}|\[([^\]]*)\]|\(([^)]*)\)|(\S+)")
+_ASN = re.compile(r"[0-9]+")
+MAX_ASN = 4294967295   # 4-byte ASNs: a larger number is no ASN
 
 
-def _as_path(printed: str) -> str:
+def _as_path(printed: object) -> str:
     """EOS's AS path in the netdryrun.yml form: sets {a,b} and confederation sets [a,b] comma-separated (EOS
-    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated."""
-    text = _SEGMENT.sub(lambda m: m.group(1) + ",".join(re.split(r"[\s,]+", m.group(2).strip())) + m.group(3), printed)
-    return " ".join(text.split())
+    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated.
+    Every ASN must be asplain: a dotted (asdot) token such as 64086.59905, which EOS prints under `bgp asn notation
+    asdot`, or any other token is unexpected output, as on NX-OS. Kept as text, a "must not contain" as_path_regex
+    written in asplain (the only form netdryrun.yml takes) would never see the ASN and pass (FP-042-EOSASDOT)."""
+    if not isinstance(printed, str):
+        raise unexpected(BGP_CMD, f"asPath: {str(printed)[:80]!r}")
+    segs: list[tuple[str, list]] = []
+    for m in _AS_TOKEN.finditer(printed):
+        aset, cset, cseq, asn = m.groups()
+        members = next(g for g in (aset, cset, cseq, asn) if g is not None).replace(",", " ").split()
+        if not members or not all(_ASN.fullmatch(x) and int(x) <= MAX_ASN for x in members):
+            raise unexpected(BGP_CMD, f"asPath: {printed[:80]!r}")
+        segs.append(("as-set" if aset is not None else "confed-set" if cset is not None
+                     else "confed-sequence" if cseq is not None else "as-sequence", members))
+    return render_as_path(segs)
 
 
 def _med(value: int) -> int | None:
@@ -262,7 +277,7 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
             nh = p.get("nextHop") or ""
             out.append(BgpPath(
                 best=must_bool(BGP_CMD, must(BGP_CMD, p, "routeType"), "active"),
-                as_path=_as_path(str(must(BGP_CMD, must(BGP_CMD, p, "asPathEntry"), "asPath"))),
+                as_path=_as_path(must(BGP_CMD, must(BGP_CMD, p, "asPathEntry"), "asPath")),
                 next_hop=_canon_addr(str(nh)) if nh else None,
                 local_pref=as_int(BGP_CMD, p["localPreference"]) if "localPreference" in p else None,
                 # no MED attribute: unknown, not 0. cEOS 4.36.3M also prints "med": 0 for a path received with
@@ -345,6 +360,36 @@ def eos_eor(p: dict) -> dict[str, str]:
     return {"*": "unknown"}
 
 
+def parse_eos_add_path_off(text: str, vrf: str, address: str) -> set[str]:
+    """The families of one EOS peer (`show ip|ipv6 bgp neighbors <peer> vrf <vrf> | json`) in which it can't send this
+    node several paths per prefix: `neighborCapabilities.addPathsCaps.<afi>.receivingAddPaths.enabled` is exactly
+    false (cEOS 4.36.3M advertises add-path receive by default, so it is on whenever the peer sends add-path, red team
+    RT-0069). Fail-safe: output this function doesn't recognise, another peer, or a family without the entry gives no
+    family, and the driver then reads prefixAccepted as a count of paths. Never raises."""
+    try:
+        data = json.loads(text)
+    except (ValueError, RecursionError):
+        return set()
+    vrfs = data.get("vrfs") if isinstance(data, dict) else None
+    entry = vrfs.get(vrf) if isinstance(vrfs, dict) else None
+    peers = entry.get("peerList") if isinstance(entry, dict) else None
+    if not isinstance(peers, list):
+        return set()
+    mine = [p for p in peers if isinstance(p, dict) and isinstance(p.get("peerAddress"), str)
+            and _canon_addr(p.get("peerAddress")) == _canon_addr(address)]
+    if len(mine) != 1:
+        return set()
+    caps = mine[0].get("neighborCapabilities")
+    ap = caps.get("addPathsCaps") if isinstance(caps, dict) else None
+    out: set[str] = set()
+    for afi, name in EOS_FAMILIES.items():
+        fam = ap.get(afi) if isinstance(ap, dict) else None
+        rx = fam.get("receivingAddPaths") if isinstance(fam, dict) else None
+        if isinstance(rx, dict) and rx.get("enabled") is False:
+            out.add(name)
+    return out
+
+
 class EosDriver(Driver):
     name = "eos"
     route_protocols = frozenset({"bgp", "connected", "static", "ospf", "ospf6", "isis", "aggregate"})
@@ -413,7 +458,37 @@ class EosDriver(Driver):
         # A failing IPv6 summary (error, timeout, unreadable output) raises: swallowing it made every
         # IPv6 prefix count read 0, which passes `max` and `exact: 0`.
         parse_bgp_summary(self._bgp_cli(f"show ipv6 bgp summary vrf {vrf} | json", ev), vrf, "ipv6-unicast", out)
+        self._add_path_ranges(vrf, out, ev)
         return Observation(out, ev)
+
+    def _add_path_ranges(self, vrf: str, neighbors: dict[str, BgpNeighbor], ev: list[dict]) -> None:
+        """With add-path from the peer, the summary's prefixAccepted counts paths (red team RT-0069, cEOS 4.36.3M: 2
+        prefixes with 2 paths each read as 4, so `min: 4` passed). For each established peer with more than one path
+        accepted in a family, read its add-path receive state; where it isn't clearly off, the P paths are 1 to P
+        prefixes, judged only where the whole range agrees, otherwise no verdict (no per-neighbor listing of EOS's is
+        captured to count them from). A read that fails is not clearly off."""
+        for n in neighbors.values():
+            fams = [afi for afi in EOS_FAMILIES.values() if n.prefixes.get(afi, 0) > 1]
+            if n.state != "established" or not fams:
+                continue
+            try:
+                ver = ipaddress.ip_address(n.address.split("%")[0]).version
+            except ValueError:
+                ver = 4
+            cmd = f"show {'ipv6' if ver == 6 else 'ip'} bgp neighbors {n.address} vrf {vrf} | json"
+            try:
+                off, why = parse_eos_add_path_off(self._bgp_cli(cmd, ev), vrf, n.address), "it may send add-path"
+            except DriverError as e:
+                off, why = set(), f"its add-path state couldn't be read ({e})"
+            for afi in fams:
+                if afi in off:
+                    continue
+                paths = n.prefixes[afi]
+                n.prefixes[afi] = 1
+                n.prefixes_upto[afi] = paths
+                n.prefixes_upto_why[afi] = add_path_range_why(paths)
+                n.prefixes_unread[afi] = (f"{why} in {afi} (`{cmd}`), so EOS's prefixAccepted ({paths}) counts paths, "
+                                          "not prefixes")
 
     def routes(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)

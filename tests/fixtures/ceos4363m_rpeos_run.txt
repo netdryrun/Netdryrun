@@ -1,0 +1,12 @@
+Netdryrun 0.4.2: 2 checks from netdryrun.yml
+Deploying lab ndr-rpeos (3 nodes); this usually takes 30-90 s, longer the first time images are pulled...
+ceos1: management default route none
+frr1: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+frr2: management default route removed (default via 172.20.20.1 dev eth0; default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium)
+Management default routes removed; settling 10s before the checks...
+  [PASS] eos-addpath-min4-must-fail -- 4 ipv4-unicast prefixes accepted (4.2s)
+Convergence checks done; settling 10s before post-convergence checks...
+  [FAIL] eos-addpath-exact2-must-pass -- 4 ipv4-unicast prefixes accepted (0.6s)
+Lab ndr-rpeos left running for debugging; destroy with: containerlab destroy -t /mnt/c/NetCL Business/wt/repro-042b/eos/topology.clab.yml --cleanup
+FAILED: 1 passed, 1 failed (2 checks)
+  wrote json report: /mnt/c/NetCL Business/wt/repro-042b/capture/eos_report.json

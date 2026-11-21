@@ -1,0 +1,62 @@
+id: RT-0054
+title: >-
+  route 0.0.0.0/0 vrf ipvrf protocol bgp present: false passes on SR Linux while an EVPN IP-prefix (type-5) default
+  is received and imported into ip-vrf ipvrf but loses to a local static: the route table holds only the active
+  static, and the driver looks for the not-selected BGP path in ipvrf's own bgp-rib, which an ip-vrf without a BGP
+  instance doesn't have (EVPN paths live in the default network-instance's bgp-rib evpn), so the answer is {}
+found: 2026-11-09, red team A (drivers)
+fixed_in: null
+retired: "unconfirmed, 2026-11-09: the crafted route table omits the losing route; SR Linux 26.7.2 lists a losing static with active false (lab, RT-0057), and the EVPN form's live test is queued (wt/rg-srl-losers-b). If it shows the winner only, the case is filed again as a new number"
+kind: driver
+driver: srlinux
+check:
+  type: route
+  node: leaf1
+  vrf: ipvrf
+  prefix: 0.0.0.0/0
+  protocol: bgp
+  present: false
+outputs:
+  # route table of ipvrf: only the active route (shape of tests/fixtures/srl_leak_route.txt, a live capture)
+  - needle: "route-table ipv4-unicast route 0.0.0.0/0"
+    output: |
+      {
+        "route": [
+          {
+            "ipv4-prefix": "0.0.0.0/0",
+            "id": 0,
+            "route-type": "static",
+            "route-owner": "static_route_mgr",
+            "origin-network-instance": "ipvrf",
+            "leakable": false,
+            "leaked": false,
+            "metric": 1,
+            "preference": 5,
+            "active": true,
+            "route-limit-exceeded": false,
+            "last-app-update": "2026-11-09T08:16:06.770Z (19 seconds ago)",
+            "next-hop-group": "1406690822",
+            "next-hop-group-network-instance": "ipvrf",
+            "resilient-hash": false,
+            "dynamic-load-balancing": false,
+            "fib-programming": {
+              "suppressed": false,
+              "last-successful-operation-type": "add",
+              "last-successful-operation-timestamp": "2026-11-09T08:16:06.771Z (19 seconds ago)",
+              "pending-operation-type": "none",
+              "last-failed-operation-type": "none"
+            }
+          }
+        ]
+      }
+  # ipvrf has no `protocols bgp`: no bgp-rib there, sr_cli answers {} (tests/fixtures/srl_rib_empty.txt)
+  - needle: "bgp-rib afi-safi ipv4-unicast"
+    output: |
+      {
+      }
+reproduce: >-
+  containerlab: two SR Linux leaves with an EVPN-VXLAN ip-vrf `ipvrf` (bgp-evpn + bgp-vpn, no `protocols bgp` in the
+  ip-vrf). leaf2 advertises 0.0.0.0/0 as an IP-prefix route; leaf1 has `static-routes route 0.0.0.0/0` in ipvrf.
+  On leaf1 `info from state /network-instance ipvrf route-table ipv4-unicast route 0.0.0.0/0` shows the static only,
+  the type-5 path is in `/network-instance default bgp-rib afi-safi evpn evpn rib-in-out`, and the ipvrf bgp-rib
+  query answers {}. Remove the static and the route-table shows bgp-evpn: the guard should have failed before.

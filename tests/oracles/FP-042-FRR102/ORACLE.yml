@@ -1,0 +1,20 @@
+id: FP-042-FRR102
+bug: >-
+  On FRR 10.2.1 `show bgp <afi> unicast <prefix> json` lists the paths but prints no pathCount, and the FRR driver
+  stops on it ("unexpected output ... no pathCount", the dict it prints leaves `paths` out), so `record` writes an
+  INCOMPLETE BASELINE gap for each such guard and a route check on the prefix never gets a verdict (stranger, hq run
+  42599196181, martimy/clab-bgp-frr @ ac5b96c)
+evidence:
+  - tests/fixtures/frr1021_capture.txt
+  - tests/fixtures/frr1021_own_prefix_json.txt
+  - tests/fixtures/frr1021_own_prefix_text.txt
+  - tests/fixtures/frr1021_own_route_json.txt
+  - tests/fixtures/frr1021_learned_prefix_json.txt
+  - tests/fixtures/frr1021_learned_prefix_text.txt
+  - tests/fixtures/frr1021_learned_route_json.txt
+  - tests/fixtures/frr1021_table_json.txt
+  - tests/fixtures/frr1021u_capture.txt
+  - tests/fixtures/frr1021u_leaf01_ip_o_addr_show_dev_eth3.txt
+  - tests/fixtures/frr1021u_leaf01_show_bgp_neighbors_json.txt
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_frr102.py

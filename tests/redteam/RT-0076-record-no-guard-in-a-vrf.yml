@@ -1,0 +1,28 @@
+id: RT-0076
+title: >-
+  record wrote no guard for a non-default VRF, and said nothing: a PE's customer VRF got its sessions, prefix counts and
+  routes recorded with `vrf:`, but no `0.0.0.0/0` guard (record turned the guards on for the default VRF only), so a
+  change that leaked the default route into the VRF passed every recorded check of it, though cli.md says record
+  covers every active VRF and writes the guards on each BGP node
+found: "2026-11-14, angle-5 red team on 82fb052 (B-RT-0074)"
+fixed_in: 0.4.2
+kind: pinned
+# The reproduction is a whole record() run on a fake PE (oracle FP-042-RECORDVRF: the real record() and the recorded
+# checks judged on the leaked state), with the unit tests of the fix. Affected: 0.4.0 (VRFs in record) to 0.4.1, on
+# every driver that lists VRFs (FRR and SONiC; Junos from 0.4.0, NX-OS and RouterOS beta in 0.4.1). The fix guards every
+# VRF with a BGP instance, sessions or not: its first form guarded only VRFs with sessions, which left a VRF fed by
+# `import vrf` alone, and the default VRF of a node whose sessions are all in VRFs, as open (adversary n4c on cf460d6,
+# oracle FP-042-RECORDVRFNOSESS). Adversary n4f on 606d238 found two neighbours, fixed in 0.4.2 too: on those drivers
+# a VRF list that can't be read is an INCOMPLETE BASELINE line (0.4.0 and 0.4.1 recorded the default VRF alone and
+# exited 0; oracle FP-042-RECORDVRFLISTFAIL), and ::/0 is guarded in every VRF whose IPv6 routes can be read, not only
+# with IPv6 BGP or an eBGP session (oracle FP-042-RECORDV6DEFAULT). Adversary n4i on 57eb8ca found two more: under
+# --no-routes a failed IPv6 route read on a driver that reads IPv6 dropped ::/0 and the IPv6 link guards with exit 0 (an
+# INCOMPLETE BASELINE line now; only the driver's own can't-read-IPv6 answer, RouterOS or cEOS with IPv6 routing off,
+# stays silent; oracle FP-042-RECORDV6READFAIL), and FRR/SONiC read any unrecognised `show vrf` answer as no VRFs (an
+# error now, so the VRF-list gap line; oracle FP-042-FRRVRFPARSE).
+tests:
+  - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_recorded_vrf_gets_its_default_route_guard_or_a_gap_line
+  - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py::test_a_leaked_default_in_the_vrf_fails_the_baseline_or_the_gap_is_named
+  - tests/test_record_vrf_guards_042.py::test_the_leak_into_the_vrf_fails_its_guard_only
+  - tests/oracles/FP-042-RECORDVRFNOSESS/test_oracle_fp_042_recordvrfnosess.py::test_a_leaked_default_in_the_sessionless_vrf_fails_the_baseline_or_the_gap_is_named
+  - tests/test_record_vrf_nosess_guards_042.py::test_the_leak_into_the_sessionless_vrf_fails_its_guard_only

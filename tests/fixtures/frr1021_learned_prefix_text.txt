@@ -1,0 +1,14 @@
+BGP routing table entry for 192.168.21.0/24, version 5
+Paths: (2 available, best #1, table default)
+  Advertised to non peer-group peers:
+  eth1 eth2
+  65000 65002
+    fe80::a8c1:abff:fe6a:4ffa from eth1 (10.10.10.11)
+    (fe80::a8c1:abff:fe6a:4ffa) (used)
+      Origin IGP, valid, external, multipath, best (Router ID)
+      Last update: Mon Nov  9 13:21:17 2026
+  65000 65002
+    fe80::a8c1:abff:feac:5920 from eth2 (10.10.10.12)
+    (fe80::a8c1:abff:feac:5920) (used)
+      Origin IGP, valid, external, multipath
+      Last update: Mon Nov  9 13:21:17 2026

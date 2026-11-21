@@ -1,0 +1,16 @@
+id: FP-042-VRFDEV
+bug: >-
+  In a VRF, the FRR driver reads the node's own addresses with `ip -j addr show vrf <vrf>`, which lists the interfaces
+  enslaved to the VRF but not the VRF device itself, so an address on the VRF device (10.255.1.1/32 dev RED) isn't
+  an own address and a `ping` check node r1 vrf RED target 10.255.1.1 passes (3/3 replies) where a ping to the node's
+  own address must be refused (red team RT-0053, documented known limit "Fix: 0.4.2"; captured live on FRR 10.4.1,
+  lab ndr-repro042, 2026-11-12)
+evidence:
+  - tests/fixtures/frr1041_rt0053_r1_ip_addr_vrf_RED.json
+  - tests/fixtures/frr1041_rt0053_r1_ip_addr_dev_RED.json
+  - tests/fixtures/frr1041_rt0053_r1_ping_vrf_own.txt
+  - tests/fixtures/frr1041_repro042_report.json
+  - tests/fixtures/frr1041_repro042_run.txt
+  - tests/fixtures/frr1041_repro042_topology.clab.yml
+  - tests/fixtures/frr1041_repro042_r1.conf
+  - tests/fixtures/SOURCES.yml

@@ -1,0 +1,20 @@
+id: RT-0067
+title: >-
+  bgp_prefixes min 4 passed on FRR with 2 prefixes accepted: the peer sent each with 2 add-path paths and the driver
+  read acceptedPrefixCounter, which counts paths, as the prefix count (FRR 10.4.1 negotiates add-path receive on
+  every session by default; the peer only needs addpath-tx-all-paths). SONiC shares the driver.
+found: "2026-11-12, red team A (drivers) on the 0.4.2 candidate 79e6205; confirmed live on FRR 10.4.1 the same night"
+fixed_in: 0.4.2
+kind: driver
+driver: frr
+check:
+  type: bgp_prefixes
+  node: r1
+  neighbor: 10.0.12.2
+  min: 4
+outputs:
+  # live capture (oracle FP-042-ADDPATH): r1's neighbor 10.0.12.2 lists 2 prefixes, 2 paths each
+  - needle: "neighbors 10.0.12.2 routes json"
+    fixture: frr1041_rt0066_r1_neighbor_routes.json
+  - needle: "neighbors json"
+    fixture: frr1041_rt0066_r1_bgp_neighbors.json

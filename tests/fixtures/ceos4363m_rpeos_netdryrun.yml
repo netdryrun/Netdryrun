@@ -1,0 +1,5 @@
+lab: topology.clab.yml
+timeout: 240
+checks:
+  - {name: eos-addpath-min4-must-fail, type: bgp_prefixes, node: ceos1, neighbor: 10.0.200.2, min: 4}
+  - {name: eos-addpath-exact2-must-pass, type: bgp_prefixes, node: ceos1, neighbor: 10.0.200.2, exact: 2}

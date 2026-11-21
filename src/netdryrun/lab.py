@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 
 class LabError(RuntimeError):
@@ -51,6 +52,19 @@ VM_KINDS = frozenset({*ROUTEROS_KINDS, *NXOS_KINDS, "juniper_cjunosevolved", "ju
                       "juniper_vjunosswitch", "juniper_vjunosevolved", "juniper_vmx", "juniper_vsrx", "juniper_vqfx",
                       "cisco_xrv9k", "cisco_xrv", "cisco_csr1000v", "cisco_c8000v", "cisco_cat9kv", "nokia_sros",
                       "arista_veos", "ipinfusion_ocnos", "sonic-vm", "huawei_vrp"})
+
+
+# entries of /sys/class/net that are no interface: the bonding module adds this file in every network namespace
+NOT_INTERFACES = frozenset({"bonding_masters"})
+
+
+class LinkDev(NamedTuple):
+    """One device of a node's network namespace, as Lab.link_tree reads it."""
+    lower: str | None               # the device it is stacked on in the same namespace (eth1 of eth1.100@eth1)
+    master: str | None              # the bond, bridge or VRF it is enslaved to
+    kind: str | None = None         # iproute2's link kind (vlan, bridge, bond, vrf, gre, veth...); None: not shown
+    slave_kind: str | None = None   # bridge_slave, bond_slave, vrf_slave...; None: not shown or not enslaved
+    carrier: bool = True            # admin-up with carrier (UP and LOWER_UP) when read
 
 
 @dataclass
@@ -297,11 +311,90 @@ class Lab:
             raise LabError(f"could not read the addresses of {interface} on {node}: "
                            f"{' '.join((r.stderr or r.stdout).split())[:200] or f'exit code {r.rc}'}")
         out = []
-        for m in re.finditer(r"\binet6?\s+([0-9A-Fa-f:.]+/\d+)", r.stdout):
+        for m in re.finditer(r"\binet6?\s+(\S+)(?:\s+peer\s+(\S+))?", r.stdout):
+            token, peer = m.group(1), m.group(2)
             try:
-                out.append(ipaddress.ip_interface(m.group(1)))
+                if peer is not None:
+                    # a point-to-point address: iproute2 prints `inet A peer B/len`, and the link's subnet is the peer's
+                    # (oracle FP-042-UNNSESS: A alone read as A/32). A local address outside that subnet is unreadable
+                    net = ipaddress.ip_network(peer, strict=False)
+                    if "/" in token or ipaddress.ip_address(token) not in net:
+                        raise ValueError(f"{token} peer {peer}")
+                    out.append(ipaddress.ip_interface(f"{token}/{net.prefixlen}"))
+                elif "/" not in token:
+                    raise ValueError(token)   # no prefix length: never guess /32 or /128
+                else:
+                    out.append(ipaddress.ip_interface(token))
             except ValueError:
-                pass
+                # an address that exists but can't be read is never "no address": it could be the global one that
+                # makes the link numbered (oracle FP-042-UNNUMBERED)
+                shown = token + (f" peer {peer}" if peer else "")
+                raise LabError(f"could not read an address of {interface} on {node}: {shown[:60]!r}") from None
+        return out
+
+    def link_tree(self, node: str) -> dict[str, LinkDev]:
+        """Every device of the node -> LinkDev (its lower device in the node's own namespace, its master, its kind and
+        slave kind, and whether it has carrier), from one `ip -d -j link show` (where the node's `ip` has no JSON or
+        details, as busybox, `ls /sys/class/net` and one `ip -o link show dev X` each: kinds are then unknown but a bond
+        master's MASTER flag). A link fault
+        takes down what is stacked on the downed interface (oracle FP-042-LINKDOWNSTACKED: the BGP session ran over
+        eth1.100@eth1) and cuts off what a bridge reached only through it (oracle FP-042-LINKDOWNBRIDGE), so a listing
+        that can't be read is an error, never "nothing stacked". With the bonding module loaded /sys/class/net also holds
+        `bonding_masters`, a file that is no device (NOT_INTERFACES)."""
+        def fail(why: str):
+            raise LabError(f"could not read the links on {node} to find the devices stacked on the downed links: "
+                           f"{why[:200]}")
+
+        r = self.exec(node, ["ip", "-d", "-j", "link", "show"], timeout=15)
+        out: dict[str, LinkDev] = {}
+        if r.rc == 0:
+            try:
+                rows = json.loads(r.stdout)
+            except ValueError:
+                fail(f"not JSON: {' '.join(r.stdout.split())[:120]!r}")
+            if not isinstance(rows, list) or not rows:
+                fail("no device listed")
+            for j in rows:
+                name = j.get("ifname") if isinstance(j, dict) else None
+                flags = j.get("flags") if isinstance(j, dict) else None
+                if not isinstance(name, str) or not name or not isinstance(flags, list) or name in out:
+                    fail(f"unreadable entry {str(j)[:120]!r}")
+                info = j.get("linkinfo") or {}
+                if not isinstance(info, dict):
+                    fail(f"unreadable link info of {name}")
+                lower, master = j.get("link"), j.get("master")
+                kind, slave = info.get("info_kind"), info.get("info_slave_kind")
+                for v in (lower, master, kind, slave):
+                    if v is not None and not isinstance(v, str):
+                        fail(f"unreadable entry for {name}: {str(j)[:120]!r}")
+                lower = None if lower in (None, "", "NONE") else lower
+                out[name] = LinkDev(lower, master or None, kind or None, slave or None,
+                                    "UP" in flags and "LOWER_UP" in flags)
+            return out
+        # no JSON or details (busybox `ip`, an old iproute2): every interface of `ls /sys/class/net`, one `ip -o link
+        # show dev X` each; kinds unknown, but a bond master's MASTER flag
+        r = self.exec(node, ["ls", "/sys/class/net"], timeout=15)
+        if r.rc != 0:
+            fail(" ".join((r.stderr or r.stdout).split()) or f"exit code {r.rc}")
+        names = [i for i in r.stdout.split() if i not in NOT_INTERFACES and i not in {"lo", "eth0", "mgmt0", "docker0"}
+                 and not i.startswith(("mgmt0", "gway", "monit"))]   # loopback and management, as data_interfaces
+        if not names:
+            fail("no device listed")
+        raw: dict[str, tuple[str | None, str | None, list[str]]] = {}
+        for name in names:
+            r = self.exec(node, ["ip", "-o", "link", "show", "dev", name], timeout=15)
+            lines = [x for x in (r.stdout or "").splitlines() if x.strip()] if r.rc == 0 else []
+            m = re.match(r"\d+:\s+(\S+):\s+<([^>]*)>", lines[0]) if len(lines) == 1 else None
+            label = m.group(1) if m else ""
+            if label != name and not label.startswith(name + "@"):
+                fail(f"the link of {name}: {' '.join((r.stderr or r.stdout).split()) or f'exit code {r.rc}'}")
+            master = re.search(r"\smaster\s+(\S+)", lines[0])
+            raw[name] = (label[len(name) + 1:] or None, master.group(1) if master else None, m.group(2).split(","))
+        for name, (lower, master, flags) in raw.items():
+            if lower is not None and lower not in raw and (lower == "NONE" or re.fullmatch(r"if\d+", lower)):
+                lower = None   # a veth peer in another namespace, or no lower device
+            out[name] = LinkDev(lower, master, "bond" if "MASTER" in flags else None, None,
+                                "UP" in flags and "LOWER_UP" in flags)
         return out
 
     def peers_of(self, node: str, interface: str) -> list[tuple[str, str]]:
@@ -336,7 +429,7 @@ class Lab:
         r = self.exec(node, ["ls", "/sys/class/net"], timeout=15)
         if r.rc != 0:
             raise LabError(f"could not list interfaces on {node}: {(r.stderr or r.stdout).strip()}")
-        skip = {"lo", "eth0", "mgmt0", "docker0"}
+        skip = {"lo", "eth0", "mgmt0", "docker0", *NOT_INTERFACES}
         ifaces = sorted(i for i in r.stdout.split() if i not in skip and not i.startswith(("mgmt0", "gway", "monit")))
         if not ifaces:
             raise LabError(f"{node} has no lab links to take down")
@@ -445,7 +538,11 @@ class Lab:
 
     def docker_inspect(self, node: str) -> dict:
         """The node's container as `docker inspect` prints it. Not readable is an error, never "no networks"."""
-        c = self.nodes[node].container
+        return self.docker_inspect_container(self.nodes[node].container)
+
+    def docker_inspect_container(self, c: str) -> dict:
+        """Any container, by name or id, as `docker inspect` prints it (a namespace holder containerlab made for a
+        node is not a node itself). Not readable is an error."""
         r = _run(["docker", "inspect", c], timeout=60, errors="replace")
         try:
             data = json.loads(r.stdout) if r.rc == 0 else None

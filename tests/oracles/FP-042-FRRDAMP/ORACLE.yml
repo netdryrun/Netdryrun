@@ -1,0 +1,19 @@
+id: FP-042-FRRDAMP
+bug: >-
+  With `bgp dampening`, a withdrawn route stays in FRR's BGP table as a dampening history entry (no best path), and
+  the FRR driver reads it as a received, not-selected BGP route, so `route node r1 prefix 0.0.0.0/0 protocol bgp
+  active: false` passes ("present via bgp (not selected)") after the peer withdrew the default (red team RT-0070,
+  captured live on FRR 10.4.1, lab ndr-rpdamp, 2026-11-13)
+evidence:
+  - tests/fixtures/frr1041_rt0070_r1_ip_route_default.json
+  - tests/fixtures/frr1041_rt0070_r1_bgp_default.json
+  - tests/fixtures/frr1041_rt0070_r1_bgp_default_before.json
+  - tests/fixtures/frr1041_rt0070_r1_bgp_default_after.json
+  - tests/fixtures/frr1041_rt0070_r1_bgp_default_after.txt
+  - tests/fixtures/frr1041_rpdamp_report.json
+  - tests/fixtures/frr1041_rpdamp_check.txt
+  - tests/fixtures/frr1041_rpdamp_topology.clab.yml
+  - tests/fixtures/frr1041_rpdamp_checks.yml
+  - tests/fixtures/frr1041_rpdamp_r1.conf
+  - tests/fixtures/frr1041_rpdamp_isp.conf
+  - tests/fixtures/SOURCES.yml

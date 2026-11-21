@@ -1,0 +1,21 @@
+id: FP-042-ADDRLOAD
+bug: >-
+  `addresses._load` reads JSON from the first `{` or `[` and silently drops any text before it, so an own-address
+  answer that is not JSON as a whole reads as an address list (often an empty one) instead of unexpected output:
+  every own-address reader of the ping check (FRR, SONiC, EOS, NX-OS, RouterOS, SR Linux, Junos) since v0.4.1
+  (ClusterFuzzLite fuzz_parsers on PR #6 at 4747d42, crash-64187dc6186124ff3f0c0508128ec4d9c7acfc2d)
+evidence:
+  - tests/oracles/FP-042-ADDRLOAD/crash-64187dc6186124ff3f0c0508128ec4d9c7acfc2d
+  - tests/fixtures/frr_local_ip_addr.json
+  - tests/fixtures/sonic_local_ip_addr.json
+  - tests/fixtures/eos_local_ipv4.json
+  - tests/fixtures/eos_local_ipv6.json
+  - tests/fixtures/nxos_local_ip_brief.json
+  - tests/fixtures/nxos_local_ip_detail.json
+  - tests/fixtures/nxos_local_ipv6_detail.json
+  - tests/fixtures/routeros_local_ipv4.json
+  - tests/fixtures/routeros_local_ipv6.json
+  - tests/fixtures/srl_local_ipv4.json
+  - tests/fixtures/srl_local_ipv6.json
+  - tests/fixtures/junos_local_interfaces_terse.json
+  - tests/test_oracle_guards_fp_042_addrload.py

@@ -1,0 +1,2 @@
+35: eth3    inet 192.168.11.1/24 brd 192.168.11.255 scope global eth3\       valid_lft forever preferred_lft forever
+35: eth3    inet6 fe80::a8c1:abff:feb8:e64/64 scope link proto kernel_ll \       valid_lft forever preferred_lft forever

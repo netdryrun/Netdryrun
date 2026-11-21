@@ -128,7 +128,8 @@ def test_as_many_looped_routes_as_received_counts_zero():
 
 def _nb(received, rejected):
     return ('{"neighbor": [{"peer-address": "10.0.0.2", "session-state": "established", "afi-safi": [{"afi-safi-name": '
-            f'"ipv4-unicast", "oper-state": "up", "received-routes": {received}, "rejected-routes": {rejected}}}]}}]}}')
+            f'"ipv4-unicast", "oper-state": "up", "received-routes": {received}, "rejected-routes": {rejected}, '
+            '"add-paths": {"receive": false, "send": false}}]}]}')   # as live SR Linux prints it: add-path off
 
 
 def _rib(*reasons):

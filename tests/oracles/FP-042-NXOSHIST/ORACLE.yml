@@ -1,0 +1,14 @@
+id: FP-042-NXOSHIST
+bug: >-
+  The NX-OS driver reads a BGP path the peer withdrew as a received path: `_learned` ignores `pathhistory` (a
+  dampening history entry), `pathdeleted` and `pathvalid`, so `parse_routes` adds a not-selected BGP route and
+  `route 0.0.0.0/0 protocol bgp active: false` passes ("present via bgp (not selected)") with nothing received; only
+  `pathstaled` is read (angle-5 red team on 82fb052, A-RT-0073 with A-RT-0077; the FRR twin RT-0070 was confirmed
+  live, oracle FP-042-FRRDAMP). The answers are derived in the test from the live NX-OS 10.4(8) captures below. The
+  guards (the captured received-not-selected default keeps its verdicts) are in tests/test_oracle_guards_fp_042_nxoshist.py
+evidence:
+  - tests/fixtures/nxos_bgp_default.txt
+  - tests/fixtures/nxos_route_default.txt
+  - tests/fixtures/nxos_captures.tsv
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_042_nxoshist.py

@@ -270,3 +270,264 @@
   record: advisories/0.4.0-further-false-passes/README.md (case 19), website/docs/trust.md
   tests:
     - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
+- id: advisory-0.4.1-known-false-passes
+  what: Four narrow checks that can pass without seeing the problem in 0.4.1 and earlier (EOS non-BGP route not
+    selected, SR Linux EVPN type-5 in an ip-vrf, FRR/SONiC ping to the VRF device's own address; red team on the final
+    0.4.1 candidate); case 4 (SR Linux record --attributes) is the next entry
+  status: accepted-documented-limit
+  cases: [RT-0056, RT-0058, RT-0063]   # RT-0053 (the VRF device's own address) fixed in 0.4.2: see below
+  decided: "owner, 2026-11-09: ship 0.4.1 and publish the four as known limits; fix in 0.4.2 (GHSA-ggcf-664f-c9ff)"
+  record: advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  tests:
+    - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
+- id: rt-s01-record-as-path
+  what: On SR Linux, `record --attributes` leaves out an AS path it can't read (an iBGP peer's own route) without a
+    warning, so the baseline passes a later change of that path (regression in 0.4.1; fixed for 0.4.2, where the
+    route gets no check and an INCOMPLETE BASELINE line names it)
+  oracle_spec: fastfix/oracle-specs/RT-S01.md
+  decided: "owner, 2026-11-09: ship 0.4.1 and publish it as a known limit; fix in 0.4.2 through oracle RT-S01"
+  record: advisories/0.4.1-known-false-passes/README.md (case 4), website/docs/trust.md
+  tests:
+    - tests/oracles/FP-042-RTS01/test_oracle_fp_042_rts01.py
+    - tests/test_oracle_guards_fp_042_rts01.py
+    - tests/test_record.py
+- id: layer6-review-0.4.2
+  what: Found by the Layer 6 review of the 0.4.2 candidate (f220469) - record on a BGP-unnumbered FRR fabric left every
+    interface-named session out with a plain warning and exited 0, so a dropped session or a prefix flood passed the
+    baseline (red team RT-0066); a point-to-point address read as a /32 guard; a numbered 169.254.0.0/30 link called
+    unnumbered and left unguarded; a gap line quoting device text with "only the first" dropped from the gaps
+  record: CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py
+    - tests/test_oracle_guards_fp_042_unnsess.py
+    - tests/oracles/FP-042-CAPMSG/test_oracle_fp_042_capmsg.py
+    - tests/test_oracle_guards_fp_042_capmsg.py
+- id: rt-0053-vrf-device-own-address
+  what: FRR and SONiC read a VRF's own addresses from `ip -j addr show vrf X`, which leaves out the VRF device itself,
+    so a ping to an address on it (the usual VRF loopback) passed though the node answered it (case 3 of the 0.4.1
+    advisory); 0.4.2 also reads `ip -j addr show dev X`
+  record: CHANGELOG.md (0.4.2, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  tests:
+    - tests/oracles/FP-042-VRFDEV/test_oracle_fp_042_vrfdev.py
+    - tests/test_frr_addpath_vrfdev_042.py
+    - tests/test_redteam.py
+- id: rt-0067-frr-addpath-prefix-count
+  what: With add-path from the peer, FRR's acceptedPrefixCounter counts paths, and the FRR and SONiC drivers read it
+    as the prefix count, so `bgp_prefixes min` passed on fewer prefixes (red team on the 0.4.2 candidate 79e6205,
+    confirmed live on FRR 10.4.1); the driver now counts the prefixes the neighbor's routes listing gives
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-ADDPATH/test_oracle_fp_042_addpath.py
+    - tests/test_frr_addpath_vrfdev_042.py
+    - tests/test_redteam.py
+- id: rt-0068-srl-addpath-prefix-count
+  what: With add-path receive on SR Linux, the neighbor's received-routes counts paths, and the driver read it (minus
+    rejected and AS-loop paths) as the prefix count, so `bgp_prefixes min` passed on fewer prefixes (0.1.0 to 0.4.1;
+    red team on the 0.4.2 candidate, confirmed live on SR Linux 26.7.2); the driver now counts the distinct prefixes of
+    the neighbor's paths in the local RIB
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-SRLADDPATH/test_oracle_fp_042_srladdpath.py
+    - tests/test_srl_addpath_042.py
+    - tests/test_redteam.py
+- id: rt-0069-eos-addpath-prefix-count
+  what: With additional-paths receive on Arista EOS (advertised by default), the summary's prefixAccepted counts paths,
+    and the driver read it as the prefix count, so `bgp_prefixes min` passed on fewer prefixes (0.2.0 to 0.4.1; red
+    team on the 0.4.2 candidate, confirmed live on cEOS 4.36.3M); unless the peer's add-path receive is clearly off,
+    the count is now the range 1 to prefixAccepted
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-EOSADDPATH/test_oracle_fp_042_eosaddpath.py
+    - tests/test_eos_addpath_042.py
+    - tests/test_redteam.py
+- id: rt-0070-frr-dampening-history-entry
+  what: With `bgp dampening`, FRR keeps a withdrawn route listed as a dampening history entry, and the FRR and SONiC
+    drivers read it as a received, not-selected BGP route, so `route protocol bgp active false` passed after the
+    withdrawal (0.3.1 to 0.4.1; the default route 0.4.1 only, since a731395; red team on the 0.4.2 candidate,
+    confirmed live on FRR 10.4.1); history and removed paths are no path now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRDAMP/test_oracle_fp_042_frrdamp.py
+    - tests/test_frr_dampening_042.py
+    - tests/test_redteam.py
+- id: rt-0071-frr-history-entry-listed-as-received-prefix
+  what: With `bgp dampening`, FRR keeps a withdrawn prefix in the neighbor's received listing as a history path, and
+    the FRR and SONiC drivers' parse_received listed it, so `record` wrote it into `only` and the prefix coming back
+    passed the recorded bgp_prefixes check (0.4.1, where `only:` and record's closed world came in; found by adversary
+    review of the RT-0070 fix); a prefix whose paths are all withdrawn is no received prefix now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRRECVHIST/test_oracle_fp_042_frrrecvhist.py
+    - tests/test_frr_received_history_042.py
+    - tests/test_redteam.py
+- id: rt-0072-frr-gr-stale-paths-counted
+  what: During a BGP graceful restart with the peer's F-bit set, FRR keeps the peer's old paths marked stale until
+    End-of-RIB and counts them in acceptedPrefixCounter, and the FRR and SONiC drivers read that counter, so
+    `bgp_prefixes min 4` passed while the restarted peer sent 3 (FRR 0.1.0 and later, SONiC 0.2.0 and later; red team
+    on the 0.4.2 candidate, confirmed live on FRR 10.4.1); a count with End-of-RIB pending under the F-bit is not
+    settled now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRGRSTALE/test_oracle_fp_042_frrgrstale.py
+    - tests/test_frr_gr_stale_042.py
+    - tests/test_redteam.py
+- id: rt-0073-duplicate-key-in-merge-source
+  what: A duplicate key inside a mapping used only as a `<<` merge source was accepted and the last value won, so a
+    no-leak guard template with a pasted second `prefix:` guarded the wrong prefix (0.3.1 to 0.4.1, where duplicate
+    keys are refused elsewhere; angle-5 red team on the 0.4.2 candidate); every mapping a file merges is checked now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-YAMLMERGEDUP/test_oracle_fp_042_yamlmergedup.py
+    - tests/test_yaml_merge_source_dup_042.py
+    - tests/test_redteam.py
+- id: rt-0074-scenario-restore-brings-up-a-shut-link
+  what: After a scenario, restore ran `ip link set up` on every interface it had taken down without reading its admin
+    state first, so a link the lab keeps shut came back up and later scenarios ran on a network with an extra link
+    (0.2.0 to 0.4.1; angle-5 red team on the 0.4.2 candidate); a link already down is left alone now, and a
+    `link_down` on it is refused
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-SCENRESTORE/test_oracle_fp_042_scenrestore.py
+    - tests/test_scenario_restore_prior_state_042.py
+    - tests/test_redteam.py
+- id: rt-0075-nxos-history-path-read-as-route
+  what: Cisco NX-OS (beta) keeps a withdrawn BGP path listed as a dampening history entry (pathhistory) or a path
+    being deleted (pathdeleted), and the driver read it as a received, not-selected BGP route, so
+    `route protocol bgp active false` passed after the withdrawal (0.4.1, the driver's first release; angle-5 red team
+    on the 0.4.2 candidate, derived from live NX-OS 10.4(8) captures); history and deleted paths are no path now, in
+    `route`, `bgp_route` and `record`
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-NXOSHIST/test_oracle_fp_042_nxoshist.py
+    - tests/test_nxos_history_042.py
+    - tests/test_redteam.py
+- id: rt-0076-record-no-guard-in-a-vrf
+  what: record wrote the no-default-route and link-subnet guards in the default VRF only, without a word, so a default
+    route leaked into a customer VRF passed every recorded check of that VRF (0.4.0 to 0.4.1; angle-5 red team on the
+    0.4.2 candidate); every VRF with a BGP instance gets the guards now, sessions or not (a VRF fed only by
+    `import vrf`, and the default VRF of a node whose sessions are all in VRFs, after adversary n4c on cf460d6), each with
+    its `vrf:`
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-RECORDVRF/test_oracle_fp_042_recordvrf.py
+    - tests/oracles/FP-042-RECORDVRFNOSESS/test_oracle_fp_042_recordvrfnosess.py
+    - tests/test_record_vrf_guards_042.py
+    - tests/test_record_vrf_nosess_guards_042.py
+    - tests/test_record_vrfs.py
+    - tests/test_redteam.py
+- id: record-vrf-list-read-failed
+  what: on a driver that lists VRFs (FRR, SONiC, Junos from 0.4.0; NX-OS, RouterOS beta from 0.4.1), a VRF list that
+    couldn't be read recorded the default VRF alone with a plain warning and exited 0, so a default route leaked into
+    an unrecorded VRF passed (0.4.0 to 0.4.1; adversary n4f on 606d238, B1); it is an INCOMPLETE BASELINE line now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-RECORDVRFLISTFAIL/test_oracle_fp_042_recordvrflistfail.py
+    - tests/test_oracle_guards_fp_042_recordvrflistfail.py
+    - tests/test_record_vrflist_v6default_042.py
+    - tests/test_record_vrfs.py
+- id: record-v6-default-guard-without-ipv6-bgp
+  what: record wrote the ::/0 guard only with IPv6 BGP today or an established eBGP session, so a node or VRF with
+    IPv4 iBGP sessions only, or none, had no ::/0 guard and no line, and a ::/0 leaked into it later passed (0.3.3 to
+    0.4.1; adversary n4f on 606d238, C1); every VRF whose IPv6 routes can be read gets the guard now
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-RECORDV6DEFAULT/test_oracle_fp_042_recordv6default.py
+    - tests/test_oracle_guards_fp_042_recordv6default.py
+    - tests/test_record_vrflist_v6default_042.py
+    - tests/test_record_vrf_nosess_guards_042.py
+- id: record-v6-read-failed-no-routes
+  what: under record --no-routes, a failed IPv6 route read on a driver that reads IPv6 (FRR, SONiC, Junos, NX-OS, SR
+    Linux, EOS with IPv6 routing on) in a node or VRF without IPv6 BGP today was a plain warning, and the IPv6
+    link-subnet guards (0.3.3) and the eBGP ::/0 guard (0.4.1) were left out without a gap line, exit 0, so a later ::/0
+    or link-subnet leak passed (0.3.3 to 0.4.1, with routes recorded too in 0.3.3 and 0.4.0; adversary n4i on 57eb8ca,
+    B1 and D1); it is an INCOMPLETE BASELINE line now, and only the driver's own "can't read IPv6 here" answer
+    (RouterOS not supported, cEOS routingDisabled) stays a plain warning
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-RECORDV6READFAIL/test_oracle_fp_042_recordv6readfail.py
+    - tests/test_oracle_guards_fp_042_recordv6readfail.py
+    - tests/test_record_v6readfail_frrvrfparse_042.py
+- id: frr-vrf-list-any-text
+  what: FRR and SONiC read a `show vrf` answer that isn't zebra's VRF list (a daemon message, an unknown command, a
+    banner, JSON) as no VRFs, so record recorded the default VRF alone with no warning and exit 0 (0.4.0 to 0.4.1;
+    adversary n4i on 57eb8ca, D2); any line outside zebra's format raises now, and record writes the VRF-list gap line
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRVRFPARSE/test_oracle_fp_042_frrvrfparse.py
+    - tests/test_oracle_guards_fp_042_frrvrfparse.py
+    - tests/test_record_v6readfail_frrvrfparse_042.py
+- id: rt-0077-verify-bgp-pins-explain-a-static
+  what: verify appears_on with BGP pins in `with:` compared them with bgpd's best path only and explained every RIB entry
+    for the prefix, so a distance-1 static the node selected and installed to another next hop got INTENT MATCHED
+    (0.4.0 to 0.4.1; red team 042-GV on the 0.4.2 final candidate); every selected entry must meet the pins now, BGP
+    pins need the selected route to be BGP's, and a RIB entry the pins don't describe stays undeclared
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-VERIFYPINSTATIC/test_oracle_fp_042_verifypinstatic.py
+    - tests/test_oracle_guards_fp_042_verifypinstatic.py
+    - tests/test_verify_pins_selected_042.py
+    - tests/test_redteam.py
+- id: rt-0078-link-down-stacked-device-session
+  what: a link_down whose BGP session runs over a device stacked on the downed interface (a VLAN subinterface) watched
+    no session, logged "no BGP session runs over the downed links" and judged on the state from before the fault, so
+    a route check passed while the far end behind a bridge held the route for its hold time (0.3.1 to 0.4.1; red team
+    042-GV on the 0.4.2 final candidate), and so did a port of a bridge that keeps another port (br0 with eth1 and
+    eth2; SONiC's Vlan100@Bridge; adversary n5d on the first fix); stacked devices (VLAN, macvlan, a bond or bridge
+    once every member is down) count as the link now, a bridge that keeps another port counts its sessions with the
+    far end, a far end that can't be read for it, and any device that can't be read, stop the scenario (exit 2)
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-LINKDOWNSTACKED/test_oracle_fp_042_linkdownstacked.py
+    - tests/test_oracle_guards_fp_042_linkdownstacked.py
+    - tests/test_scenario_stacked_links_042.py
+    - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py
+    - tests/test_oracle_guards_fp_042_linkdownbridge.py
+    - tests/test_scenario_bridge_ports_042.py
+    - tests/test_redteam.py
+- id: rt-0079-link-down-sonic-port-far-end
+  what: a link_down on a SONiC VS port (Ethernet0) never looked up the far end, because the topology names the
+    container interface (eth1), so only the SONiC end's session was watched and a route check on the far end passed
+    while it held the route for its hold time (0.3.1 to 0.4.1; found writing oracle FP-042-LINKDOWNBRIDGE); the port is
+    mapped to its container interface from the node's lanes now, and a map that can't be read stops the scenario
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-LINKDOWNBRIDGE/test_oracle_fp_042_linkdownbridge.py
+    - tests/test_scenario_bridge_ports_042.py
+    - tests/test_redteam.py
+- id: rt-0080-frr-labeled-unicast-read-as-no-unicast
+  what: >-
+    FRR and SONiC read a session activated only for ipv4 labeled-unicast (bgpd lists `ipv4LabeledUnicast` alone,
+    counter 0) as not carrying ipv4-unicast, so `bgp_prefixes afi ipv4-unicast exact: 0` passed while the node had the
+    peer's routes installed as BGP IPv4 unicast routes, and record wrote that exact 0 (FRR 0.1.0 and SONiC 0.2.0 to
+    0.4.1, every max too before 0.4.1; red team 042-HV, live on FRR 10.4.1); a labeled-unicast family, or one no check
+    names, makes the unicast count unread now (every bound fails), and record names it as an INCOMPLETE BASELINE gap
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-FRRLU/test_oracle_fp_042_frrlu.py
+    - tests/test_oracle_guards_fp_042_frrlu.py
+    - tests/test_labeled_unicast_042.py
+    - tests/test_redteam.py
+- id: rt-0081-ping-source-of-the-other-family
+  what: >-
+    a ping check whose source is of the other address family than its target (IPv4 source and IPv6 target, or the
+    reverse) loaded and passed on FRR, SONiC and SR Linux, since busybox drops and iputils ignores a `-I` source of the
+    other family without an error and the ping left from another address (FRR and SR Linux 0.1.0 to 0.4.1, SONiC 0.2.0 to
+    0.4.1; red team 042-IB, verifier 042-IV); config loading refuses such a source now, on every driver
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-PINGSRCFAMILY/test_oracle_fp_042_pingsrcfamily.py
+    - tests/test_oracle_guards_fp_042_pingsrcfamily.py
+    - tests/test_ping_family_eos_asdot_042.py
+    - tests/test_redteam.py
+- id: rt-0083-eos-asdot-as-path-kept-as-text
+  what: >-
+    the Arista EOS driver kept an AS path printed in asdot (`64086.59905 65020`, under `bgp asn notation asdot`) as
+    text, so a bgp_route "no private 4-byte ASN" as_path_regex written in asplain passed on a path through 4200000001
+    (0.3.0 to 0.4.1; red team 042-IA, verifier 042-IV, asdot JSON not yet confirmed live); every AS path token must be
+    a number now and anything else is unexpected output, as on NX-OS
+  record: advisories/0.4.2-addpath-prefix-count/README.md, CHANGELOG.md (0.4.2, Fixed)
+  tests:
+    - tests/oracles/FP-042-EOSASDOT/test_oracle_fp_042_eosasdot.py
+    - tests/test_oracle_guards_fp_042_eosasdot.py
+    - tests/test_ping_family_eos_asdot_042.py
+    - tests/test_redteam.py

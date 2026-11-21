@@ -1,0 +1,35 @@
+id: RT-0073
+title: >-
+  A duplicate key inside a mapping used only as a `<<` merge source was accepted, and the last value won without a
+  word: a no-leak guard template written `prefix: 0.0.0.0/0` with a pasted second `prefix: 192.0.2.0/24` validated as a
+  guard on 192.0.2.0/24, so a leaked default route passed every run, though duplicate keys are errors at any depth
+found: "2026-11-14, angle-5 red team on 82fb052 (B-RT-0073)"
+fixed_in: 0.4.2
+kind: config
+# The check as meant: config.md, "Duplicate keys are errors, at any depth". What happened: _StrictLoader's duplicate
+# test ran only in construct_mapping, and a merge source is never constructed (PyYAML's flatten_mapping copies its
+# pairs into the mapping that merges it), so its keys were never compared. Not NOS output: a config-loading case
+# (oracle FP-042-YAMLMERGEDUP holds the `<<: [..]` form too). `netdryrun validate` exits 0 on 0.3.1 to 0.4.1.
+topology: |
+  name: t
+  topology:
+    nodes:
+      r1: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+      r2: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+    links:
+      - endpoints: ["r1:eth1", "r2:eth1"]
+config: |
+  lab: topology.clab.yml
+  checks:
+    - type: bgp_session
+      node: r1
+      neighbor: 10.0.12.2
+    - <<: &noleak
+        type: route
+        protocol: bgp
+        present: false
+        prefix: 0.0.0.0/0
+        node: r1
+        prefix: 192.0.2.0/24
+    - <<: *noleak
+      node: r2

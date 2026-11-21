@@ -1,0 +1,17 @@
+id: FP-042-FRRRECVHIST
+bug: >-
+  With `bgp dampening`, a prefix the neighbor withdrew stays in FRR's `show bgp ipv4 unicast neighbors N routes json`
+  as a history path (counted in totalRoutes), and the FRR driver's parse_received (bgp_received) still lists it,
+  though count_neighbor_prefixes drops it since RT-0070: `record` writes the withdrawn prefix into the closed-world
+  `only` list, so the prefix coming back passes the recorded check (false pass), and an `only:` check stays not-ready
+  while the history entry lasts (false fail). A cousin of RT-0070 found by adversary review; the listing is derived in
+  the test from the live FRR 10.4.1 captures below (RT-0070 lab ndr-rpdamp, RT-0066 lab ndr-repro042), not captured
+evidence:
+  - tests/fixtures/frr1041_rt0070_r1_bgp_default.json
+  - tests/fixtures/frr1041_rt0070_r1_bgp_default_before.json
+  - tests/fixtures/frr1041_rt0070_r1_bgp_default_after.txt
+  - tests/fixtures/frr1041_rpdamp_r1.conf
+  - tests/fixtures/frr1041_rpdamp_isp.conf
+  - tests/fixtures/frr1041_rt0066_r1_neighbor_routes.json
+  - tests/fixtures/frr1041_rt0066_r1_bgp_neighbors.json
+  - tests/fixtures/SOURCES.yml

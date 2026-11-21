@@ -1,5 +1,343 @@
 # Changelog
 
+## 0.4.2 (2026-11-18)
+
+### Fixed
+
+- **FRR 10.2: `record` and route checks stopped on every BGP prefix answer** (found by the synthetic stranger on
+  published 0.4.1, with martimy/clab-bgp-frr). FRR 10.2.1 lists a prefix's BGP paths in `show bgp ... <prefix> json`
+  but leaves out `pathCount`, which 0.4.1 required as its check that no path was dropped, so `record` reported every
+  leaf's own-LAN guard as an INCOMPLETE BASELINE.
+  - Where `pathCount` is missing, the count now comes from the text answer of the same command ("Paths: (N available").
+  - A count that doesn't match the paths listed is still an error, and a text answer without one is a named gap.
+  - An answer without its paths is never read as "absent".
+
+  Oracle `tests/oracles/FP-042-FRR102`, from a live FRR 10.2.1 capture.
+  On martimy/clab-bgp-frr itself `record` still exits 1: its sessions are BGP unnumbered (`neighbor eth1 interface`),
+  a named gap until 0.4.3 (next item). Until then, cover those sessions with `route` and `ping` checks written by hand.
+- **`record` on BGP-unnumbered links:** every fabric link was an INCOMPLETE BASELINE "no global address" gap, 12 of the
+  18 the stranger hit on martimy/clab-bgp-frr.
+  - An interface is now named "BGP unnumbered", with no subnet to guard, only when two things hold: it lists
+    link-local addresses only, and the node has a BGP session over that interface.
+  - Everything else stays a gap: no such session, an interface whose addresses can't be read, or no driver.
+  - An address token that can't be parsed is now an error instead of being dropped, so a global address can't read as
+    "none". A point-to-point address (`inet A peer B/31`) reads as its subnet, and only IPv6 fe80::/10 makes a link
+    unnumbered: an IPv4 169.254.0.0/16 link is numbered and guarded.
+  - **Sessions over those links are a named gap.** FRR names a BGP-unnumbered session by its interface (`eth1`), which
+    a check can't name yet, so `record` can't write its `bgp_session` or `bgp_prefixes` check. 0.4.1 left it out with a
+    plain warning; 0.4.2 writes an INCOMPLETE BASELINE line naming the node and the session, so `record` exits 1 on an
+    unnumbered fabric. Checks that name an interface-named session are planned for 0.4.3.
+
+  Oracles `tests/oracles/FP-042-UNNUMBERED` and `tests/oracles/FP-042-UNNSESS` (red team RT-0066), from the same
+  capture.
+- **FRR and SONiC: `bgp_prefixes` counted add-path paths as prefixes** (red team RT-0067, found on the 0.4.2
+  candidate and confirmed live on FRR 10.4.1; 0.1.0 and later). FRR 10.4.1 negotiates add-path receive on every
+  session by default, so a peer configured with `addpath-tx-all-paths` sends several paths per prefix, and FRR's
+  `acceptedPrefixCounter` counts each path. 2 prefixes with 2 paths each read as 4, so `min: 4` passed. When the peer
+  may send add-path (its capability says so, or doesn't say), the driver now counts the distinct prefixes in
+  `show bgp ... neighbors N routes json`, and a listing whose paths don't add up to FRR's counter is an error, not a
+  count. Oracle `tests/oracles/FP-042-ADDPATH`, from the live capture.
+- **SR Linux: `bgp_prefixes` counted add-path paths as prefixes** (red team RT-0068, confirmed live on SR Linux
+  26.7.2; 0.1.0 and later). With `add-paths receive true`, `received-routes` counts each path: 2 prefixes with 2 paths
+  each read as 4, so `min: 4` passed. When the peer may send add-path (the family's `add-paths receive` isn't false and
+  the peer offered ADD_PATH, or either doesn't say), the driver now counts the distinct prefixes of the neighbor's
+  paths in the local RIB, and a RIB whose usable paths don't add up to the counter is an error, not a count. Oracle
+  `tests/oracles/FP-042-SRLADDPATH`, from the live capture;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **Arista EOS: `bgp_prefixes` counted additional paths as prefixes** (red team RT-0069, confirmed live on cEOS
+  4.36.3M; 0.2.0 and later). cEOS advertises additional-paths receive by default, and the summary's `prefixAccepted`
+  counts each path: 2 prefixes with 2 paths each read as 4, so `min: 4` passed. For a peer with more than one path in a
+  family, the driver now reads its add-path receive state (`show ip|ipv6 bgp neighbors N vrf V | json`); unless it is
+  clearly off, P paths are the range 1 to P prefixes, judged only where the whole range agrees (`max` passes when P is
+  within it; P above `max`, or a `min` from 2 to P, gets no verdict, not a fail). Oracle
+  `tests/oracles/FP-042-EOSADDPATH`, from the live capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **FRR and SONiC: a dampening history entry read as a received route** (red team RT-0070, confirmed live on FRR
+  10.4.1; 0.3.1 and later, and for the default route 0.4.1 only, since a731395). With `bgp dampening`, bgpd keeps a
+  withdrawn route listed as a history entry, and the driver read it as received and not selected, so
+  `route ... protocol: bgp active: false` passed after the neighbor withdrew the route, and a `present: false` guard
+  failed though it was gone. A path flagged `dampeningHistoryEntry`, `history` or `removed` is no path now, in `route`,
+  `bgp_route` and the add-path prefix count; a damped (suppressed) path the neighbor still announces stays present and
+  not selected. Oracle `tests/oracles/FP-042-FRRDAMP`, from the live capture.
+- **FRR and SONiC: a withdrawn prefix kept as a dampening history entry was listed as received** (RT-0071, a cousin
+  of RT-0070 found by adversary review; 0.4.1). The neighbor's received-routes listing keeps the history path, and
+  the driver listed its prefix, so `record` wrote it into `only` and the prefix coming back passed the recorded check,
+  and an `only:` check stayed not-ready while the entry lasted. A prefix whose paths are all withdrawn is no received
+  prefix now; the listing's totalRoutes is still checked against every prefix listed. Oracle
+  `tests/oracles/FP-042-FRRRECVHIST`, derived from the live captures.
+- **FRR and SONiC: `bgp_prefixes min` passed on graceful-restart stale paths** (red team RT-0072, confirmed live on
+  FRR 10.4.1; FRR 0.1.0 and later, SONiC 0.2.0 and later). After a peer that preserves its forwarding state (F-bit
+  set) restarts, bgpd keeps its old paths marked stale until End-of-RIB and counts them in acceptedPrefixCounter, so
+  `min: 4` passed while the restarted peer sent 3. While End-of-RIB from such a peer is pending for the family (or
+  can't be read as received, or the add-path listing shows stale paths) the count isn't settled now: no bound is
+  judged, the check samples again, and `record` leaves the count out. Oracle `tests/oracles/FP-042-FRRGRSTALE`, from
+  the live capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **FRR and SONiC: `bgp_prefixes exact: 0` passed on a session that carries IPv4 over labeled-unicast** (red team
+  042-HV, RT-0080, confirmed live on FRR 10.4.1; FRR 0.1.0 and later, SONiC 0.2.0 and later). bgpd lists a session
+  activated only for `ipv4 labeled-unicast` as `ipv4LabeledUnicast` alone, with a counter of 0, while it installs the
+  peer's routes as BGP IPv4 unicast routes, so the check read "the session doesn't carry ipv4-unicast" and passed
+  (before 0.4.1 a family the session didn't list counted 0, so every `max` passed too), and `record` wrote that
+  `exact: 0` for eBGP sessions, plus a check with `afi: ipv4LabeledUnicast` that `run` refuses. A labeled-unicast
+  family of the check's IP version, or any family a check can't name that isn't of the other version only, now makes
+  the unicast count unread: every bound fails with "can't be read", and `record` names the family and the unicast count
+  it can't record as INCOMPLETE BASELINE lines (exit 1). On SR Linux the rule covers such a family
+  (`ipv4-labeled-unicast`) only where SR Linux prints its counters; one it prints without `received-routes` is still
+  dropped (see Not fixed). A session that carries no family of that version (IPv6 only,
+  EVPN only) still passes `exact: 0`. Oracle `tests/oracles/FP-042-FRRLU`, from the live capture;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A duplicate key inside a YAML merge source was accepted** (red team RT-0073, angle-5 red team on the 0.4.2
+  candidate; 0.3.1 to 0.4.1). Duplicate keys are refused at any depth, but a mapping used only through `<<` was never
+  checked, and its last value won: a no-leak guard template written `prefix: 0.0.0.0/0` with a pasted second
+  `prefix: 192.0.2.0/24` loaded as a guard on 192.0.2.0/24, so a leaked default route passed. Every mapping a file
+  merges (inline, anchored, in a `<<: [..]` list, at any merge depth) is checked now, in `netdryrun.yml`, the lab's
+  topology and `verify`'s files. Oracle `tests/oracles/FP-042-YAMLMERGEDUP`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A scenario's restore brought up a link the lab keeps shut** (red team RT-0074, angle-5 red team on the 0.4.2
+  candidate; 0.2.0 to 0.4.1). `node_isolated` took every lab link of the node down and restore set each one up again
+  without reading its state first, so a backup link that was administratively down before the scenario came back up,
+  and the scenarios and checks after it ran on a network with an extra link. Each link's admin state is read now,
+  before anything changes: a link already down is left down by `node_isolated`, and a `link_down` on it (or a
+  `node_isolated` whose links are all down) stops the run with an error (exit 2), since the fault would change
+  nothing. Oracle
+  `tests/oracles/FP-042-SCENRESTORE`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **Cisco NX-OS (beta): a withdrawn BGP path read as a received route** (red team RT-0075, angle-5 red team on the
+  0.4.2 candidate, derived from live NX-OS 10.4(8) captures; 0.4.1, the driver's first release). The NX-OS form of
+  RT-0070: NX-OS keeps a path the peer withdrew listed as a dampening history entry (`pathhistory`) or while deleting
+  it (`pathdeleted`), and the driver read it as received and not selected, so `route ... protocol: bgp active: false`
+  passed after the withdrawal. Such a path is no path now, in `route`, `bgp_route` and `record`; a path without
+  either flag, or with a flag that isn't a boolean, is unexpected output. Oracle `tests/oracles/FP-042-NXOSHIST`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record` wrote no guard in a non-default VRF** (red team RT-0076, angle-5 red team on the 0.4.2 candidate; 0.4.0
+  to 0.4.1). `record` covers every VRF the driver lists, but wrote the no-default-route and link-subnet guards in the
+  default VRF only, without a word, so a default route leaked into a customer VRF passed every recorded check of that
+  VRF. Every VRF with a BGP instance now gets the guards, each with its `vrf:`, whether it has BGP sessions or not
+  (a VRF fed only by `import vrf`, and the default VRF of a node whose sessions are all in VRFs, unguarded since
+  0.3.3), judged like the default VRF's on what that VRF learns via BGP today (a VRF that learns a default today gets
+  no default guard, and a comment says so). A baseline recorded on a lab with VRFs has more checks than before;
+  re-record to get them. Oracles `tests/oracles/FP-042-RECORDVRF` and `tests/oracles/FP-042-RECORDVRFNOSESS`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record`: a VRF list that couldn't be read recorded the default VRF alone and exited 0** (adversary review of the
+  RT-0076 fix; 0.4.0 to 0.4.1, on the drivers that list VRFs: FRR, SONiC and Junos from 0.4.0, the NX-OS and RouterOS
+  beta drivers from 0.4.1). A failed `show vrf` (or instance-list) read got the same plain `# warning:` comment as a
+  driver that can't list VRFs, no gap line, so `record` exited 0 and a default route leaked into an unrecorded VRF
+  passed every recorded check. On those drivers it is an `INCOMPLETE BASELINE` line naming the node now, and `record`
+  exits 1; SR Linux and EOS, which can't list VRFs, keep the warning. Oracle `tests/oracles/FP-042-RECORDVRFLISTFAIL`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record` wrote no `::/0` guard where IPv6 BGP and eBGP were absent** (adversary review of the RT-0076 fix; 0.3.3
+  to 0.4.1). The `::/0` guard was written only with IPv6 BGP today or (from 0.4.1) an established eBGP session, so a
+  node or VRF with IPv4 iBGP sessions only, or none, had no `::/0` guard and no line, and a change that brought IPv6 in
+  (`address-family ipv6`, `import vrf`) and leaked `::/0` passed. Every VRF with a BGP instance whose IPv6 routes can
+  be read gets the guard now, judged on the recording lab first like the others; where the driver answers that IPv6
+  routes can't be read there (RouterOS, cEOS with IPv6 routing off) nothing changes. An IPv6 route read that fails is
+  a gap line, never "can't be read" (next entry). Oracle `tests/oracles/FP-042-RECORDV6DEFAULT`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record --no-routes` dropped the IPv6 guards when an IPv6 route read failed, and exited 0** (adversary review of
+  the `::/0` fix; 0.3.3 to 0.4.1). On a driver that reads IPv6 routes (FRR, SONiC, Junos, NX-OS, SR Linux, EOS with
+  IPv6 routing on), a failed IPv6 route read (a vtysh, NX-API or NETCONF timeout) in a node or VRF without IPv6 BGP
+  today was a plain `# warning:` comment, and the IPv6 link-subnet guards (from 0.3.3) and the eBGP `::/0` guard (from
+  0.4.1) were left out without a gap line, so `record` exited 0 and a `::/0` or link subnet leaked there later passed.
+  0.3.3 and 0.4.0 did this with routes recorded too; 0.4.1 already exited 1 there. Now the failed read is an
+  `INCOMPLETE BASELINE` line naming the node, the VRF and IPv6 ("IPv6 routes could not be read, so no IPv6 guards"),
+  and `record` exits 1, in both modes. Only a driver's own answer that it can't read IPv6 routes there (RouterOS's
+  "not supported", cEOS's `routingDisabled` for IPv6) writes no IPv6 guard: under `--no-routes` with a plain warning;
+  with routes recorded, the route read's own `INCOMPLETE BASELINE` line stays, and `record` exits 1 as before. Oracle
+  `tests/oracles/FP-042-RECORDV6READFAIL`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **FRR and SONiC read any `show vrf` answer they didn't recognise as "no VRFs"** (adversary review of the RT-0076
+  fix; 0.4.0 to 0.4.1). The VRF list kept the lines shaped `vrf NAME ...` and skipped the rest, so when vtysh exited 0
+  with something that isn't zebra's VRF list (a daemon-connection message, an unknown-command error, a banner, JSON),
+  `record` recorded the default VRF alone, as on a node without VRFs, with no warning and exit 0. Every line must be
+  zebra's `show vrf` format now (`vrf NAME id N table T`, `vrf NAME id N netns NS`, `vrf NAME inactive`, optionally
+  ` (configured)`, and the `netns-based vrfs` header); anything else is an error, which `record` turns into the
+  `INCOMPLETE BASELINE` VRF-list line (exit 1). An empty answer, zebra's on a node without VRFs, is still no VRFs.
+  Oracle `tests/oracles/FP-042-FRRVRFPARSE`; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`verify`: BGP pins on `appears_on` approved a static route that won** (red team RT-0077, on the 0.4.2 final
+  candidate; 0.4.0 to 0.4.1, in `netdryrun verify`, MCP `verify_change` and the Action's `mode: verify`). With
+  `with: {from: 10.0.1.2, as_path: "65100"}`, the pins were compared with bgpd's best path only, and every RIB entry for
+  the prefix was explained. When the change also added a distance-1 static to another next hop, zebra selected and
+  installed the static while bgpd kept its best path, and the verdict was INTENT MATCHED. The pins now describe the
+  route the node selects: `protocol`, `distance` and `metric` must hold for every selected RIB entry, BGP attributes
+  need the selected route to be BGP's ("the selected route is a static route, not BGP"), and a RIB entry the pins
+  don't describe (a floating static beside the pinned BGP route) is an undeclared difference. A line without `with:`
+  is unchanged. Oracle `tests/oracles/FP-042-VERIFYPINSTATIC`, on output derived from the live FRR 10.4.1 captures;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A `link_down` whose BGP session runs over a VLAN subinterface or a bridge was judged before the fault took
+  effect** (red team RT-0078, on the 0.4.2 final candidate, and adversary n5d on the first fix; 0.3.1 to 0.4.1). The
+  sessions to wait for were found from the downed interface's own addresses, so with the session on `eth1.100@eth1`
+  (eth1 holding only its link-local), or on a bridge the interface is a port of (`br0` with eth1 and eth2; SONiC's
+  `Vlan100@Bridge` over `Ethernet0`), none was watched: the run logged "no BGP session runs over the downed links" and
+  judged at once, and the far end behind a bridge kept the route for its hold time, so `route ... protocol: bgp` passed
+  in a lab with no backup path. The node's devices are read before any link goes down (one `ip -d -j link show`, with
+  their kinds), and:
+  - VLAN subinterfaces and macvlans on a downed interface (and what is stacked on those) count as that interface, with
+    their addresses and names, and so does a bond or bridge once every member is down (or was already without carrier).
+  - A bridge that keeps another port stays up, so its sessions with the far end of the downed link are watched: on the
+    far end, the sessions to the bridge's addresses (and those of the VLAN devices on it); on the near end, the
+    sessions to the far end's addresses. When the far end is not a plain Linux container (cEOS, SONiC, SR Linux, a
+    VM kind, or any kind other than `linux`) or is a bridge port too, the run stops with exit code 2.
+  - A bond that keeps a member, a VRF device, and a tunnel bound to the downed interface (gre, ipip, sit, ip6tnl,
+    vxlan...) keep their carrier and are not waited for.
+  - A device listing that can't be read stops the run with exit code 2. `/sys/class/net/bonding_masters`, a file the
+    bonding module adds, is no longer read as an interface (from 0.3.1 it made `node_isolated` exit 2 on a host
+    with the bonding module loaded).
+
+  Oracles `tests/oracles/FP-042-LINKDOWNSTACKED` and `tests/oracles/FP-042-LINKDOWNBRIDGE`;
+  [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **A `link_down` on a SONiC port watched only the SONiC end** (RT-0079, found writing the oracle
+  `FP-042-LINKDOWNBRIDGE`; 0.3.1 to 0.4.1). The topology's links name the container interface a SONiC VS port sits on
+  (`eth1` for `Ethernet0`), so the far end of `Ethernet0` was never looked up, and a route check on the far end passed
+  while it held the route for its hold time. The port is mapped to its container interface from the node (its
+  CONFIG_DB lanes in `lanemap.ini`) before the far end is looked up, and a map that can't be read stops the run with
+  exit code 2. An unnumbered session on a SONiC or cEOS far end, keyed by its port name, counts too.
+- **MCP `record_baseline` named one gap marker of two** (angle-5 red team on the 0.4.2 candidate; 0.4.1). The tool
+  returns the YAML only, and its description named `# INCOMPLETE BASELINE` as the sign of a partial baseline, but a
+  routing node with no recorded check makes the first line `# BASELINE MISSES A NODE` (on which `netdryrun record`
+  exits 1), so an agent following the description could read the baseline as complete. The description now names every
+  marker, from the same list `record` uses to put gap lines first. Oracle `tests/oracles/FP-042-MCPMISSNODE`.
+- **FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (case 3 of the 0.4.1 advisory,
+  [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff); RT-0053).
+  In a named VRF the node's own addresses now include the VRF device's (`ip -j addr show dev X`), so a ping to the
+  usual VRF loopback is refused as the node's own. Oracle `tests/oracles/FP-042-VRFDEV`, reproduced live on FRR
+  10.4.1.
+- **`record` could exit 0 with a gap it had named.** A gap line that quoted a device's answer containing "only the
+  first" was taken for one of the two size caps. Only `record`'s own cap lines are left out now. Oracle
+  `tests/oracles/FP-042-CAPMSG`.
+- **Own-address reads skipped text before the JSON** (found by ClusterFuzzLite on the 0.4.2 work). Since 0.4.1 every
+  driver's own-address reader (the ping check's own-target and source guards) started at the first `{` or `[`, so an
+  answer with a CLI error line or other text in front of its JSON read as a shorter address list, often an empty one.
+  The answer must now be the JSON document, with only whitespace around it; anything else is unexpected output.
+
+  Oracle `tests/oracles/FP-042-ADDRLOAD`, from the fuzzer's saved crash input.
+- **SR Linux on containerlab 0.83: every check was refused** as "in the namespace of ..., which is not a lab node"
+  (found by the synthetic stranger; `netdryrun run examples/srl-frr` exited 2). containerlab 0.83 runs an SR Linux node
+  in a namespace holder container it makes for that node.
+  - That holder now counts as the node's own namespace, but only when it carries containerlab's labels for this lab and
+    this node (`containerlab`, `clab-internal-node: "true"`, `clab-root-node-name`), Docker finds it under the name or
+    id the node's network mode gives, and it holds its own namespace.
+  - Its Docker networks are the node's management networks, so a ping over them is still refused.
+  - Still refused: network-mode host, a holder for another lab or node, a container with the holder's name but not
+    its labels, and a holder Docker can't read.
+
+  Oracle `tests/oracles/FP-042-SRLNETNS`, from a containerlab 0.83.0 capture.
+- **A `ping` with a `source` of the other address family passed** (red team 042-IB, RT-0081 and RT-0082, verifier
+  042-IV; FRR and SR Linux 0.1.0 to 0.4.1, SONiC 0.2.0 to 0.4.1). `{type: ping, node: r1, source: 192.0.2.1, target:
+  "2001:db8:3::1"}` (or an IPv6 source with an IPv4 target) loaded, and the ping tools drop (busybox, on FRR) or
+  ignore (iputils, on SONiC and SR Linux) a `-I` source of the other family without an error: the ping left from the
+  egress interface's address of the target's family, got its replies, and passed, so the way back to the source's
+  prefix was never tested. A `source` of the other family than `target` is refused when the file loads now (exit 2),
+  on every driver, in `netdryrun validate`, `run` and the MCP tools. `record` writes no ping check. Oracle
+  `tests/oracles/FP-042-PINGSRCFAMILY`, on output derived from the live captures and the tools' behaviour checked
+  locally; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **Arista EOS: an AS path printed in asdot was kept as text** (red team 042-IA, RT-0083, verifier 042-IV; 0.3.0 to
+  0.4.1). Under `bgp asn notation asdot` EOS prints an ASN above 65535 as `64086.59905` (4200000001), and the driver
+  kept the AS path as it was printed, so a `bgp_route` guard written in asplain, the only form `netdryrun.yml` takes,
+  never saw the ASN: `as_path_regex: '^(?!.*42[0-9]{8})'` ("no private 4-byte ASN in the best path") passed on a
+  path through AS 4200000001. Every AS path token must be a number now, as on NX-OS: a dotted one, or anything else,
+  is unexpected output and the check is an error, in `bgp_route` and `record --attributes`. Whether cEOS `| json`
+  follows the asdot setting is not confirmed live; the fix holds either way. Oracle `tests/oracles/FP-042-EOSASDOT`,
+  on output derived from the live cEOS 4.36.3M capture; [advisory](advisories/0.4.2-addpath-prefix-count/README.md).
+- **`record --attributes` on SR Linux left out an AS path it couldn't read, without a warning** (case 4 of the 0.4.1
+  advisory, GHSA-ggcf-664f-c9ff; a regression in 0.4.1). SR Linux prints no as-path container for an empty AS path
+  (an iBGP peer's own route), and nothing in its answer tells that from a missing one. So the recorded check passed
+  once the path changed.
+  - Where the best path's AS path can't be read, on any driver, `record` now writes no `bgp_route` check for that
+    route. An INCOMPLETE BASELINE line names it, so `record` exits 1.
+  - A local preference the driver can't read is named in a warning, not dropped silently.
+
+  Oracle `tests/oracles/FP-042-RTS01` (red-team finding RT-S01), from a live SR Linux 26.7.2 and FRR 10.4.1 capture.
+
+- **cEOS: a run on a large lab could stop with "a route out over the management network"** (acceptance, the 30-node
+  lab, on the 0.4.2 final candidate; 0.4.1). While cEOS is still starting, its table can list the
+  container's Linux default as a `kernel` route over Management0; once EOS has started it lists none. Netdryrun
+  checked one leaf inside that window and stopped the run (exit 2, no verdict).
+  - Only that route is waited out, up to 60 s, and then judged as before; it stays a run error if it is still there.
+  - Anything else over the management network (another route, a static with no config line, a default via another
+    address) is a run error at once, as before.
+- **RouterOS (beta): `record` and BGP checks refused a healthy session with "received 0 prefixes (prefix-count)"**
+  (acceptance, on the 0.4.2 final candidate; 0.4.1). RouterOS brings a session's `prefix-count` up to date only when
+  its route table is read: on CHR 7.23.8 it stayed 0 over four reads ten minutes after boot and was right just after
+  the table was read. Netdryrun read the sessions before the table, so the first read after a quiet spell refused.
+  - The sessions are read again after the table when a count differs from it; a count that still differs refuses, as
+    before (no verdict).
+  - The compatibility note that a 600 s timeout covers a lagging count is replaced.
+  - Known limit, not fixed in 0.4.2: on CHR 7.23.8 the count sometimes stays 0 even after the table is read (in several
+    final acceptance runs, once after a fresh deploy too). `record` then still refuses the session's BGP state, with
+    no verdict, and says so: record again, or add `route` checks by hand (they read the route table, not the count).
+    A driver fix that waits for the count to settle is planned for 0.4.3.
+
+### Changed
+
+- **`record --attributes` on SR Linux: a route its iBGP peer originates now gets a named gap instead of a check.**
+  0.4.1 wrote a `bgp_route` check for it without `as_path`, which passed a changed path. 0.4.2 writes no check for that
+  route, and an INCOMPLETE BASELINE line names it, so `record --attributes` on SR Linux exits 1 for a route its iBGP
+  peer originated (an empty AS path), where it exited 0. Until 0.4.3, that route's AS path can't be checked on SR
+  Linux (a hand-written `as_path` check there never gets a verdict): check that path's AS path on the peer that sends
+  it. Reading the empty path exactly is planned for 0.4.3. eBGP paths, and every
+  FRR path, are recorded as before, with their AS path, and `record` still exits 0 on them. Listed under "What a lab
+  cannot prove" on the trust page.
+
+### Release gate
+
+- A FAIL and the rerun limit follow the code (the tree), not the commit; a FAIL during a host gap still fails; an
+  attempt record that can't be read blocks; a live run of some cases only can't clear the live layer; an oracle can't
+  be deleted or hold a symlink; every gate script is a reviewed file once the gate is on `main` (Layer 6 review).
+
+### Not fixed in 0.4.2
+
+- **SR Linux: a path rejected for AS-loop makes `route ... present: false` and `bgp_route ... present: false` an
+  error, not a pass** (M-10, since 0.4.1), and `record` leaves that guard out as an INCOMPLETE BASELINE gap. On an
+  eBGP fabric this hits each leaf's own link subnet coming back from a spine. It fails closed: guard the prefix on a
+  node whose AS isn't in the path already. Planned for 0.4.3.
+- **Cases 1 and 2 of the 0.4.1 advisory** ([GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff),
+  `advisories/0.4.1-known-false-passes/README.md`) are still open: Arista EOS `route ... present: false` with a
+  protocol other than `bgp`, and SR Linux EVPN type-5 routes in an ip-vrf (case 3 is fixed above). Each has a
+  workaround in the advisory. They are planned for 0.4.3.
+- **`record` on a BGP-unnumbered fabric** (FRR `neighbor ethN interface`): the interface-named sessions are an
+  INCOMPLETE BASELINE gap and `record` exits 1 (for example on martimy/clab-bgp-frr). Cover those sessions with `route`
+  and `ping` checks written by hand. Planned for 0.4.3.
+- **cEOS with IPv6 routing off at record time gets no `::/0` guard**: a later change that turns IPv6 routing on and
+  leaks `::/0` passes the recorded file. Add `{type: route, node: <node>, prefix: ::/0, protocol: bgp, present: false}`
+  by hand on such nodes. On RouterOS, and on cEOS with IPv6 routing off in a recorded VRF, `record` with routes exits 1
+  on a healthy lab (the IPv6 route read is named as a gap); use `--no-routes` there or review the line. Planned for 0.4.3.
+- **SR Linux and Junos: `bgp_route present: false` doesn't see the node's own exported prefix** (RT-0048, accepted
+  for 0.4.1). Keep the guard on the neighbor that would receive the route. Planned for 0.4.3.
+- **Juniper and Cisco NX-OS (beta): `bgp_prefixes` may count add-path paths as prefixes** when add-path receive is
+  negotiated with the peer, as FRR, SR Linux and Arista EOS did before 0.4.2 (RT-0067 to RT-0069), so a `min` could pass on fewer
+  prefixes. Not confirmed live on Junos or NX-OS (on NX-OS only if the summary's count is a path count). Workaround: check the prefixes that matter with `route ... present` checks, or
+  leave add-path receive off in the lab.
+- **SR Linux, Arista EOS, and Juniper and Cisco NX-OS (beta): `bgp_prefixes min` may count graceful-restart stale paths** while a restarting peer
+  that kept its forwarding state (F-bit set) hasn't sent End-of-RIB, as FRR and SONiC did before 0.4.2 (RT-0072). Not
+  confirmed live on any of them. Workaround: add a `max` to the check (the convergence gate then waits for End-of-RIB), or
+  pair the `min` with `route` checks.
+- **SR Linux: a labeled-unicast family printed without counters is dropped**, so a session that carries only
+  labeled-unicast can still pass `bgp_prefixes exact: 0` on ipv4-unicast with "doesn't carry" (red team 042-H
+  adversary review, synthetic input; not seen live). Also not checked live: VPN routes imported into the default VRF
+  beside a listed unicast family, EVPN type-5 routes in the default VRF on an EVPN-only session, and Arista EOS sessions
+  that carry only labeled-unicast. Workaround: `route ... present: false` checks on such sessions. Planned for 0.4.3.
+- **Arista EOS: `route ... protocol: bgp present: false` passes on a BGP aggregate** (red team 042-GV, A-RT-0077).
+  The driver reads an `aggregate-address` route as protocol `aggregate`, not `bgp`, so the guard passes on the node's
+  own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix
+  with `bgp_route ... present: false`, or use `protocol: aggregate` on EOS. Not confirmed on a live cEOS. Planned for
+  0.4.3.
+- **`link_down`: sessions the fault ends that Netdryrun still doesn't wait for** (RT-0078 follow-ups; the checks
+  then run after the settle and hold windows only). On Arista cEOS, an SVI (`Vlan10`) or subinterface over a downed
+  `ethN`: EOS's kernel devices carry no link to `ethN`, so the session isn't found (not confirmed on a live cEOS). A
+  bond that goes down with one member lost (`min_links`, LACP thresholds) is read as up. A tunnel (gre, vxlan...) whose
+  only underlay was the downed link. A bridge port on a node whose `ip` shows no masters (busybox, unverified). On the far end of a plain downed
+  interface, an unnumbered session named after a bridge (`br0`) or a SONiC `VlanN` the downed port reached (the
+  far end's devices are read only when the near end has stacked devices). Give
+  such scenarios a `--settle` that covers the hold time, or take the link down on the far end. Planned for 0.4.3.
+- **A `ping` without `source` on a node with no lab address of the target's family** (red team 042-IB, verifier
+  042-IV case B2; FRR, SONiC and SR Linux): on an unnumbered node with no loopback, the kernel
+  can pick the management address as the source, and the reply can come back over the management network, so the
+  ping proves only the forward path. Not confirmed live (it depends on the target's `rp_filter`). Workaround: give
+  the check a `source` that is a lab address of the node, and add a loopback /32 to a node that has none.
+- **The corpus v2 case 18 race** is not removed; case 18 stays unscored. Planned for 0.4.3.
+- **A prefix-limit reset is still not proof that injected routes reached a peer**; the narrow attributable proof is
+  planned for 0.4.3.
+- **A route that takes one advertisement interval per hop** can still arrive after the windows: raise `--settle`.
+  Planned for 0.4.3.
+- **Scheduled fixes moved to 0.4.3:** the Arista EOS `out-delay` read, the NX-OS FIB state for `route present`, and
+  the two FRR config-comparison limits (a warned-but-applied line, a rewritten `frr.conf`).
+
 ## 0.4.1 (2026-11-09)
 
 Released without the scripted acceptance run on the final candidate (owner decision, 2026-11-09): every other

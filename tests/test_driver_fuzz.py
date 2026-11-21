@@ -92,6 +92,22 @@ def eos_table_empty(key):
     return check
 
 
+def srl_no_neighbor_paths(d) -> bool:
+    """No path any neighbor sent that counts or may count: an empty answer, or a local RIB route list none of whose
+    rows names a neighbor without being flagged exactly as-loop or exactly rejected-route (RT-0068)."""
+    if d == {}:
+        return True
+    rows = d.get("local-rib", {}).get("route") if isinstance(d, dict) and isinstance(d.get("local-rib"), dict) else None
+
+    def kept(r) -> bool:
+        if not isinstance(r, dict) or not isinstance(r.get("neighbor"), str) or not r["neighbor"]:
+            return False
+        reason = r.get("invalid-reason")
+        flagged = {k for k, v in reason.items() if v is True} if isinstance(reason, dict) else set()
+        return flagged not in ({"as-loop"}, {"rejected-route"})
+    return isinstance(rows, list) and not any(kept(r) for r in rows)
+
+
 def srl_no_loops(d) -> bool:
     """No path off the count or unsure: an empty answer, or a local RIB route list none of whose paths is flagged
     with anything but exactly rejected-route."""
@@ -331,6 +347,8 @@ CASES = [
     Case("junos.parse_bgp_paths[hidden next hop]", lambda t: junos.parse_bgp_paths(t, "10.31.0.0/24"),
          ["junos_route_hidden_nexthop.txt"], junos_bgp_paths_empty),
     Case("srlinux.parse_as_loop_counts", srlinux.parse_as_loop_counts, ["srl_bgp_rib_loop.txt"], srl_no_loops),
+    Case("srlinux.parse_rib_neighbor_paths", srlinux.parse_rib_neighbor_paths,
+         ["srl_bgp_rib_loop.txt", "srl2672_rt0068_srl1_bgp_rib_ipv4.json"], srl_no_neighbor_paths),
     Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, {**SRL_ROW, "attr-id": _index(t)}),
          ["srl_attr_set_best.txt", "srl_attr_set_backup.txt"], lambda d: False),
 ]
@@ -534,6 +552,10 @@ def _ping_ok(r) -> bool:
 
 
 FAIL_SAFE = [
+    # frr.parse_paths_available: the "N available" count of FRR's text answer for one prefix, or a DriverError; a
+    # count read here is only ever compared with the paths the JSON lists (FP-042-FRR102), never a verdict itself
+    ("frr.parse_paths_available", lambda t: frr.parse_paths_available(t, "192.168.21.0/24"),
+     ["frr1021_learned_prefix_text.txt"], lambda r: isinstance(r, int) and r >= 0),
     # routeros_state.parse_version: None -> the version is reported as unknown
     ("routeros_state.parse_version", lambda t: routeros_state.parse_version(classify_reply("GET /x", 200, t).obj),
      ["routeros_resource.txt"], lambda r: r is None or isinstance(r, str)),
@@ -555,6 +577,10 @@ FAIL_SAFE = [
     ("eos.parse_eos_eor", lambda t: eos.parse_eos_eor(t, "default"), ["eos_eor_received.txt", "eos_eor_pending.txt"],
      lambda r: isinstance(r, dict) and all(isinstance(k, str) and isinstance(v, dict) and all(
          x in ("received", "pending", "untracked", "unknown") for x in v.values()) for k, v in r.items())),
+    # eos.parse_eos_add_path_off: no family -> prefixAccepted is read as paths, a range of prefixes (RT-0069)
+    ("eos.parse_eos_add_path_off", lambda t: eos.parse_eos_add_path_off(t, "default", "10.0.200.2"),
+     ["eos_eor_received.txt", "ceos4363m_rt0069_ceos1_ip_bgp_neighbor.json"],
+     lambda r: isinstance(r, set) and r <= {"ipv4-unicast", "ipv6-unicast"}),
     ("srlinux.parse_instance_state", lambda t: srlinux.parse_instance_state(t), ["srl_neighbor_local_pref.txt"],
      lambda r: r is None or isinstance(r, str)),
     # nxos.parse_vrf_state: None -> the driver raises "VRF ... does not exist"

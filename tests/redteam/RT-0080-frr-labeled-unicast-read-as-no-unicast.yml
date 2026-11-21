@@ -1,0 +1,27 @@
+id: RT-0080
+title: >-
+  bgp_prefixes afi ipv4-unicast exact: 0 passed on FRR for a session activated only for ipv4 labeled-unicast: `show bgp
+  neighbors json` lists the session's family as ipv4LabeledUnicast alone (acceptedPrefixCounter 0), so the driver read
+  "the session doesn't carry ipv4-unicast", while the node had the peer's 3 prefixes installed as BGP IPv4 unicast
+  routes. `record` wrote that exact: 0 too, and a check with `afi: ipv4LabeledUnicast` that `run` refuses. SONiC shares
+  the driver.
+found: "2026-11-15, red team 042-HV (angle-5 round on 83d4de0); captured live on FRR 10.4.1 (lab ndr-rplu, repro-042d) the same day"
+fixed_in: 0.4.2
+kind: driver
+driver: frr
+# The fix (drivers.base.unicast_unread): a family a check can't name that may hold the AFI's routes (labeled-unicast,
+# or any unnamed family not of the other IP version) makes the unicast count unread, so every bound fails with "can't
+# be read", and record writes INCOMPLETE BASELINE lines instead of the exact 0 and the unnamed-family check.
+# Affected: FRR 0.1.0 and SONiC 0.2.0 to 0.4.1: before 0.4.1 a family the session didn't list counted 0 (`git show
+# v0.4.0:src/netdryrun/checks.py`: n.prefixes.get(afi, 0)), so exact: 0 and every max passed; 0.4.1 passed exact: 0
+# only ("doesn't carry") and record wrote it for eBGP sessions (rule B-3).
+check:
+  type: bgp_prefixes
+  node: r1
+  neighbor: 10.0.12.2
+  afi: ipv4-unicast
+  exact: 0
+outputs:
+  # live capture (oracle FP-042-FRRLU): Established eBGP, addressFamilyInfo lists ipv4LabeledUnicast only
+  - needle: "show bgp neighbors json"
+    fixture: frr1041_rplu_r1_neighbors.json

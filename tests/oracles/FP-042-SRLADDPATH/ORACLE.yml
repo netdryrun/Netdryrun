@@ -1,0 +1,18 @@
+id: FP-042-SRLADDPATH
+bug: >-
+  With BGP add-path receive on SR Linux, the neighbor's received-routes counts paths, and the SR Linux driver reads
+  received-routes minus the AS-loop paths as the prefix count, so `bgp_prefixes node srl1 neighbor 10.0.100.2 min: 4`
+  passes with only 2 prefixes accepted (4 valid paths) (red team RT-0068, captured live on SR Linux 26.7.2, lab
+  ndr-rpsrl, 2026-11-13)
+evidence:
+  - tests/fixtures/srl2672_rt0068_srl1_bgp_neighbors.json
+  - tests/fixtures/srl2672_rt0068_srl1_bgp_rib_ipv4.json
+  - tests/fixtures/srl2672_rt0068_srl1_neighbor_state.txt
+  - tests/fixtures/srl2672_rpsrl_report.json
+  - tests/fixtures/srl2672_rpsrl_run.txt
+  - tests/fixtures/srl2672_rpsrl_topology.clab.yml
+  - tests/fixtures/srl2672_rpsrl_netdryrun.yml
+  - tests/fixtures/srl2672_rpsrl_srl1.cli
+  - tests/fixtures/srl2672_rpsrl_frr1.conf
+  - tests/fixtures/srl2672_rpsrl_frr2.conf
+  - tests/fixtures/SOURCES.yml

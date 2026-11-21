@@ -1,0 +1,13 @@
+id: FP-042-LINKDOWNSTACKED
+bug: >-
+  Scenario `link_down` on an interface whose BGP session addresses live on a device stacked on it (VLAN subinterface
+  `eth1.100@eth1`) watches no session: `runner._link_sessions` reads only `ip -o addr show dev eth1` (link-local
+  only), so `_wait_fault_visible` logs "no BGP session runs over the downed links" and the checks run at once. The far
+  end behind a containerlab bridge keeps the session and the route until its hold time (180 s), and a route check
+  there passes on the state from before the fault; config.md, Scenario timing, step 1 promises the sessions over the
+  downed links are noted on both ends (red team 042-GV, B-RT-0078, offline on the real Lab and run_scenario with a
+  fake kernel). The guards (a plain interface carrying the session address is still watched on both ends; an
+  interface with no session and no stacked device still says so) are in
+  tests/test_oracle_guards_fp_042_linkdownstacked.py
+evidence:
+  - tests/test_oracle_guards_fp_042_linkdownstacked.py

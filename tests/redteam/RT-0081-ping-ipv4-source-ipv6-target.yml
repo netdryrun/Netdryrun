@@ -1,0 +1,27 @@
+id: RT-0081
+title: >-
+  A ping check with an IPv4 `source` and an IPv6 `target` loaded and passed on FRR, SONiC and SR Linux: the ping tools
+  drop (busybox) or ignore (iputils) a `-I` source of the other family without an error, so the ping left from the
+  egress interface's IPv6 address and the return path to the requested source was never tested
+found: "2026-11-15, red team 042-IB (RT-0081), verifier 042-IV on 3d71d5a (tool behaviour checked locally on busybox 1.30.1 and iputils 20211215)"
+fixed_in: 0.4.2
+kind: config
+# The check as meant: "r1 reaches 2001:db8:3::1 from its own address 192.0.2.1" (a LAN-to-LAN ping that proves the
+# way back to the source's prefix). What happened: config._ping_target refused only source == target and
+# checks._ping only checked that the source is one of the node's addresses; nothing compared the families. The fix:
+# config._ping_target refuses a source of the other family (validate exits 2), for every driver. Oracle
+# FP-042-PINGSRCFAMILY holds the run-time reproduction on FRR, SONiC and SR Linux (derived from live captures).
+# Affected: FRR and SR Linux 0.1.0 to 0.4.1, SONiC 0.2.0 to 0.4.1 (`git show v0.x.y:src/netdryrun/drivers/frr.py`: `-I`
+# source since 0.1.0; config.py never compared the families).
+topology: |
+  name: t
+  topology:
+    nodes:
+      r1: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+      r3: {kind: linux, image: quay.io/frrouting/frr:10.4.1}
+    links:
+      - endpoints: ["r1:eth1", "r3:eth1"]
+config: |
+  lab: topology.clab.yml
+  checks:
+    - {type: ping, node: r1, source: 192.0.2.1, target: "2001:db8:3::1"}
