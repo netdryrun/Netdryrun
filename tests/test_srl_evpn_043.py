@@ -325,3 +325,314 @@ def test_parse_routes_lists_a_bgp_evpn_row_beside_an_installed_route_of_another_
                                               "last-failed-operation-type": "none"}}]})
     rib = fx("srl2672_fp043_pece2_leaf1_ipvrf_bgp_rib_route.json")
     assert srlinux.parse_routes(table, PREFIX, rib) == [Route(PREFIX, "bgp", True), Route(PREFIX, "bgp-evpn", False)]
+
+
+# ------------------------------------------------------------------------------------------- adversary on 02a0060
+
+def test_a_route_imported_into_several_ip_vrfs_counts_in_each():
+    """DERIVED: the 10.99.0.0/24 row imported into two ip-vrfs, in either order (adversary M4)."""
+    for into in (["ipvrf2", "ipvrf"], ["ipvrf", "ipvrf2"]):
+        text = _one_row(imported_network_instances=into)
+        assert len(srlinux.parse_evpn_imports(text, PREFIX, "ipvrf")) == 1
+        assert len(srlinux.parse_evpn_imports(text, PREFIX, "ipvrf2")) == 1
+        assert srlinux.parse_evpn_imports(text, PREFIX, "ipvrf3") == []
+
+
+def test_the_nodes_own_type5_route_never_counts_even_when_it_names_the_vrf():
+    """DERIVED: an own row (neighbor 0.0.0.0) that lists ipvrf (adversary M35): still the node's own route."""
+    assert srlinux.parse_evpn_imports(_one_row(neighbor="0.0.0.0", imported_network_instances=["ipvrf"]), PREFIX,
+                                      "ipvrf") == []
+    assert srlinux.parse_evpn_imports(_one_row(neighbor="::", imported_network_instances=["ipvrf"]), PREFIX,
+                                      "ipvrf") == []
+
+
+def test_an_unknown_community_kind_beside_the_extended_ones_is_an_error():
+    """DERIVED: attr-set 6's communities (ext-community only) plus a kind the driver doesn't know (adversary M19c):
+    read as "no communities", `without_communities` would pass."""
+    comms = copy.deepcopy(json.loads(_attr6())["communities"])
+    comms["future-community"] = ["x:1"]
+    with pytest.raises(DriverError):
+        srlinux.parse_evpn_attr_set(_attr6(communities=comms), {"attr-id": "6"}, True)
+
+
+def _no_lp() -> str:
+    a = json.loads(_attr6())
+    a.pop("local-pref")
+    return J(a)
+
+
+ATTR6 = "info from state /network-instance default bgp-rib attr-sets attr-set 6"
+NEIGHBOR_LP = "info from state /network-instance default protocols bgp neighbor 2.2.2.2 local-preference"
+
+
+@pytest.mark.parametrize("answer,want", [(J({"local-preference": 150}), 150), ("{}", None)])
+def test_an_evpn_attr_set_without_local_pref_takes_the_neighbors(answer, want):
+    """DERIVED: attr-set 6 without local-pref (adversary M20, M20b): the default instance's neighbor 2.2.2.2 answers
+    its local-preference, or nothing (unknown, never a guessed 100)."""
+    node = Node(state("present", **{ATTR6: _no_lp(), NEIGHBOR_LP: answer}))
+    [p] = SrlDriver(node, "leaf1").bgp_paths(PREFIX, "ipvrf").value
+    assert p.local_pref == want and NEIGHBOR_LP in node.asked
+
+
+def test_an_unreadable_neighbor_local_pref_is_an_error():
+    node = Node(state("present", **{ATTR6: _no_lp()}))   # the neighbor query isn't answered
+    with pytest.raises(DriverError):
+        SrlDriver(node, "leaf1").bgp_paths(PREFIX, "ipvrf")
+
+
+def test_no_neighbor_is_asked_for_a_path_from_an_unspecified_address():
+    """adversary M38: the fallback never asks about 0.0.0.0 (there is no such neighbor)."""
+    node = Node({ATTR6: _no_lp()})
+    p = SrlDriver(node, "leaf1")._read_evpn_path({"attr-id": "6", "neighbor": "0.0.0.0", "ip-prefix": PREFIX}, True, [])
+    assert p.local_pref is None and node.asked == [ATTR6]
+
+
+@pytest.mark.parametrize("attr_id", ["6 ; rm", "x", "", None, "-1"])
+def test_an_evpn_attr_id_that_is_not_a_number_is_refused(attr_id):
+    """DERIVED (adversary M21): the attr-id goes back into a CLI command; only digits are read."""
+    d = evpn("present")
+    [row] = [r for r in d["ip-prefix-route"] if r["ip-prefix"] == PREFIX]
+    row["attr-id"] = attr_id
+    node = Node(state("present", **{EVPN: J(d)}))
+    with pytest.raises(DriverError, match="attr-id"):
+        SrlDriver(node, "leaf1").bgp_paths(PREFIX, "ipvrf")
+    assert not any("attr-set" in c for c in node.asked)
+
+
+# ------------------------------------------------------------------------------------------- two PEs, one prefix
+# Live, SR Linux 26.7.2 (srl2672_fp043_twope_*): leaf2 and leaf3 both advertise 10.77.0.0/24 into ipvrf (design A, RDs
+# 2.2.2.2:99 and 3.3.3.3:99) and 10.66.0.0/24 into ipvrfb (design B, PE-CE BGP to ce1). In state lp200 leaf1 sets
+# local-pref 200 on what it learns from 3.3.3.3: both paths are best-route and imported, and each ip-vrf forwards to
+# 3.3.3.3 only. 02a0060 reported the first path in EVPN RIB order (2.2.2.2, local-pref 100), so `next_hop: 2.2.2.2` and
+# `local_pref: 100` passed (adversary BLOCKER 1 for design B, MAJOR 2 for design A). In state ecmp the policy is gone and
+# each ip-vrf forwards to both VTEPs; in state one leaf3 withdraws, in state absent leaf2 too.
+
+TWO = {"ipvrf": "10.77.0.0/24", "ipvrfb": "10.66.0.0/24"}
+
+
+def _command(vrf: str, rest: str) -> str | None:
+    """The command a twope capture file answers (fx043 capture log), from the rest of its name."""
+    prefix = TWO[vrf]
+    base = f"info from state /network-instance {vrf} "
+    if rest == "bgp_rib_route":
+        return (f"{base}bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route {prefix} neighbor * origin-protocol * "
+                "path-id *")
+    if rest == "route_table_route":
+        return f"{base}route-table ipv4-unicast route {prefix} id * route-type * route-owner * origin-network-instance *"
+    if rest == "oper_state":
+        return f"{base}oper-state"
+    for name, what in (("nhg_", "route-table next-hop-group "), ("nh_", "route-table next-hop "),
+                       ("attr_set_", "bgp-rib attr-sets attr-set ")):
+        if rest.startswith(name):
+            return base + what + rest[len(name):]
+    return None
+
+
+def two_pe(vrf: str, tag: str = "lp200", **over) -> dict:
+    """leaf1's captured answers in state `tag`, for checks on `vrf`."""
+    out = {}
+    lead = f"srl2672_fp043_twope_{tag}_leaf1_"
+    for f in sorted(FX.glob(lead + "*.json")):
+        rest = f.stem[len(lead):]
+        if rest == "default_evpn_local_rib":
+            out[EVPN] = fx(f.name)
+        elif rest.startswith("default_attr_set_"):
+            out[f"info from state /network-instance default bgp-rib attr-sets attr-set {rest[17:]}"] = fx(f.name)
+        elif rest.startswith(vrf + "_") and (cmd := _command(vrf, rest[len(vrf) + 1:])):
+            out[cmd] = fx(f.name)
+    out.update(over)
+    return out
+
+
+def key(vrf: str, what: str, tag: str = "lp200") -> str:
+    """The command of one of `vrf`'s captures in state `tag`: table, rib, nhg, nh, attr."""
+    rest = {"table": "route_table_route", "rib": "bgp_rib_route"}.get(what)
+    if rest is None:
+        lead = f"srl2672_fp043_twope_{tag}_leaf1_{vrf}_{what.replace('attr', 'attr_set')}_"
+        [f] = FX.glob(lead + "*.json")
+        rest = f.stem[len(f"srl2672_fp043_twope_{tag}_leaf1_{vrf}_"):]
+    return _command(vrf, rest)
+
+
+def run2(vrf: str, answers: dict, **raw):
+    c = Clock()
+    chk = _validate_check(0, {"node": "leaf1", "vrf": vrf, "prefix": TWO[vrf], "type": "bgp_route", **raw}, 20)
+    return run_check(chk, SrlDriver(Node(answers), "leaf1"), clock=c, sleep=c.sleep)
+
+
+def paths2(vrf: str, answers: dict):
+    return SrlDriver(Node(answers), "leaf1").bgp_paths(TWO[vrf], vrf).value
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_two_pes_the_best_path_is_the_one_the_ip_vrf_forwards_with(vrf):
+    assert [(p.best, p.next_hop, p.local_pref, p.local_candidate) for p in paths2(vrf, two_pe(vrf))] == \
+        [(True, "3.3.3.3", 200, False), (False, "2.2.2.2", 100, False)]
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+@pytest.mark.parametrize("raw", [{"next_hop": "2.2.2.2"}, {"local_pref": 100}, {"present": False}])
+def test_two_pes_a_check_on_the_path_the_ip_vrf_does_not_use_fails(vrf, raw):
+    """Live false passes on 02a0060: `next_hop: 2.2.2.2` and `local_pref: 100` passed."""
+    r = run2(vrf, two_pe(vrf), **raw)
+    assert not r.passed, r.detail
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_two_pes_a_check_on_the_path_the_ip_vrf_uses_passes(vrf):
+    """Failed on 02a0060: it judged 2.2.2.2 at local-pref 100."""
+    r = run2(vrf, two_pe(vrf), next_hop="3.3.3.3", local_pref=200)
+    assert r.passed, r.detail
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_two_pes_the_evpn_rib_order_does_not_decide(vrf):
+    """DERIVED: the captured EVPN RIB with its rows reversed (adversary M28, M32)."""
+    d = json.loads(two_pe(vrf)[EVPN])
+    d["ip-prefix-route"].reverse()
+    assert [(p.best, p.next_hop) for p in paths2(vrf, two_pe(vrf, **{EVPN: J(d)}))] == \
+        [(True, "3.3.3.3"), (False, "2.2.2.2")]
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_two_pes_ecmp_over_both_is_an_error_never_the_first(vrf):
+    """Live, state ecmp: the ip-vrf forwards to both VTEPs."""
+    answers = two_pe(vrf, "ecmp")
+    with pytest.raises(DriverError, match="not exactly one of them"):
+        paths2(vrf, answers)
+    for raw in ({"next_hop": "2.2.2.2"}, {"next_hop": "3.3.3.3"}, {"present": False}):
+        assert not run2(vrf, answers, **raw).passed, raw
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_one_pe_left_its_path_is_best(vrf):
+    """Live, state one: leaf3 withdrew, one candidate; the ip-vrf's next hops aren't needed."""
+    answers = two_pe(vrf, "one")
+    assert [(p.best, p.next_hop, p.local_pref) for p in paths2(vrf, answers)] == [(True, "2.2.2.2", 100)]
+    assert run2(vrf, answers, next_hop="2.2.2.2").passed
+    assert not run2(vrf, answers, present=False).passed
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_both_pes_gone_present_false_passes(vrf):
+    """Live, state absent."""
+    answers = two_pe(vrf, "absent")
+    assert paths2(vrf, answers) == []
+    assert run2(vrf, answers, present=False).passed
+
+
+def _edit(vrf: str, what: str, change) -> dict:
+    """DERIVED: one lp200 capture of `vrf`, changed."""
+    k = key(vrf, what)
+    d = json.loads(two_pe(vrf)[k])
+    change(d)
+    return two_pe(vrf, **{k: J(d)})
+
+
+def _route(**c):
+    return lambda d: d["route"][0].update(c)
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+@pytest.mark.parametrize("what,change,match", [
+    # the ip-vrf forwards with a static, or holds the EVPN route out of the FIB: nothing says which path is best
+    ("table", _route(**{"route-type": "static"}), "forwards with no EVPN route"),
+    ("table", _route(active=False), "forwards with no EVPN route"),
+    ("table", lambda d: d["route"].append(dict(d["route"][0], id=1)), "2 active bgp-evpn routes"),
+    # the VTEP it forwards to is neither path's next hop
+    ("nh", lambda d: d.update({"ip-address": "4.4.4.4"}), "not exactly one of them"),
+    # answers of unknown shape
+    ("nh", lambda d: d.update({"ip-address": "0.0.0.0"}), "unexpected output"),
+    ("nh", lambda d: d.update({"ip-address": "x"}), "unexpected output"),
+    ("nh", lambda d: d.update({"index": "1"}), "unexpected output"),
+    ("nh", lambda d: d.clear(), "unexpected output"),
+    ("nhg", lambda d: d.clear(), "unexpected output"),
+    ("nhg", lambda d: d.update({"next-hop": []}), "unexpected output"),
+    ("nhg", lambda d: d["next-hop"][0].update({"next-hop": "x"}), "unexpected output"),
+    ("table", _route(**{"next-hop-group": "x"}), "unexpected output"),
+])
+def test_two_pes_an_ip_vrf_choice_that_cannot_be_read_is_an_error(vrf, what, change, match):
+    """DERIVED from the lp200 captures."""
+    answers = _edit(vrf, what, change)
+    with pytest.raises(DriverError, match=match):
+        paths2(vrf, answers)
+    for raw in ({"present": False}, {"next_hop": "2.2.2.2"}, {"next_hop": "3.3.3.3"}):
+        assert not run2(vrf, answers, **raw).passed, raw
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_two_pes_with_one_next_hop_are_an_error(vrf):
+    """DERIVED: leaf2's attr-set (16 for ipvrf, 17 for ipvrfb) says next hop 3.3.3.3 too: two paths match."""
+    k = "info from state /network-instance default bgp-rib attr-sets attr-set " + {"ipvrf": "16", "ipvrfb": "17"}[vrf]
+    d = json.loads(two_pe(vrf)[k])
+    d["next-hop"] = "3.3.3.3"
+    with pytest.raises(DriverError, match="not exactly one of them"):
+        paths2(vrf, two_pe(vrf, **{k: J(d)}))
+
+
+def test_design_b_the_ip_vrf_rows_local_pref_must_agree_with_the_path_it_forwards_with():
+    """DERIVED: ipvrfb's bgp-evpn row (attr-set 14) with local-pref 100, the other path's."""
+    with pytest.raises(DriverError, match="carries local-pref 100"):
+        paths2("ipvrfb", _edit("ipvrfb", "attr", lambda d: d.update({"local-pref": 100})))
+
+
+def test_design_b_when_the_ip_vrf_prefers_another_path_no_evpn_path_is_best():
+    """DERIVED: ipvrfb's bgp-evpn row not best-route: no EVPN path is best, and the ip-vrf's next hops aren't read."""
+    answers = _edit("ipvrfb", "rib", lambda d: d["route"][0].update({"best-route": False}))
+    node = Node(answers)
+    paths = SrlDriver(node, "leaf1").bgp_paths(TWO["ipvrfb"], "ipvrfb").value
+    assert [p.best for p in paths] == [False, False]
+    assert not any("next-hop" in c for c in node.asked)
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_an_evpn_path_left_unread_is_still_a_received_path(vrf):
+    """DERIVED: leaf2's row not best-route, so one candidate and leaf2's path is left unread; it is never a local
+    candidate, so `present: false` counts it (adversary M27)."""
+    d = json.loads(two_pe(vrf)[EVPN])
+    for r in d["ip-prefix-route"]:
+        if r["neighbor"] == "2.2.2.2":
+            r["best-route"] = False
+    answers = two_pe(vrf, **{EVPN: J(d)})
+    assert [(p.best, p.neighbor, p.local_candidate) for p in paths2(vrf, answers)] == \
+        [(True, "3.3.3.3", False), (False, "2.2.2.2", False)]
+    r = run2(vrf, answers, present=False)
+    assert not r.passed and "2 path(s)" in r.detail, r.detail
+
+
+def test_the_ip_vrf_answers_are_read_as_captured():
+    a = two_pe("ipvrf")
+    assert srlinux.parse_installed_evpn_group(a[key("ipvrf", "table")], "10.77.0.0/24") == "873408401"
+    assert srlinux.parse_next_hop_group(a[key("ipvrf", "nhg")], "873408401") == ["873408398"]
+    assert srlinux.parse_next_hop_address(a[key("ipvrf", "nh")], "873408398") == "3.3.3.3"
+    with pytest.raises(DriverError):   # another group than the one asked for
+        srlinux.parse_next_hop_group(a[key("ipvrf", "nhg")], "1")
+    with pytest.raises(DriverError):   # another next hop than the one asked for
+        srlinux.parse_next_hop_address(a[key("ipvrf", "nh")], "1")
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+def test_two_pes_ecmp_to_a_vtep_no_path_names_is_an_error(vrf):
+    """DERIVED: the ip-vrf forwards to 3.3.3.3 (one path's next hop) and to 4.4.4.4 (no path's): not that path alone."""
+    base = f"info from state /network-instance {vrf} route-table next-hop "
+    nh = json.loads(two_pe(vrf)[key(vrf, "nh")])
+    answers = _edit(vrf, "nhg", lambda d: d["next-hop"].append(dict(d["next-hop"][0], id=1, **{"next-hop": "999"})))
+    answers[base + "999"] = J({**nh, "index": "999", "ip-address": "4.4.4.4"})
+    with pytest.raises(DriverError, match="not exactly one of them"):
+        paths2(vrf, answers)
+
+
+@pytest.mark.parametrize("vrf", ["ipvrf", "ipvrfb"])
+@pytest.mark.parametrize("what,change", [
+    ("table", _route(**{"next-hop-group": "1 ; rm"})),
+    ("table", _route(**{"next-hop-group": True})),
+    ("nhg", lambda d: d["next-hop"][0].update({"next-hop": "1 ; rm"})),
+    ("nhg", lambda d: d["next-hop"][0].update({"next-hop": "-1"})),
+])
+def test_a_route_table_index_that_is_not_a_number_never_goes_into_a_command(vrf, what, change):
+    """DERIVED: an index from device output goes back into a CLI command only as digits."""
+    node = Node(_edit(vrf, what, change))
+    with pytest.raises(DriverError, match="unexpected output"):
+        SrlDriver(node, "leaf1").bgp_paths(TWO[vrf], vrf)
+    assert not any(c.startswith(f"info from state /network-instance {vrf} route-table next-hop") and
+                   not c.split()[-1].isdigit() for c in node.asked), node.asked

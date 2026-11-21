@@ -42,7 +42,10 @@
   node's own type-5 routes never count. A path from a peer that no ip-vrf imported, a `bgp-vpn` route or row (a RIB
   the driver doesn't read yet), or a `bgp-evpn` row or installed route with no imported EVPN path behind it is an
   error, never "no BGP path". `route` with `protocol: bgp` or `bgp-evpn` now also sees an imported EVPN route that
-  isn't installed in the ip-vrf. Oracle `tests/oracles/FP-043-SRLEVPNVRF`, from the live captures.
+  isn't installed in the ip-vrf. When several PEs advertise the prefix with their own route distinguishers, each of their EVPN
+  paths is best in the EVPN RIB: the best path is the one the ip-vrf forwards with (its installed route's next hop, the
+  remote VTEP), never the first in RIB order; ECMP over several, or none installed, is an error. An EVPN path's AS path
+  isn't read (iBGP EVPN attributes leave it out), so `as_path` checks on it are an error. Oracle `tests/oracles/FP-043-SRLEVPNVRF`, from the live captures.
 
 - **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
   overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get

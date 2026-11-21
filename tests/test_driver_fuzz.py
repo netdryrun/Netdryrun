@@ -380,6 +380,14 @@ CASES = [
           "srl2672_fp043_pece2_leaf1_default_evpn_local_rib.json"], srl_no_evpn_import),
     Case("srlinux.parse_evpn_attr_set", lambda t: srlinux.parse_evpn_attr_set(t, {"attr-id": _index(t)}, True),
          ["srl2672_fp043_present_leaf1_default_attr_set_6.json"], lambda d: False),
+    # which of several imported EVPN paths an ip-vrf forwards with (adversary on 02a0060): never empty
+    Case("srlinux.parse_installed_evpn_group", lambda t: srlinux.parse_installed_evpn_group(t, "10.77.0.0/24"),
+         ["srl2672_fp043_twope_lp200_leaf1_ipvrf_route_table_route.json",
+          "srl2672_fp043_twope_ecmp_leaf1_ipvrf_route_table_route.json"], lambda d: False),
+    Case("srlinux.parse_next_hop_group", lambda t: srlinux.parse_next_hop_group(t, _index(t)),
+         ["srl2672_fp043_twope_lp200_leaf1_ipvrf_nhg_873408401.json"], lambda d: False),
+    Case("srlinux.parse_next_hop_address", lambda t: srlinux.parse_next_hop_address(t, _index(t)),
+         ["srl2672_fp043_twope_lp200_leaf1_ipvrf_nh_873408398.json"], lambda d: False),
 ]
 CASES += [
     Case("routeros_state.parse_sessions", lambda t: routeros_state.parse_sessions(_ros_rows(t)),
