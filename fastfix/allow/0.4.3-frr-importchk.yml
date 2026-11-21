@@ -169,23 +169,31 @@ flips:
     case: "tests.test_mgmt::test_run_ends_with_an_error_when_a_route_out_appears"
     from: FAIL
     to: PASS
-    evidence: [tests/fixtures/SOURCES.yml]
-    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. test_mgmt.py itself is unchanged (a fixture may cite only its own test file as code, so the provenance record of the new captures is cited); the candidate's FakeLab answers with live FRR 10.4.1 captures. The management-route assertions are unchanged."
-    reviewed_by: "recheck-frr: same FakeLab exec gap; the management-route assertions are unchanged"
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
   - source: fixtures
     case: "tests.test_mgmt::test_run_records_a_route_deleted_again"
     from: FAIL
     to: PASS
-    evidence: [tests/fixtures/SOURCES.yml]
-    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. test_mgmt.py itself is unchanged (a fixture may cite only its own test file as code, so the provenance record of the new captures is cited); the candidate's FakeLab answers with live FRR 10.4.1 captures. The management-route assertions are unchanged."
-    reviewed_by: "recheck-frr: same FakeLab exec gap; the management-route assertions are unchanged"
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
+  - source: fixtures
+    case: "tests.test_mgmt::test_run_refuses_a_routing_node_whose_route_isnt_handled"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
   - source: fixtures
     case: "tests.test_mgmt::test_run_removes_the_route_after_setup_and_before_the_first_check"
     from: FAIL
     to: PASS
-    evidence: [tests/fixtures/SOURCES.yml]
-    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. test_mgmt.py itself is unchanged (a fixture may cite only its own test file as code, so the provenance record of the new captures is cited); the candidate's FakeLab answers with live FRR 10.4.1 captures. The management-route assertions are unchanged."
-    reviewed_by: "recheck-frr: same FakeLab exec gap; the management-route assertions are unchanged"
+    evidence: [tests/test_mgmt.py]
+    why: "FP-043-FRRIMPORTCHK: test_mgmt runs on make() from test_verdict_runner, whose FakeLab on main has no exec, so the import-check guard's first read raises and the run ends in error. The candidate's FakeLab answers with the live FRR 10.4.1 capture (BGP, no network). The updated test keeps every management-route assertion and adds _import_checked: the exact vtysh -d bgpd -c 'show running-config' command, read on every router, and import_check: registered on every node. Stricter."
+    reviewed_by: "recheck-frr: the management-route assertions are kept and _import_checked pins the exact bgpd read on every router and import_check registered"
   - source: fixtures
     case: "tests.test_runner_mutants::test_a_clean_cleanup_says_it_destroys_and_warns_of_nothing"
     from: FAIL
