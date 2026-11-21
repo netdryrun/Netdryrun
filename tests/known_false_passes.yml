@@ -275,7 +275,8 @@
     selected, SR Linux EVPN type-5 in an ip-vrf, FRR/SONiC ping to the VRF device's own address; red team on the final
     0.4.1 candidate); case 4 (SR Linux record --attributes) is the next entry
   status: accepted-documented-limit
-  cases: [RT-0056, RT-0058, RT-0063]   # RT-0053 (the VRF device's own address) fixed in 0.4.2: see below
+  cases: [RT-0056, RT-0063]   # RT-0053 (the VRF device's own address) fixed in 0.4.2, RT-0058 (SR Linux EVPN) in
+  # 0.4.3: see below
   decided: "owner, 2026-11-09: ship 0.4.1 and publish the four as known limits; fix in 0.4.2 (GHSA-ggcf-664f-c9ff)"
   record: advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
   tests:
@@ -530,4 +531,17 @@
     - tests/oracles/FP-042-EOSASDOT/test_oracle_fp_042_eosasdot.py
     - tests/test_oracle_guards_fp_042_eosasdot.py
     - tests/test_ping_family_eos_asdot_042.py
+    - tests/test_redteam.py
+- id: rt-0058-srl-evpn-ip-vrf
+  what: On SR Linux, `bgp_route present false` in an ip-vrf didn't see an EVPN IP-prefix (type-5) route imported into
+    it (case 2 of the 0.4.1 advisory). Without `protocols bgp` in the ip-vrf its bgp-rib is empty (the route is in the
+    default network-instance's EVPN RIB); with a PE-CE BGP session there, the ip-vrf's bgp-rib lists the route as
+    origin-protocol bgp-evpn from 0.0.0.0 and the driver took it for the node's own route, which `netdryrun check`
+    passed live (SR Linux 26.7.2). 0.4.3 reads the EVPN RIB (`imported-network-instances`) and counts a bgp-evpn row as
+    a received path; a bgp-vpn row or route is refused
+  record: CHANGELOG.md (Unreleased, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  tests:
+    - tests/oracles/FP-043-SRLEVPNVRF/test_oracle_fp_043_srlevpnvrf.py
+    - tests/test_oracle_guards_fp_043_srlevpnvrf.py
+    - tests/test_srl_evpn_043.py
     - tests/test_redteam.py

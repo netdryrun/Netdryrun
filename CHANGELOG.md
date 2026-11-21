@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **SR Linux EVPN: `bgp_route present: false` in an ip-vrf passed while a type-5 route was imported into it** (case 2
+  of the 0.4.1 advisory, [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff);
+  red team RT-0058; 0.3.0 and later). Two designs, both reproduced live on SR Linux 26.7.2:
+  - Without `protocols bgp` in the ip-vrf (the usual EVPN layer-3 design), its BGP RIB is empty: the route is in the
+    default network-instance's EVPN RIB, which the driver didn't read ("no BGP path").
+  - With a PE-CE BGP session in the ip-vrf, its BGP RIB lists the imported route as origin `bgp-evpn` from 0.0.0.0,
+    and the driver took it for the node's own route ("a prefix this node originates itself isn't checked").
+    `netdryrun check` passed it end to end.
+
+  `bgp_route` with a `vrf` now also reads the EVPN IP-prefix routes SR Linux imported into that ip-vrf
+  (`imported-network-instances`, so a route imported into another ip-vrf only doesn't count), as paths received from
+  the EVPN peer with that peer's attributes, and a `bgp-evpn` row in the ip-vrf's BGP RIB is that received path. The
+  node's own type-5 routes never count. A path from a peer that no ip-vrf imported, a `bgp-vpn` route or row (a RIB
+  the driver doesn't read yet), or a `bgp-evpn` row or installed route with no imported EVPN path behind it is an
+  error, never "no BGP path". `route` with `protocol: bgp` or `bgp-evpn` now also sees an imported EVPN route that
+  isn't installed in the ip-vrf. Oracle `tests/oracles/FP-043-SRLEVPNVRF`, from the live captures.
+
 ## 0.4.2 (2026-11-21)
 
 ### Fixed

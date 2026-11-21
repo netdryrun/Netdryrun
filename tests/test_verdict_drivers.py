@@ -735,6 +735,7 @@ def test_srl_routes():
         "2001:db8::/32 id * route-type * route-owner * origin-network-instance *",
         "sr_cli --output-format json info from state /network-instance red bgp-rib afi-safi ipv6-unicast "
         "ipv6-unicast local-rib route 2001:db8::/32 neighbor * origin-protocol * path-id *",
+        "sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib",
         "sr_cli --output-format json info from state /network-instance red oper-state"]
     lab = Lab([("route-table", "{}"), ("bgp-rib", "{}")])
     assert SrlDriver(lab, "r1").routes("10.1.0.0/16").value == [] and len(lab.calls) == 2
@@ -859,7 +860,8 @@ def test_srl_ip_or_none():
 
 
 def _srl_paths_lab(rib, attrs, neighbor_lp=None):
-    rules = [("bgp-rib afi-safi", rib), ("attr-set", attrs)]
+    # a named network-instance also reads the EVPN RIB and its route table (RT-0058): nothing imported, nothing installed
+    rules = [("afi-safi evpn", "{}"), ("route-table", "{}"), ("bgp-rib afi-safi", rib), ("attr-set", attrs)]
     if neighbor_lp is not None:
         rules.append(("local-preference", neighbor_lp))
     rules.append(("oper-state", J({"oper-state": "up"})))
@@ -881,6 +883,9 @@ def test_srl_bgp_paths_commands():
     assert lab.lines() == [
         "sr_cli --output-format json info from state /network-instance red bgp-rib afi-safi ipv6-unicast "
         "ipv6-unicast local-rib route 2001:db8::/32 neighbor * origin-protocol * path-id *",
+        "sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib",
+        "sr_cli --output-format json info from state /network-instance red route-table ipv6-unicast route "
+        "2001:db8::/32 id * route-type * route-owner * origin-network-instance *",
         "sr_cli --output-format json info from state /network-instance red bgp-rib attr-sets attr-set 3"]
     lab = _srl_paths_lab("{}", ATTR)
     obs = SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16", "red")
@@ -888,7 +893,7 @@ def test_srl_bgp_paths_commands():
     lab = _srl_paths_lab("{}", ATTR)
     assert SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16").value == [] and len(lab.calls) == 1
     with pytest.raises(DriverError):
-        SrlDriver(Lab([("bgp-rib", "{}"), ("oper-state", "{}")]), "r1").bgp_paths("10.1.0.0/16", "nope")
+        SrlDriver(Lab([("bgp-rib", "{}"), ("route-table", "{}"), ("oper-state", "{}")]), "r1").bgp_paths("10.1.0.0/16", "nope")
 
 
 def test_srl_bgp_paths_reads_the_best_and_the_first_learned_path():
@@ -1265,8 +1270,9 @@ def test_srl_evidence_is_kept_everywhere():
     assert len(SrlDriver(lab, "r1").bgp_neighbors("red").evidence) == 2
     lab = Lab([("neighbor", SRL_NBR), ("bgp-rib afi-safi", "{}")])
     assert len(SrlDriver(lab, "r1").bgp_neighbors().evidence) == 3   # the neighbors, then each counted family's RIB
-    lab = Lab([("bgp-rib", "{}"), ("oper-state", J({"oper-state": "up"}))])
-    assert len(SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16", "red").evidence) == 2
+    lab = Lab([("bgp-rib", "{}"), ("route-table", "{}"), ("oper-state", J({"oper-state": "up"}))])
+    # the RIB, the EVPN RIB and the route table (RT-0058), then the instance
+    assert len(SrlDriver(lab, "r1").bgp_paths("10.1.0.0/16", "red").evidence) == 4
     lab = Lab([("route-table", "{}"), ("oper-state", J({"oper-state": "up"}))])
     assert len(SrlDriver(lab, "r1").all_routes("red").evidence) == 2
     lab = Lab([("route-table", J({"route": [{"ipv4-prefix": "10.0.0.0/8", "route-type": "static", "active": False}]}))])

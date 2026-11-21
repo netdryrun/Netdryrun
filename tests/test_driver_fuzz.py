@@ -120,6 +120,29 @@ def srl_no_loops(d) -> bool:
         for r in rows)
 
 
+def srl_no_evpn_import(d) -> bool:
+    """An EVPN local-RIB answer with no IP-prefix route for 10.99.0.0/24 imported into ipvrf: `{}`, or the known route
+    lists with no such row (and none from a peer imported nowhere, which the parser refuses)."""
+    import ipaddress
+    if d == {}:
+        return True
+    if not isinstance(d, dict) or set(d) - srlinux.EVPN_RIB_LISTS:
+        return False
+    rows = d.get("ip-prefix-route", [])
+    if not isinstance(rows, list):
+        return False
+    for r in rows:
+        try:
+            if ipaddress.ip_network(str(r["ip-prefix"]), strict=False) != ipaddress.ip_network("10.99.0.0/24"):
+                continue
+            into = r.get("imported-network-instances") or []
+            if "ipvrf" in into or not (into or ipaddress.ip_address(str(r["neighbor"])).is_unspecified):
+                return False
+        except (KeyError, TypeError, ValueError):
+            return False
+    return True
+
+
 def srl_list_empty(key):
     def check(d) -> bool:
         return d == {} or (isinstance(d, dict) and isinstance(d.get(key), list))
@@ -351,6 +374,12 @@ CASES = [
          ["srl_bgp_rib_loop.txt", "srl2672_rt0068_srl1_bgp_rib_ipv4.json"], srl_no_neighbor_paths),
     Case("srlinux.parse_attr_set", lambda t: srlinux.parse_attr_set(t, {**SRL_ROW, "attr-id": _index(t)}),
          ["srl_attr_set_best.txt", "srl_attr_set_backup.txt"], lambda d: False),
+    # the EVPN paths imported into an ip-vrf (RT-0058): none only from a real EVPN RIB with no such row
+    Case("srlinux.parse_evpn_imports", lambda t: srlinux.parse_evpn_imports(t, "10.99.0.0/24", "ipvrf"),
+         ["srl2672_fp043_present_leaf1_default_evpn_local_rib.json",
+          "srl2672_fp043_pece2_leaf1_default_evpn_local_rib.json"], srl_no_evpn_import),
+    Case("srlinux.parse_evpn_attr_set", lambda t: srlinux.parse_evpn_attr_set(t, {"attr-id": _index(t)}, True),
+         ["srl2672_fp043_present_leaf1_default_attr_set_6.json"], lambda d: False),
 ]
 CASES += [
     Case("routeros_state.parse_sessions", lambda t: routeros_state.parse_sessions(_ros_rows(t)),
