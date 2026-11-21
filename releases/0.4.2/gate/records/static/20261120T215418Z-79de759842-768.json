@@ -1,0 +1,274 @@
+{
+ "layer": "static",
+ "title": "Layer 1: static",
+ "version": "0.4.2",
+ "started": "2026-11-20 21:51:41 UTC",
+ "seconds": 153.4,
+ "git": {
+  "sha": "79de75984253ec3727bb35fc2aec14bc957ea103",
+  "dirty": false,
+  "branch": "HEAD"
+ },
+ "host": "Linux 6.18.58.1-microsoft-standard-WSL2 (x86_64)",
+ "python": "3.12.16",
+ "strict": true,
+ "tools": {
+  "ruff": "0.17.6",
+  "actionlint": "1.7.7",
+  "shellcheck": "0.8.0"
+ },
+ "checks": [
+  {
+   "id": "mutation-closure",
+   "title": "every src/netdryrun module is mutated or exempt with a reason (G1)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "13 mutated, 15 exempt",
+   "output": "",
+   "command": "",
+   "ended": 1795211501.7
+  },
+  {
+   "id": "corpus-fresh",
+   "title": "the committed corpus results ran on this verdict code (G3; stale ones run first in live)",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "every corpus is fresh",
+   "output": "",
+   "command": "",
+   "ended": 1795211501.7
+  },
+  {
+   "id": "ruff",
+   "title": "ruff (config in pyproject.toml)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.1,
+   "summary": "All checks passed!",
+   "output": "All checks passed!",
+   "command": "/home/ndr/rel042t/.venv/bin/python -m ruff check --output-format concise .",
+   "ended": 1795211501.8
+  },
+  {
+   "id": "actionlint",
+   "title": "actionlint on every workflow (with shellcheck)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.2,
+   "summary": "clean",
+   "output": "",
+   "command": "actionlint -color=false -shellcheck=/usr/bin/shellcheck",
+   "ended": 1795211502.0
+  },
+  {
+   "id": "shellcheck-error",
+   "title": "shellcheck, error level, 23 scripts",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.2,
+   "summary": "clean",
+   "output": "",
+   "command": "shellcheck -S error <scripts>",
+   "ended": 1795211502.3
+  },
+  {
+   "id": "shellcheck-warning",
+   "title": "shellcheck, warning level, 23 scripts",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.2,
+   "summary": "clean",
+   "output": "",
+   "command": "shellcheck -S warning <scripts>",
+   "ended": 1795211502.5
+  },
+  {
+   "id": "empty-expressions",
+   "title": "no empty ${{ }} in action.yml or workflows",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none",
+   "output": "",
+   "command": "",
+   "ended": 1795211502.5
+  },
+  {
+   "id": "sync-facts",
+   "title": "public facts match the source (sync_facts.py --check)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.6,
+   "summary": "facts: in sync (version 0.4.2, 0 problem(s))",
+   "output": "facts: in sync (version 0.4.2, 0 problem(s))",
+   "command": "/home/ndr/rel042t/.venv/bin/python scripts/sync_facts.py --check",
+   "ended": 1795211503.1
+  },
+  {
+   "id": "surfaces-agree",
+   "title": "every surface names the platforms that shipped (surfaces_agree.py static)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.1,
+   "summary": "surfaces static: agree (version 0.4.2, platforms eos, frr, junos, nxos, routeros, sonic, srlinux)",
+   "output": "surfaces static: agree (version 0.4.2, platforms eos, frr, junos, nxos, routeros, sonic, srlinux)",
+   "command": "/home/ndr/rel042t/.venv/bin/python scripts/surfaces_agree.py static --release",
+   "ended": 1795211503.2
+  },
+  {
+   "id": "versions",
+   "title": "every version reference says 0.4.2",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.1,
+   "summary": "48 references agree",
+   "output": "ok  0.4.2      pyproject.toml [project] version\nok  0.4.2      src/netdryrun/__init__.py __version__\nok  0.4.2      server.json version\nok  0.4.2      server.json packages[netdryrun] version\nok  0.4.2      CHANGELOG.md newest release heading\nok  0.4.2      README.md:158 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      examples/batfish-pipeline/github-workflow.yml:36 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      templates/README.md:72 netdryrun==0.4.2\nok  0.4.2      website/docs/add.md:30 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/ai-agents.md:247 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/batfish.md:57 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/capabilities.json:20 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/capabilities.json:45 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/faq.md:18 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/github-action.md:3 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/github-action.md:21 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/github-action.md:82 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/github-action.md:90 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/github-action.md:115 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/github-action.md:136 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/github-action.md:159 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/guides/agent-pr.md:26 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/guides/frr-ci.md:194 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/guides/frr-ci.md:206 netdryrun==0.4.2\nok  0.4.2      website/docs/guides/sonic-ci.md:173 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/guides/your-lab.md:154 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/index.md:123 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:132 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:336 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:901 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:1405 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:1466 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:1474 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:1499 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:1520 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:1543 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:1833 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:2397 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:2729 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:2944 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:3158 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:3209 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:5253 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:5626 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/llms-full.txt:2956 netdryrun==0.4.2\nok  0.4.2      website/docs/news/posts/release-0.4.1.md:18 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/trust.md:17 netdryrun/Netdryrun@v0.4.2\nok  0.4.2      website/docs/tutorial.md:467 netdryrun/Netdryrun@v0.4.2",
+   "command": "",
+   "ended": 1795211503.2
+  },
+  {
+   "id": "python-range",
+   "title": "pyproject.toml declares Python 3.10 to 3.14, the versions tested",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "requires-python and classifiers agree",
+   "output": "",
+   "command": "",
+   "ended": 1795211503.2
+  },
+  {
+   "id": "examples-documented",
+   "title": "every example has a documented expected result and exit code",
+   "severity": "MAJOR",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "13 examples",
+   "output": "{\n \"frr-bgp\": {\n  \"outcomes\": [\n   \"PASSED: 11 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   99\n  ]\n },\n \"frr-bgp-broken\": {\n  \"outcomes\": [\n   \"FAILED: 5 passed, 1 failed\"\n  ],\n  \"codes\": [\n   1\n  ],\n  \"seconds\": [\n   39\n  ]\n },\n \"frr-customer-leak\": {\n  \"outcomes\": [\n   \"FAILED: 19 passed, 2 failed\"\n  ],\n  \"codes\": [\n   1\n  ],\n  \"seconds\": [\n   78\n  ]\n },\n \"srl-frr\": {\n  \"outcomes\": [\n   \"PASSED: 7 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   59\n  ]\n },\n \"srl-hidden-leak\": {\n  \"outcomes\": [\n   \"PASSED: 9 passed, 0 failed\",\n   \"FAILED: 8 passed, 1 failed\"\n  ],\n  \"codes\": [\n   0,\n   1\n  ],\n  \"seconds\": [\n   59,\n   60\n  ]\n },\n \"sonic-frr\": {\n  \"outcomes\": [\n   \"PASSED: 8 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   92\n  ]\n },\n \"arista-frr\": {\n  \"outcomes\": [\n   \"PASSED: 10 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   97\n  ]\n },\n \"junos-frr\": {\n  \"outcomes\": [\n   \"PASSED: 13 passed, 0 failed\",\n   \"FAILED: 12 passed, 1 failed\"\n  ],\n  \"codes\": [\n   0,\n   1\n  ],\n  \"seconds\": [\n   398\n  ]\n },\n \"mikrotik\": {\n  \"outcomes\": [\n   \"PASSED: 10 passed, 0 failed\",\n   \"FAILED: 8 passed, 2 failed\"\n  ],\n  \"codes\": [\n   0,\n   1\n  ],\n  \"seconds\": [\n   115,\n   119\n  ]\n },\n \"nxos-frr\": {\n  \"outcomes\": [\n   \"PASSED: 10 passed, 0 failed\",\n   \"FAILED: 8 passed, 2 failed\"\n  ],\n  \"codes\": [\n   0,\n   1\n  ],\n  \"seconds\": [\n   358,\n   377\n  ]\n },\n \"agent-demo\": {\n  \"outcomes\": [\n   \"Demo OK\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   70\n  ]\n },\n \"batfish-pipeline\": {\n  \"outcomes\": [\n   \"PASSED: 10 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0\n  ],\n  \"seconds\": [\n   100\n  ]\n },\n \"leak-pattern\": {\n  \"outcomes\": [\n   \"PASSED: 8 passed, 0 failed\",\n   \"FAILED: 6 passed, 2 failed\",\n   \"PASSED: 8 passed, 0 failed\"\n  ],\n  \"codes\": [\n   0,\n   1,\n   0\n  ],\n  \"seconds\": [\n   42,\n   43\n  ]\n }\n}",
+   "command": "",
+   "ended": 1795211503.2
+  },
+  {
+   "id": "examples-validate",
+   "title": "every shipped example passes `netdryrun validate` (preflight, no deploy)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 1.0,
+   "summary": "13 examples",
+   "output": "",
+   "command": "",
+   "ended": 1795211504.2
+  },
+  {
+   "id": "lab-names",
+   "title": "every topology we ship is named ndr-*",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "97 topologies",
+   "output": "",
+   "command": "",
+   "ended": 1795211504.2
+  },
+  {
+   "id": "retired-strings",
+   "title": "no retired public string outside the history (CHANGELOG, advisories, records)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "none",
+   "output": "",
+   "command": "",
+   "ended": 1795211504.3
+  },
+  {
+   "id": "loosening",
+   "title": "no unexplained FAIL/UNKNOWN -> PASS against the base (fastfix_gate.py loosening)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 38.2,
+   "summary": "clean since 7db9bce2a5, by this checkout's fastfix_gate.py (the base predates it)",
+   "output": "  corpus/results/results.json: 30 cases compared\n  corpus/v2/results/results.json: 18 cases compared\n  fixtures: 65 skipped at the base on this machine, not compared\n  fixtures: 2135 cases compared\n  fixture targets (61): tests/test_redteam.py, tests/test_runner_robustness.py::test_scenario_positive_cannot_pass_on_pre_fault_state, tests/test_runner_robustness.py::test_scenario_waits_for_the_fault_to_show_in_bgp, tests/test_runner_robustness.py::test_negative_check_waits_for_every_bgp_session_on_its_node, tests/test_verdict_runner.py::test_bgp_route_attribute_is_not_judged_on_a_temporary_best_path, tests/test_verdict_runner.py::test_node_without_bgp_neighbors_yet_is_not_converged, tests/test_verdict_runner.py::test_unreadable_snapshot_stops_the_scenario_before_any_fault, tests/test_verdict_runner.py::test_scenario_negative_checks_wait_for_the_bgp_gate, tests/test_surfaces_agree.py::test_the_action_never_goes_green_on_a_report_and_exit_code_that_disagree, tests/test_surfaces_agree.py::test_every_surface_gives_the_same_verdict, tests/test_mcp.py::test_relative_path_that_names_two_files_is_refused, tests/test_mcp.py::test_relative_paths_cannot_escape_a_single_mcp_root, tests/test_verdict_runner.py::test_scenarios_on_nodes_that_gave_state_still_run_after_an_unready_main_phase, tests/test_verdict_runner.py::test_unreadable_snapshot_after_a_readable_failure_is_still_an_error, tests/test_verdict_runner.py::test_a_bgp_node_with_no_neighbors_beside_a_working_node_is_a_failure, tests/test_verdict_runner.py::test_a_bgp_node_with_no_neighbors_at_the_cap_fails_its_post_convergence_checks, tests/test_false_passes_041.py::test_the_stranger_leak_fails_the_recorded_check, tests/test_false_passes_041.py::test_a_prefix_that_replaces_another_fails, tests/test_false_passes_041.py::test_record_guards_ebgp_and_unknown_neighbors_not_ibgp, tests/test_acceptance_041.py::test_with_from_pin_does_not_explain_a_path_from_an_undeclared_peer, tests/test_redteam_angle5_d87.py::test_routeros_own_advertised_prefix_fails_bgp_route_absent, tests/test_redteam_angle5_d87.py::test_routeros_own_advertised_prefix_is_not_a_received_path, tests/test_redteam_angle5_d87.py::test_record_attributes_forbids_every_well_known_community_not_carried_today, tests/test_redteam_angle5_d87.py::test_record_attributes_keeps_the_communities_it_carries_out_of_the_forbidden_list, tests/test_redteam_angle5_d87.py::test_record_attributes_never_writes_a_key_the_driver_refuses, tests/test_advisory_fixtures.py, tests/test_config_strict.py, tests/test_frr_config_load.py, tests/test_startup_config_load.py, tests/test_startup_config_load.py::test_audit_f1_an_exec_command_that_failed_fails_the_deploy, tests/test_interop_04_fixes.py, tests/test_interop_04.py::test_eos_missing_med_never_reads_as_0, tests/test_drivers_audit_033.py::test_med_zero_never_passes_on_a_path_without_med, tests/test_false_passes_041.py, tests/test_record.py, tests/test_prefix_length.py, tests/test_acceptance_041.py, tests/test_verify_pins_041.py, tests/test_afi_default.py, tests/test_verdict_runner.py, tests/test_inject_sent_counts.py, tests/test_driver_false_pass.py, tests/test_verdict_drivers.py, tests/test_driver_mutants_04.py, tests/test_junos_mutants.py, tests/test_verdict_checks.py, tests/test_verdict_config.py, tests/test_runner_mutants.py, tests/test_inconclusive.py, tests/test_verify_corpus.py, tests/test_drivers_harden_041.py, tests/test_srl_loop_count.py, tests/test_exact_prefix_answers.py, tests/test_mgmt.py, tests/test_redteam_angle5_d87.py, tests/test_mutants_041_checks.py, tests/test_unmapped_route_types_041.py, tests/test_routeros_driver.py, tests/test_verdict_keys_041.py, tests/test_verify_adj_multipath.py, tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_verdict_drivers::test_frr_bgp_neighbors[FrrDriver]: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_verdict_drivers::test_frr_bgp_neighbors[SonicDriver]: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_verdict_drivers::test_frr_bgp_neighbors_in_a_vrf: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_driver_false_pass::test_eos_ipv6_summary_is_still_read: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_verdict_drivers::test_eos_bgp_neighbors_commands_and_counts: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_verdict_drivers::test_srl_bgp_neighbors: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_verdict_drivers::test_srl_evidence_is_kept_everywhere: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_srl_loop_count::test_a_path_both_looped_and_rejected_is_not_subtracted_twice: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_srl_loop_count::test_an_invalid_reason_the_driver_does_not_know_makes_a_range_not_an_error: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-addpath-damp.yml: fixtures :: tests.test_srl_loop_count::test_exact_reasons_stay_exact: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_runner_mutants::test_a_scenario_that_does_not_recover_says_later_ones_are_skipped: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_runner_mutants::test_run_hands_its_driver_overrides_to_the_scenarios: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_runner_mutants::test_the_last_scenario_not_recovering_skips_nothing: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_runner_robustness::test_scenario_positive_cannot_pass_on_pre_fault_state[0.0]: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_runner_robustness::test_scenario_positive_cannot_pass_on_pre_fault_state[10.0]: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_runner_robustness::test_scenario_waits_for_the_fault_to_show_in_bgp: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_a_failed_link_restore_shows_each_streamed_result_once: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_a_link_that_cannot_be_restored_stops_the_run: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_a_scenario_without_injected_routes_still_streams_as_it_goes: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_inject_routes_is_applied_and_restored: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_later_scenarios_are_skipped_when_the_network_does_not_recover: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_link_down_is_applied_and_restored: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_node_isolated_downs_every_data_interface: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_only_passing_positive_checks_must_recover: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_recovered_network_adds_nothing: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_run_scenario_far_end_without_a_driver: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_run_scenario_gate_ignores_sessions_a_top_level_check_expects_down: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_run_scenario_gate_warning_is_added_to_each_check: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_run_scenario_holds_post_convergence_checks_for_its_hold: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_run_scenario_without_driver_for_builds_missing_drivers: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_checks_in_another_vrf_watch_that_vrf: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_drivers_built_mid_scenario_get_their_override: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_negative_checks_are_held: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_negative_checks_wait_for_the_bgp_gate: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_positive_long_history: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_positive_merged_fields: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_positive_that_fails_in_the_hold: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_positive_unready_in_the_hold_is_counted: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_positive_unready_samples_are_added: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_recovery_is_checked: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_restores_even_when_a_check_crashes: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_results_are_reported: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_waits_for_bgp_over_the_downed_link_and_settles: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_watches_only_the_vrfs_its_checks_use: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenario_with_fractional_timing: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_scenarios_on_nodes_that_gave_state_still_run_after_an_unready_main_phase: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_sessions_over_links_any_state: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_sessions_over_links_ipv6_and_scoped_keys: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_sessions_over_links_node_without_a_driver_has_nothing_to_watch: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_sessions_over_links_on_the_far_end: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_sessions_over_links_on_the_faulted_node: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_sessions_over_links_per_vrf_and_unreadable: FAIL -> PASS\n  allowed by fastfix/allow/0.4.2-stacked-links.yml: fixtures :: tests.test_verdict_runner::test_unreadable_snapshot_after_a_readable_failure_is_still_an_error: FAIL -> PASS\nloosening: clean",
+   "command": "/home/ndr/rel042t/.venv/bin/python /tmp/ndr-fastfix-gate-ul83uy7h/fastfix_gate.py loosening --repo /home/ndr/rel042t --base 7db9bce2a563bcacb09f184abeab91be6c889d60",
+   "ended": 1795211543.0
+  },
+  {
+   "id": "reproduce-first",
+   "title": "every src/ commit names an independent oracle that failed before it, or says why not (fastfix_gate.py reproduce)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 112.2,
+   "summary": "clean since 7db9bce2a5, by this checkout's fastfix_gate.py (the base predates it)",
+   "output": "  fef5ad981b Fixes-Oracle: FP-042-FRR102: fails on 94aa141270, checked against the fix (oracle as of 56266ea55c, harness from the base)\n  b1b433519a Fixes-Oracle: FP-042-UNNUMBERED: fails on fef5ad981b, checked against the fix (oracle as of e7d057d4de, harness from the base)\n  9dd11133d8 Fixes-Oracle: FP-042-SRLNETNS: fails on b1b433519a, checked against the fix (oracle as of 35599d963b, harness from the base)\n  4be8d49b6d Fixes-Oracle: FP-042-ADDRLOAD: fails on 9dd11133d8, checked against the fix (oracle as of 8d84ca4a04, harness from the base)\n  d0351fe23c Fixes-Oracle: FP-042-RTS01: fails on 4be8d49b6d, checked against the fix (oracle as of 3c3e82984c, harness from the base)\n  67745a5239 Fixes-Oracle: FP-042-UNNSESS: fails on c69a587ad5, checked against the fix (oracle as of 2020731fd4, harness from the base)\n  1289ef1679 Fixes-Oracle: FP-042-CAPMSG: fails on 67745a5239, checked against the fix (oracle as of 0cb60e7c7f, harness from the base)\n  e252746ede Fixes-Oracle: FP-042-ADDPATH: fails on 1af3a3c6d7, checked against the fix (oracle as of 5a2124eb18, harness from the base)\n  e252746ede Fixes-Oracle: FP-042-VRFDEV: fails on 1af3a3c6d7, checked against the fix (oracle as of 1af3a3c6d7, harness from the base)\n  02b4a7a850 Fixes-Oracle: FP-042-SRLADDPATH: fails on 542fcdd674, checked against the fix (oracle as of 73e7a4d874, harness from the base)\n  da971f4d6e Fixes-Oracle: FP-042-EOSADDPATH: fails on 02b4a7a850, checked against the fix (oracle as of 4a62d47293, harness from the base)\n  ff54eadf57 Fixes-Oracle: FP-042-FRRDAMP: fails on da971f4d6e, checked against the fix (oracle as of 542fcdd674, harness from the base)\n  bf49f3b050 Fixes-Oracle: FP-042-FRRRECVHIST: fails on ef6e9a1234, checked against the fix (oracle as of ef6e9a1234, harness from the base)\n  723a2674a6 Fixes-Oracle: FP-042-FRRGRSTALE: fails on b7d74dcd6a, checked against the fix (oracle as of b7d74dcd6a, harness from the base)\n  d413c86e88 Fixes-Oracle: FP-042-YAMLMERGEDUP: fails on 5ac978d2b4, checked against the fix (oracle as of 6207fdf079, harness from the base)\n  20d9d2a624 Fixes-Oracle: FP-042-SCENRESTORE: fails on d413c86e88, checked against the fix (oracle as of 720356674e, harness from the base)\n  fe4ba70628 Fixes-Oracle: FP-042-NXOSHIST: fails on 20d9d2a624, checked against the fix (oracle as of dd6fa62fef, harness from the base)\n  0b40056766 Fixes-Oracle: FP-042-RECORDVRF: fails on fe4ba70628, checked against the fix (oracle as of 2d39225179, harness from the base)\n  61893c9ab0 Fixes-Oracle: FP-042-MCPMISSNODE: fails on 0b40056766, checked against the fix (oracle as of 5ac978d2b4, harness from the base)\n  606d2386c3 Fixes-Oracle: FP-042-RECORDVRFNOSESS: fails on f0f6a24b28, checked against the fix (oracle as of f0f6a24b28, harness from the base)\n  57eb8cad10 Fixes-Oracle: FP-042-RECORDVRFLISTFAIL: fails on 170faf3e8b, checked against the fix (oracle as of 7c8f236bd7, harness from the base)\n  57eb8cad10 Fixes-Oracle: FP-042-RECORDV6DEFAULT: fails on 170faf3e8b, checked against the fix (oracle as of 170faf3e8b, harness from the base)\n  d59479b5ae Fixes-Oracle: FP-042-RECORDV6READFAIL: fails on cbd29c6951, checked against the fix (oracle as of cbd29c6951, harness from the base)\n  d59479b5ae Fixes-Oracle: FP-042-FRRVRFPARSE: fails on cbd29c6951, checked against the fix (oracle as of cbd29c6951, harness from the base)\n  5f0b7d77a7 Fixes-Oracle: FP-042-VERIFYPINSTATIC: fails on aa629edeb1, checked against the fix (oracle as of aa629edeb1, harness from the base)\n  5f0b7d77a7 Fixes-Oracle: FP-042-LINKDOWNSTACKED: fails on aa629edeb1, checked against the fix (oracle as of aa629edeb1, harness from the base)\n  f9a1585049 Fixes-Oracle: FP-042-LINKDOWNBRIDGE: fails on e4e15967f4, checked against the fix (oracle as of e4e15967f4, harness from the base)\n  be7ac46f7b Fixes-Oracle: FP-042-FRRLU: fails on ec2c324c4f, checked against the fix (oracle as of ec2c324c4f, harness from the base)\n  83478f2ff2 Fixes-Oracle: FP-042-PINGSRCFAMILY: fails on 6b3815af9e, checked against the fix (oracle as of 6b3815af9e, harness from the base)\n  83478f2ff2 Fixes-Oracle: FP-042-EOSASDOT: fails on 6b3815af9e, checked against the fix (oracle as of 6b3815af9e, harness from the base)\n  123 commits, 25 fix commits, 30 oracles held at the candidate\nreproduce: clean",
+   "command": "/home/ndr/rel042t/.venv/bin/python /tmp/ndr-fastfix-gate-ul83uy7h/fastfix_gate.py reproduce --repo /home/ndr/rel042t --range 7db9bce2a563bcacb09f184abeab91be6c889d60..HEAD",
+   "ended": 1795211657.7
+  },
+  {
+   "id": "changelog-cut",
+   "title": "CHANGELOG has no Unreleased entries left (all under 0.4.2)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "cut",
+   "output": "",
+   "command": "",
+   "ended": 1795211657.7
+  },
+  {
+   "id": "corpus-v1-tagged-fresh",
+   "title": "corpus v1: the committed results ran on this verdict code (G3)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "fresh",
+   "output": "",
+   "command": "",
+   "ended": 1795211657.7
+  },
+  {
+   "id": "corpus-v2-tagged-fresh",
+   "title": "corpus v2: the committed results ran on this verdict code (G3)",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "fresh",
+   "output": "",
+   "command": "",
+   "ended": 1795211657.7
+  },
+  {
+   "id": "tag-unused",
+   "title": "tag v0.4.2 does not exist yet",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "unused",
+   "output": "",
+   "command": "",
+   "ended": 1795211657.7
+  },
+  {
+   "id": "pypi-unused",
+   "title": "PyPI has no netdryrun 0.4.2 yet",
+   "severity": "BLOCKER",
+   "status": "PASS",
+   "seconds": 0.0,
+   "summary": "HTTP 404",
+   "output": "",
+   "command": "",
+   "ended": 1795211658.2
+  }
+ ],
+ "sections": [],
+ "attempt": {
+  "commit": "79de75984253ec3727bb35fc2aec14bc957ea103",
+  "tree": "e7ae43ec8948216d9f57f0d3e0fdaf5bbc536a18",
+  "key": "2c155b5e35a96f5536221fb94b2d661de67119f57fc7bd01af77a878a531b242",
+  "run_id": "rel042-static-79de7598-045141",
+  "cases": null,
+  "peak_child_rss_mb": 120.1,
+  "written": 1795211658.6908183
+ }
+}
