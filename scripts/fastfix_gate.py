@@ -538,15 +538,53 @@ def changed_drivers(files: set[str]) -> list[str]:
     return sorted(out)
 
 
-def read_commands(path: Path) -> dict[str, set[str]] | None:
-    """junit key -> the commands the fake labs were sent in that test; None when nothing was logged."""
+def temp_path_pattern() -> re.Pattern:
+    """A temporary directory's own random name: the first component under the temp directory (or /tmp), and pytest's
+    pytest-of-<user>/pytest-<n> pair as one. What follows it in the path is kept."""
+    dirs = {tempfile.gettempdir(), os.path.realpath(tempfile.gettempdir()), "/tmp"}
+    alts = "|".join(re.escape(d.rstrip("/\\")) for d in sorted(dirs, key=len, reverse=True) if d.rstrip("/\\"))
+    return re.compile(rf"(?:{alts})[/\\]+(?:pytest-of-[^/\\\s\"']+[/\\]+pytest-\d+|[^/\\\s\"']+)")
+
+
+def stable_command(text: str, roots: tuple[str, ...] = ()) -> str:
+    """A logged command as the same text on every run of the same code: the trees under test as <root>, a temporary
+    directory's random name as <tmp> (the rest of its path kept), JSON with sorted keys. Only those names go: a new
+    call, or a new argument next to a temporary path, still reads as new (a base whose fakes log less scrubbed)."""
+    temp = temp_path_pattern()
+    ordered = sorted((r for r in roots if r), key=len, reverse=True)
+
+    def scrub(s: str) -> str:
+        for r in ordered:
+            s = s.replace(r, "<root>")
+        return temp.sub("<tmp>", s)
+
+    def walk(v):
+        if isinstance(v, str):
+            return scrub(v)
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        if isinstance(v, dict):
+            return {scrub(k): walk(x) for k, x in v.items()}
+        return v
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return scrub(text)
+    if not isinstance(data, (dict, list)):
+        return scrub(text)
+    return json.dumps(walk(data), sort_keys=True)
+
+
+def read_commands(path: Path, roots: tuple[str, ...] = ()) -> dict[str, set[str]] | None:
+    """junit key -> the commands the fake labs were sent in that test (stable_command); None when nothing was
+    logged."""
     if not path.is_file():
         return None
     out: dict[str, set[str]] = {}
     for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
         try:
             row = json.loads(line)
-            out.setdefault(junit_key(row["test"]), set()).add(str(row["command"]))
+            out.setdefault(junit_key(row["test"]), set()).add(stable_command(str(row["command"]), roots))
         except (ValueError, KeyError, TypeError, AttributeError):
             raise GateError(f"the fake labs' command log is unreadable at line {n}") from None
     return out or None
@@ -663,13 +701,17 @@ def loosening(repo: Path, base_ref: str, cand_ref: str, python: str, dominance: 
         # 2. must-not-pass fixtures: the base's world with the base's code, then with the candidate's code
         origins: dict[str, str] = {}
         targets = fixture_targets(base_tree, origins)
-        logs = work / "cmd-base.jsonl", work / "cmd-cand.jsonl"
-        base_run = run_pytest(base_tree, targets, python, work / "r", logs[0])
-        cand_run = run_pytest(compose(base_tree, cand_tree, work / "mixed"), targets, python, work / "r", logs[1])
-        base_cmds = read_commands(logs[0])
+        # one log path for both runs (read in between): the path is in the environment the code under test may
+        # pass on, so two paths would log two different commands for the same code
+        log = work / "cmd.jsonl"
+        roots = (str(base_tree), str(work / "mixed"), str(work))
+        base_run = run_pytest(base_tree, targets, python, work / "r", log)
+        base_cmds = read_commands(log, roots)
+        mixed = compose(base_tree, cand_tree, work / "mixed")
+        cand_run = run_pytest(mixed, targets, python, work / "r", log)
         report.command_log_at_base = base_cmds is not None
         report.changed_drivers = changed_drivers(changed_files(repo, base, cand))
-        fixture_compare(base_run, cand_run, report, base_cmds, read_commands(logs[1]), origins)
+        fixture_compare(base_run, cand_run, report, base_cmds, read_commands(log, roots), origins)
         report.notes.append(f"fixture targets ({len(targets)}): {', '.join(targets)}")
         # 3. the allowlist
         apply_allowlist(repo, base, cand, cand_tree, report, dominance)

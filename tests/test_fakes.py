@@ -8,6 +8,8 @@ from __future__ import annotations
 import ast
 import builtins
 import json
+import subprocess
+import tempfile
 import os
 import re
 import sys
@@ -149,7 +151,79 @@ def test_the_profiler_logs_only_product_calls_into_test_code(tmp_path, monkeypat
 def test_logged_arguments_are_stable_between_runs():
     root = "/w/mixed"
     assert _plain(["/w/mixed/tests/x.yml", "/tmp/pytest-12/t0", object()], root) == \
-        ["<root>/tests/x.yml", "/tmp/<tmp>/t0", "object"]
+        ["<root>/tests/x.yml", "<tmp>/t0", "object"]
+
+
+@pytest.mark.parametrize("a,b", [
+    # tempfile.mkdtemp's random suffix, as product code names its scratch topology
+    ("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", "/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml"),
+    # pytest's tmp_path: another user, another run number
+    ("/tmp/pytest-of-ndr/pytest-12/test_x0/t.clab.yml", "/tmp/pytest-of-ci/pytest-3/test_x0/t.clab.yml"),
+    ("/tmp/tmpab12cd34/x", "/tmp/tmpzz99yy88/x"),
+])
+def test_a_temporary_directorys_random_name_is_scrubbed_and_the_rest_of_the_path_kept(a, b):
+    assert _plain(a, "/w") == _plain(b, "/w")
+    assert _plain(a, "/w").startswith("<tmp>/") and _plain(a, "/w").endswith(a.rsplit("/", 1)[1])
+
+
+def test_what_follows_a_temporary_directory_still_tells_two_paths_apart():
+    assert _plain("/tmp/netdryrun-verify-61i7icgq/after/t.yml", "/w") != \
+        _plain("/tmp/netdryrun-verify-61i7icgq/before/t.yml", "/w")
+    real = tempfile.mkdtemp(prefix="netdryrun-verify-")
+    try:
+        assert _plain(os.path.join(real, "x.yml"), "/w") == "<tmp>/x.yml"
+    finally:
+        os.rmdir(real)
+
+
+def test_an_environment_copy_logs_only_what_the_code_changed(monkeypatch):
+    for i in range(6):
+        monkeypatch.setenv(f"NDR_T_{i}", f"value-{i}")
+    monkeypatch.setenv(COMMAND_LOG, "/tmp/ndr-fastfix-abc/cmd-base.jsonl")
+    env = dict(os.environ)
+    logged = _plain(env, "/w")
+    assert set(logged) == {"<environment>"}                             # nothing inherited is logged
+    monkeypatch.setenv(COMMAND_LOG, "/tmp/ndr-fastfix-xyz/cmd-cand.jsonl")
+    assert _plain(dict(reversed(list(os.environ.items()))), "/w") == logged   # another run, another order
+    added = {**dict(os.environ), "CLAB_LABDIR_BASE": "/home/u/.cache/labs", "NDR_T_1": "changed"}
+    del added["NDR_T_2"]
+    logged = _plain(added, "/w")
+    assert logged["CLAB_LABDIR_BASE"] == "/home/u/.cache/labs" and logged["NDR_T_1"] == "changed"
+    assert logged["<removed>"] == ["NDR_T_2"]
+    assert _plain({"PATH": "/x", "HOME": "/y"}, "/w") == {"HOME": "/y", "PATH": "/x"}   # not an environment copy
+
+
+def test_seen_writes_dict_commands_with_sorted_keys(tmp_path, monkeypatch):
+    log = tmp_path / "c.jsonl"
+    monkeypatch.setenv(COMMAND_LOG, str(log))
+    seen({"b": 1, "a": 2})
+    seen({"a": 2, "b": 1})
+    lines = [json.loads(x)["command"] for x in log.read_text(encoding="utf-8").splitlines()]
+    assert lines[0] == lines[1] == '{"a": 2, "b": 1}'
+
+
+NOISY = ["tests/test_startup_config_load.py::test_audit_f1_an_exec_command_that_failed_fails_the_deploy",
+         "tests/test_verdict_keys_041.py::test_action_verify_match_without_a_declared_line_or_inconclusive_without_"
+         "reason_is_no_verdict",
+         "tests/test_verdict_keys_041.py::test_action_verify_no_change_needs_an_empty_diff_and_nothing_declared"]
+
+
+def test_the_command_log_is_the_same_on_two_runs_of_the_same_code(tmp_path):
+    """The three tests whose log once changed on every run (an environment copy holding the log's own path, and
+    tempfile.mkdtemp topologies): two runs with two log paths log the same lines."""
+    repo = Path(__file__).resolve().parents[1]
+    logs = []
+    for run in ("one", "two"):
+        log = tmp_path / run / "cmd.jsonl"
+        log.parent.mkdir()
+        env = {k: v for k, v in os.environ.items() if k not in ("PYTEST_ADDOPTS", "PYTEST_CURRENT_TEST")}
+        env.update({COMMAND_LOG: str(log), "PYTHONPATH": str(repo / "src")})
+        p = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", *NOISY],
+                           cwd=repo, env=env, capture_output=True, text=True, timeout=600)
+        assert p.returncode == 0, p.stdout[-2000:] + p.stderr[-2000:]
+        logs.append(sorted(log.read_text(encoding="utf-8").splitlines()))
+    assert logs[0] and len({json.loads(x)["test"] for x in logs[0]}) == 3, logs[0][:3]
+    assert logs[0] == logs[1], sorted(set(logs[0]) ^ set(logs[1]))[:4]
 
 
 def test_the_hook_is_off_unless_the_gate_asks(tmp_path, monkeypatch):

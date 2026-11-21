@@ -1080,6 +1080,129 @@ def test_a_new_read_a_loose_fake_answers_is_found_by_the_command_log(drepo, tmp_
     assert "show bgp neighbors" in out
 
 
+# the command log is compared run against run: what only differs by run (a temporary directory's random name, the
+# trees' own paths, the environment's key order, the log's own path) is no new read; a new call is one, temp path or not
+
+def _log(path: Path, rows: list[tuple[str, object]]) -> Path:
+    path.write_text("".join(json.dumps({"test": t, "command": c if isinstance(c, str) else json.dumps(c)}) + "\n"
+                            for t, c in rows), encoding="utf-8")
+    return path
+
+
+CASE = "tests.test_x::test_deploy"
+TEST = "tests/test_x.py::test_deploy"
+
+
+def _deploy(topology: str, env_order: list[tuple[str, str]], root: str) -> dict:
+    return {"call": "<lambda>", "args": {"cmd": ["containerlab", "deploy", "-t", topology],
+                                         "kw": {"env": dict(env_order), "cwd": f"{root}/tests"}}}
+
+
+def _new_reads(tmp_path, base_rows, cand_rows, roots=("/tmp/ndr-fastfix-k2j3h4l5/base",
+                                                     "/tmp/ndr-fastfix-k2j3h4l5/mixed")):
+    report = ffg.Report()
+    base = ffg.read_commands(_log(tmp_path / "b.jsonl", base_rows), roots)
+    cand = ffg.read_commands(_log(tmp_path / "c.jsonl", cand_rows), roots)
+    ffg.new_reads(report, 0, ffg.PytestRun(0, {}, {}, ""), {CASE: "FAIL"}, base, cand)
+    return report.flips
+
+
+ENV = [("HOME", "/home/u"), ("PATH", "/usr/bin"), ("_", "/usr/bin/env")]
+
+
+def test_a_random_temp_path_the_trees_paths_and_key_order_are_no_new_read(tmp_path):
+    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/base")),
+            (TEST, "cat /tmp/pytest-of-ndr/pytest-12/test_deploy0/t.yml")]
+    cand = [(TEST, _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[::-1],
+                           "/tmp/ndr-fastfix-k2j3h4l5/mixed")),
+            (TEST, "cat /tmp/pytest-of-ndr/pytest-13/test_deploy0/t.yml")]
+    assert _new_reads(tmp_path, base, cand) == []
+
+
+@pytest.mark.parametrize("extra", [
+    # a new call whose argument is a temporary path
+    {"call": "exec", "args": {"cmd": ["cat", "/tmp/netdryrun-verify-zzzzzzzz/secret"]}},
+    "cat /tmp/pytest-of-ndr/pytest-13/test_deploy0/other.yml",
+    # the same call with another file under the temporary directory
+    _deploy("/tmp/netdryrun-verify-f0bwtp86/before/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/mixed"),
+    # the same call with another environment value
+    _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV[:2] + [("_", "/bin/sh")],
+            "/tmp/ndr-fastfix-k2j3h4l5/mixed"),
+])
+def test_a_new_command_next_to_a_temp_path_is_still_a_new_read(tmp_path, extra):
+    base = [(TEST, _deploy("/tmp/netdryrun-verify-61i7icgq/after/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/base"))]
+    cand = [(TEST, _deploy("/tmp/netdryrun-verify-f0bwtp86/after/t.clab.yml", ENV, "/tmp/ndr-fastfix-k2j3h4l5/mixed")),
+            (TEST, extra)]
+    flips = _new_reads(tmp_path, base, cand)
+    assert [(f.case, f.kind) for f in flips] == [(CASE, ffg.NEW_READ)], flips
+
+
+def test_stable_command_keeps_what_isnt_a_run_name():
+    assert ffg.stable_command("show bgp summary") == "show bgp summary"
+    assert ffg.stable_command('{"b": 1, "a": "/tmp/tmpab12cd34/x"}') == '{"a": "<tmp>/x", "b": 1}'
+    assert ffg.stable_command("/w/base/tests/x", ("/w/base",)) == "<root>/tests/x"
+    assert ffg.stable_command("7") == "7"
+
+
+DEPLOY_DRIVER = DRIVERS + (
+    "\n    def deploy(self):\n"
+    "        import os\n"
+    "        import tempfile\n"
+    '        work = tempfile.mkdtemp(prefix="toy-verify-")\n'
+    '        return self.lab.run(["clab", "deploy", "-t", work + "/t.yml"], env=dict(os.environ))\n')
+DEPLOY_TEST = textwrap.dedent('''\
+
+
+    class RunLab:
+        def run(self, cmd, env=None):
+            seen({"cmd": cmd, "env": env})
+            return "refused"
+
+
+    def test_deploy_is_refused():
+        assert FrrDriver(RunLab()).deploy() == "refused"
+    ''')
+
+
+def _deploy_repo(tmp_path) -> Repo:
+    r = Repo(tmp_path / "r")
+    r.write("pyproject.toml", '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
+    r.write("src/toy/__init__.py", JUDGE)
+    r.write("src/toy/drivers.py", DEPLOY_DRIVER)
+    r.write("tests/conftest.py", "")
+    r.write("tests/fakes.py", FAKES)
+    r.write("tests/test_redteam.py", REDTEAM + "\n\n" + DRIVER_TESTS + DEPLOY_TEST)
+    r.write("tests/test_pinned.py", PINNED)
+    r.write("tests/redteam/RT-0001-zero.yml", RT_PINNED)
+    r.write("data/bad.yml", "bad: [-5, -2]\n")
+    r.write("corpus/results/results.json", BASE_RESULTS)
+    r.base = r.commit("base")
+    return r
+
+
+@needs_git
+def test_a_change_that_touches_no_code_finds_no_new_read_in_a_logged_environment_and_temp_dir(tmp_path):
+    """The fake is sent the whole environment (which holds the log's own path) and a mkdtemp path: a comment-only
+    change is still no flip."""
+    r = _deploy_repo(tmp_path)
+    r.write("tests/test_pinned.py", PINNED + "# a comment\n")
+    r.commit("comment", No_Oracle="comment only")
+    code, out, data = dominance(r, r.base, tmp_path)
+    assert code == 0 and data["flips"] == [], out
+
+
+@needs_git
+def test_a_new_command_with_a_temp_path_argument_is_still_found(tmp_path):
+    r = _deploy_repo(tmp_path)
+    r.write("src/toy/drivers.py", DEPLOY_DRIVER.replace(
+        '        return self.lab.run(["clab", "deploy"',
+        '        self.lab.run(["cat", work + "/secret"])\n        return self.lab.run(["clab", "deploy"'))
+    r.commit("read a file too", No_Oracle="new read, verdict unchanged")
+    code, out, data = dominance(r, r.base, tmp_path)
+    kinds = {f["case"]: f["kind"] for f in data["flips"]}
+    assert code == 1 and kinds.get("tests.test_redteam::test_deploy_is_refused") == "new-read", out
+
+
 @needs_git
 def test_code_that_turns_the_command_log_off_blocks(drepo, tmp_path):
     drepo.write("src/toy/__init__.py", JUDGE + "\nimport os\nos.environ.pop('NDR_FAKE_COMMAND_LOG', None)\n")

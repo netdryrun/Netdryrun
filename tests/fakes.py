@@ -20,8 +20,10 @@ function in a file under tests/ or in unittest/mock.py: a fake class's method, a
 under any name (exec, exec_root, netns_exec or anything a later driver uses), *args or keyword-only alike, functools.
 partial around such a function, a MagicMock or mock.patch stand-in, and a callback a test hands in (a fake clock, say;
 a change to what the code passes it then shows as new, which only ever asks for more review). Arguments are logged as
-plain data, other objects by their type, the test's working directory as <root>, so two runs of one test log the
-same lines.
+plain data, other objects by their type, the test's working directory as <root>, a temporary directory's own random
+name (tempfile.mkdtemp, pytest's tmp_path) as <tmp> with the rest of the path kept, and a copy of the environment by
+what the code changed in it (inherited values are not logged), with dict keys sorted, so two runs of one test log the
+same lines on any machine. A new call, or new arguments around a temporary path, still logs a new line.
 
 Not logged, because no such call is visible to a profiler as product-calls-test-code:
 - a C callable answering in a fake's place (dict.get, str.format, list.append, a builtin): it has no Python frame;
@@ -39,6 +41,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import threading
 
 PREFIX = "unexpected command: "
@@ -59,7 +62,13 @@ def seen(command: object) -> None:
     if not path:
         return
     test = os.environ.get("PYTEST_CURRENT_TEST", "").rsplit(" (", 1)[0]
-    text = command if isinstance(command, str) else json.dumps(command, default=str)
+    if isinstance(command, str):
+        text = command
+    else:
+        try:
+            text = json.dumps(command, default=str, sort_keys=True)
+        except TypeError:   # keys of mixed types can't be sorted
+            text = json.dumps(command, default=str)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"test": test, "command": text}) + "\n")
 
@@ -67,14 +76,32 @@ def seen(command: object) -> None:
 _TMP = re.compile(r"pytest-\d+|tmp[A-Za-z0-9_]{6,}")
 
 
+def _temp_path() -> re.Pattern:
+    """A temporary directory's own name: the first component under the temp directory (or /tmp), and pytest's
+    pytest-of-<user>/pytest-<n> pair as one. The path after it is kept."""
+    dirs = {tempfile.gettempdir(), os.path.realpath(tempfile.gettempdir()), "/tmp"}
+    alts = "|".join(re.escape(d.rstrip("/\\")) for d in sorted(dirs, key=len, reverse=True) if d.rstrip("/\\"))
+    return re.compile(rf"(?:{alts})[/\\]+(?:pytest-of-[^/\\\s\"']+[/\\]+pytest-\d+|[^/\\\s\"']+)")
+
+
+def _environment(value: dict) -> bool:
+    """A copy of the process environment (subprocess env=dict(os.environ)), not a dict the code built."""
+    env = os.environ
+    if value is env:
+        return True
+    shared = sum(1 for k in env if k in value)
+    return len(env) >= 4 and shared >= max(4, len(env) // 2)
+
+
 def _plain(value: object, root: str, depth: int = 0) -> object:
     """`value` as stable JSON: strings, numbers, lists and dicts as they are (the test's working directory and
-    temporary names scrubbed), anything else by its type name (its repr may hold an address)."""
+    temporary names scrubbed, an environment copy reduced to what differs from the process's), anything else by its
+    type name (its repr may hold an address)."""
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, (str, os.PathLike, bytes)):
         text = os.fsdecode(value) if not isinstance(value, bytes) else value.decode("utf-8", "replace")
-        return _TMP.sub("<tmp>", text.replace(root, "<root>"))
+        return _TMP.sub("<tmp>", _temp_path().sub("<tmp>", text.replace(root, "<root>")))
     if depth > 4:
         return type(value).__name__
     if isinstance(value, (list, tuple)):
@@ -82,6 +109,13 @@ def _plain(value: object, root: str, depth: int = 0) -> object:
     if isinstance(value, (set, frozenset)):
         return sorted((_plain(v, root, depth + 1) for v in value), key=repr)
     if isinstance(value, dict):
+        if _environment(value):
+            # inherited values differ by machine and by run (the log's own path, OLDPWD): only what the code set,
+            # changed or removed is logged
+            out = {str(k): _plain(v, root, depth + 1) for k, v in value.items() if os.environ.get(k) != v}
+            removed = sorted(str(k) for k in os.environ if k not in value)
+            return {"<environment>": "inherited values not logged", **out,
+                    **({"<removed>": removed} if removed else {})}
         return {str(k): _plain(v, root, depth + 1) for k, v in value.items()}
     return type(value).__name__
 
