@@ -20,3 +20,4 @@ evidence:
   - tests/fixtures/srl_local_ipv6.json
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_pingsrcfamily.py
+plant: plant.diff

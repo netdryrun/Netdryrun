@@ -11,6 +11,7 @@ from netdryrun.lab import ExecResult, LabError
 from netdryrun.mgmt import ManagementPathError
 from test_mgmt import GW4, GW6, m_of
 from test_mgmt_eos_kernel_042 import KernelLab
+from fakes import UnexpectedCommand, seen
 
 V4_CMD, V6_CMD = "show ip route vrf all | json", "show ipv6 route vrf all | json"
 
@@ -50,11 +51,12 @@ class TableLab:
         assert node == "r1" and cmd[:4] == ["Cli", "-p", "15", "-c"]
         c = cmd[-1]
         self.sent.append(c)
+        seen(c)
         if c == "show running-config":
             return ExecResult(cmd, 0, self.running, "")
         if c in self.out:
             return ExecResult(cmd, 0, self.out[c], "")
-        raise AssertionError(f"unexpected command {c!r}")
+        raise UnexpectedCommand(c)
 
 
 def only(lab):

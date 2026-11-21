@@ -39,6 +39,10 @@ def write(tmp_path, layers, accepted=None, review=True, stranger=FRESH):
     for name, checks in layers.items():
         (tmp_path / "gate").mkdir(exist_ok=True)
         (tmp_path / "gate" / f"{name}.json").write_text(json.dumps(record(name, checks)))
+    # static --candidate's record of the published-release comparison: no new device reads here
+    (tmp_path / "gate").mkdir(exist_ok=True)
+    (tmp_path / "gate" / "dominance.json").write_text(json.dumps(
+        {"candidate": "a", "flips": [], "command_log_at_base": True, "changed_drivers": [], "new_read_entries": []}))
     if accepted is not None:
         (tmp_path / "accepted.json").write_text(json.dumps({"checks": accepted}))
     if review:
@@ -57,7 +61,8 @@ gate = SimpleNamespace(**{k: getattr(gate, k) for k in dir(gate) if not k.starts
 gate.render = render
 
 
-PRE = {"static": [("s", "BLOCKER", "PASS")], "unit": [("u", "BLOCKER", "PASS")], "mutation": [("m", "BLOCKER", "PASS")],
+PRE = {"static": [("s", "BLOCKER", "PASS"), ("dominance", "BLOCKER", "PASS")], "unit": [("u", "BLOCKER", "PASS")],
+       "mutation": [("m", "BLOCKER", "PASS")],
        "acceptance": [("a", "BLOCKER", "PASS")]}
 
 
@@ -167,3 +172,40 @@ def test_a_status_just_inside_36_hours_is_fresh():
 
 def _gate_problems(path, now):
     return sys.modules["release_gate"].stranger_problems(path, "9.9.9", now)
+
+
+# ---- a MAJOR defined by its content (waived lines, skipped fixtures) is accepted only for that content
+
+FP = "0123456789abcdef"
+
+
+def fingerprinted(tmp_path, entry):
+    args = write(tmp_path, {**PRE, "live": [("l", "BLOCKER", "PASS")], "after-publish": [("p", "BLOCKER", "PASS")],
+                            "static": [("s", "BLOCKER", "PASS"), ("dominance", "BLOCKER", "PASS"),
+                                       ("loosening", "MAJOR", "FAIL")]},
+                 accepted={"static/loosening": entry} if entry is not None else None)
+    path = tmp_path / "gate" / "static.json"
+    rec = json.loads(path.read_text())
+    for c in rec["checks"]:
+        if c["id"] == "loosening":
+            c["fingerprint"], c["summary"] = FP, f"blocked only by waived lines [fingerprint {FP}]"
+    path.write_text(json.dumps(rec))
+    return gate.render(args)
+
+
+def test_a_fingerprinted_major_is_accepted_with_its_fingerprint(tmp_path):
+    text, cleared = fingerprinted(tmp_path, {"reason": "historic lines reviewed", "fingerprint": FP})
+    assert cleared, text
+    assert "(accepted: historic lines reviewed)" in text
+
+
+@pytest.mark.parametrize("entry,why", [
+    ("historic lines reviewed", "the entry must pin it"),                                   # the old format
+    ({"reason": "historic lines reviewed"}, "this run's content is"),                       # no fingerprint
+    ({"reason": "historic lines reviewed", "fingerprint": "fedcba9876543210"}, "this run's content is"),   # stale
+    ({"reason": "", "fingerprint": FP}, "gives no reason"),
+])
+def test_a_fingerprinted_major_is_not_accepted_for_other_content(tmp_path, entry, why):
+    text, cleared = fingerprinted(tmp_path, entry)
+    assert not cleared, text
+    assert "NOT accepted" in text and why in text, text

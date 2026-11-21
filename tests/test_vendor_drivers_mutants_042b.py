@@ -12,6 +12,7 @@ from netdryrun.drivers.base import BgpNeighbor
 from netdryrun.drivers.eos import EosDriver, parse_eos_add_path_off
 from netdryrun.drivers.srlinux import SrlDriver, _count_add_path_prefixes, srl_add_path_rx
 from netdryrun.lab import ExecResult
+from fakes import UnexpectedCommand, seen
 
 
 class Lab:
@@ -23,11 +24,12 @@ class Lab:
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
         self.calls.append(line)
+        seen(line)
         for needle, answer in self.rules:
             if needle in line:
                 rc, out = answer if isinstance(answer, tuple) else (0, answer)
                 return ExecResult(list(cmd), rc, out, "")
-        raise AssertionError(f"unexpected command: {line}")
+        raise UnexpectedCommand(line)
 
 
 # ---------------------------------------------------------------- EOS -------------------------------------------------

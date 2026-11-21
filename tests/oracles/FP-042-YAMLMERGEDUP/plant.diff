@@ -1,0 +1,110 @@
+diff --git a/src/netdryrun/config.py b/src/netdryrun/config.py
+--- a/src/netdryrun/config.py
++++ b/src/netdryrun/config.py
+@@ -551,67 +551,47 @@ class _StrictLoader(yaml.SafeLoader):
+         return out
+ 
+     def construct_mapping(self, node, deep=False):
+-        self._check_keys(node)
+-        return super().construct_mapping(node, deep=deep)
+-
+-    def _check_keys(self, node) -> None:
+-        """Refuse a duplicate key in this mapping and in every mapping it merges, at any merge depth.
+-
+-        A merge source is never constructed: PyYAML's flatten_mapping copies its pairs into the mapping that merges it,
+-        so its own keys were never checked and `prefix: 0.0.0.0/0` then `prefix: 192.0.2.0/24` in a guard template
+-        used only through `<<` kept the last one silently (angle-5 red team on 82fb052, RT-0073). Each node is checked
+-        once, on first sight, before flatten_mapping rewrites it in place (a flattened source holds the merged keys and
+-        its own overrides side by side, which is no duplicate in the file)."""
+-        if not isinstance(node, yaml.MappingNode):
+-            return
+-        checked = self.__dict__.setdefault("_ndr_checked", set())
+-        if id(node) in checked:
+-            return
+-        checked.add(id(node))
+-        merges = [(k, v) for k, v in node.value if k.tag == self.MERGE]
+-        if len(merges) > 1:
+-            # PyYAML keeps the last `<<` and drops the first, keys and all: a guard written as `<<: *guard`
+-            # then `<<: *other` vanished (angle-5 red team on d87aa3e, RT-0050)
+-            raise yaml.constructor.ConstructorError(
+-                "while reading a mapping", node.start_mark,
+-                f"two `<<` merge keys in one mapping (first on line {merges[0][0].start_mark.line + 1}): YAML keeps "
+-                "only one of them; write one `<<: [*a, *b]` with sources that don't share a key, or the keys "
+-                "themselves", merges[1][0].start_mark)
+-        for _, value in merges:
+-            sources = value.value if isinstance(value, yaml.SequenceNode) else [value]
+-            for src in sources:
+-                # the source's own keys (and its own merges) before the sources are compared with each other: a
+-                # duplicate inside one source is that source's error, wherever it is merged
+-                self._check_keys(src)
+-            if isinstance(value, yaml.SequenceNode):
+-                # YAML keeps the first source's value for a key two sources share, without a word
+-                seen_src: dict = {}
+-                for src in value.value:
+-                    for k in self._keys(src):
+-                        try:
+-                            if k in seen_src:
+-                                raise yaml.constructor.ConstructorError(
+-                                    "while reading a mapping", node.start_mark,
+-                                    f"merge sources share the key {k!r} (lines {seen_src[k] + 1} and "
+-                                    f"{src.start_mark.line + 1}): YAML would keep one value without a word; "
+-                                    "write that key explicitly", value.start_mark)
+-                            seen_src[k] = src.start_mark.line
+-                        except TypeError:
+-                            continue
+-        seen: dict[Any, int] = {}
+-        for key_node, _ in node.value:
+-            if key_node.tag == self.MERGE:
+-                continue   # one `<<` merge is allowed, and explicit keys override it
+-            key = self.construct_object(key_node, deep=True)
+-            try:
+-                first = seen.get(key)
+-            except TypeError:
+-                continue   # unhashable key: SafeLoader reports it
+-            if first is not None:
++        if isinstance(node, yaml.MappingNode):
++            merges = [(k, v) for k, v in node.value if k.tag == self.MERGE]
++            if len(merges) > 1:
++                # PyYAML keeps the last `<<` and drops the first, keys and all: a guard written as `<<: *guard`
++                # then `<<: *other` vanished (angle-5 red team on d87aa3e, RT-0050)
+                 raise yaml.constructor.ConstructorError(
+                     "while reading a mapping", node.start_mark,
+-                    f"duplicate key {key!r} (first defined on line {first + 1})", key_node.start_mark)
+-            seen[key] = key_node.start_mark.line
++                    f"two `<<` merge keys in one mapping (first on line {merges[0][0].start_mark.line + 1}): YAML keeps "
++                    "only one of them; write one `<<: [*a, *b]` with sources that don't share a key, or the keys "
++                    "themselves", merges[1][0].start_mark)
++            for _, value in merges:
++                if isinstance(value, yaml.SequenceNode):
++                    # YAML keeps the first source's value for a key two sources share, without a word
++                    seen_src: dict = {}
++                    for src in value.value:
++                        for k in self._keys(src):
++                            try:
++                                if k in seen_src:
++                                    raise yaml.constructor.ConstructorError(
++                                        "while reading a mapping", node.start_mark,
++                                        f"merge sources share the key {k!r} (lines {seen_src[k] + 1} and "
++                                        f"{src.start_mark.line + 1}): YAML would keep one value without a word; "
++                                        "write that key explicitly", value.start_mark)
++                                seen_src[k] = src.start_mark.line
++                            except TypeError:
++                                continue
++            seen: dict[Any, int] = {}
++            for key_node, _ in node.value:
++                if key_node.tag == self.MERGE:
++                    continue   # one `<<` merge is allowed, and explicit keys override it
++                key = self.construct_object(key_node, deep=True)
++                try:
++                    first = seen.get(key)
++                except TypeError:
++                    continue   # unhashable key: SafeLoader reports it
++                if first is not None:
++                    raise yaml.constructor.ConstructorError(
++                        "while reading a mapping", node.start_mark,
++                        f"duplicate key {key!r} (first defined on line {first + 1})", key_node.start_mark)
++                seen[key] = key_node.start_mark.line
++        return super().construct_mapping(node, deep=deep)
+ 
+ 
+ def load_yaml(text: str, source: str = "<yaml>") -> Any:
