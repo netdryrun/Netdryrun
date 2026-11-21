@@ -27,15 +27,15 @@ The rule: an EVPN route imported into the ip-vrf is a BGP path there. On both ca
 pass; the driver must not report "no BGP path" for ipvrf. A path (read from the EVPN RIB, or the bgp-evpn row taken as
 received) and a refusal (a DriverError, or the check failing as unreadable) both satisfy the oracle.
 
-Design A runs on one live run, srl2672_fp043_rt58_* (the same lab redeployed unchanged, 2026-11-22), which also holds
-the next-hop-group its route names (3530614221) and that group's one next hop (2.2.2.2). Every read the driver sends
-there must be answered from that run: an unanswered read fails the test, and the tests assert the driver's own reason
-(the imported path from 2.2.2.2; "unexpectedly in the BGP table"), never only "did not pass". A harness error or an
-unanswered fake read is never a catch (fixes db FX-0.4.3-redteam-fake-unanswered-command).
+The tests run each design on one live run that holds every read the fixed driver sends (the same lab redeployed
+unchanged, 2026-11-22): design A on srl2672_fp043_rt58_* (next-hop-group 3530614221, its one next hop 2.2.2.2), design
+B on srl2672_fp043_pece2b_* (default attr-set 8, ipvrf attr-set 10, next-hop-group 3692599526, its one next hop
+2.2.2.2). Every answer comes from that one run, and they assert the driver's own reason (the imported path from 2.2.2.2;
+"unexpectedly in the BGP table"), never only "did not pass".
 
-Design B (srl2672_fp043_pece2_*) keeps the older harness: reads the captures don't cover answer rc 1. Known limit: the
-pece2 run holds no answer for `default bgp-rib attr-sets attr-set 9` or ipvrf's next-hop-group, so on a driver that
-reads them design B ends in that refusal, not in a verdict; it needs a live pece2 run that captures them.
+Every lab here, the captured states too, fails the test on a read it holds no answer for: the oracle never answers
+for leaf1, and a harness error or an unanswered fake read is never a catch (fixes db
+FX-0.4.3-redteam-fake-unanswered-command).
 """
 import json
 from pathlib import Path
@@ -44,7 +44,6 @@ import pytest
 
 from netdryrun.checks import run_check
 from netdryrun.config import _validate_check
-from netdryrun.drivers.base import DriverError
 from netdryrun.drivers.srlinux import SrlDriver
 from netdryrun.lab import ExecResult
 
@@ -91,54 +90,67 @@ def captured(tag: str) -> dict:
     return out
 
 
-class CapturedLab:
-    """leaf1 as captured in one state (design B). A command that wasn't captured fails (rc=1)."""
+class StrictLab:
+    """leaf1 answering `answers` (sr_cli --output-format json <command> -> a fixture). A read it holds no answer for
+    fails the test (pytest.fail, which the driver and run_check can't turn into a verdict or a refusal)."""
 
-    def __init__(self, tag: str):
-        self.answers = captured(tag)
-
-    def exec(self, node, cmd, timeout=60, input=None):
-        if node == "leaf1" and cmd[:3] == ["sr_cli", "--output-format", "json"] and len(cmd) == 4 \
-                and cmd[3] in self.answers:
-            return ExecResult(cmd, 0, fx(self.answers[cmd[3]]), "")
-        return ExecResult(cmd, 1, "", f"not captured: {' '.join(cmd)}")
-
-
-RT58 = "srl2672_fp043_rt58_leaf1_"
-NHG, NH = "3530614221", "3530614219"   # the group ipvrf's route names in the rt58 run, and its one next hop
-SR = ["sr_cli", "--output-format", "json"]
-
-
-def live_run() -> dict:
-    """sr_cli --output-format json <command> -> leaf1's answer in the design-A live run (srl2672_fp043_rt58_*, one run;
-    the commands as tests/fixtures/SOURCES.yml records them)."""
-    return {
-        f"info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route {PREFIX} "
-        "neighbor * origin-protocol * path-id *": RT58 + "ipvrf_bgp_rib_route.json",
-        "info from state /network-instance ipvrf oper-state": RT58 + "ipvrf_oper_state.json",
-        f"info from state /network-instance ipvrf route-table ipv4-unicast route {PREFIX} "
-        "id * route-type * route-owner * origin-network-instance *": RT58 + "ipvrf_route_table_route.json",
-        "info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib":
-            RT58 + "default_evpn_local_rib.json",
-        "info from state /network-instance default bgp-rib attr-sets attr-set 6": RT58 + "default_attr_set_6.json",
-        f"info from state /network-instance ipvrf route-table next-hop-group {NHG}": RT58 + f"ipvrf_nhg_{NHG}.json",
-        f"info from state /network-instance ipvrf route-table next-hop {NH}": RT58 + f"ipvrf_nh_{NH}.json",
-    }
-
-
-class LiveRun:
-    """leaf1 in the design-A live run. A read the run didn't capture fails the test (pytest.fail, which the driver
-    and run_check can't turn into a verdict): the oracle never answers for leaf1."""
-
-    def __init__(self):
-        self.answers, self.unanswered = live_run(), []
+    def __init__(self, answers: dict):
+        self.answers, self.unanswered = answers, []
 
     def exec(self, node, cmd, timeout=60, input=None):
         if node == "leaf1" and cmd[:3] == SR and len(cmd) == 4 and cmd[3] in self.answers:
             return ExecResult(cmd, 0, fx(self.answers[cmd[3]]), "")
         self.unanswered.append(" ".join(cmd))
-        pytest.fail(f"unanswered read on {node}: {' '.join(cmd)} (the live run holds no answer for it; an unanswered "
+        pytest.fail(f"unanswered read on {node}: {' '.join(cmd)} (the capture holds no answer for it; an unanswered "
                     "read is never a catch)", pytrace=False)
+
+
+class CapturedLab(StrictLab):
+    """leaf1 as captured in one state (present, absent, pece2, pece2absent)."""
+
+    def __init__(self, tag: str):
+        super().__init__(captured(tag))
+
+
+SR = ["sr_cli", "--output-format", "json"]
+RT58 = "srl2672_fp043_rt58_leaf1_"
+NHG, NH = "3530614221", "3530614219"   # the group ipvrf's route names in the rt58 run, and its one next hop
+PECE2B = "srl2672_fp043_pece2b_leaf1_"
+B_NHG, B_NH = "3692599526", "3692599523"   # the same in the pece2b run
+
+
+def live_run(tag: str) -> dict:
+    """sr_cli --output-format json <command> -> leaf1's answer in one live run (the commands as
+    tests/fixtures/SOURCES.yml records them): rt58 = design A, pece2b = design B."""
+    rib = (f"info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route {PREFIX} "
+           "neighbor * origin-protocol * path-id *")
+    table = (f"info from state /network-instance ipvrf route-table ipv4-unicast route {PREFIX} "
+             "id * route-type * route-owner * origin-network-instance *")
+    evpn = "info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib"
+    group = "info from state /network-instance ipvrf route-table next-hop-group "
+    hop = "info from state /network-instance ipvrf route-table next-hop "
+    if tag == "rt58":
+        p = RT58
+        return {rib: p + "ipvrf_bgp_rib_route.json", table: p + "ipvrf_route_table_route.json",
+                evpn: p + "default_evpn_local_rib.json",
+                "info from state /network-instance ipvrf oper-state": p + "ipvrf_oper_state.json",
+                "info from state /network-instance default bgp-rib attr-sets attr-set 6": p + "default_attr_set_6.json",
+                group + NHG: p + f"ipvrf_nhg_{NHG}.json", hop + NH: p + f"ipvrf_nh_{NH}.json"}
+    if tag == "pece2b":
+        p = PECE2B
+        return {rib: p + "ipvrf_bgp_rib_route.json", table: p + "ipvrf_route_table_route.json",
+                evpn: p + "default_evpn_local_rib.json",
+                "info from state /network-instance default bgp-rib attr-sets attr-set 8": p + "default_attr_set_8.json",
+                "info from state /network-instance ipvrf bgp-rib attr-sets attr-set 10": p + "ipvrf_attr_set_10.json",
+                group + B_NHG: p + f"ipvrf_nhg_{B_NHG}.json", hop + B_NH: p + f"ipvrf_nh_{B_NH}.json"}
+    raise ValueError(tag)
+
+
+class LiveRun(StrictLab):
+    """leaf1 in one live run (rt58 or pece2b)."""
+
+    def __init__(self, tag: str = "rt58"):
+        super().__init__(live_run(tag))
 
 
 class Clock:
@@ -211,17 +223,29 @@ def test_no_bgp_ipvrf_present_false_does_not_pass():
 
 
 def test_pece_ipvrf_present_false_does_not_pass():
-    """Design B: ipvrf runs BGP to a CE; its bgp-rib lists the EVPN route as origin-protocol bgp-evpn from 0.0.0.0.
-    `netdryrun check` passed `present: false` on the live lab ("a prefix this node originates itself")."""
-    row = evpn_row("pece2")
-    assert row["imported-network-instances"] == ["ipvrf"] and row["neighbor"] == "2.2.2.2"
-    rib = json.loads(fx("srl2672_fp043_pece2_leaf1_ipvrf_bgp_rib_route.json"))["route"]
-    assert [(x["prefix"], x["neighbor"], x["origin-protocol"], x["best-route"]) for x in rib] == \
-        [(PREFIX, "0.0.0.0", "bgp-evpn", True)]
-    installed_via_evpn("pece2")
+    """Design B (live run pece2b): ipvrf runs BGP to a CE; its bgp-rib lists the EVPN route once, origin-protocol
+    bgp-evpn from 0.0.0.0. `netdryrun check` passed `present: false` on the live lab (pece2 run, "a prefix this node
+    originates itself"). It must fail with the driver's verdict on the pece2b run's answers alone."""
+    rib = json.loads(fx(PECE2B + "default_evpn_local_rib.json"))["ip-prefix-route"]
+    [row] = [r for r in rib if r["ip-prefix"] == PREFIX]
+    assert row["imported-network-instances"] == ["ipvrf"] and row["neighbor"] == "2.2.2.2" and row["attr-id"] == "8"
+    assert "target:65000:99" in json.loads(fx(PECE2B + "default_attr_set_8.json"))["communities"]["ext-community"]
+    own = json.loads(fx(PECE2B + "ipvrf_bgp_rib_route.json"))["route"]
+    assert [(x["prefix"], x["neighbor"], x["origin-protocol"], x["best-route"], x["attr-id"]) for x in own] == \
+        [(PREFIX, "0.0.0.0", "bgp-evpn", True, "10")]
+    routes = json.loads(fx(PECE2B + "ipvrf_route_table_route.json"))["route"]
+    assert [(r["ipv4-prefix"], r["route-type"], r["active"], r["next-hop-group"]) for r in routes] == \
+        [(PREFIX, "bgp-evpn", True, B_NHG)]
+    assert [h["next-hop"] for h in json.loads(fx(PECE2B + f"ipvrf_nhg_{B_NHG}.json"))["next-hop"]] == [B_NH]
+    assert json.loads(fx(PECE2B + f"ipvrf_nh_{B_NH}.json"))["ip-address"] == "2.2.2.2"
+    # the original false pass, end to end on the live lab (the pece2 run, the same design)
     report = json.loads(fx("srl2672_fp043_pece2_report.json"))
     live = {c["name"]: c["passed"] for c in report["checks"]}
     assert live == {"pece-ce-session-up": True, "pece-evpn-bgp-route-absent-must-fail": True,
                     "pece-evpn-route-bgp-absent-must-fail": False}
-    r = check(CapturedLab("pece2"), present=False)
+    lab = LiveRun("pece2b")
+    r = check(lab, present=False)
+    assert not lab.unanswered, lab.unanswered
     assert not r.passed, f"`present: false` passed with {PREFIX} imported into ipvrf over EVPN: {r.detail}"
+    assert "unexpectedly in the BGP table" in r.detail and "2.2.2.2" in r.detail, \
+        f"`present: false` failed, but not because the driver saw the imported path from 2.2.2.2: {r.detail}"
