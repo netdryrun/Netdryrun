@@ -1,0 +1,112 @@
+diff --git a/src/netdryrun/verify/engine.py b/src/netdryrun/verify/engine.py
+--- a/src/netdryrun/verify/engine.py
++++ b/src/netdryrun/verify/engine.py
+@@ -10,12 +10,10 @@ undeclared. Every intent line either happened or didn't; a line that didn't happ
+ What each form explains (and nothing else):
+ 
+   appears_on S          on each node in S, every item for the prefix (RIB entries, BGP paths, received
+-                        routes), all of them new since the route was absent; with `with:`, only what the pins
+-                        describe: the paths and received routes matching the BGP attributes (another new path
+-                        for the prefix stays undeclared) and the RIB entries meeting protocol, distance and
+-                        metric, BGP's only with BGP attributes; and every advertisement of the prefix *to* a
+-                        node in S (whoever sends it). The pins hold for the route the node selects: every
+-                        selected entry, and with BGP attributes that route must be BGP's.
++                        routes), all of them new since the route was absent; with BGP attributes in `with:`,
++                        only the paths and received routes that match them (another new path for the prefix
++                        stays undeclared); and every advertisement of the prefix *to* a node in S (whoever
++                        sends it).
+   disappears_from S     on each node in S, the removed RIB entries and BGP paths for the prefix (received-only
+                         routes before inbound policy only with including_received_only); and every
+                         withdrawn advertisement of the prefix to a node in S.
+@@ -307,38 +305,19 @@ def _route_details(view: RouteView) -> dict:
+     return d
+ 
+ 
+-RIB_PINS = ("protocol", "distance", "metric")   # `with:` keys that pin the selected RIB entry; the rest are BGP's
+-
+-
+-def _chosen(view: RouteView) -> list[RibEntry]:
+-    """Every RIB entry the node selected for the prefix, of any protocol: the route an appears_on line describes. Its
+-    pins hold only when every one of them meets them (FP-042-VERIFYPINSTATIC: BGP pins were compared with bgpd's best
+-    path while zebra selected and installed a static)."""
+-    return [e for es in view.rib.values() for e in es if e.selected]
+-
+-
+-def _rib_pins_ok(entries, pins: dict) -> bool:
+-    """A RIB entry (or a protocol's tuple of them) the line's pins describe: each meets every protocol, distance and
+-    metric pin, and with BGP pins it is a BGP entry."""
+-    bgp = any(k not in RIB_PINS for k in pins)
+-    return all(all(getattr(e, k) == pins[k] for k in RIB_PINS if k in pins) and (not bgp or e.protocol == "bgp")
+-               for e in entries)
+-
+-
+ def _pins_ok(pins: dict, view: RouteView, state: str) -> str:
+-    """'' if the new route satisfies every `with:` pin, else why not. The pins describe the route the node selects
+-    (state received: a route it received and did not select), so with BGP pins every selected entry must be BGP's."""
++    """'' if the new route satisfies every `with:` pin, else why not."""
+     if not pins:
+         return ""
+-    chosen = _chosen(view)
+-    for k in RIB_PINS:
++    sel = view.selected()
++    for k in ("protocol", "distance", "metric"):
+         if k in pins:
+-            if not chosen:
++            if sel is None:
+                 return f"no selected route to compare {k} with"
+-            bad = [e for e in chosen if getattr(e, k) != pins[k]]
+-            if bad:
+-                return f"{k} is {show(getattr(bad[0], k))}, pinned {show(pins[k])}"
+-    bgp = {k: v for k, v in pins.items() if k not in RIB_PINS}
++            got = getattr(sel, k)
++            if got != pins[k]:
++                return f"{k} is {show(got)}, pinned {show(pins[k])}"
++    bgp = {k: v for k, v in pins.items() if k not in ("protocol", "distance", "metric")}
+     if not bgp:
+         return ""
+     if state == "received":
+@@ -346,9 +325,6 @@ def _pins_ok(pins: dict, view: RouteView, state: str) -> str:
+         cands += [{**{k: v for k, v in attrs_view(a).items() if k in ADJ_IN_VIEW}, "from": nbr}
+                   for (nbr, _), a in view.adj_in.items()]
+     else:
+-        other = sorted({e.protocol for e in chosen if e.protocol != "bgp"})
+-        if other:   # the line's state needs a selected entry, so `chosen` is never empty here
+-            return f"the selected route is a {', '.join(other)} route, not BGP, so BGP attributes can't match"
+         best = view.best()
+         if best is None:
+             return "the selected route is not a BGP route, so BGP attributes can't match"
+@@ -376,18 +352,13 @@ def _pinned(d: DiffItem, view: RouteView, bgp: dict) -> bool:
+     return all(c.get(f, UNSEEN) == v for f, v in bgp.items())
+ 
+ 
+-def _pinned_items(items: list[DiffItem], view: RouteView, pins: dict) -> set[ItemKey]:
+-    """The new items for the prefix that the line's pins explain: each RIB entry the pins describe (_rib_pins_ok: with
+-    BGP pins only BGP's, with a protocol, distance or metric pin only an entry meeting it), and every path and
+-    received route from a neighbor with at least one of them matching every BGP pin (the same route seen before and
+-    after inbound policy). A path from any other neighbor, best or not, stays undeclared (acceptance round B-6: it was
+-    explained, and a change that also opened a transit peer's filter got INTENT MATCHED), and so does a RIB entry of
+-    another protocol (FP-042-VERIFYPINSTATIC: a static beside the pinned BGP route). No pins: every item."""
+-    bgp = {k: v for k, v in pins.items() if k not in RIB_PINS}
++def _pinned_items(items: list[DiffItem], view: RouteView, bgp: dict) -> set[ItemKey]:
++    """The new items for the prefix that the line's BGP pins explain: the RIB entry (the route itself), and every
++    path and received route from a neighbor with at least one of them matching every pin (the same route seen
++    before and after inbound policy). A path from any other neighbor, best or not, stays undeclared (acceptance
++    round B-6: it was explained, and a change that also opened a transit peer's filter got INTENT MATCHED)."""
+     sources = {d.key.neighbor for d in items if d.key.kind in ("path", "adj_in") and _pinned(d, view, bgp)}
+-    return {d.key for d in items                  # items: the prefix's rib, path and adj_in items (route_items)
+-            if (d.key.neighbor in sources if d.key.kind in ("path", "adj_in")
+-                else _rib_pins_ok(view.rib.get(d.key.protocol, ()), pins))}
++    return {d.key for d in items if d.key.kind not in ("path", "adj_in") or d.key.neighbor in sources}
+ 
+ 
+ def _appears(ctx: _Ctx, ln: Line) -> LineResult:
+@@ -406,7 +377,8 @@ def _appears(ctx: _Ctx, ln: Line) -> LineResult:
+         if why:
+             return LineResult(ln, False, f"{n}: {why}")
+         items = ctx.route_items(n, ln.vrf, afi, ln.prefix)
+-        res.explained |= _pinned_items(items, a, ln.pins)   # no pins: every item
++        bgp = {k: v for k, v in ln.pins.items() if k not in ("protocol", "distance", "metric")}
++        res.explained |= _pinned_items(items, a, bgp)   # no BGP pins: every path matches, so every item
+         res.details.append({"node": n, **_route_details(a)})
+     res.explained |= ctx.adv_to(set(ln.nodes), ln.vrf, afi, ln.prefix, "added")
+     return res

@@ -32,3 +32,5 @@ evidence:
   - tests/fixtures/unnsesschk1041_r2_ip_o_addr_show_dev_eth1.txt
   - tests/fixtures/unnsesschk1041_r2_ip_o_addr_show_dev_eth2.txt
   - tests/fixtures/SOURCES.yml
+plant: plant.diff
+ported_from: 12574f4cf5c219966640bc77972f62104922cf57

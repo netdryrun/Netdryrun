@@ -18,3 +18,5 @@ evidence:
   - tests/fixtures/frr1021u_leaf01_show_bgp_neighbors_json.txt
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_frr102.py
+plant: plant.diff
+ported_from: fef5ad981b162230c8dc581a5067cf9b6cc9eaea

@@ -14,3 +14,5 @@ evidence:
   - tests/fixtures/frr1041_repro042_topology.clab.yml
   - tests/fixtures/frr1041_repro042_r1.conf
   - tests/fixtures/SOURCES.yml
+plant: plant.diff
+ported_from: e252746ede9ac1aba84172df4a8991e62fce860b

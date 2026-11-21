@@ -10,6 +10,7 @@ import pytest
 from netdryrun import cli
 from netdryrun.capture import CaptureError, bundle, collect, guard
 from netdryrun.lab import ExecResult, Lab
+from fakes import UnexpectedCommand, seen
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 TOPO = """name: cap
@@ -48,6 +49,7 @@ class Docker:
 
     def __call__(self, cmd, timeout=600, env=None, input=None, errors=None):
         self.calls.append(list(cmd))
+        seen(" ".join(cmd))
         if cmd[:2] == ["docker", "inspect"]:
             if not self.exists:
                 return ExecResult(cmd, 1, "", "Error: No such object: clab-cap-r1")
@@ -59,7 +61,7 @@ class Docker:
             if cmd[3:5] == ["vtysh", "-c"] and cmd[5] in ANSWERS:
                 return ExecResult(cmd, 0, (FIXTURES / ANSWERS[cmd[5]]).read_text(encoding="utf-8"), "")
             return ExecResult(cmd, 1, "% Unknown command", "")
-        raise AssertionError(f"unexpected command {cmd}")
+        raise UnexpectedCommand(cmd)
 
     def device_commands(self):
         return [c for c in self.calls if c[:2] == ["docker", "exec"]]

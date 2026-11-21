@@ -9,3 +9,4 @@ bug: >-
   are in tests/test_oracle_guards_fp_042_yamlmergedup.py
 evidence:
   - tests/test_oracle_guards_fp_042_yamlmergedup.py
+plant: plant.diff

@@ -1,0 +1,128 @@
+diff --git a/src/netdryrun/checks.py b/src/netdryrun/checks.py
+index f2e91ad..6fc962c 100644
+--- a/src/netdryrun/checks.py
++++ b/src/netdryrun/checks.py
+@@ -15,7 +15,7 @@ from datetime import datetime, timezone
+ 
+ from .config import BGP_ATTRIBUTES, Check, community_name
+ from .drivers import Driver
+-from .drivers.base import DriverError, Observation, protocol_matches, unicast_unread
++from .drivers.base import DriverError, Observation, protocol_matches
+ from .mgmt import ManagementPathError
+ 
+ REACH_WINDOW = 30.0  # seconds for post-convergence prefix counts to reach their range
+@@ -80,14 +80,6 @@ def _bgp_prefixes(d: Driver, p: dict) -> tuple[bool, str, list]:
+         # from a down session would satisfy "max" by accident
+         return False, f"session is {n.state}; prefix counts are only meaningful when established", obs.evidence
+     afi = p.get("afi", "ipv4-unicast")
+-    hidden = unicast_unread(afi, n.prefixes)
+-    if hidden:
+-        # a labeled-unicast family (or one no check names) whose routes the node may install as `afi` routes without
+-        # counting them there: neither "doesn't carry" nor the unicast counter is the count (RT-0080, FP-042-FRRLU)
+-        return False, (f"the {afi} prefix count of the session to {p['neighbor']} can't be read: it carries "
+-                       f"{', '.join(hidden)}, which Netdryrun doesn't count and whose routes the node can install as "
+-                       f"{afi} routes (labeled-unicast does) without counting them as {afi} prefixes; check those "
+-                       "routes with route checks"), obs.evidence
+     if afi not in n.prefixes:
+         # every driver lists the families an established session carries, 0 prefixes included: this one isn't
+         # carried. Nothing of it can arrive, which is all `exact: 0` claims (and stops being true once the family
+diff --git a/src/netdryrun/drivers/base.py b/src/netdryrun/drivers/base.py
+index 9150b1c..048259f 100644
+--- a/src/netdryrun/drivers/base.py
++++ b/src/netdryrun/drivers/base.py
+@@ -178,43 +178,6 @@ class BgpNeighbor:
+     eor: dict[str, str] = field(default_factory=dict, compare=False)
+ 
+ 
+-# The address families a check can name (config.AFIS). A driver keeps every other family a session lists under the
+-# device's own name (FRR and SONiC `ipv4LabeledUnicast`, `ipv4Vpn`; SR Linux `ipv4-labeled-unicast`), so it reaches
+-# BgpNeighbor.prefixes as it is.
+-NAMED_FAMILIES = ("ipv4-unicast", "ipv6-unicast", "evpn")
+-
+-
+-def unicast_unread(afi: str, families) -> list[str]:
+-    """The families among `families` (one session's BgpNeighbor.prefixes keys) that leave its `afi` unicast count
+-    unread, sorted; [] when the count (or the family's absence) can be read.
+-
+-    A labeled-unicast family carries routes of its IP version that the node installs as unicast routes: FRR 10.4.1
+-    lists an LU-only session as `ipv4LabeledUnicast` alone, with acceptedPrefixCounter 0, while the peer's 3 routes are
+-    installed as BGP IPv4 unicast routes (red team RT-0080, oracle FP-042-FRRLU), so "doesn't carry ipv4-unicast" and
+-    `exact: 0` were false. Fails closed:
+-    - the unicast family isn't listed: every family a check can't name blocks it, unless its name says it is only the
+-      other IP version (`ipv6LabeledUnicast` doesn't block ipv4-unicast); a session that lists only named families
+-      (an IPv6-only session for ipv4-unicast) still reads as not carrying it;
+-    - the unicast family is listed with its own count: a labeled-unicast family of the same IP version (or of none
+-      the name says) blocks it, since nothing says whether that count includes its routes; another family of the
+-      version (VPN, multicast) keeps its routes in another table and doesn't.
+-    EVPN is a named family and never blocks."""
+-    if afi not in ("ipv4-unicast", "ipv6-unicast"):
+-        return []
+-    own, other = ("ipv4", "ipv6") if afi == "ipv4-unicast" else ("ipv6", "ipv4")
+-    out = []
+-    for fam in families:
+-        if fam in NAMED_FAMILIES:
+-            continue
+-        word = re.sub(r"[^a-z0-9]", "", str(fam).lower())
+-        if other in word and own not in word:
+-            continue   # a family of the other IP version only
+-        if afi in families and "labeled" not in word:
+-            continue
+-        out.append(str(fam))
+-    return sorted(out)
+-
+-
+ # Protocol names that come in a pair, one per address family: OSPF of any version on an IPv4 prefix is ospf (OSPFv2,
+ # or OSPFv3 carrying IPv4, RFC 5838), on IPv6 ospf6; RIP on IPv4 is rip, on IPv6 ripng. A driver that named OSPFv3 by
+ # its version alone reported an IPv4 route as ospf6, which validate refuses for IPv4, so `protocol: ospf present:
+diff --git a/src/netdryrun/record.py b/src/netdryrun/record.py
+index acb113f..ae0a6e7 100644
+--- a/src/netdryrun/record.py
++++ b/src/netdryrun/record.py
+@@ -20,7 +20,7 @@ from . import __version__
+ from .checks import Unready, _evaluate
+ from .config import WELL_KNOWN_COMMUNITIES, Check, community_name, interface_peer
+ from .drivers import DriverError, Undetectable, detect, for_node, resolve
+-from .drivers.base import NAMED_FAMILIES, Driver, NoSuchInstance, cannot_read_ipv6, is_bgp, unicast_unread
++from .drivers.base import Driver, NoSuchInstance, cannot_read_ipv6, is_bgp
+ from .lab import Lab, LabError
+ 
+ MAX_ROUTES_PER_NODE = 50
+@@ -280,20 +280,6 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
+         for afi, count in sorted(n.prefixes.items()):
+             if afi in unsupported:
+                 continue
+-            if afi not in NAMED_FAMILIES:
+-                # a family a check can't name (FRR ipv4LabeledUnicast): a check on it is refused by `run`, and its
+-                # counter isn't what the node installs (RT-0080, FP-042-FRRLU), so it is a gap
+-                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} carries {afi}, a family no check "
+-                                "can count; not recorded: a change to the routes it carries isn't caught by this "
+-                                "baseline: add route checks by hand")
+-                continue
+-            hidden = unicast_unread(afi, n.prefixes)
+-            if hidden:
+-                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the session also carries "
+-                                f"{', '.join(hidden)}, whose routes the node can install as {afi} routes without "
+-                                f"counting them, so the {afi} prefix count can't be read; not recorded: add route "
+-                                "checks by hand")
+-                continue
+             if afi in n.prefixes_unread and afi not in n.prefixes_upto:
+                 warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count {count} "
+                                 f"isn't settled ({n.prefixes_unread[afi]}); not recorded: record again once it "
+@@ -318,17 +304,8 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
+             # an eBGP session that doesn't carry a unicast family today: exact 0 there, so the day that family is
+             # added and sends a prefix the check fails (acceptance round B-3; a family a session doesn't carry
+             # satisfies only exact: 0, see checks._bgp_prefixes)
+-            # A labeled-unicast family of that IP version (or a family no check names) is no "doesn't carry": the
+-            # node installs its routes as unicast routes, so exact 0 would be false the day it is recorded (RT-0080)
+             for afi in ("ipv4-unicast", "ipv6-unicast"):
+                 if afi not in n.prefixes and afi not in unsupported:
+-                    hidden = unicast_unread(afi, n.prefixes)
+-                    if hidden:
+-                        warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the session lists "
+-                                        f"no {afi} family but carries {', '.join(hidden)}, whose routes the node can "
+-                                        f"install as {afi} routes, so `exact: 0` on {afi} isn't recorded: add route "
+-                                        "checks by hand")
+-                        continue
+                     checks.append({"type": "bgp_prefixes", "node": name, "neighbor": addr, "afi": afi, "exact": 0, **at})
+     return checks
+ 

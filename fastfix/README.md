@@ -31,8 +31,14 @@ Rules (each one blocks when broken):
   the flipped test's own file, updated.
 - Once the base has `scripts/fastfix_gate.py`, a change to the gate's own files (`scripts/fastfix_gate.py`,
   `scripts/release_gate.py`, `scripts/gate_records.py`, `scripts/labrun.py`, `scripts/surfaces_agree.py`,
-  `.github/workflows/release-gate.yml`) is a flip (`source: gate`, `case: <path>`), and
-  the release gate always runs the base's copy of the checker.
+  `.github/workflows/release-gate.yml`) is a flip (`source: gate`, `case: <path>@<blob>`, the first 12 hex digits of
+  the file's blob at the candidate, so each later edit of the gate needs its own entry), and the release gate always
+  runs the base's copy of the checker.
+- A fixture that now passes only because the driver sends a device a command the base never sent (a fake refused
+  it, or the command log shows it) is a new device read: its entry adds `kind: new-read`, cites the updated test, and
+  names in `reviewed_by: "<session>: <what was checked>"` a session that has a commit of its own in the change,
+  touching only `fastfix/reviews/`, and that wrote neither the allowlist nor any code, record or evidence. The release
+  gate then needs live runs, on the candidate commit, of every example of each network OS the read touches.
 - The commit that adds the allowlist changes nothing else. Its `Session:` trailer must differ from the `Session:` of
   every commit in the change that touches shipped code, the gate, a flipped record or the cited evidence, and those
   commits must carry one.
@@ -40,6 +46,80 @@ Rules (each one blocks when broken):
 
 Exit codes: 0 clean, 1 blocked, 2 couldn't run (missing git, unreadable input). The release gate treats anything but
 0 as a failed BLOCKER.
+
+## Against the published release
+
+`release_gate.py static --candidate` also compares the candidate with the published release (`loosening
+--dominance`) and re-plants every oracle's bug (`plants`). Both are judged by the published tag's own
+`fastfix_gate.py`, never by a copy the caller picks. The tag is read only as `refs/tags/<tag>` and passed on as the
+commit it names. Origin is the published repository asked by its URL (`https://github.com/netdryrun/Netdryrun.git`),
+from outside the working copy with git's config files and `GIT_*` variables set aside, so neither a remote, a folder
+named `origin/` nor a `url.*.insteadOf` rule can answer for it; no answer is a failure. The tag must be the commit
+origin publishes under that name, origin may list no newer release, and if origin already lists the candidate's own
+version it must name this very commit (the `tag-unused` check asks origin as well). Only release 0.4.3 against v0.4.2
+(whose copy predates the two commands) is judged by its own committed copy, and the gate records that as a MAJOR to
+accept once; from 0.4.4 the fallback can't be reached. That rests on origin's tag list: a 0.4.3 published without its
+tag at origin would let a later commit claim 0.4.3 again until the tag exists (PyPI's check catches it when PyPI can
+be reached).
+
+## Historic records (0.4.3 only)
+
+Two commits reached main before v0.4.3 could follow the rules the published v0.4.2 judge enforces, and that judge
+can't change. `fastfix/historic/0.4.3.json`, committed, may waive the exact lines it prints about them:
+
+```json
+{"release": "0.4.3", "base": "61cd95de8b5446d6adf24deda43f9bfb6957ee20",
+ "waivers": [{"sha": "<full commit id>", "patch_id": "<git patch-id --stable of that commit>",
+              "lines": ["BLOCKED <first 10 digits of the sha> ... (copied from the judge's output)"],
+              "why": "...", "reviewed_by": "<session>", "owner_decision": "..."}]}
+```
+
+The release gate subtracts only those lines, character for character, from the loosening, reproduce-first and
+dominance runs; a run blocked by nothing else becomes a MAJOR that needs its own entry in `accepted.json`, never a
+PASS. It blocks (`historic-record`) when the record names another release, or the run or the record is against any
+base other than v0.4.2's commit (so it expires with 0.4.3), when a waiver's commit is not in the range or its patch-id
+differs, when a line is not a `BLOCKED <that sha>` line or is a flip, an oracle failure or a plant, when a field is
+missing, when any other file sits in `fastfix/historic/`, when a waived line isn't printed by any judge in the run,
+when another commit in the range shares a waived commit's first 10 digits (the judge names commits by those), and
+when a run prints a waived line more or fewer times than the record lists it.
+
+The published v0.4.2 judge names a gate-file flip by its bare path, while the judge after it names it
+`<path>@<blob>`, so no allowlist can satisfy both: the entry one needs is a stale entry to the other. For release 0.4.3
+against v0.4.2's commit only (the change's base and the published release both), the release gate drops two kinds of
+line from v0.4.2's loosening run, the bare flip `gate :: <path>: FAIL -> PASS` and the stale-entry line for
+`<path>@<blob>`, and only for a gate file whose exact `<path>@<blob>` entry, with the candidate's own blob, is in an
+allowlist changed in the change (read with `git diff -z`, a `.yml` under `fastfix/allow/`) and was allowed by the
+dominance run on this commit. A bare flip is dropped only when the same run also printed the stale-entry line for that
+entry, which shows the old judge read it. Every dropped line is listed in the check's output, and a run that needed it
+is a MAJOR to accept, never a PASS. Any other line still blocks.
+
+Nothing is waived or dropped unless the judge's output has exactly the shape its `finish()` prints (indented notes,
+flip lines, the fixtures note, problem lines, then the summary) and the summary's flip and problem counts match the
+lines: a problem whose text runs past a newline can't hide anything after it.
+
+Each of these MAJORs, the other fast-fix MAJORs (`dominance-skips`, `published-judge`, `plants-pending`), and the
+`static/corpus-fresh` and `unit/coverage` MAJORs put a fingerprint of their content in their summary
+(`[fingerprint <16 hex>]`: the waived and dropped lines, the skipped fixtures, the published commit, the stale
+corpora, the modules below their floors). `accepted.json` accepts such a check only with that fingerprint pinned:
+`{"checks": {"static/loosening": {"reason": "...", "fingerprint": "<16 hex>"}}}`. A plain reason, a missing or another
+fingerprint is not accepted, so an acceptance can't carry over to a candidate with other lines. For these checks
+(`FINGERPRINTED` in `scripts/release_gate.py`) a record with no well-formed fingerprint is not accepted at all (it
+comes from an older gate or was edited): rerun the layer. Other MAJORs (the live and after-publish layers, say) still
+take a plain reason.
+
+Known limits (accepted for now):
+- The checks run from the candidate's own `release_gate.py`. A candidate that edits it shows up as a gate-file flip
+  (`scripts/release_gate.py@<blob>`) needing an allowlist entry, but only when an honest copy runs the comparison;
+  running the published release's orchestrator, or CI pinned to main, would close this.
+- `reviewed_by` and every `Session:` trailer are attestations, not proof: one author can write commits under two
+  session names, and the review record's content isn't checked. Session names are compared by their words, in any
+  order, case or separator (`fix-unnsess` is `unnsess-fix`), but two genuinely different names from one author still
+  pass. A session ledger kept outside the repository would make them verifiable.
+- Origin is asked over the network by URL, so the answer is only as good as that connection: a machine whose DNS or
+  TLS trust has been tampered with can still be shown a copy that agrees with a moved tag.
+
+While the published release's tests keep no command log (v0.4.2 has no `tests/fakes.py`), a new read that a lenient
+fake answers can't be seen; the report says so and asks for live runs on every network OS whose driver changed.
 
 ## Oracle specs
 

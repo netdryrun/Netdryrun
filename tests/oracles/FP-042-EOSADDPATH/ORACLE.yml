@@ -17,3 +17,6 @@ evidence:
   - tests/fixtures/ceos4363m_rpeos_frr1.conf
   - tests/fixtures/ceos4363m_rpeos_frr2.conf
   - tests/fixtures/SOURCES.yml
+plant: none
+plant_why: >-
+  Fixed in da971f4d6e before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 1 of 2 reversed hunks that still apply don't bring the bug back: the plant needs a port by hand

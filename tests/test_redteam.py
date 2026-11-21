@@ -26,6 +26,7 @@ from netdryrun.config import ConfigError, _validate_check
 from netdryrun.drivers import DRIVERS
 from netdryrun.drivers.base import BgpNeighbor, BgpPath, Observation, Route
 from netdryrun.lab import ExecResult
+from fakes import UnexpectedCommand, seen
 
 ROOT = Path(__file__).resolve().parents[1]
 # NDR_REDTEAM_DIR points the case tests at another folder: the weekly adversarial run uses it to try its
@@ -74,10 +75,11 @@ class Lab:
 
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
+        seen(line)
         for needle, (rc, out, err) in self.rules:
             if needle in line:
                 return ExecResult(list(cmd), rc, out, err)
-        raise AssertionError(f"unexpected command: {line}")
+        raise UnexpectedCommand(line)
 
 
 # ----------------------------------------------------------------------------------------------- kinds

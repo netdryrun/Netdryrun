@@ -14,6 +14,7 @@ from netdryrun.drivers import DriverError, junos
 from netdryrun.drivers.base import NoSuchInstance
 from netdryrun.drivers.junos import JunosDriver
 from netdryrun.lab import ExecResult
+from fakes import UnexpectedCommand, seen
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -301,11 +302,12 @@ class Lab:
         self.argv.append(cmd)
         line = cmd[-1]
         self.calls.append(line)
+        seen(line)
         for needle, answer in self.rules:
             if needle in line:
                 rc, out = answer if isinstance(answer, tuple) else (0, answer)
                 return ExecResult(cmd, rc, out, "" if rc == 0 else "ssh: connect to host 176.1.1.1 port 22: refused")
-        raise AssertionError(f"unexpected command: {line}")
+        raise UnexpectedCommand(line)
 
 
 def test_commands_go_through_the_vm_ssh_hop():

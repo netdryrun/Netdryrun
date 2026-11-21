@@ -11,3 +11,6 @@ bug: >-
   tests/test_oracle_guards_fp_042_linkdownstacked.py
 evidence:
   - tests/test_oracle_guards_fp_042_linkdownstacked.py
+plant: none
+plant_why: >-
+  Fixed in 5f0b7d77a7 before plants were required; its exact reverse no longer applies to src/ (later commits rewrote the same lines), and the 5 of 8 reversed hunks that still apply don't bring the bug back: the plant needs a port by hand

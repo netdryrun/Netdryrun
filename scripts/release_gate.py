@@ -286,6 +286,7 @@ class Check:
     output: str = ""        # the evidence: command output (tail) or a computed listing
     command: str = ""
     ended: float = 0.0      # wall clock at the end (epoch s): a check overlapping a labrun taint is no verdict
+    fingerprint: str = ""   # a failed MAJOR defined by its content: accepted only by an entry that pins this
 
 
 @dataclass
@@ -309,6 +310,39 @@ def run(cmd: list[str], *, cwd: Path = ROOT, timeout: float = 900, env: dict | N
         return Proc(124, f"{out}\n[timed out after {timeout:.0f} s]", time.monotonic() - t0)
 
 
+def fingerprint_of(key: str, content: list[str]) -> str:
+    """16 hex digits of sha256 over the check's key and its sorted content: the same lines give the same
+    fingerprint on every run, and any other line gives another."""
+    return hashlib.sha256("\n".join([key, *sorted(str(c) for c in content)]).encode("utf-8")).hexdigest()[:16]
+
+
+# The MAJORs this gate always fingerprints when they fail (layer/check id). Their acceptance needs the fingerprint
+# even when a record carries none: a record without one comes from an older gate or was edited, and a plain reason
+# would then accept whatever content the check failed on.
+FINGERPRINTED = frozenset({"static/loosening", "static/reproduce-first", "static/dominance", "static/dominance-skips",
+                           "static/plants-pending", "static/published-judge", "static/corpus-fresh", "unit/coverage"})
+
+
+def acceptance_mismatch(check: dict, entry, required: bool = False) -> str | None:
+    """Why an accepted.json entry doesn't accept this MAJOR, or None when it does. A check with a fingerprint is
+    accepted only by {"reason": ..., "fingerprint": <that fingerprint>}; one without takes a reason as before, unless
+    `required` (a FINGERPRINTED check), which no entry accepts without a well-formed fingerprint."""
+    fp = check.get("fingerprint") or ""
+    why = entry if isinstance(entry, str) else entry.get("reason") if isinstance(entry, dict) else None
+    if not isinstance(why, str) or not why.strip():
+        return "the entry gives no reason"
+    if required and not (isinstance(fp, str) and re.fullmatch(r"[0-9a-f]{16}", fp)):
+        return ("this check is accepted only with the fingerprint of its content, and its record has none (a record "
+                "from an older gate, or an edited one): rerun the layer")
+    if fp and not isinstance(entry, dict):
+        return f"the check's content has fingerprint {fp}; the entry must pin it ({{\"reason\": ..., \"fingerprint\": " \
+               f"\"{fp}\"}})"
+    if fp and entry.get("fingerprint") != fp:
+        return (f"the entry pins fingerprint {str(entry.get('fingerprint'))[:16]!r}, this run's content is {fp}: the "
+                "acceptance was for other lines")
+    return None
+
+
 def tail(text: str, lines: int = 60) -> str:
     rows = text.rstrip().splitlines()
     return "\n".join(rows if len(rows) <= lines else [f"[... {len(rows) - lines} earlier lines]"] + rows[-lines:])
@@ -330,12 +364,19 @@ class Layer:
         self.t0 = time.monotonic()
 
     def add(self, id: str, title: str, severity: str, ok: bool | None, summary: str = "",
-            output: str = "", seconds: float = 0.0, command: str = "") -> Check:
-        """ok=True PASS, ok=False FAIL, ok=None SKIP (a FAIL under --strict when it is a BLOCKER)."""
+            output: str = "", seconds: float = 0.0, command: str = "", content: list[str] | None = None) -> Check:
+        """ok=True PASS, ok=False FAIL, ok=None SKIP (a FAIL under --strict when it is a BLOCKER). `content`: what
+        defines a MAJOR that isn't a PASS (the lines it waived, the fixtures it skipped); its fingerprint goes in the
+        summary, and accepted.json accepts the check only with that fingerprint (fingerprint_of)."""
         status = PASS if ok else FAIL if ok is False else SKIP
         if status == SKIP and self.args.strict and severity == BLOCKER:
             status, summary = FAIL, f"skipped under --strict: {summary}"
-        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command, round(time.time(), 1))
+        fp = fingerprint_of(f"{self.name}/{id}", content) if content is not None and severity == MAJOR and \
+            status != PASS else ""
+        if fp:
+            summary = f"{summary} [fingerprint {fp}]"
+        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command, round(time.time(), 1),
+                      fp)
         self.checks.append(check)
         print(f"  [{check.status}] {severity:<7} {title}" + (f": {summary}" if summary else ""), flush=True)
         return check
@@ -491,14 +532,18 @@ def examples_validate(root: Path = ROOT) -> list[str]:
     return bad
 
 
+def corpus_fresh_check(layer: Layer, stale: dict[str, str]) -> None:
+    layer.add("corpus-fresh", "the committed corpus results ran on this verdict code (G3; stale ones run first in live)",
+              MAJOR, not stale, "; ".join(f"{v}: {why}" for v, why in stale.items()) or "every corpus is fresh",
+              content=[f"{v}: {why}" for v, why in stale.items()])
+
+
 def layer_static(args) -> Layer:
     layer = Layer("static", args)
     closure = mutation_closure()
     layer.add("mutation-closure", "every src/netdryrun module is mutated or exempt with a reason (G1)", BLOCKER,
               not closure, "; ".join(closure) or f"{len(VERDICT_MODULES)} mutated, {len(MUTATION_EXEMPT)} exempt")
-    stale = stale_corpora()
-    layer.add("corpus-fresh", "the committed corpus results ran on this verdict code (G3; stale ones run first in live)",
-              MAJOR, not stale, "; ".join(f"{v}: {why}" for v, why in stale.items()) or "every corpus is fresh")
+    corpus_fresh_check(layer, stale_corpora())
 
     # ruff: the dev extra pins it, so prefer the running Python's copy over one on PATH
     ruff = [sys.executable, "-m", "ruff"] if run([sys.executable, "-m", "ruff", "--version"]).code == 0 else ["ruff"]
@@ -605,42 +650,556 @@ def layer_static(args) -> Layer:
     return layer
 
 
-def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
+DOMINANCE_TITLE = "no unexplained FAIL/UNKNOWN -> PASS against the published release (fastfix_gate.py loosening)"
+PLANTS_TITLE = "every oracle's plant still applies and its oracle still catches it (fastfix_gate.py plants)"
+SKIPS_TITLE = "every must-not-pass fixture ran at the published release on this host"
+JUDGE_TITLE = "the published release's own fastfix_gate.py judged dominance and plants"
+PENDING_TITLE = "no oracle without a fix has waited since the published release (fastfix_gate.py plants)"
+# the one published release whose fastfix_gate.py predates the dominance and plants commands: only the release after
+# it (exactly BOOTSTRAP_NEXT, while origin has no newer v* tag) may be judged by its own copy, and the gate says so
+# with a MAJOR to accept knowingly; any later release without the commands at its published tag fails
+BOOTSTRAP_TAG = "v0.4.2"
+BOOTSTRAP_NEXT = "0.4.3"
+RELEASE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+
+# A historic record (fastfix/historic/<version>.json, committed at HEAD) waives exact BLOCKED lines that the
+# published release's frozen judge prints about named commits that landed before the rule they break could be
+# followed. Only the release in HISTORIC_BASES may have one, judged against exactly that published commit, so the
+# mechanism expires with it. A waived run is a MAJOR to accept in accepted.json, never a PASS.
+HISTORIC_DIR = "fastfix/historic"
+HISTORIC_BASES = {"0.4.3": "61cd95de8b5446d6adf24deda43f9bfb6957ee20"}     # v0.4.2
+HISTORIC_KEYS = {"release", "base", "waivers"}
+WAIVER_KEYS = {"sha", "patch_id", "lines", "why", "reviewed_by", "owner_decision"}
+WAIVABLE = ("loosening", "reproduce-first", "dominance")
+# what a waiver may never cover: a verdict or gate flip, an oracle that fails or no longer holds, a plant
+NOT_WAIVABLE = re.compile(r"loosening flip|plant|must fail on the parent|must pass on the fix|fails on the candidate|"
+                          r"no longer catches|is not at the candidate|FAIL -> |UNKNOWN -> |MIXED -> ", re.I)
+HISTORIC_TITLE = "a historic record waives only exact lines about its own commits, each one used"
+
+# The gate-naming bridge. The published v0.4.2 judge names a flip of a gate file by its bare path, and the judge that
+# follows it names the same flip <path>@<blob>, so no allowlist satisfies both: an entry the new judge needs is a stale
+# entry to the old one, and the old one's bare flip has no entry the new one accepts. For release NAMING_BRIDGE's key
+# against exactly its commit, the release gate drops two kinds of line from the old judge's loosening run, and nothing
+# else: the bare flip of a gate file, and the stale-entry line for that file's <path>@<blob>, each only when a changed
+# allowlist at HEAD has that exact entry, the blob is the candidate's file, and the dominance run allowed exactly that
+# flip. Every dropped line is named, and a run that needed the bridge is a MAJOR to accept, never a PASS.
+NAMING_BRIDGE = {"0.4.3": "61cd95de8b5446d6adf24deda43f9bfb6957ee20"}     # v0.4.2
+GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/workflows/release-gate.yml",
+              "scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py")   # as fastfix_gate.py
+ALLOW_DIR = "fastfix/allow"
+BRIDGE_BARE = re.compile(r"BLOCKED loosening flip with no reviewed allowlist entry: gate :: (?P<path>[^\s@]+): "
+                         r"FAIL -> PASS")
+BRIDGE_STALE = re.compile(r"BLOCKED (?P<file>fastfix/allow/[^\s:]+\.yml): allows gate :: (?P<path>[^\s@]+)@"
+                          r"(?P<blob>[0-9a-f]{12}) FAIL -> PASS, which is not a flip in this change \(stale or "
+                          r"pre-loaded entries block\)")
+
+
+class Bridge:
+    """The gate files the dominance run allowed under their exact <path>@<blob> entry: path -> (blob, allowlist)."""
+
+    def __init__(self):
+        self.allowed: dict[str, tuple[str, str]] = {}
+
+    def covers(self, line: str, printed: list[str]) -> bool:
+        """`line` is one the bridge drops: the stale-entry line for an exact entry dominance allowed, or the bare
+        flip of that gate file when the same run also printed that stale line (so the old judge read and validated
+        the entry)."""
+        m = BRIDGE_BARE.fullmatch(line)
+        if m:
+            return m["path"] in self.allowed and any(self.stale(ln) == m["path"] for ln in printed)
+        return self.stale(line) is not None
+
+    def stale(self, line: str) -> str | None:
+        m = BRIDGE_STALE.fullmatch(line)
+        return m["path"] if m and self.allowed.get(m["path"]) == (m["blob"], m["file"]) else None
+
+
+def bridge_from_dominance(git_, base: str, flips) -> Bridge:
+    """The bridge's gate files: each gate flip (FAIL -> PASS) the dominance run allowed, whose case is
+    <path>@<blob> with the candidate's own blob, and whose allowlist, changed since `base`, has that exact entry at
+    HEAD. Anything else bridges nothing."""
+    import yaml   # the gate's Python has Netdryrun's dependencies
+    bridge = Bridge()
+    changed = set((git_("diff", "--name-only", "-z", base, "HEAD", "--", f"{ALLOW_DIR}/") or "").split("\0"))
+    for f in flips if isinstance(flips, list) else []:
+        if not isinstance(f, dict) or (f.get("source"), f.get("from"), f.get("to")) != ("gate", "FAIL", "PASS"):
+            continue
+        path, _, blob = str(f.get("case", "")).partition("@")
+        by = f.get("allowed_by")
+        if path not in GATE_FILES or not re.fullmatch(r"[0-9a-f]{12}", blob) or not isinstance(by, str) \
+                or not (by.startswith(f"{ALLOW_DIR}/") and by.endswith(".yml")) or by not in changed:
+            continue
+        if (git_("rev-parse", "--verify", "--end-of-options", f"HEAD:{path}") or "")[:12] != blob:
+            continue
+        try:
+            entries = (yaml.safe_load(git_("show", f"HEAD:{by}") or "") or {}).get("flips")
+        except (yaml.YAMLError, AttributeError):
+            continue
+        want = {"source": "gate", "case": f"{path}@{blob}", "from": "FAIL", "to": "PASS"}
+        if isinstance(entries, list) and any(isinstance(e, dict) and all(e.get(k) == v for k, v in want.items())
+                                             for e in entries):
+            bridge.allowed[path] = (blob, by)
+    return bridge
+
+
+def commit_patch_id(sha: str) -> str | None:
+    """`git patch-id --stable` of one commit's change (None for a merge or when git can't say)."""
+    try:
+        diff = subprocess.run(["git", "-C", str(ROOT), "show", "--format=", "--no-color", "--no-ext-diff",
+                               "--no-renames", sha], capture_output=True, timeout=120)
+        if diff.returncode != 0 or not diff.stdout.strip():
+            return None
+        pid = subprocess.run(["git", "-C", str(ROOT), "patch-id", "--stable"], input=diff.stdout,
+                             capture_output=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    words = pid.stdout.decode("utf-8", "replace").split()
+    return words[0] if pid.returncode == 0 and words else None
+
+
+class Historic:
+    """The waivers of fastfix/historic/<version>.json, which lines each run used, and what is wrong with it."""
+
+    def __init__(self, waivers: list[dict], problems: list[str], path: str | None):
+        self.waivers, self.problems, self.path = waivers, problems, path
+        self.used: set[tuple[int, str]] = set()
+        self.miscounted: list[str] = []
+
+    def waive(self, check_id: str, proc: Proc) -> tuple[list[str], list[str]]:
+        """(waived lines, remaining BLOCKED lines) of a blocked run; nothing is waived for an unblocked or broken run,
+        a check outside WAIVABLE, or while the record has a problem."""
+        blocked = [ln.rstrip() for ln in proc.out.splitlines() if ln.startswith("BLOCKED ")]
+        if proc.code != 1 or check_id not in WAIVABLE or self.problems or not self.waivers:
+            return [], blocked
+        waived, rest = [], []
+        printed = {ln: blocked.count(ln) for ln in blocked}
+        listed: dict[str, int] = {}
+        for w in self.waivers:
+            for ln in w["lines"]:
+                listed[ln] = listed.get(ln, 0) + 1
+        for ln in blocked:
+            hit = [i for i, w in enumerate(self.waivers) if ln in w["lines"]]
+            if hit and printed[ln] == listed[ln]:
+                waived.append(ln)
+                self.used.update((i, ln) for i in hit)
+            else:
+                rest.append(ln)
+                if hit and printed[ln] != listed[ln]:   # another commit with the same 10 digits prints the same line
+                    note = (f"{check_id} printed {ln[:120]!r} {printed[ln]} time(s), the record lists it "
+                            f"{listed[ln]}: none of them is waived")
+                    if note not in self.miscounted:
+                        self.miscounted.append(note)
+        return waived, rest
+
+    def unused(self) -> list[str]:
+        return [f"{w['sha'][:10]}: {ln!r}" for i, w in enumerate(self.waivers) for ln in w["lines"]
+                if (i, ln) not in self.used]
+
+
+def load_historic(git_, version: str, base: str | None, patch_id=None) -> Historic:
+    """The committed record for `version` (HEAD's copy, never the working tree), checked: the release and base are
+    the ones HISTORIC_BASES names, every waiver names a full sha in base..HEAD with that commit's patch-id, quotes only
+    BLOCKED lines about that sha, none of them a flip, oracle or plant line, and says why, who reviewed it and what
+    the owner decided. Any other file under fastfix/historic/ is a problem too."""
+    path = f"{HISTORIC_DIR}/{version}.json"
+    names = (git_("ls-tree", "-r", "--name-only", "HEAD", "--", f"{HISTORIC_DIR}/") or "").split()
+    problems = [f"{n}: not the historic record of this release ({path})" for n in names if n != path]
+    text = git_("show", f"HEAD:{path}") if path in names else None
+    if text is None:
+        return Historic([], problems, path if problems else None)
+    try:
+        data = json.loads(text)
+    except ValueError as e:
+        return Historic([], problems + [f"{path} is not JSON ({e})"], path)
+    if not isinstance(data, dict) or set(data) != HISTORIC_KEYS:
+        return Historic([], problems + [f"{path}: keys must be exactly {sorted(HISTORIC_KEYS)}"], path)
+    expected = HISTORIC_BASES.get(version)
+    if data["release"] != version or expected is None:
+        problems.append(f"{path}: only release(s) {', '.join(HISTORIC_BASES)} may waive historic lines, and the record "
+                        f"must say which (it says {data['release']!r}; this is {version})")
+    if expected is None or data["base"] != expected or base != expected:
+        problems.append(f"{path}: the record and the run must both be against {expected or 'a listed base'} (record "
+                        f"{str(data['base'])[:10]}, run {str(base)[:10]}): it expires with the release it was written for")
+    waivers = data["waivers"]
+    if not isinstance(waivers, list) or not waivers:
+        return Historic([], problems + [f"{path}: waivers must be a non-empty list"], path)
+    in_range = set((git_("rev-list", f"{base}..HEAD") or "").split()) if base else set()
+    for i, w in enumerate(waivers):
+        where = f"{path} waiver #{i + 1}"
+        if not isinstance(w, dict) or set(w) != WAIVER_KEYS:
+            problems.append(f"{where}: keys must be exactly {sorted(WAIVER_KEYS)}")
+            continue
+        sha, lines = w["sha"], w["lines"]
+        if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+            problems.append(f"{where}: sha must be a full 40-digit commit id")
+            continue
+        if sha not in in_range:
+            problems.append(f"{where}: {sha[:10]} is not a commit between the base and HEAD")
+        twins = sorted(c for c in in_range if c != sha and c.startswith(sha[:10]))
+        if twins:
+            problems.append(f"{where}: {len(twins)} other commit(s) in the range share {sha[:10]} ({twins[0]}), and the "
+                            "judge's lines name commits by those 10 digits: its lines can't be told apart")
+        pid = (patch_id or commit_patch_id)(sha)
+        if not pid or w["patch_id"] != pid:
+            problems.append(f"{where}: patch_id {str(w['patch_id'])[:12]} is not {sha[:10]}'s change "
+                            f"({(pid or 'none')[:12]}): the waiver names one exact change")
+        if not isinstance(lines, list) or not lines or not all(isinstance(x, str) for x in lines):
+            problems.append(f"{where}: lines must be a non-empty list of the judge's exact BLOCKED lines")
+            continue
+        for ln in lines:
+            if not ln.startswith(f"BLOCKED {sha[:10]}") or "\n" in ln or ln != ln.rstrip():
+                problems.append(f"{where}: {ln[:80]!r} is not one BLOCKED line about {sha[:10]}")
+            elif NOT_WAIVABLE.search(ln):
+                problems.append(f"{where}: {ln[:80]!r} is a flip, an oracle failure or a plant: never waivable")
+        for key, least in (("why", 40), ("reviewed_by", 3), ("owner_decision", 10)):
+            if not isinstance(w[key], str) or len(w[key].strip()) < least:
+                problems.append(f"{where}: {key} must say it ({least}+ characters)")
+    return Historic(waivers if not problems else [], problems, path)
+
+
+JUDGE_SUMMARY = re.compile(r"[a-z-]+: BLOCKED \((?P<flips>\d+) unexplained flip\(s\), (?P<problems>\d+) problem\(s\)\)")
+JUDGE_FLIP = "BLOCKED loosening flip with no reviewed allowlist entry: "
+JUDGE_FIXTURES_NOTE = "  (fixtures: the base's guard test no longer holds on the candidate's code."
+
+
+def judge_shape_problem(out: str) -> str | None:
+    """Why a blocked judge's output isn't exactly what its finish() prints (indented notes, flip lines, the fixtures
+    note, problem lines, then its summary), or None. A problem whose text runs past a newline would hide that text
+    from the line matching, so any other line, or counts that don't add up, mean nothing may be waived or dropped."""
+    lines = [ln.rstrip() for ln in out.splitlines() if ln.strip()]
+    m = JUDGE_SUMMARY.fullmatch(lines[-1]) if lines else None
+    if not m:
+        return "its last line is not the judge's BLOCKED summary"
+    flips = problems = 0
+    for ln in lines[:-1]:
+        if ln.startswith(JUDGE_FLIP) and not problems:
+            flips += 1
+        elif ln.startswith("BLOCKED "):
+            problems += 1
+        elif ln.startswith(JUDGE_FIXTURES_NOTE) and flips and not problems:
+            continue
+        elif ln.startswith(" ") and not flips and not problems:   # a note, before any flip or problem
+            continue
+        else:
+            return f"{ln[:100]!r} is not a line the judge prints there (a flip or problem running past a newline?)"
+    if (flips, problems) != (int(m["flips"]), int(m["problems"])):
+        return (f"it prints {flips} flip and {problems} problem line(s), but its summary counts {m['flips']} and "
+                f"{m['problems']}")
+    return None
+
+
+def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: list, proc: Proc,
+               summary: str, bridge: Bridge | None = None) -> None:
+    """A BLOCKER run by a frozen judge; a run blocked only by lines a valid historic record waives, or the
+    gate-naming bridge drops, is a MAJOR instead (to accept in accepted.json), never a PASS."""
+    blocked = [ln.rstrip() for ln in proc.out.splitlines() if ln.startswith("BLOCKED ")]
+    waived, rest = hist.waive(id_, proc) if hist else ([], blocked)
+    bridged = [ln for ln in rest if bridge.covers(ln, blocked)] if bridge is not None and proc.code == 1 else []
+    rest = [ln for ln in rest if ln not in bridged]
+    shape = judge_shape_problem(proc.out) if (waived or bridged) and not rest else None
+    if shape:
+        layer.add(id_, title, BLOCKER, False, f"nothing waived or dropped: the judge's output {shape}",
+                  tail(proc.out), proc.seconds, cmdline(cmd))
+        return
+    if (waived or bridged) and not rest:
+        why = []
+        if waived:
+            why.append(f"{len(waived)} line(s) the historic record {hist.path} waives (commits "
+                       f"{', '.join(sorted({ln.split()[1].rstrip(':')[:10] for ln in waived}))})")
+        if bridged:
+            why.append(f"{len(bridged)} line(s) the gate-naming bridge drops for "
+                       f"{', '.join(sorted(f'{p}@{b}' for p, (b, _) in bridge.allowed.items()))}")
+        named = [f"waived: {ln}" for ln in waived] + [f"dropped by the gate-naming bridge: {ln}" for ln in bridged]
+        layer.add(id_, title, MAJOR, False, f"blocked only by {' and '.join(why)}: accept in accepted.json",
+                  "\n".join(named + ["", tail(proc.out)]), proc.seconds, cmdline(cmd), content=named)
+        return
+    layer.add_proc(id_, title, BLOCKER, cmd, proc, summary)
+
+
+def historic_check(layer: Layer, hist: Historic) -> None:
+    """Only when a record exists: it is valid, and every line it waives was printed by a judge in this run."""
+    if not hist.path and not hist.problems:
+        return
+    bad = hist.problems + hist.miscounted + [f"waives a line no judge printed in this run: {u}"
+                                             for u in hist.unused()]
+    layer.add("historic-record", HISTORIC_TITLE, BLOCKER, not bad,
+              f"{len(bad)} problem(s): {bad[0][:300]}" if bad else
+              f"{hist.path}: {sum(len(w['lines']) for w in hist.waivers)} line(s) waived, each one used",
+              "\n".join(bad))
+
+
+def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, patch_id=None) -> None:
     """0.4.2 fast fix (scripts/fastfix_gate.py): the loosening gate and the reproduce-first check, over the change
-    from the merge-base of --fastfix-base and HEAD. An empty range (HEAD is the base: a release from main without
-    --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS."""
+    from the merge-base of --fastfix-base and HEAD, judged by the base's copy. An empty range (HEAD is the base: a
+    release from main without --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS.
+    At --candidate, also dominance and the living plants, against the published release whatever
+    --fastfix-base says (published_checks). A historic record (load_historic) may turn a run blocked only by lines
+    it waives into a MAJOR, and so may the gate-naming bridge (NAMING_BRIDGE) for the base judge's loosening run, which
+    is therefore judged after dominance."""
     git_, runner = git_ or git, runner or run
     titles = {"loosening": "no unexplained FAIL/UNKNOWN -> PASS against the base (fastfix_gate.py loosening)",
               "reproduce-first": "every src/ commit names an independent oracle that failed before it, or says why "
                                  "not (fastfix_gate.py reproduce)"}
     base = git_("merge-base", args.fastfix_base, "HEAD")
     head = git_("rev-parse", "HEAD")
+    hist = load_historic(git_, args.version, base, patch_id)
+    loose: list[tuple[str, list, Proc, str]] = []
+    bridge = Bridge()
     if not base or not head:
         for id_, title in titles.items():
             layer.add(id_, title, BLOCKER, False, f"can't find the merge-base of {args.fastfix_base} and HEAD "
                       "(shallow clone or unknown ref; CI needs fetch-depth: 0)")
-        return
-    if base == head:
+    elif base == head:
         for id_, title in titles.items():
             layer.add(id_, title, BLOCKER, None, f"HEAD is the base ({head[:10]}): nothing to compare; pass "
                       "--fastfix-base <previous release tag> at a release")
-        return
-    # the base's copy judges the change, so a change can't loosen the judge it is judged by; a base from before the
-    # gate existed (its bootstrap) uses this checkout's copy, and says so
-    tmp = Path(tempfile.mkdtemp(prefix="ndr-fastfix-gate-"))
-    script = tmp / "fastfix_gate.py"
-    own = git_("show", f"{base}:scripts/fastfix_gate.py")
-    if own:
-        script.write_text(own + "\n", encoding="utf-8")
-        which = f"the base's fastfix_gate.py ({base[:10]})"
     else:
-        shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", script)
-        which = "this checkout's fastfix_gate.py (the base predates it)"
-    for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
-                     ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
-                                          "--range", f"{base}..HEAD"])):
-        layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}, by {which}")
-    shutil.rmtree(tmp, ignore_errors=True)
+        # the base's copy judges the change, so a change can't loosen the judge it is judged by; a base from before
+        # the gate existed (its bootstrap) uses this checkout's copy, and says so
+        tmp = Path(tempfile.mkdtemp(prefix="ndr-fastfix-gate-"))
+        script = tmp / "fastfix_gate.py"
+        own = git_("show", f"{base}:scripts/fastfix_gate.py")
+        if own:
+            script.write_text(own + "\n", encoding="utf-8")
+            which = f"the base's fastfix_gate.py ({base[:10]})"
+        else:
+            shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", script)
+            which = "this checkout's fastfix_gate.py (the base predates it)"
+        for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
+                         ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
+                                              "--range", f"{base}..HEAD"])):
+            loose.append((id_, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}, by {which}"))
+        shutil.rmtree(tmp, ignore_errors=True)
+    at = len(layer.checks)
+    if getattr(args, "candidate", False):
+        published_checks(layer, args, git_, runner, head, ls_remote, hist, bridge)
+    # the bridge applies only to release NAMING_BRIDGE's key, with the change's base and the published release both
+    # its commit (published_checks fills it only in that case), and only to the base judge's loosening run
+    usable = bridge if base and base == NAMING_BRIDGE.get(args.version) else None
+    for id_, cmd, proc, summary in loose:
+        add_judged(layer, hist, id_, titles[id_], cmd, proc, summary, usable if id_ == "loosening" else None)
+    if loose:   # judged last, listed where they ran
+        moved = layer.checks[-len(loose):]
+        del layer.checks[-len(loose):]
+        layer.checks[at:at] = moved
+    historic_check(layer, hist)
+
+
+def published_judge(git_, tag: str, sha: str, version: str, marker: str, dest: Path) -> tuple[Path | None, str, bool]:
+    """(script, which, bootstrap): the published commit's fastfix_gate.py (read by its verified sha, never by a name
+    another ref could shadow) when it has the command. Only release BOOTSTRAP_NEXT, against BOOTSTRAP_TAG, may fall
+    back to this commit's own committed copy (published_tag has already refused a newer v* tag at origin); anything
+    else without the command fails."""
+    own = git_("show", f"{sha}:scripts/fastfix_gate.py")
+    if own and marker in own:
+        dest.write_text(own + "\n", encoding="utf-8")
+        return dest, f"the published release's fastfix_gate.py ({tag}, {sha[:10]})", False
+    if tag != BOOTSTRAP_TAG or version != BOOTSTRAP_NEXT:
+        return None, (f"{tag}'s fastfix_gate.py has no such command, and only release {BOOTSTRAP_NEXT} against "
+                      f"{BOOTSTRAP_TAG} may be judged by its own copy (this is {version} against {tag})"), False
+    mine = git_("show", "HEAD:scripts/fastfix_gate.py")
+    if not mine:
+        return None, "can't read HEAD's committed scripts/fastfix_gate.py", False
+    dest.write_text(mine + "\n", encoding="utf-8")
+    return dest, (f"BOOTSTRAP: this commit's own fastfix_gate.py ({tag} predates the command; allowed only for "
+                  f"{BOOTSTRAP_NEXT})"), True
+
+
+def published_checks(layer: Layer, args, git_, runner, head: str | None, ls_remote=None,
+                     hist: Historic | None = None, bridge: Bridge | None = None) -> None:
+    """Dominance and the living plants, against the published release, each judged by the published release's own
+    fastfix_gate.py (never a base the caller picks)."""
+    tag, sha, why = published_tag(args, git_, ls_remote) if head else (None, None, "can't read HEAD")
+    if tag is None:
+        for id_, title in (("dominance", DOMINANCE_TITLE), ("plants", PLANTS_TITLE)):
+            layer.add(id_, title, BLOCKER, False, f"can't name the published release: {why}")
+        return
+    tmp = Path(tempfile.mkdtemp(prefix="ndr-published-judge-"))
+    booted = []
+    try:
+        script, which, boot = published_judge(git_, tag, sha, args.version, '"--dominance"',
+                                              tmp / "dominance_judge.py")
+        booted += ["dominance"] * boot
+        if script is None:
+            layer.add("dominance", DOMINANCE_TITLE, BLOCKER, False, which)
+        else:
+            if hist and hist.path and sha != HISTORIC_BASES.get(args.version):
+                hist.problems.append(f"{hist.path}: the published release is {sha[:10]}, not the base the record "
+                                     "was written against")
+            flips = dominance_checks(layer, args, runner, head, sha, why, script, which, hist)
+            if bridge is not None and flips is not None and sha == NAMING_BRIDGE.get(args.version):
+                bridge.allowed = bridge_from_dominance(git_, sha, flips).allowed
+        script, which, boot = published_judge(git_, tag, sha, args.version, 'add_parser("plants"',
+                                              tmp / "plants_judge.py")
+        booted += ["plants"] * boot
+        if script is None:
+            layer.add("plants", PLANTS_TITLE, BLOCKER, False, which)
+        else:
+            out = gate_dir(args) / "plants.json"
+            out.unlink(missing_ok=True)
+            cmd = [sys.executable, script, "plants", "--repo", ROOT, "--candidate", head, "--base", sha, "--json", out]
+            layer.add_proc("plants", PLANTS_TITLE, BLOCKER, cmd, runner(cmd, timeout=3600),
+                           f"{plants_summary(out)}, by {which}")
+            try:
+                waiting = json.loads(out.read_text(encoding="utf-8"))["pending_since_base"]
+                if not isinstance(waiting, list):
+                    raise TypeError("pending_since_base is not a list")
+                layer.add("plants-pending", PENDING_TITLE, MAJOR, not waiting,
+                          f"{len(waiting)} oracle(s) with no fix since {tag}: {', '.join(waiting[:5])}" if waiting
+                          else "none", content=[sha, *map(str, waiting)])
+            except (OSError, ValueError, KeyError, TypeError) as e:
+                layer.add("plants-pending", PENDING_TITLE, MAJOR, False, f"no readable plants record ({e})",
+                          content=[sha, "unreadable"])
+        layer.add("published-judge", JUDGE_TITLE, MAJOR, not booted,
+                  f"BOOTSTRAP: {' and '.join(booted)} judged by this commit's own fastfix_gate.py, because {tag} "
+                  f"predates the commands; accept this once, for {BOOTSTRAP_NEXT} only"
+                  if booted else f"{tag}'s copy", content=[tag, sha, args.version, *booted])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def gate_dir(args) -> Path:
+    d = out_dir(args) / "gate"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def plants_summary(path: Path) -> str:
+    try:
+        d = json.loads(path.read_text(encoding="utf-8"))
+        return (f"{d['caught']} of {d['total']} plants caught ({d['applied']} applied); "
+                f"plant: none {len(d['not_applicable'])} (owed ports); no fix yet {len(d.get('pending', []))}")
+    except (OSError, ValueError, KeyError, TypeError):
+        return "no plants record"
+
+
+CHANGELOG_HEADING = re.compile(r"^## (\d+\.\d+\.\d+)\b", re.M)
+
+
+# the published repository, asked by URL: never a remote name, a folder or a url.*.insteadOf rule in local config
+CANONICAL_ORIGIN = "https://github.com/netdryrun/Netdryrun.git"
+
+
+def canonical_tags(url: str | None = None) -> str | None:
+    """`git ls-remote --tags` of the published repository (None when it can't be asked). It runs outside any
+    repository with every git config file and GIT_* variable set aside, so no remote named origin, committed folder
+    named origin/ or url.*.insteadOf rule can stand in for it."""
+    with tempfile.TemporaryDirectory(prefix="ndr-ls-remote-") as tmp:
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, HOME=tmp,
+                   XDG_CONFIG_HOME=tmp, GIT_TERMINAL_PROMPT="0", GIT_CEILING_DIRECTORIES=tmp)
+        try:
+            p = subprocess.run(["git", "ls-remote", "--tags", url or CANONICAL_ORIGIN], cwd=tmp,
+                               env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        return p.stdout if p.returncode == 0 else None
+
+
+def origin_tags(ls_remote=None) -> dict[str, tuple[str, str | None]] | None:
+    """Every tag the published repository lists: name -> (its ref's object, the commit it peels to when it lists
+    that); None when it can't be asked."""
+    text = (ls_remote or canonical_tags)()
+    if text is None:
+        return None
+    out: dict[str, list] = {}
+    for line in text.splitlines():
+        obj, _, ref = line.partition("\t")
+        ref = ref.strip()
+        if not ref.startswith("refs/tags/"):
+            continue
+        name = ref[len("refs/tags/"):]
+        entry = out.setdefault(name.removesuffix("^{}"), [None, None])
+        entry[1 if name.endswith("^{}") else 0] = obj.strip()
+    return {k: (v[0], v[1]) for k, v in out.items() if v[0]}
+
+
+def published_tag(args, git_, ls_remote=None) -> tuple[str | None, str | None, str]:
+    """(the published release's tag and the commit it names, or None, None; why). It defaults to the newest v* tag
+    reachable from HEAD other than the candidate's own. It is read only as refs/tags/<tag> (a ref such as refs/<tag>
+    can't stand in), must be an ancestor of HEAD, must name the newest release in CHANGELOG.md other than the
+    candidate's own, must be the commit origin (the published repository, asked by URL: canonical_tags) publishes
+    under that name, and origin may list no newer v* release; the candidate's own tag, when origin already has it,
+    must name HEAD. A tag moved by hand, no way to ask origin, a skipped release or a version already released from
+    another commit fails."""
+    tag = getattr(args, "published_tag", None) or git_("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*",
+                                                       "--exclude", f"v{args.version}", "HEAD")
+    if not tag:
+        return None, None, "no published v* tag is reachable from HEAD (pass --published-tag)"
+    mine = RELEASE_TAG.match(tag)
+    if not mine:
+        return None, None, f"{tag} is not a release tag (vX.Y.Z)"
+    obj = git_("rev-parse", "--verify", "--end-of-options", f"refs/tags/{tag}")
+    sha = git_("rev-parse", "--verify", "--end-of-options", f"refs/tags/{tag}^{{commit}}")
+    if not obj or not sha:
+        return None, None, f"refs/tags/{tag} is not a tag here"
+    if git_("merge-base", "--is-ancestor", sha, "HEAD") is None:
+        return None, None, f"{tag} is not an ancestor of HEAD"
+    changelog = git_("show", "HEAD:CHANGELOG.md") or ""
+    newest = next((v for v in CHANGELOG_HEADING.findall(changelog) if v != args.version), None)
+    if newest is None or tag != f"v{newest}":
+        return None, None, (f"{tag} is not the newest release in CHANGELOG.md other than {args.version} "
+                            f"({newest or 'none'})")
+    remote = origin_tags(ls_remote)
+    if not remote or tag not in remote:
+        return None, None, (f"can't confirm {tag} against origin ({CANONICAL_ORIGIN} doesn't list it, or can't be "
+                            "asked): the published tag must be checked against what was published")
+    ref, peeled = remote[tag]
+    # origin's peeled commit when it lists one; otherwise (a lightweight tag, or a remote such as a bundle that lists
+    # no peeled refs) origin's ref must be this very tag object, which names this very commit
+    published = peeled or (sha if ref == obj else ref)
+    if published != sha:
+        return None, None, (f"{tag} here is {sha[:10]}, but origin's {tag} is {published[:10]}: the local tag doesn't "
+                            "match what was published")
+    key = tuple(map(int, mine.groups()))
+    newer = sorted((tuple(map(int, m.groups())), name) for name in remote
+                   if (m := RELEASE_TAG.match(name)) and name != f"v{args.version}"
+                   and tuple(map(int, m.groups())) > key)
+    if newer:
+        return None, None, (f"origin has {newer[-1][1]}, newer than {tag}: the candidate is judged against the newest "
+                            "published release")
+    own = remote.get(f"v{args.version}")
+    if own:
+        head = git_("rev-parse", "--verify", "--end-of-options", "HEAD^{commit}")
+        if not head or (own[1] or own[0]) != head:
+            return None, None, (f"origin already has v{args.version} at {(own[1] or own[0])[:10]}, which is not this "
+                                "commit: that version was released, so this candidate can't claim it")
+    return tag, sha, f"{tag} ({sha[:10]}, as origin has it)"
+
+
+def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, script: Path, which: str,
+                     hist: Historic | None = None) -> list | None:
+    """The candidate against the release users have: no FAIL/UNKNOWN -> PASS since the published tag that a reviewed
+    allowlist entry doesn't cover. Its JSON (gate/dominance.json) carries the new device reads the report turns
+    into live runs, and the fixtures the gate host skipped at the tag (not compared: MAJOR)."""
+    out = gate_dir(args) / "dominance.json"
+    out.unlink(missing_ok=True)
+    cmd = [sys.executable, script, "loosening", "--repo", ROOT, "--base", sha, "--candidate", head, "--dominance",
+           "--json", out]
+    proc = runner(cmd, timeout=3600)
+    add_judged(layer, hist, "dominance", DOMINANCE_TITLE, cmd, proc, f"clean since {why}, by {which}")
+    try:
+        data = json.loads(out.read_text(encoding="utf-8"))
+        skipped = data["skipped_at_base"]
+        if not isinstance(skipped, list):
+            raise TypeError("skipped_at_base is not a list")
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        layer.add("dominance-skips", SKIPS_TITLE, MAJOR, False, f"no readable dominance record ({e})",
+                  content=[sha, "unreadable"])
+        return None
+    guards = [s for s in skipped if not isinstance(s, dict) or s.get("origin") in ("redteam", "oracles",
+                                                                                     "known_false_passes", "unknown")]
+    # a case skipped the same way at the candidate (say a parametrized docs snippet that isn't a netdryrun.yml) is
+    # still a must-not-pass fixture neither side ran here: counted, and said, so a reviewer can accept it knowingly
+    same = sum(1 for s in guards if isinstance(s, dict) and s.get("same_at_candidate") is True)
+    both = f" ({same} of them skipped the same way at the candidate)" if same else ""
+    listing = [f"{s.get('case')} ({s.get('origin')}): {s.get('reason')}" if isinstance(s, dict) else str(s)
+               for s in guards]
+    layer.add("dominance-skips", SKIPS_TITLE, MAJOR,
+              not guards, f"{len(guards)} not compared (skipped at the published release, {sha[:10]}){both}"
+              if guards else "none skipped", "\n".join(listing), content=[sha, *listing])
+    # what the run allowed, for the gate-naming bridge: only from a run that finished (clean or blocked) on this HEAD
+    return data.get("flips") if proc.code in (0, 1) and data.get("candidate") == head else None
 
 
 def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
@@ -711,8 +1270,8 @@ def python_support_problems() -> list[str]:
     return problems
 
 
-def candidate_checks(layer: Layer, version: str) -> None:
-    """Only for the release candidate itself: the CHANGELOG is cut and the version is unused."""
+def candidate_checks(layer: Layer, version: str, ls_remote=None) -> None:
+    """Only for the release candidate itself: the CHANGELOG is cut and the version is unused (here and at origin)."""
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     m = re.search(r"^## Unreleased\s*$(.*?)(?=^## )", text, re.M | re.S)
     pending = [ln for ln in (m.group(1) if m else "").splitlines() if ln.strip().startswith(("-", "*"))]
@@ -723,8 +1282,12 @@ def candidate_checks(layer: Layer, version: str) -> None:
         layer.add(f"corpus-{v}-tagged-fresh", f"corpus {v}: the committed results ran on this verdict code (G3)",
                   BLOCKER, v not in stale, stale.get(v, "fresh"))
     tags = git("tag", "-l", f"v{version}")
-    layer.add("tag-unused", f"tag v{version} does not exist yet", BLOCKER,
-              None if tags is None else not tags, "git unavailable" if tags is None else ("exists" if tags else "unused"))
+    remote = origin_tags(ls_remote)
+    listed = remote is not None and f"v{version}" in remote
+    layer.add("tag-unused", f"tag v{version} does not exist yet, here or at origin", BLOCKER,
+              None if tags is None or remote is None else not tags and not listed,
+              "git unavailable" if tags is None else f"can't ask {CANONICAL_ORIGIN}" if remote is None else
+              "exists here" if tags else "exists at origin" if listed else "unused")
     status = http_status(f"https://pypi.org/pypi/netdryrun/{version}/json")
     layer.add("pypi-unused", f"PyPI has no netdryrun {version} yet", BLOCKER,
               None if status is None else status == 404, f"HTTP {status}" if status else "PyPI unreachable")
@@ -814,7 +1377,8 @@ def unit_on_python(layer: Layer, py: str, uv: str | None, work: Path) -> None:
 
 def coverage_checks(layer: Layer, cov_json: Path | None) -> None:
     if not cov_json or not cov_json.exists():
-        layer.add("coverage", "coverage of the verdict modules", MAJOR, None, "no coverage data (pytest-cov missing?)")
+        layer.add("coverage", "coverage of the verdict modules", MAJOR, None, "no coverage data (pytest-cov missing?)",
+                  content=["no coverage data"])
         return
     files = json.loads(cov_json.read_text())["files"]
     rows, below = [], []
@@ -834,7 +1398,7 @@ def coverage_checks(layer: Layer, cov_json: Path | None) -> None:
     layer.sections.append("**Coverage of the verdict modules** (lines and branches, Python "
                           f"{COVERAGE_PYTHON}):\n\n{table}")
     layer.add("coverage", "coverage of the verdict modules at or above the floors", MAJOR, not below,
-              "; ".join(below) or "all at or above their floors", table)
+              "; ".join(below) or "all at or above their floors", table, content=below)
 
 
 def unit_in_container(layer: Layer) -> None:
@@ -2176,6 +2740,74 @@ def stranger_problems(path: str | None, version: str, now: dt.datetime | None = 
     return out
 
 
+# the live examples that exercise each network OS: a new device read on it needs every one of them to pass in a live
+# run on the commit the dominance check judged (a result carried from another commit doesn't count)
+LIVE_BY_NOS = {"frr": ("frr-bgp",), "sonic": ("sonic-frr",), "eos": ("arista-frr",),
+               "srlinux": ("srl-frr", "srl-hidden-leak"), "junos": ("junos-frr",), "nxos": ("nxos-frr",),
+               "routeros": ("mikrotik",)}
+
+
+def new_read_problems(records: dict, folder: Path) -> tuple[list[str], list[str], list[str]]:
+    """(blockers, gaps, info) from gate/dominance.json. Every network OS a new device read since the published
+    release goes to (its new-read flips and reviewed new-read entries; "*" or no driver at all: every OS) needs every
+    one of its live examples to pass, run on the commit dominance judged. While the published release's fixtures
+    keep no fake-lab command log, a read can also hide in a fake that answers anything: then every OS whose driver
+    changed since the release needs live too, and the report says so."""
+    static = records.get("static")
+    if static is None:
+        return [], [], []
+    dom = next((c for c in static["checks"] if c["id"] == "dominance"), None)
+    if dom is None:
+        return [], ["static ran without --candidate: no dominance check against the published release"], []
+    if dom["status"] != PASS:
+        return [], [], []    # already a BLOCKER (or a strict SKIP) of its own
+    try:
+        data = json.loads((folder / "gate" / "dominance.json").read_text(encoding="utf-8"))
+        cand = data["candidate"]
+        reads = [(str(f["case"]), [str(d) for d in (f.get("drivers") or [])] or ["*"])
+                 for f in data["flips"] if f["kind"] == "new-read"]
+        entries = data.get("new_read_entries", [])
+        changed = data.get("changed_drivers", ["*"])
+        if not isinstance(entries, list) or not isinstance(changed, list):
+            raise TypeError("new_read_entries and changed_drivers must be lists")
+        reads += [(f"{e['case']} (allowed in {e.get('file')})", [str(d) for d in (e.get("drivers") or [])] or ["*"])
+                  for e in entries]
+        logged = data.get("command_log_at_base") is True
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        return [f"static/dominance: its record (gate/dominance.json) can't be read ({e}), so new device reads can't "
+                "be routed to live"], [], []
+    if cand != static["git"].get("sha"):
+        return [f"static/dominance: gate/dominance.json judged {str(cand)[:10]}, not static's commit "
+                f"{str(static['git'].get('sha'))[:10]}"], [], []
+    info = []
+    if not logged:
+        drivers_changed = [str(d) for d in changed] or []
+        reads += [(f"the {d} driver changed since the published release", [d]) for d in drivers_changed]
+        info.append("the published release's fixtures keep no fake-lab command log, so a new device read shows only "
+                    "as a fake's refusal or a driver exception; live must also pass on every network OS whose driver "
+                    f"changed since it ({', '.join(drivers_changed) or 'none'})")
+    drivers = {d for _, ds in reads for d in ds}
+    unknown = drivers - set(LIVE_BY_NOS) - {"*"}
+    nos = sorted(LIVE_BY_NOS) if "*" in drivers or unknown else sorted(drivers)
+    live = records.get("live")
+    out = []
+    for n in nos:
+        cases = [c for c, ds in reads if n in ds or "*" in ds or set(ds) & unknown]
+        where = f"new device read on {n} ({', '.join(cases[:3])})"
+        if live is None or live["git"].get("sha") != cand:
+            got = "no live layer recorded" if live is None else f"live ran on {str(live['git'].get('sha'))[:10]}"
+            out.append(f"{where}: live must run on {str(cand)[:10]} ({got}; a carried result doesn't count)")
+            continue
+        bad = []
+        for ex in LIVE_BY_NOS[n]:   # every example of the OS, not any one of them
+            got = [c for c in live["checks"] if c["id"] == f"example-{ex}" or c["id"].startswith(f"example-{ex}-")]
+            bad += [f"example-{ex} not in the live record"] if not got else \
+                [f"{c['id']} {c['status']}" for c in got if c["status"] != PASS]
+        if bad:
+            out.append(f"{where}: live must run on {str(cand)[:10]}: " + "; ".join(bad))
+    return out, [], info
+
+
 def ready_to_publish(blockers, skipped, majors, missing, notes) -> bool:
     """Everything is in except the proof that can only run after publishing."""
     return not (blockers or skipped or majors or notes) and missing == ["after-publish"]
@@ -2214,13 +2846,21 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
         for c in rec["checks"]:
             key = f"{name}/{c['id']}"
             if c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR and key in accepted:
-                c["status"], c["summary"] = ACCEPTED, f"{c['summary']} (accepted: {accepted[key]})"
+                why = acceptance_mismatch(c, accepted[key], key in FINGERPRINTED)
+                if why is None:
+                    c["status"], c["summary"] = ACCEPTED, f"{c['summary']} (accepted: {reason(accepted[key])})"
+                else:
+                    c["summary"] = f"{c['summary']} (NOT accepted: {why})"
             if c["status"] == FAIL and c["severity"] == BLOCKER:
                 blockers.append(f"{key}: {c['title']}")
             elif c["status"] == SKIP and c["severity"] == BLOCKER:
                 skipped.append(f"{key}: {c['title']}")
             elif c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR:
                 majors.append(f"{key}: {c['title']}")
+    # a new device read since the published release needs live on that network OS, run on this very commit
+    read_blockers, read_gaps, read_info = new_read_problems(records, folder)
+    blockers += read_blockers
+    notes += read_gaps
     # fail closed: the stranger's false pass is a BLOCKER, like any layer's
     blockers += [f"stranger: {p}" for p in stranger_problems(getattr(args, "stranger_status", None), args.version, now)]
     missing = [n for n in LAYERS if n not in records]
@@ -2248,7 +2888,8 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
              "rerun a layer, or record a decision in `accepted.json` or `review.md`.", "", verdict, ""]
     for title, items in (("BLOCKER failures", blockers), ("BLOCKER checks skipped", skipped),
                          ("MAJOR checks not passed or accepted", majors),
-                         ("Layers not run yet", [LAYERS[n] for n in missing]), ("Other gaps", notes)):
+                         ("Layers not run yet", [LAYERS[n] for n in missing]), ("Other gaps", notes),
+                         ("Against the published release", read_info)):
         if items:
             lines += [f"**{title}:**", ""] + [f"- {cell(i)}" for i in items] + [""]
 
@@ -2516,6 +3157,9 @@ def main() -> int:
     ap.add_argument("--strict", action="store_true", help="a skipped BLOCKER (missing tool, no Docker) is a failure")
     ap.add_argument("--candidate", action="store_true",
                     help="static: this is the release candidate (CHANGELOG cut, tag and PyPI version unused)")
+    ap.add_argument("--published-tag", help="static --candidate: the release users have now (default: the newest v* "
+                    "tag reachable from HEAD; it must be CHANGELOG.md's newest release before this one and match "
+                    "origin's tag). Its own fastfix_gate.py judges dominance and plants")
     ap.add_argument("--fastfix-base", default="origin/main",
                     help="static: the loosening and reproduce-first checks cover merge-base(this, HEAD)..HEAD "
                          "(default origin/main; at a release, the previous release tag)")

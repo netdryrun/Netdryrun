@@ -16,3 +16,4 @@ evidence:
   - tests/fixtures/eos_bgp_paths_as_set.txt
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_eosasdot.py
+plant: plant.diff
