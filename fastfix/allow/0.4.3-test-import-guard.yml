@@ -1,6 +1,6 @@
 flips:
   - source: gate
-    case: scripts/fastfix_gate.py@0d608ee7b1c0
+    case: scripts/fastfix_gate.py@09346cce724a
     from: FAIL
     to: PASS
     evidence: [research/captures/import-guard-v2-f84526a.txt]
@@ -10,7 +10,10 @@ flips:
       NDR_GUARD_PROOF from the inherited environment, and a tree that has tests/import_guard.py must leave a proof that
       the guard ran in default mode on that tree's own src, or the run fails (GateError). No check is removed and the
       set of tests run is unchanged. The capture shows the poisoned .pyc read without the prefix and the source with it.
-    reviewed_by: "adv-import-guard: every change is stricter (fresh bytecode cache, guard variables dropped, proof required); mutants C6, F6, N20, N21, N23 killed; loosening shows only this and the release_gate flip beside the 3 noise flips"
+      This blob is the merge with main 6e77ebb: applying git diff 6df498a f84526a -- scripts/fastfix_gate.py (the
+      reviewed import-guard change) onto 6e77ebb's file (a8cfb442fc95, the reviewed gate-noise change) gives
+      exactly 09346cce724a; capture sections M1 and M2 rerun the checks on the merged tip.
+    reviewed_by: "adv-import-guard (052de16) for the import-guard hunks: every change is stricter (fresh bytecode cache, guard variables dropped, proof required), mutants C6, F6, N20, N21, N23 killed; recheck-cmdlog2 (2b5d600) for the gate-noise hunks already on main; the merged blob is exactly the union of the two reviewed changes"
   - source: gate
     case: scripts/release_gate.py@645070a65e8f
     from: FAIL
