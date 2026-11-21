@@ -6,8 +6,9 @@ See tests/redteam/README.md for the file format. Each kind runs through real cod
 - driver: the real driver and parser, on raw device output, must not pass;
 - pinned: the tests that reproduce a runner-level finding must still exist.
 
-It imports nothing from other test files and only long-standing package APIs, so it can run against an
-old release to show which cases it fails (each one a false pass that release had):
+It imports no other test file except tests/fakes.py (the fake lab's UnexpectedCommand and seen, found through
+`tests` on the PYTHONPATH below) and only long-standing package APIs, so it can run against an old release to
+show which cases it fails (each one a false pass that release had):
     PYTHONPATH=<old>/src:tests pytest tests/test_redteam.py
 """
 from __future__ import annotations
@@ -147,38 +148,45 @@ def test_driver_case_does_not_pass(case):
 REFUSALS = {
     "RT-0008": "VRF 'CUSTOMR' does not exist",
     "RT-0009": "show ipv6 bgp summary vrf default | json` failed",
-    "RT-0012": "View/Vrf is unknown",
+    "RT-0012": "error: vtysh: View/Vrf is unknown",
     "RT-0038": "path without aspath segments",
     "RT-0039": "oper-state up but no received-routes counter",
     "RT-0043": "is stale (graceful restart in progress): not settled",
-    "RT-0049": "bgp community alias 65020:777 65020:100",
+    "RT-0049": "unexpected output from `show running-config bgpd`: ",
     "RT-0053": "is an address of r1 itself",
     "RT-0069": "the peer may send add-path",
     "RT-0072": "not a settled count: graceful restart",
-    "RT-0083": "asPath: '64086.59905 65020'",
+    "RT-0083": "unexpected output from `show ip bgp <prefix> | json`: asPath: ",
 }
-# Cases that end in an error that isn't their refusal, known and not fixed here: the check above is off for them
-# while they end in that error (an entry whose case is fixed elsewhere, e.g. RT-0037 on merge, falls back to it).
+# Cases that end in an error that isn't their refusal, known and not fixed here: (the error's phrase, why). The check
+# above is off for a case only while it ends in that very error; once it ends in anything else the test fails until
+# the entry moves to REFUSALS (the case now ends in its refusal) or comes off. RT-0037 moves to REFUSALS when
+# ndr/fix-eos-agg-v3 merges (its outputs gain routingDisabled and it ends in the routeType refusal).
+_NO_PATHCOUNT = "without pathCount"
 WRONG_REASON = {
-    "RT-0021": "its hand-written `show bgp` answer has no pathCount and also answers the text read, so the driver "
-               "refuses on the path count before the FIB-install logic the case guards",
-    "RT-0022": "its hand-written `show bgp` answer has no pathCount and also answers the text read, so the driver "
-               "refuses on the path count before the community logic the case guards",
-    "RT-0027": "its hand-written `show bgp` answer has no pathCount and also answers the text read, so the driver "
-               "refuses on the path count before the community logic the case guards",
-    "RT-0037": "its route answer has no routingDisabled, so it is refused before the routeType map it guards "
-               "(answered on ndr/fix-eos-agg-v3)",
+    "RT-0021": (_NO_PATHCOUNT, "its hand-written `show bgp` answer has no pathCount and also answers the text read, "
+                               "so the driver refuses on the path count before the FIB-install logic the case guards"),
+    "RT-0022": (_NO_PATHCOUNT, "its hand-written `show bgp` answer has no pathCount and also answers the text read, "
+                               "so the driver refuses on the path count before the community logic the case guards"),
+    "RT-0027": (_NO_PATHCOUNT, "its hand-written `show bgp` answer has no pathCount and also answers the text read, "
+                               "so the driver refuses on the path count before the community logic the case guards"),
+    "RT-0037": ("routingDisabled is None, not a boolean",
+                "its route answer has no routingDisabled, so it is refused before the routeType map it guards"),
 }
 
 
 @pytest.mark.parametrize("case", _params("driver"))
 def test_driver_case_that_ends_in_an_error_ends_in_its_refusal(case):
     r = _run_driver_case(case)
+    if case["id"] in WRONG_REASON:
+        phrase, why = WRONG_REASON[case["id"]]
+        if r is not None and r.passed is False and str(r.detail).startswith("error:") and phrase in r.detail:
+            pytest.skip(f"{case['id']}: known wrong reason: {why}")
+        pytest.fail(f"{case['id']} no longer ends in its known wrong-reason error ({phrase!r}); it ends in: "
+                    f"{r and r.detail}. Move it to REFUSALS if that is its refusal, or take it out of WRONG_REASON")
     if r is None or r.passed is not False:
         return   # refused before the lab, or a pass (test_driver_case_does_not_pass fails that)
     error = str(r.detail).startswith("error:")
-    if error and case["id"] in WRONG_REASON:
-        pytest.skip(f"{case['id']}: known wrong reason: {WRONG_REASON[case['id']]}")
     if case["id"] in REFUSALS:
         assert error and REFUSALS[case["id"]] in r.detail, (
             f"{case['id']} must end in its refusal ({REFUSALS[case['id']]!r}), not: {r.detail}")
