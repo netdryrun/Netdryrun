@@ -1,0 +1,13 @@
+flips:
+  - source: gate
+    case: scripts/fastfix_gate.py@a8cfb442fc95
+    from: FAIL
+    to: PASS
+    evidence: [releases/0.4.3/gate-cmdlog-noise-probes.txt]
+    why: >-
+      The gate's command log stops recording run-to-run noise and refuses more. Stricter: a log row in an unknown
+      format exits 2, and compose/preflight refuse a candidate src/ package the base lacks or a stdlib or gate-tool
+      name under src/ (a src/json shadow had hidden a new command). Neutral: base and candidate share one log path.
+      Noise only: tree paths read <root>, and an older base's scratch-directory random suffix is dropped, each with a
+      red fixture showing a real new command or a moved directory still flips.
+    reviewed_by: "recheck-cmdlog2: two stricter changes, one neutral, two noise-only with red fixtures; 25 toy probes and real-repo edits still flip, comment-only edits give 0"
