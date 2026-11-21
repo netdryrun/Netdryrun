@@ -73,18 +73,33 @@ def vtep(group: str, address: str = "2.2.2.2") -> dict:
             "info from state /network-instance ipvrf route-table next-hop 873408401": J(nh)}
 
 
+def captured_vtep(p: str, group: str) -> dict:
+    """ipvrf's captured answers for next-hop-group `group` and each of its next hops, when the run captured them
+    (srl2672_fp043_rt58_*: design A, one run, every answer live); {} when it didn't."""
+    if not (FX / f"{p}ipvrf_nhg_{group}.json").exists():
+        return {}
+    text = fx(f"{p}ipvrf_nhg_{group}.json")
+    out = {f"info from state /network-instance ipvrf route-table next-hop-group {group}": text}
+    for h in json.loads(text)["next-hop"]:
+        out[f"info from state /network-instance ipvrf route-table next-hop {h['next-hop']}"] =             fx(f"{p}ipvrf_nh_{h['next-hop']}.json")
+    return out
+
+
 def state(tag: str, **over) -> dict:
     p = f"srl2672_fp043_{tag}_leaf1_"
     out = {RIB: fx(p + "ipvrf_bgp_rib_route.json"), TABLE: fx(p + "ipvrf_route_table_route.json"),
            EVPN: fx(p + "default_evpn_local_rib.json"), OPER: fx(p + "ipvrf_oper_state.json")}
     for r in json.loads(out[TABLE]).get("route", []):
-        out.update(vtep(r["next-hop-group"]))
+        out.update(captured_vtep(p, r["next-hop-group"]) or vtep(r["next-hop-group"]))
     if (FX / (p + "ipvrf_attr_set_11.json")).exists():
         out["info from state /network-instance ipvrf bgp-rib attr-sets attr-set 11"] = fx(p + "ipvrf_attr_set_11.json")
     for a in ("6", "9"):
+        if (FX / f"{p}default_attr_set_{a}.json").exists() and tag == "rt58":
+            out[f"info from state /network-instance default bgp-rib attr-sets attr-set {a}"] =                 fx(f"{p}default_attr_set_{a}.json")
+            continue
         try:
             out[f"info from state /network-instance default bgp-rib attr-sets attr-set {a}"] = attr_set(tag, a)
-        except ValueError:
+        except (ValueError, FileNotFoundError):
             pass
     out.update(over)
     return out
@@ -240,6 +255,19 @@ def test_design_a_the_imported_path_is_a_bgp_path():
                           "info from state /network-instance ipvrf route-table next-hop 873408401"]
 
 
+def test_design_a_live_every_answer_from_one_run():
+    """Design A on srl2672_fp043_rt58_* (one live run, the next-hop-group and next hop captured too, nothing DERIVED):
+    the imported path is ipvrf's BGP path, read through the group the route table names."""
+    answers = state("rt58")
+    assert not any("873408401" in k for k in answers)   # no DERIVED next hop in this state
+    node = Node(answers)
+    [p] = SrlDriver(node, "leaf1").bgp_paths(PREFIX, "ipvrf").value
+    assert (p.best, p.next_hop, p.local_pref, p.neighbor, p.local_candidate) == (True, "2.2.2.2", 100, "2.2.2.2", False)
+    assert node.asked == [RIB, EVPN, TABLE, "info from state /network-instance default bgp-rib attr-sets attr-set 6",
+                          "info from state /network-instance ipvrf route-table next-hop-group 3530614221",
+                          "info from state /network-instance ipvrf route-table next-hop 3530614219"]
+
+
 def test_design_b_the_bgp_evpn_row_is_the_imported_path_not_the_nodes_own():
     """Design B (srl2672_fp043_pece2_*): ipvrf's bgp-rib lists the route once, neighbor 0.0.0.0, origin-protocol
     bgp-evpn. The path reported is the EVPN one (from 2.2.2.2, its attr-set 9 in default), never an own route."""
@@ -247,7 +275,7 @@ def test_design_b_the_bgp_evpn_row_is_the_imported_path_not_the_nodes_own():
     assert (p.best, p.next_hop, p.neighbor, p.local_candidate) == (True, "2.2.2.2", "2.2.2.2", False)
 
 
-@pytest.mark.parametrize("tag", ["present", "pece2"])
+@pytest.mark.parametrize("tag", ["present", "rt58", "pece2"])
 def test_present_false_fails_and_a_positive_check_passes_while_imported(tag):
     r = run(state(tag), present=False)
     assert not r.passed and "unexpectedly in the BGP table" in r.detail, r.detail

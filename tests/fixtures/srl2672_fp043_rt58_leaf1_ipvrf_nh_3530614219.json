@@ -1,0 +1,21 @@
+{
+  "index": "3530614219",
+  "resource-allocation-failed": false,
+  "type": "indirect",
+  "ip-address": "2.2.2.2",
+  "indirect": {
+    "resolved": true,
+    "resolving-tunnel": {
+      "next-hop-group": "3530614223",
+      "ip-prefix": "2.2.2.2/32",
+      "tunnel-type": "vxlan",
+      "tunnel-owner": "vxlan_mgr",
+      "tunnel-id": 1
+    }
+  },
+  "vxlan-encapsulation": {
+    "vni": 99,
+    "interface": "vxlan1",
+    "destination-mac": "1A:3D:01:FF:00:00"
+  }
+}

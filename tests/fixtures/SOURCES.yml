@@ -674,6 +674,27 @@
     leaf2's path judged. absent: both absence checks passed. The A-* checks are not evaluated in every state (the
     convergence gate: no BGP neighbors in vrf ipvrf), a known limit; the driver-level results are in the unit tests
   added: ndr/fix-srl-evpn
+- files: [srl2672_fp043_rt58_leaf1*]
+  kind: live-capture
+  source: >-
+    The same SR Linux image as srl2672_fp043_present_* (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8,
+    show version v26.7.2 build 519-g94fbd638fa8), containerlab 0.81.1, lab srl-evpn-oracle redeployed unchanged from
+    srl2672_fp043_topology.clab.yml, srl2672_fp043_leaf1.cli and srl2672_fp043_leaf2.cli (design A, the present
+    state: leaf2 advertises lo1.0 10.99.0.1/24 in ipvrf), the laptop's WSL, 2026-11-22 04:39-04:40+07:00, in one run
+    once leaf1's ipvrf route table showed 10.99.0.0/24 active via bgp-evpn. Each file is `docker exec
+    clab-srl-evpn-oracle-leaf1 sr_cli --output-format json "<command>"` (the .txt files: the same without
+    --output-format) redirected to the file, byte for byte. ipvrf_oper_state = `info from state /network-instance ipvrf
+    oper-state`; ipvrf_bgp_rib_route = `... ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route
+    10.99.0.0/24 neighbor * origin-protocol * path-id *`; default_evpn_local_rib = `... default bgp-rib afi-safi evpn
+    evpn local-rib`; default_attr_set_6 = `... default bgp-rib attr-sets attr-set 6`; ipvrf_route_table_route = `...
+    ipvrf route-table ipv4-unicast route 10.99.0.0/24 id * route-type * route-owner * origin-network-instance *`;
+    ipvrf_nhg_3530614221 = `... ipvrf route-table next-hop-group 3530614221` (the group that route names);
+    ipvrf_nh_3530614219 = `... ipvrf route-table next-hop 3530614219` (that group's one next hop); show_evpn_type5 =
+    `show network-instance default protocols bgp routes evpn route-type 5 detail`; show_version = `show version`;
+    ipvrf_route_table_route_end = the route-table read again at the end of the run (the same group and route). The
+    group id differs from the present_* run's 207317093, so red team case RT-0058 takes every answer from this run.
+    Captured for RT-0058 (the 0.4.3 driver's next-hop-group and next-hop reads, FX-0.4.3-srl-rt0058-case-unanswered-nhg)
+  added: ndr/fix-srl-evpn
 - files: [unnsesschk1021_capture.txt, unnsesschk1021_r2_show_version.txt, unnsesschk1021_r2_neighbors_up.json,
           unnsesschk1021_r2_neighbors_down.json, unnsesschk1021_r2_neighbors_more.json,
           unnsesschk1021_r2_eth1_ipv4_routes_up.json, unnsesschk1021_r2_eth1_ipv4_routes_more.json,

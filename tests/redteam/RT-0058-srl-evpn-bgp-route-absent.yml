@@ -16,29 +16,24 @@ check:
   prefix: 10.99.0.0/24
   present: false
 outputs:
-  # live captures (oracle FP-043-SRLEVPNVRF, SR Linux 26.7.2, design A): ipvrf has no `protocols bgp`, so its bgp-rib
-  # answers {}; the default network-instance's EVPN RIB holds the route from 2.2.2.2 with
-  # imported-network-instances [ipvrf]; ipvrf's route table has it via bgp-evpn (0.4.3 reads both)
+  # live captures from one run (lab srl-evpn-oracle, design A, SR Linux 26.7.2, 2026-11-22; SOURCES.yml
+  # srl2672_fp043_rt58_*): ipvrf has no `protocols bgp`, so its bgp-rib answers {}; the default network-instance's EVPN
+  # RIB holds the route from 2.2.2.2 with imported-network-instances [ipvrf]; ipvrf's route table has it via bgp-evpn
+  # on next-hop-group 3530614221, whose one next hop 3530614219 is 2.2.2.2 (0.4.3 reads all of them)
   - needle: "bgp-rib afi-safi ipv4-unicast"
-    output: |
-      {
-      }
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_bgp_rib_route.json
   - needle: "bgp-rib afi-safi evpn evpn local-rib"
-    fixture: srl2672_fp043_present_leaf1_default_evpn_local_rib.json
+    fixture: srl2672_fp043_rt58_leaf1_default_evpn_local_rib.json
   - needle: "route-table ipv4-unicast route 10.99.0.0/24"
-    fixture: srl2672_fp043_present_leaf1_ipvrf_route_table_route.json
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_route_table_route.json
+  - needle: "route-table next-hop-group 3530614221"
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_nhg_3530614221.json
+  - needle: "route-table next-hop 3530614219"
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_nh_3530614219.json
   - needle: "attr-sets attr-set 6"
-    fixture: srl2672_fp043_present_leaf1_default_attr_set_6.json
-  - needle: "oper-state"
-    output: |
-      {
-        "network-instance": [
-          {
-            "name": "ipvrf",
-            "oper-state": "up"
-          }
-        ]
-      }
+    fixture: srl2672_fp043_rt58_leaf1_default_attr_set_6.json
+  - needle: "ipvrf oper-state"
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_oper_state.json
 reproduce: >-
   containerlab: the RT-0054 EVPN lab without the static: leaf2 advertises 10.99.0.0/24 as an EVPN IP-prefix route,
   leaf1's ipvrf route-table shows 10.99.0.0/24 route-type bgp-evpn, active. {type: bgp_route, node: leaf1, vrf: ipvrf,
