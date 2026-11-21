@@ -1,0 +1,7 @@
+BGP routing table entry for 10.67.0.0/16, version 2
+Paths: (1 available, best #1, vrf blue)
+  Not advertised to any peer
+  Local, (aggregated by 65040 40.40.40.40)
+    0.0.0.0 from 0.0.0.0 (40.40.40.40)
+      Origin IGP, metric 0, weight 32768, valid, aggregated, local, atomic-aggregate, best (First path received)
+      Last update: Sat Nov 21 14:29:50 2026

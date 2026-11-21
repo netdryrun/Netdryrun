@@ -745,3 +745,41 @@
     the topology, startup configs, phase A script and checks of lab ndr-rcheos (adversary re-check of
     ndr/fix-eos-nonbgp, 2026-11-21); frr1 also bind-mounted a daemons file and the stock vtysh.conf (not kept here)
   added: ndr/fix-eos-nonbgp
+- files: ["ceos4363m_eosagg_*_v[46]_*", ceos4363m_eosagg_*_blue_*, ceos4363m_eosagg_show_version.txt,
+          ceos4363m_eosagg_running_config_start.txt, ceos4363m_eosagg_running_config_end.txt,
+          ceos4363m_eosagg_LOG.txt]
+  kind: live-capture
+  source: >-
+    Arista ceos:4.36.3M (sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df), node ceos1 of lab ndr-eosagg (containerlab 0.81.1, the laptop's WSL Ubuntu-ndr, 2026-11-21 about 14:28-15:00 UTC, 21:28-22:00 Thailand time; ceos1 AS 65030 and frr2 AS 65040 hold the same aggregates 10.66.0.0/16, 2001:db8:66::/48 and vrf blue 10.67.0.0/16 and peer with frr up1, which accepts nothing from them), in seven phases set by ceos4363m_eosagg_capture.sh: sel (aggregate selected, own contributor), selms (the contributor learned from up1), exact (up1 also sends the exact prefix), exactstatic (exact plus a static for the prefix), static (a static wins, the aggregate behind it), healthystatic (the static only), healthy (nothing). Each <phase>_<v4|v6|blue>_<file> is ceos1's answer to `docker exec
+    clab-ndr-eosagg-ceos1 Cli -p 15 -c "<command>"` (show ip|ipv6 route vrf V P | json, show rib route ip|ipv6 vrf V P
+    [| json], show ip|ipv6 bgp P vrf V [| json]) as logged with rc, command and time in ceos4363m_eosagg_LOG.txt
+    (every rc 0, stderr empty), bytes unchanged. Captured for oracle FP-043-EOSAGG
+  added: ndr/oracle-eos-agg
+- files: ["frr1041_eosagg_*_v[46]_*", frr1041_eosagg_*_blue_*, frr1041_eosagg_*_vrf.txt, frr1041_eosagg_show_version.txt,
+          frr1041_eosagg_running_config_start.txt, frr1041_eosagg_running_config_end.txt]
+  kind: live-capture
+  source: >-
+    FRR quay.io/frrouting/frr:10.4.1 (sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442), node frr2 of the same lab ndr-eosagg (containerlab 0.81.1, the laptop's WSL Ubuntu-ndr, 2026-11-21 about 14:28-15:00 UTC, 21:28-22:00 Thailand time; ceos1 AS 65030 and frr2 AS 65040 hold the same aggregates 10.66.0.0/16, 2001:db8:66::/48 and vrf blue 10.67.0.0/16 and peer with frr up1, which accepts nothing from them), the same phases and changes as ceos1. Each file is frr2's answer to `docker
+    exec clab-ndr-eosagg-frr2 vtysh -c "<command>"` (show ip|ipv6 route [vrf V] P [json], show bgp [vrf V] ipv4|ipv6
+    unicast P [json], show vrf), logged in ceos4363m_eosagg_LOG.txt, bytes unchanged. Captured for oracle
+    FP-043-EOSAGG
+  added: ndr/oracle-eos-agg
+- files: [ceos4363m_eosagg_*_verdicts_main.txt, ceos4363m_eosagg_*_verdicts_fix.txt, frr1041_eosagg_*_verdicts.txt,
+          frr1041_eosagg_aggrefused_check.txt]
+  kind: report
+  source: >-
+    verdicts the real drivers gave live on lab ndr-eosagg, 2026-11-21, after each phase's captures:
+    ceos4363m_eosagg_probe.py ran 8 route checks on each prefix through check_supported, run_check and hold_together
+    against ceos1 with netdryrun main a5244a0 (_main) and ndr/fix-eos-nonbgp 49dc098 (_fix), and against frr2 with main;
+    frr1041_eosagg_aggrefused_check.txt is `netdryrun check` (main) on frr2 with `protocol: aggregate`, refused before
+    the run (exit 2)
+  added: ndr/oracle-eos-agg
+- files: [ceos4363m_eosagg_topology.clab.yml, ceos4363m_eosagg_ceos1.cfg, frr1041_eosagg_frr2.conf,
+          frr1041_eosagg_up1.conf, frr1041_eosagg_vrf.sh, ceos4363m_eosagg_capture.sh, ceos4363m_eosagg_lib.sh,
+          ceos4363m_eosagg_probe.py]
+  kind: lab-input
+  source: >-
+    the topology, startup configs and scripts of lab ndr-eosagg, 2026-11-21: frr1041_eosagg_vrf.sh made frr2's kernel
+    vrf blue and its BGP vrf blue aggregate after deploy; capture.sh (with lib.sh) set each phase and captured;
+    probe.py gave the verdict files
+  added: ndr/oracle-eos-agg

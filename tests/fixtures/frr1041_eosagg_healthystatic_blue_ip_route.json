@@ -1,0 +1,35 @@
+{
+  "10.67.0.0/16":[
+    {
+      "prefix":"10.67.0.0/16",
+      "prefixLen":16,
+      "protocol":"static",
+      "vrfId":3,
+      "vrfName":"blue",
+      "selected":true,
+      "destSelected":true,
+      "distance":1,
+      "metric":0,
+      "installed":true,
+      "table":10,
+      "internalStatus":16,
+      "internalFlags":73,
+      "internalNextHopNum":1,
+      "internalNextHopActiveNum":1,
+      "nexthopGroupId":21,
+      "installedNexthopGroupId":21,
+      "receivedNexthopGroupId":21,
+      "uptime":"00:12:37",
+      "nexthops":[
+        {
+          "flags":3,
+          "fib":true,
+          "unreachable":true,
+          "blackhole":true,
+          "active":true,
+          "weight":1
+        }
+      ]
+    }
+  ]
+}
