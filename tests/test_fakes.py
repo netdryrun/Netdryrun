@@ -575,7 +575,11 @@ def test_the_command_log_is_the_same_on_two_runs_of_the_same_code(tmp_path):
     for run in ("one", "two"):
         log = tmp_path / run / "cmd.jsonl"
         log.parent.mkdir()
-        env = {k: v for k, v in os.environ.items() if k not in ("PYTEST_ADDOPTS", "PYTEST_CURRENT_TEST")}
+        # the import guard's variables (tests/import_guard.py) belong to the run that set them: the container layer sets
+        # NDR_TEST_INSTALLED, and this child tests the checkout's own src
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("PYTEST_ADDOPTS", "PYTEST_CURRENT_TEST", "NDR_TEST_INSTALLED", "NDR_TEST_SRC",
+                            "NDR_GUARD_PROOF", "PYTHONPYCACHEPREFIX")}
         env.update({COMMAND_LOG: str(log), "PYTHONPATH": str(repo / "src")})
         p = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", *NOISY],
                            cwd=repo, env=env, capture_output=True, text=True, timeout=600)
