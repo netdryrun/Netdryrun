@@ -27,6 +27,7 @@ from netdryrun.config import (
     TOP_LEVEL_KEYS,
     VRF_NAME,
     ConfigError,
+    interface_peer,
     load,
 )
 
@@ -191,7 +192,8 @@ BAD = {
     "type": ["bgp", "routes", "bgp-session", 1, True, *EMPTY],
     "name": [1, True, "   ", *EMPTY],
     "node": [1, True, "  ", *EMPTY],
-    "neighbor": IP, "target": IP, "source": IP, "next_hop": IP,
+    # 0.4.3: a neighbor may be an interface name (BGP unnumbered), so "x" is one; "x y" is neither
+    "neighbor": ["x y", *IP[1:]], "target": IP, "source": IP, "next_hop": IP,
     "prefix": ["x", "10.0.0.0/33", 167772160, True, *EMPTY],
     "present": BOOL, "active": BOOL,
     "state": ["up", "establised", "Established ", 1, True, *EMPTY],
@@ -294,6 +296,8 @@ def _assert_meaningful(c):
     if c.type == "bgp_session":
         assert p["state"] in BGP_STATES
     for key in ("neighbor", "target", "source", "next_hop"):
+        if key == "neighbor" and interface_peer(p.get(key)):
+            continue   # an interface-named (unnumbered) session, 0.4.3
         assert key not in p or str(ipaddress.ip_address(p[key])) == p[key]
     assert "prefix" not in p or str(ipaddress.ip_network(p["prefix"])) == p["prefix"]
     assert "vrf" not in p or (VRF_NAME.fullmatch(p["vrf"]) and p["vrf"].lower() != "all")

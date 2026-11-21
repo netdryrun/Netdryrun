@@ -122,8 +122,19 @@ def for_node(lab: Lab, node: str, override: str | None = None) -> Driver:
 def check_supported(lab: Lab, check, override: str | None = None) -> None:
     """Refuse, before deploying, a check the node's driver cannot read (never guess a value): a bgp_route key
     the driver doesn't support, an address family it has no prefix counts for, or a route protocol name it
-    never reports."""
-    if check.type not in ("bgp_route", "bgp_prefixes", "route") or check.node not in lab.nodes:
+    never reports, or a session named by its interface on a driver that names sessions by address."""
+    from ..config import interface_peer   # here: config imports the drivers (through faults)
+    if check.node not in lab.nodes:
+        return
+    if check.type in ("bgp_session", "bgp_prefixes") and interface_peer(check.params.get("neighbor")):
+        name = override or detect(lab.nodes[check.node])
+        if not getattr(DRIVERS.get(name), "interface_peers", False):
+            # the driver keys sessions by address: the check could only read "not configured", whatever the session
+            # does, so it is refused rather than run (an interface-named session is verified on FRR only)
+            raise DriverError(f"{check.name}: neighbor {check.params['neighbor']} is an interface name (a BGP "
+                              f"unnumbered session), which the {name} driver can't check: it names BGP sessions by "
+                              "address. Name the neighbor's address, or use route and ping checks")
+    if check.type not in ("bgp_route", "bgp_prefixes", "route"):
         return
     if check.type == "route" and "protocol" not in check.params:
         return
