@@ -1,0 +1,27 @@
+{
+    "vrfs": {
+        "default": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "2001:db8:5::/64": {
+                    "hardwareProgrammed": true,
+                    "routeType": "connected",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "preference": 0,
+                    "metric": 0,
+                    "vias": [
+                        {
+                            "interface": "Loopback2"
+                        }
+                    ],
+                    "routeAction": "forward",
+                    "directlyConnected": true
+                }
+            }
+        }
+    }
+}

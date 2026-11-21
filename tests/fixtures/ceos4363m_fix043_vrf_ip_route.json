@@ -1,0 +1,25 @@
+{
+    "vrfs": {
+        "blue": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "10.88.0.0/24": {
+                    "hardwareProgrammed": true,
+                    "routeType": "connected",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "routeAction": "forward",
+                    "vias": [
+                        {
+                            "interface": "Loopback1"
+                        }
+                    ],
+                    "directlyConnected": true
+                }
+            }
+        }
+    }
+}

@@ -609,3 +609,40 @@
     the configs live between phases (it calls ~/fp043/cli.sh, which is `docker exec clab-ndr-fp043-ceos1 Cli -p 15 -c
     "$1"`)
   added: ndr/oracle-eos-nonbgp
+- files: [ceos4363m_fix043_*_rib_route.json, ceos4363m_fix043_*_rib_route_9.json, ceos4363m_fix043_*_rib_route.txt,
+          ceos4363m_fix043_*_ip_route.json, ceos4363m_fix043_absent_ip_route_9.json, ceos4363m_fix043_*_ip_bgp.json,
+          ceos4363m_fix043_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df) ceos1 with FRR
+    10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442) frr1,
+    containerlab 0.81.1, lab ndr-fix043 (the oracle FP-043-EOSNONBGP's topology and startup configs), the laptop's WSL,
+    2026-11-21 12:20-12:26 UTC (19:20-19:26 Thailand time). Each file is the stdout, byte for byte, of `docker exec
+    clab-ndr-fix043-ceos1 Cli -p 15 -c "<command>"`, the commands and exit codes listed in ceos4363m_fix043_LOG.txt
+    (stderr empty; rc 0 except nosuchvrf_rib_route.json, rc 1). rt0056/rt0063_rib_route.txt: the oracle's phases again.
+    The rest after `vrf instance blue`, `ip routing vrf blue`, Loopback1 in vrf blue 10.88.0.1/24, `ip route vrf blue
+    10.88.0.0/24 Null0 250`, `ipv6 unicast-routing`, Loopback2 2001:db8:5::1/64, `ipv6 route 2001:db8:5::/64 Null0
+    250`, `vrf instance red` (no ip routing) and `router bgp 65030` `vrf blue` `rd 65030:1`, with no default route:
+    absent_* asks 9.9.9.0/24 or 2001:db8:99::/64 (no route), connected_* 10.0.200.0/30, vrf_* vrf blue, nosuchvrf_* a
+    VRF that doesn't exist, norouting_* vrf red, v6_* 2001:db8:5::/64. Captured for the FP-043-EOSNONBGP fix
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043_*_report.json, ceos4363m_fix043_*_check.txt, ceos4363m_fix043_VERDICTS.txt,
+          ceos4363m_fix043_LOG.txt]
+  kind: report
+  source: >-
+    netdryrun with the FP-043-EOSNONBGP fix (bf3d4cd, PYTHONPATH=src) `check <yml> --settle 2 --hold 6 --json` on lab
+    ndr-fix043 in the oracle's phases (rt0056, healthyA, rt0063, healthyB, with ceos4363m_fix043_proof.yml) and after
+    the extra config (extra, with ceos4363m_fix043_extra.yml), 2026-11-21, every run exit 1 (each phase has checks
+    that must fail); VERDICTS.txt is one line per check, LOG.txt the capture script's log. static-default-absent fails
+    in rt0056 and ospf-default-absent in rt0063 ("unexpectedly present via static|ospf (not selected)"); both pass in
+    their healthy phase; present with active false passes on the candidate that lost selection; vrf blue and IPv6
+    statics behind a connected route fail present false
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043_topology.clab.yml, ceos4363m_fix043_proof.yml, ceos4363m_fix043_extra.yml,
+          ceos4363m_fix043_capture.sh]
+  kind: lab-input
+  source: >-
+    the topology, checks and capture script of lab ndr-fix043, 2026-11-21; the startup configs and frr1's daemons and
+    vtysh.conf were the oracle's (ceos4363m_fp043_ceos1.cfg, ceos4363m_fp043_frr1.conf); the script changed the configs
+    live between phases as the oracle's does, and set frr1's eth2 MTU to 1500 with `ip ospf mtu-ignore` first
+  added: ndr/fix-eos-nonbgp

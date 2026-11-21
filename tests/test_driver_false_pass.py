@@ -127,7 +127,7 @@ def test_eos_vrf_missing_from_answer_raises():
 def test_eos_existing_vrf_without_the_route_is_a_real_absence():
     route = _obj({"vrfs": {"red": {"routingDisabled": False, "routes": {}}}})
     bgp = _obj({"vrfs": {"red": {"bgpRouteEntries": {}}}})
-    rib = _obj({"vrfs": {"red": {"ribRoutesByProtocol": {}}}})   # DERIVED: the RIB answer with no candidate
+    rib = _obj({"vrfs": {"red": {"ribRoutesByProtocol": {}}}})   # the live no-candidate shape (ceos4363m_fix043_*)
     assert EosDriver(Lab([("show rib", rib), ("route", route), ("bgp", bgp)]), "c").routes(
         "10.0.0.0/24", vrf="red").value == []
     # a BGP answer without the VRF can't be told from unknown output: conservative, it raises

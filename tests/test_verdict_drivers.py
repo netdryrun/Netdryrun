@@ -1083,7 +1083,7 @@ def eos_bgp(vrf="default", entries=None):
 def eos_rib(vrf="default", prefix=None, **best):
     """DERIVED: `show rib route ip|ipv6 vrf <vrf> <prefix> | json` in the shape of the cEOS 4.36.3M captures
     (ceos4363m_fp043_*_rib_route.json), each protocol key with one entry for `prefix` and only its bestRoute; no
-    protocol at all for a prefix with no candidate."""
+    protocol at all is the live answer for a prefix with no candidate (ceos4363m_fix043_absent_rib_route_9.json)."""
     return J({"vrfs": {vrf: {"ribRoutesByProtocol": {k: {"ribRoutes": {prefix: {"bestRoute": b}}}
                                                        for k, b in best.items()}}}})
 

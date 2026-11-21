@@ -2,9 +2,10 @@
 RT-0056 and RT-0063): `show ip route <prefix>` lists only the selected route, so a static or OSPF route that lost route
 selection was never seen and `present: false` on its protocol passed.
 
-The captured answers are cEOS 4.36.3M's (tests/fixtures/SOURCES.yml). Answers built here are marked DERIVED: each is a
-captured answer with one thing changed (a key renamed or dropped, a family or VRF swapped), to pin what the parser does
-with output it doesn't know: it raises, never "no candidate".
+The captured answers are cEOS 4.36.3M's (tests/fixtures/SOURCES.yml): the oracle's (ceos4363m_fp043_*) and the fix's
+live proof (ceos4363m_fix043_*: a prefix with no route, a connected route, a VRF, IPv6, a VRF that doesn't exist).
+Answers built here are marked DERIVED: each is a captured answer with one thing changed (a key renamed or dropped, a
+family or VRF swapped), to pin what the parser does with output it doesn't know: it raises, never "no candidate".
 """
 from __future__ import annotations
 
@@ -186,3 +187,73 @@ def test_a_best_candidate_the_routing_table_lists_under_another_protocol_is_pres
     assert sorted((r.protocol, r.active) for r in routes) == [("bgp", True), ("static", False)]
     assert not _check(_lab(rib=(0, _derived(RT0056_RIB, flip))), protocol="static", present=False).passed
     assert not _check(_lab(rib=(0, _derived(RT0056_RIB, flip))), protocol="static").passed
+
+
+# ------------------------------------------------------------------------------------------------- live proof shapes
+
+def test_a_prefix_with_no_route_is_an_empty_protocol_map():
+    """Live: no candidate at all is `ribRoutesByProtocol: {}` (IPv4, IPv6, a VRF); only that shape reads as none."""
+    assert parse_rib_candidates(fx("ceos4363m_fix043_absent_rib_route_9.json"), "9.9.9.0/24") == []
+    assert parse_rib_candidates(fx("ceos4363m_fix043_v6_absent_rib_route.json"), "2001:db8:99::/64") == []
+    assert parse_rib_candidates(fx("ceos4363m_fix043_vrf_absent_rib_route_9.json"), "9.9.9.0/24", "blue") == []
+    lab = Lab([("show ip route", fx("ceos4363m_fix043_absent_ip_route_9.json")),
+               ("show rib route", fx("ceos4363m_fix043_absent_rib_route_9.json")),
+               ("show ip bgp", fx("ceos4363m_fp043_rt0056_ip_bgp_9.json"))])
+    assert EosDriver(lab, "e1").routes("9.9.9.0/24").value == []
+
+
+def test_connected_is_connected():
+    assert parse_rib_candidates(fx("ceos4363m_fix043_connected_rib_route.json"), "10.0.200.0/30") == [
+        ("connected", True, "connected")]
+
+
+def test_a_vrf_candidate_behind_a_connected_route():
+    """Live, VRF blue: 10.88.0.0/24 connected (selected) and `ip route vrf blue 10.88.0.0/24 Null0 250` (not)."""
+    rib = fx("ceos4363m_fix043_vrf_rib_route.json")
+    assert sorted(parse_rib_candidates(rib, "10.88.0.0/24", "blue")) == [("connected", True, "connected"),
+                                                                       ("static", False, "staticConfig")]
+    with pytest.raises(DriverError, match="not in the output"):
+        parse_rib_candidates(rib, "10.88.0.0/24", "default")   # another VRF's answer is never this one's
+    lab = Lab([("show ip route", fx("ceos4363m_fix043_vrf_ip_route.json")), ("show rib route", rib),
+               ("show ip bgp", fx("ceos4363m_fix043_vrf_ip_bgp.json"))])
+    routes = EosDriver(lab, "e1").routes("10.88.0.0/24", "blue").value
+    assert sorted((r.protocol, r.active) for r in routes) == [("connected", True), ("static", False)]
+    assert "Cli -p 15 -c show rib route ip vrf blue 10.88.0.0/24 | json" in lab.lines()
+
+
+def test_ipv6_candidate_behind_a_connected_route():
+    """Live, IPv6: 2001:db8:5::/64 connected (selected) and `ipv6 route 2001:db8:5::/64 Null0 250` (not); the static
+    key is staticConfig in IPv6 too."""
+    rib = fx("ceos4363m_fix043_v6_rib_route.json")
+    assert sorted(parse_rib_candidates(rib, "2001:db8:5::/64")) == [("connected", True, "connected"),
+                                                                  ("static", False, "staticConfig")]
+    lab = Lab([("show ipv6 route", fx("ceos4363m_fix043_v6_ip_route.json")), ("show rib route ipv6", rib),
+               ("show ipv6 bgp", fx("ceos4363m_fix043_v6_ip_bgp.json"))])
+    routes = EosDriver(lab, "e1").routes("2001:db8:5::/64").value
+    assert sorted((r.protocol, r.active) for r in routes) == [("connected", True), ("static", False)]
+    assert "Cli -p 15 -c show rib route ipv6 vrf default 2001:db8:5::/64 | json" in lab.lines()
+
+
+def test_a_vrf_that_does_not_exist_is_an_error():
+    """Live: rc 1 and `{"errors": ["VRF nosuch does not exist"]}`."""
+    text = fx("ceos4363m_fix043_nosuchvrf_rib_route.json")
+    with pytest.raises(DriverError):
+        parse_rib_candidates(text, "9.9.9.0/24", "nosuch")
+    lab = Lab([("show ip route", fx("ceos4363m_fix043_absent_ip_route_9.json").replace('"default"', '"nosuch"')),
+               ("show rib route", (1, text))])
+    with pytest.raises(DriverError):
+        EosDriver(lab, "e1").routes("9.9.9.0/24", "nosuch")
+
+
+def test_a_vrf_without_routing_has_an_empty_rib_so_the_routing_table_decides():
+    """Live: VRF red (no `ip routing vrf red`) answers an empty protocol map, like a VRF with no route. The routing
+    table's `routingDisabled: true` is read first and makes the check an error (A-0049), so the RIB never reads it as
+    absent (DERIVED routing-table answer: the captured empty one with the flag set)."""
+    assert parse_rib_candidates(fx("ceos4363m_fix043_norouting_rib_route.json"), "9.9.9.0/24", "red") == []
+    route = _derived(fx("ceos4363m_fix043_absent_ip_route_9.json"),
+                     lambda d: d["vrfs"].update(red={**d["vrfs"].pop("default"), "routingDisabled": True}))
+    lab = Lab([("show ip route", route), ("show rib route", fx("ceos4363m_fix043_norouting_rib_route.json")),
+               ("show ip bgp", fx("ceos4363m_fix043_vrf_ip_bgp.json"))])
+    with pytest.raises(DriverError, match="routing disabled"):
+        EosDriver(lab, "e1").routes("9.9.9.0/24", "red")
+
