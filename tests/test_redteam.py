@@ -71,7 +71,7 @@ class Lab:
     """A node answering each command with the first output whose needle is in the command line."""
 
     def __init__(self, rules):
-        self.rules, self.nodes = rules, {}
+        self.rules, self.nodes, self.unanswered = rules, {}, []
 
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
@@ -79,6 +79,7 @@ class Lab:
         for needle, (rc, out, err) in self.rules:
             if needle in line:
                 return ExecResult(list(cmd), rc, out, err)
+        self.unanswered.append(line)
         raise UnexpectedCommand(line)
 
 
@@ -139,6 +140,67 @@ def test_driver_case_does_not_pass(case):
     assert r is None or r.passed is False, f"{case['id']}: passed: {r.detail}"
 
 
+# A driver case that ends in an error must end in the refusal its fix is: an error from anything else (an answer the
+# case's outputs lack or give in the wrong shape) ends the check before the logic the case guards runs, so the case
+# guards nothing (FX-0.4.3-redteam-fake-unanswered-command). Each case fixed by a refusal names a phrase of it here.
+# Kept apart from test_driver_case_does_not_pass, whose failures on an old release are that release's false passes.
+REFUSALS = {
+    "RT-0008": "VRF 'CUSTOMR' does not exist",
+    "RT-0009": "show ipv6 bgp summary vrf default | json` failed",
+    "RT-0012": "View/Vrf is unknown",
+    "RT-0038": "path without aspath segments",
+    "RT-0039": "oper-state up but no received-routes counter",
+    "RT-0043": "is stale (graceful restart in progress): not settled",
+    "RT-0049": "bgp community alias 65020:777 65020:100",
+    "RT-0053": "is an address of r1 itself",
+    "RT-0069": "the peer may send add-path",
+    "RT-0072": "not a settled count: graceful restart",
+    "RT-0083": "asPath: '64086.59905 65020'",
+}
+# Cases that end in an error that isn't their refusal, known and not fixed here: the check above is off for them
+# while they end in that error (an entry whose case is fixed elsewhere, e.g. RT-0037 on merge, falls back to it).
+WRONG_REASON = {
+    "RT-0021": "its hand-written `show bgp` answer has no pathCount and also answers the text read, so the driver "
+               "refuses on the path count before the FIB-install logic the case guards",
+    "RT-0022": "its hand-written `show bgp` answer has no pathCount and also answers the text read, so the driver "
+               "refuses on the path count before the community logic the case guards",
+    "RT-0027": "its hand-written `show bgp` answer has no pathCount and also answers the text read, so the driver "
+               "refuses on the path count before the community logic the case guards",
+    "RT-0037": "its route answer has no routingDisabled, so it is refused before the routeType map it guards "
+               "(answered on ndr/fix-eos-agg-v3)",
+}
+
+
+@pytest.mark.parametrize("case", _params("driver"))
+def test_driver_case_that_ends_in_an_error_ends_in_its_refusal(case):
+    r = _run_driver_case(case)
+    if r is None or r.passed is not False:
+        return   # refused before the lab, or a pass (test_driver_case_does_not_pass fails that)
+    error = str(r.detail).startswith("error:")
+    if error and case["id"] in WRONG_REASON:
+        pytest.skip(f"{case['id']}: known wrong reason: {WRONG_REASON[case['id']]}")
+    if case["id"] in REFUSALS:
+        assert error and REFUSALS[case["id"]] in r.detail, (
+            f"{case['id']} must end in its refusal ({REFUSALS[case['id']]!r}), not: {r.detail}")
+        return
+    assert not error, (f"{case['id']} ends in an error, not in the driver's verdict: {r.detail}. A case fixed by "
+                       "a refusal names it in REFUSALS; otherwise its outputs miss an answer the driver reads")
+
+
+def test_rt0058_fails_on_the_drivers_own_verdict():
+    """RT-0058 (oracle FP-043-SRLEVPNVRF) is fixed in 0.4.3, so it is no longer an accepted limit, and its check fails
+    because the driver reads the imported EVPN path (live answers for every read, next-hop-group and next hop
+    included), never through an error."""
+    [case] = [c for p, c in CASES if c["id"] == "RT-0058"]
+    assert not case.get("accepted_limit") and case["fixed_in"] == "0.4.3"
+    assert "RT-0058" not in {c.values[0]["id"] for c in _limits()}
+    assert "RT-0058" in {c.values[0]["id"] for c in _params("driver")}
+    r = _run_driver_case(case)
+    assert r is not None and r.passed is False, r and r.detail
+    assert r.detail.startswith("unexpectedly in the BGP table (1 path(s); ") and "next hop 2.2.2.2" in r.detail, (
+        r.detail)
+
+
 @pytest.mark.parametrize("case", _limits())
 def test_accepted_limits_are_published_and_still_behave_as_documented(case):
     """A false pass the owner accepted as a documented limit (owner decision 2026-11-08): it stays in the corpus, its
@@ -164,13 +226,38 @@ def _run_driver_case(case):
         check = _validate_check(0, dict(case["check"]), 20)
     except ConfigError:
         return None   # refused before anything runs (exit 2): never a pass
-    driver = DRIVERS[case["driver"]](Lab(rules), check.node)
+    if _refused_by_driver(check, case["driver"]):
+        return None   # refused before the lab deploys (exit 2), as `run` and `check` do: never a pass
+    lab = Lab(rules)
+    driver = DRIVERS[case["driver"]](lab, check.node)
     clock = FakeClock()
     if is_post_convergence(check):
         [r] = hold_together([check], {check.node: driver}, hold=10, clock=clock, sleep=clock.sleep)
     else:
         r = run_check(check, driver, clock=clock, sleep=clock.sleep)
+    # A command the case has no answer for ends the check in an error before the driver logic the case guards runs:
+    # that is a case testing nothing, never a caught false pass (adversary review of FP-043-EOSAGG, F1: three EOS
+    # cases had no answer for the RIB read 0.4.3 added). The case's outputs must answer every read the driver makes.
+    if lab.unanswered:
+        pytest.fail(f"{case['id']}: the fake lab has no answer for {sorted(set(lab.unanswered))}: add the device's "
+                    "answer to the case's outputs (a case that ends in this error tests nothing)")
     return r
+
+
+def _refused_by_driver(check, driver: str) -> bool:
+    """`check_supported`, the refusal `run` and `check` apply before deploying: a route protocol the driver never
+    reports, a key or family it can't read (RT-0024; the EOS `protocol: aggregate` of RT-0086 from 0.4.3). Only
+    that refusal counts; an older release without it runs the case as before."""
+    from types import SimpleNamespace
+    try:
+        from netdryrun.drivers import DriverError, check_supported
+    except ImportError:
+        return False
+    try:
+        check_supported(SimpleNamespace(nodes={check.node: None}), check, driver)
+    except DriverError:
+        return True
+    return False
 
 
 def _test_functions(path: Path) -> set[str]:
