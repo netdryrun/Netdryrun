@@ -4,6 +4,7 @@ Many clones share one venv whose editable install points at the clone that ran `
 guard, pytest in another clone imported that clone's netdryrun and passed or failed on the wrong code. Each mode of the
 guard has a red case (a decoy or a doctored copy aborts the session) and a green one, run in the shape it is used in:
 a subprocess pytest in a temporary checkout."""
+import json
 import os
 import shutil
 import subprocess
@@ -14,13 +15,20 @@ from pathlib import Path
 import pytest
 
 import import_guard
-from import_guard import children_use, import_problem
+import import_guard as _ig
+from import_guard import children_use
+
+
+def import_problem(*args):
+    """(problem, src) of the guard's (problem, src, mode)"""
+    return _ig.import_problem(*args)[:2]
+
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import release_gate  # noqa: E402
 
-STRIPPED = ("PYTHONPATH", "NDR_TEST_SRC", "NDR_TEST_INSTALLED")
+STRIPPED = ("PYTHONPATH", "NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS")
 CONFTEST = "from import_guard import pytest_configure  # noqa: F401\n"
 
 
@@ -40,14 +48,14 @@ def make_checkout(tmp_path, *, src="link", test="def test_ok():\n    assert True
     return tree
 
 
-def run_pytest(tree: Path, *, pythonpath=None, **env_extra) -> subprocess.CompletedProcess:
+def run_pytest(tree: Path, *, pythonpath=None, args=(), quiet=True, cwd=None, **env_extra) -> subprocess.CompletedProcess:
     env = {k: v for k, v in os.environ.items() if k not in STRIPPED}
     if pythonpath is not None:
         env["PYTHONPATH"] = str(pythonpath)
     env.update({k: str(v) for k, v in env_extra.items()}, PYTHONDONTWRITEBYTECODE="1")
-    return subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=",
-                           "-c", str(tree / "pyproject.toml"), "--rootdir", str(tree)],
-                          cwd=tree, env=env, capture_output=True, text=True, timeout=300)
+    return subprocess.run([sys.executable, "-m", "pytest", *(["-q"] if quiet else []), "-p", "no:cacheprovider",
+                           "-o", "addopts=", "-c", str(tree / "pyproject.toml"), "--rootdir", str(tree), *args],
+                          cwd=cwd or tree, env=env, capture_output=True, text=True, timeout=300)
 
 
 def out(p) -> str:
@@ -112,6 +120,7 @@ def test_a_child_python_gets_the_verified_src_first(tmp_path):
     probe = ("import os, subprocess, sys\nfrom pathlib import Path\n\n"
              "def test_child_sees_the_verified_src():\n"
              "    env = dict(os.environ)\n"
+             "    assert 'NDR_GUARD_PROOF' not in env\n"
              "    got = subprocess.run([sys.executable, '-c', 'import sys; print(sys.path[1])'], env=env,\n"
              "                         capture_output=True, text=True).stdout.strip()\n"
              f"    assert Path(got).resolve() == Path({str((ROOT / 'src').resolve())!r})\n")
@@ -152,7 +161,8 @@ def test_an_installed_copy_identical_to_the_checkout_passes(tmp_path):
     assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
 
 
-@pytest.mark.parametrize("doctor", ["delete", "extra", "edit"])
+@pytest.mark.parametrize("doctor", ["delete", "extra", "edit", "delete-in-subpackage", "extra-in-subpackage",
+                                    "compiled-next-to-a-module", "stale-pyc", "package-data"])
 def test_an_installed_copy_that_differs_from_the_checkout_aborts(tmp_path, doctor):
     tree, site = make_checkout(tmp_path), installed_copy(tmp_path)
     pkg = site / "netdryrun"
@@ -160,6 +170,16 @@ def test_an_installed_copy_that_differs_from_the_checkout_aborts(tmp_path, docto
         (pkg / "checks.py").unlink()
     elif doctor == "extra":
         (pkg / "planted.py").write_text("x = 1\n", encoding="utf-8")
+    elif doctor == "delete-in-subpackage":
+        (pkg / "drivers" / "frr.py").unlink()
+    elif doctor == "extra-in-subpackage":
+        (pkg / "drivers" / "planted.py").write_text("x = 1\n", encoding="utf-8")
+    elif doctor == "compiled-next-to-a-module":
+        (pkg / "checks.so").write_bytes(b"\x7fELF")
+    elif doctor == "stale-pyc":
+        (pkg / "checks.pyc").write_bytes(b"\x00")
+    elif doctor == "package-data":
+        (pkg / "extra.json").write_text("{}", encoding="utf-8")
     else:
         (pkg / "checks.py").write_text((pkg / "checks.py").read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
     aborted(run_pytest(tree, pythonpath=site, NDR_TEST_INSTALLED="1"), pkg.resolve())
@@ -178,7 +198,7 @@ def test_an_editable_install_is_not_an_installed_copy(tmp_path):
     assert "editable" in out(p)
 
 
-@pytest.mark.parametrize("value", ["", "0", "true", "yes", "11"])
+@pytest.mark.parametrize("value", ["", "0", "true", "yes", "11", " 1", "1 ", "1\n"])
 def test_only_the_exact_value_1_turns_installed_mode_on(tmp_path, value):
     tree = make_checkout(tmp_path)
     aborted(run_pytest(tree, pythonpath=installed_copy(tmp_path), NDR_TEST_INSTALLED=value), "exactly 1")
@@ -252,11 +272,17 @@ def test_a_user_site_install_is_not_the_installed_copy(tmp_path):
 def test_the_container_layer_installs_a_real_package_and_tells_the_guard():
     script = release_gate.CONTAINER_SCRIPT
     lines = script.splitlines()
+    assert lines[0] == "set -e"                                                       # a failed step ends the script
     pip = [ln for ln in lines if "pip install" in ln]
     assert len(pip) == 1 and "'.[dev]'" in pip[0] and " -e " not in pip[0], pip      # what pip builds, not the source folder
+    assert pip[0].startswith("cd /w && "), pip                                         # the copy, not the read-only mount
     run = [ln for ln in lines if "-m pytest" in ln]
-    assert run == ["NDR_TEST_INSTALLED=1 python -m pytest -q -p no:cacheprovider -rs"], run
-    assert lines[lines.index(pip[0]) + 1:lines.index(run[0])] == ["python --version"]   # nothing between install and test
+    assert run == ["PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 "
+                   "python -m pytest -q -p no:cacheprovider -rs"], run
+    i = lines.index(run[0])
+    assert lines[lines.index(pip[0]) + 1:i] == ["python --version", "rm -f /tmp/ndr-guard-proof"]   # nothing between
+    assert len(lines) == i + 2 and lines[i + 1].startswith("grep -q ") and '"installed"' in lines[i + 1]   # the proof
+    assert script.count("PYTEST_ADDOPTS") == 1                  # only the reset on the run line; none exported before it
     assert "PYTHONPATH" not in script and "pythonpath" not in script                   # nothing may put /w/src first
 
 
@@ -309,3 +335,272 @@ def test_a_declared_src_may_be_a_symlink(tmp_path):
     link.symlink_to(other, target_is_directory=True)
     p = run_pytest(tree, pythonpath=other, NDR_TEST_SRC=link)
     assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+
+
+# ---- the header and the proof file -------------------------------------------------------------------------------------
+HEADER_CONFTEST = "from import_guard import pytest_configure, pytest_report_header  # noqa: F401\n"
+
+
+def test_the_header_names_the_mode_and_the_source(tmp_path):
+    tree = make_checkout(tmp_path)
+    (tree / "tests" / "conftest.py").write_text(HEADER_CONFTEST, encoding="utf-8")
+    p = run_pytest(tree, pythonpath=tree / "src", quiet=False)
+    assert p.returncode == 0, out(p)
+    assert f"ndr-import-guard: mode=default source={(ROOT / 'src').resolve()}" in p.stdout, out(p)
+    other = decoy(tmp_path)
+    tree2 = make_checkout(tmp_path / "two", src="empty")
+    (tree2 / "tests" / "conftest.py").write_text(HEADER_CONFTEST, encoding="utf-8")
+    p = run_pytest(tree2, pythonpath=other, quiet=False, NDR_TEST_SRC=other)
+    assert f"ndr-import-guard: mode=declared source={other.resolve()}" in p.stdout, out(p)
+    p = run_pytest(tree, pythonpath=installed_copy(tmp_path), quiet=False, NDR_TEST_INSTALLED="1")
+    assert "ndr-import-guard: mode=installed source=" in p.stdout, out(p)
+
+
+def test_the_header_says_so_when_the_guard_did_not_run():
+    class Cfg:
+        pass
+    assert import_guard.pytest_report_header(Cfg()) == "ndr-import-guard: DID NOT RUN"
+    cfg = Cfg()
+    cfg.ndr_import_guard = ("default", "/x/src")
+    assert import_guard.pytest_report_header(cfg) == "ndr-import-guard: mode=default source=/x/src"
+
+
+def test_a_passing_guard_writes_the_proof_and_drops_the_variable(tmp_path):
+    proof = tmp_path / "proof.json"
+    probe = "import os\n\ndef test_the_variable_is_gone():\n    assert 'NDR_GUARD_PROOF' not in os.environ\n"
+    tree = make_checkout(tmp_path, test=probe)
+    p = run_pytest(tree, pythonpath=tree / "src", NDR_GUARD_PROOF=proof)
+    assert p.returncode == 0, out(p)
+    got = json.loads(proof.read_text(encoding="utf-8"))
+    assert got == {"mode": "default", "source": str((ROOT / "src").resolve())}
+
+
+def test_the_proof_is_created_exclusively_so_a_nested_run_cannot_replace_it(tmp_path):
+    proof = tmp_path / "proof.json"
+    proof.write_text("first", encoding="utf-8")
+    tree = make_checkout(tmp_path)
+    assert run_pytest(tree, pythonpath=tree / "src", NDR_GUARD_PROOF=proof).returncode == 0
+    assert proof.read_text(encoding="utf-8") == "first"
+
+
+def test_an_aborted_guard_writes_no_proof(tmp_path):
+    proof = tmp_path / "proof.json"
+    tree, other = make_checkout(tmp_path, src="empty"), decoy(tmp_path)
+    aborted(run_pytest(tree, pythonpath=other, NDR_GUARD_PROOF=proof))
+    assert not proof.exists()
+
+
+@pytest.mark.parametrize("bypass", [["--noconftest"], ["--confcutdir", "tests/sub"], ["--confcutdir=tests/sub"]])
+def test_a_run_that_skips_conftest_leaves_no_proof(tmp_path, bypass):
+    """What the gates catch: the run passes on the wrong code, nothing aborts, and the guard never ran."""
+    proof = tmp_path / "proof.json"
+    tree, other = make_checkout(tmp_path, src="empty"), decoy(tmp_path)
+    (tree / "tests" / "sub").mkdir()
+    p = run_pytest(tree, pythonpath=other, NDR_GUARD_PROOF=proof, args=bypass, quiet=False)
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+    assert not proof.exists()
+    assert "ndr-import-guard" not in p.stdout
+
+
+def test_pytest_addopts_noconftest_skips_the_guard_and_leaves_no_proof(tmp_path):
+    proof = tmp_path / "proof.json"
+    tree, other = make_checkout(tmp_path, src="empty"), decoy(tmp_path)
+    p = run_pytest(tree, pythonpath=other, NDR_GUARD_PROOF=proof, PYTEST_ADDOPTS="--noconftest")
+    assert p.returncode == 0 and not proof.exists(), out(p)
+
+
+def test_an_import_that_exits_aborts_too(tmp_path):
+    tree, other = make_checkout(tmp_path, src="empty"), decoy(tmp_path)
+    (other / "netdryrun" / "__init__.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+    aborted(run_pytest(tree, pythonpath=other), "could not verify")
+
+
+def test_a_relative_pythonpath_is_not_listed_twice(tmp_path, monkeypatch):
+    src = tmp_path / "checkout" / "src"
+    src.mkdir(parents=True)
+    monkeypatch.chdir(src.parent)
+    assert children_use(src.resolve(), {"PYTHONPATH": "src"}).split(os.pathsep) == [str(src.resolve())]
+
+
+def test_a_run_with_a_relative_pythonpath_passes_and_children_get_the_absolute_src(tmp_path):
+    probe = ("import os\n\ndef test_children_see_one_absolute_src():\n"
+             "    parts = [p for p in os.environ['PYTHONPATH'].split(os.pathsep) if p]\n"
+             "    assert parts[0] == os.path.realpath(os.path.join(os.getcwd(), 'src')) and parts.count(parts[0]) == 1\n"
+             "    assert 'src' not in parts\n")
+    tree = make_checkout(tmp_path, test=probe)
+    p = run_pytest(tree, pythonpath="src")
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+
+
+def test_every_loaded_module_must_be_a_py_file(tmp_path):
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    own = tmp_path / "src" / "netdryrun"
+    own.mkdir(parents=True)
+    mods = {"netdryrun": mod(own / "__init__.py"), "netdryrun.fast": mod(own / "fast.cpython-312-x86_64-linux-gnu.so")}
+    problem, src = import_problem(mods, tests_dir, {})
+    assert problem and "not loaded from .py files" in problem and src is None
+    mods = {"netdryrun": mod(own / "__init__.py"), "netdryrun.old": mod(own / "old.pyc")}
+    assert import_problem(mods, tests_dir, {})[0]
+
+
+def test_bytecode_caches_are_not_part_of_the_comparison(tmp_path):
+    tree, site = make_checkout(tmp_path), installed_copy(tmp_path)
+    (site / "netdryrun" / "__pycache__").mkdir()
+    (site / "netdryrun" / "__pycache__" / "checks.cpython-312.pyc").write_bytes(b"\x00")
+    p = run_pytest(tree, pythonpath=site, NDR_TEST_INSTALLED="1")
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+
+
+# ---- the red-team procedure on an old release (FX-0.4.3-redteam-old-release-procedure-broken) ------------------------
+def test_the_red_team_procedure_on_v0_4_1_reports_real_failures_not_errors(tmp_path):
+    if shutil.which("git") is None or shutil.which("tar") is None:
+        pytest.skip("needs git and tar")
+    if subprocess.run(["git", "rev-parse", "--verify", "-q", "v0.4.1^{commit}"], cwd=ROOT,
+                      capture_output=True).returncode != 0:
+        pytest.skip("the v0.4.1 tag is not in this clone")
+    old = tmp_path / "old"
+    old.mkdir()
+    arc = subprocess.run(["git", "archive", "v0.4.1", "src"], cwd=ROOT, capture_output=True)
+    assert arc.returncode == 0
+    subprocess.run(["tar", "-x", "-C", str(old)], input=arc.stdout, check=True)
+    env = {k: v for k, v in os.environ.items() if k not in STRIPPED}
+    env.update(NDR_TEST_SRC=str(old / "src"), PYTHONPATH=f"{old / 'src'}{os.pathsep}{ROOT / 'tests'}",
+               PYTHONDONTWRITEBYTECODE="1")
+    cmd = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-o", "addopts=", "tests/test_redteam.py"]
+    p = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
+    text = out(p)
+    assert f"ndr-import-guard: mode=declared source={(old / 'src').resolve()}" in text, text[-1500:]
+    last = text.strip().splitlines()[-1]
+    assert p.returncode == 1 and " failed" in last and " error" not in last, text[-1500:]    # real false passes
+    del env["NDR_TEST_SRC"]
+    q = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
+    assert q.returncode == 4 and "passed" not in out(q), out(q)[-800:]     # undeclared it aborts, never reads as clean
+
+
+# ---- the shape mutmut runs in (L-13) --------------------------------------------------------------------------------
+def test_the_guard_passes_in_the_shape_mutmut_copies_the_tree_into(tmp_path):
+    """mutmut copies src and tests into mutants/ and runs pytest there: tests/ beside src/, with the checkout's own
+    src elsewhere. Default mode must accept the copy and refuse the original's src."""
+    mutants = tmp_path / "mutants"
+    shutil.copytree(ROOT / "src", mutants / "src", ignore=shutil.ignore_patterns("__pycache__"))
+    (mutants / "tests").mkdir()
+    shutil.copy(ROOT / "tests" / "import_guard.py", mutants / "tests" / "import_guard.py")
+    (mutants / "tests" / "conftest.py").write_text(CONFTEST, encoding="utf-8")
+    here = str((mutants / "src").resolve())
+    (mutants / "tests" / "test_ok.py").write_text(
+        "import netdryrun, pathlib\n\ndef test_it_is_the_copy():\n"
+        f"    assert pathlib.Path(netdryrun.__file__).resolve().is_relative_to(pathlib.Path({here!r}))\n", encoding="utf-8")
+    (mutants / "pyproject.toml").write_text('[tool.pytest.ini_options]\ntestpaths = ["tests"]\n', encoding="utf-8")
+    p = run_pytest(mutants, pythonpath=mutants / "src")
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+    aborted(run_pytest(mutants, pythonpath=ROOT / "src"), (mutants / "src" / "netdryrun").resolve())
+
+
+# ---- the gates read the proof ------------------------------------------------------------------------------------------
+def _load_fastfix():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("fastfix_gate_for_import_guard", ROOT / "scripts" / "fastfix_gate.py")
+    gate = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = gate
+    spec.loader.exec_module(gate)
+    return gate
+
+
+def test_the_release_gate_scrubs_what_decides_which_code_or_whether_the_guard_loads(monkeypatch):
+    for k in ("NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS", "PYTEST_PLUGINS"):
+        monkeypatch.setenv(k, "x")
+    monkeypatch.setenv("KEEP_ME", "1")
+    env = release_gate.clean_test_env()
+    assert env["KEEP_ME"] == "1"
+    assert not {"NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS", "PYTEST_PLUGINS"} & set(env)
+
+
+def test_the_release_gate_wants_the_right_mode_on_the_right_source(tmp_path):
+    proof = tmp_path / "p.json"
+    assert "no proof" in (release_gate.guard_proof_problem(proof, "default", tmp_path) or "") or \
+        "left no proof" in (release_gate.guard_proof_problem(proof, "default", tmp_path) or "")
+    proof.write_text(json.dumps({"mode": "default", "source": str(tmp_path)}), encoding="utf-8")
+    assert release_gate.guard_proof_problem(proof, "default", tmp_path) is None
+    assert release_gate.guard_proof_problem(proof, "installed", tmp_path)                    # wrong mode
+    assert release_gate.guard_proof_problem(proof, "default", tmp_path / "other")            # wrong source
+    proof.write_text("[]", encoding="utf-8")
+    assert release_gate.guard_proof_problem(proof, "default", tmp_path)                      # not a proof
+
+
+def test_the_fastfix_gate_refuses_a_run_without_proof_and_accepts_one_with(tmp_path):
+    gate = _load_fastfix()
+    tree = tmp_path / "tree"
+    (tree / "src").mkdir(parents=True)
+    done = subprocess.CompletedProcess([], 0, "", "")
+    proof = tmp_path / "p.json"
+    with pytest.raises(gate.GateError, match="left no proof"):
+        gate.check_guard_proof(tree, proof, done)
+    proof.write_text(json.dumps({"mode": "declared", "source": str(tree / "src")}), encoding="utf-8")
+    with pytest.raises(gate.GateError, match="mode 'declared'"):
+        gate.check_guard_proof(tree, proof, done)
+    proof.write_text(json.dumps({"mode": "default", "source": str(tmp_path / "elsewhere")}), encoding="utf-8")
+    with pytest.raises(gate.GateError, match="not on this tree's own src"):
+        gate.check_guard_proof(tree, proof, done)
+    proof.write_text(json.dumps({"mode": "default", "source": str(tree / "src")}), encoding="utf-8")
+    gate.check_guard_proof(tree, proof, done)
+
+
+def test_the_fastfix_gate_drops_the_guard_variables_for_its_children(tmp_path, monkeypatch):
+    gate = _load_fastfix()
+    for k in ("NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF"):
+        monkeypatch.setenv(k, "x")
+    env = gate.child_env(tmp_path / "tree")
+    assert not {"NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF"} & set(env)
+
+
+def test_the_fastfix_gate_refuses_a_tree_whose_run_skips_the_guard(tmp_path):
+    """End to end: a tree with the guard whose pytest run skips conftest (a conftest that no longer loads it)."""
+    gate = _load_fastfix()
+    tree = make_checkout(tmp_path)
+    (tree / "tests" / "conftest.py").write_text("", encoding="utf-8")                    # the guard is never loaded
+    with pytest.raises(gate.GateError, match="left no proof"):
+        gate.run_pytest(tree, ["tests/test_ok.py"], sys.executable, tmp_path / "work")
+    (tree / "tests" / "conftest.py").write_text(CONFTEST, encoding="utf-8")
+    run = gate.run_pytest(tree, ["tests/test_ok.py"], sys.executable, tmp_path / "work2")
+    assert run.count("passed") == 1
+
+
+# ---- the release gate's unit layer needs the proof, and a run without it is a FAIL ------------------------------------
+def _unit_layer(monkeypatch, tmp_path, write_proof):
+    import argparse
+    seen = {}
+
+    def fake_run(cmd, **kw):
+        cmd = [str(c) for c in cmd]
+        if "-m" in cmd and "pytest" in cmd:
+            seen["env"] = kw.get("env")
+            if write_proof is not None:
+                Path(kw["env"]["NDR_GUARD_PROOF"]).write_text(json.dumps(write_proof), encoding="utf-8")
+            return release_gate.Proc(0, "5 passed in 1.00s", 1.0)
+        return release_gate.Proc(0, "3.11.0", 0.0)
+
+    monkeypatch.setattr(release_gate, "run", fake_run)
+    monkeypatch.setattr(release_gate, "make_venv", lambda *a: release_gate.Proc(0, "", 0.0))
+    monkeypatch.setattr(release_gate, "pip_install", lambda *a: release_gate.Proc(0, "", 0.0))
+    for k in ("NDR_TEST_SRC", "NDR_TEST_INSTALLED", "PYTEST_ADDOPTS"):
+        monkeypatch.setenv(k, "x")
+    layer = release_gate.Layer("unit", argparse.Namespace(strict=False, version="x"))
+    release_gate.unit_on_python(layer, "3.11", None, tmp_path)
+    return layer.checks[-1], seen["env"]
+
+
+def test_the_unit_layer_passes_only_with_the_guards_proof_and_a_scrubbed_env(monkeypatch, tmp_path):
+    good = {"mode": "default", "source": str(ROOT / "src")}
+    check, env = _unit_layer(monkeypatch, tmp_path, good)
+    assert check.status == release_gate.PASS, check
+    assert not {"NDR_TEST_SRC", "NDR_TEST_INSTALLED", "PYTEST_ADDOPTS"} & set(env)
+    assert env["NDR_GUARD_PROOF"].endswith("guard-proof-3.11.json")
+
+
+@pytest.mark.parametrize("proof", [None, {"mode": "declared", "source": str(ROOT / "src")},
+                                   {"mode": "default", "source": "/elsewhere/src"}])
+def test_the_unit_layer_fails_a_run_without_the_right_proof_even_if_pytest_exited_0(monkeypatch, tmp_path, proof):
+    check, _ = _unit_layer(monkeypatch, tmp_path, proof)
+    assert check.status == release_gate.FAIL, check
+    assert "import guard" in check.summary

@@ -1348,6 +1348,24 @@ def pytest_summary(out: str) -> str:
     return m[-1] if m else (out.strip().splitlines() or ["no output"])[-1][:200]
 
 
+def clean_test_env() -> dict:
+    """The environment for a pytest or mutmut run: what the caller exported about the import guard (tests/import_guard.py)
+    or pytest options must not decide which code is tested or whether the guard loads."""
+    return {k: v for k, v in os.environ.items()
+            if k not in ("NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS", "PYTEST_PLUGINS")}
+
+
+def guard_proof_problem(proof: Path, mode: str, source: Path) -> str | None:
+    """The import guard writes {"mode", "source"} to NDR_GUARD_PROOF when it passes. `--noconftest`, `--confcutdir` or
+    PYTEST_ADDOPTS=--noconftest skip it, and then nothing aborts: a run without the proof counts as not run."""
+    try:
+        got = json.loads(proof.read_text(encoding="utf-8"))
+        ok = got["mode"] == mode and Path(got["source"]).resolve() == source.resolve()
+    except (OSError, ValueError, KeyError, TypeError):
+        return f"the import guard left no proof that it ran ({proof.name}): tests/conftest.py was skipped or aborted"
+    return None if ok else f"the import guard ran in mode {got.get('mode')!r} on {got.get('source')!r}, not {mode!r} on {str(source)!r}"
+
+
 def unit_on_python(layer: Layer, py: str, uv: str | None, work: Path) -> None:
     venv = work / f"py{py}"
     title = f"unit tests on Python {py}" + (" (with coverage)" if py == COVERAGE_PYTHON else "")
@@ -1363,14 +1381,20 @@ def unit_on_python(layer: Layer, py: str, uv: str | None, work: Path) -> None:
         return
     exact = run([venv_bin(venv, "python"), "-c", "import platform; print(platform.python_version())"]).out.strip()
     cmd = [venv_bin(venv, "python"), "-m", "pytest", "-q", "-p", "no:cacheprovider", "-rs"]
-    env = dict(os.environ)
+    env = clean_test_env()
+    proof = work / f"guard-proof-{py}.json"
+    proof.unlink(missing_ok=True)
+    env["NDR_GUARD_PROOF"] = str(proof)
     cov_json = work / "coverage.json"
     if py == COVERAGE_PYTHON:
         cmd += ["--cov=netdryrun", "--cov-branch", f"--cov-report=json:{cov_json}"]
         env["COVERAGE_FILE"] = str(work / ".coverage")
     p = run(cmd, env=env, timeout=1800)
+    no_proof = guard_proof_problem(proof, "default", ROOT / "src")      # the venv is an editable install of ROOT
+    if no_proof:
+        p = Proc(p.code or 1, f"{p.out}\n{no_proof}", p.seconds)
     layer.add(f"pytest-{py}", title.replace(f"Python {py}", f"Python {exact or py}"), BLOCKER, p.code == 0,
-              pytest_summary(p.out), tail(p.out, 80), time.monotonic() - t0, cmdline(["python", *cmd[1:]]))
+              no_proof or pytest_summary(p.out), tail(p.out, 80), time.monotonic() - t0, cmdline(["python", *cmd[1:]]))
     if py == COVERAGE_PYTHON:
         coverage_checks(layer, cov_json if p.code == 0 or cov_json.exists() else None)
 
@@ -1403,7 +1427,8 @@ def coverage_checks(layer: Layer, cov_json: Path | None) -> None:
 
 # Run inside the plain container: copy the tree (the mount is read-only), install it as a normal (non-editable) package
 # and test what pip built, not the source folder. NDR_TEST_INSTALLED=1 tells tests/import_guard.py to expect exactly
-# that: every .py file of the installed netdryrun byte-identical to /w/src/netdryrun, none missing, none extra.
+# that: every file of the installed netdryrun byte-identical to /w/src/netdryrun, none missing, none extra. The guard's
+# proof file must say so afterwards (--noconftest, even through PYTEST_ADDOPTS, would skip the guard and leave none).
 CONTAINER_SCRIPT = (
     "set -e\n"
     "if command -v containerlab >/dev/null || command -v docker >/dev/null; then echo 'not a plain environment'; exit 90; fi\n"
@@ -1412,7 +1437,9 @@ CONTAINER_SCRIPT = (
     "mkdir -p /w/releases && cp /src/releases/acceptance-matrix.yml /w/releases/\n"
     "cd /w && pip install -q --disable-pip-version-check --root-user-action=ignore '.[dev]'\n"
     "python --version\n"
-    "NDR_TEST_INSTALLED=1 python -m pytest -q -p no:cacheprovider -rs\n")
+    "rm -f /tmp/ndr-guard-proof\n"
+    "PYTEST_ADDOPTS= NDR_GUARD_PROOF=/tmp/ndr-guard-proof NDR_TEST_INSTALLED=1 python -m pytest -q -p no:cacheprovider -rs\n"
+    "grep -q '\"mode\": \"installed\"' /tmp/ndr-guard-proof\n")
 
 
 def unit_in_container(layer: Layer) -> None:
@@ -1447,7 +1474,7 @@ def layer_mutation(args) -> Layer:
     shutil.rmtree(ROOT / "mutants", ignore_errors=True)
     globs = [f"netdryrun.{m}.*" if m != "drivers" else "netdryrun.drivers.*" for m in modules]
     cmd = [*mutmut, "run", "--max-children", str(args.jobs), *globs]
-    p = run(cmd, timeout=args.mutation_timeout)
+    p = run(cmd, timeout=args.mutation_timeout, env=clean_test_env())
     out = p.out.replace("\r", "\n")
     if p.code != 0 or "failed to collect stats" in out:
         layer.add("mutmut", f"mutmut run on {', '.join(modules)}", BLOCKER, False,

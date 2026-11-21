@@ -5,7 +5,7 @@ the mutation layer then ran `containerlab deploy` on a test topology through pas
 containers behind (2026-10-30). Every `containerlab deploy` or `destroy` a unit test reaches through `netdryrun.lab`
 fails here instead. A test that fakes `lab._run` itself replaces this guard, as before."""
 import pytest
-from import_guard import pytest_configure  # noqa: F401  (the session aborts if netdryrun is not the source under test)
+from import_guard import pytest_configure, pytest_report_header  # noqa: F401  (aborts if netdryrun is not the source under test)
 
 REAL_LAB_TOOLS = {"containerlab", "clab"}
 CHANGES_A_LAB = {"deploy", "destroy"}   # read-only commands (`containerlab version`) stay allowed
@@ -29,7 +29,10 @@ def _no_real_lab(monkeypatch):
 def _no_readiness_wait(monkeypatch):
     """mgmt.prepare waits up to READY_BUDGET for a booting NOS; unit tests' fakes answer at once or never, so they get
     no wait (the readiness tests set their own budget)."""
-    from netdryrun import mgmt
+    try:
+        from netdryrun import mgmt
+    except ImportError:    # a release from before mgmt.py, under the red-team procedure (tests/redteam/README.md)
+        return
     monkeypatch.setattr(mgmt, "READY_BUDGET", 0.0)
 
 

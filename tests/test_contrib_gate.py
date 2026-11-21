@@ -109,7 +109,7 @@ def test_a_test_that_fails_on_the_old_code_passes_the_gate(repo):
 # The real import guard (tests/import_guard.py) in the synthetic repo, so the gate runs in the shape it has in this repo:
 # this PR's tests (the checkout's) against the base branch's code, which the guard must be told to expect.
 GUARD = {"tests/import_guard.py": (ROOT / "tests" / "import_guard.py").read_text(encoding="utf-8"),
-         "tests/conftest.py": "from import_guard import pytest_configure  # noqa: F401\n"}
+         "tests/conftest.py": "from import_guard import pytest_configure, pytest_report_header  # noqa: F401\n"}
 FIXED = "def established(state):\n    return state.lower() == 'established'\n"
 
 
@@ -375,3 +375,60 @@ def test_a_bad_change_must_edit_the_lab(tmp_path):
     t = _template(tmp_path)
     (t / "bad" / "configs" / "r9.conf").write_text("hostname r9\n")
     assert any("replaces no file" in p for p in gate.labs(tmp_path))
+
+
+# ---- the guard must show it ran (--noconftest, --confcutdir, a conftest that no longer loads it) --------------------
+def _guarded_tree(tmp_path, conftest=None):
+    tree = tmp_path / "tree"
+    (tree / "tests" / "sub").mkdir(parents=True)
+    (tree / "src" / "netdryrun").mkdir(parents=True)
+    (tree / "src" / "netdryrun" / "__init__.py").write_text("", encoding="utf-8")
+    (tree / "tests" / "import_guard.py").write_text(GUARD["tests/import_guard.py"], encoding="utf-8")
+    (tree / "tests" / "conftest.py").write_text(GUARD["tests/conftest.py"] if conftest is None else conftest, encoding="utf-8")
+    (tree / "tests" / "test_ok.py").write_text("def test_ok():\n    assert True\n", encoding="utf-8")
+    return tree
+
+
+def test_the_gate_accepts_a_run_whose_guard_passed(tmp_path):
+    tree = _guarded_tree(tmp_path)
+    assert gate._pytest(tree, tree / "src", ["tests/test_ok.py"]).returncode == 0
+
+
+@pytest.mark.parametrize("bypass", [["--noconftest"], ["--confcutdir", "tests/sub"], ["--confcutdir=tests/sub"]])
+def test_a_run_that_skips_conftest_is_refused_not_passed(tmp_path, bypass):
+    tree = _guarded_tree(tmp_path)
+    with pytest.raises(SystemExit, match="left no proof"):
+        gate._pytest(tree, tree / "src", [*bypass, "tests/test_ok.py"])
+
+
+def test_pytest_addopts_noconftest_from_the_caller_does_not_reach_the_run(tmp_path, monkeypatch):
+    tree = _guarded_tree(tmp_path)
+    monkeypatch.setenv("PYTEST_ADDOPTS", "--noconftest")
+    assert gate._pytest(tree, tree / "src", ["tests/test_ok.py"]).returncode == 0     # scrubbed, so the guard still ran
+
+
+def test_a_conftest_that_no_longer_loads_the_guard_is_refused(tmp_path):
+    tree = _guarded_tree(tmp_path, conftest="")
+    with pytest.raises(SystemExit, match="left no proof"):
+        gate._pytest(tree, tree / "src", ["tests/test_ok.py"])
+
+
+def test_a_proof_for_another_source_is_refused(tmp_path):
+    proof = tmp_path / "p.json"
+    proof.write_text(json.dumps({"mode": "declared", "source": str(tmp_path / "elsewhere")}), encoding="utf-8")
+    assert "not on" in gate._guard_proof_problem(proof, tmp_path / "src")
+    proof.write_text(json.dumps({"mode": "default", "source": str(tmp_path / "src")}), encoding="utf-8")
+    assert "mode 'default'" in gate._guard_proof_problem(proof, tmp_path / "src")
+    proof.write_text("not json", encoding="utf-8")
+    assert "no proof" in gate._guard_proof_problem(proof, tmp_path / "src")
+    proof.write_text(json.dumps({"mode": "declared", "source": str(tmp_path / "src")}), encoding="utf-8")
+    assert gate._guard_proof_problem(proof, tmp_path / "src") is None
+
+
+def test_a_tree_without_the_guard_needs_no_proof(tmp_path):
+    tree = tmp_path / "tree"
+    (tree / "tests").mkdir(parents=True)
+    (tree / "src" / "netdryrun").mkdir(parents=True)
+    (tree / "src" / "netdryrun" / "__init__.py").write_text("", encoding="utf-8")
+    (tree / "tests" / "test_ok.py").write_text("def test_ok():\n    assert True\n", encoding="utf-8")
+    assert gate._pytest(tree, tree / "src", ["tests/test_ok.py"]).returncode == 0
