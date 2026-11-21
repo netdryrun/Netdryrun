@@ -484,7 +484,8 @@ def read_node(lab, node: str, driver: str) -> NodeRead:
                           "read): bgpd hasn't loaded its config")
         return NodeRead(node, skipped="no `router bgp` in bgpd's running config", config=r.stdout)
     loaded = False   # the boot log shows bgpd's config load ended
-    if driver == "frr":
+    # a router with no `network` to check has no table to wait for, so its boot log is the config load check's alone
+    if driver == "frr" and any(inst.checked for inst in instances):
         log = lab.boot_log(node)
         if log.rc != 0:
             raise Unknown(f"its boot log could not be read ({_cut(log.stderr or log.stdout)}), so whether bgpd is "
