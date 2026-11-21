@@ -1385,6 +1385,10 @@ def unit_on_python(layer: Layer, py: str, uv: str | None, work: Path) -> None:
     proof = work / f"guard-proof-{py}.json"
     proof.unlink(missing_ok=True)
     env["NDR_GUARD_PROOF"] = str(proof)
+    pyc = work / f"pyc-{py}"        # a fresh bytecode cache: a .pyc planted in src/ is not read (tests/import_guard.py)
+    shutil.rmtree(pyc, ignore_errors=True)
+    pyc.mkdir(parents=True)
+    env["PYTHONPYCACHEPREFIX"] = str(pyc)
     cov_json = work / "coverage.json"
     if py == COVERAGE_PYTHON:
         cmd += ["--cov=netdryrun", "--cov-branch", f"--cov-report=json:{cov_json}"]
@@ -1462,6 +1466,12 @@ def unit_in_container(layer: Layer) -> None:
 CAUGHT = {"killed", "timeout", "segfault"}   # a mutant the tests noticed (a hang or crash counts)
 
 
+def mutmut_run_command(modules: list[str], jobs: int) -> list[str]:
+    """The command the mutation layer runs (tests/test_import_guard.py runs real mutmut through it on a tiny project)."""
+    globs = [f"netdryrun.{m}.*" if m != "drivers" else "netdryrun.drivers.*" for m in modules]
+    return [sys.executable, "-m", "mutmut", "run", "--max-children", str(jobs), *globs]
+
+
 def layer_mutation(args) -> Layer:
     layer = Layer("mutation", args)
     modules = args.modules
@@ -1474,9 +1484,13 @@ def layer_mutation(args) -> Layer:
         return layer
     # A fresh mutants/ every time: mutmut caches results, and a stale "killed" would hide a survivor
     shutil.rmtree(ROOT / "mutants", ignore_errors=True)
-    globs = [f"netdryrun.{m}.*" if m != "drivers" else "netdryrun.drivers.*" for m in modules]
-    cmd = [*mutmut, "run", "--max-children", str(args.jobs), *globs]
-    p = run(cmd, timeout=args.mutation_timeout, env=clean_test_env())
+    cmd = mutmut_run_command(modules, args.jobs)
+    env = clean_test_env()
+    # mutmut copies tests/ with its __pycache__: pytest's rewritten .pyc files there carry the old paths, so a fake that
+    # is found by its file name fails in mutants/. A fresh bytecode cache means none of them is read.
+    env["PYTHONPYCACHEPREFIX"] = tempfile.mkdtemp(prefix="ndr-mutmut-pyc-")
+    p = run(cmd, timeout=args.mutation_timeout, env=env)
+    shutil.rmtree(env["PYTHONPYCACHEPREFIX"], ignore_errors=True)
     out = p.out.replace("\r", "\n")
     if p.code != 0 or "failed to collect stats" in out:
         layer.add("mutmut", f"mutmut run on {', '.join(modules)}", BLOCKER, False,

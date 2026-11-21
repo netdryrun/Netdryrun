@@ -444,6 +444,10 @@ def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_
     cmd = [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", "-c", str(ini),
            "--rootdir", str(tree), "--confcutdir", str(tree), f"--junitxml={xml}", "--", *targets]
     env = child_env(tree)
+    pyc = work / f"pyc-{xml.stem}"      # a fresh bytecode cache: a .pyc planted in the tree's src/ is not read
+    shutil.rmtree(pyc, ignore_errors=True)
+    pyc.mkdir(parents=True)
+    env["PYTHONPYCACHEPREFIX"] = str(pyc)
     if command_log is not None:
         command_log.unlink(missing_ok=True)
         env[COMMAND_LOG_ENV] = str(command_log)

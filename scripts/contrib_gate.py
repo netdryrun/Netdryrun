@@ -218,6 +218,7 @@ def _pytest(tests_tree: Path, src: Path, targets: list[str], require_guard: bool
     with tempfile.TemporaryDirectory() as tmp:
         proof = Path(tmp) / "guard-proof.json"
         env["NDR_GUARD_PROOF"] = str(proof)
+        env["PYTHONPYCACHEPREFIX"] = str(Path(tmp) / "pyc")      # a .pyc planted in src/ is not read
         r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *targets], cwd=tests_tree,
                            env=env, capture_output=True, text=True)
         problem = _guard_proof_problem(proof, src) if require_guard else None

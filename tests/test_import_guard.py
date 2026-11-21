@@ -27,6 +27,7 @@ def import_problem(*args):
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import release_gate  # noqa: E402
+import oldrelease  # noqa: E402
 
 STRIPPED = ("PYTHONPATH", "NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF", "PYTEST_ADDOPTS", "PYTHONPYCACHEPREFIX")
 CONFTEST = "from import_guard import pytest_configure, pytest_sessionfinish  # noqa: F401\n"
@@ -375,12 +376,22 @@ def test_a_passing_guard_writes_the_proof_and_drops_the_variable(tmp_path):
     assert got == {"mode": "default", "source": str((ROOT / "src").resolve())}
 
 
-def test_the_proof_is_created_exclusively_so_a_nested_run_cannot_replace_it(tmp_path):
+def test_a_proof_file_that_already_exists_and_differs_fails_the_session(tmp_path):
     proof = tmp_path / "proof.json"
     proof.write_text("first", encoding="utf-8")
     tree = make_checkout(tmp_path)
-    assert run_pytest(tree, pythonpath=tree / "src", NDR_GUARD_PROOF=proof).returncode == 0
+    p = run_pytest(tree, pythonpath=tree / "src", NDR_GUARD_PROOF=proof)
+    assert p.returncode == 4 and "already exists" in p.stderr, out(p)
     assert proof.read_text(encoding="utf-8") == "first"
+
+
+def test_a_proof_file_that_already_says_the_same_thing_is_left_alone(tmp_path):
+    tree = tiny_checkout(tmp_path, "def test_ok():\n    assert True\n")
+    proof = tmp_path / "proof.json"
+    same = json.dumps({"mode": "default", "source": str((tree / "src").resolve())})
+    proof.write_text(same, encoding="utf-8")
+    p = run_pytest(tree, pythonpath=tree / "src", NDR_GUARD_PROOF=proof)
+    assert p.returncode == 0 and proof.read_text(encoding="utf-8") == same, out(p)
 
 
 def test_an_aborted_guard_writes_no_proof(tmp_path):
@@ -454,16 +465,9 @@ def test_bytecode_caches_are_not_part_of_the_comparison(tmp_path):
 
 # ---- the red-team procedure on an old release (FX-0.4.3-redteam-old-release-procedure-broken) ------------------------
 def test_the_red_team_procedure_on_v0_4_1_reports_real_failures_not_errors(tmp_path):
-    if shutil.which("git") is None or shutil.which("tar") is None:
-        pytest.skip("needs git and tar")
-    if subprocess.run(["git", "rev-parse", "--verify", "-q", "v0.4.1^{commit}"], cwd=ROOT,
-                      capture_output=True).returncode != 0:
-        pytest.skip("the v0.4.1 tag is not in this clone")
     old = tmp_path / "old"
-    old.mkdir()
-    arc = subprocess.run(["git", "archive", "v0.4.1", "src"], cwd=ROOT, capture_output=True)
-    assert arc.returncode == 0
-    subprocess.run(["tar", "-x", "-C", str(old)], input=arc.stdout, check=True)
+    if not oldrelease.export_src("v0.4.1", old, ROOT):
+        pytest.skip("needs git, tar and the v0.4.1 tag in this clone")
     env = {k: v for k, v in os.environ.items() if k not in STRIPPED}
     env.update(NDR_TEST_SRC=str(old / "src"), PYTHONPATH=f"{old / 'src'}{os.pathsep}{ROOT / 'tests'}",
                PYTHONDONTWRITEBYTECODE="1")
@@ -622,7 +626,7 @@ def tiny_checkout(tmp_path, test, *, extra_src=()):
 
 
 @pytest.mark.parametrize("planted", [("checks.cpython-310-x86_64-linux-gnu.so", b"\x7fELF"), ("checks.pyc", b"\x00"),
-                                     ("data.json", b"{}"), ("sub/helper.so", b"\x7fELF")])
+                                     ("checks.abi3.so", b"ELF"), ("sub/helper.so", b"\x7fELF")])
 @pytest.mark.parametrize("mode", ["default", "declared"])
 def test_a_file_that_is_not_py_in_the_verified_src_aborts_before_any_test_runs(tmp_path, planted, mode):
     """The compiled module is not loaded when the guard checks (only the package is), and python prefers it to the .py
@@ -631,7 +635,7 @@ def test_a_file_that_is_not_py_in_the_verified_src_aborts_before_any_test_runs(t
                          extra_src=[planted])
     extra = {"NDR_TEST_SRC": tree / "src"} if mode == "declared" else {}
     p = run_pytest(tree, pythonpath=tree / "src", **extra)
-    aborted(p, "not .py", planted[0].split("/")[-1])
+    aborted(p, "could import", planted[0].split("/")[-1])
 
 
 def test_bytecode_caches_in_the_verified_src_are_fine(tmp_path):
@@ -798,3 +802,120 @@ def test_a_renamed_ready_budget_fails_instead_of_being_skipped(monkeypatch):
     ct.disable_ready_wait(monkeypatch, load=lambda: ns)
     assert ns.READY_BUDGET == 0.0
     ct.disable_ready_wait(monkeypatch, load=lambda: None)          # an old release: nothing to disable
+
+
+# ---- round 5: files mutmut writes, the foreign submodule's name, fresh bytecode caches, real mutmut -------------------
+@pytest.mark.parametrize("name", ["checks.py.meta", "checks.py.spans", "data.json", "py.typed", "sub/table.csv"])
+@pytest.mark.parametrize("mode", ["default", "declared"])
+def test_files_python_cannot_import_are_not_refused(tmp_path, name, mode):
+    """mutmut 3.8 writes <module>.py.meta and <module>.py.spans next to each mutated module in mutants/src/: refusing every
+    file that is not .py stopped it (BadTestExecutionCommandsException)."""
+    tree = tiny_checkout(tmp_path, "def test_ok():\n    assert True\n", extra_src=[(name, b"{}")])
+    extra = {"NDR_TEST_SRC": tree / "src"} if mode == "declared" else {}
+    p = run_pytest(tree, pythonpath=tree / "src", **extra)
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)
+
+
+def test_every_importable_suffix_but_py_is_refused():
+    import importlib.machinery as m
+    for suffix in (*m.EXTENSION_SUFFIXES, *m.BYTECODE_SUFFIXES):
+        assert "x" + suffix in import_guard._not_py.__globals__["LOADABLE"] or ("x" + suffix).endswith(import_guard.LOADABLE)
+    assert ".py" not in import_guard.LOADABLE and ".so" in import_guard.LOADABLE and ".pyc" in import_guard.LOADABLE
+
+
+def test_a_foreign_submodule_is_named_first_with_its_own_path(tmp_path):
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    own = tmp_path / "src" / "netdryrun"
+    own.mkdir(parents=True)
+    foreign = tmp_path / "elsewhere" / "netdryrun" / "lab.py"
+    mods = {"netdryrun": mod(own / "__init__.py"), "netdryrun.lab": mod(foreign)}
+    problem, src = import_problem(mods, tests_dir, {})
+    assert src is None and problem.startswith(f"netdryrun.lab is imported from {foreign.resolve()}"), problem
+    assert f"not from {own.resolve()}" not in problem
+
+
+# ---- a fresh bytecode cache for the gates' pytest runs (M1) -----------------------------------------------------------
+def _planted_pyc_checkout(tmp_path, expect_poison):
+    probe = f"import netdryrun.checks as c\n\ndef test_poison():\n    assert hasattr(c, 'POISON') is {expect_poison}\n"
+    return tiny_checkout(tmp_path, probe)
+
+
+def test_a_pyc_planted_in_the_checkouts_own_src_is_read_without_a_fresh_cache(tmp_path, monkeypatch):
+    tree = _planted_pyc_checkout(tmp_path, True)
+    _poison_pyc(tree / "src" / "netdryrun", monkeypatch)
+    p = run_pytest(tree, pythonpath=tree / "src")
+    assert p.returncode == 0 and "1 passed" in p.stdout, out(p)            # the attack is real: the guard passes it
+
+
+def test_the_fastfix_gate_reads_no_planted_pyc(tmp_path, monkeypatch):
+    gate = _load_fastfix()
+    tree = _planted_pyc_checkout(tmp_path, False)
+    _poison_pyc(tree / "src" / "netdryrun", monkeypatch)
+    run = gate.run_pytest(tree, ["tests/test_ok.py"], sys.executable, tmp_path / "work")
+    assert run.count("passed") == 1
+
+
+def test_the_contrib_gate_reads_no_planted_pyc(tmp_path, monkeypatch):
+    import contrib_gate
+    tree = _planted_pyc_checkout(tmp_path, False)
+    _poison_pyc(tree / "src" / "netdryrun", monkeypatch)
+    assert contrib_gate._pytest(tree, tree / "src", ["tests/test_ok.py"]).returncode == 0
+
+
+def test_the_release_unit_layer_gives_pytest_a_fresh_bytecode_cache(monkeypatch, tmp_path):
+    monkeypatch.setenv("PYTHONPYCACHEPREFIX", "/inherited")
+    stale = tmp_path / "pyc-3.11"
+    stale.mkdir()
+    (stale / "old.pyc").write_bytes(b"x")
+    check, env = _unit_layer(monkeypatch, tmp_path, {"mode": "default", "source": str(ROOT / "src")})
+    assert env["PYTHONPYCACHEPREFIX"] == str(stale) and not list(stale.iterdir())
+
+
+# ---- real mutmut, through the command the mutation layer runs (L-13) ----------------------------------------------------
+def _tiny_mutmut_project(tmp_path) -> Path:
+    proj = tmp_path / "proj"
+    (proj / "src" / "netdryrun").mkdir(parents=True)
+    (proj / "tests").mkdir()
+    (proj / "src" / "netdryrun" / "__init__.py").write_text("", encoding="utf-8")
+    (proj / "src" / "netdryrun" / "tiny.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
+    for name in ("import_guard.py", "oldrelease.py"):
+        shutil.copy(ROOT / "tests" / name, proj / "tests" / name)
+    (proj / "tests" / "conftest.py").write_text(
+        "from import_guard import pytest_configure, pytest_report_header, pytest_sessionfinish  # noqa: F401\n", encoding="utf-8")
+    (proj / "tests" / "test_tiny.py").write_text(
+        "from pathlib import Path\n\nimport oldrelease\nfrom netdryrun.tiny import add\n\nROOT = Path(__file__).resolve().parent.parent\n\n\n"
+        "def test_add():\n    assert add(1, 2) == 3 and add(2, 2) == 4\n\n\n"
+        "def test_the_old_release_can_be_exported_from_wherever_the_tests_run(tmp_path):\n"
+        "    assert oldrelease.export_src('v0.4.1', tmp_path / 'old', ROOT)\n"
+        "    assert (tmp_path / 'old' / 'src' / 'netdryrun' / 'tiny.py').is_file()\n", encoding="utf-8")
+    (proj / "pyproject.toml").write_text(
+        '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n\n[tool.mutmut]\nsource_paths = ["src/"]\n'
+        'only_mutate = ["src/netdryrun/tiny.py"]\npytest_add_cli_args_test_selection = ["tests/"]\n', encoding="utf-8")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.org", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@example.org"}
+    for cmd in (["init", "-q"], ["add", "-A"], ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "x"], ["tag", "v0.4.1"]):
+        subprocess.run(["git", *cmd], cwd=proj, env=env, check=True, capture_output=True)
+    return proj
+
+
+@pytest.mark.skipif(sys.platform in ("win32",), reason="mutmut needs Linux or macOS")
+@pytest.mark.skipif(shutil.which("git") is None or shutil.which("tar") is None, reason="needs git and tar")
+def test_real_mutmut_runs_to_the_end_with_the_guard_and_the_old_release_export(tmp_path):
+    """Neither the guard's refusal of files beside a module (mutmut's .meta and .spans) nor a git call that fails in the
+    untracked mutants/ folder was seen until the release gate ran mutmut: run it, the same command, on a tiny project."""
+    import importlib.util
+    if os.environ.get("MUTANT_UNDER_TEST") is not None or any(k.startswith("MUTMUT") for k in os.environ):
+        pytest.skip("this run is itself mutmut's: no nested mutmut")
+    if importlib.util.find_spec("mutmut") is None:
+        pytest.skip("mutmut is not installed (pip install '.[dev]')")
+    proj = _tiny_mutmut_project(tmp_path)
+    env = {k: v for k, v in release_gate.clean_test_env().items() if not k.startswith("MUTMUT") and k != "PYTHONPATH"}
+    env["PYTHONPATH"] = str(proj / "src")
+    p = subprocess.run(release_gate.mutmut_run_command(["tiny"], 1), cwd=proj, env=env, capture_output=True, text=True,
+                       timeout=900)
+    assert p.returncode == 0, p.stdout[-1500:] + p.stderr[-1500:]
+    res = subprocess.run([sys.executable, "-m", "mutmut", "results", "--all", "true"], cwd=proj, env=env,
+                         capture_output=True, text=True, timeout=300).stdout
+    assert "killed" in res and "survived" not in res, res
+    assert (proj / "mutants" / "src" / "netdryrun" / "tiny.py.meta").exists()          # the file that tripped the guard
