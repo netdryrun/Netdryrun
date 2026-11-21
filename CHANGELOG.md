@@ -58,7 +58,8 @@
     baseline.
   - A node no driver claims (an FRR image not named for it) is asked for bgpd's running config and guarded as FRR
     when it answers. A node that can't be told is a named gap: a console warning and `not checked` in the report; `run`,
-    `check` and `verify` are then INCONCLUSIVE (exit `3`) with the reason in every output, and `record` writes an
+    `check` and `verify` are then INCONCLUSIVE (exit `3`) with the reason in every output (the JUnit report gets
+    an error testcase that carries it, so a CI test widget isn't green), and `record` writes an
     `INCOMPLETE BASELINE` line (exit `1`).
   - The toggle can briefly announce an unbacked prefix to a peer. It wasn't seen in 3 live tries, but the timing
     isn't guaranteed. A peer with route-flap dampening may count it as a flap (see the config reference).

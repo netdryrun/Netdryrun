@@ -137,15 +137,20 @@ def _evidence_excerpt(output: str, params: dict, max_lines: int = 15) -> str:
 
 
 def to_markdown(rep: RunReport) -> str:
+    gaps = rep.status == "inconclusive" and rep.import_check_gaps
     head = {"passed": "✅ Netdryrun passed", "failed": "❌ Netdryrun failed", "error": "⚠️ Netdryrun could not run",
             "inconclusive": "⏸️ Netdryrun inconclusive: the lab never reached a testable state"}[rep.status]
+    if gaps:   # a rerun gives the same answer: the reason line says what to change (review of 29debf6)
+        head = "⏸️ Netdryrun inconclusive: a node's FRR import check could not be checked (the reason is below)"
     lines = [f"### {head}", ""]
     if rep.error:
         lines += _md_block(rep.error)
         return "\n".join(lines) + "\n"
     if rep.status == "inconclusive":
+        then = ("A rerun gives the same answer: do what the line above says, then run again." if gaps
+                else "Rerun once the lab comes up.")
         lines += [f"> {_md_cell(rep.inconclusive_reason)}", ">",
-                  "> This says nothing about the change, good or bad. Rerun once the lab comes up.", ""]
+                  f"> This says nothing about the change, good or bad. {then}", ""]
     warned = [r for r in rep.results if r.warnings]
     if warned:
         lines += [f"> ⚠️ {len(warned)} check(s) ran with a convergence warning (the verdict stands; see below):", ">"]
@@ -198,10 +203,16 @@ def to_junit(rep: RunReport) -> str:
     errors = 1 if rep.error else 0
     if rep.error:
         cases.append(f'  <testcase classname="netdryrun" name="lab"><error message={quoteattr(rep.error)}/></testcase>')
-    tests = len(rep.results) + errors
+    # An INCONCLUSIVE whose checks all passed (an import-check gap) would read green in a CI test widget, and a
+    # gap's reason is never on a check: one error testcase carries the reason (review of 29debf6)
+    verdict_case = tag == "error" and (not rep.failed or bool(rep.import_check_gaps))
+    if verdict_case:
+        cases.append(f'  <testcase classname="netdryrun" name="inconclusive"><error message='
+                     f'{quoteattr(rep.inconclusive_reason or "inconclusive")}/></testcase>')
+    tests = len(rep.results) + errors + verdict_case
     failures = rep.failed
     if tag == "error":
-        errors, failures = rep.failed, 0
+        errors, failures = rep.failed + verdict_case, 0
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         f'<testsuite name="netdryrun" tests="{tests}" failures="{failures}" errors="{errors}">\n'

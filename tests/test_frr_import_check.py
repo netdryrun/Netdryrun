@@ -1032,9 +1032,47 @@ def test_a_gap_makes_a_run_inconclusive_never_a_pass(monkeypatch, deploy):
     assert data["warnings"]["count"] == 0
     md = report.to_markdown(rep)
     assert "inconclusive" in md and "could not be checked on pe2" in md and "convergence warning" not in md
+    # review of 29debf6: a rerun won't clear a gap, so the headline points at the reason, not at a rerun
+    assert "never reached a testable state" not in md and "Rerun once the lab comes up" not in md
+    assert md.startswith("### ⏸️ Netdryrun inconclusive: a node's FRR import check could not be checked")
+    # review of 29debf6 (required): every check passed, and the JUnit a CI test widget reads is not green
+    junit = report.to_junit(rep)
+    assert 'failures="0" errors="1"' in junit and f'tests="{len(rep.results) + 1}"' in junit
+    import xml.etree.ElementTree as ET
+    case = [c for c in ET.fromstring(junit) if c.get("name") == "inconclusive"]
+    assert len(case) == 1 and case[0].find("error").get("message") == rep.inconclusive_reason
     mcp = agent_result._summary(rep, None)
     assert mcp["status"] == "inconclusive" and "could not be checked on pe2" in mcp["inconclusive_reason"]
     assert mcp["verdict"] != agent_result.CHECKS_PASSED
+
+
+def test_a_gap_with_a_failed_check_keeps_its_reason_in_junit(monkeypatch):
+    """Review of 29debf6: with a gap and a failed check, the JUnit has the failed check's error and the gap's
+    reason too, so the reason is never lost; the PR comment (header and Markdown) is not green either."""
+    import xml.etree.ElementTree as ET
+
+    from netdryrun import report
+    o = _oracle()
+    _with_gap(monkeypatch)
+    rep, _ = o.judged(monkeypatch, "c18", "c18_healthy_boot12", True)
+    assert rep.status == "inconclusive" and rep.failed >= 1
+    suite = ET.fromstring(report.to_junit(rep))
+    assert suite.get("failures") == "0" and suite.get("errors") == str(rep.failed + 1)
+    assert suite.get("tests") == str(len(rep.results) + 1) == str(len(suite))
+    verdict = [c for c in suite if c.get("name") == "inconclusive"]
+    assert len(verdict) == 1 and "could not be checked on pe2" in verdict[0].find("error").get("message")
+
+
+def test_a_gap_run_s_pr_comment_is_not_green(monkeypatch, tmp_path):
+    from netdryrun import agent_result, comment, report
+    o = _oracle()
+    _with_gap(monkeypatch)
+    rep, _ = o.judged(monkeypatch, "c18", o.BASE, True)
+    verdict, md = tmp_path / "verdict.json", tmp_path / "summary.md"
+    verdict.write_text(json.dumps(agent_result._summary(rep, None)))
+    md.write_text(report.to_markdown(rep))
+    text = comment.body(str(verdict), "inconclusive", str(md), "lab", None)
+    assert "status `inconclusive`" in text and "could not be checked on pe2" in text and "✅" not in text.split("|")[0]
 
 
 def test_a_gap_makes_verify_inconclusive_in_every_output(monkeypatch, tmp_path):
