@@ -70,3 +70,13 @@ oracle still fails on its parent.
 The loosening gate is the other half: `fastfix_gate.py loosening` blocks any FAIL→PASS or UNKNOWN→PASS that
 re-judging shows (corpus results, the red team, known false passes, every committed oracle). The only exception is a
 reviewed entry in `fastfix/allow/*.yml`, added by another session in a commit of its own. See `fastfix/README.md`.
+
+## Plants
+
+Each fixed oracle keeps its bug next to it: `plant: plant.diff` in `ORACLE.yml` names a patch that puts the bug back
+in shipped code. `fastfix_gate.py plants` applies every plant to the candidate and needs its oracle to fail, with an
+assertion raised in the oracle's own folder (not in shipped code or a shared helper, and not a fake refusing a
+command). The plant is the fix's exact reverse. Only when that no longer applies may it be a port (`ported_from: <the
+fix's sha>`), and a port changes only the files the fix changed and adds no `assert` or `raise` the reverse doesn't
+have. Oracles fixed before plants were required may say `plant: none` with a `plant_why:`; each one is a port still
+owed. An oracle without a fix needs no plant yet, but one still waiting at the next release is a MAJOR there.

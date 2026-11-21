@@ -607,63 +607,116 @@ def layer_static(args) -> Layer:
 
 DOMINANCE_TITLE = "no unexplained FAIL/UNKNOWN -> PASS against the published release (fastfix_gate.py loosening)"
 PLANTS_TITLE = "every oracle's plant still applies and its oracle still catches it (fastfix_gate.py plants)"
+SKIPS_TITLE = "every must-not-pass fixture ran at the published release on this host"
+JUDGE_TITLE = "the published release's own fastfix_gate.py judged dominance and plants"
+PENDING_TITLE = "no oracle without a fix has waited since the published release (fastfix_gate.py plants)"
+# the one published release whose fastfix_gate.py predates the dominance and plants commands: only the release after
+# it may be judged by its own copy (the bootstrap), and the gate says so with a MAJOR to accept knowingly
+BOOTSTRAP_TAG = "v0.4.2"
 
 
 def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
     """0.4.2 fast fix (scripts/fastfix_gate.py): the loosening gate and the reproduce-first check, over the change
-    from the merge-base of --fastfix-base and HEAD. An empty range (HEAD is the base: a release from main without
-    --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS. At --candidate, also
-    dominance (the same comparison against the published release) and the living plants; each runs the BASE's
-    fastfix_gate.py, or this checkout's while the base's copy predates the command."""
+    from the merge-base of --fastfix-base and HEAD, judged by the base's copy. An empty range (HEAD is the base: a
+    release from main without --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS.
+    At --candidate, also dominance and the living plants, against the published release whatever
+    --fastfix-base says (published_checks)."""
     git_, runner = git_ or git, runner or run
     titles = {"loosening": "no unexplained FAIL/UNKNOWN -> PASS against the base (fastfix_gate.py loosening)",
               "reproduce-first": "every src/ commit names an independent oracle that failed before it, or says why "
                                  "not (fastfix_gate.py reproduce)"}
-    if getattr(args, "candidate", False):
-        titles.update(dominance=DOMINANCE_TITLE, plants=PLANTS_TITLE)
     base = git_("merge-base", args.fastfix_base, "HEAD")
     head = git_("rev-parse", "HEAD")
     if not base or not head:
         for id_, title in titles.items():
             layer.add(id_, title, BLOCKER, False, f"can't find the merge-base of {args.fastfix_base} and HEAD "
                       "(shallow clone or unknown ref; CI needs fetch-depth: 0)")
-        return
-    if base == head:
+    elif base == head:
         for id_, title in titles.items():
             layer.add(id_, title, BLOCKER, None, f"HEAD is the base ({head[:10]}): nothing to compare; pass "
                       "--fastfix-base <previous release tag> at a release")
-        return
-    # the base's copy judges the change, so a change can't loosen the judge it is judged by; a base from before the
-    # gate existed (its bootstrap) uses this checkout's copy, and says so
-    tmp = Path(tempfile.mkdtemp(prefix="ndr-fastfix-gate-"))
-    script = tmp / "fastfix_gate.py"
-    own = git_("show", f"{base}:scripts/fastfix_gate.py")
-    if own:
-        script.write_text(own + "\n", encoding="utf-8")
-        which = f"the base's fastfix_gate.py ({base[:10]})"
     else:
-        shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", script)
-        which = "this checkout's fastfix_gate.py (the base predates it)"
-    for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
-                     ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
-                                          "--range", f"{base}..HEAD"])):
-        layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}, by {which}")
+        # the base's copy judges the change, so a change can't loosen the judge it is judged by; a base from before
+        # the gate existed (its bootstrap) uses this checkout's copy, and says so
+        tmp = Path(tempfile.mkdtemp(prefix="ndr-fastfix-gate-"))
+        script = tmp / "fastfix_gate.py"
+        own = git_("show", f"{base}:scripts/fastfix_gate.py")
+        if own:
+            script.write_text(own + "\n", encoding="utf-8")
+            which = f"the base's fastfix_gate.py ({base[:10]})"
+        else:
+            shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", script)
+            which = "this checkout's fastfix_gate.py (the base predates it)"
+        for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
+                         ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
+                                              "--range", f"{base}..HEAD"])):
+            layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600),
+                           f"clean since {base[:10]}, by {which}")
+        shutil.rmtree(tmp, ignore_errors=True)
     if getattr(args, "candidate", False):
-        def judge(marker: str) -> tuple[Path, str]:
-            """The base's copy when it has the command, else this checkout's (the bootstrap), and which one."""
-            if own and marker in own:
-                return script, which
-            mine = tmp / "fastfix_gate_checkout.py"
-            shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", mine)
-            return mine, f"this checkout's fastfix_gate.py (the base's copy {base[:10]} predates the command)"
-        dominance_checks(layer, args, git_, runner, head, *judge('"--dominance"'))
-        plant_script, plant_which = judge('add_parser("plants"')
-        out = gate_dir(args) / "plants.json"
-        cmd = [sys.executable, plant_script, "plants", "--repo", ROOT, "--candidate", head, "--base", base,
-               "--json", out]
-        layer.add_proc("plants", PLANTS_TITLE, BLOCKER, cmd, runner(cmd, timeout=3600),
-                       f"{plants_summary(out)}, by {plant_which}")
-    shutil.rmtree(tmp, ignore_errors=True)
+        published_checks(layer, args, git_, runner, head)
+
+
+def published_judge(git_, tag: str, marker: str, dest: Path) -> tuple[Path | None, str, bool]:
+    """(script, which, bootstrap): the published tag's fastfix_gate.py when it has the command. Only the release after
+    BOOTSTRAP_TAG may fall back to this commit's own (committed) copy; any other tag without the command fails."""
+    own = git_("show", f"{tag}:scripts/fastfix_gate.py")
+    if own and marker in own:
+        dest.write_text(own + "\n", encoding="utf-8")
+        return dest, f"the published release's fastfix_gate.py ({tag})", False
+    if tag != BOOTSTRAP_TAG:
+        return None, (f"{tag}'s fastfix_gate.py has no such command, and only the release after {BOOTSTRAP_TAG} may be "
+                      "judged by its own copy"), False
+    mine = git_("show", "HEAD:scripts/fastfix_gate.py")
+    if not mine:
+        return None, "can't read HEAD's committed scripts/fastfix_gate.py", False
+    dest.write_text(mine + "\n", encoding="utf-8")
+    return dest, (f"BOOTSTRAP: this commit's own fastfix_gate.py ({tag} predates the command; allowed only for the "
+                  f"release after {BOOTSTRAP_TAG})"), True
+
+
+def published_checks(layer: Layer, args, git_, runner, head: str | None) -> None:
+    """Dominance and the living plants, against the published release, each judged by the published release's own
+    fastfix_gate.py (never a base the caller picks)."""
+    tag, why = published_tag(args, git_) if head else (None, "can't read HEAD")
+    if tag is None:
+        for id_, title in (("dominance", DOMINANCE_TITLE), ("plants", PLANTS_TITLE)):
+            layer.add(id_, title, BLOCKER, False, f"can't name the published release: {why}")
+        return
+    tmp = Path(tempfile.mkdtemp(prefix="ndr-published-judge-"))
+    booted = []
+    try:
+        script, which, boot = published_judge(git_, tag, '"--dominance"', tmp / "dominance_judge.py")
+        booted += ["dominance"] * boot
+        if script is None:
+            layer.add("dominance", DOMINANCE_TITLE, BLOCKER, False, which)
+        else:
+            dominance_checks(layer, args, runner, head, tag, why, script, which)
+        script, which, boot = published_judge(git_, tag, 'add_parser("plants"', tmp / "plants_judge.py")
+        booted += ["plants"] * boot
+        if script is None:
+            layer.add("plants", PLANTS_TITLE, BLOCKER, False, which)
+        else:
+            out = gate_dir(args) / "plants.json"
+            out.unlink(missing_ok=True)
+            cmd = [sys.executable, script, "plants", "--repo", ROOT, "--candidate", head, "--base", tag, "--json", out]
+            layer.add_proc("plants", PLANTS_TITLE, BLOCKER, cmd, runner(cmd, timeout=3600),
+                           f"{plants_summary(out)}, by {which}")
+            try:
+                waiting = json.loads(out.read_text(encoding="utf-8"))["pending_since_base"]
+                if not isinstance(waiting, list):
+                    raise TypeError("pending_since_base is not a list")
+                layer.add("plants-pending", PENDING_TITLE, MAJOR, not waiting,
+                          f"{len(waiting)} oracle(s) with no fix since {tag}: {', '.join(waiting[:5])}" if waiting
+                          else "none")
+            except (OSError, ValueError, KeyError, TypeError) as e:
+                layer.add("plants-pending", PENDING_TITLE, MAJOR, False, f"no readable plants record ({e})")
+        layer.add("published-judge", JUDGE_TITLE, MAJOR, not booted,
+                  f"BOOTSTRAP: {' and '.join(booted)} judged by this commit's own fastfix_gate.py, because {tag} "
+                  f"predates the commands; accept this once, for the release after {BOOTSTRAP_TAG} only"
+                  if booted else f"{tag}'s copy")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def gate_dir(args) -> Path:
@@ -676,7 +729,7 @@ def plants_summary(path: Path) -> str:
     try:
         d = json.loads(path.read_text(encoding="utf-8"))
         return (f"{d['caught']} of {d['total']} plants caught ({d['applied']} applied); "
-                f"plant: none {len(d['not_applicable'])}; no fix yet {len(d.get('pending', []))}")
+                f"plant: none {len(d['not_applicable'])} (owed ports); no fix yet {len(d.get('pending', []))}")
     except (OSError, ValueError, KeyError, TypeError):
         return "no plants record"
 
@@ -686,8 +739,9 @@ CHANGELOG_HEADING = re.compile(r"^## (\d+\.\d+\.\d+)\b", re.M)
 
 def published_tag(args, git_) -> tuple[str | None, str]:
     """(the published release's tag, or None; why). It defaults to the newest v* tag reachable from HEAD other than
-    the candidate's own, must be an ancestor of HEAD, and must name the newest release in CHANGELOG.md other than the
-    candidate's own."""
+    the candidate's own, must be an ancestor of HEAD, must name the newest release in CHANGELOG.md other than the
+    candidate's own, and must be the commit origin's tag names (a local tag moved by hand, or no way to ask origin,
+    fails)."""
     tag = getattr(args, "published_tag", None) or git_("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*",
                                                        "--exclude", f"v{args.version}", "HEAD")
     if not tag:
@@ -701,17 +755,25 @@ def published_tag(args, git_) -> tuple[str | None, str]:
     newest = next((v for v in CHANGELOG_HEADING.findall(changelog) if v != args.version), None)
     if newest is None or tag != f"v{newest}":
         return None, f"{tag} is not the newest release in CHANGELOG.md other than {args.version} ({newest or 'none'})"
-    return tag, f"{tag} ({sha[:10]})"
+    remote = git_("ls-remote", "origin", f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}")
+    refs = {}
+    for line in (remote or "").splitlines():
+        sha_, _, ref = line.partition("\t")
+        refs[ref.strip()] = sha_.strip()
+    published = refs.get(f"refs/tags/{tag}^{{}}") or refs.get(f"refs/tags/{tag}")
+    if not published:
+        return None, (f"can't confirm {tag} against origin (git ls-remote origin refs/tags/{tag} gave nothing): the "
+                      "published tag must be checked against what was published")
+    if published != sha:
+        return None, (f"{tag} here is {sha[:10]}, but origin's {tag} is {published[:10]}: the local tag doesn't match "
+                      "what was published")
+    return tag, f"{tag} ({sha[:10]}, as origin has it)"
 
 
-def dominance_checks(layer: Layer, args, git_, runner, head: str, script: Path, which: str) -> None:
+def dominance_checks(layer: Layer, args, runner, head: str, tag: str, why: str, script: Path, which: str) -> None:
     """The candidate against the release users have: no FAIL/UNKNOWN -> PASS since the published tag that a reviewed
     allowlist entry doesn't cover. Its JSON (gate/dominance.json) carries the new device reads the report turns
     into live runs, and the fixtures the gate host skipped at the tag (not compared: MAJOR)."""
-    tag, why = published_tag(args, git_)
-    if tag is None:
-        layer.add("dominance", DOMINANCE_TITLE, BLOCKER, False, f"can't name the published release: {why}")
-        return
     out = gate_dir(args) / "dominance.json"
     out.unlink(missing_ok=True)
     cmd = [sys.executable, script, "loosening", "--repo", ROOT, "--base", tag, "--candidate", head, "--dominance",
@@ -724,8 +786,7 @@ def dominance_checks(layer: Layer, args, git_, runner, head: str, script: Path, 
         if not isinstance(skipped, list):
             raise TypeError("skipped_at_base is not a list")
     except (OSError, ValueError, KeyError, TypeError) as e:
-        layer.add("dominance-skips", "every must-not-pass fixture ran at the published release on this host", MAJOR,
-                  False, f"no readable dominance record ({e})")
+        layer.add("dominance-skips", SKIPS_TITLE, MAJOR, False, f"no readable dominance record ({e})")
         return
     guards = [s for s in skipped if not isinstance(s, dict) or s.get("origin") in ("redteam", "oracles",
                                                                                      "known_false_passes", "unknown")]
@@ -733,7 +794,7 @@ def dominance_checks(layer: Layer, args, git_, runner, head: str, script: Path, 
     # still a must-not-pass fixture neither side ran here: counted, and said, so a reviewer can accept it knowingly
     same = sum(1 for s in guards if isinstance(s, dict) and s.get("same_at_candidate") is True)
     both = f" ({same} of them skipped the same way at the candidate)" if same else ""
-    layer.add("dominance-skips", "every must-not-pass fixture ran at the published release on this host", MAJOR,
+    layer.add("dominance-skips", SKIPS_TITLE, MAJOR,
               not guards, f"{len(guards)} not compared (skipped at {tag}){both}" if guards else "none skipped",
               "\n".join(f"{s.get('case')} ({s.get('origin')}): {s.get('reason')}" if isinstance(s, dict) else str(s)
                         for s in guards))
@@ -2279,46 +2340,65 @@ LIVE_BY_NOS = {"frr": ("frr-bgp",), "sonic": ("sonic-frr",), "eos": ("arista-frr
                "routeros": ("mikrotik",)}
 
 
-def new_read_problems(records: dict, folder: Path) -> tuple[list[str], list[str]]:
-    """(blockers, gaps) from gate/dominance.json: for every driver a new-read flip names ("*": all of them), the
-    live layer ran that network OS's examples on the dominance run's own commit, and each passed."""
+def new_read_problems(records: dict, folder: Path) -> tuple[list[str], list[str], list[str]]:
+    """(blockers, gaps, info) from gate/dominance.json. Every network OS a new device read since the published
+    release goes to (its new-read flips and reviewed new-read entries; "*" or no driver at all: every OS) needs every
+    one of its live examples to pass, run on the commit dominance judged. While the published release's fixtures
+    keep no fake-lab command log, a read can also hide in a fake that answers anything: then every OS whose driver
+    changed since the release needs live too, and the report says so."""
     static = records.get("static")
     if static is None:
-        return [], []
+        return [], [], []
     dom = next((c for c in static["checks"] if c["id"] == "dominance"), None)
     if dom is None:
-        return [], ["static ran without --candidate: no dominance check against the published release"]
+        return [], ["static ran without --candidate: no dominance check against the published release"], []
     if dom["status"] != PASS:
-        return [], []    # already a BLOCKER (or a strict SKIP) of its own
+        return [], [], []    # already a BLOCKER (or a strict SKIP) of its own
     try:
         data = json.loads((folder / "gate" / "dominance.json").read_text(encoding="utf-8"))
         cand = data["candidate"]
-        flips = [f for f in data["flips"] if f["kind"] == "new-read"]
-        drivers = {d for f in flips for d in f["drivers"]}
-    except (OSError, ValueError, KeyError, TypeError) as e:
+        reads = [(str(f["case"]), [str(d) for d in (f.get("drivers") or [])] or ["*"])
+                 for f in data["flips"] if f["kind"] == "new-read"]
+        entries = data.get("new_read_entries", [])
+        changed = data.get("changed_drivers", ["*"])
+        if not isinstance(entries, list) or not isinstance(changed, list):
+            raise TypeError("new_read_entries and changed_drivers must be lists")
+        reads += [(f"{e['case']} (allowed in {e.get('file')})", [str(d) for d in (e.get("drivers") or [])] or ["*"])
+                  for e in entries]
+        logged = data.get("command_log_at_base") is True
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
         return [f"static/dominance: its record (gate/dominance.json) can't be read ({e}), so new device reads can't "
-                "be routed to live"], []
+                "be routed to live"], [], []
     if cand != static["git"].get("sha"):
         return [f"static/dominance: gate/dominance.json judged {str(cand)[:10]}, not static's commit "
-                f"{str(static['git'].get('sha'))[:10]}"], []
-    unknown = sorted(drivers - set(LIVE_BY_NOS) - {"*"})
+                f"{str(static['git'].get('sha'))[:10]}"], [], []
+    info = []
+    if not logged:
+        drivers_changed = [str(d) for d in changed] or []
+        reads += [(f"the {d} driver changed since the published release", [d]) for d in drivers_changed]
+        info.append("the published release's fixtures keep no fake-lab command log, so a new device read shows only "
+                    "as a fake's refusal or a driver exception; live must also pass on every network OS whose driver "
+                    f"changed since it ({', '.join(drivers_changed) or 'none'})")
+    drivers = {d for _, ds in reads for d in ds}
+    unknown = drivers - set(LIVE_BY_NOS) - {"*"}
     nos = sorted(LIVE_BY_NOS) if "*" in drivers or unknown else sorted(drivers)
     live = records.get("live")
     out = []
     for n in nos:
-        cases = [f"{f['case']}" for f in flips if n in f["drivers"] or "*" in f["drivers"] or unknown]
+        cases = [c for c, ds in reads if n in ds or "*" in ds or set(ds) & unknown]
         where = f"new device read on {n} ({', '.join(cases[:3])})"
         if live is None or live["git"].get("sha") != cand:
             got = "no live layer recorded" if live is None else f"live ran on {str(live['git'].get('sha'))[:10]}"
             out.append(f"{where}: live must run on {str(cand)[:10]} ({got}; a carried result doesn't count)")
             continue
-        wanted = [c for c in live["checks"] for ex in LIVE_BY_NOS[n]
-                  if c["id"] == f"example-{ex}" or c["id"].startswith(f"example-{ex}-")]
-        bad = [f"{c['id']} {c['status']}" for c in wanted if c["status"] != PASS]
-        if not wanted or bad:
-            out.append(f"{where}: live must run on {str(cand)[:10]}: "
-                       + ("; ".join(bad) if bad else f"no example for it in the live record ({', '.join(LIVE_BY_NOS[n])})"))
-    return out, []
+        bad = []
+        for ex in LIVE_BY_NOS[n]:   # every example of the OS, not any one of them
+            got = [c for c in live["checks"] if c["id"] == f"example-{ex}" or c["id"].startswith(f"example-{ex}-")]
+            bad += [f"example-{ex} not in the live record"] if not got else \
+                [f"{c['id']} {c['status']}" for c in got if c["status"] != PASS]
+        if bad:
+            out.append(f"{where}: live must run on {str(cand)[:10]}: " + "; ".join(bad))
+    return out, [], info
 
 
 def ready_to_publish(blockers, skipped, majors, missing, notes) -> bool:
@@ -2367,7 +2447,7 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
             elif c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR:
                 majors.append(f"{key}: {c['title']}")
     # a new device read since the published release needs live on that network OS, run on this very commit
-    read_blockers, read_gaps = new_read_problems(records, folder)
+    read_blockers, read_gaps, read_info = new_read_problems(records, folder)
     blockers += read_blockers
     notes += read_gaps
     # fail closed: the stranger's false pass is a BLOCKER, like any layer's
@@ -2397,7 +2477,8 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
              "rerun a layer, or record a decision in `accepted.json` or `review.md`.", "", verdict, ""]
     for title, items in (("BLOCKER failures", blockers), ("BLOCKER checks skipped", skipped),
                          ("MAJOR checks not passed or accepted", majors),
-                         ("Layers not run yet", [LAYERS[n] for n in missing]), ("Other gaps", notes)):
+                         ("Layers not run yet", [LAYERS[n] for n in missing]), ("Other gaps", notes),
+                         ("Against the published release", read_info)):
         if items:
             lines += [f"**{title}:**", ""] + [f"- {cell(i)}" for i in items] + [""]
 
@@ -2666,7 +2747,8 @@ def main() -> int:
     ap.add_argument("--candidate", action="store_true",
                     help="static: this is the release candidate (CHANGELOG cut, tag and PyPI version unused)")
     ap.add_argument("--published-tag", help="static --candidate: the release users have now (default: the newest v* "
-                    "tag reachable from HEAD, which must also be CHANGELOG.md's newest release before this one)")
+                    "tag reachable from HEAD; it must be CHANGELOG.md's newest release before this one and match "
+                    "origin's tag). Its own fastfix_gate.py judges dominance and plants")
     ap.add_argument("--fastfix-base", default="origin/main",
                     help="static: the loosening and reproduce-first checks cover merge-base(this, HEAD)..HEAD "
                          "(default origin/main; at a release, the previous release tag)")

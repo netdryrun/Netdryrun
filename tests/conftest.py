@@ -30,3 +30,16 @@ def _no_readiness_wait(monkeypatch):
     no wait (the readiness tests set their own budget)."""
     from netdryrun import mgmt
     monkeypatch.setattr(mgmt, "READY_BUDGET", 0.0)
+
+
+@pytest.fixture(autouse=True)
+def _log_fake_lab_commands():
+    """With NDR_FAKE_COMMAND_LOG set (the release gate sets it, nothing else does), every command a test sends to a
+    lab, fake or real, is logged through tests/fakes.py, so comparing two versions shows a new device read even where
+    the fake answers anything (tests/fakes.py)."""
+    from fakes import logging_commands
+    undo = logging_commands()
+    try:
+        yield
+    finally:
+        undo()

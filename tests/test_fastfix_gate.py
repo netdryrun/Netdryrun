@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -728,7 +729,7 @@ def test_change_to_the_gate_itself_is_a_flip_once_the_base_has_it(repo):
     repo.write("scripts/fastfix_gate.py", "# the judge, made lenient\n")
     repo.commit("tweak the judge")
     code, out = repo.loosening(base)
-    assert code == 1 and "gate :: scripts/fastfix_gate.py: FAIL -> PASS" in out, out
+    assert code == 1 and re.search(r"gate :: scripts/fastfix_gate.py@[0-9a-f]{12}: FAIL -> PASS", out), out
 
 
 @needs_git
@@ -890,7 +891,7 @@ def test_every_gate_script_is_a_flip_once_the_base_has_the_gate(repo, gate_file)
     repo.write(gate_file, "# part of the gate, made lenient\n")
     repo.commit("tweak")
     code, out = repo.loosening(base)
-    assert code == 1 and f"gate :: {gate_file}: FAIL -> PASS" in out, out
+    assert code == 1 and re.search(rf"gate :: {re.escape(gate_file)}@([0-9a-f]{{12}}|deleted): FAIL -> PASS", out), out
 
 
 @needs_git
@@ -1040,7 +1041,8 @@ def test_code_that_turns_the_command_log_off_blocks(drepo, tmp_path):
     assert code == 1 and "turned the log off" in out, out
 
 
-def _allow_new_read(r: Repo, kind: str | None = "new-read", reviewer: str = "reviewer-2", session: str = "allower"):
+def _allow_new_read(r: Repo, kind: str | None = "new-read", reviewer: str = "reviewer-2", session: str = "allower",
+                    review: str | None = "record"):
     r.write("src/toy/drivers.py", NEW_READ_DRIVER)
     r.write("tests/test_redteam.py", REDTEAM + "\n\n" + DRIVER_TESTS.replace(
         '[("show bgp summary", "down")]', '[("show bgp neighbors", "x"), ("show bgp summary", "down")]'))
@@ -1059,6 +1061,11 @@ def _allow_new_read(r: Repo, kind: str | None = "new-read", reviewer: str = "rev
         """) + (f"  kind: {kind}\n" if kind else "") for c in cases)
     r.write("fastfix/allow/new-read.yml", "flips:\n" + entries)
     r.commit("allow the new read", Session=session)
+    if review:      # the reviewer's own commit: its record, and (red) more than its record
+        r.write("fastfix/reviews/new-read.md", "the neighbor read is answered and the refusal still holds\n")
+        if review == "and-code":
+            r.write("tests/test_pinned.py", PINNED + "\n")
+        r.commit("review the new read", Session=reviewer)
 
 
 @needs_git
@@ -1068,16 +1075,39 @@ def test_a_reviewed_new_read_is_allowed_and_stays_in_the_json(drepo, tmp_path):
     assert code == 0, out
     reads = [f for f in data["flips"] if f["kind"] == "new-read"]
     assert len(reads) == 3 and all(f["allowed_by"] == "fastfix/allow/new-read.yml" for f in reads), data["flips"]
+    # every reviewed new-read entry goes to the release gate, which routes it to live, flip seen here or not
+    assert sorted(e["case"] for e in data["new_read_entries"]) == sorted(f["case"] for f in reads)
+    assert data["command_log_at_base"] is True and data["changed_drivers"] == []     # no product driver file
+
+
+def test_changed_drivers_maps_files_to_network_oses():
+    assert ffg.changed_drivers(["src/netdryrun/drivers/eos.py", "src/netdryrun/drivers/routeros_rest.py",
+                                "README.md"]) == ["eos", "routeros"]
+    assert ffg.changed_drivers(["src/netdryrun/drivers/base.py"]) == ["*"]
+    assert ffg.changed_drivers(["docs/x.md"]) == []
 
 
 @needs_git
-@pytest.mark.parametrize("kind,reviewer,expect", [
-    (None, "reviewer-2", "is a new device read: its entry must say kind: new-read"),
-    ("new-read", "fixer", "not a fresh session"),
-    ("new-read", "x", "reviewed_by is '<session>"),
+def test_a_base_without_the_shared_fake_says_so_in_the_json(repo, tmp_path):
+    repo.git("tag", "v1.0.0", repo.base)
+    _flip_c1(repo)
+    code, out, data = dominance(repo, "v1.0.0", tmp_path, "--dominance")
+    assert data["command_log_at_base"] is False, out
+
+
+@needs_git
+@pytest.mark.parametrize("kind,reviewer,review,expect", [
+    (None, "reviewer-2", "record", "is a new device read: its entry must say kind: new-read"),
+    ("new-read", "fixer", None, "not a fresh session"),
+    ("new-read", "x", None, "reviewed_by is '<session>"),
+    # a reviewer is a session with a commit of its own in the change, holding only its review record
+    ("new-read", "reviewer-2", None, "no commit in this change carries Session: reviewer-2"),
+    ("new-read", "made-up-name", None, "no commit in this change carries Session: made-up-name"),
+    ("new-read", "reviewer-2", "and-code", "reviewer reviewer-2's commits in this change hold more than review"),
+    ("new-read", "allower", "record", "reviewer allower also wrote the allowlist"),
 ])
-def test_a_new_read_needs_its_own_reviewed_entry(drepo, tmp_path, kind, reviewer, expect):
-    _allow_new_read(drepo, kind=kind, reviewer=reviewer)
+def test_a_new_read_needs_its_own_reviewed_entry(drepo, tmp_path, kind, reviewer, review, expect):
+    _allow_new_read(drepo, kind=kind, reviewer=reviewer, review=review)
     code, out, _ = dominance(drepo, drepo.base, tmp_path)
     assert code == 1 and expect in out, out
 
@@ -1120,7 +1150,8 @@ def test_a_fixture_skipped_at_the_base_is_listed_with_its_origin(tmp_path):
     ("tests.test_verdict_drivers::test_x[RouterosDriver]", ("routeros",)),
     ("tests.test_frr_drivers_mutants_042b::test_count", ("frr",)),
     ("tests.test_nxos::test_hist", ("nxos",)),
-    ("tests.test_eos_addpath_042::test_paths[SonicDriver]", ("sonic",)),
+    ("tests.test_eos_addpath_042::test_paths[SonicDriver]", ("eos", "sonic")),     # every driver it names
+    ("tests.test_verdict_drivers::test_x[a::b-SrlDriver]", ("srlinux",)),
     ("tests.test_redteam::test_rt_0042", ("*",)),
     ("tests.test_verify_snapshot::test_adj", ("*",)),
 ])
@@ -1132,6 +1163,9 @@ def test_drivers_of_a_node_id(key, drivers):
     ("fakes.UnexpectedCommand: unexpected command: show bgp", True),
     ("AssertionError: unexpected command: show bgp", True),
     ("unexpected command: show bgp", True),
+    ("unexpected command 'show bgp'", True),
+    ("RuntimeError: unexpected command 'show bgp'", True),
+    ("unexpected commander", False),
     ("assert 'up' == 'down'", False),
     ("KeyError: 'unexpected command: x'", False),     # not the shared refusal (the driver-exception rule covers it)
 ])
@@ -1254,6 +1288,60 @@ def test_a_ported_plant_is_accepted_once_the_exact_reverse_stops_applying(repo, 
 
 
 @needs_git
+@pytest.mark.parametrize("how,expect", [
+    # the plant may only bring the bug back; a line that fails on purpose would make any oracle "catch" it
+    ("adds-a-raise", "is a port that adds an assert or raise its fix's reverse doesn't have"),
+    ("other-file", "is a port that changes files its fix didn't (src/toy/other.py)"),
+])
+def test_a_port_that_does_more_than_the_reverse_blocks(repo, tmp_path, how, expect):
+    fix = _fixed(repo)
+    repo.write("src/toy/__init__.py", FIXED_P.replace("x > LIMIT and x != 7", "x > LIMIT and x not in (7,)"))
+    repo.commit("rewrite the refusal", No_Oracle="same refusal, written as a set")
+    repo.write("src/toy/__init__.py", JUDGE_P)
+    if how == "other-file":
+        repo.write("src/toy/other.py", "X = 1\n")
+        repo.git("add", "-N", "src/toy/other.py")
+    ported = repo.git("diff", "--", "src") + "\n"
+    if how == "other-file":
+        repo.git("rm", "-q", "--cached", "src/toy/other.py")
+        (repo.path / "src/toy/other.py").unlink()
+    repo.git("checkout", "--", "src")
+    if how == "adds-a-raise":
+        ported = ported.replace("+    return x > LIMIT\n",
+                                "+    return x > LIMIT if x != 7 else (_ for _ in ()).throw(AssertionError)\n")
+    _plant(repo, ported, ORACLE_PLANT + f"ported_from: {fix}\n")
+    code, out, _ = plants(repo, tmp_path)
+    assert code == 1 and expect in out, out
+
+
+@needs_git
+def test_a_plant_caught_outside_the_oracles_own_folder_blocks(repo, tmp_path):
+    """The assertion that fails sits in shipped code (or a shared helper), not in tests/oracles/FP-1/: the oracle
+    itself would not see the bug."""
+    with_check = JUDGE_P + "\n\ndef refused(x):\n    assert not judge(x)\n"
+    repo.write("src/toy/__init__.py", with_check)
+    repo.commit("room to grow", No_Oracle="layout only, judge() is unchanged")
+    _oracle(repo, test=ORACLE_TEST.replace("from toy import judge", "from toy import refused")
+            .replace("assert not judge(int(CAPTURE.read_text()))", "refused(int(CAPTURE.read_text()))"))
+    repo.write("src/toy/__init__.py", with_check.replace("x > LIMIT", "x > LIMIT and x != 7"))
+    fix = repo.commit("fix FP-1", Fixes_Oracle="FP-1", Session="fixer")
+    _plant(repo, _reverse(repo, fix))
+    code, out, data = plants(repo, tmp_path)
+    assert code == 1 and "not by an assertion raised in tests/oracles/FP-1/" in out, out
+    assert data["caught"] == 0 and data["oracles"] == {"FP-1": "caught elsewhere"}
+
+
+@needs_git
+@pytest.mark.parametrize("evidence", ["../outside.txt", "/etc/hostname", "C:/x.txt"])
+def test_a_plant_whose_evidence_leaves_the_repository_fails_closed(repo, tmp_path, evidence):
+    fix = _fixed(repo)
+    base = repo.git("rev-parse", "HEAD")
+    _plant(repo, _reverse(repo, fix), ORACLE_PLANT.replace("tests/fixtures/fp1.txt", evidence))
+    code, out, _ = plants(repo, tmp_path, base)
+    assert code == 2 and "is not a path inside the repository" in out, out
+
+
+@needs_git
 def test_a_plant_swapped_while_the_old_one_still_applies_blocks(repo, tmp_path):
     fix = _fixed(repo)
     _plant(repo, _reverse(repo, fix))
@@ -1288,7 +1376,7 @@ def test_plant_none_is_only_for_fixes_older_than_the_rule(repo, tmp_path):
     repo.write("tests/oracles/FP-1/ORACLE.yml", none)
     repo.commit("FP-1 predates plants", Oracle="FP-1", Session="planter")     # this commit brings the rule
     code, out, data = plants(repo, tmp_path)
-    assert code == 0 and data["not_applicable"] == ["FP-1"], out
+    assert code == 0 and data["not_applicable"] == ["FP-1"] and data["owed_ports"] == 1, out
     # a new oracle fixed after the rule can't say none
     repo.write("tests/fixtures/fp2.txt", "8\n")
     repo.write("tests/oracles/FP-2/ORACLE.yml", none.replace("FP-1", "FP-2").replace("fp1", "fp2"))
@@ -1310,8 +1398,14 @@ def test_a_new_oracle_without_a_fix_needs_no_plant_yet(repo, tmp_path):
     repo.write("tests/oracles/FP-2/ORACLE.yml", ORACLE_YML.replace("FP-1", "FP-2").replace("fp1", "fp2"))
     repo.write("tests/oracles/FP-2/test_oracle_fp_2.py", ORACLE_TEST.replace("fp1", "fp2"))
     repo.commit("oracle FP-2", Oracle="FP-2", Session="oracle-writer")
-    code, out, data = plants(repo, tmp_path)
-    assert code == 0 and data["pending"] == ["FP-2"], out
+    before = repo.git("rev-parse", "HEAD~1")
+    code, out, data = plants(repo, tmp_path, before)
+    assert code == 0 and data["pending"] == ["FP-2"] and data["pending_since_base"] == [], out
+    # still waiting for its fix at the next release: the release gate counts it (a MAJOR there)
+    repo.write("README.md", "later\n")
+    repo.commit("docs")
+    code, out, data = plants(repo, tmp_path, repo.git("rev-parse", "HEAD~1"))
+    assert code == 0 and data["pending_since_base"] == ["FP-2"], out
     # once fixed, it needs its plant
     repo.write("src/toy/__init__.py", FIXED_P.replace("x != 7", "x not in (7, 8)"))
     repo.commit("fix FP-2", Fixes_Oracle="FP-2", Session="fixer-2")

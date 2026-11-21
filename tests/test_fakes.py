@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from fakes import COMMAND_LOG, PREFIX, UnexpectedCommand, seen
+from fakes import COMMAND_LOG, PREFIX, UnexpectedCommand, logging_commands, seen
 
 TESTS = Path(__file__).resolve().parent
 # a hand-made refusal in any spelling: AssertionError("unexpected command..."), f-strings, %-format, .format
@@ -62,3 +62,33 @@ def test_seen_writes_nothing_unless_the_gate_asks(tmp_path, monkeypatch):
     rows = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
     assert [r["command"] for r in rows] == ["show bgp summary", '["vtysh", "-c", "show ip route"]']
     assert all(r["test"].endswith("test_seen_writes_nothing_unless_the_gate_asks") for r in rows)
+
+
+class _AnswersAnything:
+    """A fake that never calls seen(): only the profiler can tell what it was asked."""
+
+    def exec(self, node, cmd, timeout=30):
+        return "ok"
+
+    def exec_root(self, node, cmd):
+        return "ok"
+
+
+def test_the_profiler_logs_a_fake_that_never_calls_seen(tmp_path, monkeypatch):
+    log = tmp_path / "commands.jsonl"
+    monkeypatch.delenv(COMMAND_LOG, raising=False)
+    logging_commands()()                         # off unless the gate asks: installs nothing, undo is a no-op
+    _AnswersAnything().exec("r1", ["vtysh", "-c", "show version"])
+    assert not log.exists()
+    monkeypatch.setenv(COMMAND_LOG, str(log))
+    undo = logging_commands()
+    try:
+        _AnswersAnything().exec("r1", ["vtysh", "-c", "show bgp neighbors"])
+        _AnswersAnything().exec_root("r2", "ip -j addr")
+    finally:
+        undo()
+    _AnswersAnything().exec("r1", "after undo")      # the undo took the hook off
+    rows = [json.loads(json.loads(x)["command"]) for x in log.read_text(encoding="utf-8").splitlines()]
+    assert {"call": "exec", "node": "r1", "cmd": ["vtysh", "-c", "show bgp neighbors"]} in rows
+    assert {"call": "exec_root", "node": "r2", "cmd": "ip -j addr"} in rows
+    assert not any(r["cmd"] == "after undo" for r in rows)

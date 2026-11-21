@@ -14,13 +14,17 @@ nothing to pass.
       --json PATH writes every flip (allowed or not) with its kind. A fixture flip caused by a command the code now
       sends to the device (a fake lab refused it with "unexpected command: ...", or the fake labs' command log shows
       a command only the candidate sent) is kind new-read: its allowlist entry says so, and the release then needs
-      live on that network OS. --dominance is the release's run against the published tag.
+      live on that network OS. --dominance is the release's run against the published tag: its JSON also says
+      whether the tag's fixtures kept the command log, which drivers changed since the tag, and every new-read
+      allowlist entry since the tag, so the report can route each one to live.
 
   python scripts/fastfix_gate.py plants --repo . --candidate HEAD [--base <merge-base>] [--json PATH]
       Living plants: each oracle's tests/oracles/<ID>/plant.diff is its fix's shipped diff reversed. It must still
-      apply to the candidate, its oracle must catch it by an assertion, and the candidate without it must pass. A
-      plant changed since --base must have stopped applying first, and comes from a session that changed no shipped
-      code. `plant: none` (with plant_why) is only for oracles fixed before plants were required.
+      apply to the candidate, its oracle must catch it by an assertion raised in the oracle's own folder, and the
+      candidate without it must pass. A port (ported_from) touches only files its fix touched and adds no assert or
+      raise its fix's reverse doesn't have. A plant changed since --base must have stopped applying first, and comes
+      from a session that changed no shipped code. `plant: none` (with plant_why) is only for oracles fixed before
+      plants were required; the JSON counts them as owed ports.
 
   python scripts/fastfix_gate.py loosening-files --base OLD/results.json --candidate NEW/results.json
       The corpus comparison for two results files, with no git and nothing beside this script (the corpus refresh runs
@@ -84,9 +88,12 @@ GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/wor
 
 
 # a fixture flip whose cause is a command the code under test now sends to the device: the fake lab refused it
-# (tests/fakes.py words every refusal "unexpected command: ..."; pytest may put the exception's name in front)
+# (tests/fakes.py words every refusal "unexpected command: ..."; pytest may put the exception's name in front, and
+# older fakes in oracle folders say "unexpected command <x>")
 NEW_READ = "new-read"
-UNEXPECTED = re.compile(r"^(?:[A-Za-z_][\w.]*: )?unexpected command: ")
+UNEXPECTED = re.compile(r"^(?:[A-Za-z_][\w.]*: )?unexpected command\b")
+# a new read's reviewer is a session of its own: its commits in the range hold review records and nothing else
+REVIEW_DIR = "fastfix/reviews"
 # which network OS a fixture test exercises, from its node id: a driver class first (test_x[SrlDriver]), then a
 # name in the module or test (test_frr_*, tests.test_nxos); nothing found means every driver ("*")
 DRIVER_CLASSES = {"frr": "frr", "sonic": "sonic", "eos": "eos", "srl": "srlinux", "srlinux": "srlinux",
@@ -96,6 +103,9 @@ DRIVER_ALIASES = {**DRIVER_CLASSES, "arista": "eos", "ceos": "eos", "mikrotik": 
 PLANT = "plant.diff"
 SHIPPED_PATHS = ("src", *SURFACES)
 PLANT_KEYS = {"plant", "plant_why", "ported_from"}
+DRIVERS_DIR = "src/netdryrun/drivers/"
+DRIVER_FILES = {"frr": "frr", "sonic": "sonic", "eos": "eos", "srlinux": "srlinux", "junos": "junos", "nxos": "nxos",
+                "routeros": "routeros", "routeros_rest": "routeros", "routeros_state": "routeros"}
 
 
 def shipped(path: str) -> bool:
@@ -246,6 +256,9 @@ class Report:
     skipped_at_base: list[dict] = field(default_factory=list)
     compared: dict[str, int] = field(default_factory=dict)
     shas: dict[str, str] = field(default_factory=dict)
+    command_log_at_base: bool = False
+    changed_drivers: list[str] = field(default_factory=list)
+    new_read_entries: list[dict] = field(default_factory=list)
 
     def compare(self, source: str, base: dict[str, str], cand: dict[str, str]) -> None:
         """Per case, never in aggregate. A case judged at the base and not at the candidate blocks."""
@@ -263,7 +276,8 @@ class Report:
         return {"base": self.shas.get("base"), "candidate": self.shas.get("candidate"), "compared": self.compared,
                 "skipped_at_base": self.skipped_at_base,
                 "flips": [f.as_json() for f in self.flips] + [f.as_json(by) for f, by in self.allowed.items()],
-                "problems": self.problems}
+                "command_log_at_base": self.command_log_at_base, "changed_drivers": self.changed_drivers,
+                "new_read_entries": self.new_read_entries, "problems": self.problems}
 
 
 def corpus_verdicts(data: object, where: str) -> dict[str, str]:
@@ -383,6 +397,7 @@ class PytestRun:
     outcomes: dict[str, str]          # node key -> passed / failed / error / skipped
     messages: dict[str, str]          # node key -> failure message
     output: str
+    details: dict[str, str] = field(default_factory=dict)    # node key -> the failure's traceback text
 
     def count(self, outcome: str) -> int:
         return sum(1 for o in self.outcomes.values() if o == outcome)
@@ -408,6 +423,7 @@ def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_
     p = subprocess.run(cmd, cwd=tree, env=env, capture_output=True, text=True, timeout=1800)
     outcomes: dict[str, str] = {}
     messages: dict[str, str] = {}
+    details: dict[str, str] = {}
     if xml.is_file():
         try:
             root = ET.parse(xml).getroot()
@@ -422,13 +438,14 @@ def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_
             if outcomes.get(key, "passed") == "passed":   # reported twice (call, teardown): keep the worse
                 outcomes[key] = outcome
                 messages[key] = (kid.get("message") or "") if kid is not None else ""
+                details[key] = (kid.text or "") if kid is not None else ""
     out = (p.stdout + p.stderr)[-3000:]
     bad = sum(o in ("failed", "error") for o in outcomes.values())
     if p.returncode == 0 and (bad or not outcomes):
         raise GateError(f"pytest exited 0 but its report shows {bad} failed of {len(outcomes)}:\n{out[-800:]}")
     if p.returncode == 1 and not bad:
         raise GateError(f"pytest exited 1 but its report shows no failure:\n{out[-800:]}")
-    return PytestRun(p.returncode, outcomes, messages, out)
+    return PytestRun(p.returncode, outcomes, messages, out, details)
 
 
 # ------------------------------------------------------------------------------------------------ loosening (git)
@@ -474,10 +491,12 @@ def fixture_targets(base_tree: Path, origins: dict[str, str] | None = None) -> l
 
 def junit_key(nodeid: str) -> str:
     """pytest's node id (tests/test_x.py::TestC::test_y[p]) as the junit key run_pytest uses
-    (tests.test_x.TestC::test_y[p])."""
-    parts = nodeid.split("::")
+    (tests.test_x.TestC::test_y[p]). A parameter id may itself hold "::": only the part before "[" is split."""
+    head, bracket, param = nodeid.partition("[")
+    parts = head.split("::")
     module = parts[0].removesuffix(".py").replace("/", ".")
-    return ".".join([module, *parts[1:-1]]) + "::" + parts[-1] if len(parts) > 1 else module
+    key = ".".join([module, *parts[1:-1]]) + "::" + parts[-1] if len(parts) > 1 else module
+    return key + bracket + param
 
 
 def origin_of(key: str, origins: dict[str, str]) -> tuple[str, str]:
@@ -491,12 +510,21 @@ def origin_of(key: str, origins: dict[str, str]) -> tuple[str, str]:
 
 
 def drivers_of(key: str) -> tuple[str, ...]:
-    """The network OSes a fixture test exercises, from its node id; ("*",) when the id names none (any driver)."""
+    """The network OSes a fixture test exercises, from its node id: every driver class and every OS name it holds
+    (more live runs, never fewer); ("*",) when the id names none (any driver)."""
     found = {DRIVER_CLASSES[m.lower()] for m in re.findall(r"([A-Za-z]+?)Driver\b", key)
              if m.lower() in DRIVER_CLASSES}
-    if not found:
-        found = {DRIVER_ALIASES[t] for t in re.split(r"[^a-z0-9]+", key.lower()) if t in DRIVER_ALIASES}
+    found |= {DRIVER_ALIASES[t] for t in re.split(r"[^a-z0-9]+", key.lower()) if t in DRIVER_ALIASES}
     return tuple(sorted(found)) or ("*",)
+
+
+def changed_drivers(files: set[str]) -> list[str]:
+    """The network OSes whose driver code changed: a shared driver file (base.py, addresses.py, ...) is every one."""
+    out = set()
+    for f in files:
+        if f.startswith(DRIVERS_DIR) and f.endswith(".py"):
+            out.add(DRIVER_FILES.get(f[len(DRIVERS_DIR):-3], "*"))
+    return sorted(out)
 
 
 def read_commands(path: Path) -> dict[str, set[str]] | None:
@@ -619,18 +647,30 @@ def loosening(repo: Path, base_ref: str, cand_ref: str, python: str, dominance: 
         # the gate judging itself: once the base has it, a change to the gate's own code is a flip to allow
         if (base_tree / GATE_FILES[0]).is_file():
             touched = changed_files(repo, base, cand)
-            report.flips += [Flip("gate", g, "FAIL", "PASS", "gate") for g in GATE_FILES if g in touched]
+            report.flips += [Flip("gate", f"{g}@{gate_blob(repo, cand, g)}", "FAIL", "PASS", "gate")
+                             for g in GATE_FILES if g in touched]
         # 2. must-not-pass fixtures: the base's world with the base's code, then with the candidate's code
         origins: dict[str, str] = {}
         targets = fixture_targets(base_tree, origins)
         logs = work / "cmd-base.jsonl", work / "cmd-cand.jsonl"
         base_run = run_pytest(base_tree, targets, python, work / "r", logs[0])
         cand_run = run_pytest(compose(base_tree, cand_tree, work / "mixed"), targets, python, work / "r", logs[1])
-        fixture_compare(base_run, cand_run, report, read_commands(logs[0]), read_commands(logs[1]), origins)
+        base_cmds = read_commands(logs[0])
+        report.command_log_at_base = base_cmds is not None
+        report.changed_drivers = changed_drivers(changed_files(repo, base, cand))
+        fixture_compare(base_run, cand_run, report, base_cmds, read_commands(logs[1]), origins)
         report.notes.append(f"fixture targets ({len(targets)}): {', '.join(targets)}")
         # 3. the allowlist
         apply_allowlist(repo, base, cand, cand_tree, report, dominance)
     return report
+
+
+def gate_blob(repo: Path, cand: str, path: str) -> str:
+    """The first 12 hex digits of the gate file's blob at the candidate ("deleted" when it's gone): an allowlist entry
+    names one version of the gate, so every later edit needs its own."""
+    p = subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", f"{cand}:{path}"],
+                       capture_output=True, text=True)
+    return p.stdout.strip()[:12] if p.returncode == 0 and p.stdout.strip() else "deleted"
 
 
 def apply_allowlist(repo: Path, base: str, cand: str, cand_tree: Path, report: Report,
@@ -645,6 +685,8 @@ def apply_allowlist(repo: Path, base: str, cand: str, cand_tree: Path, report: R
     reviewers: set[str] = set()
     for f in files:
         for key, kind in allow_entries(f, cand_tree, changed, report, cited, reviewers):
+            if kind == NEW_READ:   # the report routes every reviewed new read since the release to live
+                report.new_read_entries.append({"case": key[1], "file": f, "drivers": list(drivers_of(key[1]))})
             flip = flips.get(key)
             if flip is None:
                 text = (f"{f}: allows {key[0]} :: {key[1]} {key[2]} -> {key[3]}, which is not a flip in this change")
@@ -767,8 +809,12 @@ def separation_problems(repo: Path, base: str, cand: str, report: Report, guarde
     the cited evidence carries (and those commits must carry one). A new read's reviewer is such a session too."""
     allow_sessions: dict[str, str | None] = {}
     code_sessions: dict[str, str | None] = {}
+    session_files: dict[str, set[str]] = {}
     for sha in rev_list(repo, base, cand):
         files = commit_files(repo, sha)
+        s = session_of(repo, sha)
+        if s:
+            session_files.setdefault(s, set()).update(files)
         if any(f.startswith(ALLOW_DIR + "/") for f in files):
             others = sorted(f for f in files if not f.startswith(ALLOW_DIR + "/"))
             if others or len(parents(repo, sha)) > 1:
@@ -788,6 +834,17 @@ def separation_problems(repo: Path, base: str, cand: str, report: Report, guarde
     if stale:
         report.problems.append(f"a {NEW_READ} entry is reviewed by a session that also changed shipped code, the gate "
                                f"or the cited test in this change (not a fresh session): {', '.join(sorted(stale))}")
+    for r in sorted(reviewers or ()):
+        files = session_files.get(r)
+        if not files:
+            report.problems.append(f"a {NEW_READ} entry names reviewer {r}, but no commit in this change carries "
+                                   f"Session: {r}: the review is a commit of its own ({REVIEW_DIR}/<name>.md)")
+        elif any(not f.startswith(REVIEW_DIR + "/") for f in files):
+            other = sorted(f for f in files if not f.startswith(REVIEW_DIR + "/"))
+            report.problems.append(f"reviewer {r}'s commits in this change hold more than review records "
+                                   f"({', '.join(other[:3])}): a reviewing session only writes {REVIEW_DIR}/")
+        if r in {s for s in allow_sessions.values() if s}:
+            report.problems.append(f"reviewer {r} also wrote the allowlist: the review comes from another session")
 
 
 # ------------------------------------------------------------------------------------------------ reproduce-first
@@ -1094,6 +1151,40 @@ def plant_shape_problems(text: str) -> list[str]:
     return problems
 
 
+_RISKY = re.compile(r"\b(assert|raise)\b|AssertionError")
+
+
+def added_lines(text: str) -> list[str]:
+    return [ln[1:].strip() for ln in text.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+
+
+def diff_files(text: str) -> set[str]:
+    return {m.group(1) for m in map(_DIFF_HEADER.match, text.splitlines()) if m}
+
+
+def port_problems(text: str, exact: str) -> list[str]:
+    """A port re-creates its fix's reverse on moved code: it changes only files the fix changed, and every assert or
+    raise it adds is one the exact reverse adds too (a plant brings the bug back; it doesn't fail on purpose)."""
+    out = []
+    extra = sorted(diff_files(text) - diff_files(exact))
+    if extra:
+        out.append(f"is a port that changes files its fix didn't ({', '.join(extra[:3])})")
+    allowed = set(added_lines(exact))
+    risky = [ln for ln in added_lines(text) if _RISKY.search(ln) and ln not in allowed]
+    if risky:
+        out.append(f"is a port that adds an assert or raise its fix's reverse doesn't have ({risky[0][:80]})")
+    return out
+
+
+_FRAME = re.compile(r"^(\S+?\.py):\d+: ", re.M)
+
+
+def raising_file(detail: str) -> str | None:
+    """The file of the innermost frame in a pytest traceback (`path.py:LINE: ...` lines), as a POSIX path."""
+    frames = _FRAME.findall(detail or "")
+    return frames[-1].replace("\\", "/") if frames else None
+
+
 def git_apply(tree: Path, patch: Path, check: bool) -> tuple[bool, str]:
     """git apply inside an exported tree (no repository: discovery stops at the tree)."""
     if shutil.which("git") is None:
@@ -1180,6 +1271,10 @@ def plant_registry(repo: Path, cand: str, tree: Path, oid: str, fixes: dict[str,
             report.problems.append(f"{where}: the plant is ported from {src[:10]}, but that fix's exact reverse still "
                                    "applies to the candidate: use it (a plant can't be traded for an easier one)")
             return None
+        port = port_problems(text, exact[src])
+        if port:
+            report.problems += [f"{where}: {PLANT} {p}" for p in port]
+            return None
     return text
 
 
@@ -1221,6 +1316,8 @@ def plants_world(base_tree: Path, cand_tree: Path, ids: list[str], dest: Path) -
         shutil.copytree(cand_tree / ORACLES / oid, dest / ORACLES / oid, symlinks=True)
         ev = oracle_meta(cand_tree, oid).get("evidence")
         for rel in ([ev] if isinstance(ev, str) else ev if isinstance(ev, list) else []):
+            if isinstance(rel, str) and (rel.startswith(("/", "\\")) or ":" in rel or ".." in rel.replace("\\", "/").split("/")):
+                raise GateError(f"{ORACLES}/{oid}/ORACLE.yml: evidence {rel!r} is not a path inside the repository")
             if isinstance(rel, str) and (cand_tree / rel).is_file():
                 (dest / rel).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(cand_tree / rel, dest / rel)
@@ -1239,7 +1336,7 @@ def plants(repo: Path, cand_ref: str, python: str, base_ref: str | None = None) 
     cand = resolve(repo, cand_ref)
     base = resolve(repo, base_ref) if base_ref else None
     summary: dict = {"candidate": cand, "base": base, "caught": 0, "applied": 0, "total": 0, "not_applicable": [],
-                     "pending": [], "oracles": {}}
+                     "pending": [], "pending_since_base": [], "owed_ports": 0, "oracles": {}}
     with tempfile.TemporaryDirectory(prefix="ndr-plants-") as tmp:
         work = Path(tmp)
         cand_tree = export(repo, cand, work / "cand")
@@ -1253,8 +1350,12 @@ def plants(repo: Path, cand_ref: str, python: str, base_ref: str | None = None) 
             if text is not None:
                 texts[oid] = text
         summary["total"] = len(texts)
+        summary["owed_ports"] = len(summary["not_applicable"])
         if base is not None:
             reported_guard(repo, base, cand, cand_tree, ids, work, report)
+            # an oracle with no fix that the base already held: nothing has shown it fails on buggy code
+            summary["pending_since_base"] = [o for o in summary["pending"]
+                                             if show(repo, base, f"{ORACLES}/{o}/ORACLE.yml") is not None]
         world = cand_tree if base is None else plants_world(export(repo, base, work / "base"), cand_tree,
                                                             sorted(texts), work / "world")
         # the candidate as it is passes every planted oracle (reproduce checks this too; re-asserted here)
@@ -1291,6 +1392,11 @@ def plants(repo: Path, cand_ref: str, python: str, base_ref: str | None = None) 
                 passed = sorted(k for k, o in nodes.items() if o == "passed")
                 broken = sorted(k for k, o in nodes.items()
                                 if o != "passed" and (o != "failed" or not ASSERTION.match(run.messages.get(k, ""))))
+                # caught means the oracle's own assertion fired: not one the plant put in the code, not a fake's refusal
+                own = f"{ORACLES}/{oid}/"
+                elsewhere = sorted(k for k, o in nodes.items() if o == "failed" and k not in broken and (
+                    "unexpected command" in run.messages.get(k, "")
+                    or not (raising_file(run.details.get(k, "")) or "").startswith(own)))
                 if passed:
                     summary["oracles"][oid] = "not caught"
                     report.problems.append(f"oracle {oid} no longer catches its bug: with the plant applied "
@@ -1300,11 +1406,18 @@ def plants(repo: Path, cand_ref: str, python: str, base_ref: str | None = None) 
                     report.problems.append(f"plant {oid} breaks the build, not the verdict (pytest exit {run.code}; "
                                            f"not an assertion: {', '.join(broken[:3]) or 'no test ran'}):\n"
                                            f"{run.output[-600:]}")
+                elif elsewhere:
+                    summary["oracles"][oid] = "caught elsewhere"
+                    report.problems.append(
+                        f"oracle {oid}: with the plant applied {', '.join(elsewhere[:3])} fail, but not by an assertion "
+                        f"raised in {own} (raised in {raising_file(run.details.get(elsewhere[0], '')) or 'an unknown place'}"
+                        "; or a fake's refusal): a plant is caught by the oracle's own assertion")
                 else:
                     summary["oracles"][oid] = "caught"
                     summary["caught"] += 1
         report.notes.append(f"plants: {summary['caught']} caught of {summary['total']} ({summary['applied']} applied); "
-                            f"plant: none {len(summary['not_applicable'])}; no fix yet {len(summary['pending'])}")
+                            f"plant: none {len(summary['not_applicable'])} (owed ports); no fix yet "
+                            f"{len(summary['pending'])}, {len(summary['pending_since_base'])} of them since the base")
     return report, summary
 
 
@@ -1338,7 +1451,11 @@ def fix_plant_problems(repo: Path, fix: str, oid: str, cand_tree: Path, report: 
     if src == fix:
         with tempfile.TemporaryDirectory(prefix="ndr-probe-") as tmp:
             if not applies(cand_tree, exact, Path(tmp)):
-                report.notes.append(f"{where}: the plant is a port (the exact reverse no longer applies)")
+                port = port_problems(text, exact)
+                if port:
+                    report.problems += [f"{where}: {PLANT} {p}" for p in port]
+                else:
+                    report.notes.append(f"{where}: the plant is a port (the exact reverse no longer applies)")
                 return
     report.problems.append(f"{where}: plant is not the fix's exact reverse (git diff {fix[:10]} {fix[:10]}^ -- src "
                            "action.yml templates)")

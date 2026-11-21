@@ -10,11 +10,17 @@ wording would hide that, so tests/test_fakes.py refuses any other `unexpected co
 NDR_FAKE_COMMAND_LOG when the gate sets it (and nowhere otherwise). Comparing two runs of the same test on two
 versions of the code shows a command only the newer one sends, even when a fake that matches by substring answered
 it without complaint.
+
+Not every fake calls `seen`, so tests/conftest.py also installs `command_profiler()` while the log is on: it records
+every call to a method named `exec` or `exec_root` (the only way code under test reaches a device, fake or real),
+whatever fake answers it, including the ones in tests/oracles/.
 """
 from __future__ import annotations
 
 import json
 import os
+import sys
+import threading
 
 PREFIX = "unexpected command: "
 COMMAND_LOG = "NDR_FAKE_COMMAND_LOG"
@@ -37,3 +43,30 @@ def seen(command: object) -> None:
     text = command if isinstance(command, str) else json.dumps(command, default=str)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"test": test, "command": text}) + "\n")
+
+
+def command_profiler():
+    """A sys.setprofile hook that logs every exec/exec_root call through `seen` (install it only while logging)."""
+    def profile(frame, event, arg):
+        if event != "call" or frame.f_code.co_name not in ("exec", "exec_root"):
+            return
+        code = frame.f_code
+        args = [frame.f_locals.get(n) for n in code.co_varnames[:code.co_argcount] if n != "self"]
+        if len(args) >= 2:
+            seen({"call": code.co_name, "node": args[0], "cmd": args[1]})
+    return profile
+
+
+def logging_commands():
+    """Install the profiler on this thread and new ones while NDR_FAKE_COMMAND_LOG is set; returns an undo."""
+    if not os.environ.get(COMMAND_LOG):
+        return lambda: None
+    old = sys.getprofile()
+    hook = command_profiler()
+    sys.setprofile(hook)
+    threading.setprofile(hook)
+
+    def undo():
+        sys.setprofile(old)
+        threading.setprofile(None)
+    return undo

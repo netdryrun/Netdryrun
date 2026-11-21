@@ -41,7 +41,8 @@ def write(tmp_path, layers, accepted=None, review=True, stranger=FRESH):
         (tmp_path / "gate" / f"{name}.json").write_text(json.dumps(record(name, checks)))
     # static --candidate's record of the published-release comparison: no new device reads here
     (tmp_path / "gate").mkdir(exist_ok=True)
-    (tmp_path / "gate" / "dominance.json").write_text(json.dumps({"candidate": "a", "flips": []}))
+    (tmp_path / "gate" / "dominance.json").write_text(json.dumps(
+        {"candidate": "a", "flips": [], "command_log_at_base": True, "changed_drivers": [], "new_read_entries": []}))
     if accepted is not None:
         (tmp_path / "accepted.json").write_text(json.dumps({"checks": accepted}))
     if review:
