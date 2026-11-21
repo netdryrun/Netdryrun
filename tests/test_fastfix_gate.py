@@ -1111,7 +1111,8 @@ def test_a_fixture_skipped_at_the_base_is_listed_with_its_origin(tmp_path):
     code, out, data = dominance(r, base, tmp_path)
     assert code == 0, out
     assert data["skipped_at_base"] == [{"case": "tests.test_redteam::test_needs_a_tool", "target": "tests/test_redteam.py",
-                                        "origin": "redteam", "reason": "this machine lacks the tool"}]
+                                        "origin": "redteam", "reason": "this machine lacks the tool",
+                                        "same_at_candidate": True}]
 
 
 @pytest.mark.parametrize("key,drivers", [

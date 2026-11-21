@@ -124,6 +124,8 @@ def test_a_blocked_or_broken_dominance_run_fails(tmp_path, code):
     ([{"case": "tests.oracles.FP-1.test_oracle_fp_1::t", "target": "tests/oracles/FP-1", "origin": "oracles",
        "reason": "r"}], gate.FAIL),
     ([{"case": "k", "target": "?", "origin": "unknown", "reason": "r"}], gate.FAIL),
+    ([{"case": "k", "target": "t", "origin": "known_false_passes", "reason": "r", "same_at_candidate": True}],
+     gate.FAIL),                                     # skipped on both sides is still not compared
     ("not a list", gate.FAIL),
 ])
 def test_a_must_not_pass_fixture_skipped_at_the_tag_is_a_major(tmp_path, skipped, status):

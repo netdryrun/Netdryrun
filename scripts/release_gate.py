@@ -729,8 +729,12 @@ def dominance_checks(layer: Layer, args, git_, runner, head: str, script: Path, 
         return
     guards = [s for s in skipped if not isinstance(s, dict) or s.get("origin") in ("redteam", "oracles",
                                                                                      "known_false_passes", "unknown")]
+    # a case skipped the same way at the candidate (say a parametrized docs snippet that isn't a netdryrun.yml) is
+    # still a must-not-pass fixture neither side ran here: counted, and said, so a reviewer can accept it knowingly
+    same = sum(1 for s in guards if isinstance(s, dict) and s.get("same_at_candidate") is True)
+    both = f" ({same} of them skipped the same way at the candidate)" if same else ""
     layer.add("dominance-skips", "every must-not-pass fixture ran at the published release on this host", MAJOR,
-              not guards, f"{len(guards)} not compared (skipped at {tag})" if guards else "none skipped",
+              not guards, f"{len(guards)} not compared (skipped at {tag}){both}" if guards else "none skipped",
               "\n".join(f"{s.get('case')} ({s.get('origin')}): {s.get('reason')}" if isinstance(s, dict) else str(s)
                         for s in guards))
 

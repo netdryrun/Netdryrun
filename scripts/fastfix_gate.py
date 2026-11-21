@@ -536,8 +536,11 @@ def fixture_compare(base_run: PytestRun, cand_run: PytestRun, report: Report,
         report.notes.append(f"fixtures: {len(skipped)} skipped at the base on this machine, not compared")
     for k in skipped:
         target, origin = origin_of(k, origins or {})
-        report.skipped_at_base.append({"case": k, "target": target, "origin": origin,
-                                       "reason": base_run.messages.get(k, "")[:200]})
+        reason = base_run.messages.get(k, "")[:200]
+        # also skipped, for the same reason, at the candidate: neither side ran it on this machine
+        report.skipped_at_base.append({"case": k, "target": target, "origin": origin, "reason": reason,
+                                       "same_at_candidate": cand_run.outcomes.get(k) == "skipped"
+                                       and cand_run.messages.get(k, "")[:200] == reason})
     if cand_run.code not in (0, 1):
         report.problems.append(f"the base's fixtures did not run cleanly on the candidate's code (pytest exit "
                                f"{cand_run.code}; a collection error, or a dependency the candidate needs):\n"
