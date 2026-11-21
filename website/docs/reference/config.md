@@ -71,7 +71,7 @@ A BGP session reaches a state.
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `neighbor` | yes | | Neighbor IP address as configured on `node`. A link-local address that several sessions share (`fe80::1` on two interfaces) is ambiguous: the check is not evaluated, so use a global address |
+| `neighbor` | yes | | Neighbor IP address as configured on `node`, or (from 0.4.3) the interface name of a BGP-unnumbered session (`eth1` for FRR's `neighbor eth1 interface`). A link-local address that several sessions share (`fe80::1` on two interfaces) is ambiguous: the check is not evaluated, so use a global address, or the interface name for an unnumbered session. An interface name is supported on FRR only: on every other driver, SONiC included, the check is refused before the lab deploys (exit code `2`), since those drivers name sessions by address and the check could never find the session. A value of digits and dots only that isn't an address (`10.0.0.256`) is refused as a mistyped address |
 | `state` | no | `established` | One of `idle`, `connect`, `active`, `opensent`, `openconfirm`, `established`, or `down` (any state except established). Case-insensitive |
 
 The check fails if the neighbor is not configured. A `state` other than `established` makes it a post-convergence check.
@@ -88,12 +88,12 @@ The number of prefixes accepted from a neighbor is within a range, and (with `on
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `neighbor` | yes | | Neighbor IP address (a link-local address several sessions share is ambiguous, as for `bgp_session`) |
+| `neighbor` | yes | | Neighbor IP address, or (FRR, from 0.4.3) the interface name of a BGP-unnumbered session, as for `bgp_session` (a link-local address several sessions share is ambiguous). With an interface name, `afi` is required |
 | `min` | one of `min`, `max`, `exact`, `only` | | Lower bound, inclusive |
 | `max` | one of `min`, `max`, `exact`, `only` | | Upper bound, inclusive |
 | `exact` | one of `min`, `max`, `exact`, `only` | | Exact count |
 | `only` | one of `min`, `max`, `exact`, `only` | | 0.4.1: the prefixes this neighbor may send, a list of prefixes in the check's `afi` (`ipv4-unicast` or `ipv6-unicast`). Any other accepted prefix fails the check, even when the count is in range, and so does one that replaces a listed prefix. `[]` means nothing may arrive. Each entry must be a network address: `10.1.1.77/24` is refused (it would widen the list to `10.1.1.0/24`). FRR and SONiC only: on other drivers it is refused before the lab deploys (exit code `2`). `netdryrun record` writes it on every eBGP neighbor |
-| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS, Juniper (beta), Cisco NX-OS (beta) or MikroTik RouterOS (beta); `ipv6-unicast` is refused on MikroTik RouterOS (beta), whose driver reads IPv4 only. Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry |
+| `afi` | no | `ipv4-unicast` | Address family: exactly one of `ipv4-unicast`, `ipv6-unicast` or `evpn` (case-insensitive). `evpn` is supported on FRR and SONiC only, not on SR Linux, Arista EOS, Juniper (beta), Cisco NX-OS (beta) or MikroTik RouterOS (beta); `ipv6-unicast` is refused on MikroTik RouterOS (beta), whose driver reads IPv4 only. Required (from 0.4.1) when the neighbor is an IPv6 address: the default is a family such a session usually doesn't carry. Required (from 0.4.3) when the neighbor is an interface name: an unnumbered session can carry IPv4 (over IPv6, RFC 8950), IPv6 or both |
 
 Rules:
 
@@ -111,7 +111,7 @@ Rules:
 - **Add-path** (from 0.4.2): when a neighbor may send several paths per prefix (BGP add-path), the device's counter counts paths, not prefixes. FRR and SONiC then count the distinct prefixes in `show bgp ... neighbors N routes json`, and SR Linux in its local RIB (`bgp-rib`); a listing that doesn't add up to the counter is an error, never a count. Arista EOS has no such listing read yet: its `prefixAccepted` P becomes the range 1 to P (as an FRR EVPN count does), judged only where the whole range agrees: `max` passes when P is within it, `max: 0` and `exact: 0` fail, and `min` above P fails, but P above `max`, or a `min` from 2 to P, gets no verdict (not ready), not a fail. A session that may send add-path is one whose add-path state says so or doesn't say. In 0.4.1 and earlier, `min` and `exact` could pass on fewer prefixes ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.2-addpath-prefix-count/README.md)).
 - **Graceful restart** (FRR and SONiC, from 0.4.2): while a neighbor that kept its forwarding state across a restart (the F-bit FRR prints as `gracefulRestartInfo.<afi>.fBit`) hasn't sent End-of-RIB for the family, bgpd keeps its old paths marked stale and counts them as accepted. Such a count isn't settled: no bound is judged on it (the check is not ready and samples again), and `record` leaves it out. Once End-of-RIB arrives the count is the peer's. A neighbor with the F-bit clear, or without graceful restart, is counted as before. In 0.4.1 and earlier, `min` could pass on stale paths the peer no longer sends ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.2-addpath-prefix-count/README.md)).
 - A check with `max`, `exact` or `only` is a post-convergence check. A check with only `min` is a positive check.
-- With `only`, the prefixes come from the neighbor's accepted routes (FRR: `show bgp <afi> unicast neighbors <address> routes json`). A count above 0 with no route listed is no answer (the check fails as not ready), never "nothing new".
+- With `only`, the prefixes come from the neighbor's accepted routes (FRR: `show bgp <afi> unicast neighbors <address or interface> routes json`). A count above 0 with no route listed is no answer (the check fails as not ready), never "nothing new".
 
 ```yaml
 - type: bgp_prefixes

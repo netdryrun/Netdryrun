@@ -18,7 +18,7 @@ import yaml
 
 from . import __version__
 from .checks import Unready, _evaluate
-from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
+from .config import WELL_KNOWN_COMMUNITIES, Check, community_name, interface_peer
 from .drivers import DriverError, Undetectable, detect, for_node, resolve
 from .drivers.base import NAMED_FAMILIES, Driver, NoSuchInstance, cannot_read_ipv6, is_bgp, unicast_unread
 from .lab import Lab, LabError
@@ -254,14 +254,16 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
         try:
             ipaddress.ip_address(addr)
         except ValueError:
-            # an interface-named session (FRR `neighbor eth1 interface`: BGP unnumbered). netdryrun.yml can't name it
-            # yet, so no check can be written; leaving it out silently let a session drop or a prefix flood pass the
-            # baseline (red team RT-0066, oracle FP-042-UNNSESS): the gap is named and `record` exits 1
-            warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr!r} is an interface-named (unnumbered) "
-                            "session, which a check can't name yet, so neither its bgp_session nor its bgp_prefixes "
-                            "is recorded: a session that drops or a peer that sends more prefixes over it isn't "
-                            "caught by this baseline")
-            continue
+            # an interface-named session (FRR `neighbor eth1 interface`: BGP unnumbered). A check names it by the
+            # interface (0.4.3, oracle FP-043-UNNSESSCHK) and gets every check a numbered session gets, on a driver
+            # that keys sessions so (interface_peers). Anywhere else, or a key that is no interface name, it is the
+            # named gap of 0.4.2 (red team RT-0066, oracle FP-042-UNNSESS): `record` exits 1, never a silent omission
+            if not (interface_peer(addr) and getattr(drv, "interface_peers", False)):
+                warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr!r} is an interface-named "
+                                f"(unnumbered) session, which the {getattr(drv, 'name', '?')} driver can't check, so "
+                                "neither its bgp_session nor its bgp_prefixes is recorded: a session that drops or a "
+                                "peer that sends more prefixes over it isn't caught by this baseline")
+                continue
         if n.ambiguous:
             warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} is {len(n.ambiguous)} sessions "
                             f"({', '.join(n.ambiguous)}) that can't be told apart; not recorded: add checks on "
