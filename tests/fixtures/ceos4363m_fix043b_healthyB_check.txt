@@ -1,0 +1,14 @@
+Netdryrun 0.4.2: 8 checks from /home/ndr/fix043b/proof.yml
+ceos1: management default route none
+frr1: management default route none
+  [PASS] static-default-candidate -- active via static (4.9s)
+  [PASS] static-default-selected -- active via static (4.9s)
+  [FAIL] ospf-default-candidate -- not active via ospf; seen: static (60.7s)
+  [FAIL] ospf-default-selected -- not active via ospf; seen: static (60.7s)
+Convergence checks done; settling 2s before post-convergence checks...
+  [FAIL] static-default-absent -- unexpectedly present via static (0.8s)
+  [PASS] ospf-default-absent -- absent (held 7s, 3 samples) (6.8s)
+  [PASS] bgp-default-absent -- absent (held 7s, 3 samples) (6.8s)
+  [PASS] nine-absent -- absent (held 7s, 3 samples) (6.8s)
+FAILED: 5 passed, 3 failed (8 checks)
+  wrote json report: /home/ndr/fix043b/out/report_healthyB.json

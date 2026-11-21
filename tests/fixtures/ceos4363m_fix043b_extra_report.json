@@ -1,0 +1,542 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "ndr-fix043b",
+  "config": "/home/ndr/fix043b/extra.yml",
+  "started": "2026-11-21T13:38:58+00:00",
+  "finished": "2026-11-21T13:40:26+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "ceos1": {
+        "kind": "arista_ceos",
+        "image": "ceos:4.36.3M",
+        "management_default": "none",
+        "nos_version": null,
+        "image_digest": "ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df",
+        "config_load": "clean"
+      },
+      "frr1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "none",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 7,
+    "failed": 2,
+    "total": 9
+  },
+  "warnings": {
+    "count": 2,
+    "items": [
+      {
+        "check": "vrf-static-absent",
+        "code": "no-bgp-neighbors",
+        "node": "ceos1",
+        "session": null,
+        "text": "ceos1 (vrf blue) reported no BGP neighbors for 60s; the check was evaluated without BGP convergence"
+      },
+      {
+        "check": "vrf-nine-absent",
+        "code": "no-bgp-neighbors",
+        "node": "ceos1",
+        "session": null,
+        "text": "ceos1 (vrf blue) reported no BGP neighbors for 60s; the check was evaluated without BGP convergence"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "vrf-static-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "vrf": "blue",
+        "prefix": "10.88.0.0/24",
+        "protocol": "static",
+        "present": false
+      },
+      "passed": false,
+      "detail": "unexpectedly present via static (not selected)",
+      "attempts": 1,
+      "duration_s": 0.9,
+      "started": "2026-11-21T13:40:18+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": false,
+          "detail": "unexpectedly present via static (not selected)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf blue 10.88.0.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {\n                \"10.88.0.0/24\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"connected\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"forward\",\n                    \"vias\": [\n                        {\n                            \"interface\": \"Loopback1\"\n                        }\n                    ],\n                    \"directlyConnected\": true\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf blue 10.88.0.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"ribRoutesByProtocol\": {\n                \"connected\": {\n                    \"ribRoutes\": {\n                        \"10.88.0.0/24\": {\n                            \"bestRoute\": true,\n                            \"preference\": 0,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268344,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": false,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Loopback1\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"10.88.0.0/24\": {\n                            \"bestRoute\": false,\n                            \"preference\": 250,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268344,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 10.88.0.0/24 vrf blue | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"vrf\": \"blue\",\n            \"routerId\": \"10.88.0.1\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "no-bgp-neighbors",
+          "node": "ceos1",
+          "session": null,
+          "text": "ceos1 (vrf blue) reported no BGP neighbors for 60s; the check was evaluated without BGP convergence"
+        }
+      ]
+    },
+    {
+      "name": "vrf-connected-selected",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "vrf": "blue",
+        "prefix": "10.88.0.0/24",
+        "protocol": "connected"
+      },
+      "passed": true,
+      "detail": "active via connected",
+      "attempts": 2,
+      "duration_s": 4.8,
+      "started": "2026-11-21T13:39:01+00:00",
+      "history": [
+        {
+          "t": 1.0,
+          "passed": true,
+          "detail": "active via connected"
+        },
+        {
+          "t": 4.8,
+          "passed": true,
+          "detail": "active via connected"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf blue 10.88.0.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {\n                \"10.88.0.0/24\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"connected\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"forward\",\n                    \"vias\": [\n                        {\n                            \"interface\": \"Loopback1\"\n                        }\n                    ],\n                    \"directlyConnected\": true\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf blue 10.88.0.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"ribRoutesByProtocol\": {\n                \"connected\": {\n                    \"ribRoutes\": {\n                        \"10.88.0.0/24\": {\n                            \"bestRoute\": true,\n                            \"preference\": 0,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268340,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": false,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Loopback1\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"10.88.0.0/24\": {\n                            \"bestRoute\": false,\n                            \"preference\": 250,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268340,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 10.88.0.0/24 vrf blue | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"vrf\": \"blue\",\n            \"routerId\": \"10.88.0.1\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "vrf-static-candidate",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "vrf": "blue",
+        "prefix": "10.88.0.0/24",
+        "protocol": "static",
+        "active": false
+      },
+      "passed": true,
+      "detail": "present via static (not selected)",
+      "attempts": 2,
+      "duration_s": 4.8,
+      "started": "2026-11-21T13:39:01+00:00",
+      "history": [
+        {
+          "t": 1.0,
+          "passed": true,
+          "detail": "present via static (not selected)"
+        },
+        {
+          "t": 4.8,
+          "passed": true,
+          "detail": "present via static (not selected)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf blue 10.88.0.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {\n                \"10.88.0.0/24\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"connected\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"forward\",\n                    \"vias\": [\n                        {\n                            \"interface\": \"Loopback1\"\n                        }\n                    ],\n                    \"directlyConnected\": true\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf blue 10.88.0.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"ribRoutesByProtocol\": {\n                \"connected\": {\n                    \"ribRoutes\": {\n                        \"10.88.0.0/24\": {\n                            \"bestRoute\": true,\n                            \"preference\": 0,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268340,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": false,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Loopback1\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"10.88.0.0/24\": {\n                            \"bestRoute\": false,\n                            \"preference\": 250,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268340,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 10.88.0.0/24 vrf blue | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"vrf\": \"blue\",\n            \"routerId\": \"10.88.0.1\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "vrf-nine-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "vrf": "blue",
+        "prefix": "9.9.9.0/24",
+        "present": false
+      },
+      "passed": true,
+      "detail": "absent (held 7s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 6.8,
+      "started": "2026-11-21T13:40:18+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 4.7,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 6.8,
+          "passed": true,
+          "detail": "absent"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf blue 9.9.9.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf blue 9.9.9.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"ribRoutesByProtocol\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 9.9.9.0/24 vrf blue | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"blue\": {\n            \"vrf\": \"blue\",\n            \"routerId\": \"10.88.0.1\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "no-bgp-neighbors",
+          "node": "ceos1",
+          "session": null,
+          "text": "ceos1 (vrf blue) reported no BGP neighbors for 60s; the check was evaluated without BGP convergence"
+        }
+      ]
+    },
+    {
+      "name": "v6-static-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "2001:db8:5::/64",
+        "protocol": "static",
+        "present": false
+      },
+      "passed": false,
+      "detail": "unexpectedly present via static (not selected)",
+      "attempts": 1,
+      "duration_s": 0.9,
+      "started": "2026-11-21T13:40:18+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": false,
+          "detail": "unexpectedly present via static (not selected)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 route vrf default 2001:db8:5::/64 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {\n                \"2001:db8:5::/64\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"connected\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"preference\": 0,\n                    \"metric\": 0,\n                    \"vias\": [\n                        {\n                            \"interface\": \"Loopback2\"\n                        }\n                    ],\n                    \"routeAction\": \"forward\",\n                    \"directlyConnected\": true\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ipv6 vrf default 2001:db8:5::/64 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"connected\": {\n                    \"ribRoutes\": {\n                        \"2001:db8:5::/64\": {\n                            \"bestRoute\": true,\n                            \"preference\": 0,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268343,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv6\",\n                                    \"notInFec\": false,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Loopback2\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"2001:db8:5::/64\": {\n                            \"bestRoute\": false,\n                            \"preference\": 250,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268343,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv6\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 bgp 2001:db8:5::/64 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "v6-connected-selected",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "2001:db8:5::/64",
+        "protocol": "connected"
+      },
+      "passed": true,
+      "detail": "active via connected",
+      "attempts": 2,
+      "duration_s": 4.8,
+      "started": "2026-11-21T13:39:01+00:00",
+      "history": [
+        {
+          "t": 1.0,
+          "passed": true,
+          "detail": "active via connected"
+        },
+        {
+          "t": 4.8,
+          "passed": true,
+          "detail": "active via connected"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 route vrf default 2001:db8:5::/64 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {\n                \"2001:db8:5::/64\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"connected\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"preference\": 0,\n                    \"metric\": 0,\n                    \"vias\": [\n                        {\n                            \"interface\": \"Loopback2\"\n                        }\n                    ],\n                    \"routeAction\": \"forward\",\n                    \"directlyConnected\": true\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ipv6 vrf default 2001:db8:5::/64 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"connected\": {\n                    \"ribRoutes\": {\n                        \"2001:db8:5::/64\": {\n                            \"bestRoute\": true,\n                            \"preference\": 0,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268339,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv6\",\n                                    \"notInFec\": false,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Loopback2\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"2001:db8:5::/64\": {\n                            \"bestRoute\": false,\n                            \"preference\": 250,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795268339,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv6\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 bgp 2001:db8:5::/64 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "v6-other-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "2001:db8:99::/64",
+        "present": false
+      },
+      "passed": true,
+      "detail": "absent (held 7s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 6.8,
+      "started": "2026-11-21T13:40:18+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 4.7,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 6.8,
+          "passed": true,
+          "detail": "absent"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 route vrf default 2001:db8:99::/64 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ipv6 vrf default 2001:db8:99::/64 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ipv6 bgp 2001:db8:99::/64 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "v4-connected-static-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "10.0.200.0/30",
+        "protocol": "static",
+        "present": false
+      },
+      "passed": true,
+      "detail": "absent (held 7s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 6.8,
+      "started": "2026-11-21T13:40:18+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 4.7,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 6.8,
+          "passed": true,
+          "detail": "absent"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 10.0.200.0/30 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {\n                \"10.0.200.0/30\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"connected\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"forward\",\n                    \"vias\": [\n                        {\n                            \"interface\": \"Ethernet1\"\n                        }\n                    ],\n                    \"directlyConnected\": true\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 10.0.200.0/30 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"connected\": {\n                    \"ribRoutes\": {\n                        \"10.0.200.0/30\": {\n                            \"bestRoute\": true,\n                            \"preference\": 0,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795267987,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": false,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Ethernet1\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 10.0.200.0/30 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "nine-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "9.9.9.0/24",
+        "present": false
+      },
+      "passed": true,
+      "detail": "absent (held 7s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 6.8,
+      "started": "2026-11-21T13:40:18+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 4.7,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 6.8,
+          "passed": true,
+          "detail": "absent"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 9.9.9.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"notSet\",\n            \"routes\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 9.9.9.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 9.9.9.0/24 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

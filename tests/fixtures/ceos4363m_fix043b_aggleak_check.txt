@@ -1,0 +1,14 @@
+Netdryrun 0.4.2: 8 checks from /home/ndr/fix043b/agg.yml
+ceos1: management default route none
+frr1: management default route none
+  [PASS] agg-bgp-candidate -- present via bgp (not selected) (5.1s)
+  [PASS] agg-selected -- active via aggregate (5.1s)
+  [PASS] agg-more-specific-static -- active via static (5.1s)
+  [FAIL] agg-bgp-selected -- not active via bgp; seen: aggregate, bgp (inactive) (60.6s)
+Convergence checks done; settling 2s before post-convergence checks...
+  [FAIL] agg-bgp-absent -- unexpectedly present via bgp (not selected) (0.9s)
+  [FAIL] agg-absent -- unexpectedly present via aggregate (0.9s)
+  [PASS] agg-static-absent -- absent (held 7s, 3 samples) (6.7s)
+  [FAIL] agg-any-absent -- unexpectedly present via aggregate (0.9s)
+FAILED: 4 passed, 4 failed (8 checks)
+  wrote json report: /home/ndr/fix043b/out/report_aggleak.json

@@ -257,3 +257,103 @@ def test_a_vrf_without_routing_has_an_empty_rib_so_the_routing_table_decides():
     with pytest.raises(DriverError, match="routing disabled"):
         EosDriver(lab, "e1").routes("9.9.9.0/24", "red")
 
+
+
+def test_a_candidate_whose_next_hop_does_not_resolve_is_still_present():
+    """The RIB's next hops are not read: a candidate is present whatever they say. cEOS 4.36.3M lists no static whose
+    next hop doesn't resolve (`ip route 10.77.0.0/24 192.0.2.99` is in neither read, live, adversary review of
+    FP-043-EOSNONBGP), so this is DERIVED: rt0056's floating static with its next hop unresolved, as a later EOS might
+    list it. Dropping it (mutant M15) would pass `present: false` on a route the RIB holds."""
+    def unresolve(d):
+        hop = _rib(d)["staticConfig"]["ribRoutes"][DEFAULT]["recursiveNextHops"][0]
+        hop.update(unresolvedNextHop=True, resolvedNextHops=[])
+    rib = _derived(RT0056_RIB, unresolve)
+    assert ("static", False, "staticConfig") in parse_rib_candidates(rib, DEFAULT)
+    assert not _check(_lab(rib=(0, rib)), protocol="static", present=False).passed
+    assert _check(_lab(rib=(0, rib)), protocol="static", active=False).passed
+
+
+# ------------------------------------------------------------------------------------------------- adversary round
+# Lab ndr-fix043b (ceos4363m_fix043b_*): ceos1's own BGP aggregate 10.66.0.0/16 (`network 10.66.1.0/24`,
+# `aggregate-address 10.66.0.0/16`), alone (agg) and with frr1 also sending 10.66.0.0/16 over eBGP (aggleak).
+
+def _agg_lab(phase):
+    return Lab([("show ip route", fx(f"ceos4363m_fix043b_{phase}_ip_route.json")),
+                ("show rib route", fx(f"ceos4363m_fix043b_{phase}_rib_route.json")),
+                ("show ip bgp", fx(f"ceos4363m_fix043b_{phase}_ip_bgp.json"))])
+
+
+def _agg_check(phase, **attrs):
+    check = _validate_check(0, {"type": "route", "node": "e1", "prefix": "10.66.0.0/16", **attrs}, 20)
+    t = [0.0]
+    return run_check(check, EosDriver(_agg_lab(phase), "e1"), clock=lambda: t[0],
+                     sleep=lambda s: t.__setitem__(0, t[0] + max(s, .5)))
+
+
+def test_a_bgp_aggregate_is_the_aggregate_not_a_second_bgp_candidate():
+    """Live: the routing table lists the aggregate as `bgpAggregate` and the RIB lists the same route under `bgp`,
+    best. Read as a bgp candidate (bf3d4cd), it failed `protocol: bgp present: false` and passed `protocol: bgp
+    active: false` with no BGP-learned route at all (adversary review of FP-043-EOSNONBGP, MAJOR 1)."""
+    assert parse_rib_candidates(fx("ceos4363m_fix043b_agg_rib_route.json"), "10.66.0.0/16") == [("bgp", True, "bgp")]
+    routes = EosDriver(_agg_lab("agg"), "e1").routes("10.66.0.0/16").value
+    assert [(r.protocol, r.active) for r in routes] == [("aggregate", True)]
+    assert _agg_check("agg", protocol="bgp", present=False).passed
+    assert not _agg_check("agg", protocol="bgp", active=False).passed
+    assert not _agg_check("agg", protocol="bgp").passed
+    assert _agg_check("agg", protocol="aggregate").passed
+    assert not _agg_check("agg", protocol="aggregate", present=False).passed
+    assert not _agg_check("agg", present=False).passed
+
+
+def test_a_learned_bgp_path_behind_the_aggregate_is_still_a_bgp_candidate():
+    """Live: with frr1's eBGP 10.66.0.0/16 the RIB still lists one `bgp` entry (the aggregate, best); the learned
+    path is in the BGP table only, not selected. It must still fail `protocol: bgp present: false`."""
+    assert parse_rib_candidates(fx("ceos4363m_fix043b_aggleak_rib_route.json"), "10.66.0.0/16") == [
+        ("bgp", True, "bgp")]
+    routes = EosDriver(_agg_lab("aggleak"), "e1").routes("10.66.0.0/16").value
+    assert sorted((r.protocol, r.active) for r in routes) == [("aggregate", True), ("bgp", False)]
+    assert not _agg_check("aggleak", protocol="bgp", present=False).passed
+    assert _agg_check("aggleak", protocol="bgp", active=False).passed
+    assert not _agg_check("aggleak", protocol="bgp").passed
+
+
+def test_only_the_rib_best_bgp_entry_is_the_aggregate():
+    """DERIVED: the agg RIB with its bgp entry not best. Then it isn't the selected aggregate: a bgp candidate."""
+    rib = _derived(fx("ceos4363m_fix043b_agg_rib_route.json"),
+                   lambda d: _rib(d)["bgp"]["ribRoutes"]["10.66.0.0/16"].update(bestRoute=False))
+    lab = Lab([("show ip route", fx("ceos4363m_fix043b_agg_ip_route.json")), ("show rib route", rib),
+               ("show ip bgp", fx("ceos4363m_fix043b_agg_ip_bgp.json"))])
+    routes = EosDriver(lab, "e1").routes("10.66.0.0/16").value
+    assert sorted((r.protocol, r.active) for r in routes) == [("aggregate", True), ("bgp", False)]
+
+
+def test_another_protocol_best_in_the_rib_is_not_hidden_by_the_aggregate():
+    """DERIVED: the agg RIB's best entry renamed staticConfig. Only `bgp` is the aggregate's RIB name."""
+    rib = _derived(fx("ceos4363m_fix043b_agg_rib_route.json"),
+                   lambda d: _rib(d).update(staticConfig=_rib(d).pop("bgp")))
+    lab = Lab([("show ip route", fx("ceos4363m_fix043b_agg_ip_route.json")), ("show rib route", rib),
+               ("show ip bgp", fx("ceos4363m_fix043b_agg_ip_bgp.json"))])
+    routes = EosDriver(lab, "e1").routes("10.66.0.0/16").value
+    assert sorted((r.protocol, r.active) for r in routes) == [("aggregate", True), ("static", False)]
+
+
+@pytest.mark.parametrize("prefix,name", [("0.0.0.0/8", "martian0"), ("127.0.0.0/8", "martian127")])
+def test_route_input_is_an_error_never_absent(prefix, name):
+    """Live: a plain cEOS lists 0.0.0.0/8 and 127.0.0.0/8 in the RIB only, under `routeInput` ("P - Route Input",
+    preference 1, via ::, directly connected); `show ip route` answers with the covering default. Nothing in the
+    output says which configuration made a Route Input entry, so it isn't mapped to a protocol: a check on such a
+    prefix is an error (0.4.2 read the routing table only and found nothing), never absent (red team RT-0037)."""
+    rib = fx(f"ceos4363m_fix043b_{name}_rib_route.json")
+    with pytest.raises(DriverError, match="routeInput"):
+        parse_rib_candidates(rib, prefix)
+    lab = Lab([("show ip route", fx(f"ceos4363m_fix043b_{name}_ip_route.json")), ("show rib route", rib),
+               ("show ip bgp", fx("ceos4363m_fix043b_agg_ip_bgp.json"))])
+    with pytest.raises(DriverError, match="routeInput"):
+        EosDriver(lab, "e1").routes(prefix)
+
+
+def test_unresolved_static_and_ospf_area_range_are_in_no_read():
+    """Live: `ip route 10.77.0.0/24 192.0.2.99` (next hop unresolved) and `area 0.0.0.1 range 10.55.0.0/16` leave no
+    entry in the RIB or the routing table, so neither can be read as another protocol's candidate."""
+    assert parse_rib_candidates(fx("ceos4363m_fix043b_unresolved_rib_route.json"), "10.77.0.0/24") == []
+    assert parse_rib_candidates(fx("ceos4363m_fix043b_ospfrange_rib_route.json"), "10.55.0.0/16") == []

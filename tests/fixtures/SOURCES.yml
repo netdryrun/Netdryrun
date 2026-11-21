@@ -646,3 +646,38 @@
     vtysh.conf were the oracle's (ceos4363m_fp043_ceos1.cfg, ceos4363m_fp043_frr1.conf); the script changed the configs
     live between phases as the oracle's does, and set frr1's eth2 MTU to 1500 with `ip ospf mtu-ignore` first
   added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043b_*_rib_route.json, ceos4363m_fix043b_*_rib_route.txt, ceos4363m_fix043b_*_ip_route.json,
+          ceos4363m_fix043b_*_ip_bgp.json, ceos4363m_fix043b_rib_all.txt, ceos4363m_fix043b_rib_all_end.txt,
+          ceos4363m_fix043b_ip_route_all_end.txt, ceos4363m_fix043b_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df) ceos1 with FRR
+    10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442) frr1,
+    containerlab 0.81.1, lab ndr-fix043b (the oracle FP-043-EOSNONBGP's topology and startup configs), the laptop's
+    WSL, 2026-11-21 13:32-13:44 UTC (20:32-20:44 Thailand time), for the adversary review of the fix. Each file is the
+    stdout, byte for byte, of `docker exec clab-ndr-fix043b-ceos1 Cli -p 15 -c "<command>"`, the commands listed in
+    ceos4363m_fix043b_LOG.txt (stderr empty, rc 0). martian0/martian127 and rib_all: before any change, a plain cEOS's
+    Route Input entries 0.0.0.0/8 and 127.0.0.0/8. agg: after `ip route 10.66.1.0/24 Null0` and `router bgp 65030`
+    `network 10.66.1.0/24` `aggregate-address 10.66.0.0/16` (with the round-1 extras still configured). aggleak: frr1
+    also `ip route 10.66.0.0/16 blackhole` and `network 10.66.0.0/16` in ipv4 unicast. unresolved and ospfrange: after
+    `ip route 10.77.0.0/24 192.0.2.99`, Loopback3 10.55.1.1/24 in OSPF area 0.0.0.1 and `area 0.0.0.1 range
+    10.55.0.0/16`; rib_all_end and ip_route_all_end at the end
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043b_*_report.json, ceos4363m_fix043b_*_check.txt, ceos4363m_fix043b_VERDICTS.txt,
+          ceos4363m_fix043b_LOG.txt]
+  kind: report
+  source: >-
+    netdryrun on ndr/fix-eos-nonbgp after the adversary review (the merge of main a24265b plus the aggregate change,
+    from the working tree, PYTHONPATH=src) `check <yml> --settle 2 --hold 6 --json` on lab ndr-fix043b, 2026-11-21,
+    every run exit 1 (each phase has checks that must fail); VERDICTS.txt is one line per check, LOG.txt the script's
+    log. The oracle's phases with ceos4363m_fix043_proof.yml and the extras with ceos4363m_fix043_extra.yml give the
+    round-1 verdicts again; agg (ceos4363m_fix043b_agg.yml): `protocol: bgp present: false` passes and `protocol: bgp
+    active: false` fails on ceos1's own aggregate; aggleak: with frr1's eBGP 10.66.0.0/16 behind it, both flip
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_fix043b_topology.clab.yml, ceos4363m_fix043b_agg.yml, ceos4363m_fix043b_capture.sh]
+  kind: lab-input
+  source: >-
+    the topology, aggregate checks and capture script of lab ndr-fix043b, 2026-11-21; the startup configs were the
+    oracle's (ceos4363m_fp043_ceos1.cfg, ceos4363m_fp043_frr1.conf), frr1's daemons the examples/arista-frr file with
+    ospfd=yes and its vtysh.conf the stock one; the script changed the configs live between phases
+  added: ndr/fix-eos-nonbgp

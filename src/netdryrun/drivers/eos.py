@@ -200,12 +200,20 @@ BGP_INACTIVE = {"errors": ["BGP inactive"]}   # cEOS with no BGP configured, rc 
 
 # `show rib route ip|ipv6` keys its candidates by the source protocol; the static key is the config agent's name
 RIB_PROTOCOLS = {"staticConfig": "static"}
+# A selected route the routing table names one way and the RIB another: the RIB's best entry under the key is that
+# route, never a second candidate. A BGP aggregate is `bgpAggregate` (aggregate) in the routing table and `bgp` in the
+# RIB (cEOS 4.36.3M, live, ceos4363m_fix043b_agg_*): read as a bgp candidate, it failed `protocol: bgp present:
+# false` and passed `protocol: bgp active: false` with no BGP-learned route (adversary review of FP-043-EOSNONBGP).
+# A BGP-learned path for the prefix isn't the RIB's bgp entry while the aggregate is selected: the BGP table has it.
+RIB_SAME_ROUTE = {"aggregate": frozenset({"bgp"})}
 
 
 def _rib_protocol(key: str, prefix: str) -> str:
     """A `ribRoutesByProtocol` key as a netdryrun protocol name. Keys other than staticConfig name the protocol as
     routeType does (bgp, ospf, ospf3, isis, connected) and go through the same map; a key it doesn't know is an error,
-    never a name no `protocol` matches (which would pass `present: false` on it)."""
+    never a name no `protocol` matches (which would pass `present: false` on it). That includes `routeInput` ("Route
+    Input": a plain cEOS lists 0.0.0.0/8 and 127.0.0.0/8 under it, live), vrfLeak, gribi and dynamicPolicy: nothing in
+    the answer says which configuration made such an entry, so a check on its exact prefix is an error."""
     return RIB_PROTOCOLS.get(key) or _protocol(key, prefix, RIB_CMD)
 
 
@@ -249,11 +257,15 @@ def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = 
     if rib_text is not None:
         # Every RIB candidate of a protocol the routing table doesn't list is present but not selected (a floating
         # static behind a BGP default, an OSPF default behind a static drop route: RT-0056, RT-0063). The RIB keys
-        # one entry per protocol, so a protocol the routing table lists is that route. A candidate the RIB marks best
-        # while the routing table lists another protocol (the two reads raced) is added the same way, inactive:
-        # present for `present: false`, never active for `present: true`.
+        # one entry per protocol, so a protocol the routing table lists is that route, and so is the RIB's best entry
+        # under a key the selected route goes by in the RIB (RIB_SAME_ROUTE: an aggregate is `bgp` there). Any other
+        # candidate the RIB marks best while the routing table selects another protocol (a change between the two
+        # reads) is added the same way, inactive: present for `present: false`, never active for `present: true`.
         seen = {r.protocol for r in out}
-        for proto, _best, raw in parse_rib_candidates(rib_text, prefix, vrf):
+        same = {name for r in out for name in RIB_SAME_ROUTE.get(r.protocol, ())}   # programmed or not
+        for proto, best, raw in parse_rib_candidates(rib_text, prefix, vrf):
+            if best and proto in same:
+                continue   # the selected route itself, under the RIB's name for it
             if proto not in seen:
                 seen.add(proto)
                 out.append(Route(prefix, proto, False, raw_protocol=raw))
