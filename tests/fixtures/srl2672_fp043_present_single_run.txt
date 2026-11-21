@@ -1,0 +1,10 @@
+Netdryrun 0.4.2: 1 checks from c1/netdryrun.yml
+leaf1: management default route not applicable (nokia_srlinux)
+leaf2: management default route not applicable (nokia_srlinux)
+warning: convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '2.2.2.2:98', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '2.2.2.2:98', 'ethernet-tag-id': 0, 'ip-prefix)
+Convergence checks done; settling 30s before post-convergence checks...
+  [FAIL] evpn-bgp-route-absent-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (60s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (61.2s)
+INCONCLUSIVE: the lab did not reach a testable state: leaf1 never returned usable BGP state (leaf1: not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (60s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist), and no check passed on any sample. Rerun with a longer timeout, or check that the lab boots (1 of 1 checks failed; this says nothing about the change)
+  wrote json report: present_single_report.json
+exit 3

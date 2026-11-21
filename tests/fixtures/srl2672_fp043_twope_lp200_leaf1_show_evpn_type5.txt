@@ -1,0 +1,203 @@
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Show report for the EVPN routes in network-instance  "default"
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 2.2.2.2:88
+Tag-ID             : 0
+ip-prefix-len      : 24
+ip-prefix          : 10.66.0.0/24
+neighbor           : 2.2.2.2
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 88
+    Route source          : neighbor 2.2.2.2 (last modified 2m2s ago)
+    Route preference      : No MED, LocalPref is 100
+    Atomic Aggr           : false
+    BGP next-hop          : 2.2.2.2
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:88, mac-nh:1a:ac:02:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 2.2.2.2:88
+Tag-ID             : 0
+ip-prefix-len      : 32
+ip-prefix          : 10.66.0.2/32
+neighbor           : 2.2.2.2
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 88
+    Route source          : neighbor 2.2.2.2 (last modified 2m2s ago)
+    Route preference      : No MED, LocalPref is 100
+    Atomic Aggr           : false
+    BGP next-hop          : 2.2.2.2
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:88, mac-nh:1a:ac:02:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 2.2.2.2:99
+Tag-ID             : 0
+ip-prefix-len      : 24
+ip-prefix          : 10.77.0.0/24
+neighbor           : 2.2.2.2
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 99
+    Route source          : neighbor 2.2.2.2 (last modified 2m2s ago)
+    Route preference      : No MED, LocalPref is 100
+    Atomic Aggr           : false
+    BGP next-hop          : 2.2.2.2
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:99, mac-nh:1a:ac:02:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 2.2.2.2:99
+Tag-ID             : 0
+ip-prefix-len      : 32
+ip-prefix          : 10.77.0.2/32
+neighbor           : 2.2.2.2
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 99
+    Route source          : neighbor 2.2.2.2 (last modified 2m2s ago)
+    Route preference      : No MED, LocalPref is 100
+    Atomic Aggr           : false
+    BGP next-hop          : 2.2.2.2
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:99, mac-nh:1a:ac:02:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 3.3.3.3:88
+Tag-ID             : 0
+ip-prefix-len      : 24
+ip-prefix          : 10.66.0.0/24
+neighbor           : 3.3.3.3
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 88
+    Route source          : neighbor 3.3.3.3 (last modified 2m4s ago)
+    Route preference      : No MED, LocalPref is 200
+    Atomic Aggr           : false
+    BGP next-hop          : 3.3.3.3
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:88, mac-nh:1a:a5:03:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 3.3.3.3:88
+Tag-ID             : 0
+ip-prefix-len      : 32
+ip-prefix          : 10.66.0.3/32
+neighbor           : 3.3.3.3
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 88
+    Route source          : neighbor 3.3.3.3 (last modified 2m4s ago)
+    Route preference      : No MED, LocalPref is 200
+    Atomic Aggr           : false
+    BGP next-hop          : 3.3.3.3
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:88, mac-nh:1a:a5:03:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 3.3.3.3:99
+Tag-ID             : 0
+ip-prefix-len      : 24
+ip-prefix          : 10.77.0.0/24
+neighbor           : 3.3.3.3
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 99
+    Route source          : neighbor 3.3.3.3 (last modified 2m4s ago)
+    Route preference      : No MED, LocalPref is 200
+    Atomic Aggr           : false
+    BGP next-hop          : 3.3.3.3
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:99, mac-nh:1a:a5:03:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Route Distinguisher: 3.3.3.3:99
+Tag-ID             : 0
+ip-prefix-len      : 32
+ip-prefix          : 10.77.0.3/32
+neighbor           : 3.3.3.3
+path-id            : 0
+Gateway IP         : 0.0.0.0
+Received paths     : 1
+  Path 1: <Best,Valid,Used,>
+    ESI                   : 00:00:00:00:00:00:00:00:00:00
+    Label                 : 99
+    Route source          : neighbor 3.3.3.3 (last modified 2m4s ago)
+    Route preference      : No MED, LocalPref is 200
+    Atomic Aggr           : false
+    BGP next-hop          : 3.3.3.3
+    AS Path               :  i
+    Domain Path           : None
+    Communities           : [target:65000:99, mac-nh:1a:a5:03:ff:00:00, bgp-tunnel-encap:VXLAN]
+    RR Attributes         : No Originator-ID, Cluster-List is []
+    Aggregation           : None
+    Unknown Attr          : None
+    Invalid Reason        : None
+    Tie Break Reason      : none
+    Route Flap Damping    : None
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -8,9 +8,10 @@ raises; it is never read as empty.
 from __future__ import annotations
 
 import ipaddress
+from dataclasses import replace
 
 from .base import (BGP_SUBTYPES, BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, as_int,
-                   canon_communities, check_vrf_name, is_bgp, load_json, must, must_bool, network, parser, render_as_path,
+                   canon_communities, check_vrf_name, load_json, must, must_bool, network, parser, render_as_path,
                    unexpected)
 from .frr import _canon_addr, _keep_down, parse_ping
 from .stale import refuse_if_stale, strict_bool
@@ -297,8 +298,21 @@ def _bgp_learned(row: dict) -> bool:
     """SR Linux lists the router's own static and interface routes in its BGP local-RIB as locally
     originated paths (neighbor 0.0.0.0, origin-protocol static, ...), whether or not an export policy
     advertises them. Only paths with origin-protocol bgp were learned over BGP. A row without it is unknown, an
-    error: read as bgp, the router's own static became a BGP best path (RT-0026; Layer 6 round 3 on 5e65852)."""
+    error: read as bgp, the router's own static became a BGP best path (RT-0026; Layer 6 round 3 on 5e65852).
+    A row whose origin-protocol is a BGP subtype (bgp-evpn, bgp-vpn) is neither: see _imported."""
     return str(must(RIB_CMD, row, "origin-protocol")).lower() == "bgp"
+
+
+def _imported(row: dict) -> str | None:
+    """The BGP subtype a local-RIB row was imported from, None for a row learned over BGP or the router's own.
+
+    With BGP in an ip-vrf, SR Linux 26.7.2 lists an EVPN IP-prefix route imported into it in the ip-vrf's bgp-rib as
+    neighbor 0.0.0.0, origin-protocol bgp-evpn, with an attr-set of its own (next-hop 0.0.0.0, no communities): a
+    path received from the EVPN peer, not the router's own route. Read as the router's own, `bgp_route present:
+    false` passed with the route imported (red team RT-0058, oracle FP-043-SRLEVPNVRF, design B). Any other `bgp-`
+    origin (bgp-vpn, or one SR Linux adds later) is the same kind of path from a RIB this driver doesn't read."""
+    origin = str(must(RIB_CMD, row, "origin-protocol")).lower()
+    return origin if origin != "bgp" and origin.startswith("bgp") else None
 
 
 def _received(row: dict) -> bool:
@@ -360,9 +374,13 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
         rtype = str(must(ROUTE_CMD, r, "route-type")).lower()
         out.append(Route(prefix, _protocol(rtype, ROUTE_CMD), _in_fib(ROUTE_CMD, prefix, r), raw_protocol=rtype))
     rib = _rib_rows(bgp_rib_text, prefix) if bgp_rib_text is not None else []   # read even when installed: a stale path is an error
-    if bgp_rib_text is not None and not any(is_bgp(r.protocol) and r.active for r in out):
-        if any(_bgp_learned(r) for r in rib):
-            out.append(Route(prefix, "bgp", False))
+    # a path learned over BGP (bgp), or imported into the ip-vrf from EVPN (bgp-evpn, RT-0058 design B) or a VPN RIB,
+    # that isn't installed under its own name: present all the same, so `protocol: bgp-evpn present: false` sees it
+    # beside an installed route of another BGP kind
+    kinds = {"bgp" if _bgp_learned(r) else _imported(r) for r in rib} - {None}
+    for kind in sorted(kinds):
+        if not any(r.protocol == kind and r.active for r in out):
+            out.append(Route(prefix, kind, False))
     return out
 
 
@@ -370,6 +388,59 @@ def parse_routes(text: str, prefix: str, bgp_rib_text: str | None = None) -> lis
 def parse_rib_paths(text: str, prefix: str) -> list[dict]:
     """Local-RIB entries for exactly `prefix`, best path first: neighbor, best-route, attr-id."""
     return sorted(_rib_rows(text, prefix), key=lambda r: not _best(r))
+
+
+EVPN_CMD = "info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib"
+# the route lists SR Linux's EVPN local-RIB holds (YANG srl_nokia-bgp-evpn-bgp-rib): only ip-prefix-route (type 5)
+# carries IP prefixes into an ip-vrf. Any other key is a list this driver doesn't know: an error, never "no route"
+EVPN_RIB_LISTS = frozenset({"ip-prefix-route", "mac-ip-route", "imet-route", "ethernet-ad-route",
+                            "ethernet-segment-route"})
+
+
+def _unspecified(addr) -> bool:
+    ip = _ip_or_none(addr)
+    return ip is not None and ipaddress.ip_address(ip).is_unspecified
+
+
+@parser(EVPN_CMD)
+def parse_evpn_imports(text: str, prefix: str, vrf: str) -> list[dict]:
+    """The EVPN IP-prefix (type-5) paths for exactly `prefix` that SR Linux imported into network-instance `vrf`,
+    best first (red team RT-0058, oracle FP-043-SRLEVPNVRF).
+
+    An ip-vrf's routes from EVPN live in the default network-instance's EVPN RIB, not the ip-vrf's bgp-rib (which is
+    empty without `protocols bgp` in the ip-vrf: design A). `imported-network-instances` names the network-instances
+    SR Linux imported each path into (captured live, 26.7.2): that list decides, never the prefix alone, which another
+    ip-vrf can hold under another route-target. The node's own type-5 routes (neighbor 0.0.0.0) list none and are
+    never a received path. A path from a peer that lists no network-instance (not imported anywhere: invalid, or for a
+    route-target no ip-vrf here imports) may still be one for `vrf` that isn't usable: the driver can't tell, so it
+    refuses, never "absent". A stale path is not settled."""
+    want = ipaddress.ip_network(prefix)
+    data = _json(text, EVPN_CMD)
+    if set(data) - EVPN_RIB_LISTS:
+        raise unexpected(EVPN_CMD, f"lists {', '.join(sorted(set(data) - EVPN_RIB_LISTS))}")
+    out = []
+    for r in _list(EVPN_CMD, data, "ip-prefix-route") if "ip-prefix-route" in data else []:
+        if network(EVPN_CMD, must(EVPN_CMD, r, "ip-prefix")) != want:
+            continue
+        neighbor = must(EVPN_CMD, r, "neighbor")
+        if not isinstance(neighbor, str) or _ip_or_none(neighbor) is None:
+            raise unexpected(EVPN_CMD, f"{want}: neighbor {str(neighbor)[:60]!r}")
+        into = r.get("imported-network-instances", [])
+        if not isinstance(into, list) or not all(isinstance(x, str) and x for x in into):
+            raise unexpected(EVPN_CMD, f"{want} from {neighbor}: imported-network-instances {str(into)[:100]}")
+        if _unspecified(neighbor):
+            continue   # the node's own route: never a received path, whatever it lists (adversary M35 on 02a0060)
+        if vrf in into:
+            refuse_if_stale(prefix, neighbor, strict_bool(EVPN_CMD, must(EVPN_CMD, r, "stale-route")))
+            must_bool(EVPN_CMD, r, "best-route")
+            out.append(r)
+        elif into:
+            continue   # imported into other network-instances only
+        else:
+            raise DriverError(f"{want}: the EVPN IP-prefix route from {neighbor} (route-distinguisher "
+                              f"{r.get('route-distinguisher', '?')}) is imported into no network-instance; the srlinux "
+                              f"driver can't tell whether it is a path in {vrf!r}")
+    return sorted(out, key=lambda r: not r["best-route"])
 
 
 @parser(ATTR_CMD)
@@ -389,21 +460,107 @@ def parse_attr_set(text: str, row: dict, default_local_pref: int | None = None) 
     # RT-S01, live), but nothing in the attr-set or the RIB row tells that from a missing container on a path that
     # isn't empty, so it stays unknown and `record` names the gap. A path without communities has no communities container
     # (srl_attr_set_rejected.txt, live): YANG state leaves an empty container out, so that absence is "none"
+    return _path_from_attrs(a, _best(row), row.get("neighbor"), default_local_pref,
+                            local_candidate=not _bgp_learned(row),
+                            local_origin="" if _bgp_learned(row) else str(row["origin-protocol"]))
+
+
+def _path_from_attrs(a: dict, best: bool, neighbor, default_local_pref: int | None, comms: dict | None = None,
+                     **kw) -> BgpPath:
     segs = _as_path_segments(a["as-path"]) if "as-path" in a else None
-    comms = _communities(a["communities"]) if "communities" in a else {}
+    if comms is None:
+        comms = _communities(a["communities"]) if "communities" in a else {}
     nh = a.get("next-hop")
     return BgpPath(
-        best=_best(row),
+        best=best,
         as_path=None if segs is None else render_as_path(segs),
         next_hop=_canon_addr(str(nh)) if nh else None,
         local_pref=as_int(ATTR_CMD, a["local-pref"]) if "local-pref" in a else default_local_pref,
         med=as_int(ATTR_CMD, a["med"]) if "med" in a else None,   # no MED attribute: unknown, not 0
         communities=canon_communities(comms.get("community")),
         large_communities=canon_communities(comms.get("large-community")),
-        neighbor=row.get("neighbor"),
-        local_candidate=not _bgp_learned(row),
-        local_origin="" if _bgp_learned(row) else str(row["origin-protocol"]),
+        neighbor=neighbor,
+        **kw,
     )
+
+
+# an EVPN path's communities container also holds its extended communities (route-target, router MAC, encapsulation:
+# captured live, 26.7.2); checks read standard and large communities only
+EXT_COMMUNITY_KEYS = frozenset({"ext-community", "ext-community-raw-format"})
+
+
+@parser(ATTR_CMD)
+def parse_evpn_attr_set(text: str, row: dict, best: bool, default_local_pref: int | None = None) -> BgpPath:
+    """An EVPN IP-prefix path (parse_evpn_imports) plus its attr-set in the default network-instance: a path received
+    from the EVPN peer, never the router's own. The same rules as parse_attr_set; extended communities are left out."""
+    a = _json(text, ATTR_CMD)
+    if not a:
+        raise DriverError(f"attr-set {row.get('attr-id')} for the EVPN route {row.get('ip-prefix')} not found")
+    if not isinstance(a, dict) or set(a) - ATTR_SET_KEYS or str(a.get("index")) != str(row.get("attr-id")):
+        raise unexpected(ATTR_CMD, f"not attr-set {row.get('attr-id')}: {str(a)[:150]}")
+    comms: dict = {}
+    if "communities" in a:
+        c = a["communities"]
+        if not isinstance(c, dict) or not all(isinstance(v, list) for v in c.values()):
+            raise unexpected(ATTR_CMD, f"communities: {str(c)[:150]}")
+        plain = {k: v for k, v in c.items() if k not in EXT_COMMUNITY_KEYS}
+        comms = _communities(plain) if plain or not set(c) & EXT_COMMUNITY_KEYS else {}
+    return _path_from_attrs(a, best, row.get("neighbor"), default_local_pref, comms)
+
+
+NHG_CMD = "info from state /network-instance <vrf> route-table next-hop-group <id>"
+NH_CMD = "info from state /network-instance <vrf> route-table next-hop <id>"
+
+
+def _index(command: str, value) -> str:
+    """A route-table index from device output that goes back into a CLI command: digits only."""
+    s = str(value)
+    if isinstance(value, bool) or not (s.isascii() and s.isdigit()):   # str.isdigit() takes '²' and Arabic digits
+        raise unexpected(command, f"index {s[:40]!r}")
+    return s
+
+
+@parser(ROUTE_CMD)
+def parse_installed_evpn_group(text: str, prefix: str) -> str | None:
+    """The next-hop-group of the EVPN route (route-type bgp-evpn, active and in the FIB) the ip-vrf forwards `prefix`
+    with, None when it forwards with another route or not at all (the caller decides whether that is an error)."""
+    want = ipaddress.ip_network(prefix)
+    key = "ipv6-prefix" if want.version == 6 else "ipv4-prefix"
+    groups = []
+    for r in _list(ROUTE_CMD, _json(text, ROUTE_CMD), "route"):
+        if network(ROUTE_CMD, must(ROUTE_CMD, r, key)) != want:
+            raise unexpected(ROUTE_CMD, f"a route for {r[key]} in the answer for {want}")
+        if str(must(ROUTE_CMD, r, "route-type")).lower() == "bgp-evpn" and _in_fib(ROUTE_CMD, prefix, r):
+            groups.append(_index(ROUTE_CMD, must(ROUTE_CMD, r, "next-hop-group")))
+    if len(groups) > 1:
+        raise unexpected(ROUTE_CMD, f"{want}: {len(groups)} active bgp-evpn routes")
+    return groups[0] if groups else None
+
+
+@parser(NHG_CMD)
+def parse_next_hop_group(text: str, index: str) -> list[str]:
+    """The next-hop ids in route-table next-hop-group `index` (never empty: a group with no next hop is unknown)."""
+    d = _json(text, NHG_CMD)
+    groups = _list(NHG_CMD, d, "next-hop-group") if set(d) == {"next-hop-group"} else [d]
+    if len(groups) != 1 or str(groups[0].get("index")) != index:
+        raise unexpected(NHG_CMD, f"not next-hop-group {index}: {str(d)[:150]}")
+    hops = _list(NHG_CMD, groups[0], "next-hop") if "next-hop" in groups[0] else []
+    if not hops:
+        raise unexpected(NHG_CMD, f"next-hop-group {index} without next hops: {str(d)[:150]}")
+    return [_index(NHG_CMD, must(NHG_CMD, h, "next-hop")) for h in hops]
+
+
+@parser(NH_CMD)
+def parse_next_hop_address(text: str, index: str) -> str:
+    """The address of route-table next-hop `index`: for an EVPN route, the remote VTEP the ip-vrf sends to."""
+    d = _json(text, NH_CMD)
+    hops = _list(NH_CMD, d, "next-hop") if set(d) == {"next-hop"} else [d]
+    if len(hops) != 1 or str(hops[0].get("index")) != index:
+        raise unexpected(NH_CMD, f"not next-hop {index}: {str(d)[:150]}")
+    ip = _ip_or_none(must(NH_CMD, hops[0], "ip-address"))
+    if ip is None or ipaddress.ip_address(ip).is_unspecified:
+        raise unexpected(NH_CMD, f"next-hop {index}: ip-address {str(hops[0].get('ip-address'))[:60]!r}")
+    return ip
 
 
 def _find(data, key: str):
@@ -553,9 +710,17 @@ class SrlDriver(Driver):
             ev,
         )
         routes = parse_routes(text, prefix, rib)
+        if vrf != "default" and not any(r.protocol == "bgp-evpn" for r in routes) \
+                and self._evpn_imports(prefix, vrf, ev):
+            # an EVPN path imported into the ip-vrf but not installed (a static or local route wins): still a BGP
+            # route there, as a received-but-not-selected path is in the default network-instance (RT-0058)
+            routes.append(Route(prefix, "bgp-evpn", False))
         if not routes:
             self._confirm_vrf(vrf, ev)
         return Observation(routes, ev)
+
+    def _evpn_imports(self, prefix: str, vrf: str, ev: list[dict]) -> list[dict]:
+        return parse_evpn_imports(self._cli(EVPN_CMD, ev), prefix, vrf)
 
     def bgp_paths(self, prefix: str, vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
@@ -564,15 +729,143 @@ class SrlDriver(Driver):
         rows = parse_rib_paths(self._cli(
             f"info from state /network-instance {vrf} bgp-rib afi-safi {table} {table} local-rib route {prefix} "
             "neighbor * origin-protocol * path-id *", ev), prefix)
-        if not rows:
+        evpn, evpn_best, installed = self._imported_paths(prefix, vrf, table, rows, ev)
+        read: dict[int, BgpPath] = {}   # EVPN paths whose attributes are already read, by position in `evpn`
+        chosen = self._evpn_choice(prefix, vrf, rows, evpn, installed, read, ev) if evpn_best else None
+        # each entry: (the row, best, its position in `evpn` or None); the ip-vrf's own bgp-evpn rows stand for the
+        # EVPN paths, so they are left out
+        entries = [(r, _best(r), None) for r in rows if _imported(r) is None]
+        entries += [(r, n == chosen, n) for n, r in enumerate(evpn)]
+        entries.sort(key=lambda e: not e[1])
+        if not entries:
             self._confirm_vrf(vrf, ev)
             return Observation([], ev)
         # Best path first: one attr-set read per sample, not one per path. When the best is the router's own
         # route (a local candidate), also read the first path learned over BGP: that's the one a
         # `present: false` failure describes.
-        learned = next((r for r in rows if _bgp_learned(r)), None)
-        read = {0} | ({rows.index(learned)} if learned is not None and not _bgp_learned(rows[0]) else set())
-        return Observation([self._read_path(r, vrf, ev) if n in read else unread_path(r) for n, r in enumerate(rows)], ev)
+        learned = [n for n, (r, _, at) in enumerate(entries) if at is not None or _bgp_learned(r)]
+        wanted = {0} | ({learned[0]} if learned and learned[0] != 0 else set())
+        out = []
+        for n, (r, best, at) in enumerate(entries):
+            if at is None:
+                out.append(self._read_path(r, vrf, ev) if n in wanted else unread_path(r))
+            elif at in read:
+                out.append(replace(read[at], best=best))
+            else:   # an EVPN path is always received: never a local candidate, read or not (adversary M27)
+                out.append(self._read_evpn_path(r, best, ev) if n in wanted else
+                           BgpPath(best=best, as_path=None, next_hop=None, local_pref=None, med=None,
+                                   neighbor=r.get("neighbor"), local_candidate=False))
+        return Observation(out, ev)
+
+    def _imported_paths(self, prefix: str, vrf: str, table: str, rows: list[dict], ev: list[dict]):
+        """The EVPN IP-prefix paths imported into `vrf` (red team RT-0058, oracle FP-043-SRLEVPNVRF), whether the
+        ip-vrf selects EVPN over its other BGP paths, and its route-table answer for the prefix (None for default).
+
+        Design A, an ip-vrf without `protocols bgp`: its bgp-rib is empty and the paths are only in the default
+        network-instance's EVPN RIB. Design B, BGP in the ip-vrf: its bgp-rib also lists the route as one bgp-evpn row
+        from 0.0.0.0 whose best-route is the ip-vrf's choice. Every reader cross-checks the other: a bgp-evpn row, or a
+        bgp-evpn route in the ip-vrf's route table, with no EVPN path imported into the ip-vrf is an answer the driver
+        doesn't understand (an error, never "no path"); so is a route or row from another BGP RIB (bgp-vpn), which it
+        doesn't read."""
+        subtypes = {_imported(r) for r in rows} - {None}
+        if subtypes - {"bgp-evpn"}:
+            raise DriverError(f"{prefix} in network-instance {vrf!r}: a path imported from "
+                              f"{', '.join(sorted(subtypes - {'bgp-evpn'}))}, a RIB the srlinux driver doesn't read yet")
+        if vrf == "default" and not subtypes:
+            return [], True, None
+        evpn = self._evpn_imports(prefix, vrf, ev)
+        if subtypes and not evpn:
+            raise DriverError(f"{prefix}: network-instance {vrf!r} lists a bgp-evpn path in its bgp-rib, but the EVPN "
+                              "RIB has no IP-prefix route for it imported there")
+        text = None
+        if vrf != "default":
+            text = self._cli(f"info from state /network-instance {vrf} route-table {table} route {prefix} "
+                             "id * route-type * route-owner * origin-network-instance *", ev)
+            installed = {r.protocol for r in parse_routes(text, prefix)}
+            if "bgp-vpn" in installed:
+                raise DriverError(f"{prefix} in network-instance {vrf!r} is installed from bgp-vpn, a RIB the srlinux "
+                                  "driver doesn't read yet")
+            if "bgp-evpn" in installed and not evpn:
+                raise DriverError(f"{prefix} in network-instance {vrf!r} is installed from bgp-evpn, but the EVPN RIB "
+                                  "has no IP-prefix route for it imported there")
+        best = not subtypes or any(_best(r) for r in rows if _imported(r) == "bgp-evpn")
+        return evpn, best, text
+
+    def _evpn_choice(self, prefix: str, vrf: str, rows: list[dict], evpn: list[dict], installed: str | None,
+                     read: dict[int, BgpPath], ev: list[dict]) -> int | None:
+        """Which imported EVPN path the ip-vrf uses (its position in `evpn`), None when it uses none.
+
+        `best-route` in the EVPN RIB is per NLRI, and the NLRI holds the route-distinguisher: two PEs that advertise
+        the same prefix (dual-homed, anycast) give two paths, both best-route and both imported. The EVPN RIB doesn't
+        say which one the ip-vrf chose, and the first in RIB order (the lowest RD) passed `next_hop`/`local_pref`
+        checks on a path the ip-vrf doesn't use (adversary on 02a0060, live). So the ip-vrf decides: when it holds an
+        active bgp-evpn route, that route's next-hop-group, resolved to the VTEP addresses, must name exactly one
+        candidate's next hop and nothing else, with one candidate as with several. ECMP over several, a next hop that
+        no candidate or several carry, or (with several candidates) no active bgp-evpn route at all: an error, never
+        the first path. One candidate with no active bgp-evpn route (not installed yet, or another route preferred) is
+        that candidate. In design B the ip-vrf's own bgp-evpn row must carry the chosen path's local-pref."""
+        cands = [n for n, r in enumerate(evpn) if r["best-route"]]
+        if not cands:
+            return None
+        if installed is None:   # the default network-instance: no ip-vrf route table to ask
+            if len(cands) == 1:
+                return cands[0]
+            raise DriverError(f"{prefix}: {len(cands)} EVPN paths imported into network-instance {vrf!r} are best in "
+                              "the EVPN RIB; the srlinux driver can't tell which one it uses there")
+        for n in cands:
+            read[n] = self._read_evpn_path(evpn[n], False, ev)
+        group = parse_installed_evpn_group(installed, prefix)
+        if group is None:
+            # one candidate: the ip-vrf may not have installed it yet (or prefers another route); several: nothing
+            # says which of them is best
+            if len(cands) > 1:
+                raise DriverError(f"{prefix}: network-instance {vrf!r} forwards with no EVPN route, so the srlinux "
+                                  f"driver can't tell which of the {len(cands)} EVPN paths imported into it is its best")
+            n = cands[0]
+        else:
+            # one candidate or several: the VTEPs the ip-vrf forwards to must be exactly one candidate's next hop
+            # (adversary re-check of a470a6f: a lone best-route path while the ip-vrf forwards elsewhere)
+            hops = parse_next_hop_group(self._cli(
+                f"info from state /network-instance {vrf} route-table next-hop-group {group}", ev), group)
+            vteps = {parse_next_hop_address(self._cli(
+                f"info from state /network-instance {vrf} route-table next-hop {h}", ev), h) for h in hops}
+            used = [n for n in cands if read[n].next_hop in vteps]
+            if len(used) != 1 or vteps != {read[used[0]].next_hop}:
+                raise DriverError(
+                    f"{prefix}: network-instance {vrf!r} forwards to {', '.join(sorted(vteps))}, and the "
+                    f"{len(cands)} imported EVPN path(s) best in the EVPN RIB have next hops "
+                    f"{', '.join(str(read[n].next_hop) for n in cands)}: not exactly one of them, so the srlinux driver "
+                    "can't tell which one is its best path")
+            n = used[0]
+        evpn_rows = [r for r in rows if _imported(r) == "bgp-evpn" and _best(r)]
+        if evpn_rows:
+            # design B, one candidate or several: the ip-vrf's own bgp-evpn row carries the local-pref it took from
+            # the path it chose. Its attr-set must be the one asked for and hold a local-pref (every capture does)
+            attr_id = _index(ATTR_CMD, evpn_rows[0].get("attr-id"))
+            mine = _json(self._cli(f"info from state /network-instance {vrf} bgp-rib attr-sets attr-set {attr_id}",
+                                   ev), ATTR_CMD)
+            if not isinstance(mine, dict) or str(mine.get("index")) != attr_id or "local-pref" not in mine:
+                raise unexpected(ATTR_CMD, f"network-instance {vrf!r} attr-set {attr_id}: {str(mine)[:150]}")
+            if as_int(ATTR_CMD, mine["local-pref"]) != read[n].local_pref:
+                raise DriverError(f"{prefix}: network-instance {vrf!r} carries local-pref {mine['local-pref']}, but "
+                                  f"the EVPN path it forwards with (next hop {read[n].next_hop}) has "
+                                  f"{read[n].local_pref}; the srlinux driver can't tell which one is its best path")
+        return n
+
+    def _read_evpn_path(self, row: dict, best: bool, ev: list[dict]) -> BgpPath:
+        """An EVPN path's attributes, from its attr-set in the default network-instance (where the EVPN RIB is)."""
+        attr_id = str(row.get("attr-id"))
+        if not attr_id.isdigit():
+            raise DriverError(f"unexpected attr-id {attr_id[:40]!r} for the EVPN route {row.get('ip-prefix')}")
+        attrs = self._cli(f"info from state /network-instance default bgp-rib attr-sets attr-set {attr_id}", ev)
+        default_lp = None
+        neighbor = _ip_or_none(row.get("neighbor"))
+        if "local-pref" not in _json(attrs, ATTR_CMD) and neighbor and not ipaddress.ip_address(neighbor).is_unspecified:
+            state = _json(self._cli(f"info from state /network-instance default protocols bgp neighbor "
+                                    f"{neighbor} local-preference", ev), NEIGHBORS_CMD)
+            lp = state.get("local-preference")
+            default_lp = as_int(NEIGHBORS_CMD, lp) if lp is not None else None
+        return parse_evpn_attr_set(attrs, row, best, default_lp)
 
     def _read_path(self, row: dict, vrf: str, ev: list[dict]) -> BgpPath:
         # attr-id and neighbor come from device output and go back into a CLI string: only a number and an IP

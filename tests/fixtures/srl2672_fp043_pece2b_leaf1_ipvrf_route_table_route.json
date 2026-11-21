@@ -1,0 +1,29 @@
+{
+  "route": [
+    {
+      "ipv4-prefix": "10.99.0.0/24",
+      "id": 0,
+      "route-type": "bgp-evpn",
+      "route-owner": "bgp_evpn_mgr",
+      "origin-network-instance": "ipvrf",
+      "leakable": false,
+      "leaked": false,
+      "metric": 1,
+      "preference": 170,
+      "active": true,
+      "route-limit-exceeded": false,
+      "last-app-update": "2026-11-21T22:06:10.840Z (32 seconds ago)",
+      "next-hop-group": "3692599526",
+      "next-hop-group-network-instance": "ipvrf",
+      "resilient-hash": false,
+      "dynamic-load-balancing": false,
+      "fib-programming": {
+        "suppressed": false,
+        "last-successful-operation-type": "modify",
+        "last-successful-operation-timestamp": "2026-11-21T22:06:10.841Z (32 seconds ago)",
+        "pending-operation-type": "none",
+        "last-failed-operation-type": "none"
+      }
+    }
+  ]
+}

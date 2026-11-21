@@ -1,0 +1,135 @@
+{
+  "local-rib": {
+    "route": [
+      {
+        "prefix": "10.1.0.0/30",
+        "neighbor": "0.0.0.0",
+        "origin-protocol": "local",
+        "path-id": 0,
+        "last-modified": "2026-11-21T12:01:36.600Z (2 minutes ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "fib-disabled": false,
+        "pending-delete": false,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "attr-id": "6"
+      },
+      {
+        "prefix": "10.77.0.0/24",
+        "neighbor": "10.1.0.2",
+        "origin-protocol": "bgp",
+        "path-id": 0,
+        "last-modified": "2026-11-21T12:03:24.800Z (28 seconds ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "fib-disabled": false,
+        "pending-delete": false,
+        "neighbor-as": 65100,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "attr-id": "12"
+      },
+      {
+        "prefix": "10.99.0.0/24",
+        "neighbor": "0.0.0.0",
+        "origin-protocol": "bgp-evpn",
+        "path-id": 0,
+        "last-modified": "2026-11-21T12:01:41.500Z (2 minutes ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "fib-disabled": false,
+        "pending-delete": false,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "attr-id": "11"
+      },
+      {
+        "prefix": "10.99.0.1/32",
+        "neighbor": "0.0.0.0",
+        "origin-protocol": "bgp-evpn",
+        "path-id": 0,
+        "last-modified": "2026-11-21T12:01:41.500Z (2 minutes ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "fib-disabled": false,
+        "pending-delete": false,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "attr-id": "11"
+      }
+    ]
+  },
+  "rib-in-out": {
+    "rib-in-pre": {
+      "route": [
+        {
+          "prefix": "10.77.0.0/24",
+          "neighbor": "10.1.0.2",
+          "path-id": 0,
+          "attr-id": "12"
+        }
+      ]
+    },
+    "rib-in-post": {
+      "route": [
+        {
+          "prefix": "10.77.0.0/24",
+          "neighbor": "10.1.0.2",
+          "path-id": 0,
+          "last-modified": "2026-11-21T12:03:24.800Z (28 seconds ago)",
+          "used-route": true,
+          "unused-weight-only": false,
+          "valid-route": true,
+          "best-route": true,
+          "backup-route": false,
+          "stale-route": false,
+          "fib-disabled": false,
+          "pending-delete": false,
+          "neighbor-as": 65100,
+          "group-best": true,
+          "tie-break-reason": "none",
+          "attr-id": "12"
+        }
+      ]
+    },
+    "rib-out-post": {
+      "route": [
+        {
+          "prefix": "10.1.0.0/30",
+          "neighbor": "10.1.0.2",
+          "path-id": 0,
+          "attr-id": "15"
+        },
+        {
+          "prefix": "10.99.0.0/24",
+          "neighbor": "10.1.0.2",
+          "path-id": 0,
+          "attr-id": "15"
+        },
+        {
+          "prefix": "10.99.0.1/32",
+          "neighbor": "10.1.0.2",
+          "path-id": 0,
+          "attr-id": "15"
+        }
+      ]
+    }
+  }
+}

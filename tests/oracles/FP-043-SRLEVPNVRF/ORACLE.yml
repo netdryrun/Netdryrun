@@ -1,0 +1,132 @@
+id: FP-043-SRLEVPNVRF
+bug: >-
+  On SR Linux, `bgp_route vrf ipvrf prefix 10.99.0.0/24 present: false` passes while an EVPN IP-prefix (type-5) route
+  for it is imported into ip-vrf ipvrf and installed there (route-type bgp-evpn): with no `protocols bgp` in the ip-vrf
+  the driver reads ipvrf's empty bgp-rib ("no BGP path"; the route is in the default network-instance's EVPN RIB with
+  imported-network-instances [ipvrf]); with a PE-CE BGP session in the ip-vrf, ipvrf's bgp-rib lists the route as
+  origin-protocol bgp-evpn from 0.0.0.0 and the driver takes it for the router's own route ("a prefix this node
+  originates itself isn't checked"), which `netdryrun check` passed live (red team RT-0058, GHSA-ggcf-664f-c9ff case
+  2; captured live on SR Linux 26.7.2, lab srl-evpn-oracle, 2026-11-21)
+evidence:
+  - tests/test_oracle_guards_fp_043_srlevpnvrf.py
+  - tests/fixtures/SOURCES.yml
+  - tests/fixtures/srl2672_fp043_absent_leaf1_default_attr_set_6.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_default_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_default_bgp_rib_attr_sets.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_default_bgp_rib_evpn.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_default_evpn_local_rib.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf2_protocols.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf2_route_table.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_bgp_rib.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_bgp_rib_route.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_bgp_rib_route_q.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_oper_state.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_protocols.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_route_table_route.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_ipvrf_route_table_route_q.json
+  - tests/fixtures/srl2672_fp043_absent_leaf1_show_evpn_type5.txt
+  - tests/fixtures/srl2672_fp043_absent_leaf1_show_version.txt
+  - tests/fixtures/srl2672_fp043_absent_leaf2_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_leaf1.cli
+  - tests/fixtures/srl2672_fp043_leaf2.cli
+  - tests/fixtures/srl2672_fp043_netdryrun.yml
+  - tests/fixtures/srl2672_fp043_pece2_ce1_running.conf
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_default_attr_set_6.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_default_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_default_bgp_rib_attr_sets.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_default_bgp_rib_evpn.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_default_evpn_local_rib.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf2_protocols.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf2_route_table.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_attr_set_11.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_bgp_rib.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_bgp_rib_ipv4.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_bgp_rib_route.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_bgp_rib_route_q.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_oper_state.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_protocols.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_route_table_route.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_ipvrf_route_table_route_q.json
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_show_evpn_type5.txt
+  - tests/fixtures/srl2672_fp043_pece2_leaf1_show_version.txt
+  - tests/fixtures/srl2672_fp043_pece2_leaf2_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_pece2_report.json
+  - tests/fixtures/srl2672_fp043_pece2_run.txt
+  - tests/fixtures/srl2672_fp043_pece2b_ce1_running.conf
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_default_attr_set_8.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_default_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_default_evpn_local_rib.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_ipvrf_attr_set_10.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_ipvrf_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_ipvrf_bgp_rib_route.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_ipvrf_nh_3692599523.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_ipvrf_nhg_3692599526.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_ipvrf_route_table_route.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_ipvrf_route_table_route_end.json
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_show_evpn_type5.txt
+  - tests/fixtures/srl2672_fp043_pece2b_leaf1_show_version.txt
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_default_attr_set_6.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_default_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_default_bgp_rib_attr_sets.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_default_bgp_rib_evpn.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_default_evpn_local_rib.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf2_protocols.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf2_route_table.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_bgp_rib.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_bgp_rib_ipv4.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_bgp_rib_route.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_bgp_rib_route_q.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_oper_state.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_protocols.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_route_table_route.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_ipvrf_route_table_route_q.json
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_show_evpn_type5.txt
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf1_show_version.txt
+  - tests/fixtures/srl2672_fp043_pece2absent_leaf2_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_pece2absent_report.json
+  - tests/fixtures/srl2672_fp043_pece2absent_run.txt
+  - tests/fixtures/srl2672_fp043_pece_ce1.conf
+  - tests/fixtures/srl2672_fp043_pece_leaf1.cli
+  - tests/fixtures/srl2672_fp043_pece_netdryrun.yml
+  - tests/fixtures/srl2672_fp043_pece_topology.clab.yml
+  - tests/fixtures/srl2672_fp043_present_leaf1_default_attr_set_6.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_default_bgp_neighbors.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_default_bgp_rib_attr_sets.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_default_bgp_rib_evpn.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_default_evpn_local_rib.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf2_protocols.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf2_route_table.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_bgp_rib.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_bgp_rib_route.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_bgp_rib_route_q.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_oper_state.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_protocols.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_route_table_route.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_ipvrf_route_table_route_q.json
+  - tests/fixtures/srl2672_fp043_present_leaf1_show_evpn_type5.txt
+  - tests/fixtures/srl2672_fp043_present_leaf1_show_version.txt
+  - tests/fixtures/srl2672_fp043_present_leaf2_ipvrf_route_table.json
+  - tests/fixtures/srl2672_fp043_present_report.json
+  - tests/fixtures/srl2672_fp043_present_run.txt
+  - tests/fixtures/srl2672_fp043_present_single_report.json
+  - tests/fixtures/srl2672_fp043_present_single_run.txt
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_default_attr_set_6.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_default_evpn_local_rib.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_bgp_rib_route.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_nh_3530614219.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_nhg_3530614221.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_oper_state.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_route_table_route.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_ipvrf_route_table_route_end.json
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_show_evpn_type5.txt
+  - tests/fixtures/srl2672_fp043_rt58_leaf1_show_version.txt
+  - tests/fixtures/srl2672_fp043_single_netdryrun.yml
+  - tests/fixtures/srl2672_fp043_topology.clab.yml
+plant: plant.diff
+ported_from: 02a0060ed7c4326d8dc38e65f34295a11f772859

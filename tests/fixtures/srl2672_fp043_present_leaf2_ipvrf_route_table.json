@@ -1,0 +1,79 @@
+{
+  "route": [
+    {
+      "ipv4-prefix": "10.99.0.0/24",
+      "id": 4,
+      "route-type": "local",
+      "route-owner": "net_inst_mgr",
+      "origin-network-instance": "ipvrf",
+      "leakable": false,
+      "leaked": false,
+      "metric": 0,
+      "preference": 0,
+      "active": true,
+      "route-limit-exceeded": false,
+      "last-app-update": "2026-11-21T11:51:41.196Z (54 seconds ago)",
+      "next-hop-group": "207317518",
+      "next-hop-group-network-instance": "ipvrf",
+      "resilient-hash": false,
+      "dynamic-load-balancing": false,
+      "fib-programming": {
+        "suppressed": false,
+        "last-successful-operation-type": "add",
+        "last-successful-operation-timestamp": "2026-11-21T11:51:41.201Z (54 seconds ago)",
+        "pending-operation-type": "none",
+        "last-failed-operation-type": "none"
+      }
+    },
+    {
+      "ipv4-prefix": "10.99.0.1/32",
+      "id": 4,
+      "route-type": "host",
+      "route-owner": "net_inst_mgr",
+      "origin-network-instance": "ipvrf",
+      "leakable": false,
+      "leaked": false,
+      "metric": 0,
+      "preference": 0,
+      "active": true,
+      "route-limit-exceeded": false,
+      "last-app-update": "2026-11-21T11:51:41.196Z (54 seconds ago)",
+      "next-hop-group": "207317517",
+      "next-hop-group-network-instance": "ipvrf",
+      "resilient-hash": false,
+      "dynamic-load-balancing": false,
+      "fib-programming": {
+        "suppressed": false,
+        "last-successful-operation-type": "add",
+        "last-successful-operation-timestamp": "2026-11-21T11:51:41.201Z (54 seconds ago)",
+        "pending-operation-type": "none",
+        "last-failed-operation-type": "none"
+      }
+    },
+    {
+      "ipv4-prefix": "10.99.0.255/32",
+      "id": 4,
+      "route-type": "host",
+      "route-owner": "net_inst_mgr",
+      "origin-network-instance": "ipvrf",
+      "leakable": false,
+      "leaked": false,
+      "metric": 0,
+      "preference": 0,
+      "active": true,
+      "route-limit-exceeded": false,
+      "last-app-update": "2026-11-21T11:51:41.196Z (54 seconds ago)",
+      "next-hop-group": "207317519",
+      "next-hop-group-network-instance": "ipvrf",
+      "resilient-hash": false,
+      "dynamic-load-balancing": false,
+      "fib-programming": {
+        "suppressed": false,
+        "last-successful-operation-type": "add",
+        "last-successful-operation-timestamp": "2026-11-21T11:51:41.201Z (54 seconds ago)",
+        "pending-operation-type": "none",
+        "last-failed-operation-type": "none"
+      }
+    }
+  ]
+}

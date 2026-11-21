@@ -1,0 +1,7 @@
+{
+  "index": "11",
+  "origin": "igp",
+  "atomic-aggregate": false,
+  "next-hop": "0.0.0.0",
+  "local-pref": 100
+}

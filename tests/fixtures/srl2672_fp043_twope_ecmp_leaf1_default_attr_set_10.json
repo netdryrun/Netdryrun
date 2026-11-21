@@ -1,0 +1,19 @@
+{
+  "index": "10",
+  "origin": "igp",
+  "atomic-aggregate": false,
+  "next-hop": "3.3.3.3",
+  "local-pref": 100,
+  "communities": {
+    "ext-community": [
+      "target:65000:99",
+      "mac-nh:1a:a5:03:ff:00:00",
+      "bgp-tunnel-encap:VXLAN"
+    ],
+    "ext-community-raw-format": [
+      "ext:0002:fde800000063",
+      "ext:0603:1aa503ff0000",
+      "ext:030c:000000000008"
+    ]
+  }
+}

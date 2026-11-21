@@ -6,27 +6,7 @@ title: >-
   bgp-rib evpn), sr_cli answers {} and the check reads "no BGP path". On FRR the same imported route is a path in
   `show bgp vrf ipvrf ipv4 unicast` and the check fails
 found: 2026-11-09, red team A (drivers)
-fixed_in: null
-accepted_limit:
-  decided: 'owner, 2026-11-09: ship 0.4.1 and publish the four as known limits (no source change after the final gate runs);
-    fix in 0.4.2'
-  mitigation: 'use route with the same vrf, protocol: bgp and present: false'
-  fix_in: '0.4.3: read the EVPN RIB for an ip-vrf'
-  detail: no BGP path
-  published:
-    website/docs/reference/config.md:
-    - accepted for 0.4.1; RT-0058
-    - which the driver doesn't read
-    website/docs/trust.md:
-    - (RT-0058)
-    - 'Use `route` with `protocol: bgp` and `present: false` in that VRF'
-    CHANGELOG.md:
-    - '**SR Linux EVPN** (RT-0058)'
-    advisories/0.4.1-known-false-passes/README.md:
-    - (RT-0058)
-    - 'reads the EVPN RIB for an
-
-      ip-vrf'
+fixed_in: 0.4.3
 kind: driver
 driver: srlinux
 check:
@@ -36,21 +16,27 @@ check:
   prefix: 10.99.0.0/24
   present: false
 outputs:
+  # live captures from one run (lab srl-evpn-oracle, design A, SR Linux 26.7.2, 2026-11-22; SOURCES.yml
+  # srl2672_fp043_rt58_*): ipvrf has no `protocols bgp`, so its bgp-rib answers {}; the default network-instance's EVPN
+  # RIB holds the route from 2.2.2.2 with imported-network-instances [ipvrf]; ipvrf's route table has it via bgp-evpn
+  # on next-hop-group 3530614221, whose one next hop 3530614219 is 2.2.2.2 (0.4.3 reads all of them)
   - needle: "bgp-rib afi-safi ipv4-unicast"
-    output: |
-      {
-      }
-  - needle: "oper-state"
-    output: |
-      {
-        "network-instance": [
-          {
-            "name": "ipvrf",
-            "oper-state": "up"
-          }
-        ]
-      }
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_bgp_rib_route.json
+  - needle: "bgp-rib afi-safi evpn evpn local-rib"
+    fixture: srl2672_fp043_rt58_leaf1_default_evpn_local_rib.json
+  - needle: "route-table ipv4-unicast route 10.99.0.0/24"
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_route_table_route.json
+  - needle: "route-table next-hop-group 3530614221"
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_nhg_3530614221.json
+  - needle: "route-table next-hop 3530614219"
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_nh_3530614219.json
+  - needle: "attr-sets attr-set 6"
+    fixture: srl2672_fp043_rt58_leaf1_default_attr_set_6.json
+  - needle: "ipvrf oper-state"
+    fixture: srl2672_fp043_rt58_leaf1_ipvrf_oper_state.json
 reproduce: >-
   containerlab: the RT-0054 EVPN lab without the static: leaf2 advertises 10.99.0.0/24 as an EVPN IP-prefix route,
   leaf1's ipvrf route-table shows 10.99.0.0/24 route-type bgp-evpn, active. {type: bgp_route, node: leaf1, vrf: ipvrf,
-  prefix: 10.99.0.0/24, present: false} passes ("no BGP path"). Same root cause as RT-0054.
+  prefix: 10.99.0.0/24, present: false} passes ("no BGP path"). Same root cause as RT-0054. Reproduced live
+  through `netdryrun check` (design B, BGP in the ip-vrf: the bgp-evpn row read as the node's own route) by oracle
+  FP-043-SRLEVPNVRF.

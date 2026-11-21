@@ -142,12 +142,34 @@ def _srl_lab(instance_state: str):
     ])
 
 
+# The reads an SR Linux route check makes in a network-instance (RT-0058, FP-043-SRLEVPNVRF): the
+# instance's route table and BGP RIB, then the default instance's EVPN local-rib (an ip-vrf's routes
+# imported from EVPN type-5 are only there), and only then the instance's oper-state, which tells a
+# real absence from an instance that doesn't exist.
+_SRL_ROUTE_TABLE = "info from state /network-instance {} route-table ipv4-unicast route 10.0.0.0/24"
+_SRL_BGP_RIB = "info from state /network-instance {} bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.0.0.0/24"
+_SRL_EVPN_RIB = "info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib"
+_SRL_OPER = "info from state /network-instance {} oper-state"
+
+
+def _srl_reads(lab, *expected, vrf):
+    """Every command since the last check, in order, matched by its read."""
+    calls, lab.calls[:] = list(lab.calls), []
+    assert len(calls) == len(expected), calls
+    for line, want in zip(calls, expected, strict=True):
+        assert line.startswith("sr_cli --output-format json "), line
+        assert want.format(vrf) in line, (want, line)
+
+
 def test_srl_unknown_network_instance_raises_instead_of_no_routes():
-    d = SrlDriver(_srl_lab("{\n}"), "srl1")
+    lab = _srl_lab("{\n}")
+    d = SrlDriver(lab, "srl1")
     with pytest.raises(DriverError, match="network-instance 'CUSTOMR' does not exist"):
         d.routes("10.0.0.0/24", vrf="CUSTOMR")
+    _srl_reads(lab, _SRL_ROUTE_TABLE, _SRL_BGP_RIB, _SRL_EVPN_RIB, _SRL_OPER, vrf="CUSTOMR")
     with pytest.raises(DriverError, match="does not exist"):
         d.bgp_paths("10.0.0.0/24", vrf="CUSTOMR")
+    _srl_reads(lab, _SRL_BGP_RIB, _SRL_EVPN_RIB, _SRL_ROUTE_TABLE, _SRL_OPER, vrf="CUSTOMR")
     with pytest.raises(DriverError, match="does not exist"):
         d.bgp_neighbors(vrf="CUSTOMR")
     with pytest.raises(DriverError, match="does not exist"):
@@ -155,9 +177,12 @@ def test_srl_unknown_network_instance_raises_instead_of_no_routes():
 
 
 def test_srl_existing_network_instance_without_the_route_is_a_real_absence():
-    d = SrlDriver(_srl_lab(_obj({"name": "red", "oper-state": "up"})), "srl1")
+    lab = _srl_lab(_obj({"name": "red", "oper-state": "up"}))
+    d = SrlDriver(lab, "srl1")
     assert d.routes("10.0.0.0/24", vrf="red").value == []
+    _srl_reads(lab, _SRL_ROUTE_TABLE, _SRL_BGP_RIB, _SRL_EVPN_RIB, _SRL_OPER, vrf="red")
     assert d.bgp_paths("10.0.0.0/24", vrf="red").value == []
+    _srl_reads(lab, _SRL_BGP_RIB, _SRL_EVPN_RIB, _SRL_ROUTE_TABLE, _SRL_OPER, vrf="red")
 
 
 # ---------------------------------------------------------------- 2. swallowed command failures

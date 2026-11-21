@@ -1,0 +1,14 @@
+lab: topology.clab.yml
+timeout: 120
+checks:
+  - {name: A-nh-leaf2-must-fail, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.77.0.0/24, next_hop: 2.2.2.2}
+  - {name: A-lp100-must-fail, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.77.0.0/24, local_pref: 100}
+  - {name: A-nh-leaf3-lp200-must-pass, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.77.0.0/24, next_hop: 3.3.3.3, local_pref: 200}
+  - {name: A-absent-must-fail, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.77.0.0/24, present: false}
+  - {name: B-nh-leaf2-must-fail, type: bgp_route, node: leaf1, vrf: ipvrfb, prefix: 10.66.0.0/24, next_hop: 2.2.2.2}
+  - {name: B-lp100-must-fail, type: bgp_route, node: leaf1, vrf: ipvrfb, prefix: 10.66.0.0/24, local_pref: 100}
+  - {name: B-nh-leaf3-lp200-must-pass, type: bgp_route, node: leaf1, vrf: ipvrfb, prefix: 10.66.0.0/24, next_hop: 3.3.3.3, local_pref: 200}
+  - {name: B-absent-must-fail, type: bgp_route, node: leaf1, vrf: ipvrfb, prefix: 10.66.0.0/24, present: false}
+  - {name: B-route-bgp-absent-must-fail, type: route, node: leaf1, vrf: ipvrfb, prefix: 10.66.0.0/24, protocol: bgp, present: false}
+  - {name: B-ce-session-up, type: bgp_session, node: leaf1, vrf: ipvrfb, neighbor: 10.1.0.2}
+  - {name: B-ce-route-must-pass, type: bgp_route, node: leaf1, vrf: ipvrfb, prefix: 10.55.0.0/24, next_hop: 10.1.0.2}

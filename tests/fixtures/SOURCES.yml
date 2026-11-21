@@ -570,6 +570,160 @@
     lu-exact0-must-fail-eor-not-sent PASSED ("0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)") while
     r1 had r2's 3 prefixes installed via BGP, and lu-max0-control failed
   added: ndr/oracles-0.4.2
+- files: [srl2672_fp043_present_leaf*, srl2672_fp043_absent_leaf*]
+  kind: live-capture
+  source: >-
+    Nokia SR Linux 26.7.2 (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8,
+    show version v26.7.2 build 519-g94fbd638fa8), containerlab 0.81.1, lab srl-evpn-oracle (srl2672_fp043_topology.clab.yml:
+    leaf1 and leaf2, iBGP EVPN in default between system0 addresses, ip-vrfs ipvrf (route-target 65000:99) and ipvrf2
+    (65000:98) without `protocols bgp`; leaf2 advertises lo1.0 10.99.0.1/24 in ipvrf and lo2.0 10.98.0.1/24 in ipvrf2),
+    the laptop's WSL. Each file is `docker exec <node> sr_cli --output-format json "<command>"` (the .txt files: the same
+    without --output-format) redirected to the file, byte for byte: present_* at 2026-11-21T18:52+07:00 with the route,
+    absent_* at 19:00 after `delete / network-instance ipvrf interface lo1.0` on leaf2. The file names the command:
+    ipvrf_bgp_rib_route[_q] = `info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast
+    local-rib route 10.99.0.0/24 [10.98.0.0/24] neighbor * origin-protocol * path-id *`; ipvrf_oper_state = `... ipvrf
+    oper-state`; ipvrf[2]_route_table[_route[_q]] = `... route-table ipv4-unicast route <* | prefix> id * route-type *
+    route-owner * origin-network-instance *`; ipvrf_bgp_rib = `... ipvrf bgp-rib`; ipvrf[2]_protocols = `... protocols`;
+    default_bgp_rib_evpn = `... default bgp-rib afi-safi evpn evpn`; default_evpn_local_rib = the same plus `local-rib`;
+    default_bgp_rib_attr_sets = `... default bgp-rib attr-sets`; default_attr_set_6 = `... attr-sets attr-set 6`;
+    default_bgp_neighbors = `... default protocols bgp neighbor *`; show_evpn_type5 = `show network-instance default
+    protocols bgp routes evpn route-type 5 detail`; show_version = `show version`; leaf2_ipvrf_route_table from leaf2.
+    Captured for oracle FP-043-SRLEVPNVRF (red team RT-0058)
+  added: ndr/oracle-srl-evpn
+- files: [srl2672_fp043_pece2_leaf*, srl2672_fp043_pece2absent_leaf*]
+  kind: live-capture
+  source: >-
+    The same image and commands as srl2672_fp043_present_*, on lab srl-evpn-oracle redeployed from
+    srl2672_fp043_pece_topology.clab.yml (design B: plus ce1, FRR 10.4.1 AS 65100, on leaf1 ethernet-1/2.0 in ipvrf, and
+    `protocols bgp` in ipvrf with neighbor 10.1.0.2), after ce1 got an outbound route-map that sends only 10.77.0.0/24
+    (srl2672_fp043_pece2_ce1_running.conf; before it, ce1 sent 10.99.0.0/24 back and leaf1 kept it as an as-loop path).
+    pece2_* at 2026-11-21T19:01:50+07:00 with the route, pece2absent_* at 19:05 after leaf2 deleted ipvrf interface lo1.0.
+    Extra files: ipvrf_bgp_neighbors = `... ipvrf protocols bgp neighbor *`, ipvrf_bgp_rib_ipv4 = `... ipvrf bgp-rib
+    afi-safi ipv4-unicast ipv4-unicast`, ipvrf_attr_set_11 = `... ipvrf bgp-rib attr-sets attr-set 11`. Captured for
+    oracle FP-043-SRLEVPNVRF (red team RT-0058)
+  added: ndr/oracle-srl-evpn
+- files: [srl2672_fp043_topology.clab.yml, srl2672_fp043_leaf1.cli, srl2672_fp043_leaf2.cli, srl2672_fp043_netdryrun.yml,
+          srl2672_fp043_single_netdryrun.yml, srl2672_fp043_pece_topology.clab.yml, srl2672_fp043_pece_leaf1.cli,
+          srl2672_fp043_pece_ce1.conf, srl2672_fp043_pece_netdryrun.yml, srl2672_fp043_pece2_ce1_running.conf]
+  kind: lab-input
+  source: >-
+    The topologies, startup configs and checks deployed for lab srl-evpn-oracle (RT-0058 SR Linux EVPN type-5 in an
+    ip-vrf), 2026-11-21. Design B uses srl2672_fp043_leaf2.cli for leaf2 as is (configs/leaf2.cli in that lab dir);
+    the single_netdryrun.yml ran from a subfolder (lab: ../topology.clab.yml). pece2_ce1_running.conf is `vtysh -c 'show
+    running-config'` on ce1 after the outbound route-map ONLY-OWN was added with vtysh
+  added: ndr/oracle-srl-evpn
+- files: [srl2672_fp043_present_report.json, srl2672_fp043_present_run.txt, srl2672_fp043_present_single_report.json,
+          srl2672_fp043_present_single_run.txt, srl2672_fp043_pece2_report.json, srl2672_fp043_pece2_run.txt,
+          srl2672_fp043_pece2absent_report.json, srl2672_fp043_pece2absent_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (main 24f6666, PYTHONPATH=src) `check <dir> --json` on the running lab srl-evpn-oracle, 2026-11-21;
+    the run.txt files are its console output with the report path in the last line cut to the file name. Design A,
+    srl2672_fp043_netdryrun.yml (exit 1): the two present-false checks NOT EVALUATED (no BGP neighbors in vrf ipvrf),
+    bgp_route present true failed "no BGP path", route via bgp-evpn passed; the same check alone (single, exit 3,
+    inconclusive). Design B with the route (exit 1): pece-evpn-bgp-route-absent-must-fail PASSED ("no BGP path
+    (received); a prefix this node originates itself isn't checked"), route protocol bgp present false failed
+    ("unexpectedly present via bgp-evpn"); without the route (exit 0) all three passed
+  added: ndr/oracle-srl-evpn
+- files: [srl2672_fp043_twope_lp200_leaf1*, srl2672_fp043_twope_ecmp_leaf1*, srl2672_fp043_twope_one_leaf1*,
+          srl2672_fp043_twope_absent_leaf1*]
+  kind: live-capture
+  source: >-
+    The same SR Linux image as srl2672_fp043_present_* (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8,
+    show version v26.7.2 build 519-g94fbd638fa8) and FRR 10.4.1 for ce1
+    (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442), containerlab 0.81.1,
+    lab fix-srl-evpn (srl2672_fp043_twope_topology.clab.yml: leaf1 with iBGP EVPN in default to leaf2 2.2.2.2 and leaf3
+    3.3.3.3; ipvrf, route-target 65000:99, without `protocols bgp` (design A); ipvrfb, 65000:88, with PE-CE BGP to ce1
+    10.1.0.2 AS 65100 (design B); leaf2 and leaf3 both advertise 10.77.0.0/24 in ipvrf and 10.66.0.0/24 in ipvrfb under
+    their own route-distinguishers), the laptop's WSL, 2026-11-21. Each file is `docker exec clab-fix-srl-evpn-leaf1
+    sr_cli --output-format json "<command>"` (the .txt files: the same without --output-format) redirected to the file,
+    byte for byte. Four states: lp200_* at 20:52+07:00, as deployed (leaf1 import-policy lp200 sets local-preference
+    200 on what it learns from 3.3.3.3: both paths best in the EVPN RIB, each ip-vrf forwards to 3.3.3.3 only); ecmp_*
+    at 20:59 after `delete / network-instance default protocols bgp neighbor 3.3.3.3 import-policy` on leaf1 (each
+    ip-vrf forwards to both VTEPs); one_* at 21:09 after leaf3 deleted ipvrf interface lo1.0 and ipvrfb interface
+    lo2.0; absent_* at 21:15 after leaf2 deleted them too. The file names the command: default_evpn_local_rib = `info
+    from state /network-instance default bgp-rib afi-safi evpn evpn local-rib`; default_attr_set_N = `... default
+    bgp-rib attr-sets attr-set N`; default_bgp_neighbors = `... default protocols bgp neighbor *`; <vrf>_oper_state =
+    `... <vrf> oper-state`; <vrf>_bgp_rib_route = `... <vrf> bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib
+    route <prefix> neighbor * origin-protocol * path-id *` (10.77.0.0/24 for ipvrf, 10.66.0.0/24 for ipvrfb);
+    <vrf>_attr_set_N = `... <vrf> bgp-rib attr-sets attr-set N`; <vrf>_route_table_route = `... <vrf> route-table
+    ipv4-unicast route <prefix> id * route-type * route-owner * origin-network-instance *`; <vrf>_nhg_N = `... <vrf>
+    route-table next-hop-group N`; <vrf>_nh_N = `... <vrf> route-table next-hop N`; ipvrfb_bgp_neighbors = `...
+    ipvrfb protocols bgp neighbor *`; show_evpn_type5 = `show network-instance default protocols bgp routes evpn
+    route-type 5 detail`; show_version = `show version`. Captured for the adversary review of ndr/fix-srl-evpn 02a0060
+    (FP-043-SRLEVPNVRF, two PEs advertising one prefix)
+  added: ndr/fix-srl-evpn
+- files: [srl2672_fp043_twope_topology.clab.yml, srl2672_fp043_twope_netdryrun.yml, srl2672_fp043_twope_configs_leaf1.cli,
+          srl2672_fp043_twope_configs_leaf2.cli, srl2672_fp043_twope_configs_leaf3.cli, srl2672_fp043_twope_configs_ce1.conf,
+          srl2672_fp043_twope_configs_daemons, srl2672_fp043_twope_configs_vtysh.conf]
+  kind: lab-input
+  source: >-
+    The topology, startup configs (configs/<name> in the lab dir) and checks deployed for lab fix-srl-evpn, 2026-11-21.
+    The checks' names (must-fail, must-pass) say what each should give in state lp200
+  added: ndr/fix-srl-evpn
+- files: [srl2672_fp043_twope_lp200_report.json, srl2672_fp043_twope_lp200_run.txt, srl2672_fp043_twope_ecmp_report.json,
+          srl2672_fp043_twope_ecmp_run.txt, srl2672_fp043_twope_one_report.json, srl2672_fp043_twope_one_run.txt,
+          srl2672_fp043_twope_absent_report.json, srl2672_fp043_twope_absent_run.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 from ndr/fix-srl-evpn (b69845f plus the uncommitted ip-vrf choice that this branch's next commit
+    holds, PYTHONPATH=src) `check <dir> --json` on lab fix-srl-evpn right after each state's capture, 2026-11-21; the
+    run.txt files are its console output (stdout and stderr) without lines that start with six spaces and `warning`, the report path in the last line cut to
+    the file name and an `exit N` line added. lp200: B-nh-leaf2 and B-lp100 failed, B-nh-leaf3-lp200 passed, both
+    absence checks failed. ecmp: every ipvrfb bgp_route check an error (the ip-vrf forwards to both VTEPs). one:
+    leaf2's path judged. absent: both absence checks passed. The A-* checks are not evaluated in every state (the
+    convergence gate: no BGP neighbors in vrf ipvrf), a known limit; the driver-level results are in the unit tests
+  added: ndr/fix-srl-evpn
+- files: [srl2672_fp043_rt58_leaf1*]
+  kind: live-capture
+  source: >-
+    The same SR Linux image as srl2672_fp043_present_* (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8,
+    show version v26.7.2 build 519-g94fbd638fa8), containerlab 0.81.1, lab srl-evpn-oracle redeployed unchanged from
+    srl2672_fp043_topology.clab.yml, srl2672_fp043_leaf1.cli and srl2672_fp043_leaf2.cli (design A, the present
+    state: leaf2 advertises lo1.0 10.99.0.1/24 in ipvrf), the laptop's WSL, 2026-11-22 04:39-04:40+07:00, in one run
+    once leaf1's ipvrf route table showed 10.99.0.0/24 active via bgp-evpn. Each file is `docker exec
+    clab-srl-evpn-oracle-leaf1 sr_cli --output-format json "<command>"` (the .txt files: the same without
+    --output-format) redirected to the file, byte for byte. ipvrf_oper_state = `info from state /network-instance ipvrf
+    oper-state`; ipvrf_bgp_rib_route = `... ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route
+    10.99.0.0/24 neighbor * origin-protocol * path-id *`; default_evpn_local_rib = `... default bgp-rib afi-safi evpn
+    evpn local-rib`; default_attr_set_6 = `... default bgp-rib attr-sets attr-set 6`; ipvrf_route_table_route = `...
+    ipvrf route-table ipv4-unicast route 10.99.0.0/24 id * route-type * route-owner * origin-network-instance *`;
+    ipvrf_nhg_3530614221 = `... ipvrf route-table next-hop-group 3530614221` (the group that route names);
+    ipvrf_nh_3530614219 = `... ipvrf route-table next-hop 3530614219` (that group's one next hop); show_evpn_type5 =
+    `show network-instance default protocols bgp routes evpn route-type 5 detail`; show_version = `show version`;
+    ipvrf_route_table_route_end = the route-table read again at the end of the run (the same group and route). The
+    group id differs from the present_* run's 207317093, so red team case RT-0058 takes every answer from this run.
+    Captured for RT-0058 (the 0.4.3 driver's next-hop-group and next-hop reads, FX-0.4.3-srl-rt0058-case-unanswered-nhg)
+  added: ndr/fix-srl-evpn
+- files: [srl2672_fp043_pece2b_leaf1*, srl2672_fp043_pece2b_ce1_running.conf]
+  kind: live-capture
+  source: >-
+    The same SR Linux image as srl2672_fp043_present_* (ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8,
+    show version v26.7.2 build 519-g94fbd638fa8) and FRR 10.4.1 for ce1, containerlab 0.81.1, lab srl-evpn-oracle
+    redeployed unchanged from srl2672_fp043_pece_topology.clab.yml, srl2672_fp043_pece_leaf1.cli,
+    srl2672_fp043_leaf2.cli and srl2672_fp043_pece_ce1.conf (design B; ce1's daemons and vtysh.conf are
+    srl2672_fp043_twope_configs_daemons and srl2672_fp043_twope_configs_vtysh.conf), the laptop's WSL, 2026-11-22. As
+    for pece2_*, ce1 then got the outbound route-map ONLY-OWN with vtysh (prefix-list OWN 10.77.0.0/24; `neighbor
+    10.1.0.1 route-map ONLY-OWN out`, `clear bgp 10.1.0.1 soft out`); pece2b_ce1_running.conf is `vtysh -c 'show
+    running-config'` on ce1 right after, the same configuration as srl2672_fp043_pece2_ce1_running.conf. Once ipvrf's
+    route table showed 10.99.0.0/24 active via bgp-evpn and its bgp-rib held only the bgp-evpn row from 0.0.0.0, one
+    run at 05:06:42-05:06:48+07:00: the fix branch's driver (ndr/fix-srl-evpn 14b5ce6) ran bgp_paths(10.99.0.0/24,
+    ipvrf) once against leaf1 through a lab that sent each read as `docker exec clab-srl-evpn-oracle-leaf1 sr_cli
+    --output-format json "<command>"` and kept its stdout in a file, byte for byte: ipvrf_bgp_rib_route = `info from
+    state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.99.0.0/24 neighbor *
+    origin-protocol * path-id *`; default_evpn_local_rib = `... default bgp-rib afi-safi evpn evpn local-rib`;
+    ipvrf_route_table_route = `... ipvrf route-table ipv4-unicast route 10.99.0.0/24 id * route-type * route-owner *
+    origin-network-instance *`; default_attr_set_8 = `... default bgp-rib attr-sets attr-set 8` (the imported EVPN
+    path's); ipvrf_nhg_3692599526 = `... ipvrf route-table next-hop-group 3692599526` (the group the route names);
+    ipvrf_nh_3692599523 = `... ipvrf route-table next-hop 3692599523` (its one next hop, 2.2.2.2); ipvrf_attr_set_10 =
+    `... ipvrf bgp-rib attr-sets attr-set 10` (the ip-vrf's bgp-evpn row's). Those seven are every read the driver
+    sent. The same way, after it: ipvrf_bgp_neighbors = `... ipvrf protocols bgp neighbor *`, default_bgp_neighbors =
+    `... default protocols bgp neighbor *`, show_evpn_type5 = `show network-instance default protocols bgp routes evpn
+    route-type 5 detail` and show_version = `show version` (without --output-format), and
+    ipvrf_route_table_route_end = the route-table read again at the end (the same group and route). The ids differ
+    from the pece2_* run (attr-sets 9 and 11), so every answer for design B comes from this run. Captured for oracle
+    FP-043-SRLEVPNVRF design B (the fixed driver's reads, which pece2_* doesn't hold)
+  added: ndr/fix-srl-evpn
 - files: [unnsesschk1021_capture.txt, unnsesschk1021_r2_show_version.txt, unnsesschk1021_r2_neighbors_up.json,
           unnsesschk1021_r2_neighbors_down.json, unnsesschk1021_r2_neighbors_more.json,
           unnsesschk1021_r2_eth1_ipv4_routes_up.json, unnsesschk1021_r2_eth1_ipv4_routes_more.json,

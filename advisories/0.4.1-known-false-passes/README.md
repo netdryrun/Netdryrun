@@ -3,7 +3,7 @@
 **Affected:** netdryrun 0.4.1 and earlier, and the `netdryrun/Netdryrun@v0.4.1` and earlier Actions (each entry gives
 the drivers). **Severity:** Moderate, as [GHSA-g4f6-4624-2pjv](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-g4f6-4624-2pjv):
 each case needs a specific driver, config and lab state, and each has a check that catches it today (given below).
-**Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are not fixed yet, planned for 0.4.3. **Found by:** our own release gate (two isolated
+**Patched versions:** cases 3 and 4 are fixed in 0.4.2, case 2 in 0.4.3; case 1 is not fixed yet, planned for 0.4.3. **Found by:** our own release gate (two isolated
 adversarial reviewers and a fresh verifier on the final 0.4.1 candidate, 9 November 2026), before any outside user
 reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were confirmed against recorded
 router output (EOS from live fixtures), not yet through a Netdryrun live run. We publish them now to be safe. 0.4.1
@@ -15,8 +15,8 @@ GitHub advisory: [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/se
 Each case is a red-team file in `tests/redteam/` (RT-0053, RT-0056, RT-0058, RT-0063) or an oracle (case 4, RT-S01),
 registered in `tests/known_false_passes.yml`; the test fails if the published text or the limit changes unnoticed.
 
-**What to do:** upgrade to 0.4.2 (cases 3 and 4), and apply the workaround for each of cases 1 and 2 that matches
-your labs until 0.4.3 ships.
+**What to do:** upgrade to 0.4.2 (cases 3 and 4) or 0.4.3 (case 2), and apply the workaround for case 1 if it
+matches your labs until it is fixed.
 
 **1. Arista EOS: `route ... present: false` with a protocol other than `bgp` didn't see a route that lost** (RT-0056,
 RT-0063). 0.2.0 and later, Arista EOS. EOS's `show ip route` lists only the route it selected for a
@@ -31,9 +31,13 @@ positive `route` check that the route EOS selected has the protocol you expect. 
 and later, SR Linux. In an ip-vrf without its own `protocols bgp` (the usual EVPN layer-3 design), the
 check read that network-instance's BGP RIB, which is empty; EVPN routes imported into it are held in the default
 network-instance's EVPN RIB. So `bgp_route vrf: ipvrf, prefix: 10.99.0.0/24, present: false` passed with the route
-imported and installed. *Workaround:* `route vrf: ipvrf, prefix: 10.99.0.0/24, protocol: bgp, present: false`, which
-reads the routing table, where the installed `bgp-evpn` route matches `bgp`. *Planned for 0.4.3:* reads the EVPN RIB for an
-ip-vrf.
+imported and installed. The same check passed with BGP in the ip-vrf too (a PE-CE session to a CE): there the ip-vrf's
+BGP RIB lists the imported route as origin `bgp-evpn` from 0.0.0.0, and the driver took that row for the node's own
+route ("a prefix this node originates itself isn't checked"); `netdryrun check` passed it on a live SR Linux 26.7.2 lab.
+*Workaround:* `route vrf: ipvrf, prefix: 10.99.0.0/24, protocol: bgp, present: false`, which
+reads the routing table, where the installed `bgp-evpn` route matches `bgp`. *Fixed in 0.4.3:* the driver reads the
+EVPN RIB for the routes imported into the ip-vrf (`imported-network-instances`), and a `bgp-evpn` row in the ip-vrf's
+BGP RIB is a received path; both designs were reproduced live and fail the check (oracle FP-043-SRLEVPNVRF).
 
 **3. FRR and SONiC: a `ping` in a VRF to an address on the VRF device itself passed** (RT-0053). 0.1.0 and
 later, FRR (SONiC from 0.2.0). Before 0.4.1 a `ping` to any of the node's own addresses passed; 0.4.1 refuses a target

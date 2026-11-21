@@ -1,0 +1,56 @@
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.0.0.1/30
+set / interface system0 admin-state enable
+set / interface system0 subinterface 0 ipv4 admin-state enable
+set / interface system0 subinterface 0 ipv4 address 1.1.1.1/32
+set / network-instance default interface ethernet-1/1.0
+set / network-instance default interface system0.0
+set / network-instance default next-hop-groups group underlay admin-state enable
+set / network-instance default next-hop-groups group underlay nexthop 0 ip-address 10.0.0.2
+set / network-instance default static-routes admin-state enable
+set / network-instance default static-routes route 2.2.2.2/32 admin-state enable next-hop-group underlay
+set / network-instance default protocols bgp admin-state enable
+set / network-instance default protocols bgp autonomous-system 65000
+set / network-instance default protocols bgp router-id 1.1.1.1
+set / network-instance default protocols bgp afi-safi evpn admin-state enable
+set / network-instance default protocols bgp group ibgp-evpn peer-as 65000
+set / network-instance default protocols bgp group ibgp-evpn afi-safi evpn admin-state enable
+set / network-instance default protocols bgp group ibgp-evpn afi-safi ipv4-unicast admin-state disable
+set / network-instance default protocols bgp group ibgp-evpn transport local-address 1.1.1.1
+set / network-instance default protocols bgp neighbor 2.2.2.2 peer-group ibgp-evpn
+set / tunnel-interface vxlan1 vxlan-interface 99 type routed
+set / tunnel-interface vxlan1 vxlan-interface 99 ingress vni 99
+set / network-instance ipvrf type ip-vrf
+set / network-instance ipvrf admin-state enable
+set / network-instance ipvrf vxlan-interface vxlan1.99
+set / network-instance ipvrf protocols bgp-evpn bgp-instance 1 admin-state enable
+set / network-instance ipvrf protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan1.99
+set / network-instance ipvrf protocols bgp-evpn bgp-instance 1 evi 99
+set / network-instance ipvrf protocols bgp-evpn bgp-instance 1 ecmp 2
+set / network-instance ipvrf protocols bgp-vpn bgp-instance 1 route-target export-rt target:65000:99
+set / network-instance ipvrf protocols bgp-vpn bgp-instance 1 route-target import-rt target:65000:99
+set / tunnel-interface vxlan1 vxlan-interface 98 type routed
+set / tunnel-interface vxlan1 vxlan-interface 98 ingress vni 98
+set / network-instance ipvrf2 type ip-vrf
+set / network-instance ipvrf2 admin-state enable
+set / network-instance ipvrf2 vxlan-interface vxlan1.98
+set / network-instance ipvrf2 protocols bgp-evpn bgp-instance 1 admin-state enable
+set / network-instance ipvrf2 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan1.98
+set / network-instance ipvrf2 protocols bgp-evpn bgp-instance 1 evi 98
+set / network-instance ipvrf2 protocols bgp-evpn bgp-instance 1 ecmp 2
+set / network-instance ipvrf2 protocols bgp-vpn bgp-instance 1 route-target export-rt target:65000:98
+set / network-instance ipvrf2 protocols bgp-vpn bgp-instance 1 route-target import-rt target:65000:98
+set / interface ethernet-1/2 admin-state enable
+set / interface ethernet-1/2 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/2 subinterface 0 ipv4 address 10.1.0.1/30
+set / network-instance ipvrf interface ethernet-1/2.0
+set / routing-policy policy accept-all default-action policy-result accept
+set / network-instance ipvrf protocols bgp admin-state enable
+set / network-instance ipvrf protocols bgp autonomous-system 65000
+set / network-instance ipvrf protocols bgp router-id 1.1.1.1
+set / network-instance ipvrf protocols bgp afi-safi ipv4-unicast admin-state enable
+set / network-instance ipvrf protocols bgp group ce export-policy [ accept-all ]
+set / network-instance ipvrf protocols bgp group ce import-policy [ accept-all ]
+set / network-instance ipvrf protocols bgp neighbor 10.1.0.2 peer-group ce
+set / network-instance ipvrf protocols bgp neighbor 10.1.0.2 peer-as 65100

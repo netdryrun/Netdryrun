@@ -1,0 +1,4 @@
+lab: ../topology.clab.yml
+timeout: 60
+checks:
+  - {name: evpn-bgp-route-absent-must-fail, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.99.0.0/24, present: false}

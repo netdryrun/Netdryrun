@@ -1,0 +1,157 @@
+{
+  "afi-safi": [
+    {
+      "afi-safi-name": "ipv4-unicast",
+      "ipv4-unicast": {
+        "local-rib": {
+          "route": [
+            {
+              "prefix": "10.1.0.0/30",
+              "neighbor": "0.0.0.0",
+              "origin-protocol": "local",
+              "path-id": 0,
+              "last-modified": "2026-11-21T12:01:42.000Z (3 minutes ago)",
+              "used-route": true,
+              "unused-weight-only": false,
+              "valid-route": true,
+              "best-route": true,
+              "backup-route": false,
+              "stale-route": false,
+              "fib-disabled": false,
+              "pending-delete": false,
+              "group-best": true,
+              "tie-break-reason": "none",
+              "attr-id": "6"
+            },
+            {
+              "prefix": "10.77.0.0/24",
+              "neighbor": "10.1.0.2",
+              "origin-protocol": "bgp",
+              "path-id": 0,
+              "last-modified": "2026-11-21T12:03:30.200Z (a minute ago)",
+              "used-route": true,
+              "unused-weight-only": false,
+              "valid-route": true,
+              "best-route": true,
+              "backup-route": false,
+              "stale-route": false,
+              "fib-disabled": false,
+              "pending-delete": false,
+              "neighbor-as": 65100,
+              "group-best": true,
+              "tie-break-reason": "none",
+              "attr-id": "12"
+            }
+          ]
+        },
+        "rib-in-out": {
+          "rib-in-pre": {
+            "route": [
+              {
+                "prefix": "10.77.0.0/24",
+                "neighbor": "10.1.0.2",
+                "path-id": 0,
+                "attr-id": "12"
+              }
+            ]
+          },
+          "rib-in-post": {
+            "route": [
+              {
+                "prefix": "10.77.0.0/24",
+                "neighbor": "10.1.0.2",
+                "path-id": 0,
+                "last-modified": "2026-11-21T12:03:30.200Z (a minute ago)",
+                "used-route": true,
+                "unused-weight-only": false,
+                "valid-route": true,
+                "best-route": true,
+                "backup-route": false,
+                "stale-route": false,
+                "fib-disabled": false,
+                "pending-delete": false,
+                "neighbor-as": 65100,
+                "group-best": true,
+                "tie-break-reason": "none",
+                "attr-id": "12"
+              }
+            ]
+          },
+          "rib-out-post": {
+            "route": [
+              {
+                "prefix": "10.1.0.0/30",
+                "neighbor": "10.1.0.2",
+                "path-id": 0,
+                "attr-id": "15"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "attr-sets": {
+    "attr-set": [
+      {
+        "index": "6",
+        "origin": "igp",
+        "atomic-aggregate": false,
+        "next-hop": "0.0.0.0"
+      },
+      {
+        "index": "12",
+        "origin": "igp",
+        "atomic-aggregate": false,
+        "next-hop": "10.1.0.2",
+        "med": 0,
+        "as-path": {
+          "segment": [
+            {
+              "as-path-index": 0,
+              "type": "as-sequence",
+              "member": [
+                65100
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "index": "15",
+        "origin": "igp",
+        "atomic-aggregate": false,
+        "next-hop": "0.0.0.0",
+        "as-path": {
+          "segment": [
+            {
+              "as-path-index": 0,
+              "type": "as-sequence",
+              "member": [
+                65000
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "index": "16",
+        "origin": "igp",
+        "atomic-aggregate": false,
+        "next-hop": "0.0.0.0",
+        "as-path": {
+          "segment": [
+            {
+              "as-path-index": 0,
+              "type": "as-sequence",
+              "member": [
+                65000,
+                65100
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+lab: topology.clab.yml
+timeout: 120
+checks:
+  # leaf2 advertises 10.99.0.0/24 (lo1.0 in ipvrf) as an EVPN IP-prefix route; leaf1 imports it into ipvrf
+  - {name: evpn-bgp-route-absent-must-fail, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.99.0.0/24, present: false}
+  - {name: evpn-route-bgp-absent-must-fail, type: route, node: leaf1, vrf: ipvrf, prefix: 10.99.0.0/24, protocol: bgp, present: false}
+  - {name: evpn-route-present-must-pass, type: route, node: leaf1, vrf: ipvrf, prefix: 10.99.0.0/24, protocol: bgp}
+  - {name: evpn-bgp-route-present-must-pass, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.99.0.0/24}
+  # 10.98.0.0/24 is leaf2's lo2.0 in ipvrf2 (route-target 65000:98): leaf1 imports it into ipvrf2, never into ipvrf
+  - {name: other-vrf-bgp-route-in-ipvrf-must-fail, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.98.0.0/24}
+  - {name: other-vrf-route-in-ipvrf2-must-pass, type: route, node: leaf1, vrf: ipvrf2, prefix: 10.98.0.0/24, protocol: bgp}

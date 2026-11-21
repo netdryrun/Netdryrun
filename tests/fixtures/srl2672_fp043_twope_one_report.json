@@ -1,0 +1,1351 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "fix-srl-evpn",
+  "config": "/home/ndr/labs/fix-srl-evpn/C/netdryrun.yml",
+  "started": "2026-11-21T14:11:44+00:00",
+  "finished": "2026-11-21T14:14:46+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "leaf1": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      },
+      "leaf2": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      },
+      "leaf3": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      },
+      "ce1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "none",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 4,
+    "failed": 7,
+    "total": 11
+  },
+  "warnings": {
+    "count": 18,
+    "items": [
+      {
+        "check": "B-nh-leaf2-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-nh-leaf2-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-nh-leaf2-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf3",
+        "session": null,
+        "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-lp100-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-lp100-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-lp100-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf3",
+        "session": null,
+        "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-nh-leaf3-lp200-must-pass",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-nh-leaf3-lp200-must-pass",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-nh-leaf3-lp200-must-pass",
+        "code": "gate-unreadable",
+        "node": "leaf3",
+        "session": null,
+        "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf3",
+        "session": null,
+        "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-route-bgp-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-route-bgp-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-route-bgp-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf3",
+        "session": null,
+        "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-ce-route-must-pass",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-ce-route-must-pass",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "B-ce-route-must-pass",
+        "code": "gate-unreadable",
+        "node": "leaf3",
+        "session": null,
+        "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "A-nh-leaf2-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.77.0.0/24",
+        "next_hop": "2.2.2.2"
+      },
+      "passed": false,
+      "detail": "not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist",
+      "attempts": 25,
+      "duration_s": 121.7,
+      "started": "2026-11-21T14:12:11+00:00",
+      "history": [
+        {
+          "t": 2.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 17.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 24.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 29.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 33.9,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 38.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 42.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 46.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 51.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 55.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 59.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 64.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 68.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 72.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 77.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 81.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 86.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 90.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 94.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 99.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 103.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 107.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 112.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 116.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 120.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    },
+    {
+      "name": "A-lp100-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.77.0.0/24",
+        "local_pref": 100
+      },
+      "passed": false,
+      "detail": "not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist",
+      "attempts": 25,
+      "duration_s": 121.7,
+      "started": "2026-11-21T14:12:11+00:00",
+      "history": [
+        {
+          "t": 2.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 17.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 24.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 29.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 33.9,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 38.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 42.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 46.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 51.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 55.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 59.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 64.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 68.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 72.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 77.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 81.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 86.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 90.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 94.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 99.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 103.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 107.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 112.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 116.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 120.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    },
+    {
+      "name": "A-nh-leaf3-lp200-must-pass",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.77.0.0/24",
+        "next_hop": "3.3.3.3",
+        "local_pref": 200
+      },
+      "passed": false,
+      "detail": "not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist",
+      "attempts": 25,
+      "duration_s": 121.7,
+      "started": "2026-11-21T14:12:11+00:00",
+      "history": [
+        {
+          "t": 2.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 17.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 24.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 29.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 33.9,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 38.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 42.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 46.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 51.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 55.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 59.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 64.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 68.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 72.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 77.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 81.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 86.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 90.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 94.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 99.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 103.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 107.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 112.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 116.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 120.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    },
+    {
+      "name": "A-absent-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.77.0.0/24",
+        "present": false
+      },
+      "passed": false,
+      "detail": "not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist",
+      "attempts": 25,
+      "duration_s": 121.7,
+      "started": "2026-11-21T14:12:11+00:00",
+      "history": [
+        {
+          "t": 2.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 17.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 24.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 29.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 33.9,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 38.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 42.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 46.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 51.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 55.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 59.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 64.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 68.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 72.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 77.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 81.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 86.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 90.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 94.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 99.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 103.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 107.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 112.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 116.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 120.2,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    },
+    {
+      "name": "B-nh-leaf2-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrfb",
+        "prefix": "10.66.0.0/24",
+        "next_hop": "2.2.2.2"
+      },
+      "passed": true,
+      "detail": "best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none (held 12s, 2 samples)",
+      "attempts": 2,
+      "duration_s": 12.0,
+      "started": "2026-11-21T14:14:32+00:00",
+      "history": [
+        {
+          "t": 4.6,
+          "passed": true,
+          "detail": "best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none"
+        },
+        {
+          "t": 12.0,
+          "passed": true,
+          "detail": "best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.66.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"origin-protocol\": \"bgp-evpn\",\n      \"path-id\": 0,\n      \"last-modified\": \"2026-11-21T14:09:01.500Z (5 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"fib-disabled\": false,\n      \"pending-delete\": false,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"attr-id\": \"18\"\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib",
+          "rc": 0,
+          "output": "{\n  \"ip-prefix-route\": [\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.55.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"20\",\n      \"last-modified\": \"2026-11-21T13:52:09.000Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 30,\n      \"ip-prefix\": \"10.1.0.0/30\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"8\",\n      \"last-modified\": \"2026-11-21T13:51:54.300Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.66.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.77.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.77.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb route-table ipv4-unicast route 10.66.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.66.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp-evpn\",\n      \"route-owner\": \"bgp_evpn_mgr\",\n      \"origin-network-instance\": \"ipvrfb\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 1,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T14:08:37.186Z (6 minutes ago)\",\n      \"next-hop-group\": \"873408405\",\n      \"next-hop-group-network-instance\": \"ipvrfb\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"modify\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T14:08:37.188Z (6 minutes ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib attr-sets attr-set 17",
+          "rc": 0,
+          "output": "{\n  \"index\": \"17\",\n  \"origin\": \"igp\",\n  \"atomic-aggregate\": false,\n  \"next-hop\": \"2.2.2.2\",\n  \"local-pref\": 100,\n  \"communities\": {\n    \"ext-community\": [\n      \"target:65000:88\",\n      \"mac-nh:1a:ac:02:ff:00:00\",\n      \"bgp-tunnel-encap:VXLAN\"\n    ],\n    \"ext-community-raw-format\": [\n      \"ext:0002:fde800000058\",\n      \"ext:0603:1aac02ff0000\",\n      \"ext:030c:000000000008\"\n    ]\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf3",
+          "session": null,
+          "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    },
+    {
+      "name": "B-lp100-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrfb",
+        "prefix": "10.66.0.0/24",
+        "local_pref": 100
+      },
+      "passed": true,
+      "detail": "best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none (held 12s, 2 samples)",
+      "attempts": 2,
+      "duration_s": 12.0,
+      "started": "2026-11-21T14:14:32+00:00",
+      "history": [
+        {
+          "t": 4.6,
+          "passed": true,
+          "detail": "best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none"
+        },
+        {
+          "t": 12.0,
+          "passed": true,
+          "detail": "best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.66.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"origin-protocol\": \"bgp-evpn\",\n      \"path-id\": 0,\n      \"last-modified\": \"2026-11-21T14:09:01.500Z (5 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"fib-disabled\": false,\n      \"pending-delete\": false,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"attr-id\": \"18\"\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib",
+          "rc": 0,
+          "output": "{\n  \"ip-prefix-route\": [\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.55.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"20\",\n      \"last-modified\": \"2026-11-21T13:52:09.000Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 30,\n      \"ip-prefix\": \"10.1.0.0/30\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"8\",\n      \"last-modified\": \"2026-11-21T13:51:54.300Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.66.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.77.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.77.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb route-table ipv4-unicast route 10.66.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.66.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp-evpn\",\n      \"route-owner\": \"bgp_evpn_mgr\",\n      \"origin-network-instance\": \"ipvrfb\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 1,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T14:08:37.186Z (6 minutes ago)\",\n      \"next-hop-group\": \"873408405\",\n      \"next-hop-group-network-instance\": \"ipvrfb\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"modify\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T14:08:37.188Z (6 minutes ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib attr-sets attr-set 17",
+          "rc": 0,
+          "output": "{\n  \"index\": \"17\",\n  \"origin\": \"igp\",\n  \"atomic-aggregate\": false,\n  \"next-hop\": \"2.2.2.2\",\n  \"local-pref\": 100,\n  \"communities\": {\n    \"ext-community\": [\n      \"target:65000:88\",\n      \"mac-nh:1a:ac:02:ff:00:00\",\n      \"bgp-tunnel-encap:VXLAN\"\n    ],\n    \"ext-community-raw-format\": [\n      \"ext:0002:fde800000058\",\n      \"ext:0603:1aac02ff0000\",\n      \"ext:030c:000000000008\"\n    ]\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf3",
+          "session": null,
+          "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    },
+    {
+      "name": "B-nh-leaf3-lp200-must-pass",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrfb",
+        "prefix": "10.66.0.0/24",
+        "next_hop": "3.3.3.3",
+        "local_pref": 200
+      },
+      "passed": false,
+      "detail": "local-pref is 100, expected 200; next hop is 2.2.2.2, expected 3.3.3.3 (best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none)",
+      "attempts": 1,
+      "duration_s": 4.6,
+      "started": "2026-11-21T14:14:32+00:00",
+      "history": [
+        {
+          "t": 4.6,
+          "passed": false,
+          "detail": "local-pref is 100, expected 200; next hop is 2.2.2.2, expected 3.3.3.3 (best path: as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.66.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"origin-protocol\": \"bgp-evpn\",\n      \"path-id\": 0,\n      \"last-modified\": \"2026-11-21T14:09:01.500Z (5 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"fib-disabled\": false,\n      \"pending-delete\": false,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"attr-id\": \"18\"\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib",
+          "rc": 0,
+          "output": "{\n  \"ip-prefix-route\": [\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.55.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"20\",\n      \"last-modified\": \"2026-11-21T13:52:09.000Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 30,\n      \"ip-prefix\": \"10.1.0.0/30\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"8\",\n      \"last-modified\": \"2026-11-21T13:51:54.300Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.66.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.77.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.77.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb route-table ipv4-unicast route 10.66.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.66.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp-evpn\",\n      \"route-owner\": \"bgp_evpn_mgr\",\n      \"origin-network-instance\": \"ipvrfb\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 1,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T14:08:37.186Z (5 minutes ago)\",\n      \"next-hop-group\": \"873408405\",\n      \"next-hop-group-network-instance\": \"ipvrfb\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"modify\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T14:08:37.188Z (5 minutes ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib attr-sets attr-set 17",
+          "rc": 0,
+          "output": "{\n  \"index\": \"17\",\n  \"origin\": \"igp\",\n  \"atomic-aggregate\": false,\n  \"next-hop\": \"2.2.2.2\",\n  \"local-pref\": 100,\n  \"communities\": {\n    \"ext-community\": [\n      \"target:65000:88\",\n      \"mac-nh:1a:ac:02:ff:00:00\",\n      \"bgp-tunnel-encap:VXLAN\"\n    ],\n    \"ext-community-raw-format\": [\n      \"ext:0002:fde800000058\",\n      \"ext:0603:1aac02ff0000\",\n      \"ext:030c:000000000008\"\n    ]\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf3",
+          "session": null,
+          "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    },
+    {
+      "name": "B-absent-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrfb",
+        "prefix": "10.66.0.0/24",
+        "present": false
+      },
+      "passed": false,
+      "detail": "unexpectedly in the BGP table (1 path(s); as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none)",
+      "attempts": 1,
+      "duration_s": 4.6,
+      "started": "2026-11-21T14:14:32+00:00",
+      "history": [
+        {
+          "t": 4.6,
+          "passed": false,
+          "detail": "unexpectedly in the BGP table (1 path(s); as-path ?, next hop 2.2.2.2, local-pref 100, MED not set, communities none)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.66.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"origin-protocol\": \"bgp-evpn\",\n      \"path-id\": 0,\n      \"last-modified\": \"2026-11-21T14:09:01.500Z (5 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"fib-disabled\": false,\n      \"pending-delete\": false,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"attr-id\": \"18\"\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib",
+          "rc": 0,
+          "output": "{\n  \"ip-prefix-route\": [\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.55.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"20\",\n      \"last-modified\": \"2026-11-21T13:52:09.000Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 30,\n      \"ip-prefix\": \"10.1.0.0/30\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"8\",\n      \"last-modified\": \"2026-11-21T13:51:54.300Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.66.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.77.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.77.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb route-table ipv4-unicast route 10.66.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.66.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp-evpn\",\n      \"route-owner\": \"bgp_evpn_mgr\",\n      \"origin-network-instance\": \"ipvrfb\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 1,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T14:08:37.186Z (5 minutes ago)\",\n      \"next-hop-group\": \"873408405\",\n      \"next-hop-group-network-instance\": \"ipvrfb\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"modify\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T14:08:37.188Z (5 minutes ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib attr-sets attr-set 17",
+          "rc": 0,
+          "output": "{\n  \"index\": \"17\",\n  \"origin\": \"igp\",\n  \"atomic-aggregate\": false,\n  \"next-hop\": \"2.2.2.2\",\n  \"local-pref\": 100,\n  \"communities\": {\n    \"ext-community\": [\n      \"target:65000:88\",\n      \"mac-nh:1a:ac:02:ff:00:00\",\n      \"bgp-tunnel-encap:VXLAN\"\n    ],\n    \"ext-community-raw-format\": [\n      \"ext:0002:fde800000058\",\n      \"ext:0603:1aac02ff0000\",\n      \"ext:030c:000000000008\"\n    ]\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf3",
+          "session": null,
+          "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    },
+    {
+      "name": "B-route-bgp-absent-must-fail",
+      "type": "route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrfb",
+        "prefix": "10.66.0.0/24",
+        "protocol": "bgp",
+        "present": false
+      },
+      "passed": false,
+      "detail": "unexpectedly present via bgp-evpn",
+      "attempts": 1,
+      "duration_s": 4.6,
+      "started": "2026-11-21T14:14:32+00:00",
+      "history": [
+        {
+          "t": 4.6,
+          "passed": false,
+          "detail": "unexpectedly present via bgp-evpn"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb route-table ipv4-unicast route 10.66.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.66.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp-evpn\",\n      \"route-owner\": \"bgp_evpn_mgr\",\n      \"origin-network-instance\": \"ipvrfb\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 1,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T14:08:37.186Z (5 minutes ago)\",\n      \"next-hop-group\": \"873408405\",\n      \"next-hop-group-network-instance\": \"ipvrfb\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"modify\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T14:08:37.188Z (5 minutes ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.66.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"origin-protocol\": \"bgp-evpn\",\n      \"path-id\": 0,\n      \"last-modified\": \"2026-11-21T14:09:01.500Z (5 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"fib-disabled\": false,\n      \"pending-delete\": false,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"attr-id\": \"18\"\n    }\n  ]\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf3",
+          "session": null,
+          "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    },
+    {
+      "name": "B-ce-session-up",
+      "type": "bgp_session",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrfb",
+        "neighbor": "10.1.0.2",
+        "state": "established"
+      },
+      "passed": true,
+      "detail": "state is established",
+      "attempts": 2,
+      "duration_s": 6.9,
+      "started": "2026-11-21T14:11:46+00:00",
+      "history": [
+        {
+          "t": 1.8,
+          "passed": true,
+          "detail": "state is established"
+        },
+        {
+          "t": 6.9,
+          "passed": true,
+          "detail": "state is established"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb protocols bgp neighbor *",
+          "rc": 0,
+          "output": "{\n  \"neighbor\": [\n    {\n      \"peer-address\": \"10.1.0.2\",\n      \"admin-state\": \"enable\",\n      \"under-maintenance\": false,\n      \"maintenance-group\": \"\",\n      \"peer-type\": \"ebgp\",\n      \"local-preference\": 100,\n      \"next-hop-self\": false,\n      \"peer-as\": 65100,\n      \"peer-group\": \"ce\",\n      \"route-flap-damping\": false,\n      \"peer-router-id\": \"10.1.0.2\",\n      \"session-state\": \"established\",\n      \"last-state\": \"openconfirm\",\n      \"last-event\": \"recvOpen\",\n      \"last-established\": \"2026-11-21T13:50:22.700Z (21 minutes ago)\",\n      \"established-transitions\": \"1\",\n      \"export-policy\": [\n        \"accept-all\"\n      ],\n      \"import-policy\": [\n        \"accept-all\"\n      ],\n      \"advertised-capabilities\": [\n        \"ROUTE_REFRESH\",\n        \"4-OCTET_ASN\",\n        \"MP_BGP\",\n        \"GRACEFUL_RESTART\"\n      ],\n      \"received-capabilities\": [\n        \"ROUTE_REFRESH\",\n        \"4-OCTET_ASN\",\n        \"MP_BGP\",\n        \"GRACEFUL_RESTART\",\n        \"ADD_PATH\"\n      ],\n      \"received-afi-safi\": [\n        \"ipv4-unicast\"\n      ],\n      \"received-end-of-rib\": [\n        \"ipv4-unicast\"\n      ],\n      \"sent-end-of-rib\": [\n        \"ipv4-unicast\"\n      ],\n      \"as-path-options\": {\n        \"allow-own-as\": 0,\n        \"replace-peer-as\": false,\n        \"remove-private-as\": {\n          \"mode\": \"disabled\",\n          \"leading-only\": false,\n          \"ignore-peer-as\": false\n        }\n      },\n      \"authentication\": {\n        \"transmit-active\": false\n      },\n      \"failure-detection\": {\n        \"enable-bfd\": false,\n        \"fast-failover\": true\n      },\n      \"graceful-restart\": {\n        \"admin-state\": \"disable\",\n        \"mode\": \"HELPER_ONLY\"\n      },\n      \"multihop\": {\n        \"admin-state\": \"disable\",\n        \"maximum-hops\": 1\n      },\n      \"afi-safi\": [\n        {\n          \"afi-safi-name\": \"evpn\",\n          \"admin-state\": \"disable\",\n          \"oper-state\": \"down\"\n        },\n        {\n          \"afi-safi-name\": \"ipv4-unicast\",\n          \"admin-state\": \"enable\",\n          \"oper-state\": \"up\",\n          \"received-routes\": 1,\n          \"sent-routes\": 3,\n          \"active-routes\": 1,\n          \"rejected-routes\": 0,\n          \"suppressed-routes\": 0,\n          \"received-routes-withdrawn-due-to-error\": 0,\n          \"send-community-type\": [\n            \"standard\",\n            \"extended\",\n            \"large\"\n          ],\n          \"add-paths\": {\n            \"receive\": false,\n            \"send\": false\n          },\n          \"graceful-restart\": {\n            \"extended-route-retention\": {\n              \"admin-state\": \"disable\",\n              \"retention-time\": 15552000,\n              \"default-retention-policy\": \"reject\",\n              \"extended-retention-active\": false,\n              \"remaining-retention-time\": 0\n            }\n          },\n          \"ipv4-unicast\": {\n            \"advertise-ipv6-next-hops\": false,\n            \"receive-ipv6-next-hops\": false,\n            \"prefix-limit-received\": {\n              \"max-received-routes\": 4294967295,\n              \"warning-threshold-pct\": 90,\n              \"prevent-teardown\": false,\n              \"prefix-limit-exceeded\": false\n            },\n            \"link-bandwidth\": {\n              \"add-next-hop-count-to-received-bgp-routes\": \"disable\"\n            }\n          }\n        },\n        {\n          \"afi-safi-name\": \"ipv6-unicast\",\n          \"admin-state\": \"disable\",\n          \"oper-state\": \"down\",\n          \"ipv6-unicast\": {\n            \"link-bandwidth\": {\n              \"add-next-hop-count-to-received-bgp-routes\": \"disable\"\n            }\n          }\n        },\n        {\n          \"afi-safi-name\": \"route-target\",\n          \"admin-state\": \"disable\",\n          \"oper-state\": \"down\"\n        }\n      ],\n      \"local-as\": {\n        \"as-number\": 65000,\n        \"prepend-global-as\": true,\n        \"prepend-local-as\": true\n      },\n      \"route-reflector\": {\n        \"client\": false\n      },\n      \"send-default-route\": {\n        \"ipv4-unicast\": false,\n        \"ipv6-unicast\": false\n      },\n      \"timers\": {\n        \"connect-retry\": 120,\n        \"hold-time\": 90,\n        \"keepalive-interval\": 30,\n        \"minimum-advertisement-interval\": 5,\n        \"prefix-limit-restart-timer\": 0,\n        \"negotiated-hold-time\": 9,\n        \"negotiated-keepalive-interval\": 3\n      },\n      \"transport\": {\n        \"mtu-discovery\": true,\n        \"tcp-mss\": 1448,\n        \"passive-mode\": false,\n        \"local-address\": \"10.1.0.1\",\n        \"local-port\": 52370,\n        \"remote-port\": 179\n      },\n      \"sent-messages\": {\n        \"queue-depth\": 0,\n        \"total-updates\": \"3\",\n        \"total-non-updates\": \"401\",\n        \"route-refresh\": \"0\",\n        \"total-messages\": \"404\",\n        \"total-notifications\": 0\n      },\n      \"received-messages\": {\n        \"queue-depth\": 0,\n        \"total-updates\": \"2\",\n        \"total-non-updates\": \"400\",\n        \"malformed-updates\": \"0\",\n        \"route-refresh\": \"0\",\n        \"total-messages\": \"402\",\n        \"last-update-time\": \"2026-11-21T13:51:56.500Z (19 minutes ago)\",\n        \"total-notifications\": 0\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib afi-safi ipv4-unicast ipv4-unicast",
+          "rc": 0,
+          "output": "{\n  \"local-rib\": {\n    \"route\": [\n      {\n        \"prefix\": \"10.1.0.0/30\",\n        \"neighbor\": \"0.0.0.0\",\n        \"origin-protocol\": \"local\",\n        \"path-id\": 0,\n        \"last-modified\": \"2026-11-21T13:51:42.200Z (20 minutes ago)\",\n        \"used-route\": true,\n        \"unused-weight-only\": false,\n        \"valid-route\": true,\n        \"best-route\": true,\n        \"backup-route\": false,\n        \"stale-route\": false,\n        \"fib-disabled\": false,\n        \"pending-delete\": false,\n        \"group-best\": true,\n        \"tie-break-reason\": \"none\",\n        \"attr-id\": \"9\"\n      },\n      {\n        \"prefix\": \"10.55.0.0/24\",\n        \"neighbor\": \"10.1.0.2\",\n        \"origin-protocol\": \"bgp\",\n        \"path-id\": 0,\n        \"last-modified\": \"2026-11-21T13:51:57.000Z (19 minutes ago)\",\n        \"used-route\": true,\n        \"unused-weight-only\": false,\n        \"valid-route\": true,\n        \"best-route\": true,\n        \"backup-route\": false,\n        \"stale-route\": false,\n        \"fib-disabled\": false,\n        \"pending-delete\": false,\n        \"neighbor-as\": 65100,\n        \"group-best\": true,\n        \"tie-break-reason\": \"none\",\n        \"attr-id\": \"19\"\n      },\n      {\n        \"prefix\": \"10.66.0.0/24\",\n        \"neighbor\": \"0.0.0.0\",\n        \"origin-protocol\": \"bgp-evpn\",\n        \"path-id\": 0,\n        \"last-modified\": \"2026-11-21T14:08:49.400Z (3 minutes ago)\",\n        \"used-route\": true,\n        \"unused-weight-only\": false,\n        \"valid-route\": true,\n        \"best-route\": true,\n        \"backup-route\": false,\n        \"stale-route\": false,\n        \"fib-disabled\": false,\n        \"pending-delete\": false,\n        \"group-best\": true,\n        \"tie-break-reason\": \"none\",\n        \"attr-id\": \"18\"\n      },\n      {\n        \"prefix\": \"10.66.0.2/32\",\n        \"neighbor\": \"0.0.0.0\",\n        \"origin-protocol\": \"bgp-evpn\",\n        \"path-id\": 0,\n        \"last-modified\": \"2026-11-21T13:51:47.800Z (20 minutes ago)\",\n        \"used-route\": true,\n        \"unused-weight-only\": false,\n        \"valid-route\": true,\n        \"best-route\": true,\n        \"backup-route\": false,\n        \"stale-route\": false,\n        \"fib-disabled\": false,\n        \"pending-delete\": false,\n        \"group-best\": true,\n        \"tie-break-reason\": \"none\",\n        \"attr-id\": \"18\"\n      }\n    ]\n  },\n  \"rib-in-out\": {\n    \"rib-in-pre\": {\n      \"route\": [\n        {\n          \"prefix\": \"10.55.0.0/24\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"attr-id\": \"19\"\n        }\n      ]\n    },\n    \"rib-in-post\": {\n      \"route\": [\n        {\n          \"prefix\": \"10.55.0.0/24\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"last-modified\": \"2026-11-21T13:51:57.000Z (19 minutes ago)\",\n          \"used-route\": true,\n          \"unused-weight-only\": false,\n          \"valid-route\": true,\n          \"best-route\": true,\n          \"backup-route\": false,\n          \"stale-route\": false,\n          \"fib-disabled\": false,\n          \"pending-delete\": false,\n          \"neighbor-as\": 65100,\n          \"group-best\": true,\n          \"tie-break-reason\": \"none\",\n          \"attr-id\": \"19\"\n        }\n      ]\n    },\n    \"rib-out-post\": {\n      \"route\": [\n        {\n          \"prefix\": \"10.1.0.0/30\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"attr-id\": \"22\"\n        },\n        {\n          \"prefix\": \"10.66.0.0/24\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"attr-id\": \"22\"\n        },\n        {\n          \"prefix\": \"10.66.0.2/32\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"attr-id\": \"22\"\n        }\n      ]\n    }\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "B-ce-route-must-pass",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrfb",
+        "prefix": "10.55.0.0/24",
+        "next_hop": "10.1.0.2"
+      },
+      "passed": true,
+      "detail": "best path: as-path '65100', next hop 10.1.0.2, local-pref 100, MED 0, communities none (held 12s, 2 samples)",
+      "attempts": 2,
+      "duration_s": 12.0,
+      "started": "2026-11-21T14:14:32+00:00",
+      "history": [
+        {
+          "t": 4.6,
+          "passed": true,
+          "detail": "best path: as-path '65100', next hop 10.1.0.2, local-pref 100, MED 0, communities none"
+        },
+        {
+          "t": 12.0,
+          "passed": true,
+          "detail": "best path: as-path '65100', next hop 10.1.0.2, local-pref 100, MED 0, communities none"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.55.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"prefix\": \"10.55.0.0/24\",\n      \"neighbor\": \"10.1.0.2\",\n      \"origin-protocol\": \"bgp\",\n      \"path-id\": 0,\n      \"last-modified\": \"2026-11-21T13:52:09.000Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"fib-disabled\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65100,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"attr-id\": \"19\"\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance default bgp-rib afi-safi evpn evpn local-rib",
+          "rc": 0,
+          "output": "{\n  \"ip-prefix-route\": [\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.55.0.0/24\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"20\",\n      \"last-modified\": \"2026-11-21T13:52:09.000Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"1.1.1.1:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 30,\n      \"ip-prefix\": \"10.1.0.0/30\",\n      \"neighbor\": \"0.0.0.0\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"8\",\n      \"last-modified\": \"2026-11-21T13:51:54.300Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 0,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.66.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:88\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.66.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"17\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrfb\"\n      ],\n      \"label\": {\n        \"value\": 88,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 24,\n      \"ip-prefix\": \"10.77.0.0/24\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    },\n    {\n      \"route-distinguisher\": \"2.2.2.2:99\",\n      \"ethernet-tag-id\": 0,\n      \"ip-prefix-length\": 32,\n      \"ip-prefix\": \"10.77.0.2/32\",\n      \"neighbor\": \"2.2.2.2\",\n      \"path-id\": 0,\n      \"esi\": \"00:00:00:00:00:00:00:00:00:00\",\n      \"gateway-ip\": \"0.0.0.0\",\n      \"attr-id\": \"16\",\n      \"last-modified\": \"2026-11-21T13:51:59.900Z (22 minutes ago)\",\n      \"used-route\": true,\n      \"unused-weight-only\": false,\n      \"valid-route\": true,\n      \"best-route\": true,\n      \"backup-route\": false,\n      \"stale-route\": false,\n      \"pending-delete\": false,\n      \"neighbor-as\": 65000,\n      \"group-best\": true,\n      \"tie-break-reason\": \"none\",\n      \"imported-network-instances\": [\n        \"ipvrf\"\n      ],\n      \"label\": {\n        \"value\": 99,\n        \"value-type\": \"vni\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb route-table ipv4-unicast route 10.55.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.55.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp\",\n      \"route-owner\": \"bgp_mgr\",\n      \"origin-network-instance\": \"ipvrfb\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 0,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T13:50:24.190Z (24 minutes ago)\",\n      \"next-hop-group\": \"873408407\",\n      \"next-hop-group-network-instance\": \"ipvrfb\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"add\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T13:50:24.191Z (24 minutes ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb bgp-rib attr-sets attr-set 19",
+          "rc": 0,
+          "output": "{\n  \"index\": \"19\",\n  \"origin\": \"igp\",\n  \"atomic-aggregate\": false,\n  \"next-hop\": \"10.1.0.2\",\n  \"med\": 0,\n  \"as-path\": {\n    \"segment\": [\n      {\n        \"as-path-index\": 0,\n        \"type\": \"as-sequence\",\n        \"member\": [\n          65100\n        ]\n      }\n    ]\n  }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrfb protocols bgp neighbor 10.1.0.2 local-preference",
+          "rc": 0,
+          "output": "{\n  \"peer-address\": \"10.1.0.2\",\n  \"local-preference\": 100\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf3",
+          "session": null,
+          "text": "convergence: leaf3's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:88', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    }
+  ]
+}

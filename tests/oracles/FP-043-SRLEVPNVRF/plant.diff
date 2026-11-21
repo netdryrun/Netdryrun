@@ -1,0 +1,19 @@
+diff --git a/src/netdryrun/drivers/srlinux.py b/src/netdryrun/drivers/srlinux.py
+index 66e4d3e..6a9707c 100644
+--- a/src/netdryrun/drivers/srlinux.py
++++ b/src/netdryrun/drivers/srlinux.py
+@@ -729,12 +729,12 @@ class SrlDriver(Driver):
+         rows = parse_rib_paths(self._cli(
+             f"info from state /network-instance {vrf} bgp-rib afi-safi {table} {table} local-rib route {prefix} "
+             "neighbor * origin-protocol * path-id *", ev), prefix)
+-        evpn, evpn_best, installed = self._imported_paths(prefix, vrf, table, rows, ev)
++        evpn, evpn_best, installed = [], False, None
+         read: dict[int, BgpPath] = {}   # EVPN paths whose attributes are already read, by position in `evpn`
+         chosen = self._evpn_choice(prefix, vrf, rows, evpn, installed, read, ev) if evpn_best else None
+         # each entry: (the row, best, its position in `evpn` or None); the ip-vrf's own bgp-evpn rows stand for the
+         # EVPN paths, so they are left out
+-        entries = [(r, _best(r), None) for r in rows if _imported(r) is None]
++        entries = [(r, _best(r), None) for r in rows]
+         entries += [(r, n == chosen, n) for n, r in enumerate(evpn)]
+         entries.sort(key=lambda e: not e[1])
+         if not entries:

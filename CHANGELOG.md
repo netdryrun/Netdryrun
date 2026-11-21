@@ -25,7 +25,37 @@
   up, one shut down, and a new prefix sent over one). Oracle `FP-042-UNNSESS` now requires a gap only for a session `record`
   leaves out: it required one even when every session is recorded.
 
+### Known limits
+
+- **SR Linux EVPN: `bgp_route` checks in a type-5 ip-vrf without PE-CE BGP come out not evaluated** (fail-closed,
+  never a pass). `netdryrun check`'s convergence gate can't read SR Linux's EVPN BGP state in the default
+  network-instance, so on a leaf whose only BGP is EVPN it never sees BGP converge, and post-convergence checks there
+  are not evaluated. The driver reads the paths (see Fixed); the gate needs its own oracle and fix. Workaround: a
+  `route` check with `protocol: bgp` in the ip-vrf, or a PE-CE BGP session in it.
+
 ### Fixed
+
+- **SR Linux EVPN: `bgp_route present: false` in an ip-vrf passed while a type-5 route was imported into it** (case 2
+  of the 0.4.1 advisory, [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-ggcf-664f-c9ff);
+  red team RT-0058; 0.3.0 and later). Two designs, both reproduced live on SR Linux 26.7.2:
+  - Without `protocols bgp` in the ip-vrf (the usual EVPN layer-3 design), its BGP RIB is empty: the route is in the
+    default network-instance's EVPN RIB, which the driver didn't read ("no BGP path").
+  - With a PE-CE BGP session in the ip-vrf, its BGP RIB lists the imported route as origin `bgp-evpn` from 0.0.0.0,
+    and the driver took it for the node's own route ("a prefix this node originates itself isn't checked").
+    `netdryrun check` passed it end to end.
+
+  `bgp_route` with a `vrf` now also reads the EVPN IP-prefix routes SR Linux imported into that ip-vrf
+  (`imported-network-instances`, so a route imported into another ip-vrf only doesn't count), as paths received from
+  the EVPN peer with that peer's attributes, and a `bgp-evpn` row in the ip-vrf's BGP RIB is that received path. The
+  node's own type-5 routes never count. A path from a peer that no ip-vrf imported, a `bgp-vpn` route or row (a RIB
+  the driver doesn't read yet), or a `bgp-evpn` row or installed route with no imported EVPN path behind it is an
+  error, never "no BGP path". `route` with `protocol: bgp` or `bgp-evpn` now also sees an imported EVPN route that
+  isn't installed in the ip-vrf. When several PEs advertise the prefix with their own route distinguishers, each of their EVPN
+  paths is best in the EVPN RIB: the best path is the one the ip-vrf forwards with (its installed route's next hop, the
+  remote VTEP), never the first in RIB order. ECMP over several, a VTEP that no best path names (even with a single
+  path), or several paths with none installed is an error; with BGP in the ip-vrf, its `bgp-evpn` row must carry the
+  chosen path's local preference. An EVPN path's AS path
+  isn't read (iBGP EVPN attributes leave it out), so `as_path` checks on it are an error. Oracle `tests/oracles/FP-043-SRLEVPNVRF`, from the live captures.
 
 - **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
   overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get

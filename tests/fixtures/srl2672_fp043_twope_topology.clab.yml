@@ -1,0 +1,11 @@
+name: fix-srl-evpn
+topology:
+  nodes:
+    leaf1: {kind: nokia_srlinux, image: "ghcr.io/nokia/srlinux:26.7.2", startup-config: configs/leaf1.cli}
+    leaf2: {kind: nokia_srlinux, image: "ghcr.io/nokia/srlinux:26.7.2", startup-config: configs/leaf2.cli}
+    leaf3: {kind: nokia_srlinux, image: "ghcr.io/nokia/srlinux:26.7.2", startup-config: configs/leaf3.cli}
+    ce1: {kind: linux, image: "quay.io/frrouting/frr:10.4.1", binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/ce1.conf:/etc/frr/frr.conf]}
+  links:
+    - endpoints: ["leaf1:e1-1", "leaf2:e1-1"]
+    - endpoints: ["leaf1:e1-3", "leaf3:e1-1"]
+    - endpoints: ["leaf1:e1-2", "ce1:eth1"]
