@@ -33,7 +33,7 @@ Each cell counts the tests on that driver's own captured output: a *must-fail* t
 |---|---|---|---|---|---|---|---|
 | `bgp_session` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (3 must-fail, 1 control) |
 | `bgp_prefixes` | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (8 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (5 must-fail, 1 control) | verified (7 must-fail, 3 controls) | verified (5 must-fail, 3 controls) |
-| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (5 must-fail, 2 controls) | verified (5 must-fail, 3 controls) |
+| `route` | verified (4 must-fail, 1 control) | verified (3 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 2 controls) | verified (4 must-fail, 1 control) | verified (5 must-fail, 2 controls) | verified (5 must-fail, 3 controls) |
 | `bgp_route` | verified (5 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (9 must-fail, 1 control) | verified (10 must-fail, 1 control) | verified (7 must-fail, 3 controls) |
 | `ping` | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (2 must-fail, 1 control) | verified (4 must-fail, 1 control) | verified (2 must-fail, 1 control) |
 
