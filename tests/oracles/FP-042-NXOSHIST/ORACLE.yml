@@ -12,3 +12,4 @@ evidence:
   - tests/fixtures/nxos_captures.tsv
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_nxoshist.py
+plant: plant.diff

@@ -1,0 +1,61 @@
+diff --git a/src/netdryrun/lab.py b/src/netdryrun/lab.py
+--- a/src/netdryrun/lab.py
++++ b/src/netdryrun/lab.py
+@@ -311,25 +311,13 @@ class Lab:
+             raise LabError(f"could not read the addresses of {interface} on {node}: "
+                            f"{' '.join((r.stderr or r.stdout).split())[:200] or f'exit code {r.rc}'}")
+         out = []
+-        for m in re.finditer(r"\binet6?\s+(\S+)(?:\s+peer\s+(\S+))?", r.stdout):
+-            token, peer = m.group(1), m.group(2)
++        for m in re.finditer(r"\binet6?\s+(\S+)", r.stdout):
+             try:
+-                if peer is not None:
+-                    # a point-to-point address: iproute2 prints `inet A peer B/len`, and the link's subnet is the peer's
+-                    # (oracle FP-042-UNNSESS: A alone read as A/32). A local address outside that subnet is unreadable
+-                    net = ipaddress.ip_network(peer, strict=False)
+-                    if "/" in token or ipaddress.ip_address(token) not in net:
+-                        raise ValueError(f"{token} peer {peer}")
+-                    out.append(ipaddress.ip_interface(f"{token}/{net.prefixlen}"))
+-                elif "/" not in token:
+-                    raise ValueError(token)   # no prefix length: never guess /32 or /128
+-                else:
+-                    out.append(ipaddress.ip_interface(token))
++                out.append(ipaddress.ip_interface(m.group(1)))
+             except ValueError:
+                 # an address that exists but can't be read is never "no address": it could be the global one that
+                 # makes the link numbered (oracle FP-042-UNNUMBERED)
+-                shown = token + (f" peer {peer}" if peer else "")
+-                raise LabError(f"could not read an address of {interface} on {node}: {shown[:60]!r}") from None
++                raise LabError(f"could not read an address of {interface} on {node}: {m.group(1)[:60]!r}") from None
+         return out
+ 
+     def link_tree(self, node: str) -> dict[str, LinkDev]:
+diff --git a/src/netdryrun/record.py b/src/netdryrun/record.py
+--- a/src/netdryrun/record.py
++++ b/src/netdryrun/record.py
+@@ -254,13 +254,7 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
+         try:
+             ipaddress.ip_address(addr)
+         except ValueError:
+-            # an interface-named session (FRR `neighbor eth1 interface`: BGP unnumbered). netdryrun.yml can't name it
+-            # yet, so no check can be written; leaving it out silently let a session drop or a prefix flood pass the
+-            # baseline (red team RT-0066, oracle FP-042-UNNSESS): the gap is named and `record` exits 1
+-            warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr!r} is an interface-named (unnumbered) "
+-                            "session, which a check can't name yet, so neither its bgp_session nor its bgp_prefixes "
+-                            "is recorded: a session that drops or a peer that sends more prefixes over it isn't "
+-                            "caught by this baseline")
++            warnings.append(f"{where}: BGP neighbor {addr!r} is not an IP address (unnumbered?); not recorded")
+             continue
+         if n.ambiguous:
+             warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} is {len(n.ambiguous)} sessions "
+@@ -370,9 +364,7 @@ def _link_subnets(lab, warnings: list[str], link_local_only: dict[str, list[str]
+         if node is None or node.kind in ("bridge", "ovs-bridge"):   # a host or bridge endpoint: nothing to read
+             continue
+         try:
+-            # only IPv6 fe80::/10 makes a link "unnumbered": an IPv4 169.254.0.0/16 address is a numbered subnet
+-            # with a guard like any other (oracle FP-042-UNNSESS)
+-            found = {a.network for a in lab.interface_addresses(*end) if not (a.version == 6 and a.ip.is_link_local)}
++            found = {a.network for a in lab.interface_addresses(*end) if not a.ip.is_link_local}
+         except LabError as e:
+             warnings.append(f"INCOMPLETE BASELINE: {end[0]}: could not read the addresses of {end[1]} ({e}); its "
+                             "link subnet has no guard")

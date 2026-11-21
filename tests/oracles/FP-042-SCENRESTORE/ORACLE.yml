@@ -8,3 +8,6 @@ bug: >-
   are in tests/test_oracle_guards_fp_042_scenrestore.py
 evidence:
   - tests/test_oracle_guards_fp_042_scenrestore.py
+plant: none
+plant_why: >-
+  Fixed in 20d9d2a624 before plants were required; no hunk of its reverse applies to src/ any more (later commits rewrote the same lines): the plant needs a port by hand

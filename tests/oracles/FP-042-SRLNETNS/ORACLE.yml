@@ -12,3 +12,4 @@ evidence:
   - tests/fixtures/clab083_srl_netns_topology.clab.yml
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_042_srlnetns.py
+plant: plant.diff

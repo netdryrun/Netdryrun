@@ -16,3 +16,5 @@ evidence:
   - tests/fixtures/srl2672_rpsrl_frr1.conf
   - tests/fixtures/srl2672_rpsrl_frr2.conf
   - tests/fixtures/SOURCES.yml
+plant: plant.diff
+ported_from: 02b4a7a85040d7ff66945dc5b083ddb40c38e3dc

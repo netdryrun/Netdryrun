@@ -1,0 +1,90 @@
+diff --git a/src/netdryrun/config.py b/src/netdryrun/config.py
+--- a/src/netdryrun/config.py
++++ b/src/netdryrun/config.py
+@@ -188,9 +188,8 @@ def _only(where: str, value: Any, afi: str) -> list[str]:
+ 
+ def _ping_target(where: str, params: dict) -> None:
+     """A ping target must be another host the ping leaves the node for (red team B-9006): never unspecified, loopback,
+-    multicast or limited broadcast, and never the source address itself. A source is of the target's address family
+-    (FP-042-PINGSRCFAMILY). A target that is one of the pinging node's own addresses is refused at run time
+-    (Driver.local_addresses)."""
++    multicast or limited broadcast, and never the source address itself. A target that is one of the pinging node's own
++    addresses is refused at run time (Driver.local_addresses)."""
+     ip = ipaddress.ip_address(params["target"].split("%")[0])
+     if getattr(ip, "ipv4_mapped", None) is not None:
+         # ::ffff:a.b.c.d is an IPv4 target in IPv6 form: the node's own IPv4 addresses would never be compared with it
+@@ -202,18 +201,8 @@ def _ping_target(where: str, params: dict) -> None:
+     if why:
+         raise ConfigError(f"{where}: target {params['target']} is {why}: a ping to it never leaves the node, so it "
+                           "says nothing about the network")
+-    if not params.get("source"):
+-        return
+-    src = ipaddress.ip_address(params["source"].split("%")[0])
+-    if src == ip:
++    if params.get("source") and ipaddress.ip_address(params["source"].split("%")[0]) == ip:
+         raise ConfigError(f"{where}: target {params['target']} is the source address: the node pings itself")
+-    if src.version != ip.version:
+-        # the ping tools drop (busybox) or ignore (iputils) a -I source of the other family without an error: the ping
+-        # leaves from another address and the return path to the source is never tested (FP-042-PINGSRCFAMILY)
+-        raise ConfigError(f"{where}: source {params['source']} is an IPv{src.version} address and target "
+-                          f"{params['target']} an IPv{ip.version} address: a ping can't leave from a source of the "
+-                          f"other family (the ping tool would send it from another address, so the path back to "
+-                          f"{params['source']} would never be tested); give a source of the target's family")
+ 
+ 
+ def _describe(ctype: str, p: dict[str, Any]) -> str:
+diff --git a/src/netdryrun/drivers/eos.py b/src/netdryrun/drivers/eos.py
+--- a/src/netdryrun/drivers/eos.py
++++ b/src/netdryrun/drivers/eos.py
+@@ -16,7 +16,7 @@ import ipaddress
+ 
+ from .base import (BgpNeighbor, BgpPath, Driver, DriverError, NoSuchInstance, Observation, Route, RoutingDisabled,
+                    add_path_range_why, as_int, canon_communities, check_vrf_name, load_json, must, must_bool, network,
+-                   parser, render_as_path, unexpected)
++                   parser, unexpected)
+ from .frr import _canon_addr, parse_ping
+ from .stale import refuse_if_stale
+ 
+@@ -233,28 +233,14 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
+     return out
+ 
+ 
+-_AS_TOKEN = re.compile(r"\{([^}]*)\}|\[([^\]]*)\]|\(([^)]*)\)|(\S+)")
+-_ASN = re.compile(r"[0-9]+")
+-MAX_ASN = 4294967295   # 4-byte ASNs: a larger number is no ASN
++_SEGMENT = re.compile(r"([{\[])([^}\]]*)([}\]])")
+ 
+ 
+-def _as_path(printed: object) -> str:
++def _as_path(printed: str) -> str:
+     """EOS's AS path in the netdryrun.yml form: sets {a,b} and confederation sets [a,b] comma-separated (EOS
+-    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated.
+-    Every ASN must be asplain: a dotted (asdot) token such as 64086.59905, which EOS prints under `bgp asn notation
+-    asdot`, or any other token is unexpected output, as on NX-OS. Kept as text, a "must not contain" as_path_regex
+-    written in asplain (the only form netdryrun.yml takes) would never see the ASN and pass (FP-042-EOSASDOT)."""
+-    if not isinstance(printed, str):
+-        raise unexpected(BGP_CMD, f"asPath: {str(printed)[:80]!r}")
+-    segs: list[tuple[str, list]] = []
+-    for m in _AS_TOKEN.finditer(printed):
+-        aset, cset, cseq, asn = m.groups()
+-        members = next(g for g in (aset, cset, cseq, asn) if g is not None).replace(",", " ").split()
+-        if not members or not all(_ASN.fullmatch(x) and int(x) <= MAX_ASN for x in members):
+-            raise unexpected(BGP_CMD, f"asPath: {printed[:80]!r}")
+-        segs.append(("as-set" if aset is not None else "confed-set" if cset is not None
+-                     else "confed-sequence" if cseq is not None else "as-sequence", members))
+-    return render_as_path(segs)
++    prints `{65004 65006}`, interop IOP-3), sequences and confederation sequences (a b) space-separated."""
++    text = _SEGMENT.sub(lambda m: m.group(1) + ",".join(re.split(r"[\s,]+", m.group(2).strip())) + m.group(3), printed)
++    return " ".join(text.split())
+ 
+ 
+ def _med(value: int) -> int | None:
+@@ -277,7 +263,7 @@ def parse_bgp_paths(text: str, prefix: str, vrf: str = "default") -> list[BgpPat
+             nh = p.get("nextHop") or ""
+             out.append(BgpPath(
+                 best=must_bool(BGP_CMD, must(BGP_CMD, p, "routeType"), "active"),
+-                as_path=_as_path(must(BGP_CMD, must(BGP_CMD, p, "asPathEntry"), "asPath")),
++                as_path=_as_path(str(must(BGP_CMD, must(BGP_CMD, p, "asPathEntry"), "asPath"))),
+                 next_hop=_canon_addr(str(nh)) if nh else None,
+                 local_pref=as_int(BGP_CMD, p["localPreference"]) if "localPreference" in p else None,
+                 # no MED attribute: unknown, not 0. cEOS 4.36.3M also prints "med": 0 for a path received with
