@@ -153,15 +153,19 @@ def test_a_paused_run_holds_at_a_case_boundary_and_keeps_beating(tmp_path):
         open(os.path.join(os.environ["LABRUN_DIR"], "pause"), "w").close()
         held = labrun.hold_if_paused(poll=0.2)
         labrun.done(0, f"held {held:.1f}")
-    """))
-    assert rc == 0
+    """), "--stale", "4")                           # the last --stale wins: margin for a loaded host's heartbeat
+    assert rc == 0, s["out"]
     d = s["dir"]
-    time.sleep(3)                                    # longer than --stale: a held run must not be called stalled
-    assert labrun.read_json(d / "heartbeat.json")["held"] is True
-    assert not (d / "result.json").exists()
+    t0 = time.time()                                 # wait for the hold itself, not a fixed time (flaked once in a
+    while time.time() - t0 < 30 and not (labrun.read_json(d / "heartbeat.json") or {}).get("held"):   # loaded guard)
+        time.sleep(0.1)
+    assert (labrun.read_json(d / "heartbeat.json") or {}).get("held") is True, labrun.read_json(d / "result.json")
+    time.sleep(5)                                    # longer than --stale: a held run must not be called stalled
+    beat = labrun.read_json(d / "heartbeat.json")
+    assert beat["held"] is True and not (d / "result.json").exists(), (beat, labrun.read_json(d / "result.json"))
     (d / "pause").unlink()
     res = result(d)
-    assert res["state"] == "ok" and float(res["done"]["summary"].split()[1]) >= 2
+    assert res["state"] == "ok" and float(res["done"]["summary"].split()[1]) >= 5, res
 
 
 # ---- the watcher's clock rules, with a fake clock -----------------------------------------------------------------
