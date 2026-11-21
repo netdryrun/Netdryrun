@@ -1,0 +1,7 @@
+lab: topology.clab.yml
+timeout: 120
+checks:
+  # leaf1's ipvrf also runs BGP to a CE (ce1, 10.1.0.2); leaf2 still advertises 10.99.0.0/24 as an EVPN IP-prefix route
+  - {name: pece-evpn-bgp-route-absent-must-fail, type: bgp_route, node: leaf1, vrf: ipvrf, prefix: 10.99.0.0/24, present: false}
+  - {name: pece-evpn-route-bgp-absent-must-fail, type: route, node: leaf1, vrf: ipvrf, prefix: 10.99.0.0/24, protocol: bgp, present: false}
+  - {name: pece-ce-session-up, type: bgp_session, node: leaf1, vrf: ipvrf, neighbor: 10.1.0.2}

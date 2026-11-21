@@ -1,0 +1,54 @@
+{
+  "route": [
+    {
+      "ipv4-prefix": "10.98.0.0/24",
+      "id": 0,
+      "route-type": "bgp-evpn",
+      "route-owner": "bgp_evpn_mgr",
+      "origin-network-instance": "ipvrf2",
+      "leakable": false,
+      "leaked": false,
+      "metric": 1,
+      "preference": 170,
+      "active": true,
+      "route-limit-exceeded": false,
+      "last-app-update": "2026-11-21T12:01:34.277Z (3 minutes ago)",
+      "next-hop-group": "262771627",
+      "next-hop-group-network-instance": "ipvrf2",
+      "resilient-hash": false,
+      "dynamic-load-balancing": false,
+      "fib-programming": {
+        "suppressed": false,
+        "last-successful-operation-type": "modify",
+        "last-successful-operation-timestamp": "2026-11-21T12:01:34.277Z (3 minutes ago)",
+        "pending-operation-type": "none",
+        "last-failed-operation-type": "none"
+      }
+    },
+    {
+      "ipv4-prefix": "10.98.0.1/32",
+      "id": 0,
+      "route-type": "bgp-evpn",
+      "route-owner": "bgp_evpn_mgr",
+      "origin-network-instance": "ipvrf2",
+      "leakable": false,
+      "leaked": false,
+      "metric": 1,
+      "preference": 170,
+      "active": true,
+      "route-limit-exceeded": false,
+      "last-app-update": "2026-11-21T12:01:34.277Z (3 minutes ago)",
+      "next-hop-group": "262771627",
+      "next-hop-group-network-instance": "ipvrf2",
+      "resilient-hash": false,
+      "dynamic-load-balancing": false,
+      "fib-programming": {
+        "suppressed": false,
+        "last-successful-operation-type": "modify",
+        "last-successful-operation-timestamp": "2026-11-21T12:01:34.277Z (3 minutes ago)",
+        "pending-operation-type": "none",
+        "last-failed-operation-type": "none"
+      }
+    }
+  ]
+}

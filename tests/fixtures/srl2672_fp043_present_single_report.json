@@ -1,0 +1,148 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "inconclusive",
+  "lab": "srl-evpn-oracle",
+  "config": "c1/netdryrun.yml",
+  "started": "2026-11-21T11:57:47+00:00",
+  "finished": "2026-11-21T11:59:31+00:00",
+  "error": null,
+  "inconclusive_reason": "the lab did not reach a testable state: leaf1 never returned usable BGP state (leaf1: not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (60s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist), and no check passed on any sample. Rerun with a longer timeout, or check that the lab boots",
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "leaf1": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      },
+      "leaf2": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      }
+    }
+  },
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1
+  },
+  "warnings": {
+    "count": 0,
+    "items": []
+  },
+  "checks": [
+    {
+      "name": "evpn-bgp-route-absent-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.99.0.0/24",
+        "present": false
+      },
+      "passed": false,
+      "detail": "not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (60s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist",
+      "attempts": 14,
+      "duration_s": 61.2,
+      "started": "2026-11-21T11:57:54+00:00",
+      "history": [
+        {
+          "t": 1.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 8.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 13.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 17.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 21.9,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 26.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 30.6,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 34.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 38.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 43.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 47.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 51.8,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 56.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 60.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    }
+  ]
+}

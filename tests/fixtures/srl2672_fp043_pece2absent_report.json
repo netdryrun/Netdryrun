@@ -1,0 +1,258 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "passed",
+  "lab": "srl-evpn-oracle",
+  "config": "netdryrun.yml",
+  "started": "2026-11-21T12:05:42+00:00",
+  "finished": "2026-11-21T12:06:28+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "leaf1": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      },
+      "leaf2": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      },
+      "ce1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "none",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3
+  },
+  "warnings": {
+    "count": 4,
+    "items": [
+      {
+        "check": "pece-evpn-bgp-route-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "pece-evpn-bgp-route-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "pece-evpn-route-bgp-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf1",
+        "session": null,
+        "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+      },
+      {
+        "check": "pece-evpn-route-bgp-absent-must-fail",
+        "code": "gate-unreadable",
+        "node": "leaf2",
+        "session": null,
+        "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "pece-evpn-bgp-route-absent-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.99.0.0/24",
+        "present": false
+      },
+      "passed": true,
+      "detail": "no BGP path (held 12s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 11.6,
+      "started": "2026-11-21T12:06:16+00:00",
+      "history": [
+        {
+          "t": 1.8,
+          "passed": true,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 6.7,
+          "passed": true,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 11.6,
+          "passed": true,
+          "detail": "no BGP path"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.99.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf oper-state",
+          "rc": 0,
+          "output": "{\n  \"name\": \"ipvrf\",\n  \"oper-state\": \"up\"\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    },
+    {
+      "name": "pece-evpn-route-bgp-absent-must-fail",
+      "type": "route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.99.0.0/24",
+        "protocol": "bgp",
+        "present": false
+      },
+      "passed": true,
+      "detail": "absent (held 12s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 11.6,
+      "started": "2026-11-21T12:06:16+00:00",
+      "history": [
+        {
+          "t": 1.8,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 6.7,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 11.6,
+          "passed": true,
+          "detail": "absent"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf route-table ipv4-unicast route 10.99.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.99.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf oper-state",
+          "rc": 0,
+          "output": "{\n  \"name\": \"ipvrf\",\n  \"oper-state\": \"up\"\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": [
+        {
+          "code": "gate-unreadable",
+          "node": "leaf1",
+          "session": null,
+          "text": "convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+        },
+        {
+          "code": "gate-unreadable",
+          "node": "leaf2",
+          "session": null,
+          "text": "convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)"
+        }
+      ]
+    },
+    {
+      "name": "pece-ce-session-up",
+      "type": "bgp_session",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "neighbor": "10.1.0.2",
+        "state": "established"
+      },
+      "passed": true,
+      "detail": "state is established",
+      "attempts": 2,
+      "duration_s": 5.6,
+      "started": "2026-11-21T12:05:43+00:00",
+      "history": [
+        {
+          "t": 1.2,
+          "passed": true,
+          "detail": "state is established"
+        },
+        {
+          "t": 5.6,
+          "passed": true,
+          "detail": "state is established"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf protocols bgp neighbor *",
+          "rc": 0,
+          "output": "{\n  \"neighbor\": [\n    {\n      \"peer-address\": \"10.1.0.2\",\n      \"admin-state\": \"enable\",\n      \"under-maintenance\": false,\n      \"maintenance-group\": \"\",\n      \"peer-type\": \"ebgp\",\n      \"local-preference\": 100,\n      \"next-hop-self\": false,\n      \"peer-as\": 65100,\n      \"peer-group\": \"ce\",\n      \"route-flap-damping\": false,\n      \"peer-router-id\": \"10.1.0.2\",\n      \"session-state\": \"established\",\n      \"last-state\": \"openconfirm\",\n      \"last-event\": \"recvOpen\",\n      \"last-established\": \"2026-11-21T12:01:46.800Z (4 minutes ago)\",\n      \"established-transitions\": \"1\",\n      \"export-policy\": [\n        \"accept-all\"\n      ],\n      \"import-policy\": [\n        \"accept-all\"\n      ],\n      \"advertised-capabilities\": [\n        \"ROUTE_REFRESH\",\n        \"4-OCTET_ASN\",\n        \"MP_BGP\",\n        \"GRACEFUL_RESTART\"\n      ],\n      \"received-capabilities\": [\n        \"ROUTE_REFRESH\",\n        \"4-OCTET_ASN\",\n        \"MP_BGP\",\n        \"GRACEFUL_RESTART\",\n        \"ADD_PATH\"\n      ],\n      \"received-afi-safi\": [\n        \"ipv4-unicast\"\n      ],\n      \"received-end-of-rib\": [\n        \"ipv4-unicast\"\n      ],\n      \"sent-end-of-rib\": [\n        \"ipv4-unicast\"\n      ],\n      \"as-path-options\": {\n        \"allow-own-as\": 0,\n        \"replace-peer-as\": false,\n        \"remove-private-as\": {\n          \"mode\": \"disabled\",\n          \"leading-only\": false,\n          \"ignore-peer-as\": false\n        }\n      },\n      \"authentication\": {\n        \"transmit-active\": false\n      },\n      \"failure-detection\": {\n        \"enable-bfd\": false,\n        \"fast-failover\": true\n      },\n      \"graceful-restart\": {\n        \"admin-state\": \"disable\",\n        \"mode\": \"HELPER_ONLY\"\n      },\n      \"multihop\": {\n        \"admin-state\": \"disable\",\n        \"maximum-hops\": 1\n      },\n      \"afi-safi\": [\n        {\n          \"afi-safi-name\": \"evpn\",\n          \"admin-state\": \"disable\",\n          \"oper-state\": \"down\"\n        },\n        {\n          \"afi-safi-name\": \"ipv4-unicast\",\n          \"admin-state\": \"enable\",\n          \"oper-state\": \"up\",\n          \"received-routes\": 1,\n          \"sent-routes\": 1,\n          \"active-routes\": 1,\n          \"rejected-routes\": 0,\n          \"suppressed-routes\": 0,\n          \"received-routes-withdrawn-due-to-error\": 0,\n          \"send-community-type\": [\n            \"standard\",\n            \"extended\",\n            \"large\"\n          ],\n          \"add-paths\": {\n            \"receive\": false,\n            \"send\": false\n          },\n          \"graceful-restart\": {\n            \"extended-route-retention\": {\n              \"admin-state\": \"disable\",\n              \"retention-time\": 15552000,\n              \"default-retention-policy\": \"reject\",\n              \"extended-retention-active\": false,\n              \"remaining-retention-time\": 0\n            }\n          },\n          \"ipv4-unicast\": {\n            \"advertise-ipv6-next-hops\": false,\n            \"receive-ipv6-next-hops\": false,\n            \"prefix-limit-received\": {\n              \"max-received-routes\": 4294967295,\n              \"warning-threshold-pct\": 90,\n              \"prevent-teardown\": false,\n              \"prefix-limit-exceeded\": false\n            },\n            \"link-bandwidth\": {\n              \"add-next-hop-count-to-received-bgp-routes\": \"disable\"\n            }\n          }\n        },\n        {\n          \"afi-safi-name\": \"ipv6-unicast\",\n          \"admin-state\": \"disable\",\n          \"oper-state\": \"down\",\n          \"ipv6-unicast\": {\n            \"link-bandwidth\": {\n              \"add-next-hop-count-to-received-bgp-routes\": \"disable\"\n            }\n          }\n        },\n        {\n          \"afi-safi-name\": \"route-target\",\n          \"admin-state\": \"disable\",\n          \"oper-state\": \"down\"\n        }\n      ],\n      \"local-as\": {\n        \"as-number\": 65000,\n        \"prepend-global-as\": true,\n        \"prepend-local-as\": true\n      },\n      \"route-reflector\": {\n        \"client\": false\n      },\n      \"send-default-route\": {\n        \"ipv4-unicast\": false,\n        \"ipv6-unicast\": false\n      },\n      \"timers\": {\n        \"connect-retry\": 120,\n        \"hold-time\": 90,\n        \"keepalive-interval\": 30,\n        \"minimum-advertisement-interval\": 5,\n        \"prefix-limit-restart-timer\": 0,\n        \"negotiated-hold-time\": 9,\n        \"negotiated-keepalive-interval\": 3\n      },\n      \"transport\": {\n        \"mtu-discovery\": true,\n        \"tcp-mss\": 1448,\n        \"passive-mode\": false,\n        \"local-address\": \"10.1.0.1\",\n        \"local-port\": 55640,\n        \"remote-port\": 179\n      },\n      \"sent-messages\": {\n        \"queue-depth\": 0,\n        \"total-updates\": \"3\",\n        \"total-non-updates\": \"79\",\n        \"route-refresh\": \"0\",\n        \"total-messages\": \"82\",\n        \"total-notifications\": 0\n      },\n      \"received-messages\": {\n        \"queue-depth\": 0,\n        \"total-updates\": \"6\",\n        \"total-non-updates\": \"78\",\n        \"malformed-updates\": \"0\",\n        \"route-refresh\": \"0\",\n        \"total-messages\": \"84\",\n        \"last-update-time\": \"2026-11-21T12:03:31.800Z (2 minutes ago)\",\n        \"total-notifications\": 0\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast",
+          "rc": 0,
+          "output": "{\n  \"local-rib\": {\n    \"route\": [\n      {\n        \"prefix\": \"10.1.0.0/30\",\n        \"neighbor\": \"0.0.0.0\",\n        \"origin-protocol\": \"local\",\n        \"path-id\": 0,\n        \"last-modified\": \"2026-11-21T12:01:44.000Z (4 minutes ago)\",\n        \"used-route\": true,\n        \"unused-weight-only\": false,\n        \"valid-route\": true,\n        \"best-route\": true,\n        \"backup-route\": false,\n        \"stale-route\": false,\n        \"fib-disabled\": false,\n        \"pending-delete\": false,\n        \"group-best\": true,\n        \"tie-break-reason\": \"none\",\n        \"attr-id\": \"6\"\n      },\n      {\n        \"prefix\": \"10.77.0.0/24\",\n        \"neighbor\": \"10.1.0.2\",\n        \"origin-protocol\": \"bgp\",\n        \"path-id\": 0,\n        \"last-modified\": \"2026-11-21T12:03:32.200Z (2 minutes ago)\",\n        \"used-route\": true,\n        \"unused-weight-only\": false,\n        \"valid-route\": true,\n        \"best-route\": true,\n        \"backup-route\": false,\n        \"stale-route\": false,\n        \"fib-disabled\": false,\n        \"pending-delete\": false,\n        \"neighbor-as\": 65100,\n        \"group-best\": true,\n        \"tie-break-reason\": \"none\",\n        \"attr-id\": \"12\"\n      }\n    ]\n  },\n  \"rib-in-out\": {\n    \"rib-in-pre\": {\n      \"route\": [\n        {\n          \"prefix\": \"10.77.0.0/24\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"attr-id\": \"12\"\n        }\n      ]\n    },\n    \"rib-in-post\": {\n      \"route\": [\n        {\n          \"prefix\": \"10.77.0.0/24\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"last-modified\": \"2026-11-21T12:03:32.200Z (2 minutes ago)\",\n          \"used-route\": true,\n          \"unused-weight-only\": false,\n          \"valid-route\": true,\n          \"best-route\": true,\n          \"backup-route\": false,\n          \"stale-route\": false,\n          \"fib-disabled\": false,\n          \"pending-delete\": false,\n          \"neighbor-as\": 65100,\n          \"group-best\": true,\n          \"tie-break-reason\": \"none\",\n          \"attr-id\": \"12\"\n        }\n      ]\n    },\n    \"rib-out-post\": {\n      \"route\": [\n        {\n          \"prefix\": \"10.1.0.0/30\",\n          \"neighbor\": \"10.1.0.2\",\n          \"path-id\": 0,\n          \"attr-id\": \"15\"\n        }\n      ]\n    }\n  }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

@@ -1,0 +1,748 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "srl-evpn-oracle",
+  "config": "netdryrun.yml",
+  "started": "2026-11-21T11:52:42+00:00",
+  "finished": "2026-11-21T11:57:20+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "leaf1": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      },
+      "leaf2": {
+        "kind": "nokia_srlinux",
+        "image": "ghcr.io/nokia/srlinux:26.7.2",
+        "management_default": "not applicable (nokia_srlinux)",
+        "nos_version": null,
+        "image_digest": "ghcr.io/nokia/srlinux@sha256:0096fe3ebcafabb7253492e2060425fe027a168e0e066766d1e85efbb0b48be8",
+        "config_load": "not verified on srlinux"
+      }
+    }
+  },
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6
+  },
+  "warnings": {
+    "count": 0,
+    "items": []
+  },
+  "checks": [
+    {
+      "name": "evpn-bgp-route-absent-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.99.0.0/24",
+        "present": false
+      },
+      "passed": false,
+      "detail": "not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist",
+      "attempts": 20,
+      "duration_s": 122.9,
+      "started": "2026-11-21T11:55:00+00:00",
+      "history": [
+        {
+          "t": 1.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 12.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 18.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 24.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 30.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 36.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 42.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 48.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 54.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 60.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 66.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 72.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 78.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 84.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 90.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 96.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 102.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 108.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 114.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 120.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    },
+    {
+      "name": "evpn-route-bgp-absent-must-fail",
+      "type": "route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.99.0.0/24",
+        "protocol": "bgp",
+        "present": false
+      },
+      "passed": false,
+      "detail": "not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist",
+      "attempts": 20,
+      "duration_s": 122.9,
+      "started": "2026-11-21T11:55:00+00:00",
+      "history": [
+        {
+          "t": 1.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 12.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 18.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 24.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 30.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 36.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 42.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 48.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 54.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 60.0,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 66.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 72.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 78.3,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 84.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 90.4,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 96.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 102.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 108.7,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 114.5,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        },
+        {
+          "t": 120.1,
+          "passed": false,
+          "detail": "no BGP neighbors at all on leaf1 (vrf ipvrf)",
+          "unready": true
+        }
+      ],
+      "evidence": [],
+      "warnings": []
+    },
+    {
+      "name": "evpn-route-present-must-pass",
+      "type": "route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.99.0.0/24",
+        "protocol": "bgp"
+      },
+      "passed": true,
+      "detail": "active via bgp-evpn",
+      "attempts": 2,
+      "duration_s": 7.6,
+      "started": "2026-11-21T11:52:43+00:00",
+      "history": [
+        {
+          "t": 1.9,
+          "passed": true,
+          "detail": "active via bgp-evpn"
+        },
+        {
+          "t": 7.6,
+          "passed": true,
+          "detail": "active via bgp-evpn"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf route-table ipv4-unicast route 10.99.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.99.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp-evpn\",\n      \"route-owner\": \"bgp_evpn_mgr\",\n      \"origin-network-instance\": \"ipvrf\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 1,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T11:51:52.774Z (56 seconds ago)\",\n      \"next-hop-group\": \"207317093\",\n      \"next-hop-group-network-instance\": \"ipvrf\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"modify\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T11:51:52.774Z (56 seconds ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.99.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "evpn-bgp-route-present-must-pass",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.99.0.0/24"
+      },
+      "passed": false,
+      "detail": "no BGP path",
+      "attempts": 27,
+      "duration_s": 120.6,
+      "started": "2026-11-21T11:52:43+00:00",
+      "history": [
+        {
+          "t": 1.9,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 7.6,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 12.2,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 16.6,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 21.1,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 25.9,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 30.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 34.8,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 39.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 44.2,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 48.8,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 53.4,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 58.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 62.4,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 66.6,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 71.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 75.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 79.8,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 84.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 88.5,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 93.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 97.5,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 102.1,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 106.7,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 111.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 116.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 120.6,
+          "passed": false,
+          "detail": "no BGP path"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.99.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf oper-state",
+          "rc": 0,
+          "output": "{\n  \"name\": \"ipvrf\",\n  \"oper-state\": \"up\"\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "other-vrf-bgp-route-in-ipvrf-must-fail",
+      "type": "bgp_route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf",
+        "prefix": "10.98.0.0/24"
+      },
+      "passed": false,
+      "detail": "no BGP path",
+      "attempts": 27,
+      "duration_s": 120.6,
+      "started": "2026-11-21T11:52:43+00:00",
+      "history": [
+        {
+          "t": 1.9,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 7.6,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 12.2,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 16.6,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 21.1,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 25.9,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 30.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 34.8,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 39.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 44.2,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 48.8,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 53.4,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 58.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 62.4,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 66.6,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 71.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 75.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 79.8,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 84.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 88.5,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 93.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 97.5,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 102.1,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 106.7,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 111.3,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 116.0,
+          "passed": false,
+          "detail": "no BGP path"
+        },
+        {
+          "t": 120.6,
+          "passed": false,
+          "detail": "no BGP path"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.98.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf oper-state",
+          "rc": 0,
+          "output": "{\n  \"name\": \"ipvrf\",\n  \"oper-state\": \"up\"\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "other-vrf-route-in-ipvrf2-must-pass",
+      "type": "route",
+      "params": {
+        "node": "leaf1",
+        "vrf": "ipvrf2",
+        "prefix": "10.98.0.0/24",
+        "protocol": "bgp"
+      },
+      "passed": true,
+      "detail": "active via bgp-evpn",
+      "attempts": 2,
+      "duration_s": 7.6,
+      "started": "2026-11-21T11:52:43+00:00",
+      "history": [
+        {
+          "t": 1.9,
+          "passed": true,
+          "detail": "active via bgp-evpn"
+        },
+        {
+          "t": 7.6,
+          "passed": true,
+          "detail": "active via bgp-evpn"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf2 route-table ipv4-unicast route 10.98.0.0/24 id * route-type * route-owner * origin-network-instance *",
+          "rc": 0,
+          "output": "{\n  \"route\": [\n    {\n      \"ipv4-prefix\": \"10.98.0.0/24\",\n      \"id\": 0,\n      \"route-type\": \"bgp-evpn\",\n      \"route-owner\": \"bgp_evpn_mgr\",\n      \"origin-network-instance\": \"ipvrf2\",\n      \"leakable\": false,\n      \"leaked\": false,\n      \"metric\": 1,\n      \"preference\": 170,\n      \"active\": true,\n      \"route-limit-exceeded\": false,\n      \"last-app-update\": \"2026-11-21T11:51:52.774Z (56 seconds ago)\",\n      \"next-hop-group\": \"207317094\",\n      \"next-hop-group-network-instance\": \"ipvrf2\",\n      \"resilient-hash\": false,\n      \"dynamic-load-balancing\": false,\n      \"fib-programming\": {\n        \"suppressed\": false,\n        \"last-successful-operation-type\": \"modify\",\n        \"last-successful-operation-timestamp\": \"2026-11-21T11:51:52.774Z (56 seconds ago)\",\n        \"pending-operation-type\": \"none\",\n        \"last-failed-operation-type\": \"none\"\n      }\n    }\n  ]\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "leaf1",
+          "cmd": "sr_cli --output-format json info from state /network-instance ipvrf2 bgp-rib afi-safi ipv4-unicast ipv4-unicast local-rib route 10.98.0.0/24 neighbor * origin-protocol * path-id *",
+          "rc": 0,
+          "output": "{\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

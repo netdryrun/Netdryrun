@@ -1,0 +1,17 @@
+Netdryrun 0.4.2: 3 checks from netdryrun.yml
+ce1: management default route none
+leaf1: management default route not applicable (nokia_srlinux)
+leaf2: management default route not applicable (nokia_srlinux)
+  [PASS] pece-ce-session-up -- state is established (5.9s)
+warning: convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)
+Convergence checks done; settling 10s before post-convergence checks...
+  [PASS] pece-evpn-bgp-route-absent-must-fail -- no BGP path (received); a prefix this node originates itself isn't checked on srlinux: guard it on the neighbor that would receive it (held 10s, 3 samples) (10.5s)
+      warning: convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)
+      warning: convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)
+  [FAIL] pece-evpn-route-bgp-absent-must-fail -- unexpectedly present via bgp-evpn (1.4s)
+      warning: convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)
+      warning: convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '1.1.1.1:99', 'ethernet-tag-id': 0, 'ip-prefix)
+FAILED: 2 passed, 1 failed (3 checks; 2 with a convergence warning)
+  wrote json report: pece2_report.json
+exit 1

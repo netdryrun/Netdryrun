@@ -1,0 +1,42 @@
+{
+  "bgp-evpn": {
+    "bgp-instance": [
+      {
+        "id": 1,
+        "admin-state": "enable",
+        "encapsulation-type": "vxlan",
+        "vxlan-interface": "vxlan1.98",
+        "evi": 98,
+        "ecmp": 2,
+        "multi-homing-mode": "network",
+        "oper-state": "up",
+        "group-based-policy": {
+          "add-community": false,
+          "install-from-community": false
+        }
+      }
+    ]
+  },
+  "bgp-vpn": {
+    "bgp-instance": [
+      {
+        "id": 1,
+        "route-distinguisher": {
+          "rd": "1.1.1.1:98",
+          "route-distinguisher-origin": "auto-derived-from-evi"
+        },
+        "route-target": {
+          "export-rt": "target:65000:98",
+          "export-route-target-origin": "manual",
+          "import-rt": "target:65000:98",
+          "import-route-target-origin": "manual"
+        }
+      }
+    ]
+  },
+  "linux": {
+    "import-routes": false,
+    "export-routes": false,
+    "export-neighbors": true
+  }
+}

@@ -1,0 +1,7 @@
+name: srl-evpn-oracle
+topology:
+  nodes:
+    leaf1: {kind: nokia_srlinux, image: "ghcr.io/nokia/srlinux:26.7.2", startup-config: configs/leaf1.cli}
+    leaf2: {kind: nokia_srlinux, image: "ghcr.io/nokia/srlinux:26.7.2", startup-config: configs/leaf2.cli}
+  links:
+    - endpoints: ["leaf1:e1-1", "leaf2:e1-1"]

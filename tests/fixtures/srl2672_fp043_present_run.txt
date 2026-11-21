@@ -1,0 +1,16 @@
+Netdryrun 0.4.2: 6 checks from netdryrun.yml
+leaf1: management default route not applicable (nokia_srlinux)
+leaf2: management default route not applicable (nokia_srlinux)
+  [PASS] evpn-route-present-must-pass -- active via bgp-evpn (7.6s)
+  [PASS] other-vrf-route-in-ipvrf2-must-pass -- active via bgp-evpn (7.6s)
+  [FAIL] evpn-bgp-route-present-must-pass -- no BGP path (120.6s)
+  [FAIL] other-vrf-bgp-route-in-ipvrf-must-fail -- no BGP path (120.6s)
+warning: convergence: leaf1's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '2.2.2.2:98', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf2's BGP state could not be read before this check ran (unexpected output from `info from state /network-instance <vrf> bgp-rib afi-safi <afi> <afi>`: {'local-rib': {'ip-prefix-route': [{'route-distinguisher': '2.2.2.2:98', 'ethernet-tag-id': 0, 'ip-prefix)
+warning: convergence: leaf1 reported no BGP neighbors (vrf ipvrf2) by the cap (120s), although checks in the file expect BGP on it
+Convergence checks done; settling 10s before post-convergence checks...
+  [FAIL] evpn-bgp-route-absent-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (122.9s)
+  [FAIL] evpn-route-bgp-absent-must-fail -- not evaluated: leaf1 reported no BGP neighbors (vrf ipvrf) by the cap (120s), although checks in the file expect BGP on it. A post-convergence check means nothing before the node's BGP sessions exist (122.9s)
+FAILED: 2 passed, 4 failed (6 checks)
+  wrote json report: present_report.json
+exit 1

@@ -1,0 +1,296 @@
+{
+  "local-rib": {
+    "ip-prefix-route": [
+      {
+        "route-distinguisher": "2.2.2.2:98",
+        "ethernet-tag-id": 0,
+        "ip-prefix-length": 24,
+        "ip-prefix": "10.98.0.0/24",
+        "neighbor": "2.2.2.2",
+        "path-id": 0,
+        "esi": "00:00:00:00:00:00:00:00:00:00",
+        "gateway-ip": "0.0.0.0",
+        "attr-id": "7",
+        "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "pending-delete": false,
+        "neighbor-as": 65000,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "imported-network-instances": [
+          "ipvrf2"
+        ],
+        "label": {
+          "value": 98,
+          "value-type": "vni"
+        }
+      },
+      {
+        "route-distinguisher": "2.2.2.2:98",
+        "ethernet-tag-id": 0,
+        "ip-prefix-length": 32,
+        "ip-prefix": "10.98.0.1/32",
+        "neighbor": "2.2.2.2",
+        "path-id": 0,
+        "esi": "00:00:00:00:00:00:00:00:00:00",
+        "gateway-ip": "0.0.0.0",
+        "attr-id": "7",
+        "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "pending-delete": false,
+        "neighbor-as": 65000,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "imported-network-instances": [
+          "ipvrf2"
+        ],
+        "label": {
+          "value": 98,
+          "value-type": "vni"
+        }
+      },
+      {
+        "route-distinguisher": "2.2.2.2:99",
+        "ethernet-tag-id": 0,
+        "ip-prefix-length": 24,
+        "ip-prefix": "10.99.0.0/24",
+        "neighbor": "2.2.2.2",
+        "path-id": 0,
+        "esi": "00:00:00:00:00:00:00:00:00:00",
+        "gateway-ip": "0.0.0.0",
+        "attr-id": "6",
+        "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "pending-delete": false,
+        "neighbor-as": 65000,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "imported-network-instances": [
+          "ipvrf"
+        ],
+        "label": {
+          "value": 99,
+          "value-type": "vni"
+        }
+      },
+      {
+        "route-distinguisher": "2.2.2.2:99",
+        "ethernet-tag-id": 0,
+        "ip-prefix-length": 32,
+        "ip-prefix": "10.99.0.1/32",
+        "neighbor": "2.2.2.2",
+        "path-id": 0,
+        "esi": "00:00:00:00:00:00:00:00:00:00",
+        "gateway-ip": "0.0.0.0",
+        "attr-id": "6",
+        "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+        "used-route": true,
+        "unused-weight-only": false,
+        "valid-route": true,
+        "best-route": true,
+        "backup-route": false,
+        "stale-route": false,
+        "pending-delete": false,
+        "neighbor-as": 65000,
+        "group-best": true,
+        "tie-break-reason": "none",
+        "imported-network-instances": [
+          "ipvrf"
+        ],
+        "label": {
+          "value": 99,
+          "value-type": "vni"
+        }
+      }
+    ]
+  },
+  "rib-in-out": {
+    "rib-in-pre": {
+      "ip-prefix-route": [
+        {
+          "route-distinguisher": "2.2.2.2:98",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 24,
+          "ip-prefix": "10.98.0.0/24",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "7",
+          "label": {
+            "value": 98,
+            "value-type": "vni"
+          }
+        },
+        {
+          "route-distinguisher": "2.2.2.2:98",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 32,
+          "ip-prefix": "10.98.0.1/32",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "7",
+          "label": {
+            "value": 98,
+            "value-type": "vni"
+          }
+        },
+        {
+          "route-distinguisher": "2.2.2.2:99",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 24,
+          "ip-prefix": "10.99.0.0/24",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "6",
+          "label": {
+            "value": 99,
+            "value-type": "vni"
+          }
+        },
+        {
+          "route-distinguisher": "2.2.2.2:99",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 32,
+          "ip-prefix": "10.99.0.1/32",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "6",
+          "label": {
+            "value": 99,
+            "value-type": "vni"
+          }
+        }
+      ]
+    },
+    "rib-in-post": {
+      "ip-prefix-route": [
+        {
+          "route-distinguisher": "2.2.2.2:98",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 24,
+          "ip-prefix": "10.98.0.0/24",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "7",
+          "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+          "used-route": true,
+          "unused-weight-only": false,
+          "valid-route": true,
+          "best-route": true,
+          "backup-route": false,
+          "stale-route": false,
+          "pending-delete": false,
+          "neighbor-as": 65000,
+          "group-best": true,
+          "tie-break-reason": "none",
+          "label": {
+            "value": 98,
+            "value-type": "vni"
+          }
+        },
+        {
+          "route-distinguisher": "2.2.2.2:98",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 32,
+          "ip-prefix": "10.98.0.1/32",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "7",
+          "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+          "used-route": true,
+          "unused-weight-only": false,
+          "valid-route": true,
+          "best-route": true,
+          "backup-route": false,
+          "stale-route": false,
+          "pending-delete": false,
+          "neighbor-as": 65000,
+          "group-best": true,
+          "tie-break-reason": "none",
+          "label": {
+            "value": 98,
+            "value-type": "vni"
+          }
+        },
+        {
+          "route-distinguisher": "2.2.2.2:99",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 24,
+          "ip-prefix": "10.99.0.0/24",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "6",
+          "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+          "used-route": true,
+          "unused-weight-only": false,
+          "valid-route": true,
+          "best-route": true,
+          "backup-route": false,
+          "stale-route": false,
+          "pending-delete": false,
+          "neighbor-as": 65000,
+          "group-best": true,
+          "tie-break-reason": "none",
+          "label": {
+            "value": 99,
+            "value-type": "vni"
+          }
+        },
+        {
+          "route-distinguisher": "2.2.2.2:99",
+          "ethernet-tag-id": 0,
+          "ip-prefix-length": 32,
+          "ip-prefix": "10.99.0.1/32",
+          "neighbor": "2.2.2.2",
+          "path-id": 0,
+          "esi": "00:00:00:00:00:00:00:00:00:00",
+          "gateway-ip": "0.0.0.0",
+          "attr-id": "6",
+          "last-modified": "2026-11-21T11:51:54.400Z (34 seconds ago)",
+          "used-route": true,
+          "unused-weight-only": false,
+          "valid-route": true,
+          "best-route": true,
+          "backup-route": false,
+          "stale-route": false,
+          "pending-delete": false,
+          "neighbor-as": 65000,
+          "group-best": true,
+          "tie-break-reason": "none",
+          "label": {
+            "value": 99,
+            "value-type": "vni"
+          }
+        }
+      ]
+    }
+  }
+}
