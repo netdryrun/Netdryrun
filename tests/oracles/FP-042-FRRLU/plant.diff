@@ -1,4 +1,5 @@
 diff --git a/src/netdryrun/checks.py b/src/netdryrun/checks.py
+index f2e91ad..6fc962c 100644
 --- a/src/netdryrun/checks.py
 +++ b/src/netdryrun/checks.py
 @@ -15,7 +15,7 @@ from datetime import datetime, timezone
@@ -26,6 +27,7 @@ diff --git a/src/netdryrun/checks.py b/src/netdryrun/checks.py
          # every driver lists the families an established session carries, 0 prefixes included: this one isn't
          # carried. Nothing of it can arrive, which is all `exact: 0` claims (and stops being true once the family
 diff --git a/src/netdryrun/drivers/base.py b/src/netdryrun/drivers/base.py
+index 9150b1c..048259f 100644
 --- a/src/netdryrun/drivers/base.py
 +++ b/src/netdryrun/drivers/base.py
 @@ -178,43 +178,6 @@ class BgpNeighbor:
@@ -73,18 +75,19 @@ diff --git a/src/netdryrun/drivers/base.py b/src/netdryrun/drivers/base.py
  # or OSPFv3 carrying IPv4, RFC 5838), on IPv6 ospf6; RIP on IPv4 is rip, on IPv6 ripng. A driver that named OSPFv3 by
  # its version alone reported an IPv4 route as ospf6, which validate refuses for IPv4, so `protocol: ospf present:
 diff --git a/src/netdryrun/record.py b/src/netdryrun/record.py
+index acb113f..ae0a6e7 100644
 --- a/src/netdryrun/record.py
 +++ b/src/netdryrun/record.py
 @@ -20,7 +20,7 @@ from . import __version__
  from .checks import Unready, _evaluate
- from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
+ from .config import WELL_KNOWN_COMMUNITIES, Check, community_name, interface_peer
  from .drivers import DriverError, Undetectable, detect, for_node, resolve
 -from .drivers.base import NAMED_FAMILIES, Driver, NoSuchInstance, cannot_read_ipv6, is_bgp, unicast_unread
 +from .drivers.base import Driver, NoSuchInstance, cannot_read_ipv6, is_bgp
  from .lab import Lab, LabError
  
  MAX_ROUTES_PER_NODE = 50
-@@ -277,20 +277,6 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
+@@ -280,20 +280,6 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
          for afi, count in sorted(n.prefixes.items()):
              if afi in unsupported:
                  continue
@@ -105,7 +108,7 @@ diff --git a/src/netdryrun/record.py b/src/netdryrun/record.py
              if afi in n.prefixes_unread and afi not in n.prefixes_upto:
                  warnings.append(f"INCOMPLETE BASELINE: {where}: BGP neighbor {addr} {afi}: the prefix count {count} "
                                  f"isn't settled ({n.prefixes_unread[afi]}); not recorded: record again once it "
-@@ -315,17 +301,8 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
+@@ -318,17 +304,8 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
              # an eBGP session that doesn't carry a unicast family today: exact 0 there, so the day that family is
              # added and sends a prefix the check fails (acceptance round B-3; a family a session doesn't carry
              # satisfies only exact: 0, see checks._bgp_prefixes)
