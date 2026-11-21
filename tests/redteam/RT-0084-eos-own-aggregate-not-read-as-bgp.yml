@@ -1,0 +1,45 @@
+id: RT-0084
+title: >-
+  route 10.66.0.0/16 protocol bgp present: false passes on Arista EOS on the node's own selected BGP aggregate
+  (`aggregate-address 10.66.0.0/16`): the routing table lists it as routeType bgpAggregate, which the driver reads as
+  protocol aggregate, and the BGP table's path for it is the node's own (no peer), so no bgp route is seen. FRR and
+  NX-OS read the same aggregate as bgp and the check fails there
+found: >-
+  2026-11-15, red team 042-GV on the 0.4.2 final candidate (A-RT-0077), published as a 0.4.2 known limit; confirmed
+  live on cEOS 4.36.3M on 2026-11-21 (lab ndr-fix043b, adversary review of FP-043-EOSNONBGP)
+fixed_in: null
+accepted_limit:
+  decided: >-
+    coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish it as a known false pass, confirmed live;
+    a separate oracle session and fix session fix it with RT-0085 (first published as a 0.4.2 known limit)
+  mitigation: 'use bgp_route on the prefix with present: false, which reads the BGP table and sees the own aggregate'
+  fix_in: '0.4.3 (planned): one reading of an EOS BGP aggregate across drivers'
+  detail: absent
+  published:
+    website/docs/trust.md:
+    - (RT-0084)
+    - 'Use `bgp_route` with `present: false` on the prefix'
+    CHANGELOG.md:
+    - '**Arista EOS: the node''s own BGP aggregate** (RT-0084, RT-0085;'
+kind: driver
+driver: eos
+check:
+  type: route
+  node: ceos1
+  prefix: 10.66.0.0/16
+  protocol: bgp
+  present: false
+outputs:
+  # live, cEOS 4.36.3M, lab ndr-fix043b phase agg: the aggregate selected, nothing learned for the prefix
+  - needle: "show ip route vrf default 10.66.0.0/16"
+    fixture: ceos4363m_fix043b_agg_ip_route.json
+  - needle: "show rib route ip vrf default 10.66.0.0/16"
+    fixture: ceos4363m_fix043b_agg_rib_route.json
+  - needle: "show ip bgp 10.66.0.0/16"
+    fixture: ceos4363m_fix043b_agg_ip_bgp.json
+reproduce: >-
+  containerlab: tests/fixtures/ceos4363m_fix043b_topology.clab.yml with the oracle FP-043-EOSNONBGP's configs; on
+  ceos1 `ip route 10.66.1.0/24 Null0` and `router bgp 65030` `network 10.66.1.0/24` `aggregate-address 10.66.0.0/16`.
+  `show ip route 10.66.0.0/16` lists `A B 10.66.0.0/16` (bgpAggregate). {type: route, node: ceos1, prefix:
+  10.66.0.0/16, protocol: bgp, present: false} passes ("absent", tests/fixtures/ceos4363m_fix043b_agg_report.json);
+  {type: bgp_route, node: ceos1, prefix: 10.66.0.0/16, present: false} fails (the own aggregate is in the BGP table).

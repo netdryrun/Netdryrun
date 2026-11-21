@@ -1,0 +1,48 @@
+id: RT-0085
+title: >-
+  route 10.66.0.0/16 protocol aggregate present: false passes on Arista EOS while the node's own BGP aggregate
+  (`aggregate-address 10.66.0.0/16`) is configured but loses to a static route for the same prefix (`ip route
+  10.66.0.0/16 Null0`, preference 1 against 200): the routing table lists only the static, the RIB lists the aggregate
+  under bgp (not best), so the driver reads it as a bgp route that isn't selected, never as aggregate. In 0.4.2 and
+  earlier the RIB isn't read and the BGP table's own path is skipped, so it is absent there too. This also defeats the
+  0.4.2 workaround for RT-0084 ("use protocol: aggregate on EOS")
+found: >-
+  2026-11-21, adversary re-check of ndr/fix-eos-nonbgp 49dc098 (MAJOR-A), live on cEOS 4.36.3M (lab ndr-rcheos), the
+  same in IPv6 and in a VRF
+fixed_in: null
+accepted_limit:
+  decided: >-
+    coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish it as a known false pass, confirmed live;
+    a separate oracle session and fix session fix it with RT-0084
+  mitigation: 'use bgp_route on the prefix with present: false, which reads the BGP table and sees the own aggregate'
+  fix_in: '0.4.3 (planned): one reading of an EOS BGP aggregate across drivers'
+  detail: absent
+  published:
+    website/docs/trust.md:
+    - (RT-0085
+    - 'doesn''t hold there'
+    CHANGELOG.md:
+    - '**Arista EOS: the node''s own BGP aggregate** (RT-0084, RT-0085;'
+kind: driver
+driver: eos
+check:
+  type: route
+  node: ceos1
+  prefix: 10.66.0.0/16
+  protocol: aggregate
+  present: false
+outputs:
+  # live, cEOS 4.36.3M, lab ndr-rcheos phase A: the static wins, the aggregate is the RIB's bgp entry, not best
+  - needle: "show ip route vrf default 10.66.0.0/16"
+    fixture: ceos4363m_rcheos_aggstatic_ip_route.json
+  - needle: "show rib route ip vrf default 10.66.0.0/16"
+    fixture: ceos4363m_rcheos_aggstatic_rib_route.json
+  - needle: "show ip bgp 10.66.0.0/16"
+    fixture: ceos4363m_rcheos_aggstatic_ip_bgp.json
+reproduce: >-
+  containerlab: tests/fixtures/ceos4363m_rcheos_aggstatic_topology.clab.yml with its ceos1.cfg and frr1.conf, then
+  ceos4363m_rcheos_aggstatic_phaseA.sh (frr1 stops redistributing its statics; ceos1 adds `ip route 10.66.0.0/16
+  Null0`). `show rib route ip vrf default 10.66.0.0/16` lists `>S` and ` B` (the aggregate). {type: route, node: ceos1,
+  prefix: 10.66.0.0/16, protocol: aggregate, present: false} passes ("absent",
+  tests/fixtures/ceos4363m_rcheos_aggstatic_report.json); {type: bgp_route, node: ceos1, prefix: 10.66.0.0/16,
+  present: false} fails (the BGP table lists the own aggregate, localAgg true).

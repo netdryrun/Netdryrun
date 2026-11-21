@@ -57,6 +57,20 @@
   and the tests check the installed PyYAML's merge behaviour directly, so another release with the same fault fails
   the suite instead of reaching users.
 
+### Known false passes (not fixed yet)
+
+- **Arista EOS: the node's own BGP aggregate** (RT-0084, RT-0085; confirmed live on cEOS 4.36.3M). EOS lists an
+  `aggregate-address` route as an aggregate, not as BGP.
+  - While the aggregate is selected, `route ... protocol: bgp present: false` passes on it (RT-0084), where FRR and
+    NX-OS read it as `bgp` and fail the same check. This is the 0.4.2 known limit, now confirmed live.
+  - While a static route for the same prefix wins (`ip route 10.66.0.0/16 Null0` beside `aggregate-address
+    10.66.0.0/16`), the aggregate is read as a BGP route that isn't selected, so `route ... protocol: aggregate
+    present: false` passes (RT-0085; in 0.4.2 and earlier too, the same in IPv6 and in a VRF).
+  - Correction to the 0.4.2 notes: they said this wasn't confirmed on a live cEOS and offered `protocol: aggregate`
+    as a workaround, which doesn't hold in the RT-0085 case. Use `bgp_route ... present: false` on the prefix: it
+    reads the BGP table, which lists the node's own aggregate, and fails in both cases (checked on both captures).
+  - Planned for 0.4.3, with its own oracle.
+
 ## 0.4.2 (2026-11-21)
 
 ### Fixed
@@ -373,7 +387,8 @@
   The driver reads an `aggregate-address` route as protocol `aggregate`, not `bgp`, so the guard passes on the node's
   own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix
   with `bgp_route ... present: false`, or use `protocol: aggregate` on EOS. Not confirmed on a live cEOS. Planned for
-  0.4.3.
+  0.4.3. *Corrected after release:* confirmed live, and `protocol: aggregate` doesn't hold while a static route for
+  the prefix wins (RT-0085): use `bgp_route ... present: false` (see Unreleased).
 - **`link_down`: sessions the fault ends that Netdryrun still doesn't wait for** (RT-0078 follow-ups; the checks
   then run after the settle and hold windows only). On Arista cEOS, an SVI (`Vlan10`) or subinterface over a downed
   `ethN`: EOS's kernel devices carry no link to `ethN`, so the session isn't found (not confirmed on a live cEOS). A

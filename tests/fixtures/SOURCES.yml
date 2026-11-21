@@ -716,3 +716,32 @@
     quay.io/frrouting/frr:10.2.1 for the 10.2.1 set and 10.4.1 for the 10.4.1 set; each node also bind-mounted a
     daemons file enabling bgpd
   added: ndr/unnsess
+- files: [ceos4363m_rcheos_aggstatic_*_route.json, ceos4363m_rcheos_aggstatic_rib_route.txt,
+          ceos4363m_rcheos_aggstatic_ip_bgp.json, ceos4363m_rcheos_aggstatic_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (the laptop's ceos:4.36.3M, sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df)
+    ceos1 with FRR 10.4.1 (quay.io/frrouting/frr:10.4.1) frr1 on one link, containerlab 0.81.1, lab ndr-rcheos, the
+    laptop's WSL, 2026-11-21 14:06 UTC (21:06 Thailand time), by the adversary re-check of ndr/fix-eos-nonbgp 49dc098.
+    Each file is the stdout of `docker exec clab-ndr-rcheos-ceos1 Cli -p 15 -c "<command>"`, the commands and exit
+    codes in ceos4363m_rcheos_aggstatic_LOG.txt (rc 0). ceos1 (ceos4363m_rcheos_aggstatic_ceos1.cfg) has
+    `aggregate-address 10.66.0.0/16`, `2001:db8:66::/48` and, in vrf blue, `10.67.0.0/16`; phase A
+    (ceos4363m_rcheos_aggstatic_phaseA.sh) stopped frr1 redistributing its statics, so nothing is learned for them, and
+    added `ip route 10.66.0.0/16 Null0`, `ipv6 route 2001:db8:66::/48 Null0` and `ip route vrf blue 10.67.0.0/16
+    Null0`: the static wins (1 against 200) and the RIB lists the aggregate under bgp, not best (red team RT-0085)
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_rcheos_aggstatic_report.json, ceos4363m_rcheos_aggstatic_check.txt, ceos4363m_rcheos_aggstatic_LOG.txt]
+  kind: report
+  source: >-
+    netdryrun on ndr/fix-eos-nonbgp 49dc098 `check ceos4363m_rcheos_aggstatic_aggA.yml --settle 2 --hold 6 --json` on
+    lab ndr-rcheos in phase A, 2026-11-21 (exit 1), by the adversary re-check: v4-agg-absent and v6-agg-absent
+    (`protocol: aggregate present: false`) passed while the aggregates were configured and lost to the statics
+    (RT-0085); LOG.txt is the capture log of that lab (phase A, then phase O for an OSPF range, not kept here)
+  added: ndr/fix-eos-nonbgp
+- files: [ceos4363m_rcheos_aggstatic_topology.clab.yml, ceos4363m_rcheos_aggstatic_ceos1.cfg,
+          ceos4363m_rcheos_aggstatic_frr1.conf, ceos4363m_rcheos_aggstatic_phaseA.sh, ceos4363m_rcheos_aggstatic_aggA.yml]
+  kind: lab-input
+  source: >-
+    the topology, startup configs, phase A script and checks of lab ndr-rcheos (adversary re-check of
+    ndr/fix-eos-nonbgp, 2026-11-21); frr1 also bind-mounted a daemons file and the stock vtysh.conf (not kept here)
+  added: ndr/fix-eos-nonbgp
