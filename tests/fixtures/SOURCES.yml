@@ -783,3 +783,22 @@
     vrf blue and its BGP vrf blue aggregate after deploy; capture.sh (with lib.sh) set each phase and captured;
     probe.py gave the verdict files
   added: ndr/oracle-eos-agg
+- files: [ceos4363m_advagg_advonly_ip_route.json, ceos4363m_advagg_advonly_rib_route.json,
+          ceos4363m_advagg_advonly_ip_bgp.json]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos:4.36.3M) ceos1 of lab ndr-advagg (containerlab, the laptop's WSL Ubuntu-ndr, with FRR
+    10.4.1 up1 as its eBGP peer), 2026-11-21 18:41 UTC (2026-11-22 01:41 Thailand time), the adversary review of
+    FP-043-EOSAGG (session adv-eos-agg). ceos1 runs ceos4363m_advagg_ceos1.cfg: `aggregate-address 10.70.0.0/16
+    advertise-only` with its contributor `network 10.70.1.0/24` (ip route 10.70.1.0/24 Null0). Each file is the
+    stdout of `docker exec clab-ndr-advagg-ceos1 Cli -p 15 -c "<command>"`: show ip route vrf default 10.70.0.0/16 |
+    json (no route), show rib route ip vrf default 10.70.0.0/16 | json (no candidate), show ip bgp 10.70.0.0/16 vrf
+    default | json (the node's own path, localAgg true): an advertise-only aggregate is in neither the routing table
+    nor the RIB, and is advertised. Copied for the F4 follow-up of the FP-043-EOSAGG fix
+  added: ndr/fix-eos-agg-v3
+- files: [ceos4363m_advagg_ceos1.cfg]
+  kind: lab-input
+  source: >-
+    the startup config of ceos1 in lab ndr-advagg (adversary review of FP-043-EOSAGG, 2026-11-21): the aggregate
+    variants it probed (advertise-only, as-set summary-only, attribute-map, match-map, behind a static)
+  added: ndr/fix-eos-agg-v3

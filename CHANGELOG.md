@@ -66,6 +66,17 @@
     as `aggregate` any more, so the name could only ever read "absent". Write `protocol: bgp` for the aggregate.
   - A RIB `bgp` entry that the BGP table doesn't show as the node's own aggregate or as a path from a neighbor, an
     unmapped aggregate route type, or a `localAgg` flag that isn't a boolean, makes the check an error.
+  - An `aggregate-address ... advertise-only` aggregate is in neither the routing table nor the RIB (live), only in
+    the BGP table, and it is advertised. A path of the node's own in the BGP table is `bgp` (not selected) whenever
+    neither the routing table nor the RIB holds any route for the prefix, whether or not EOS marks it `localAgg`: a
+    `network` statement needs a route there to originate from, and an EOS that doesn't print the flag must not make
+    the aggregate read as absent.
+  - **Stricter on replay:** a 0.4.2 baseline with `route ... protocol: bgp present: false` on the node's own
+    aggregate prefix now fails, where 0.4.2 passed it. The aggregate is a BGP route the node holds and sends:
+    record the baseline again, or change the check to `present: true`.
+  - Limit (unchanged, now documented): a static route whose next hop doesn't resolve is in no EOS read, while FRR
+    lists it as an inactive static, so `protocol: static present: false` passes on EOS and fails on FRR (see the
+    compatibility page).
   - In 0.4.2 and earlier, use `bgp_route ... present: false` on the prefix: it reads the BGP table, which lists the
     node's own aggregate, and fails in both cases. The 0.4.2 notes offered `protocol: aggregate` on EOS as a
     workaround; it doesn't hold while a static wins, and 0.4.3 refuses it.

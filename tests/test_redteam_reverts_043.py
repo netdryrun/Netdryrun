@@ -69,3 +69,13 @@ def test_putting_the_bug_back_makes_the_case_pass(stem, bug, reason, monkeypatch
     bug(monkeypatch)
     r = _run_driver_case(_case(stem))
     assert r is not None and r.passed is True, f"{stem} doesn't catch its bug: {r and r.detail}"
+
+
+@pytest.mark.parametrize("stem", [c[0] for c in CASES], ids=[c[0][:7] for c in CASES])
+def test_a_case_without_an_answer_for_a_read_fails_instead_of_counting_as_caught(stem):
+    """The rule in _run_driver_case: with the RIB answer taken out again, the case is where it was before F1 (the
+    check ends in "unexpected command"), and that must fail the test, not read as a caught false pass."""
+    case = _case(stem)
+    case["outputs"] = [o for o in case["outputs"] if o["needle"] != "show rib route"]
+    with pytest.raises(pytest.fail.Exception, match="no answer for .*show rib route"):
+        _run_driver_case(case)

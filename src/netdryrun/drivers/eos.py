@@ -328,6 +328,32 @@ def parse_all_routes(text: str, vrf: str = "default") -> list[Route]:
     return out
 
 
+_parse_routes_three_reads = parse_routes
+
+
+@parser(ROUTE_CMD)
+def parse_routes(route_text: str, bgp_text: str | None, prefix: str, vrf: str = "default",
+                 rib_text: str | None = None) -> list[Route]:
+    """parse_routes of the three reads, plus the node's own path that nothing else originates (adversary review of
+    FP-043-EOSAGG, F4). `aggregate-address P advertise-only` puts the aggregate in neither the routing table nor the
+    RIB (live, cEOS 4.36.3M, ceos4363m_advagg_advonly_*): the BGP table's own path is the only read that shows it,
+    and the node sends it to its peers. A `network` statement or redistribution needs a route in the RIB to
+    originate from, so an own path (no peer) with nothing in the routing table and nothing in the RIB has no source
+    but BGP itself: a bgp route, not selected, whatever routeType.localAgg says or whether EOS prints it
+    (FP-042-FRR102: a missing key is never a guess). Only with a RIB answer read: without one an empty routing table
+    doesn't show that no other protocol holds the prefix.
+
+    Limit: a static route whose next hop doesn't resolve is in none of the three reads on EOS (live, cEOS 4.36.3M),
+    so `protocol: static present: false` passes while it is configured (compatibility page, EOS limits)."""
+    out = _parse_routes_three_reads(route_text, bgp_text, prefix, vrf, rib_text)
+    if out or bgp_text is None or rib_text is None:
+        return out
+    for e in _bgp_entries(BGP_CMD, bgp_text, vrf).values():   # every entry is the prefix's: checked above
+        if any(not _peer(p) for p in e["bgpRoutePaths"]):
+            return [Route(prefix, "bgp", False, raw_protocol="own path")]
+    return out
+
+
 _AS_TOKEN = re.compile(r"\{([^}]*)\}|\[([^\]]*)\]|\(([^)]*)\)|(\S+)")
 _ASN = re.compile(r"[0-9]+")
 MAX_ASN = 4294967295   # 4-byte ASNs: a larger number is no ASN
