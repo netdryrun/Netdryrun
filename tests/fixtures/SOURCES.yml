@@ -728,7 +728,7 @@
     `aggregate-address 10.66.0.0/16`, `2001:db8:66::/48` and, in vrf blue, `10.67.0.0/16`; phase A
     (ceos4363m_rcheos_aggstatic_phaseA.sh) stopped frr1 redistributing its statics, so nothing is learned for them, and
     added `ip route 10.66.0.0/16 Null0`, `ipv6 route 2001:db8:66::/48 Null0` and `ip route vrf blue 10.67.0.0/16
-    Null0`: the static wins (1 against 200) and the RIB lists the aggregate under bgp, not best (red team RT-0085)
+    Null0`: the static wins (1 against 200) and the RIB lists the aggregate under bgp, not best (red team RT-0086)
   added: ndr/fix-eos-nonbgp
 - files: [ceos4363m_rcheos_aggstatic_report.json, ceos4363m_rcheos_aggstatic_check.txt, ceos4363m_rcheos_aggstatic_LOG.txt]
   kind: report
@@ -736,7 +736,7 @@
     netdryrun on ndr/fix-eos-nonbgp 49dc098 `check ceos4363m_rcheos_aggstatic_aggA.yml --settle 2 --hold 6 --json` on
     lab ndr-rcheos in phase A, 2026-11-21 (exit 1), by the adversary re-check: v4-agg-absent and v6-agg-absent
     (`protocol: aggregate present: false`) passed while the aggregates were configured and lost to the statics
-    (RT-0085); LOG.txt is the capture log of that lab (phase A, then phase O for an OSPF range, not kept here)
+    (RT-0086); LOG.txt is the capture log of that lab (phase A, then phase O for an OSPF range, not kept here)
   added: ndr/fix-eos-nonbgp
 - files: [ceos4363m_rcheos_aggstatic_topology.clab.yml, ceos4363m_rcheos_aggstatic_ceos1.cfg,
           ceos4363m_rcheos_aggstatic_frr1.conf, ceos4363m_rcheos_aggstatic_phaseA.sh, ceos4363m_rcheos_aggstatic_aggA.yml]

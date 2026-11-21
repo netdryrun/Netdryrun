@@ -1,4 +1,4 @@
-id: RT-0084
+id: RT-0085
 title: >-
   route 10.66.0.0/16 protocol bgp present: false passes on Arista EOS on the node's own selected BGP aggregate
   (`aggregate-address 10.66.0.0/16`): the routing table lists it as routeType bgpAggregate, which the driver reads as
@@ -11,16 +11,16 @@ fixed_in: null
 accepted_limit:
   decided: >-
     coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish it as a known false pass, confirmed live;
-    a separate oracle session and fix session fix it with RT-0085 (first published as a 0.4.2 known limit)
+    a separate oracle session and fix session fix it with RT-0086 (first published as a 0.4.2 known limit)
   mitigation: 'use bgp_route on the prefix with present: false, which reads the BGP table and sees the own aggregate'
   fix_in: '0.4.3 (planned): one reading of an EOS BGP aggregate across drivers'
   detail: absent
   published:
     website/docs/trust.md:
-    - (RT-0084)
+    - (RT-0085)
     - 'Use `bgp_route` with `present: false` on the prefix'
     CHANGELOG.md:
-    - '**Arista EOS: the node''s own BGP aggregate** (RT-0084, RT-0085;'
+    - '**Arista EOS: the node''s own BGP aggregate** (RT-0085, RT-0086;'
 kind: driver
 driver: eos
 check:

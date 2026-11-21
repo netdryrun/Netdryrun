@@ -295,8 +295,8 @@ def test_a_bgp_aggregate_is_the_aggregate_not_a_second_bgp_candidate():
     best. Read as a bgp candidate (bf3d4cd), it failed `protocol: bgp present: false` and passed `protocol: bgp
     active: false` with no BGP-learned route at all (adversary review of FP-043-EOSNONBGP, MAJOR 1).
 
-    KNOWN FALSE PASS PINNED, NOT ENDORSED: `protocol: bgp present: false` passing here is RT-0084
-    (tests/known_false_passes.yml rt-0084-eos-own-aggregate-not-read-as-bgp): FRR and NX-OS read the own aggregate as
+    KNOWN FALSE PASS PINNED, NOT ENDORSED: `protocol: bgp present: false` passing here is RT-0085
+    (tests/known_false_passes.yml rt-0085-eos-own-aggregate-not-read-as-bgp): FRR and NX-OS read the own aggregate as
     bgp and fail it. This test holds today's reading so it can't change unnoticed; the fix planned for 0.4.3 flips
     that assert (and the aggregate-only reading) on purpose. The workaround, bgp_route present: false, is pinned
     below."""
@@ -384,8 +384,8 @@ def _aggstatic_lab():
 
 
 def test_an_aggregate_behind_a_static_reads_as_bgp_not_aggregate():
-    """KNOWN FALSE PASS PINNED, NOT ENDORSED: RT-0085 (tests/known_false_passes.yml
-    rt-0085-eos-aggregate-behind-static-read-as-bgp). Live (lab ndr-rcheos, adversary re-check of 49dc098): with
+    """KNOWN FALSE PASS PINNED, NOT ENDORSED: RT-0086 (tests/known_false_passes.yml
+    rt-0086-eos-aggregate-behind-static-read-as-bgp). Live (lab ndr-rcheos, adversary re-check of 49dc098): with
     `aggregate-address 10.66.0.0/16` and `ip route 10.66.0.0/16 Null0` and nothing learned, the routing table lists the
     static, the RIB `>S` and ` B` (the aggregate), and the BGP table only the own aggregate (localAgg). The aggregate
     reads as a bgp route that isn't selected, so `protocol: aggregate present: false` passes. The fix planned for 0.4.3
@@ -404,7 +404,7 @@ def test_an_aggregate_behind_a_static_reads_as_bgp_not_aggregate():
 
 @pytest.mark.parametrize("phase", ["agg", "aggstatic"])
 def test_bgp_route_present_false_sees_the_own_aggregate(phase):
-    """The published workaround for RT-0084 and RT-0085: bgp_route present false reads the BGP table, which lists the
+    """The published workaround for RT-0085 and RT-0086: bgp_route present false reads the BGP table, which lists the
     node's own aggregate (no peer, localAgg), and fails in both live shapes."""
     lab = _aggstatic_lab() if phase == "aggstatic" else _agg_lab("agg")
     check = _validate_check(0, {"type": "bgp_route", "node": "e1", "prefix": "10.66.0.0/16", "present": False}, 20)

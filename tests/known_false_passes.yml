@@ -543,27 +543,27 @@
     - tests/test_oracle_guards_fp_043_eosnonbgp.py
     - tests/test_eos_rib_candidates_043.py
     - tests/test_redteam.py
-- id: rt-0084-eos-own-aggregate-not-read-as-bgp
+- id: rt-0085-eos-own-aggregate-not-read-as-bgp
   what: >-
     On Arista EOS, `route ... protocol: bgp present: false` passes on the node's own selected BGP aggregate, which the
     routing table lists as bgpAggregate and the driver reads as protocol aggregate (FRR and NX-OS read it as bgp and
     fail the check; 0.4.2 known limit, confirmed live on cEOS 4.36.3M on 2026-11-21)
   status: accepted-documented-limit
-  cases: [RT-0084]
-  decided: "coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish as a known false pass, confirmed live; a separate oracle and fix session fix it with RT-0085"
+  cases: [RT-0085]
+  decided: "coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish as a known false pass, confirmed live; a separate oracle and fix session fix it with RT-0086"
   record: CHANGELOG.md (Unreleased, Known false passes; 0.4.2, Not fixed), website/docs/trust.md
   tests:
     - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
     - tests/test_eos_rib_candidates_043.py::test_a_bgp_aggregate_is_the_aggregate_not_a_second_bgp_candidate
-- id: rt-0085-eos-aggregate-behind-static-read-as-bgp
+- id: rt-0086-eos-aggregate-behind-static-read-as-bgp
   what: >-
     On Arista EOS, `route ... protocol: aggregate present: false` passes while the node's own BGP aggregate is
     configured but loses to a static route for the same prefix: the RIB lists it under bgp, not best, and 0.4.2 and
     earlier don't see it at all (confirmed live on cEOS 4.36.3M on 2026-11-21, IPv4, IPv6 and a VRF); this also
-    defeats the 0.4.2 workaround for RT-0084, so the published workaround is now bgp_route present false
+    defeats the 0.4.2 workaround for RT-0085, so the published workaround is now bgp_route present false
   status: accepted-documented-limit
-  cases: [RT-0085]
-  decided: "coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish as a known false pass, confirmed live; a separate oracle and fix session fix it with RT-0084"
+  cases: [RT-0086]
+  decided: "coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish as a known false pass, confirmed live; a separate oracle and fix session fix it with RT-0085"
   record: CHANGELOG.md (Unreleased, Known false passes), website/docs/trust.md
   tests:
     - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
