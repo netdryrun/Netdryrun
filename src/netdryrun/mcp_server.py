@@ -413,7 +413,9 @@ def record_baseline(topology: str, deploy: bool = True, wait_seconds: float = 45
                     guards: bool = True) -> str:
     import time
 
+    from .drivers import frr_import_check
     from .record import record, render
+    from .runner import driver_resolver
 
     try:
         topo = _tool_path(topology).resolve()
@@ -431,8 +433,17 @@ def record_baseline(topology: str, deploy: bool = True, wait_seconds: float = 45
     try:
         if deploy:
             lab.deploy()
+            # as `netdryrun record --deploy`: every FRR router's `network` statements registered with zebra before
+            # anything is recorded, remedied on this lab the tool deployed, and still registered once the state is
+            # read; else an error and no baseline (FP-043-FRRIMPORTCHK, review of 5a36902 MINOR-1)
+            routers = frr_import_check.candidates(lab, driver_resolver({}))
+            found = frr_import_check.guard(lab, routers, remedy=True, clock=time.monotonic, sleep=time.sleep)
             time.sleep(wait_seconds)
         data, warnings = record(topo, attributes=attributes, guards=guards)
+        if deploy:
+            frr_import_check.guard(lab, routers, remedy=False, clock=time.monotonic, sleep=time.sleep,
+                                   label="after the recording")
+            warnings = [*warnings, *frr_import_check.gap_warnings(found)]
     except LabError as e:
         return json.dumps({"error": str(e)})
     finally:

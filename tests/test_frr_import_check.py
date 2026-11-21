@@ -380,10 +380,13 @@ def test_instance_with_import_check_off_or_no_networks_is_not_read():
 
 def test_candidates_are_every_frr_and_sonic_router():
     from types import SimpleNamespace as N
-    lab = N(nodes={"a": N(kind="linux"), "b": N(kind="sonic-vs"), "s": N(kind="bridge"), "h": N(kind="linux"),
-                   "e": N(kind="ceos")})
+    lab = Lab({("h", tuple(ic.BGPD_CONFIG)): (127, NO_VTYSH_ANSWER, "")})
+    lab.nodes = {"a": N(kind="linux"), "b": N(kind="sonic-vs"), "s": N(kind="bridge"), "h": N(kind="linux"),
+                 "e": N(kind="ceos")}
     drivers = {"a": "frr", "b": "sonic", "s": "frr", "h": None, "e": "eos"}
-    assert ic.candidates(lab, lambda name, node: drivers[name]) == {"a": "frr", "b": "sonic"}
+    got = ic.candidates(lab, lambda name, node: drivers[name])
+    assert got == {"a": "frr", "b": "sonic"} and got.found == {} and got.gaps == {}
+    assert lab.asked == [("h", tuple(ic.BGPD_CONFIG))]   # only the node no driver claims is probed
 
 
 # ------------------------------------------------------------------------------------------------ every cut of a live answer
@@ -480,6 +483,9 @@ GHOST_TEXT = ["vtysh", "-c", "show bgp vrf GHOST import-check-table detail"]
 GHOST_JSON = ["vtysh", "-c", "show bgp vrf GHOST import-check-table detail json"]
 DENIED = ["vtysh", "-c", "show bgp ipv4 unicast 198.51.100.0/24 json"]
 BOOT_LOG = (FU / "r1_bootlog_bgpd.txt").read_text()
+# DERIVED: bgpd's answer for EARLYDENY in the live rmcap lab (a deny route-map defined before its network, as r1's
+# DENYALL is), with the name changed
+DENYALL_RM = (FU / "rmcap_rm_earlydeny.json").read_text().replace("EARLYDENY", "DENYALL")
 
 
 def fu(name: str) -> str:
@@ -492,10 +498,11 @@ def r1_answers(**change):
          ("r1", tuple(GHOST_JSON)): (0, fu("r1_ghost_table.json"), ""),
          ("r1", tuple(GHOST_TEXT)): (0, fu("r1_ghost_table.txt"), ""),
          ("r1", tuple(ic.VRFS)): (0, fu("r1_bgp_vrfs.json"), ""),
-         ("r1", tuple(DENIED)): (0, fu("r1_denied_prefix.json"), "")}
+         ("r1", tuple(DENIED)): (0, fu("r1_denied_prefix.json"), ""),
+         ("r1", tuple(ic.route_map_command("DENYALL"))): (0, DENYALL_RM, "")}
     for k, v in change.items():
         a[("r1", tuple({"config": ic.BGPD_CONFIG, "denied": DENIED, "vrfs": ic.VRFS, "ghost_json": GHOST_JSON,
-                        "ghost_text": GHOST_TEXT}[k]))] = v
+                        "ghost_text": GHOST_TEXT, "rmap": ic.route_map_command("DENYALL")}[k]))] = v
     return a
 
 
@@ -506,7 +513,7 @@ def run_r1(answers, driver="frr", boot_log=BOOT_LOG, budget=60.0):
 def test_followup_config_live():
     default, ghost = ic.parse_bgpd_config(fu("r1_bgpd_config.txt"))
     assert [(n.prefix, n.route_map, n.backdoor) for n in default.networks] == [
-        ("192.0.2.0/24", False, True), ("198.51.100.0/24", True, False), ("203.0.113.0/24", False, False)]
+        ("192.0.2.0/24", "", True), ("198.51.100.0/24", "DENYALL", False), ("203.0.113.0/24", "", False)]
     assert [n.prefix for n in default.checked] == ["198.51.100.0/24", "203.0.113.0/24"]   # a backdoor never announces
     assert ghost.vrf == "GHOST" and [n.prefix for n in ghost.checked] == ["100.64.0.0/24"]
     assert ic.parse_bgp_vrfs(fu("r1_bgp_vrfs.json")) == {"default": 0, "GHOST": -1}
@@ -748,3 +755,308 @@ def test_record_deploy_on_a_stuck_boot_writes_nothing(monkeypatch, tmp_path, cap
     rc, events, out = _record_deploy(monkeypatch, tmp_path, guard)
     assert rc == 2 and not out.exists() and events[-1] == "destroy"
     assert "import check" in capsys.readouterr().err
+
+
+# ------------------------------------------------- the route-map exemption needs proof it ran (review of 5a36902)
+# Live answers (tests/fixtures/frr_fp043ic_followup/rm0_*, rmcap_*; SOURCES.yml). rm0 is the review's lab: `bgp
+# route-map delay-timer 0` and `network 198.51.100.0/24 route-map PERMIT`, a permit map bgpd never applied (invoked 0,
+# processedChange true): the prefix is withheld though production, with the map in place, announces it. 5a36902
+# passed `present: false` on it. rmcap has the default timer and four shapes: a deny map defined before its network
+# (EARLYDENY), one defined after (LATEDENY), a map that is not defined (NOSUCH), and a permit map defined after
+# (LATEPERMIT, announced, with its entry).
+
+NO_VTYSH_ANSWER = ('OCI runtime exec failed: exec failed: unable to start container process: exec: "vtysh": '
+                   'executable file not found in $PATH\n')   # Docker 29.9.2, live (an image without vtysh), rc 127
+
+
+def cap_answers(pre: str, maps: list[str], prefixes: list[str], node: str = "r1", config: str | None = None):
+    a = {(node, tuple(ic.BGPD_CONFIG)): (0, config or fu(f"{pre}_bgpd_config.txt"), ""),
+         (node, tuple(JSON)): (0, fu(f"{pre}_table.json"), ""), (node, tuple(TEXT)): (0, fu(f"{pre}_table.txt"), ""),
+         (node, tuple(ic.VRFS)): (0, fu(f"{pre}_bgp_vrfs.json"), "")}
+    for m in maps:
+        a[(node, tuple(ic.route_map_command(m)))] = (0, fu(f"{pre}_rm_{m.lower()}.json"), "")
+    for last in prefixes:
+        a[(node, ("vtysh", "-c", f"show bgp ipv4 unicast 198.51.{last}.0/24 json"))] = (
+            0, fu(f"{pre}_prefix_{last}.json"), "")
+    return a
+
+
+RMCAP_MAPS = ["EARLYDENY", "LATEDENY", "NOSUCH", "LATEPERMIT"]
+
+
+def run_cap(answers, budget=60.0, nodes=None):
+    return run(Lab(answers, boot_log=fu("rmcap_bootlog_bgpd.txt")), nodes=nodes or {"r1": "frr"}, budget=budget)
+
+
+def test_route_map_answers_live():
+    assert ic.parse_route_map(fu("rmcap_rm_earlydeny.json"), "EARLYDENY") == (2, False)
+    assert ic.parse_route_map(fu("rmcap_rm_latedeny.json"), "LATEDENY") == (1, False)
+    assert ic.parse_route_map(fu("rmcap_rm_latepermit.json"), "LATEPERMIT") == (1, False)
+    assert ic.parse_route_map(fu("rmcap_rm_nosuch.json"), "NOSUCH") is None
+    assert ic.parse_route_map(fu("rm0_rm_permit.json"), "PERMIT") == (0, True)
+    assert ic.route_map_command("X") == ["vtysh", "-d", "bgpd", "-c", "show route-map X json"]
+
+
+EARLY = (FU / "rmcap_rm_earlydeny.json").read_text()
+
+
+@pytest.mark.parametrize("text", [
+    "", "{}", "[]", '{"bgpd":[]}', "% Unknown command\n", EARLY[:-3],
+    EARLY.replace('{"bgpd":{', '{"zebra":{},"bgpd":{'),                              # not bgpd's alone (no -d)
+    EARLY.replace('"EARLYDENY":{', '"OTHER":{'),                                     # another map
+    EARLY.replace('"invoked":2,\n    "disabled', '"invoked":"2",\n    "disabled'),
+    EARLY.replace('"invoked":2,\n    "disabled', '"invoked":true,\n    "disabled'),
+    EARLY.replace('"invoked":2,\n    "disabled', '"invoked":-1,\n    "disabled'),
+    EARLY.replace('"processedChange":false', '"processedChange":0'),
+    EARLY.replace('"processedChange":false,', ""),
+    EARLY.replace('"processedChange":false', '"processedChange":false,"pending":true'),   # a key it doesn't know
+    EARLY.replace('"processedChange":false', '"processedChange":false,"processedChange":true'),
+    '{"bgpd":{},"bgpd":{}}',
+])
+def test_route_map_answer_not_understood_is_unknown(text):
+    assert text != EARLY
+    with pytest.raises(ic.Unknown):
+        ic.parse_route_map(text, "EARLYDENY")
+
+
+def test_the_reviews_timer_0_lab_is_an_error_never_a_pass():
+    """MAJOR-A, red on 5a36902: the live rm0 lab. A permit route-map bgpd never applied is no deny."""
+    with pytest.raises(ic.ImportCheckError, match=r"198.51.100.0/24 .* route-map PERMIT .* never applied .*"
+                                                   r"delay-timer 0.*No verdict") as e:
+        run_cap(cap_answers("rm0", ["PERMIT"], ["100"]), budget=60.0)
+    assert isinstance(e.value, LabError)
+
+
+def test_route_map_shapes_with_the_default_timer_judge_normally():
+    """Live rmcap: both denies applied (invoked, nothing waiting) and the undefined map are exempt, each named; the
+    permit has its entry and is checked as any network."""
+    out, clock, _ = run_cap(cap_answers("rmcap", RMCAP_MAPS, ["100", "101", "102"]))
+    assert out["r1"].startswith("registered; ")
+    assert "198.51.100.0/24 (vrf default) needs no entry: denied by its route-map EARLYDENY: bgpd applied" in out["r1"]
+    assert "198.51.101.0/24 (vrf default) needs no entry: denied by its route-map LATEDENY" in out["r1"]
+    assert "198.51.102.0/24 (vrf default) needs no entry: its route-map NOSUCH is not defined" in out["r1"]
+    assert "198.51.103.0/24" not in out["r1"]
+    assert sum(clock.sleeps) >= ic.RMAP_DELAY_DEFAULT + ic.SAMPLE_GAP + 1.0
+
+
+@pytest.mark.parametrize("why,m,answer,match", [
+    ("never applied", "EARLYDENY", lambda t: t.replace('"invoked":2,\n    "disabled', '"invoked":0,\n    "disabled'),
+     "never applied route-map EARLYDENY"),
+    ("change waiting", "LATEDENY", lambda t: t.replace('"processedChange":false', '"processedChange":true'),
+     "hasn't applied the last change"),
+    ("unreadable", "EARLYDENY", None, "could not be read"),
+    ("bgpd has none, config has one", "LATEDENY", lambda _: fu("rmcap_rm_nosuch.json"), "defines route-map LATEDENY"),
+])
+def test_a_route_map_exemption_needs_bgpd_to_show_the_map_ran(why, m, answer, match):
+    """DERIVED from the live rmcap answers, one field each: Unknown until the time limit, never an exemption."""
+    a = cap_answers("rmcap", RMCAP_MAPS, ["100", "101", "102"])
+    key = ("r1", tuple(ic.route_map_command(m)))
+    a[key] = (1, "", "% Unknown command") if answer is None else (0, answer(a[key][1]), "")
+    assert answer is None or a[key][1] != fu(f"rmcap_rm_{m.lower()}.json")
+    with pytest.raises(ic.ImportCheckError, match=match):
+        run_cap(a, budget=20.0)
+
+
+def test_a_map_bgpd_has_but_the_config_doesnt_define_is_unknown():
+    cfg = fu("rmcap_bgpd_config.txt").replace("route-map LATEDENY deny 10\nexit\n!\n", "")
+    assert cfg != fu("rmcap_bgpd_config.txt")
+    with pytest.raises(ic.ImportCheckError, match="running config doesn't define it"):
+        run_cap(cap_answers("rmcap", RMCAP_MAPS, ["100", "101", "102"], config=cfg), budget=20.0)
+
+
+def test_timer_0_with_maps_bgpd_applied_and_nothing_waiting_is_judged_normally():
+    """DERIVED: rmcap's config with `bgp route-map delay-timer 0`; nothing waits on any map, so the denies stand."""
+    cfg = fu("rmcap_bgpd_config.txt").replace("service integrated-vtysh-config\n",
+                                              "bgp route-map delay-timer 0\nservice integrated-vtysh-config\n")
+    assert cfg != fu("rmcap_bgpd_config.txt")
+    out, _, _ = run_cap(cap_answers("rmcap", RMCAP_MAPS, ["100", "101", "102"], config=cfg))
+    assert "denied by its route-map EARLYDENY" in out["r1"]
+
+
+def test_a_labeled_unicast_route_map_network_is_never_exempt():
+    """MINOR-3: DERIVED, rmcap with EARLYDENY's network moved to ipv4 labeled-unicast. The unicast table answers
+    "no path" and the map is applied, so only the family check keeps it from an exemption."""
+    cfg = fu("rmcap_bgpd_config.txt")
+    line = "  network 198.51.100.0/24 route-map EARLYDENY\n"
+    assert line in cfg
+    cfg = cfg.replace(line, "").replace(" exit-address-family\n", " exit-address-family\n address-family ipv4 "
+                                        "labeled-unicast\n" + line + " exit-address-family\n", 1)
+    with pytest.raises(ic.ImportCheckError, match="198.51.100.0/24 .* labeled-unicast"):
+        run_cap(cap_answers("rmcap", RMCAP_MAPS, ["100", "101", "102"], config=cfg), budget=20.0)
+
+
+def test_the_longest_hold_of_several_routers_is_waited_for():
+    """MINOR-2: one router with a route-map exemption (its hold is the route-map delay) and one without: the guard
+    waits for the longer hold, never the shorter."""
+    a = cap_answers("rmcap", RMCAP_MAPS, ["100", "101", "102"])
+    a.update(node_answers(j=REMEDIED_JSON, t=REMEDIED_TEXT))
+    out, clock, _ = run_cap(a, nodes={"pe1": "frr", "r1": "frr"})
+    assert out["pe1"] == "registered" and out["r1"].startswith("registered; ")
+    assert sum(clock.sleeps) >= ic.RMAP_DELAY_DEFAULT + ic.SAMPLE_GAP + 1.0
+
+
+def test_a_route_map_delay_past_the_time_limit_says_so():
+    """MINOR-4: a delay the limit can't wait out is named as such, not as answers that never settled."""
+    cfg = fu("rmcap_bgpd_config.txt").replace("service integrated-vtysh-config\n",
+                                              "bgp route-map delay-timer 100\nservice integrated-vtysh-config\n")
+    with pytest.raises(ic.ImportCheckError, match=r"ends after this check's 60s limit.*Lower `bgp route-map "
+                                                   r"delay-timer`"):
+        run_cap(cap_answers("rmcap", RMCAP_MAPS, ["100", "101", "102"], config=cfg), budget=60.0)
+
+
+@pytest.mark.parametrize("line", ['bgpd="no"', "bgpd='no'", "bgpd=no  # off for this lab", "bgpd=no\t# off"])
+def test_bgpd_off_in_the_shells_other_spellings(line):
+    """MINOR-4: the daemons file is sourced by a shell: quotes and a trailing comment say the same `no`."""
+    daemons = fu("off_daemons").replace("bgpd=no", line)
+    assert line in daemons
+    assert run(Lab(off_answers(daemons=(0, daemons, ""))), nodes={"r1": "frr"})[0] == {"r1": ic.BGPD_DOWN}
+
+
+@pytest.mark.parametrize("line", ['bgpd="no', "bgpd=no#x", 'bgpd="yes"', "bgpd=no yes", 'bgpd="no"no'])
+def test_daemons_values_that_are_not_no_are_never_off(line):
+    daemons = fu("off_daemons").replace("bgpd=no", line)
+    with pytest.raises(ic.ImportCheckError, match="within 20s"):
+        run(Lab(off_answers(daemons=(0, daemons, ""))), nodes={"r1": "frr"})
+
+
+def test_no_frr_router_takes_no_samples():
+    """MINOR-5: nothing to guard, nothing read, no time spent."""
+    lab = Lab({})
+    clock = Clock()
+    out = ic.guard(lab, ic.Candidates(), remedy=True, clock=clock, sleep=clock.sleep)
+    assert out == {} and clock.sleeps == [] and lab.asked == []
+
+
+# ----------------------------------------------- a node no driver claims is probed (review of 5a36902, MAJOR-B)
+
+@pytest.mark.parametrize("answer,how", [
+    ((0, STUCK_CONFIG, ""), "vtysh answers with bgpd's running config"),
+    ((1, fu("off_bgpd_config.txt"), ""), "vtysh is there but can't reach bgpd"),
+    ((127, NO_VTYSH_ANSWER, ""), None),
+])
+def test_probe_tells_frr_on_positive_evidence(answer, how):
+    assert ic.probe(Lab({("x", tuple(ic.BGPD_CONFIG)): answer}), "x") == how
+
+
+@pytest.mark.parametrize("answer", [
+    (1, "", "not here"), (0, "% Unknown command\n", ""), (126, NO_VTYSH_ANSWER, ""), (0, NO_VTYSH_ANSWER, ""),
+    (1, "Error response from daemon: container is not running", ""), (0, "", ""),
+])
+def test_probe_that_cant_tell_is_unknown(answer):
+    with pytest.raises(ic.Unknown):
+        ic.probe(Lab({("x", tuple(ic.BGPD_CONFIG)): answer}), "x")
+
+
+def _probed(answer):
+    from types import SimpleNamespace as N
+    lab = Lab({**node_answers(j=REMEDIED_JSON, t=REMEDIED_TEXT), ("pe1", tuple(ic.BGPD_CONFIG)): (answer)})
+    lab.nodes = {"pe1": N(kind="linux")}
+    return lab, ic.candidates(lab, lambda name, node: None)
+
+
+def test_a_retagged_frr_image_is_guarded_and_said_so():
+    """The review's undetected image (an FRR image whose name names no NOS, no driver override): guarded as FRR,
+    remedied when stuck, and the report says how it was found."""
+    lab, nodes = _probed((0, STUCK_CONFIG, ""))
+    assert nodes == {"pe1": "frr"} and nodes.found == {"pe1": "vtysh answers with bgpd's running config"}
+    lab.answers = node_answers()
+    lab.after = node_answers(j=REMEDIED_JSON, t=REMEDIED_TEXT)
+    out, _, logs = run(lab, nodes=nodes)
+    assert out["pe1"].startswith("remedied: 192.0.2.0/24") and out["pe1"].endswith(
+        "(no driver claims it; vtysh answers with bgpd's running config)")
+    assert logs[0] == ("pe1: no driver claims it, but vtysh answers with bgpd's running config: its import check is "
+                       "guarded as FRR's")
+
+
+def test_a_node_that_cant_be_told_is_a_loud_gap_never_silent():
+    lab, nodes = _probed((1, "", "Error response from daemon: container is not running"))
+    assert nodes == {} and list(nodes.gaps) == ["pe1"]
+    clock, logs = Clock(), []
+    out = ic.guard(lab, nodes, remedy=True, clock=clock, sleep=clock.sleep, log=logs.append)
+    assert out["pe1"].startswith("not checked: no driver claims it and whether it runs FRR could not be told")
+    assert logs == [f"WARNING pe1: {nodes.gaps['pe1']}"] and clock.sleeps == []
+    (w,) = ic.gap_warnings(out)
+    assert w.startswith("INCOMPLETE BASELINE: pe1: its FRR import check is not checked")
+
+
+def test_a_run_puts_a_gap_in_every_checks_result(monkeypatch):
+    """RT-0066: the run's report carries the gap on each check (JSON, console, Markdown), not only its environment."""
+    o = _oracle()
+    real = ic.candidates
+
+    def with_gap(lab, driver_of):
+        out = real(lab, driver_of)
+        out.gaps["ghost"] = "no driver claims it and whether it runs FRR could not be told (DERIVED): not checked"
+        return out
+    monkeypatch.setattr(ic, "candidates", with_gap)
+    rep, _ = o.judged(monkeypatch, "c18", "c18_healthy_boot12", True)
+    assert rep.results and all(any(w["code"] == "import-check-not-checked" and w["node"] == "ghost"
+                                   for w in r.warnings) for r in rep.results)
+    assert rep.environment["nodes"]["ghost"]["import_check"].startswith("not checked: ")
+
+
+def test_record_deploy_with_a_gap_writes_it_first_and_exits_1(monkeypatch, tmp_path):
+    rc, _, out = _record_deploy(monkeypatch, tmp_path,
+                                lambda remedy: {"r1": "not checked: no driver claims it (DERIVED)"})
+    assert rc == 1 and out.read_text().startswith("# INCOMPLETE BASELINE: r1: its FRR import check is not checked")
+
+
+# --------------------------------------------- the MCP record_baseline tool guards as `record --deploy` (MINOR-1)
+
+def _mcp_record(monkeypatch, tmp_path, guard):
+    from netdryrun import mcp_server, record as recmod
+    from netdryrun.lab import Node
+
+    events = []
+
+    class DeployLab:
+        name = "t"
+        nodes = {"r1": Node("r1", "clab-t-r1", "linux", "quay.io/frrouting/frr:10.4.1")}
+
+        def __init__(self, topology):
+            pass
+
+        def deploy(self):
+            events.append("deploy")
+
+        def destroy(self):
+            events.append("destroy")
+    topo = tmp_path / "t.clab.yml"
+    topo.write_text("name: t\n")
+    monkeypatch.delenv("NETDRYRUN_MCP_ROOT", raising=False)
+    monkeypatch.setattr(mcp_server, "Lab", DeployLab)
+    monkeypatch.setattr("time.sleep", lambda s: events.append(f"sleep {s:g}"))
+    monkeypatch.setattr(recmod, "record", lambda *a, **k: (events.append("record") or (
+        {"lab": "t", "timeout": 120, "checks": [{"type": "route", "node": "r1", "prefix": "192.0.2.0/24"}]}, [])))
+
+    def spy(lab, nodes, **kw):
+        events.append(("guard", dict(nodes), kw["remedy"], kw.get("label", "")))
+        return guard(kw["remedy"])
+    monkeypatch.setattr(ic, "guard", spy)
+    text = mcp_server.record_baseline(str(topo), deploy=True, wait_seconds=5)
+    try:
+        return json.loads(text), events
+    except ValueError:
+        return text, events
+
+
+def test_mcp_record_baseline_guards_before_and_after_recording(monkeypatch, tmp_path):
+    out, events = _mcp_record(monkeypatch, tmp_path, lambda remedy: {"r1": "registered"})
+    assert isinstance(out, str) and "192.0.2.0/24" in out
+    assert events == ["deploy", ("guard", {"r1": "frr"}, True, ""), "sleep 5", "record",
+                      ("guard", {"r1": "frr"}, False, "after the recording"), "destroy"]
+
+
+@pytest.mark.parametrize("stuck_when", [True, False])
+def test_mcp_record_baseline_on_a_stuck_boot_returns_an_error_and_no_baseline(monkeypatch, tmp_path, stuck_when):
+    def guard(remedy):
+        if remedy == stuck_when:
+            raise ic.ImportCheckError("FRR's import check is still stuck after the remedy: r1: 192.0.2.0/24")
+        return {"r1": "registered"}
+    out, events = _mcp_record(monkeypatch, tmp_path, guard)
+    assert set(out) == {"error"} and "import check" in out["error"] and events[-1] == "destroy"
+
+
+def test_mcp_record_baseline_puts_a_gap_first(monkeypatch, tmp_path):
+    out, _ = _mcp_record(monkeypatch, tmp_path, lambda remedy: {"r1": "not checked: no driver claims it (DERIVED)"})
+    assert out.startswith("# INCOMPLETE BASELINE: r1: its FRR import check is not checked")

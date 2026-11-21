@@ -52,6 +52,9 @@ VRFS = ["vtysh", "-c", "show bgp vrfs json"]
 VRF_UNKNOWN = -1   # bgpd's vrfId for a VRF instance whose VRF zebra doesn't know (no VRF device)
 PROCESSES = ["sh", "-c", "cat /proc/[0-9]*/comm"]   # every process's name, one per line
 NO_DAEMON = "failed to connect to any daemons"   # vtysh -d bgpd when it can't reach bgpd (FRR 10.4.1, live)
+# `docker exec` of a program the image doesn't have (Docker 29.9.2, live): rc 127 and this line
+NO_VTYSH = 'exec: "vtysh": executable file not found in $PATH'
+ROUTE_MAP_KEYS = frozenset({"invoked", "disabledOptimization", "processedChange", "rules", "cpuTimeMS"})
 BGPD_DOWN = "bgpd is not running (vtysh can't reach it, /etc/frr/daemons says bgpd=no, no bgpd process)"
 BUDGET = 120.0       # seconds to wait for a complete, stable read (at boot, and again after a remedy)
 SAMPLE_GAP = 2.0     # seconds between the two samples that must agree
@@ -104,7 +107,7 @@ class Unknown(DriverError):
 class Network:
     prefix: str          # canonical, e.g. 192.0.2.0/24
     family: tuple        # ("ipv4", "unicast")
-    route_map: bool = field(default=False, compare=False)   # `route-map NAME`: a deny leaves no path, no entry
+    route_map: str = field(default="", compare=False)       # `route-map NAME`: a deny leaves no path, no entry
     backdoor: bool = field(default=False, compare=False)    # `backdoor`: never announced, no path, no entry
 
 
@@ -220,7 +223,13 @@ def parse_bgpd_config(text: str) -> list[Instance]:
             if where in CHECKED_FAMILIES and f"ipv{net.version}" != where[0]:
                 raise Unknown(f"bgpd's running config has {ln.strip()!r} in address family {' '.join(where)}")
             words = ln.split()[2:]
-            cur.networks.append(Network(str(net), where, route_map="route-map" in words, backdoor="backdoor" in words))
+            rmap = ""
+            if "route-map" in words:
+                i = words.index("route-map")
+                rmap = words[i + 1] if i + 1 < len(words) else ""
+                if not _NAME.match(rmap):
+                    raise Unknown(f"bgpd's running config has a route-map name this check can't read: {ln.strip()!r}")
+            cur.networks.append(Network(str(net), where, route_map=rmap, backdoor="backdoor" in words))
     if cur is not None:
         raise Unknown(f"bgpd's running config ends inside {cur.header!r} (no `exit`)")
     return out
@@ -383,6 +392,40 @@ def parse_bgp_vrfs(text: str) -> dict[str, int]:
     return out
 
 
+def route_map_command(name: str) -> list[str]:
+    """bgpd's own view of one route-map (`-d bgpd`: zebra keeps its own invoke counts)."""
+    return ["vtysh", "-d", "bgpd", "-c", f"show route-map {name} json"]
+
+
+def parse_route_map(text: str, name: str) -> tuple[int, bool] | None:
+    """`vtysh -d bgpd -c 'show route-map NAME json'` -> None when bgpd has no such route-map, else (how many times
+    bgpd applied it, whether a change to it is still waiting to be applied: `processedChange`). FRR 10.4.1, live:
+    tests/fixtures/frr_fp043ic_followup/rmcap_*. Anything else is Unknown."""
+    where = f"`show route-map {name} json`"
+    try:
+        top = json.loads(text, object_pairs_hook=_pairs)
+    except (json.JSONDecodeError, RecursionError, TypeError):
+        raise Unknown(f"{where}: not JSON ({_cut(text)})") from None
+    if not isinstance(top, _Obj):
+        raise Unknown(f"{where}: not a JSON object ({_cut(text)})")
+    top = top.single(where)
+    daemon = top.get("bgpd")
+    if set(top) != {"bgpd"} or not isinstance(daemon, _Obj):
+        raise Unknown(f"{where}: not bgpd's answer alone ({_cut(text)})")
+    maps = daemon.single(where)
+    if not maps:
+        return None
+    m = maps.get(name)
+    if set(maps) != {name} or not isinstance(m, _Obj):
+        raise Unknown(f"{where}: answers about another route-map ({_cut(text)})")
+    m = m.single(where)
+    invoked, pending = m.get("invoked"), m.get("processedChange")
+    if not set(m) <= ROUTE_MAP_KEYS or not isinstance(invoked, int) or isinstance(invoked, bool) or invoked < 0 \
+            or not isinstance(pending, bool):
+        raise Unknown(f"{where}: not the route-map state this check knows ({_cut(text)})")
+    return invoked, pending
+
+
 def _cut(text: str, n: int = 160) -> str:
     t = " ".join(str(text).split())
     return (t[:n] + "...") if len(t) > n else (t or "no output")
@@ -420,11 +463,20 @@ def _bgpd_down(lab, node: str, r) -> bool:
     if NO_DAEMON not in f"{r.stdout}\n{r.stderr}":
         return False
     d = lab.exec(node, DAEMONS)
-    if d.rc != 0 or re.findall(r"(?m)^[ \t]*bgpd[ \t]*=(.*)$", d.stdout) != ["no"]:
+    if d.rc != 0 or [_shell_value(v) for v in re.findall(r"(?m)^[ \t]*bgpd[ \t]*=(.*)$", d.stdout)] != ["no"]:
         return False
     p = lab.exec(node, PROCESSES)
     names = [ln.strip() for ln in p.stdout.split("\n") if ln.strip()]
     return p.rc == 0 and not p.stderr.strip() and bool(names) and "bgpd" not in names
+
+
+def _shell_value(v: str) -> str:
+    """A daemons-file value as the shell that sources it reads it: a trailing ` # comment` dropped, one pair of
+    quotes taken off (`bgpd="no"`, `bgpd=no  # off`). Anything fancier stays as written, so it isn't "no"."""
+    v = re.sub(r"[ \t]+#.*$", "", v).strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+        v = v[1:-1]
+    return v
 
 
 def route_map_delay(config: str) -> int:
@@ -436,14 +488,18 @@ def route_map_delay(config: str) -> int:
     return int(found[0]) if found else RMAP_DELAY_DEFAULT
 
 
-def _denied(lab, node: str, driver: str, inst: Instance, net: Network, loaded: bool) -> str:
+def _denied(lab, node: str, driver: str, inst: Instance, net: Network, loaded: bool, config: str) -> str:
     """Why a `network` with a route-map and no import-check entry needs none, on positive evidence only, or Unknown.
     bgp_static_update() applies the route-map first: on a deny it withdraws the prefix and registers nothing, so
     bgpd holds no path of its own and no entry. Absence alone is never the evidence: a network bgpd hasn't applied
     yet looks the same, so bgpd must have finished loading its config (its boot log says so), and its BGP table must
-    answer, for exactly this prefix, that it holds no path of its own; the samples must then stay the same past the
-    route-map delay (NodeRead.hold, _settled)."""
-    what = f"{net.prefix} in {inst.header!r} has a route-map and no import-check entry"
+    answer, for exactly this prefix, that it holds no path of its own. Then bgpd must show the route-map decided:
+    either the route-map is not defined at all (bgpd denies a network whose map doesn't exist, and so would a router
+    in production running this config), or bgpd applied it (invoked) and has no change to it still waiting
+    (processedChange false). A map defined after the `network` is applied only by bgpd's route-map update, which
+    `bgp route-map delay-timer 0` turns off: the map then never ran on the network (review of 5a36902, MAJOR-A: a
+    permitting map read as a deny). The samples must then stay the same past the route-map delay (NodeRead.hold)."""
+    what = f"{net.prefix} in {inst.header!r} has route-map {net.route_map} and no import-check entry"
     if driver != "frr":
         raise Unknown(f"{what}: on a {driver} router a route-map deny can't be told from a network bgpd hasn't "
                       "applied yet (its log doesn't show when bgpd finished loading its config)")
@@ -463,7 +519,34 @@ def _denied(lab, node: str, driver: str, inst: Instance, net: Network, loaded: b
         raise Unknown(f"{what}, and `{cmd}` gave no answer this check can use ({e})") from None
     if own:
         raise Unknown(f"{what} but a path of its own in the BGP table")
-    return "denied by its route-map: no path of its own, no entry"
+    rm = lab.exec(node, route_map_command(net.route_map))
+    if rm.rc != 0:
+        raise Unknown(f"{what}, and bgpd's route-map {net.route_map} could not be read "
+                      f"({_cut(rm.stderr or rm.stdout)})")
+    state = parse_route_map(rm.stdout, net.route_map)
+    in_config = re.search(rf"(?m)^route-map {re.escape(net.route_map)} (?:permit|deny) \d+$", config) is not None
+    if state is None:
+        if in_config:
+            raise Unknown(f"{what}: bgpd's running config defines route-map {net.route_map} but bgpd says it has "
+                          "none")
+        return (f"its route-map {net.route_map} is not defined, so bgpd denies it (as production running this "
+                "config would): no path of its own, no entry")
+    if not in_config:
+        raise Unknown(f"{what}: bgpd has route-map {net.route_map} but its running config doesn't define it")
+    invoked, pending = state
+    if pending and route_map_delay(config) == 0:
+        raise ImportCheckError(
+            f"{node}: {what}, and bgpd never applied the route-map's last change to it (`processedChange`): "
+            "`bgp route-map delay-timer 0` turns off bgpd's route-map updates, so a route-map defined or changed "
+            "after the `network` never runs on it, and the lab may withhold a prefix that production, where the "
+            "route-map exists before the change, announces. Remove `bgp route-map delay-timer 0`, or define the "
+            "route-map before the `network`. No verdict.")
+    if pending:
+        raise Unknown(f"{what}, and bgpd hasn't applied the last change to route-map {net.route_map} yet")
+    if invoked == 0:
+        raise Unknown(f"{what}, and bgpd never applied route-map {net.route_map}")
+    return (f"denied by its route-map {net.route_map}: bgpd applied it with no change waiting, no path of its "
+            "own, no entry")
 
 
 def read_node(lab, node: str, driver: str) -> NodeRead:
@@ -542,7 +625,7 @@ def read_node(lab, node: str, driver: str) -> NodeRead:
                           f"{', '.join(n.prefix for n in plain)} (bgpd hasn't applied them yet, or the table is "
                           "not what it holds)")
         for n in missing:
-            read.exempt.append((inst.vrf, n.prefix, _denied(lab, node, driver, inst, n, loaded)))
+            read.exempt.append((inst.vrf, n.prefix, _denied(lab, node, driver, inst, n, loaded, r.stdout)))
             denied = True
         read.entries[inst.vrf] = tuple(sorted(from_json, key=repr))
         for e in from_json:
@@ -584,6 +667,12 @@ def _settled(lab, nodes: dict[str, str], *, clock, sleep, budget: float, log, la
             left = hold - (t - since)
             if left <= 0:
                 return reads
+            if since + hold > deadline:
+                raise ImportCheckError(
+                    f"{label}a route-map deny counts only once it has held past bgpd's route-map delay ({hold:g}s "
+                    f"with the sampling, from `bgp route-map delay-timer`), which ends after this check's "
+                    f"{budget:g}s limit: whether the lab announces only what its routes back is unknown. Lower "
+                    "`bgp route-map delay-timer`. No verdict.")
             if t >= deadline:
                 raise ImportCheckError(f"{label}could not hold every FRR router's BGP import check for {hold:g}s "
                                        f"within {budget:g}s (a route-map deny counts only past bgpd's route-map "
@@ -629,6 +718,12 @@ def _sessions(lab, node: str) -> dict:
                                "No verdict.") from None
 
 
+def gap_warnings(found: dict[str, str]) -> list[str]:
+    """The guard's "not checked" nodes as baseline gap lines: first in the file, and `record` exits 1 (RT-0066)."""
+    return [f"INCOMPLETE BASELINE: {n}: its FRR import check is {what}; a route bgpd announces without zebra backing "
+            "it may be recorded" for n, what in sorted(found.items()) if what.startswith("not checked")]
+
+
 def remedy_command(instances: list[Instance]) -> list[str]:
     """One vtysh call: import check off and on in each stuck instance, under its exact `router bgp` line."""
     argv = ["vtysh", "-c", "configure terminal"]
@@ -648,13 +743,27 @@ def guard(lab, nodes: dict[str, str], *, remedy: bool, clock: Callable[[], float
     ("frr" or "sonic"). Returns router -> what was found or done, for the report; raises ImportCheckError when the
     lab can't be judged."""
     label = f"[{label}] " if label else ""
+    gaps = getattr(nodes, "gaps", {})
+    for name, how in sorted(getattr(nodes, "found", {}).items()):
+        log(f"{label}{name}: no driver claims it, but {how}: its import check is guarded as FRR's")
+    for name, why in sorted(gaps.items()):
+        log(f"{label}WARNING {name}: {why}")
+    if not nodes:   # no FRR router: nothing to sample (review MINOR-5)
+        return {n: f"not checked: {why}" for n, why in gaps.items()}
     reads = _settled(lab, nodes, clock=clock, sleep=sleep, budget=budget, log=log, label=label)
     stuck = {n: r for n, r in reads.items() if r.stuck}
     found = {n: (r.skipped or "registered" + "".join(f"; {p} (vrf {v}) needs no entry: {why}"
                                                      for v, p, why in sorted(r.exempt)))
              for n, r in reads.items()}
-    if not stuck:
+    found.update({n: f"not checked: {why}" for n, why in gaps.items()})
+
+    def said(found: dict[str, str]) -> dict[str, str]:   # a router found by probing says so in the report
+        for n, how in getattr(nodes, "found", {}).items():
+            if n in found:
+                found[n] = f"{found[n]} (no driver claims it; {how})"
         return found
+    if not stuck:
+        return said(found)
     listing = " | ".join(f"{n}: {_describe(r.stuck)}" for n, r in sorted(stuck.items()))
     if not remedy:
         where = ("once the evidence was taken (nothing is remedied then)" if label
@@ -700,12 +809,38 @@ def guard(lab, nodes: dict[str, str], *, remedy: bool, clock: Callable[[], float
                     "have announced a transient prefix (a maximum-prefix limit, dampening). No verdict.")
     for node, r in stuck.items():
         found[node] = f"remedied: {_describe(r.stuck)}; registered after the remedy"
-    return found
+    return said(found)
 
 
-def candidates(lab, driver_of: Callable[[str, object], str | None]) -> dict[str, str]:
-    """Every node of the lab that runs FRR's bgpd (FRR, SONiC): router -> driver."""
-    out = {}
+class Candidates(dict):
+    """router -> driver, plus `found` (router -> how a node with no known driver was found to run FRR) and `gaps`
+    (node -> why the guard could not tell whether it runs FRR): never dropped in silence (RT-0066)."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.found: dict[str, str] = {}
+        self.gaps: dict[str, str] = {}
+
+
+def probe(lab, name: str) -> str | None:
+    """Whether a node no driver claims runs FRR's bgpd (review of 5a36902, MAJOR-B: a retagged FRR image, no driver
+    override, was never guarded). vtysh answering bgpd's running config, or saying it can't reach bgpd, is FRR; Docker
+    saying the image has no vtysh is not. Anything else raises Unknown: the caller reports it as a gap."""
+    r = lab.exec(name, BGPD_CONFIG)
+    said = f"{r.stdout}\n{r.stderr}"
+    if r.rc == 0 and said.lstrip().startswith("Building configuration..."):
+        return "vtysh answers with bgpd's running config"
+    if r.rc != 0 and NO_DAEMON in said:
+        return "vtysh is there but can't reach bgpd"
+    if r.rc == 127 and NO_VTYSH in said:
+        return None
+    raise Unknown(f"`{' '.join(BGPD_CONFIG)}` answered rc {r.rc} ({_cut(r.stderr or r.stdout)})")
+
+
+def candidates(lab, driver_of: Callable[[str, object], str | None]) -> Candidates:
+    """Every node of the lab that runs FRR's bgpd (FRR, SONiC): router -> driver. A node no driver claims (an image
+    whose name names no NOS) is probed: FRR found that way is guarded as FRR, and one that can't be told is a gap."""
+    out = Candidates()
     for name, node in lab.nodes.items():
         if node.kind in ("bridge", "ovs-bridge"):
             continue
@@ -715,4 +850,13 @@ def candidates(lab, driver_of: Callable[[str, object], str | None]) -> dict[str,
             d = None
         if d in ("frr", "sonic"):
             out[name] = d
+        elif d is None:
+            try:
+                how = probe(lab, name)
+            except (Unknown, LabError) as e:
+                out.gaps[name] = (f"no driver claims it and whether it runs FRR could not be told ({e}): its import "
+                                  "check is not checked")
+                continue
+            if how:
+                out[name], out.found[name] = "frr", how
     return out

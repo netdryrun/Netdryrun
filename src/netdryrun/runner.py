@@ -662,6 +662,12 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         # unregistered after the first read; the evidence is taken, so nothing is remedied now)
         frr_import_check.guard(lab, import_check, remedy=False, clock=_clock, sleep=_sleep, log=log,
                                label="before the verdict")
+        # a node whose import check couldn't be told is in every check's result, not only the environment: a route
+        # it announces may not be backed by its routing table (RT-0066: no coverage dropped in silence)
+        for name, why in sorted(import_check.gaps.items()):
+            text = f"{name}: its FRR import check is not checked: {why}"
+            for r in report.results:
+                r.warnings.append({"code": "import-check-not-checked", "node": name, "session": None, "text": text})
         by_node = config_load_by_node(lab, _driver_of(config), deployed=deploy)
         _config_load(lab, driver_for, report, by_node)
         rejected = rejected_config_message(by_node)

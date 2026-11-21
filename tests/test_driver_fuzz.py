@@ -621,6 +621,10 @@ FAIL_SAFE = [
      lambda r: isinstance(r, list) and all(isinstance(x, frr_import_check.Entry) for x in r)),
     ("frr_import_check.parse_table_text", lambda t: frr_import_check.parse_table_text(t, "fuzz"), [],
      lambda r: isinstance(r, list) and all(isinstance(x, frr_import_check.Entry) for x in r)),
+    ("frr_import_check.parse_route_map", lambda t: frr_import_check.parse_route_map(t, "EARLYDENY"),
+     ["frr_fp043ic_followup/rmcap_rm_earlydeny.json"],
+     lambda r: r is None or (isinstance(r, tuple) and len(r) == 2 and type(r[0]) is int and r[0] >= 0
+                             and type(r[1]) is bool)),
     ("frr_import_check.parse_bgp_vrfs", frr_import_check.parse_bgp_vrfs, ["frr_fp043ic_followup/r1_bgp_vrfs.json"],
      lambda r: isinstance(r, dict) and all(isinstance(k, str) and type(v) is int and v >= -1 for k, v in r.items())),
 ]
