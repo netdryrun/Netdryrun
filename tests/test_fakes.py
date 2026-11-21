@@ -214,6 +214,19 @@ def test_a_name_that_only_starts_or_ends_like_a_temporary_path_is_kept():
             os.rmdir(a)
 
 
+def test_a_temporary_directory_is_named_by_its_resolved_path_too(tmp_path):
+    """A temp dir under a symlinked parent (macOS /tmp, a TMPDIR link): code that resolves it logs the same label."""
+    (tmp_path / "real").mkdir()
+    try:
+        os.symlink(tmp_path / "real", tmp_path / "link")
+    except (OSError, NotImplementedError):
+        pytest.skip("no symlinks here")
+    with _watching():
+        a = tempfile.mkdtemp(dir=str(tmp_path / "link"))
+        assert os.path.realpath(a) != a
+        assert _plain([a + "/x", os.path.realpath(a) + "/x"], "/w") == ["<tmp1>/x", "<tmp1>/x"]
+
+
 def test_pytests_base_temporary_directory_is_named_whatever_its_run_number(tmp_path_factory):
     base = tmp_path_factory.getbasetemp()
     with _watching(tmp_path_factory.getbasetemp):
