@@ -190,6 +190,17 @@ def session_of(repo: Path, sha: str) -> str | None:
     return values[0] if values else None
 
 
+def same_session(a: str | None, b: str | None) -> bool:
+    """Two Session markers name one session when their words match in any order, case or separator (fix-unnsess and
+    unnsess-fix): the markers are typed by hand, and a reordered one must not pass for another session. Words that
+    differ (unnsess-fix and unnsess-oracle) are different sessions."""
+    return bool(a and b) and session_key(a) == session_key(b)
+
+
+def session_key(s: str) -> tuple[str, ...]:
+    return tuple(sorted(w for w in re.split(r"[^a-z0-9]+", s.lower()) if w))
+
+
 def rev_list(repo: Path, base: str, cand: str) -> list[str]:
     return git(repo, "rev-list", "--reverse", "--topo-order", f"{base}..{cand}").split()
 
@@ -826,11 +837,11 @@ def separation_problems(repo: Path, base: str, cand: str, report: Report, guarde
     for sha, s in {**allow_sessions, **code_sessions}.items():
         if s is None:
             report.problems.append(f"{sha[:10]} has no Session: trailer, so the allowlist's independence can't be shown")
-    clash = {s for s in allow_sessions.values() if s} & {s for s in code_sessions.values() if s}
+    clash = {a for a in allow_sessions.values() for c in code_sessions.values() if same_session(a, c)}
     if clash:
         report.problems.append(f"the allowlist comes from a session that also changed shipped code, the gate, a "
                                f"flipped record or the cited evidence: {', '.join(sorted(clash))}")
-    stale = set(reviewers or ()) & {s for s in code_sessions.values() if s}
+    stale = {r for r in reviewers or () for c in code_sessions.values() if same_session(r, c)}
     if stale:
         report.problems.append(f"a {NEW_READ} entry is reviewed by a session that also changed shipped code, the gate "
                                f"or the cited test in this change (not a fresh session): {', '.join(sorted(stale))}")
@@ -843,7 +854,7 @@ def separation_problems(repo: Path, base: str, cand: str, report: Report, guarde
             other = sorted(f for f in files if not f.startswith(REVIEW_DIR + "/"))
             report.problems.append(f"reviewer {r}'s commits in this change hold more than review records "
                                    f"({', '.join(other[:3])}): a reviewing session only writes {REVIEW_DIR}/")
-        if r in {s for s in allow_sessions.values() if s}:
+        if any(same_session(r, a) for a in allow_sessions.values()):
             report.problems.append(f"reviewer {r} also wrote the allowlist: the review comes from another session")
 
 
@@ -1006,7 +1017,7 @@ def reproduce(repo: Path, rng: str, python: str) -> Report:
                 continue
             for h in git(repo, "log", "--format=%H", cand, "--", f"{ORACLES}/{oid}/").split():
                 s = session_of(repo, h)
-                if s is None or s in fixer_sessions.get(oid, set()):
+                if s is None or any(same_session(s, f) for f in fixer_sessions.get(oid, set())):
                     report.problems.append(f"oracle {oid}: commit {h[:10]} that wrote it has "
                                            f"{'no Session: trailer' if s is None else f'the fixing session ({s})'}")
             probs, evidence = oracle_problems(tree(own), oid)
@@ -1045,7 +1056,7 @@ def check_fix(repo, sha, parent, oid, files, session, fixer_sessions, tree, worl
         s = session_of(repo, h)
         if s is None:
             report.problems.append(f"{where}: oracle commit {h[:10]} has no Session: trailer")
-        elif s in fixer_sessions.get(oid, set()):
+        elif any(same_session(s, f) for f in fixer_sessions.get(oid, set())):
             report.problems.append(f"{where}: oracle commit {h[:10]} is from the fixing session ({s})")
     target = [f"{ORACLES}/{oid}"]
     tag = f"{sha[:8]}-{oid}"
@@ -1494,7 +1505,8 @@ _TRAILER_LINE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]*:\s*\S")
 def message_problems(text: str) -> list[str]:
     """A commit message whose gate trailers git won't read. Git reads trailers only from the last paragraph, and only
     when that paragraph is all trailers: a `Fixes-Oracle:` line in the body is invisible to `reproduce` (897f1e2 and
-    ca9d984 on PR #6 put Fixes-Oracle and Session in separate `-m` paragraphs). No git needed: a commit-msg hook."""
+    ca9d984 on PR #6 put Fixes-Oracle and Session in separate `-m` paragraphs). A Fixes-Oracle or Oracle value must be
+    one bug ID (0306e3c's 'Fixes-Oracle: <review name> MINOR-1,2,3,6' named none). No git needed: a commit-msg hook."""
     lines = [ln.rstrip() for ln in text.splitlines() if not ln.startswith("#")]
     paras, cur = [], []
     for ln in lines:
@@ -1516,6 +1528,12 @@ def message_problems(text: str) -> list[str]:
         if odd:
             problems.append(f"the trailer block also holds {odd[0][:60]!r}, which isn't a trailer: git may not read the "
                             "block at all. Keep the last paragraph to `Key: value` lines")
+        for ln in last:
+            key, _, value = ln.partition(":")
+            key, value = key.strip().lower(), value.strip()
+            if key in ("fixes-oracle", "oracle") and not ID_RE.match(value):
+                problems.append(f"'{key.title()}: {value[:60]}' doesn't name one bug ID (such as FP-043-UNNSESSCHK or "
+                                "RT-0036): one ID per trailer line, nothing else on it")
     return problems
 
 

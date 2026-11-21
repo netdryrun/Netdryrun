@@ -43,21 +43,30 @@ def answers(**over):
         if cmd[0] == "merge-base" and cmd[1] == "--is-ancestor":
             return a.get("is-ancestor", "")
         if cmd[0] == "rev-parse" and cmd[1] == "--verify":
+            if cmd[-1] == "HEAD^{commit}":
+                return a.get("rev-parse", HEAD)
             assert cmd[-1].startswith("refs/tags/"), cmd           # never a short name another ref could shadow
             return a.get("tag-sha", TAG_SHA) if cmd[-1].endswith("^{commit}") else a.get("tag-object", "o" * 40)
         if cmd[0] == "show":
             if cmd[1] == "HEAD:CHANGELOG.md":
                 return a.get("changelog", CHANGELOG)
+            if cmd[1].startswith(f"HEAD:{gate.HISTORIC_DIR}/"):
+                return a.get("historic", {}).get(cmd[1][len("HEAD:"):])
             if cmd[1].startswith("HEAD:"):
                 return a["show-head"]
             return a["show-tag"] if cmd[1].startswith(TAG_SHA) else a["show-base"]
-        if cmd[0] == "ls-remote":
-            assert cmd[1:] == ("--tags", "origin"), cmd
+        if cmd[0] == "ls-tree":
+            return "\n".join(a.get("historic", {}))
+        if cmd[0] == "rev-list":
+            return a.get("rev-list", "")
+        assert cmd[0] != "ls-remote", "origin is asked by URL (canonical_tags), never through the local git"
         return a[cmd[0]]
+    git_.ls_remote = lambda: a["ls-remote"]                        # the published repository, asked by URL
+    git_.patch_id = lambda sha: a.get("patch-ids", {}).get(sha)
     return git_
 
 
-def fake_runner(record: dict, codes: dict | None = None, plants: dict | None = None):
+def fake_runner(record: dict, codes: dict | None = None, plants: dict | None = None, outs: dict | None = None):
     seen, judges = [], {}
 
     def runner(cmd, timeout):
@@ -69,7 +78,7 @@ def fake_runner(record: dict, codes: dict | None = None, plants: dict | None = N
             data = record if name == "dominance" else plants or {"caught": 1, "applied": 1, "total": 1,
                                                                    "not_applicable": [], "pending_since_base": []}
             Path(cmd[cmd.index("--json") + 1]).write_text(json.dumps(data), encoding="utf-8")
-        return gate.Proc((codes or {}).get(name, 0), "out", 0.1)
+        return gate.Proc((codes or {}).get(name, 0), (outs or {}).get(name, "out"), 0.1)
     runner.seen, runner.judges = seen, judges
     return runner
 
@@ -84,7 +93,8 @@ def by_id(layer):
 
 def static(tmp_path, git_, runner, **kw):
     layer = gate.Layer("static", args(tmp_path, **kw))
-    gate.fastfix_checks(layer, layer.args, git_=git_, runner=runner)
+    gate.fastfix_checks(layer, layer.args, git_=git_, runner=runner, ls_remote=getattr(git_, "ls_remote", None),
+                        patch_id=getattr(git_, "patch_id", None))
     return by_id(layer)
 
 
@@ -131,6 +141,19 @@ def test_the_candidates_own_tag_at_origin_is_not_a_newer_release(tmp_path):
     listed = f"{TAG_SHA}\trefs/tags/v1.0.0\n{HEAD}\trefs/tags/v1.1.0\n{'x' * 40}\trefs/tags/v2-beta"
     checks = static(tmp_path, answers(**{"ls-remote": listed}), fake_runner(CLEAN))
     assert checks["dominance"].status == gate.PASS, checks["dominance"].summary
+
+
+@pytest.mark.parametrize("listed", [
+    f"{TAG_SHA}\trefs/tags/v1.0.0\n{'z' * 40}\trefs/tags/v1.1.0",                               # lightweight
+    f"{TAG_SHA}\trefs/tags/v1.0.0\n{'q' * 40}\trefs/tags/v1.1.0\n{'z' * 40}\trefs/tags/v1.1.0^{{}}",   # annotated
+])
+def test_a_version_origin_already_released_from_another_commit_blocks(tmp_path, listed):
+    """1.1.0 is out at origin but not fetched here: a later commit claiming 1.1.0 is not that release."""
+    runner = fake_runner(CLEAN)
+    checks = static(tmp_path, answers(**{"ls-remote": listed}), runner)
+    for id_ in ("dominance", "plants"):
+        assert checks[id_].status == gate.FAIL and "origin already has v1.1.0 at zzzzzzzzzz" in checks[id_].summary
+    assert not any("--dominance" in cmd or cmd[2] == "plants" for cmd in runner.seen)
 
 
 def test_an_annotated_tag_is_compared_by_the_commit_it_peels_to(tmp_path):
@@ -277,6 +300,7 @@ def published(tmp_path, monkeypatch):
     subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True, capture_output=True)
     _git(repo, "remote", "add", "origin", str(origin))
     _git(repo, "push", "-q", "origin", "main", "v1.0.0")
+    monkeypatch.setattr(gate, "CANONICAL_ORIGIN", str(origin))      # what the published repository's URL answers
     write("scripts/fastfix_gate.py", "import sys\nsys.exit(0)\n")
     write("corpus/results/results.json", cases("safe"))
     write("CHANGELOG.md", "## 1.1.0\n\n## 1.0.0\n")
@@ -335,6 +359,35 @@ def test_a_ref_that_shadows_a_lightweight_published_tag_cant_supply_the_judge(pu
     assert runner.judges["dominance"].rstrip("\n") == SCRIPT.read_text(encoding="utf-8").rstrip("\n")
     dom = next(cmd for cmd in runner.seen if "--dominance" in cmd)
     assert dom[dom.index("--base") + 1] == real
+
+
+@needs_git
+@pytest.mark.parametrize("route", ["origin-folder", "insteadof"])
+def test_a_local_stand_in_for_origin_cant_vouch_for_a_moved_tag(published, tmp_path, route):
+    """Asked as `git ls-remote origin`, a repository with no remote named origin read a committed folder named origin/,
+    and a url.*.insteadOf rule could send the published URL anywhere: either one agreed with a tag moved to a forged
+    judge. The published repository is asked by its URL, outside the repository, with git's config set aside."""
+    repo, git_ = published
+    real = _git(repo, "rev-parse", "v1.0.0^{commit}")
+    _git(repo, "checkout", "-q", "-b", "forge", real)
+    (repo / "scripts" / "fastfix_gate.py").write_text('# FORGED add_parser("plants" "--dominance"\n', encoding="utf-8")
+    _git(repo, "commit", "-q", "-am", "forged judge")
+    forged = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "merge", "-q", "-s", "ours", "-m", "keep ours", "forge")
+    _git(repo, "tag", "-f", "v1.0.0", forged)
+    stand_in = repo / "origin"
+    subprocess.run(["git", "clone", "-q", "--bare", str(repo), str(stand_in)], check=True, capture_output=True)
+    if route == "origin-folder":
+        _git(repo, "remote", "remove", "origin")
+    else:
+        _git(repo, "config", f"url.{stand_in}.insteadOf", gate.CANONICAL_ORIGIN)
+    assert gate.CANONICAL_ORIGIN != str(stand_in)
+    runner = fake_runner({**CLEAN, "candidate": _git(repo, "rev-parse", "HEAD")})
+    checks = static(tmp_path / "out", git_, runner, fastfix_base="HEAD")
+    assert checks["dominance"].status == gate.FAIL, checks["dominance"].summary
+    assert "doesn't match what was published" in checks["dominance"].summary
+    assert "dominance" not in runner.judges and "plants" not in runner.judges
 
 
 @needs_git
@@ -433,3 +486,105 @@ def test_an_unreadable_or_foreign_dominance_record_blocks(tmp_path, write, expec
 def test_static_without_dominance_is_a_gap(tmp_path):
     blockers, gaps, _ = gate.new_read_problems({"static": record("static", "a", [("x", "PASS")])}, tmp_path)
     assert blockers == [] and gaps and "without --candidate" in gaps[0]
+
+
+# ---- the historic record: exact lines about named commits, for one release against one base, never a PASS
+
+S1, S2, S3 = "1" * 40, "2" * 40, "3" * 40
+L1 = f"BLOCKED {S1[:10]}: Fixes-Oracle: 'a review MINOR-1' is not a bug ID like RT-0036"
+L2 = f"BLOCKED {S1[:10]} changes shipped code (src/, action.yml, templates/) without 'Fixes-Oracle: <ID>'"
+L3 = f"BLOCKED {S2[:10]} has no Session: trailer, so the allowlist's independence can't be shown"
+OUTS = {"reproduce": f"{L1}\n{L2}\nreproduce: BLOCKED (0 unexplained flip(s), 2 problem(s))",
+        "loosening": f"{L3}\nloosening: BLOCKED (0 unexplained flip(s), 1 problem(s))",
+        "dominance": f"{L3}\nloosening: BLOCKED (0 unexplained flip(s), 1 problem(s))"}
+CODES = {"reproduce": 1, "loosening": 1, "dominance": 1}
+
+
+def waiver(sha, lines, **kw):
+    return {"sha": sha, "patch_id": "p" + sha[:39], "lines": lines,
+            "why": "landed on main before the rule it breaks could be followed; reviewed line by line",
+            "reviewed_by": "historic-review", "owner_decision": "owner: accept for 0.4.3 only", **kw}
+
+
+def historic(tmp_path, monkeypatch, waivers=None, outs=None, version="1.1.0", record_version="1.1.0",
+             base=TAG_SHA, bases=None, extra_files=(), **over):
+    monkeypatch.setattr(gate, "HISTORIC_BASES", bases if bases is not None else {"1.1.0": TAG_SHA})
+    record = {"release": record_version, "base": base,
+              "waivers": waivers if waivers is not None else [waiver(S1, [L1, L2]), waiver(S2, [L3])]}
+    files = {f"{gate.HISTORIC_DIR}/{version}.json": json.dumps(record), **{f: "{}" for f in extra_files}}
+    git_ = answers(**{"merge-base": TAG_SHA, "historic": files, "rev-list": f"{S1}\n{S2}\n{S3}\n{HEAD}",
+                      "patch-ids": {s: "p" + s[:39] for s in (S1, S2, S3)}, **over})
+    return static(tmp_path, git_, fake_runner(CLEAN, dict(CODES), outs=outs or OUTS), version=version)
+
+
+def test_a_run_blocked_only_by_waived_lines_is_a_major_never_a_pass(tmp_path, monkeypatch):
+    checks = historic(tmp_path, monkeypatch)
+    for id_ in ("reproduce-first", "loosening", "dominance"):
+        c = checks[id_]
+        assert (c.status, c.severity) == (gate.FAIL, gate.MAJOR) and "accept in accepted.json" in c.summary, c.summary
+    assert checks["historic-record"].status == gate.PASS, checks["historic-record"].summary
+
+
+def test_without_a_record_the_same_lines_block(tmp_path, monkeypatch):
+    checks = static(tmp_path, answers(**{"merge-base": TAG_SHA}), fake_runner(CLEAN, dict(CODES), outs=OUTS))
+    for id_ in ("reproduce-first", "loosening", "dominance"):
+        assert (checks[id_].status, checks[id_].severity) == (gate.FAIL, gate.BLOCKER)
+    assert "historic-record" not in checks
+
+
+@pytest.mark.parametrize("name,kw,blocked,why", [
+    # a second bad commit: its line is not waived, so the run still blocks
+    ("second-commit", {"outs": {**OUTS, "reproduce": f"{L1}\n{L2}\nBLOCKED {S3[:10]} changes shipped code x\n"}},
+     ["reproduce-first"], None),
+    # the judge's text changed: the line no longer matches, and the record's line is unused
+    ("changed-text", {"outs": {**OUTS, "reproduce": f"{L1.replace('RT-0036', 'RT-0099')}\n{L2}\n"}},
+     ["reproduce-first"], "waives a line no judge printed"),
+    # a sha outside base..HEAD
+    ("stale-sha", {"rev-list": f"{S2}\n{HEAD}"}, ["reproduce-first", "loosening", "dominance"],
+     "is not a commit between the base and HEAD"),
+    # another change under the same sha's name (a rewritten commit)
+    ("patch-id", {"patch-ids": {S1: "x" * 40, S2: "p" + S2[:39]}}, ["reproduce-first", "loosening", "dominance"],
+     "is not 1111111111's change"),
+    # the record is for another release, or the release has no historic base, or the run's base is another commit
+    ("wrong-version", {"record_version": "1.0.9"}, ["reproduce-first", "loosening", "dominance"],
+     "only release(s) 1.1.0"),
+    ("expired", {"bases": {"1.0.9": TAG_SHA}}, ["reproduce-first", "loosening", "dominance"], "only release(s) 1.0.9"),
+    ("other-base", {"base": "b" * 40}, ["reproduce-first", "loosening", "dominance"], "must both be against"),
+    ("run-base", {"merge-base": "c" * 40}, ["reproduce-first", "loosening"], "must both be against"),
+    # the change's base is the record's, but the published release the dominance run is judged against is not
+    ("published-elsewhere", {"merge-base": "b" * 40, "base": "b" * 40, "bases": {"1.1.0": "b" * 40}}, ["dominance"],
+     "the published release is tttttttttt"),
+    ("stray-file", {"extra_files": [f"{gate.HISTORIC_DIR}/1.1.1.json"]}, ["reproduce-first", "loosening", "dominance"],
+     "not the historic record of this release"),
+    # a flip, an oracle failure or a plant line, even about the named commit
+    ("flip", {"waivers": [waiver(S1, [L1, L2, "BLOCKED loosening flip with no reviewed allowlist entry: gate :: "
+                                             "scripts/x.py@abc: FAIL -> PASS"]), waiver(S2, [L3])]},
+     ["reproduce-first", "loosening", "dominance"], "is not one BLOCKED line about 1111111111"),
+    ("oracle", {"waivers": [waiver(S1, [L1, L2, f"BLOCKED {S1[:10]} Fixes-Oracle: FP-1: every oracle test must fail "
+                                                "on the parent x"]), waiver(S2, [L3])]},
+     ["reproduce-first", "loosening", "dominance"], "never waivable"),
+    ("unused", {"waivers": [waiver(S1, [L1, L2]), waiver(S2, [L3]), waiver(S3, [f"BLOCKED {S3[:10]} never printed"])]},
+     [], "waives a line no judge printed"),
+    ("no-owner", {"waivers": [waiver(S1, [L1, L2], owner_decision=""), waiver(S2, [L3])]},
+     ["reproduce-first", "loosening", "dominance"], "owner_decision must say it"),
+    ("short-sha", {"waivers": [waiver(S1[:10], [L1, L2]), waiver(S2, [L3])]},
+     ["reproduce-first", "loosening", "dominance"], "full 40-digit"),
+])
+def test_a_historic_record_waives_nothing_it_shouldnt(tmp_path, monkeypatch, name, kw, blocked, why):
+    over = {k: kw.pop(k) for k in ("rev-list", "patch-ids", "merge-base") if k in kw}
+    checks = historic(tmp_path, monkeypatch, **kw, **over)
+    for id_ in blocked:
+        c = checks[id_]
+        assert (c.status, c.severity) == (gate.FAIL, gate.BLOCKER), (id_, c.severity, c.summary)
+    if why:
+        h = checks["historic-record"]
+        assert (h.status, h.severity) == (gate.FAIL, gate.BLOCKER) and why in h.output, h.output
+
+
+def test_a_broken_judge_run_is_never_waived(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "HISTORIC_BASES", {"1.1.0": TAG_SHA})
+    record = {"release": "1.1.0", "base": TAG_SHA, "waivers": [waiver(S1, [L1, L2]), waiver(S2, [L3])]}
+    git_ = answers(**{"merge-base": TAG_SHA, "historic": {f"{gate.HISTORIC_DIR}/1.1.0.json": json.dumps(record)},
+                      "rev-list": f"{S1}\n{S2}", "patch-ids": {S1: "p" + S1[:39], S2: "p" + S2[:39]}})
+    checks = static(tmp_path, git_, fake_runner(CLEAN, {**CODES, "reproduce": 2}, outs=OUTS))
+    assert (checks["reproduce-first"].status, checks["reproduce-first"].severity) == (gate.FAIL, gate.BLOCKER)

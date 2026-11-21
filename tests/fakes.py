@@ -11,14 +11,27 @@ NDR_FAKE_COMMAND_LOG when the gate sets it (and nowhere otherwise). Comparing tw
 versions of the code shows a command only the newer one sends, even when a fake that matches by substring answered
 it without complaint.
 
-Not every fake calls `seen`, so tests/conftest.py also installs `command_profiler()` while the log is on. It logs at
-the boundary, not by name: every call that code in src/netdryrun makes straight into code under tests/ (a fake
-class's method, a lambda or function bound in its place under any name, *args or keyword-only alike) or into
-unittest.mock (MagicMock, mock.patch). The fake labs are the only test code the product calls, so whatever answers
-exec, exec_root, netns_exec or anything else a later driver uses is logged with its arguments. A callback a test
-hands in (a fake clock, say) is logged too: a change to what the code passes it then shows as new, which only ever
-asks for more review. Arguments are logged as plain data; other objects by their type, and the test's working
-directory as <root>, so two runs of one test log the same lines.
+Not every fake calls `seen`, so tests/conftest.py also installs `command_profiler()` while the log is on, on the test's
+thread and on every thread started after it (the product evaluates checks on a thread pool). It logs at the boundary,
+not by name.
+
+Logged: every call whose caller is a Python function in a file under src/netdryrun and whose callee is a Python
+function in a file under tests/ or in unittest/mock.py: a fake class's method, a lambda or function bound in its place
+under any name (exec, exec_root, netns_exec or anything a later driver uses), *args or keyword-only alike, functools.
+partial around such a function, a MagicMock or mock.patch stand-in, and a callback a test hands in (a fake clock, say;
+a change to what the code passes it then shows as new, which only ever asks for more review). Arguments are logged as
+plain data, other objects by their type, the test's working directory as <root>, so two runs of one test log the
+same lines.
+
+Not logged, because no such call is visible to a profiler as product-calls-test-code:
+- a C callable answering in a fake's place (dict.get, str.format, list.append, a builtin): it has no Python frame;
+- code compiled at run time (mock.create_autospec, exec, eval, compile, types.FunctionType): its file is <string>;
+- a stand-in defined outside tests/ (another package, a file compiled under another path);
+- a fake called straight from the standard library, such as pool.map(lab.exec) or Thread(target=lab.exec) written in
+  the product: the caller is concurrent/futures or threading, not src/netdryrun;
+- a fake executable on PATH: it answers in another process.
+tests/test_fakes.py refuses each of these shapes in the must-not-pass fixtures (and the last-but-one in src/), so the
+gate's comparison never rests on a fake it can't see.
 """
 from __future__ import annotations
 

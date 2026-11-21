@@ -52,19 +52,45 @@ Exit codes: 0 clean, 1 blocked, 2 couldn't run (missing git, unreadable input). 
 `release_gate.py static --candidate` also compares the candidate with the published release (`loosening
 --dominance`) and re-plants every oracle's bug (`plants`). Both are judged by the published tag's own
 `fastfix_gate.py`, never by a copy the caller picks. The tag is read only as `refs/tags/<tag>` and passed on as the
-commit it names; it must be the commit origin publishes under that name, and origin may list no newer release. Only
-release 0.4.3 against v0.4.2 (whose copy predates the two commands) is judged by its own committed copy, and the gate
-records that as a MAJOR to accept once; from 0.4.4 the fallback can't be reached.
+commit it names. Origin is the published repository asked by its URL (`https://github.com/netdryrun/Netdryrun.git`),
+from outside the working copy with git's config files and `GIT_*` variables set aside, so neither a remote, a folder
+named `origin/` nor a `url.*.insteadOf` rule can answer for it; no answer is a failure. The tag must be the commit
+origin publishes under that name, origin may list no newer release, and if origin already lists the candidate's own
+version it must name this very commit (the `tag-unused` check asks origin as well). Only release 0.4.3 against v0.4.2
+(whose copy predates the two commands) is judged by its own committed copy, and the gate records that as a MAJOR to
+accept once; from 0.4.4 the fallback can't be reached. That rests on origin's tag list: a 0.4.3 published without its
+tag at origin would let a later commit claim 0.4.3 again until the tag exists (PyPI's check catches it when PyPI can
+be reached).
+
+## Historic records (0.4.3 only)
+
+Two commits reached main before v0.4.3 could follow the rules the published v0.4.2 judge enforces, and that judge
+can't change. `fastfix/historic/0.4.3.json`, committed, may waive the exact lines it prints about them:
+
+```json
+{"release": "0.4.3", "base": "61cd95de8b5446d6adf24deda43f9bfb6957ee20",
+ "waivers": [{"sha": "<full commit id>", "patch_id": "<git patch-id --stable of that commit>",
+              "lines": ["BLOCKED <first 10 digits of the sha> ... (copied from the judge's output)"],
+              "why": "...", "reviewed_by": "<session>", "owner_decision": "..."}]}
+```
+
+The release gate subtracts only those lines, character for character, from the loosening, reproduce-first and
+dominance runs; a run blocked by nothing else becomes a MAJOR that needs its own entry in `accepted.json`, never a
+PASS. It blocks (`historic-record`) when the record names another release, or the run or the record is against any
+base other than v0.4.2's commit (so it expires with 0.4.3), when a waiver's commit is not in the range or its patch-id
+differs, when a line is not a `BLOCKED <that sha>` line or is a flip, an oracle failure or a plant, when a field is
+missing, when any other file sits in `fastfix/historic/`, and when a waived line isn't printed by any judge in the run.
 
 Known limits (accepted for now):
 - The checks run from the candidate's own `release_gate.py`. A candidate that edits it shows up as a gate-file flip
   (`scripts/release_gate.py@<blob>`) needing an allowlist entry, but only when an honest copy runs the comparison;
   running the published release's orchestrator, or CI pinned to main, would close this.
 - `reviewed_by` and every `Session:` trailer are attestations, not proof: one author can write commits under two
-  session names, and the review record's content isn't checked. A session ledger kept outside the repository would
-  make them verifiable.
-- "origin" is whatever the local git config says. Pointing it (or a `url.*.insteadOf` rule) at a copy that agrees
-  with a moved tag passes the check; it takes deliberate local tampering.
+  session names, and the review record's content isn't checked. Session names are compared by their words, in any
+  order, case or separator (`fix-unnsess` is `unnsess-fix`), but two genuinely different names from one author still
+  pass. A session ledger kept outside the repository would make them verifiable.
+- Origin is asked over the network by URL, so the answer is only as good as that connection: a machine whose DNS or
+  TLS trust has been tampered with can still be shown a copy that agrees with a moved tag.
 
 While the published release's tests keep no command log (v0.4.2 has no `tests/fakes.py`), a new read that a lenient
 fake answers can't be seen; the report says so and asks for live runs on every network OS whose driver changed.

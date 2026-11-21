@@ -408,7 +408,7 @@ def test_mcp_server_destroys_running_labs_on_sigterm(monkeypatch):
     lab = FakeLab(World())
     lab.destroy = lambda: destroyed.append(1)
     monkeypatch.setattr(runner, "_ACTIVE", {lab})
-    monkeypatch.setattr(mcp_server.os, "_exit", exits.append)
+    monkeypatch.setattr(mcp_server.os, "_exit", lambda code: exits.append(code))
     mcp_server._on_terminate(signal.SIGTERM, None)
     assert destroyed == [1] and exits == [143] and not runner._ACTIVE
 

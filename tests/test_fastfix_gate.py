@@ -316,6 +316,15 @@ def _flip_c1(repo, session="fixer"):
 
 
 @needs_git
+def test_an_allowlist_from_the_coding_session_under_a_reordered_name_blocks(repo):
+    _flip_c1(repo, session="c1-fix")
+    repo.write("fastfix/allow/c1.yml", ALLOW)
+    repo.commit("allow c1", Session="Fix_C1")
+    code, out = repo.loosening(repo.base)
+    assert code == 1 and "also changed shipped code" in out, out
+
+
+@needs_git
 def test_reviewed_allowlist_from_another_session_is_clean(repo):
     _flip_c1(repo)
     repo.write("fastfix/allow/c1.yml", ALLOW)
@@ -558,12 +567,45 @@ def test_oracle_added_in_the_fix_commit_blocks(repo):
 
 
 @needs_git
-def test_oracle_from_the_fixing_session_blocks(repo):
-    _oracle(repo, session="fixer")
+@pytest.mark.parametrize("oracle_session,fix_session", [
+    ("fixer", "fixer"),
+    ("fix-unnsess", "unnsess-fix"),           # the same words in another order, case or separator: one session
+    ("Unnsess_Fix", "unnsess-fix"),
+])
+def test_oracle_from_the_fixing_session_blocks(repo, oracle_session, fix_session):
+    _oracle(repo, session=oracle_session)
     repo.write("src/toy/__init__.py", FIXED)
-    repo.commit("fix", Fixes_Oracle="FP-1", Session="fixer")
+    repo.commit("fix", Fixes_Oracle="FP-1", Session=fix_session)
     code, out = repo.reproduce(repo.base)
     assert code == 1 and "from the fixing session" in out, out
+
+
+@needs_git
+def test_the_fixing_side_editing_its_oracle_after_the_fix_blocks_under_a_reordered_name(repo):
+    """0306e3c: the fixer's follow-up, under a reordered session name, edited the oracle its fix had to pass."""
+    _oracle(repo, session="unnsess-oracle")
+    repo.write("src/toy/__init__.py", FIXED)
+    repo.commit("fix", Fixes_Oracle="FP-1", Session="unnsess-fix")
+    repo.write("tests/oracles/FP-1/test_oracle_fp_1.py", ORACLE_TEST + "\n# loosened\n")
+    repo.commit("oracle touch-up", Oracle="FP-1", Session="fix-unnsess")
+    code, out = repo.reproduce(repo.base)
+    assert code == 1 and "the fixing session (fix-unnsess)" in out, out
+
+
+@needs_git
+def test_an_oracle_session_whose_words_differ_from_the_fixers_is_another_session(repo):
+    _oracle(repo, session="unnsess-oracle")
+    repo.write("src/toy/__init__.py", FIXED)
+    repo.commit("fix", Fixes_Oracle="FP-1", Session="unnsess-fix")
+    code, out = repo.reproduce(repo.base)
+    assert code == 0, out
+
+
+def test_same_session_compares_words_not_spelling():
+    g = _gate_module()
+    assert g.same_session("fix-unnsess", "unnsess-fix") and g.same_session("A.b", "b_a")
+    assert not g.same_session("unnsess-fix", "unnsess-oracle") and not g.same_session("ndr-fix-042-n6b", "ndr-fix-042")
+    assert not g.same_session(None, "x") and not g.same_session("", "")
 
 
 @needs_git
@@ -710,8 +752,8 @@ def test_release_gate_static_wiring(answers, code, expect):
         assert text.startswith("BASE") if answers["show"] else text == SCRIPT.read_text(encoding="utf-8")
         return gate.Proc(code, "out", 0.1)
 
-    gate.fastfix_checks(layer, SimpleNamespace(fastfix_base="origin/main"),
-                        git_=lambda *a: answers[a[0]], runner=runner)
+    gate.fastfix_checks(layer, SimpleNamespace(fastfix_base="origin/main", version="0.0.0"),
+                        git_=lambda *a: answers.get(a[0]), runner=runner)
     assert [c.id for c in layer.checks] == ["loosening", "reproduce-first"]
     assert [c.status for c in layer.checks] == expect
     assert all(c.severity == gate.BLOCKER for c in layer.checks)
@@ -826,6 +868,11 @@ def _gate_module():
     ("Fix X\n\nOracle: RT-S01 is in the body\nand more prose\n\nSession: ndr-a\n", False),
     ("Fix X\n\nWhy.\n\nNo-Oracle: a reason long enough here\nnot a trailer line\n", False),
     ("Fix X\n# a git comment line\n\nFixes-Oracle: FP-1\nSession: s\n", True),
+    # a value that names no bug ID (0306e3c), or more than one on a line
+    ("Fix X\n\nWhy.\n\nFixes-Oracle: unnsess-adversary MINOR-1,2,3,6\nSession: fix-unnsess\n", False),
+    ("Fix X\n\nFixes-Oracle: FP-1, FP-2\nSession: ndr-a\n", False),
+    ("Oracle\n\nOracle: fp-1\nSession: ndr-a\n", False),
+    ("Oracle\n\nOracle: FP-1\nOracle: RT-0036\nSession: ndr-a\n", True),
 ])
 def test_check_message_finds_trailers_git_wont_read(msg, ok):
     assert (_gate_module().message_problems(msg) == []) is ok

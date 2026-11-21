@@ -617,19 +617,160 @@ BOOTSTRAP_TAG = "v0.4.2"
 BOOTSTRAP_NEXT = "0.4.3"
 RELEASE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 
+# A historic record (fastfix/historic/<version>.json, committed at HEAD) waives exact BLOCKED lines that the
+# published release's frozen judge prints about named commits that landed before the rule they break could be
+# followed. Only the release in HISTORIC_BASES may have one, judged against exactly that published commit, so the
+# mechanism expires with it. A waived run is a MAJOR to accept in accepted.json, never a PASS.
+HISTORIC_DIR = "fastfix/historic"
+HISTORIC_BASES = {"0.4.3": "61cd95de8b5446d6adf24deda43f9bfb6957ee20"}     # v0.4.2
+HISTORIC_KEYS = {"release", "base", "waivers"}
+WAIVER_KEYS = {"sha", "patch_id", "lines", "why", "reviewed_by", "owner_decision"}
+WAIVABLE = ("loosening", "reproduce-first", "dominance")
+# what a waiver may never cover: a verdict or gate flip, an oracle that fails or no longer holds, a plant
+NOT_WAIVABLE = re.compile(r"loosening flip|plant|must fail on the parent|must pass on the fix|fails on the candidate|"
+                          r"no longer catches|is not at the candidate|FAIL -> |UNKNOWN -> |MIXED -> ", re.I)
+HISTORIC_TITLE = "a historic record waives only exact lines about its own commits, each one used"
 
-def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
+
+def commit_patch_id(sha: str) -> str | None:
+    """`git patch-id --stable` of one commit's change (None for a merge or when git can't say)."""
+    try:
+        diff = subprocess.run(["git", "-C", str(ROOT), "show", "--format=", "--no-color", "--no-ext-diff",
+                               "--no-renames", sha], capture_output=True, timeout=120)
+        if diff.returncode != 0 or not diff.stdout.strip():
+            return None
+        pid = subprocess.run(["git", "-C", str(ROOT), "patch-id", "--stable"], input=diff.stdout,
+                             capture_output=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    words = pid.stdout.decode("utf-8", "replace").split()
+    return words[0] if pid.returncode == 0 and words else None
+
+
+class Historic:
+    """The waivers of fastfix/historic/<version>.json, which lines each run used, and what is wrong with it."""
+
+    def __init__(self, waivers: list[dict], problems: list[str], path: str | None):
+        self.waivers, self.problems, self.path = waivers, problems, path
+        self.used: set[tuple[int, str]] = set()
+
+    def waive(self, check_id: str, proc: Proc) -> tuple[list[str], list[str]]:
+        """(waived lines, remaining BLOCKED lines) of a blocked run; nothing is waived for an unblocked or broken run,
+        a check outside WAIVABLE, or while the record has a problem."""
+        blocked = [ln.rstrip() for ln in proc.out.splitlines() if ln.startswith("BLOCKED ")]
+        if proc.code != 1 or check_id not in WAIVABLE or self.problems or not self.waivers:
+            return [], blocked
+        waived, rest = [], []
+        for ln in blocked:
+            hit = [i for i, w in enumerate(self.waivers) if ln in w["lines"]]
+            if hit:
+                waived.append(ln)
+                self.used.update((i, ln) for i in hit)
+            else:
+                rest.append(ln)
+        return waived, rest
+
+    def unused(self) -> list[str]:
+        return [f"{w['sha'][:10]}: {ln!r}" for i, w in enumerate(self.waivers) for ln in w["lines"]
+                if (i, ln) not in self.used]
+
+
+def load_historic(git_, version: str, base: str | None, patch_id=None) -> Historic:
+    """The committed record for `version` (HEAD's copy, never the working tree), checked: the release and base are
+    the ones HISTORIC_BASES names, every waiver names a full sha in base..HEAD with that commit's patch-id, quotes only
+    BLOCKED lines about that sha, none of them a flip, oracle or plant line, and says why, who reviewed it and what
+    the owner decided. Any other file under fastfix/historic/ is a problem too."""
+    path = f"{HISTORIC_DIR}/{version}.json"
+    names = (git_("ls-tree", "-r", "--name-only", "HEAD", "--", f"{HISTORIC_DIR}/") or "").split()
+    problems = [f"{n}: not the historic record of this release ({path})" for n in names if n != path]
+    text = git_("show", f"HEAD:{path}") if path in names else None
+    if text is None:
+        return Historic([], problems, path if problems else None)
+    try:
+        data = json.loads(text)
+    except ValueError as e:
+        return Historic([], problems + [f"{path} is not JSON ({e})"], path)
+    if not isinstance(data, dict) or set(data) != HISTORIC_KEYS:
+        return Historic([], problems + [f"{path}: keys must be exactly {sorted(HISTORIC_KEYS)}"], path)
+    expected = HISTORIC_BASES.get(version)
+    if data["release"] != version or expected is None:
+        problems.append(f"{path}: only release(s) {', '.join(HISTORIC_BASES)} may waive historic lines, and the record "
+                        f"must say which (it says {data['release']!r}; this is {version})")
+    if expected is None or data["base"] != expected or base != expected:
+        problems.append(f"{path}: the record and the run must both be against {expected or 'a listed base'} (record "
+                        f"{str(data['base'])[:10]}, run {str(base)[:10]}): it expires with the release it was written for")
+    waivers = data["waivers"]
+    if not isinstance(waivers, list) or not waivers:
+        return Historic([], problems + [f"{path}: waivers must be a non-empty list"], path)
+    in_range = set((git_("rev-list", f"{base}..HEAD") or "").split()) if base else set()
+    for i, w in enumerate(waivers):
+        where = f"{path} waiver #{i + 1}"
+        if not isinstance(w, dict) or set(w) != WAIVER_KEYS:
+            problems.append(f"{where}: keys must be exactly {sorted(WAIVER_KEYS)}")
+            continue
+        sha, lines = w["sha"], w["lines"]
+        if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+            problems.append(f"{where}: sha must be a full 40-digit commit id")
+            continue
+        if sha not in in_range:
+            problems.append(f"{where}: {sha[:10]} is not a commit between the base and HEAD")
+        pid = (patch_id or commit_patch_id)(sha)
+        if not pid or w["patch_id"] != pid:
+            problems.append(f"{where}: patch_id {str(w['patch_id'])[:12]} is not {sha[:10]}'s change "
+                            f"({(pid or 'none')[:12]}): the waiver names one exact change")
+        if not isinstance(lines, list) or not lines or not all(isinstance(x, str) for x in lines):
+            problems.append(f"{where}: lines must be a non-empty list of the judge's exact BLOCKED lines")
+            continue
+        for ln in lines:
+            if not ln.startswith(f"BLOCKED {sha[:10]}") or "\n" in ln or ln != ln.rstrip():
+                problems.append(f"{where}: {ln[:80]!r} is not one BLOCKED line about {sha[:10]}")
+            elif NOT_WAIVABLE.search(ln):
+                problems.append(f"{where}: {ln[:80]!r} is a flip, an oracle failure or a plant: never waivable")
+        for key, least in (("why", 40), ("reviewed_by", 3), ("owner_decision", 10)):
+            if not isinstance(w[key], str) or len(w[key].strip()) < least:
+                problems.append(f"{where}: {key} must say it ({least}+ characters)")
+    return Historic(waivers if not problems else [], problems, path)
+
+
+def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: list, proc: Proc,
+               summary: str) -> None:
+    """A BLOCKER run by a frozen judge; a run blocked only by lines a valid historic record waives is a MAJOR instead
+    (to accept in accepted.json), never a PASS."""
+    waived, rest = hist.waive(id_, proc) if hist else ([], [])
+    if waived and not rest:
+        layer.add(id_, title, MAJOR, False,
+                  f"blocked only by {len(waived)} line(s) the historic record {hist.path} waives (commits "
+                  f"{', '.join(sorted({ln.split()[1].rstrip(':')[:10] for ln in waived}))}): accept in accepted.json",
+                  tail(proc.out), proc.seconds, cmdline(cmd))
+        return
+    layer.add_proc(id_, title, BLOCKER, cmd, proc, summary)
+
+
+def historic_check(layer: Layer, hist: Historic) -> None:
+    """Only when a record exists: it is valid, and every line it waives was printed by a judge in this run."""
+    if not hist.path and not hist.problems:
+        return
+    bad = hist.problems + [f"waives a line no judge printed in this run: {u}" for u in hist.unused()]
+    layer.add("historic-record", HISTORIC_TITLE, BLOCKER, not bad,
+              f"{len(bad)} problem(s): {bad[0][:300]}" if bad else
+              f"{hist.path}: {sum(len(w['lines']) for w in hist.waivers)} line(s) waived, each one used",
+              "\n".join(bad))
+
+
+def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, patch_id=None) -> None:
     """0.4.2 fast fix (scripts/fastfix_gate.py): the loosening gate and the reproduce-first check, over the change
     from the merge-base of --fastfix-base and HEAD, judged by the base's copy. An empty range (HEAD is the base: a
     release from main without --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS.
     At --candidate, also dominance and the living plants, against the published release whatever
-    --fastfix-base says (published_checks)."""
+    --fastfix-base says (published_checks). A historic record (load_historic) may turn a run blocked only by lines
+    it waives into a MAJOR."""
     git_, runner = git_ or git, runner or run
     titles = {"loosening": "no unexplained FAIL/UNKNOWN -> PASS against the base (fastfix_gate.py loosening)",
               "reproduce-first": "every src/ commit names an independent oracle that failed before it, or says why "
                                  "not (fastfix_gate.py reproduce)"}
     base = git_("merge-base", args.fastfix_base, "HEAD")
     head = git_("rev-parse", "HEAD")
+    hist = load_historic(git_, args.version, base, patch_id)
     if not base or not head:
         for id_, title in titles.items():
             layer.add(id_, title, BLOCKER, False, f"can't find the merge-base of {args.fastfix_base} and HEAD "
@@ -653,11 +794,12 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None) -> None:
         for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
                          ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
                                               "--range", f"{base}..HEAD"])):
-            layer.add_proc(id_, titles[id_], BLOCKER, cmd, runner(cmd, timeout=3600),
-                           f"clean since {base[:10]}, by {which}")
+            add_judged(layer, hist, id_, titles[id_], cmd, runner(cmd, timeout=3600),
+                       f"clean since {base[:10]}, by {which}")
         shutil.rmtree(tmp, ignore_errors=True)
     if getattr(args, "candidate", False):
-        published_checks(layer, args, git_, runner, head)
+        published_checks(layer, args, git_, runner, head, ls_remote, hist)
+    historic_check(layer, hist)
 
 
 def published_judge(git_, tag: str, sha: str, version: str, marker: str, dest: Path) -> tuple[Path | None, str, bool]:
@@ -680,10 +822,11 @@ def published_judge(git_, tag: str, sha: str, version: str, marker: str, dest: P
                   f"{BOOTSTRAP_NEXT})"), True
 
 
-def published_checks(layer: Layer, args, git_, runner, head: str | None) -> None:
+def published_checks(layer: Layer, args, git_, runner, head: str | None, ls_remote=None,
+                     hist: Historic | None = None) -> None:
     """Dominance and the living plants, against the published release, each judged by the published release's own
     fastfix_gate.py (never a base the caller picks)."""
-    tag, sha, why = published_tag(args, git_) if head else (None, None, "can't read HEAD")
+    tag, sha, why = published_tag(args, git_, ls_remote) if head else (None, None, "can't read HEAD")
     if tag is None:
         for id_, title in (("dominance", DOMINANCE_TITLE), ("plants", PLANTS_TITLE)):
             layer.add(id_, title, BLOCKER, False, f"can't name the published release: {why}")
@@ -697,7 +840,10 @@ def published_checks(layer: Layer, args, git_, runner, head: str | None) -> None
         if script is None:
             layer.add("dominance", DOMINANCE_TITLE, BLOCKER, False, which)
         else:
-            dominance_checks(layer, args, runner, head, sha, why, script, which)
+            if hist and hist.path and sha != HISTORIC_BASES.get(args.version):
+                hist.problems.append(f"{hist.path}: the published release is {sha[:10]}, not the base the record "
+                                     "was written against")
+            dominance_checks(layer, args, runner, head, sha, why, script, which, hist)
         script, which, boot = published_judge(git_, tag, sha, args.version, 'add_parser("plants"',
                                               tmp / "plants_judge.py")
         booted += ["plants"] * boot
@@ -744,10 +890,34 @@ def plants_summary(path: Path) -> str:
 CHANGELOG_HEADING = re.compile(r"^## (\d+\.\d+\.\d+)\b", re.M)
 
 
-def origin_tags(git_) -> dict[str, tuple[str, str | None]] | None:
-    """Every tag origin lists: name -> (its ref's object, the commit it peels to when origin lists that)."""
+# the published repository, asked by URL: never a remote name, a folder or a url.*.insteadOf rule in local config
+CANONICAL_ORIGIN = "https://github.com/netdryrun/Netdryrun.git"
+
+
+def canonical_tags(url: str | None = None) -> str | None:
+    """`git ls-remote --tags` of the published repository (None when it can't be asked). It runs outside any
+    repository with every git config file and GIT_* variable set aside, so no remote named origin, committed folder
+    named origin/ or url.*.insteadOf rule can stand in for it."""
+    with tempfile.TemporaryDirectory(prefix="ndr-ls-remote-") as tmp:
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, HOME=tmp,
+                   XDG_CONFIG_HOME=tmp, GIT_TERMINAL_PROMPT="0", GIT_CEILING_DIRECTORIES=tmp)
+        try:
+            p = subprocess.run(["git", "ls-remote", "--tags", url or CANONICAL_ORIGIN], cwd=tmp,
+                               env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        return p.stdout if p.returncode == 0 else None
+
+
+def origin_tags(ls_remote=None) -> dict[str, tuple[str, str | None]] | None:
+    """Every tag the published repository lists: name -> (its ref's object, the commit it peels to when it lists
+    that); None when it can't be asked."""
+    text = (ls_remote or canonical_tags)()
+    if text is None:
+        return None
     out: dict[str, list] = {}
-    for line in (git_("ls-remote", "--tags", "origin") or "").splitlines():
+    for line in text.splitlines():
         obj, _, ref = line.partition("\t")
         ref = ref.strip()
         if not ref.startswith("refs/tags/"):
@@ -755,15 +925,17 @@ def origin_tags(git_) -> dict[str, tuple[str, str | None]] | None:
         name = ref[len("refs/tags/"):]
         entry = out.setdefault(name.removesuffix("^{}"), [None, None])
         entry[1 if name.endswith("^{}") else 0] = obj.strip()
-    return {k: (v[0], v[1]) for k, v in out.items() if v[0]} or None
+    return {k: (v[0], v[1]) for k, v in out.items() if v[0]}
 
 
-def published_tag(args, git_) -> tuple[str | None, str | None, str]:
+def published_tag(args, git_, ls_remote=None) -> tuple[str | None, str | None, str]:
     """(the published release's tag and the commit it names, or None, None; why). It defaults to the newest v* tag
     reachable from HEAD other than the candidate's own. It is read only as refs/tags/<tag> (a ref such as refs/<tag>
     can't stand in), must be an ancestor of HEAD, must name the newest release in CHANGELOG.md other than the
-    candidate's own, must be the commit origin publishes under that name, and origin may list no newer v* release
-    (other than the candidate's own). A tag moved by hand, no way to ask origin, or a skipped release fails."""
+    candidate's own, must be the commit origin (the published repository, asked by URL: canonical_tags) publishes
+    under that name, and origin may list no newer v* release; the candidate's own tag, when origin already has it,
+    must name HEAD. A tag moved by hand, no way to ask origin, a skipped release or a version already released from
+    another commit fails."""
     tag = getattr(args, "published_tag", None) or git_("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*",
                                                        "--exclude", f"v{args.version}", "HEAD")
     if not tag:
@@ -782,10 +954,10 @@ def published_tag(args, git_) -> tuple[str | None, str | None, str]:
     if newest is None or tag != f"v{newest}":
         return None, None, (f"{tag} is not the newest release in CHANGELOG.md other than {args.version} "
                             f"({newest or 'none'})")
-    remote = origin_tags(git_)
+    remote = origin_tags(ls_remote)
     if not remote or tag not in remote:
-        return None, None, (f"can't confirm {tag} against origin (git ls-remote --tags origin doesn't list it): the "
-                            "published tag must be checked against what was published")
+        return None, None, (f"can't confirm {tag} against origin ({CANONICAL_ORIGIN} doesn't list it, or can't be "
+                            "asked): the published tag must be checked against what was published")
     ref, peeled = remote[tag]
     # origin's peeled commit when it lists one; otherwise (a lightweight tag, or a remote such as a bundle that lists
     # no peeled refs) origin's ref must be this very tag object, which names this very commit
@@ -800,10 +972,17 @@ def published_tag(args, git_) -> tuple[str | None, str | None, str]:
     if newer:
         return None, None, (f"origin has {newer[-1][1]}, newer than {tag}: the candidate is judged against the newest "
                             "published release")
+    own = remote.get(f"v{args.version}")
+    if own:
+        head = git_("rev-parse", "--verify", "--end-of-options", "HEAD^{commit}")
+        if not head or (own[1] or own[0]) != head:
+            return None, None, (f"origin already has v{args.version} at {(own[1] or own[0])[:10]}, which is not this "
+                                "commit: that version was released, so this candidate can't claim it")
     return tag, sha, f"{tag} ({sha[:10]}, as origin has it)"
 
 
-def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, script: Path, which: str) -> None:
+def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, script: Path, which: str,
+                     hist: Historic | None = None) -> None:
     """The candidate against the release users have: no FAIL/UNKNOWN -> PASS since the published tag that a reviewed
     allowlist entry doesn't cover. Its JSON (gate/dominance.json) carries the new device reads the report turns
     into live runs, and the fixtures the gate host skipped at the tag (not compared: MAJOR)."""
@@ -811,8 +990,8 @@ def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, 
     out.unlink(missing_ok=True)
     cmd = [sys.executable, script, "loosening", "--repo", ROOT, "--base", sha, "--candidate", head, "--dominance",
            "--json", out]
-    layer.add_proc("dominance", DOMINANCE_TITLE, BLOCKER, cmd, runner(cmd, timeout=3600),
-                   f"clean since {why}, by {which}")
+    add_judged(layer, hist, "dominance", DOMINANCE_TITLE, cmd, runner(cmd, timeout=3600),
+               f"clean since {why}, by {which}")
     try:
         data = json.loads(out.read_text(encoding="utf-8"))
         skipped = data["skipped_at_base"]
@@ -902,8 +1081,8 @@ def python_support_problems() -> list[str]:
     return problems
 
 
-def candidate_checks(layer: Layer, version: str) -> None:
-    """Only for the release candidate itself: the CHANGELOG is cut and the version is unused."""
+def candidate_checks(layer: Layer, version: str, ls_remote=None) -> None:
+    """Only for the release candidate itself: the CHANGELOG is cut and the version is unused (here and at origin)."""
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     m = re.search(r"^## Unreleased\s*$(.*?)(?=^## )", text, re.M | re.S)
     pending = [ln for ln in (m.group(1) if m else "").splitlines() if ln.strip().startswith(("-", "*"))]
@@ -914,8 +1093,12 @@ def candidate_checks(layer: Layer, version: str) -> None:
         layer.add(f"corpus-{v}-tagged-fresh", f"corpus {v}: the committed results ran on this verdict code (G3)",
                   BLOCKER, v not in stale, stale.get(v, "fresh"))
     tags = git("tag", "-l", f"v{version}")
-    layer.add("tag-unused", f"tag v{version} does not exist yet", BLOCKER,
-              None if tags is None else not tags, "git unavailable" if tags is None else ("exists" if tags else "unused"))
+    remote = origin_tags(ls_remote)
+    listed = remote is not None and f"v{version}" in remote
+    layer.add("tag-unused", f"tag v{version} does not exist yet, here or at origin", BLOCKER,
+              None if tags is None or remote is None else not tags and not listed,
+              "git unavailable" if tags is None else f"can't ask {CANONICAL_ORIGIN}" if remote is None else
+              "exists here" if tags else "exists at origin" if listed else "unused")
     status = http_status(f"https://pypi.org/pypi/netdryrun/{version}/json")
     layer.add("pypi-unused", f"PyPI has no netdryrun {version} yet", BLOCKER,
               None if status is None else status == 404, f"HTTP {status}" if status else "PyPI unreachable")
