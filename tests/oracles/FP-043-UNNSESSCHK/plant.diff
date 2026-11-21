@@ -1,7 +1,155 @@
+diff --git a/src/netdryrun/config.py b/src/netdryrun/config.py
+index 0d2b8e1..53339fe 100644
+--- a/src/netdryrun/config.py
++++ b/src/netdryrun/config.py
+@@ -31,19 +31,6 @@ BGP_STATES = ("idle", "connect", "active", "opensent", "openconfirm", "establish
+ VRF_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}")
+ INTERFACE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]{0,14}")   # Linux: at most 15 characters, no / or :
+ 
+-
+-def interface_peer(neighbor: Any) -> bool:
+-    """A check's `neighbor` that names a BGP session by its interface (FRR `neighbor eth1 interface`: BGP unnumbered)
+-    rather than by an address: an interface name that isn't an address and doesn't look like a mistyped one (digits
+-    and dots only, such as 10.0.0.256, is an address with a typo, never an interface)."""
+-    if not isinstance(neighbor, str) or not INTERFACE_NAME.fullmatch(neighbor) or re.fullmatch(r"[0-9.]+", neighbor):
+-        return False
+-    try:
+-        ipaddress.ip_address(neighbor)
+-    except ValueError:
+-        return True
+-    return False
+-
+ TOP_LEVEL_KEYS = ("lab", "timeout", "checks", "nodes", "scenarios")
+ NODE_KEYS = ("driver", "setup", "peers")
+ PEER_KEYS = ("eor",)
+@@ -346,11 +333,6 @@ def _afi_default_fits(where: str, ctype: str, raw: Any, params: dict) -> None:
+     (acceptance round B-2). IPv4 over an IPv6 session is real (RFC 8950), so it is allowed when written."""
+     if ctype != "bgp_prefixes" or "afi" in raw:
+         return
+-    if interface_peer(params["neighbor"]):
+-        # an interface-named (unnumbered) session carries IPv4 over IPv6 (RFC 8950), IPv6, or both: no default family
+-        # says which, and a wrong one reads "doesn't carry"
+-        raise ConfigError(f"{where}: neighbor {params['neighbor']} is an interface-named (BGP unnumbered) session, "
+-                          "so afi has no default: set afi: ipv4-unicast or afi: ipv6-unicast")
+     if ipaddress.ip_address(params["neighbor"]).version == 6:   # a %scope is read too (Python 3.9+)
+         raise ConfigError(f"{where}: neighbor {params['neighbor']} is an IPv6 address, but afi defaults to "
+                           "ipv4-unicast: set afi: ipv6-unicast (or afi: ipv4-unicast if this session carries IPv4 "
+@@ -395,14 +377,9 @@ def _validate_check(i: int, raw: Any, default_timeout: float, prefix: str = "che
+         if ctype in ("route", "bgp_route"):
+             params["prefix"] = str(ipaddress.ip_network(params["prefix"], strict=False))
+         for key in ("neighbor", "target", "source", "next_hop"):
+-            if key in params and not (key == "neighbor" and interface_peer(params[key])):
+-                # a neighbor may also be an interface name: the session BGP unnumbered names by it (FRR
+-                # `neighbor eth1 interface`); a driver that names sessions by address only refuses it before deploying
++            if key in params:
+                 params[key] = str(ipaddress.ip_address(params[key]))
+     except ValueError as e:
+-        if "neighbor" in params and str(e).startswith(repr(params["neighbor"])):
+-            raise ConfigError(f"{where}: neighbor {params['neighbor']!r} is neither an IP address nor an interface "
+-                              "name (letters, digits and . _ @ -, at most 15 characters)") from None
+         raise ConfigError(f"{where}: {e}") from None
+     if "next_hop" in params and ipaddress.ip_address(params["next_hop"].split("%")[0]).is_link_local:
+         # devices report a link-local next hop without its interface, and two sessions can share one (fe80::1 on
+diff --git a/src/netdryrun/drivers/__init__.py b/src/netdryrun/drivers/__init__.py
+index 20747cf..f6a0f29 100644
+--- a/src/netdryrun/drivers/__init__.py
++++ b/src/netdryrun/drivers/__init__.py
+@@ -122,19 +122,8 @@ def for_node(lab: Lab, node: str, override: str | None = None) -> Driver:
+ def check_supported(lab: Lab, check, override: str | None = None) -> None:
+     """Refuse, before deploying, a check the node's driver cannot read (never guess a value): a bgp_route key
+     the driver doesn't support, an address family it has no prefix counts for, or a route protocol name it
+-    never reports, or a session named by its interface on a driver that names sessions by address."""
+-    from ..config import interface_peer   # here: config imports the drivers (through faults)
+-    if check.node not in lab.nodes:
+-        return
+-    if check.type in ("bgp_session", "bgp_prefixes") and interface_peer(check.params.get("neighbor")):
+-        name = override or detect(lab.nodes[check.node])
+-        if not getattr(DRIVERS.get(name), "interface_peers", False):
+-            # the driver keys sessions by address: the check could only read "not configured", whatever the session
+-            # does, so it is refused rather than run (an interface-named session is verified on FRR only)
+-            raise DriverError(f"{check.name}: neighbor {check.params['neighbor']} is an interface name (a BGP "
+-                              f"unnumbered session), which the {name} driver can't check: it names BGP sessions by "
+-                              "address. Name the neighbor's address, or use route and ping checks")
+-    if check.type not in ("bgp_route", "bgp_prefixes", "route"):
++    never reports."""
++    if check.type not in ("bgp_route", "bgp_prefixes", "route") or check.node not in lab.nodes:
+         return
+     if check.type == "route" and "protocol" not in check.params:
+         return
+diff --git a/src/netdryrun/drivers/base.py b/src/netdryrun/drivers/base.py
+index 9150b1c..b0a0555 100644
+--- a/src/netdryrun/drivers/base.py
++++ b/src/netdryrun/drivers/base.py
+@@ -391,11 +391,6 @@ class Driver:
+ 
+     # bgp_received is implemented (bgp_prefixes `only`); a driver without it refuses `only` before deploying
+     reads_received = False
+-    # bgp_neighbors keys an interface-named (BGP unnumbered) session by its interface name, verified on live captures
+-    # (FRR `neighbor eth1 interface`). A driver without it refuses a bgp_session or bgp_prefixes check whose neighbor
+-    # is an interface name before deploying: its sessions are keyed by address, so the check could only ever read
+-    # "not configured", never the session
+-    interface_peers = False
+ 
+     def bgp_received(self, neighbor: str, afi: str = "ipv4-unicast", vrf: str = "default") -> Observation:
+         """Every prefix accepted from `neighbor` in `afi` (after import policy), as a set of canonical prefixes."""
+diff --git a/src/netdryrun/drivers/frr.py b/src/netdryrun/drivers/frr.py
+index 440f9dc..70ff8f0 100644
+--- a/src/netdryrun/drivers/frr.py
++++ b/src/netdryrun/drivers/frr.py
+@@ -856,9 +856,6 @@ class FrrDriver(Driver):
+         return Observation(routes, ev)
+ 
+     reads_received = True
+-    # `neighbor eth1 interface` is keyed "eth1" in `show bgp neighbors json`, and `neighbors eth1 routes json` lists
+-    # what it sent (FRR 10.2.1 and 10.4.1, oracle FP-043-UNNSESSCHK)
+-    interface_peers = True
+ 
+     def bgp_received(self, neighbor: str, afi: str = "ipv4-unicast", vrf: str = "default") -> Observation:
+         vrf = check_vrf_name(vrf)
+@@ -866,15 +863,10 @@ class FrrDriver(Driver):
+             raise DriverError(f"the prefixes received in {afi} can't be listed")
+         if "%" in neighbor:   # a scoped link-local can be several sessions (see BgpNeighbor.ambiguous)
+             raise DriverError(f"the prefixes received from {neighbor} can't be listed: use a global address")
+-        from ..config import interface_peer   # here: config imports this module (through faults)
+-        if interface_peer(neighbor):
+-            addr = neighbor   # an interface-named (unnumbered) session: bgpd names it by its interface
+-        else:
+-            try:
+-                addr = ipaddress.ip_address(neighbor)
+-            except ValueError:
+-                raise DriverError(f"the prefixes received from {neighbor!r} can't be listed: not an address "
+-                                  "or an interface name") from None
++        try:
++            addr = ipaddress.ip_address(neighbor)
++        except ValueError:
++            raise DriverError(f"the prefixes received from {neighbor!r} can't be listed: not an address") from None
+         ev: list[dict] = []
+         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
+         fam = afi.split("-")[0]
+diff --git a/src/netdryrun/drivers/sonic.py b/src/netdryrun/drivers/sonic.py
+index febfb66..1627aca 100644
+--- a/src/netdryrun/drivers/sonic.py
++++ b/src/netdryrun/drivers/sonic.py
+@@ -9,6 +9,3 @@ class SonicDriver(FrrDriver):
+     name = "sonic"
+     # BGP and static routes are active only once the ASIC programmed them (`offloaded: true`): frr._route
+     offload = True
+-    # SONiC's bgpd is FRR, but an interface-named (unnumbered) session hasn't been verified on a live SONiC node:
+-    # refused before deploying until it is
+-    interface_peers = False
 diff --git a/src/netdryrun/record.py b/src/netdryrun/record.py
-index acb113f..0524bf1 100644
+index acb113f..514b91c 100644
 --- a/src/netdryrun/record.py
 +++ b/src/netdryrun/record.py
+@@ -18,7 +18,7 @@ import yaml
+ 
+ from . import __version__
+ from .checks import Unready, _evaluate
+-from .config import WELL_KNOWN_COMMUNITIES, Check, community_name, interface_peer
++from .config import WELL_KNOWN_COMMUNITIES, Check, community_name
+ from .drivers import DriverError, Undetectable, detect, for_node, resolve
+ from .drivers.base import NAMED_FAMILIES, Driver, NoSuchInstance, cannot_read_ipv6, is_bgp, unicast_unread
+ from .lab import Lab, LabError
 @@ -254,17 +254,14 @@ def _session_checks(name: str, neighbors: dict, prefix_mode: str, warnings: list
          try:
              ipaddress.ip_address(addr)
