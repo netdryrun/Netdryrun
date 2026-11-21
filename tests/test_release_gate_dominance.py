@@ -34,6 +34,17 @@ def args(tmp_path, **kw):
     return SimpleNamespace(**a)
 
 
+def git_quoted(name):
+    """A path as git prints it without -z (core.quotePath): C-quoted when it has a quote, a backslash, a control
+    character or a non-ASCII byte."""
+    raw = name.encode("utf-8")
+    if not any(b in b'"\\' or b < 0x20 or b >= 0x7f for b in raw):
+        return name
+    return '"' + "".join(chr(b) if 0x20 <= b < 0x7f and b not in b'"\\' else
+                         {0x22: '\\"', 0x5c: "\\\\", 0x09: "\\t", 0x0a: "\\n"}.get(b, f"\\{b:03o}")
+                         for b in raw) + '"'
+
+
 def answers(**over):
     a = {"merge-base": "b" * 40, "rev-parse": HEAD, "describe": "v1.0.0", "show-base": "BASE", "show-tag": TAG_JUDGE,
          "show-head": HEAD_JUDGE, "ls-remote": f"{TAG_SHA}\trefs/tags/v1.0.0\n{'a' * 40}\trefs/tags/v0.9.0"}
@@ -64,7 +75,11 @@ def answers(**over):
         if cmd[0] == "rev-list":
             return a.get("rev-list", "")
         if cmd[0] == "diff":
-            return a.get("diff", "")
+            names = a.get("diff", "")
+            if isinstance(names, str):
+                return names
+            # as git prints them: NUL-terminated with -z, else one per line with unusual names C-quoted
+            return "".join(n + "\0" for n in names) if "-z" in cmd else "".join(git_quoted(n) + "\n" for n in names)
         assert cmd[0] != "ls-remote", "origin is asked by URL (canonical_tags), never through the local git"
         return a[cmd[0]]
     git_.ls_remote = lambda: a["ls-remote"]                        # the published repository, asked by URL
@@ -735,6 +750,9 @@ STALE_VERDICT = (f"BLOCKED {ALLOW}: allows fixtures :: tests.t::test_x FAIL -> P
     ("indented-continuation", {"out": judge_out(BRIDGE_LINES[:-1] + [BRIDGE_LINES[-1] + "\n  anything"])}),
     ("count-mismatch", {"out": "\n".join(BRIDGE_LINES + ["loosening: BLOCKED (2 unexplained flip(s), 3 problem(s))"])}),
     ("no-summary", {"out": "\n".join(BRIDGE_LINES)}),
+    ("fixtures-note-after-problem", {"out": "\n".join(BRIDGE_LINES + [gate.JUDGE_FIXTURES_NOTE + " hidden text",
+                                                                       "loosening: BLOCKED (2 unexplained flip(s), "
+                                                                       "2 problem(s))"])}),
     ("flip-after-problem", {"out": "\n".join([bare("scripts/fastfix_gate.py")] + BRIDGE_LINES[2:] + BRIDGE_LINES[1:2]
                                              + ["loosening: BLOCKED (2 unexplained flip(s), 2 problem(s))"])}),
 ])
@@ -787,6 +805,66 @@ def test_the_other_fast_fix_majors_carry_a_fingerprint_of_their_content(tmp_path
     b = static(tmp_path / "b", answers(), fake_runner(skipped2))["dominance-skips"]
     assert a.severity == gate.MAJOR and a.fingerprint and b.fingerprint and a.fingerprint != b.fingerprint
     assert static(tmp_path / "c", answers(), fake_runner(CLEAN))["dominance-skips"].fingerprint == ""   # a PASS
+
+
+@pytest.mark.parametrize("changed,by", [
+    (["fastfix/allow/x y.yml", ALLOW], ALLOW),              # another allowlist with a space, changed beside it
+    (["fastfix/allow/x y.yml"], "fastfix/allow/x y.yml"),   # the name with a space is the allowlist
+    (["fastfix/allow/x\u00e9.yml"], "fastfix/allow/x\u00e9.yml"),   # a name git quotes without -z
+])
+def test_the_bridge_reads_the_changed_allowlists_nul_separated(changed, by):
+    git_ = bridge_git(changed=changed, allow_file=by)
+    assert set(gate.bridge_from_dominance(git_, TAG_SHA, dominance_record(allowed_by=by)["flips"]).allowed) \
+        == set(GATES)
+
+
+def test_the_fake_git_prints_changed_names_as_git_does():
+    git_ = answers(diff=["fastfix/allow/x y.yml", "fastfix/allow/x\u00e9.yml"])
+    assert git_("diff", "--name-only", "-z") == "fastfix/allow/x y.yml\0fastfix/allow/x\u00e9.yml\0"
+    assert git_("diff", "--name-only") == 'fastfix/allow/x y.yml\n"fastfix/allow/x\\303\\251.yml"\n'
+
+
+def test_the_judge_shape_takes_the_fixtures_note_only_after_flip_lines():
+    summary = "loosening: BLOCKED (1 unexplained flip(s), 1 problem(s))"
+    note = gate.JUDGE_FIXTURES_NOTE + " rest of the note"
+    assert gate.judge_shape_problem("\n".join([bare(SURF), note, NO_SESSION, summary])) is None
+    assert gate.judge_shape_problem("\n".join([bare(SURF), NO_SESSION, note, summary]))     # after a problem
+
+
+def _unit_layer():
+    from types import SimpleNamespace
+    return gate.Layer("unit", SimpleNamespace(strict=False, version="1.1.0"))
+
+
+def _coverage(tmp_path, covered):
+    cov = tmp_path / "coverage.json"
+    files = {f"src/{path}" + ("x.py" if path.endswith("/") else ""): {"summary": {
+        "num_statements": 10, "covered_lines": covered.get(name, 10), "num_branches": 0, "covered_branches": 0}}
+        for name, path in gate.VERDICT_MODULES.items()}
+    cov.write_text(json.dumps({"files": files}))
+    layer = _unit_layer()
+    gate.coverage_checks(layer, cov)
+    return layer.checks[-1]
+
+
+def test_the_coverage_major_carries_a_fingerprint_of_what_is_below(tmp_path):
+    layer = _unit_layer()
+    gate.coverage_checks(layer, None)
+    assert layer.checks[-1].severity == gate.MAJOR and layer.checks[-1].fingerprint
+    name = next(iter(gate.VERDICT_MODULES))
+    a, b = _coverage(tmp_path, {name: 1}), _coverage(tmp_path, {name: 2})
+    assert a.status == gate.FAIL and a.fingerprint and b.fingerprint and a.fingerprint != b.fingerprint
+    assert _coverage(tmp_path, {}).fingerprint == ""            # a PASS
+
+
+def test_the_corpus_freshness_major_carries_a_fingerprint_of_what_is_stale():
+    from types import SimpleNamespace
+    fps = []
+    for stale in ({"v3": "ran on verdict code aaa"}, {"v3": "ran on verdict code bbb"}, {}):
+        layer = gate.Layer("static", SimpleNamespace(strict=False, version="1.1.0"))
+        gate.corpus_fresh_check(layer, stale)
+        fps.append(layer.checks[-1].fingerprint)
+    assert fps[0] and fps[1] and fps[0] != fps[1] and fps[2] == ""
 
 
 @pytest.mark.parametrize("changed,by", [

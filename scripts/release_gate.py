@@ -316,13 +316,24 @@ def fingerprint_of(key: str, content: list[str]) -> str:
     return hashlib.sha256("\n".join([key, *sorted(str(c) for c in content)]).encode("utf-8")).hexdigest()[:16]
 
 
-def acceptance_mismatch(check: dict, entry) -> str | None:
+# The MAJORs this gate always fingerprints when they fail (layer/check id). Their acceptance needs the fingerprint
+# even when a record carries none: a record without one comes from an older gate or was edited, and a plain reason
+# would then accept whatever content the check failed on.
+FINGERPRINTED = frozenset({"static/loosening", "static/reproduce-first", "static/dominance", "static/dominance-skips",
+                           "static/plants-pending", "static/published-judge", "static/corpus-fresh", "unit/coverage"})
+
+
+def acceptance_mismatch(check: dict, entry, required: bool = False) -> str | None:
     """Why an accepted.json entry doesn't accept this MAJOR, or None when it does. A check with a fingerprint is
-    accepted only by {"reason": ..., "fingerprint": <that fingerprint>}; one without takes a reason as before."""
+    accepted only by {"reason": ..., "fingerprint": <that fingerprint>}; one without takes a reason as before, unless
+    `required` (a FINGERPRINTED check), which no entry accepts without a well-formed fingerprint."""
     fp = check.get("fingerprint") or ""
     why = entry if isinstance(entry, str) else entry.get("reason") if isinstance(entry, dict) else None
     if not isinstance(why, str) or not why.strip():
         return "the entry gives no reason"
+    if required and not (isinstance(fp, str) and re.fullmatch(r"[0-9a-f]{16}", fp)):
+        return ("this check is accepted only with the fingerprint of its content, and its record has none (a record "
+                "from an older gate, or an edited one): rerun the layer")
     if fp and not isinstance(entry, dict):
         return f"the check's content has fingerprint {fp}; the entry must pin it ({{\"reason\": ..., \"fingerprint\": " \
                f"\"{fp}\"}})"
@@ -521,14 +532,18 @@ def examples_validate(root: Path = ROOT) -> list[str]:
     return bad
 
 
+def corpus_fresh_check(layer: Layer, stale: dict[str, str]) -> None:
+    layer.add("corpus-fresh", "the committed corpus results ran on this verdict code (G3; stale ones run first in live)",
+              MAJOR, not stale, "; ".join(f"{v}: {why}" for v, why in stale.items()) or "every corpus is fresh",
+              content=[f"{v}: {why}" for v, why in stale.items()])
+
+
 def layer_static(args) -> Layer:
     layer = Layer("static", args)
     closure = mutation_closure()
     layer.add("mutation-closure", "every src/netdryrun module is mutated or exempt with a reason (G1)", BLOCKER,
               not closure, "; ".join(closure) or f"{len(VERDICT_MODULES)} mutated, {len(MUTATION_EXEMPT)} exempt")
-    stale = stale_corpora()
-    layer.add("corpus-fresh", "the committed corpus results ran on this verdict code (G3; stale ones run first in live)",
-              MAJOR, not stale, "; ".join(f"{v}: {why}" for v, why in stale.items()) or "every corpus is fresh")
+    corpus_fresh_check(layer, stale_corpora())
 
     # ruff: the dev extra pins it, so prefer the running Python's copy over one on PATH
     ruff = [sys.executable, "-m", "ruff"] if run([sys.executable, "-m", "ruff", "--version"]).code == 0 else ["ruff"]
@@ -1362,7 +1377,8 @@ def unit_on_python(layer: Layer, py: str, uv: str | None, work: Path) -> None:
 
 def coverage_checks(layer: Layer, cov_json: Path | None) -> None:
     if not cov_json or not cov_json.exists():
-        layer.add("coverage", "coverage of the verdict modules", MAJOR, None, "no coverage data (pytest-cov missing?)")
+        layer.add("coverage", "coverage of the verdict modules", MAJOR, None, "no coverage data (pytest-cov missing?)",
+                  content=["no coverage data"])
         return
     files = json.loads(cov_json.read_text())["files"]
     rows, below = [], []
@@ -1382,7 +1398,7 @@ def coverage_checks(layer: Layer, cov_json: Path | None) -> None:
     layer.sections.append("**Coverage of the verdict modules** (lines and branches, Python "
                           f"{COVERAGE_PYTHON}):\n\n{table}")
     layer.add("coverage", "coverage of the verdict modules at or above the floors", MAJOR, not below,
-              "; ".join(below) or "all at or above their floors", table)
+              "; ".join(below) or "all at or above their floors", table, content=below)
 
 
 def unit_in_container(layer: Layer) -> None:
@@ -2830,7 +2846,7 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
         for c in rec["checks"]:
             key = f"{name}/{c['id']}"
             if c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR and key in accepted:
-                why = acceptance_mismatch(c, accepted[key])
+                why = acceptance_mismatch(c, accepted[key], key in FINGERPRINTED)
                 if why is None:
                     c["status"], c["summary"] = ACCEPTED, f"{c['summary']} (accepted: {reason(accepted[key])})"
                 else:

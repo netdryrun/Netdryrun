@@ -163,7 +163,9 @@ def test_the_tag_must_be_unused_at_origin_too(monkeypatch, listed, status, summa
 def test_the_static_layer_names_stale_corpora_as_a_major():
     import inspect
     src = inspect.getsource(gate.layer_static)
-    assert "stale_corpora()" in src and '"corpus-fresh"' in src
+    assert "corpus_fresh_check(layer, stale_corpora())" in src
+    check = inspect.getsource(gate.corpus_fresh_check)
+    assert '"corpus-fresh"' in check and "MAJOR, not stale" in check
 
 
 def _live(monkeypatch, stale, corpus_ok=True):
