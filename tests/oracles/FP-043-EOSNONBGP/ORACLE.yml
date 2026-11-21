@@ -57,3 +57,5 @@ evidence:
   - tests/fixtures/ceos4363m_fp043_topology.clab.yml
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_043_eosnonbgp.py
+plant: plant.diff
+ported_from: bf3d4cde223f6ca8cd9d3de805f6f604f2aeba2d
