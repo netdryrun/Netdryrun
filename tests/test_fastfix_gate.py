@@ -239,6 +239,27 @@ def test_candidate_cannot_take_over_the_harness(repo, plant, text):
 
 
 @needs_git
+@pytest.mark.parametrize("plant", ["src/json/__init__.py", "src/tempfile/__init__.py", "src/toy_extra/__init__.py"])
+def test_the_gate_runs_no_package_but_the_products_from_the_code_under_test(repo, plant):
+    """A package beside the product's (src/json, src/tempfile) would shadow the standard library inside the judged
+    run, the fake labs' log writer included: the code under test would judge itself."""
+    repo.write("src/toy/__init__.py", JUDGE.replace("LIMIT = 0", "LIMIT = -10"))
+    repo.write(plant, "def dumps(*a, **k):\n    return ''\n")
+    repo.commit("loosen and plant a package")
+    code, out = repo.loosening(repo.base)
+    assert code == ffg.ERROR and f"{plant.split('/')[1]} is not one of the packages under judgement" in out, out
+
+
+@pytest.mark.parametrize("plant", ["json.py", "tempfile", "pytest.py"])
+def test_a_tree_whose_src_shadows_the_standard_library_is_refused(tmp_path, plant):
+    (tmp_path / "src" / "toy").mkdir(parents=True)
+    (tmp_path / "src" / "toy" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "src" / plant).mkdir() if "." not in plant else (tmp_path / "src" / plant).write_text("")
+    with pytest.raises(ffg.GateError, match=f"src/{plant.split('.')[0]} would shadow"):
+        ffg.preflight(tmp_path, sys.executable)
+
+
+@needs_git
 def test_skipped_fixture_counts_as_pass(repo):
     repo.write("src/toy/__init__.py", JUDGE + "\nimport pytest\npytest.skip('nope', allow_module_level=True)\n")
     repo.commit("skip everything")
@@ -1344,6 +1365,20 @@ PROBES = {
                                        "@pytest.fixture(scope=\"module\")\ndef mod_dir_{n}():\n"
                                        "    return tempfile.mkdtemp()\n\n\ndef test_{n}(mod_dir_{n}):\n"
                                        "    assert Driver(Lab()).p_{n}(mod_dir_{n}) == \"ok\"\n"),
+    'tmp_location_dir_arg': ('w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])',
+        'alt = os.path.join(tempfile.gettempdir(), "ndr-alt")\nos.makedirs(alt, exist_ok=True)\nw = tempfile.mkdtemp(prefix="netdryrun-verify-", dir=alt)\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])', True),
+    'tmp_location_tempfile_tempdir': ('w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])',
+        'alt = os.path.join(tempfile.gettempdir(), "ndr-alt")\nos.makedirs(alt, exist_ok=True)\nold = tempfile.tempdir\ntempfile.tempdir = alt\ntry:\n    w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nfinally:\n    tempfile.tempdir = old\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])', True),
+    'tmp_location_TMPDIR_env': ('w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])',
+        'alt = os.path.join(tempfile.gettempdir(), "ndr-alt")\nos.makedirs(alt, exist_ok=True)\nold, prev = tempfile.tempdir, os.environ.get("TMPDIR")\nos.environ["TMPDIR"] = alt\ntempfile.tempdir = None\ntry:\n    w = tempfile.mkdtemp(prefix="netdryrun-verify-")\nfinally:\n    tempfile.tempdir = old\n    os.environ.pop("TMPDIR") if prev is None else os.environ.__setitem__("TMPDIR", prev)\nreturn self.lab.run(["clab", "deploy", "-t", w + "/topo.yml"])', True),
+    'env_inherited_none': ('return self.lab.run(["clab", "deploy"], env=None)',
+        'os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"\ntry:\n    return self.lab.run(["clab", "deploy"], env=None)\nfinally:\n    os.environ.pop("DOCKER_HOST")', True),
+    'env_os_environ_itself': ('return self.lab.run(["clab", "deploy"], env=os.environ)',
+        'os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"\ntry:\n    return self.lab.run(["clab", "deploy"], env=os.environ)\nfinally:\n    os.environ.pop("DOCKER_HOST")', True),
+    'env_mapping_proxy': ('return self.lab.run(["clab", "deploy"], env=__import__("types").MappingProxyType(dict(os.environ)))',
+        'os.environ["DOCKER_HOST"] = "ssh://elsewhere.invalid"\ntry:\n    return self.lab.run(["clab", "deploy"], env=__import__("types").MappingProxyType(dict(os.environ)))\nfinally:\n    os.environ.pop("DOCKER_HOST")', True),
+    'env_putenv_inherited': ('return self.lab.run(["clab", "deploy"], env=None)',
+        'os.putenv("DOCKER_HOST", "ssh://elsewhere.invalid")\ntry:\n    return self.lab.run(["clab", "deploy"], env=None)\nfinally:\n    os.unsetenv("DOCKER_HOST")', True),
     # last: the value it leaks into os.environ is in every later test's environment copy (a real new read there too)
     "env_global_set_and_left": ('return self.lab.run(["clab", "deploy"], env=dict(os.environ))',
                                 'os.environ["NETDRYRUN_DEBUG"] = "1"\n'

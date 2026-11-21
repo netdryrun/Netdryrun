@@ -357,6 +357,12 @@ def compose(world: Path, code: Path, dest: Path) -> Path:
     from the code under test reaches the run (no root conftest, no pytest config, no src/sitecustomize.py)."""
     if not packages(world):
         raise GateError(f"{world.name}: no package under src/ to judge")
+    # only the product's own packages: another one (src/json, src/tempfile) would shadow the standard library inside
+    # the judged run, the fake labs' log writer included, so the code under test would judge itself
+    extra = sorted(set(packages(code)) - set(packages(world)))
+    if extra:
+        raise GateError(f"{code.name}: src/{extra[0]} is not one of the packages under judgement "
+                        f"({', '.join(packages(world))}); the gate runs no other package from the code under test")
     shutil.copytree(world, dest, symlinks=True)
     shutil.rmtree(dest / "src")
     (dest / "src").mkdir()
@@ -384,6 +390,10 @@ def preflight(tree: Path, python: str) -> None:
     names = packages(tree)
     if not names:
         raise GateError(f"{tree.name}: no package under src/")
+    shadow = sorted(n for n in (p.stem if p.suffix == ".py" else p.name for p in (tree / "src").iterdir())
+                    if n not in names and (n in sys.stdlib_module_names or n in GATE_MODULES))
+    if shadow:
+        raise GateError(f"{tree.name}: src/{shadow[0]} would shadow the standard library or the gate's tools")
     code = ("import importlib.util as u,sys\n"
             "for n in sys.argv[1:]:\n"
             "    s=u.find_spec(n)\n"
@@ -543,7 +553,9 @@ def changed_drivers(files: set[str]) -> list[str]:
 # product's own scratch directory names (tempfile.mkdtemp(prefix="netdryrun-<what>-") directly under the temp
 # directory, followed by a path inside it) lose their 8 random characters, numbered per <what> in the order a test's
 # log names them, so two of them never merge and a directory of another <what> never reads as the same one. Nothing
-# else under /tmp is replaced. A row with any other "log" value is refused.
+# else under /tmp is replaced. A row with any other "log" value is refused. Limit while the base is older than format
+# 2: two directories of one <what> that trade places between two commands of one test read the same (each is numbered
+# by where it first appears); it ends once the base's fakes log format 2.
 LOG_FORMAT = 2
 LEGACY_TEMP = r"(?P<what>netdryrun-[a-z]+-)[a-z0-9_]{8}"
 PATH_CHAR = r"[\w.~:/\\-]"

@@ -179,14 +179,23 @@ def _session():
     """The record as tests/conftest.py begins it for a gate run (begin_session, without its import check): the
     environment now, tempfile's makers wrapped, no test running yet."""
     state, makers = dict(fakes._STATE), {n: getattr(tempfile, n) for n in fakes._ORIGINAL}
-    fakes._STATE.update(env=dict(os.environ), temps=[], count={}, test=False, session=True)
+    env_makers = {n: getattr(os, n) for n in fakes._ENV_ORIGINAL}
+    fakes._STATE.update(env=dict(os.environ), temps=[], count={}, test=False, session=True, putenv={})
     fakes._wrap()
+    fakes._wrap_env()
     try:
         yield
     finally:
         fakes._STATE.update(state)
         for n, f in makers.items():
             setattr(tempfile, n, f)
+        for n, f in env_makers.items():
+            setattr(os, n, f)
+
+
+def _in(label: str, parent: str | None = None) -> str:
+    """A temporary path's label as logged: its random last name replaced, the directory it was made in kept."""
+    return os.path.join(parent if parent is not None else tempfile.gettempdir(), label)
 
 
 def _product_maker():
@@ -206,9 +215,10 @@ def test_the_temporary_paths_a_test_makes_are_numbered_and_the_rest_of_the_path_
                 os.close(fd)
                 with tempfile.NamedTemporaryFile(prefix="n-") as f:
                     assert _plain([a + "/after/t.yml", b + "/t.yml", c, f.name, a], "/w") == \
-                        ["<tmp1>/after/t.yml", "<tmp2>/t.yml", "<tmp3>", "<tmp4>", "<tmp1>"]
+                        [_in("<tmp1>") + "/after/t.yml", _in("<tmp2>") + "/t.yml", _in("<tmp3>", _in("<tmp1>")), _in("<tmp4>"),
+                         _in("<tmp1>")]
                     assert _plain(a + "/x", "/w") != _plain(b + "/x", "/w")      # two never merge
-                    assert _plain(a + "\\x", "/w") == "<tmp1>\\x"                # either separator
+                    assert _plain(a + "\\x", "/w") == _in("<tmp1>") + "\\x"      # either separator
         finally:
             shutil.rmtree(a)
 
@@ -224,8 +234,8 @@ def test_product_and_test_temp_paths_are_numbered_apart_and_from_1_in_every_test
                     made.append(_product_maker()())
                 p, t = _product_maker()(), tempfile.mkdtemp()
                 made += [p, t]
-                assert _plain([p + "/x", t + "/x"], "/w") == (["<ptmp2>/x", "<tmp1>/x"] if extra else
-                                                              ["<ptmp1>/x", "<tmp1>/x"])
+                assert _plain([p + "/x", t + "/x"], "/w") == [_in("<ptmp2>" if extra else "<ptmp1>") + "/x",
+                                                              _in("<tmp1>") + "/x"]
     finally:
         for d in made:
             os.rmdir(d)
@@ -237,7 +247,7 @@ def test_numbering_starts_again_in_every_test():
         for _ in range(2):
             with _watching():
                 made.append(tempfile.mkdtemp())
-                assert _plain(made[-1], "/w") == "<tmp1>"
+                assert _plain(made[-1], "/w") == _in("<tmp1>")
     finally:
         for d in made:
             os.rmdir(d)
@@ -257,8 +267,8 @@ def test_a_session_names_every_maker_and_what_was_made_between_tests():
                 try:
                     a, b = mkdtemp(), tempfile.mktemp()
                     made.append(a)
-                    assert _plain(outside + [a, b], "/w") == [f"<stmp{n + 1}>" for n in range(i + 1)] + \
-                        ["<tmp1>", "<tmp2>"]
+                    assert _plain(outside + [a, b], "/w") == [_in(f"<stmp{n + 1}>") for n in range(i + 1)] + \
+                        [_in("<tmp1>"), _in("<tmp2>")]
                 finally:
                     undo()
                 assert _plain(a, "/w") == a                                  # a test's own labels end with it
@@ -292,9 +302,93 @@ def test_an_environment_value_names_the_tests_temp_paths(monkeypatch):
     with _watching():
         a = tempfile.mkdtemp()
         try:
-            assert _plain({**os.environ, "CLAB_LABDIR_BASE": a + "/labs"}, "/w")["CLAB_LABDIR_BASE"] == "<tmp1>/labs"
+            assert _plain({**os.environ, "CLAB_LABDIR_BASE": a + "/labs"}, "/w")["CLAB_LABDIR_BASE"] == \
+                _in("<tmp1>") + "/labs"
         finally:
             os.rmdir(a)
+
+
+@pytest.mark.parametrize("move", ["dir", "tempfile.tempdir", "TMPDIR"])
+def test_where_a_temporary_directory_is_made_stays_in_the_log(tmp_path, monkeypatch, move):
+    """Only the random last name is replaced: a scratch directory made somewhere else (containerlab puts the lab
+    directory beside the topology; a path under /mnt/ is another device's save) logs another line."""
+    elsewhere = str(tmp_path / "elsewhere")
+    os.mkdir(elsewhere)
+    with _watching():
+        here = tempfile.mkdtemp()
+        try:
+            if move == "dir":
+                moved = tempfile.mkdtemp(dir=elsewhere)
+            else:
+                if move == "TMPDIR":
+                    monkeypatch.setenv("TMPDIR", elsewhere)
+                    monkeypatch.setattr(tempfile, "tempdir", None)
+                else:
+                    monkeypatch.setattr(tempfile, "tempdir", elsewhere)
+                moved = tempfile.mkdtemp()
+            assert _plain([here + "/t.yml", moved + "/t.yml"], "/w") == \
+                [_in("<tmp1>", os.path.dirname(here)) + "/t.yml", _in("<tmp2>", elsewhere) + "/t.yml"]
+        finally:
+            os.rmdir(here)
+
+
+def test_a_temporary_directory_made_in_the_working_directory_keeps_it_as_root(tmp_path):
+    with _watching():
+        a = tempfile.mkdtemp(dir=str(tmp_path))
+        assert _plain(a + "/x", str(tmp_path)) == _in("<tmp1>", "<root>") + "/x"
+
+
+@pytest.mark.parametrize("shape", ["os.environ", "MappingProxyType", "dict"])
+def test_any_mapping_that_is_the_environment_is_logged_by_what_differs(monkeypatch, shape):
+    import types
+    for i in range(6):
+        monkeypatch.setenv(f"NDR_T_{i}", f"value-{i}")
+    with _session():
+        monkeypatch.setenv("DOCKER_HOST", "ssh://elsewhere.invalid")
+        value = {"os.environ": os.environ, "MappingProxyType": types.MappingProxyType(dict(os.environ)),
+                 "dict": dict(os.environ)}[shape]
+        assert _plain(value, "/w") == {"<environment>": "inherited values not logged",
+                                       "DOCKER_HOST": "ssh://elsewhere.invalid"}
+    assert _plain(types.MappingProxyType({"a": 1}), "/w") == "mappingproxy"      # not the environment
+
+
+def _rows(log):
+    return [json.loads(x)["command"] for x in log.read_text(encoding="utf-8").splitlines()]
+
+
+def test_every_logged_call_carries_what_differs_in_the_environment_it_would_inherit(tmp_path, monkeypatch):
+    """A command that inherits the environment (env=None, every docker exec) sees what the product put in os.environ,
+    and what os.putenv/os.unsetenv did behind its back."""
+    log = tmp_path / "c.jsonl"
+    monkeypatch.setenv(COMMAND_LOG, str(log))
+    monkeypatch.setenv("NDR_GONE", "x")
+    with _session():
+        seen("docker exec r1 true")                                     # nothing differs yet: the line as it was
+        monkeypatch.setenv("DOCKER_HOST", "ssh://elsewhere.invalid")
+        seen("docker exec r1 true")
+        monkeypatch.delenv("DOCKER_HOST")
+        try:
+            os.putenv("NDR_PUT", "behind")
+            os.unsetenv("NDR_GONE")
+            seen("docker exec r1 true")
+        finally:
+            os.unsetenv("NDR_PUT")
+            os.putenv("NDR_GONE", "x")
+        seen("docker exec r1 true")                                     # os.environ agrees with the C env again
+    rows = _rows(log)
+    assert rows[0] == rows[3] == "docker exec r1 true", rows
+    assert json.loads(rows[1]) == {"<command>": "docker exec r1 true",
+                                   "<environment now>": {"DOCKER_HOST": "ssh://elsewhere.invalid"}}
+    assert json.loads(rows[2]) == {"<command>": "docker exec r1 true",
+                                   "<environment now>": {"<putenv>": {"NDR_GONE": "<removed>", "NDR_PUT": "behind"}}}
+
+
+def test_the_session_wraps_putenv_and_the_profiler_skips_it(tmp_path, monkeypatch):
+    monkeypatch.setenv(COMMAND_LOG, str(tmp_path / "c.jsonl"))
+    with _session():
+        assert os.putenv is fakes._putenv and os.unsetenv is fakes._unsetenv
+        assert fakes._putenv.__code__ in fakes._WRAPPERS and fakes._unsetenv.__code__ in fakes._WRAPPERS
+    assert os.putenv is fakes._ENV_ORIGINAL["putenv"]
 
 
 def test_the_session_refuses_to_begin_after_the_product_was_imported(monkeypatch):
@@ -348,7 +442,8 @@ def test_a_temporary_directory_is_named_by_its_resolved_path_too(tmp_path):
     with _watching():
         a = tempfile.mkdtemp(dir=str(tmp_path / "link"))
         assert os.path.realpath(a) != a
-        assert _plain([a + "/x", os.path.realpath(a) + "/x"], "/w") == ["<tmp1>/x", "<tmp1>/x"]
+        label = _in("<tmp1>", str(tmp_path / "link")) + "/x"
+        assert _plain([a + "/x", os.path.realpath(a) + "/x"], "/w") == [label, label]
 
 
 def test_pytests_base_temporary_directory_is_named_whatever_its_run_number(tmp_path_factory):
@@ -430,7 +525,8 @@ def test_seen_scrubs_a_fakes_own_record_too(tmp_path, monkeypatch):
         finally:
             os.rmdir(a)
     rows = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
-    assert [r["command"] for r in rows] == ["cat <tmp1>/x /tmp/frr.conf", '["cat", "<tmp1>/y"]']
+    t = _in("<tmp1>")
+    assert [r["command"] for r in rows] == [f"cat {t}/x /tmp/frr.conf", json.dumps(["cat", t + "/y"])]
     assert {r["log"] for r in rows} == {fakes.LOG_FORMAT}
 
 
