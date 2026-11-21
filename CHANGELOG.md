@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Added
+
+- **Checks on BGP-unnumbered sessions (FRR).** A `bgp_session` or `bgp_prefixes` check can name a session by its
+  interface, as FRR does for `neighbor eth1 interface`: `neighbor: eth1`. It is judged like a session named by its
+  address: down fails, and a prefix outside `only` or a count out of range fails. `record` now writes these checks
+  (the session, a prefix count per family with `only` on eBGP, and `exact: 0` for an eBGP family it doesn't carry)
+  where 0.4.2 named each such session as an INCOMPLETE BASELINE gap, so `record` on an unnumbered FRR fabric
+  (martimy/clab-bgp-frr) exits 0 with its sessions guarded.
+  - `bgp_prefixes` on an interface name needs `afi`: an unnumbered session can carry IPv4 (over IPv6, RFC 8950), IPv6
+    or both, so no default family fits.
+  - A `neighbor` must be an IP address or an interface name (letters, digits and `. _ @ -`, at most 15 characters).
+    Digits and dots that aren't an address (`10.0.0.256`) are refused as a mistyped address, not read as a name.
+  - FRR only. On every other driver, SONiC included (its bgpd is FRR, but it isn't verified live), a check naming an
+    interface is refused before the lab deploys (exit `2`): those drivers name sessions by address, so it could only
+    ever read "not configured". `record` on those drivers keeps the 0.4.2 gap line.
+  - On FRR 10.2 `record` pins the count (`exact`) instead of writing `only`: FRR 10.2.1 doesn't print `totalRoutes`
+    in `neighbors <peer> routes json`, so the prefix list can't be trusted complete. This is unchanged from numbered
+    sessions on 10.2; FRR 10.4 gets `only`.
+
+  Oracle `tests/oracles/FP-043-UNNSESSCHK`, from live FRR 10.2.1 and 10.4.1 captures of an unnumbered lab (sessions
+  up, one shut down, and a new prefix sent over one). Oracle `FP-042-UNNSESS` now requires a gap only for a session `record`
+  leaves out: it required one even when every session is recorded.
+
 ### Fixed
 
 - **SR Linux EVPN: `bgp_route present: false` in an ip-vrf passed while a type-5 route was imported into it** (case 2
@@ -20,6 +43,14 @@
   the driver doesn't read yet), or a `bgp-evpn` row or installed route with no imported EVPN path behind it is an
   error, never "no BGP path". `route` with `protocol: bgp` or `bgp-evpn` now also sees an imported EVPN route that
   isn't installed in the ip-vrf. Oracle `tests/oracles/FP-043-SRLEVPNVRF`, from the live captures.
+
+- **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
+  overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get
+  the template's value instead of its own override, and the order of a merge list is reversed for longer keys (PyYAML
+  issue 953, still open). Netdryrun already refuses a merge list whose sources share a key, and every config key it
+  reads is longer than one character, so no verdict was found to change. The dependency is now `pyyaml>=6.0,!=6.0.4`,
+  and the tests check the installed PyYAML's merge behaviour directly, so another release with the same fault fails
+  the suite instead of reaching users.
 
 ## 0.4.2 (2026-11-21)
 

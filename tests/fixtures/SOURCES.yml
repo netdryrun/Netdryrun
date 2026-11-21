@@ -625,3 +625,38 @@
     (received); a prefix this node originates itself isn't checked"), route protocol bgp present false failed
     ("unexpectedly present via bgp-evpn"); without the route (exit 0) all three passed
   added: ndr/oracle-srl-evpn
+- files: [unnsesschk1021_capture.txt, unnsesschk1021_r2_show_version.txt, unnsesschk1021_r2_neighbors_up.json,
+          unnsesschk1021_r2_neighbors_down.json, unnsesschk1021_r2_neighbors_more.json,
+          unnsesschk1021_r2_eth1_ipv4_routes_up.json, unnsesschk1021_r2_eth1_ipv4_routes_more.json,
+          unnsesschk1021_r2_eth2_ipv4_routes_up.json, unnsesschk1021_r2_eth2_ipv6_routes_up.json,
+          unnsesschk1021_r2_ip_o_addr_show_dev_eth1.txt, unnsesschk1021_r2_ip_o_addr_show_dev_eth2.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.2.1 (quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1),
+    lab ndr-unnsess (unnsesschk_lab.clab.yml with this image; r2 AS 65000 with BGP-unnumbered eBGP sessions `neighbor
+    eth1 interface` to r1 and `neighbor eth2 interface` to r3), the laptop's WSL, 2026-11-21 (about 19:03 Thailand
+    time). Each file is r2's answer to `docker exec clab-ndr-unnsess-r2 <command>` as logged in
+    unnsesschk1021_capture.txt (captured as unnsesschk_r2_*, renamed with the version prefix, bytes unchanged), in
+    three states: up (both sessions Established), down (r1 configured `neighbor eth1 shutdown`), more (r1 also
+    announcing 10.1.3.0/24). Captured for oracle FP-043-UNNSESSCHK
+  added: ndr/unnsess
+- files: [unnsesschk1041_capture.txt, unnsesschk1041_r2_show_version.txt, unnsesschk1041_r2_neighbors_up.json,
+          unnsesschk1041_r2_neighbors_down.json, unnsesschk1041_r2_neighbors_more.json,
+          unnsesschk1041_r2_eth1_ipv4_routes_up.json, unnsesschk1041_r2_eth1_ipv4_routes_more.json,
+          unnsesschk1041_r2_eth2_ipv4_routes_up.json, unnsesschk1041_r2_eth2_ipv6_routes_up.json,
+          unnsesschk1041_r2_ip_o_addr_show_dev_eth1.txt, unnsesschk1041_r2_ip_o_addr_show_dev_eth2.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    the same lab ndr-unnsess redeployed with this image, the laptop's WSL, 2026-11-21 (about 19:05 Thailand time), the
+    same commands and three states as the 10.2.1 set, logged in unnsesschk1041_capture.txt (captured as
+    unnsesschk_r2_*, renamed with the version prefix, bytes unchanged). FRR 10.4.1 prints `totalRoutes` in `neighbors
+    N routes json`; 10.2.1 doesn't. Captured for oracle FP-043-UNNSESSCHK
+  added: ndr/unnsess
+- files: [unnsesschk_lab.clab.yml, unnsesschk_lab_r1_frr.conf, unnsesschk_lab_r2_frr.conf, unnsesschk_lab_r3_frr.conf]
+  kind: lab-input
+  source: >-
+    the topology and FRR configs deployed for lab ndr-unnsess (the up state), 2026-11-21; the image line was
+    quay.io/frrouting/frr:10.2.1 for the 10.2.1 set and 10.4.1 for the 10.4.1 set; each node also bind-mounted a
+    daemons file enabling bgpd
+  added: ndr/unnsess

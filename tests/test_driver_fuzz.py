@@ -407,7 +407,9 @@ def outcome(case: Case, text: str):
         return "raised", None
     if isinstance(result, (list, dict)) and not result:
         try:
-            parsed = json.loads(text)
+            # Parsers read json.loads(text.strip()); str.strip() also drops control and space characters
+            # (vertical tab, form feed, NBSP...) that json.loads alone refuses. Judge what the parser read.
+            parsed = json.loads(text.strip())
         except (ValueError, RecursionError):
             parsed = None
         assert parsed is not None and case.empty_ok(parsed), \

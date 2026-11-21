@@ -1,0 +1,1 @@
+215: eth1    inet6 fe80::a8c1:abff:feb6:df6b/64 scope link proto kernel_ll \       valid_lft forever preferred_lft forever
