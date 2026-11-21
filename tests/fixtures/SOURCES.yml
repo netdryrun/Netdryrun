@@ -688,9 +688,23 @@
     prefix_*.json is `vtysh -c 'show bgp ipv4 unicast 198.51.10N.0/24 json'`, bootlog_bgpd.txt holds the two bgpd
     lines of `docker logs`
   added: ndr/fix-frr-importchk
-- files: [frr_fp043ic_followup/rm0_r1.conf, frr_fp043ic_followup/rmcap_r1.conf]
+- files: [frr_fp043ic_followup/rm0e_bgpd_config.txt, frr_fp043ic_followup/rm0e_table.txt,
+          frr_fp043ic_followup/rm0e_table.json, frr_fp043ic_followup/rm0e_bgp_vrfs.json,
+          frr_fp043ic_followup/rm0e_rm_earlydeny.json, frr_fp043ic_followup/rm0e_prefix_101.json,
+          frr_fp043ic_followup/rm0e_bootlog_bgpd.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, the laptop's WSL, 2026-11-22 (about 01:00 Thailand time), `docker exec` output of the commands
+    named in each file, taken on r1 right after a `netdryrun run --keep` of lab fixfrric-rm0e: the re-check of 83576ad's
+    rm0e lab (rm0e_r1.conf), `bgp route-map delay-timer 0` with the deny route-map EARLYDENY defined before `network
+    198.51.101.0/24 route-map EARLYDENY`. bgpd applied it once (invoked 1) and still shows processedChange true; the
+    prefix is withheld
+  added: ndr/fix-frr-importchk
+- files: [frr_fp043ic_followup/rm0_r1.conf, frr_fp043ic_followup/rmcap_r1.conf,
+          frr_fp043ic_followup/rm0e_r1.conf]
   kind: lab-input
   source: >-
-    r1's frr.conf in the rm0 and rmcap captures above (rm0_r1.conf is the review's ~/recheck-frr-live/rm0 lab
-    unchanged)
+    r1's frr.conf in the rm0, rmcap and rm0e captures above (rm0_r1.conf and rm0e_r1.conf are the reviews'
+    ~/recheck-frr-live/rm0 and rm0e labs unchanged)
   added: ndr/fix-frr-importchk

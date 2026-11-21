@@ -536,11 +536,11 @@ def _denied(lab, node: str, driver: str, inst: Instance, net: Network, loaded: b
     invoked, pending = state
     if pending and route_map_delay(config) == 0:
         raise ImportCheckError(
-            f"{node}: {what}, and bgpd never applied the route-map's last change to it (`processedChange`): "
-            "`bgp route-map delay-timer 0` turns off bgpd's route-map updates, so a route-map defined or changed "
-            "after the `network` never runs on it, and the lab may withhold a prefix that production, where the "
-            "route-map exists before the change, announces. Remove `bgp route-map delay-timer 0`, or define the "
-            "route-map before the `network`. No verdict.")
+            f"{node}: {what}, and bgpd never applied the route-map's last change (`processedChange`): with "
+            "`bgp route-map delay-timer 0` bgpd never applies a route-map change, wherever the route-map is "
+            "defined, so whether this network is denied by the route-map or only by the boot order can't be told, "
+            "and the lab may withhold a prefix production announces. Remove `bgp route-map delay-timer 0` from the "
+            "lab's config. No verdict.")
     if pending:
         raise Unknown(f"{what}, and bgpd hasn't applied the last change to route-map {net.route_map} yet")
     if invoked == 0:
@@ -746,6 +746,8 @@ def guard(lab, nodes: dict[str, str], *, remedy: bool, clock: Callable[[], float
     gaps = getattr(nodes, "gaps", {})
     for name, how in sorted(getattr(nodes, "found", {}).items()):
         log(f"{label}{name}: no driver claims it, but {how}: its import check is guarded as FRR's")
+    for name in sorted(getattr(nodes, "not_frr", [])):
+        log(f"{label}{name}: no driver claims it and its image has no vtysh: not an FRR router, no import check")
     for name, why in sorted(gaps.items()):
         log(f"{label}WARNING {name}: {why}")
     if not nodes:   # no FRR router: nothing to sample (review MINOR-5)
@@ -820,6 +822,7 @@ class Candidates(dict):
         super().__init__(*a, **kw)
         self.found: dict[str, str] = {}
         self.gaps: dict[str, str] = {}
+        self.not_frr: list[str] = []   # probed: the image has no vtysh
 
 
 def probe(lab, name: str) -> str | None:
@@ -859,4 +862,6 @@ def candidates(lab, driver_of: Callable[[str, object], str | None]) -> Candidate
                 continue
             if how:
                 out[name], out.found[name] = "frr", how
+            else:
+                out.not_frr.append(name)
     return out

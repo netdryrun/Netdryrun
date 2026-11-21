@@ -385,8 +385,15 @@ def test_candidates_are_every_frr_and_sonic_router():
                  "e": N(kind="ceos")}
     drivers = {"a": "frr", "b": "sonic", "s": "frr", "h": None, "e": "eos"}
     got = ic.candidates(lab, lambda name, node: drivers[name])
-    assert got == {"a": "frr", "b": "sonic"} and got.found == {} and got.gaps == {}
+    assert got == {"a": "frr", "b": "sonic"} and got.found == {} and got.gaps == {} and got.not_frr == ["h"]
     assert lab.asked == [("h", tuple(ic.BGPD_CONFIG))]   # only the node no driver claims is probed
+    logs = []
+    lab2 = Lab({})
+    only = ic.Candidates()
+    only.not_frr.append("h")
+    clock = Clock()
+    assert ic.guard(lab2, only, remedy=True, clock=clock, sleep=clock.sleep, log=logs.append) == {}
+    assert logs == ["h: no driver claims it and its image has no vtysh: not an FRR router, no import check"]
 
 
 # ------------------------------------------------------------------------------------------------ every cut of a live answer
@@ -825,6 +832,17 @@ def test_the_reviews_timer_0_lab_is_an_error_never_a_pass():
                                                    r"delay-timer 0.*No verdict") as e:
         run_cap(cap_answers("rm0", ["PERMIT"], ["100"]), budget=60.0)
     assert isinstance(e.value, LabError)
+    assert "Remove `bgp route-map delay-timer 0`" in str(e.value) and "before the `network`" not in str(e.value)
+
+
+def test_timer_0_with_the_map_defined_first_is_still_an_error_whose_advice_is_the_timer():
+    """Review of 83576ad MINOR-1, live rm0e (the reviewer's lab): with timer 0 bgpd never clears processedChange,
+    even for a deny map defined before its network (invoked 1, processedChange true, the prefix withheld). Defining the
+    map first doesn't help, so the error says to remove the timer only."""
+    assert ic.parse_route_map(fu("rm0e_rm_earlydeny.json"), "EARLYDENY") == (1, True)
+    with pytest.raises(ic.ImportCheckError, match=r"198.51.101.0/24 .* route-map EARLYDENY .*delay-timer 0") as e:
+        run_cap(cap_answers("rm0e", ["EARLYDENY"], ["101"]), budget=60.0)
+    assert "Remove `bgp route-map delay-timer 0` from the lab's config. No verdict." in str(e.value)
 
 
 def test_route_map_shapes_with_the_default_timer_judge_normally():
@@ -940,6 +958,7 @@ def test_probe_tells_frr_on_positive_evidence(answer, how):
 
 @pytest.mark.parametrize("answer", [
     (1, "", "not here"), (0, "% Unknown command\n", ""), (126, NO_VTYSH_ANSWER, ""), (0, NO_VTYSH_ANSWER, ""),
+    (127, "sh: vtysh: not found\n", ""), (127, "", "sh: vtysh: not found"), (127, "", ""),
     (1, "Error response from daemon: container is not running", ""), (0, "", ""),
 ])
 def test_probe_that_cant_tell_is_unknown(answer):
@@ -979,20 +998,60 @@ def test_a_node_that_cant_be_told_is_a_loud_gap_never_silent():
     assert w.startswith("INCOMPLETE BASELINE: pe1: its FRR import check is not checked")
 
 
-def test_a_run_puts_a_gap_in_every_checks_result(monkeypatch):
-    """RT-0066: the run's report carries the gap on each check (JSON, console, Markdown), not only its environment."""
-    o = _oracle()
+GAP_WHY = "no driver claims it and whether it runs FRR could not be told (DERIVED): its import check is not checked"
+
+
+def _with_gap(monkeypatch):
     real = ic.candidates
 
     def with_gap(lab, driver_of):
         out = real(lab, driver_of)
-        out.gaps["ghost"] = "no driver claims it and whether it runs FRR could not be told (DERIVED): not checked"
+        out.gaps["pe2"] = GAP_WHY
+        out.pop("pe2", None)
         return out
     monkeypatch.setattr(ic, "candidates", with_gap)
-    rep, _ = o.judged(monkeypatch, "c18", "c18_healthy_boot12", True)
-    assert rep.results and all(any(w["code"] == "import-check-not-checked" and w["node"] == "ghost"
-                                   for w in r.warnings) for r in rep.results)
-    assert rep.environment["nodes"]["ghost"]["import_check"].startswith("not checked: ")
+
+
+@pytest.mark.parametrize("deploy", [True, False])
+def test_a_gap_makes_a_run_inconclusive_never_a_pass(monkeypatch, deploy):
+    """Review of 83576ad (required): the healthy base boot passes, but with one node's import check not told it is
+    INCONCLUSIVE (exit 3), the reason in the summary, the JSON, the Markdown and the MCP result; never a
+    "convergence warning"."""
+    from netdryrun import agent_result, report
+    o = _oracle()
+    rep, _ = o.judged(monkeypatch, "c18", o.BASE, deploy)
+    assert rep.status == "passed"   # the same boot with no gap
+    _with_gap(monkeypatch)
+    rep, _ = o.judged(monkeypatch, "c18", o.BASE, deploy)
+    assert (rep.status, rep.exit_code, rep.failed) == ("inconclusive", 3, 0)
+    assert rep.environment["nodes"]["pe2"]["import_check"] == f"not checked: {GAP_WHY}"
+    line = report.summary_line(rep)
+    assert line.startswith("INCONCLUSIVE: FRR's import check could not be checked on pe2") and "warning" not in line
+    data = json.loads(report.to_json(rep))
+    assert data["status"] == "inconclusive" and data["inconclusive_reason"].startswith("FRR's import check could not")
+    assert data["warnings"]["count"] == 0
+    md = report.to_markdown(rep)
+    assert "inconclusive" in md and "could not be checked on pe2" in md and "convergence warning" not in md
+    mcp = agent_result._summary(rep, None)
+    assert mcp["status"] == "inconclusive" and "could not be checked on pe2" in mcp["inconclusive_reason"]
+    assert mcp["verdict"] != agent_result.CHECKS_PASSED
+
+
+def test_a_gap_makes_verify_inconclusive_in_every_output(monkeypatch, tmp_path):
+    """Review of 83576ad (required): verify's before boot has a node it can't tell: that side is INCONCLUSIVE (exit
+    3) and the reason is in the console, the JSON, the Markdown and the MCP result, not only the log."""
+    from netdryrun import mcp_server
+    from netdryrun.verify import report as vreport
+    o = _oracle()
+    _with_gap(monkeypatch)
+    res, _ = o.verified(monkeypatch, tmp_path, o.BASE, "c18_healthy_boot12")
+    assert (res.status, res.inconclusive_side) == ("inconclusive", "before")
+    assert vreport.EXIT_CODES[res.status] == 3
+    assert res.inconclusive.reason.startswith("FRR's import check could not be checked on pe2")
+    assert res.inconclusive.moving == [f"pe2: not checked: {GAP_WHY}"]
+    for out in (vreport.console(res), vreport.markdown(res), vreport.to_json(res),
+                json.dumps(mcp_server._verify_summary(res, None))):
+        assert "could not be checked on pe2" in out
 
 
 def test_record_deploy_with_a_gap_writes_it_first_and_exits_1(monkeypatch, tmp_path):

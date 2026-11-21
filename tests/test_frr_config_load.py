@@ -62,6 +62,10 @@ class BootLogLab(FakeLab):
             return ExecResult(cmd, 0, "No errors were found in startup-config.", "")
         if cmd == ["cat", "/etc/frr/frr.conf"]:
             r = self.conf.get(node, "")
+        elif cmd[:1] == ["vtysh"] and self.nodes[node].image.startswith("alpine"):
+            # an image without vtysh: Docker's answer (29.9.2, live), so the import check leaves the node out
+            r = ExecResult(cmd, 127, 'OCI runtime exec failed: exec failed: unable to start container process: '
+                                     'exec: "vtysh": executable file not found in $PATH\n', "")
         else:   # one daemon's own running config: vtysh -d <daemon>
             assert cmd[:2] == ["vtysh", "-d"] and cmd[3:] == ["-c", "show running-config"], cmd
             self.daemons_read.append(cmd[2])

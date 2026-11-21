@@ -218,9 +218,17 @@ class RunReport:
         return sum(not r.passed for r in self.results)
 
     @property
+    def import_check_gaps(self) -> dict[str, str]:
+        """Nodes whose FRR import check could not be told (environment.nodes.<node>.import_check "not checked: ...")."""
+        return {n: str(v["import_check"]) for n, v in sorted((self.environment.get("nodes") or {}).items())
+                if isinstance(v, dict) and str(v.get("import_check", "")).startswith("not checked")}
+
+    @property
     def status(self) -> str:
         if self.error:
             return "error"
+        if self.import_check_gaps:   # a pass (or a fail) there may rest on a route nothing backs: no verdict
+            return "inconclusive"
         if self.results and self.failed == 0:
             return "passed"
         return "inconclusive" if self.inconclusive_reason else "failed"
@@ -231,6 +239,9 @@ class RunReport:
         check is in a scenario whose injected routes never left their node (NeverLeft)."""
         if self.error:
             return None
+        gaps = self.import_check_gaps
+        if gaps:
+            return import_check_gap_reason(gaps)
         failed = [r for r in self.results if not r.passed]
         if failed and all(isinstance(r.detail, NeverLeft) for r in failed):
             return str(failed[0].detail)
@@ -239,6 +250,15 @@ class RunReport:
     @property
     def exit_code(self) -> int:
         return {"passed": 0, "failed": 1, "inconclusive": 3}.get(self.status, 2)
+
+
+def import_check_gap_reason(gaps: dict[str, str]) -> str:
+    """The INCONCLUSIVE reason when FRR's import check could not be told on some node (review of 83576ad): such a
+    node may announce a `network` no route backs, as on a stuck boot, so no check result there means anything."""
+    return (f"FRR's import check could not be checked on {', '.join(gaps)}, so a route there may be announced with "
+            "nothing behind it and the checks' results say nothing about the change: "
+            + "; ".join(f"{n}: {why.removeprefix('not checked: ')}" for n, why in gaps.items())
+            + ". Set `nodes.<node>.driver` for the node, or make it answer `vtysh`.")
 
 
 def error_report(path, error: str) -> RunReport:
@@ -662,12 +682,6 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
         # unregistered after the first read; the evidence is taken, so nothing is remedied now)
         frr_import_check.guard(lab, import_check, remedy=False, clock=_clock, sleep=_sleep, log=log,
                                label="before the verdict")
-        # a node whose import check couldn't be told is in every check's result, not only the environment: a route
-        # it announces may not be backed by its routing table (RT-0066: no coverage dropped in silence)
-        for name, why in sorted(import_check.gaps.items()):
-            text = f"{name}: its FRR import check is not checked: {why}"
-            for r in report.results:
-                r.warnings.append({"code": "import-check-not-checked", "node": name, "session": None, "text": text})
         by_node = config_load_by_node(lab, _driver_of(config), deployed=deploy)
         _config_load(lab, driver_for, report, by_node)
         rejected = rejected_config_message(by_node)

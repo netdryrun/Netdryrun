@@ -357,8 +357,17 @@ def _fake_run(monkeypatch, tmp_path, kind="linux", dies_at=None):
             return {"clab-t-r1": "qemu-system-x86_64: CPU model 'host' requires KVM or HVF"}
         return {}
     lab.stopped_containers = stopped
-    from netdryrun.lab import Lab
+    from netdryrun.lab import ExecResult, Lab
     lab.kvm_problem = Lab.kvm_problem.__get__(lab)   # the real check, on the fake lab's nodes
+    fake_exec = lab.exec
+
+    def exec_(node, cmd, timeout=60, input=None):
+        # an n9kv container has no vtysh: Docker's answer (29.9.2, live), so the import check leaves it out
+        if node == "r1" and cmd[:1] == ["vtysh"]:
+            return ExecResult(cmd, 127, 'OCI runtime exec failed: exec failed: unable to start container process: '
+                                        'exec: "vtysh": executable file not found in $PATH\n', "")
+        return fake_exec(node, cmd, timeout=timeout, input=input)
+    lab.exec = exec_
     monkeypatch.setattr(runner, "_clock", w, raising=False)
     monkeypatch.setattr(runner, "_sleep", w.sleep, raising=False)
     monkeypatch.setattr(runner, "Lab", lambda path: lab)

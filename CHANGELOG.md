@@ -48,8 +48,8 @@
     route-map denies is accepted after bgpd's boot log shows the config loaded, when bgpd's BGP table answers that
     it holds no path of its own for it, when bgpd shows the route-map either undefined (production denies too) or
     applied with no change waiting, and when that stays true past the route-map delay. With `bgp route-map
-    delay-timer 0` a route-map defined after its `network` is never applied, so a change waiting on it is an error:
-    the lab would withhold a prefix production announces. A delay longer than the time limit is an error that says
+    delay-timer 0` bgpd never applies a route-map change, wherever the map is defined, so such a network is an error
+    that says to remove the timer: the lab could withhold a prefix production announces. A delay longer than the time limit is an error that says
     so. An instance whose VRF
     has no device is accepted when nothing in it is valid. A router with `bgpd=no` is skipped when vtysh, the
     daemons file and the process list all say bgpd isn't running, so such a lab stays inconclusive (exit `3`).
@@ -57,8 +57,9 @@
     the MCP tool `record_baseline` remedy before recording and check again after; a stuck router then writes no
     baseline.
   - A node no driver claims (an FRR image not named for it) is asked for bgpd's running config and guarded as FRR
-    when it answers. A node that can't be told is a named gap: a console warning, `not checked` in the report, a
-    warning on every check, and an `INCOMPLETE BASELINE` line for `record` (exit `1`).
+    when it answers. A node that can't be told is a named gap: a console warning and `not checked` in the report; `run`,
+    `check` and `verify` are then INCONCLUSIVE (exit `3`) with the reason in every output, and `record` writes an
+    `INCOMPLETE BASELINE` line (exit `1`).
   - The toggle can briefly announce an unbacked prefix to a peer. It wasn't seen in 3 live tries, but the timing
     isn't guaranteed. A peer with route-flap dampening may count it as a flap (see the config reference).
   - SONiC runs FRR's bgpd and gets the same check, but it hasn't been run against a live SONiC lab yet. A SONiC

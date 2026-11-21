@@ -552,7 +552,8 @@ def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Calla
         # registered with zebra, remedied when bgpd applied them before its zebra connection (FP-043-FRRIMPORTCHK);
         # a router that can't be read, or stays stuck, ends verify with no verdict
         routers = frr_import_check.candidates(lab, driver_of or _driver_or_none)
-        frr_import_check.guard(lab, routers, remedy=True, clock=time.monotonic, sleep=time.sleep, log=log)
+        found = frr_import_check.guard(lab, routers, remedy=True, clock=time.monotonic, sleep=time.sleep, log=log)
+        lab.import_check_gaps = {n: why for n, why in found.items() if why.startswith("not checked")}
         yield lab
         # and again once the side's evidence is taken (detection only): stuck now, the snapshot can't be trusted
         frr_import_check.guard(lab, routers, remedy=False, clock=time.monotonic, sleep=time.sleep, log=log,
@@ -616,6 +617,12 @@ def real_side(*, nodes: dict[str, str], setup: dict, settle: float, timeout: flo
         t0 = time.monotonic()
         with deployed(topology, setup, keep_after and label == "after", log,
                       driver_of=driver_resolver(drivers or {})) as lab:
+            gaps = getattr(lab, "import_check_gaps", None) or {}
+            if gaps:   # no snapshot from a boot whose announcements can't be trusted: the side is INCONCLUSIVE
+                from ..runner import import_check_gap_reason
+                return (Inconclusive(import_check_gap_reason(gaps), [f"{n}: {why}" for n, why in gaps.items()]),
+                        round(time.monotonic() - t0, 1), None)
+
             def exec_fn(node, argv):
                 r = lab.exec(node, argv, timeout=60)
                 return r.rc, r.stdout, r.stderr
