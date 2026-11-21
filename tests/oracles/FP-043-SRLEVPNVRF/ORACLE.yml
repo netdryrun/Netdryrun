@@ -105,3 +105,5 @@ evidence:
   - tests/fixtures/srl2672_fp043_present_single_run.txt
   - tests/fixtures/srl2672_fp043_single_netdryrun.yml
   - tests/fixtures/srl2672_fp043_topology.clab.yml
+plant: plant.diff
+ported_from: 02a0060ed7c4326d8dc38e65f34295a11f772859
