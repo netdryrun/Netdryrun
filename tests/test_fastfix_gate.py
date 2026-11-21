@@ -1177,6 +1177,9 @@ def test_stable_command_keeps_what_isnt_a_run_name():
     assert sc('{"b": 1, "a": "/tmp/netdryrun-verify-61i7icgq/x"}', legacy=True) == \
         '{"a": "/tmp/netdryrun-verify-<1>/x", "b": 1}'
     assert sc('"/tmp/netdryrun-verify-61i7icgq/x"', legacy=True) == '"/tmp/netdryrun-verify-<1>/x"'
+    # each kind numbered from 1, so a directory of another kind ahead of it renumbers nothing
+    assert sc("cat /tmp/netdryrun-cfg-aaaaaaaa/x /tmp/netdryrun-verify-61i7icgq/x", legacy=True) == \
+        "cat /tmp/netdryrun-cfg-<1>/x /tmp/netdryrun-verify-<1>/x"
     assert sc("/tmp/netdryrun-verify-61i7icgq/x") == "/tmp/netdryrun-verify-61i7icgq/x"      # format 2: as it is
     # the trees' paths as whole path names only
     assert sc("/w/base/tests/x", ("/w/base",)) == "<root>/tests/x"

@@ -249,17 +249,21 @@ def test_a_session_names_every_maker_and_what_was_made_between_tests():
     made = []
     with _session():
         try:
-            outside = tempfile.mkdtemp()
-            made.append(outside)
+            outside = [tempfile.mkdtemp()]
+            made += outside
             from tempfile import mkdtemp
-            for _ in range(2):
+            for i in range(2):
                 undo = fakes.watch_temps()
                 try:
                     a, b = mkdtemp(), tempfile.mktemp()
                     made.append(a)
-                    assert _plain([outside, a, b], "/w") == ["<stmp1>", "<tmp1>", "<tmp2>"]
+                    assert _plain(outside + [a, b], "/w") == [f"<stmp{n + 1}>" for n in range(i + 1)] + \
+                        ["<tmp1>", "<tmp2>"]
                 finally:
                     undo()
+                assert _plain(a, "/w") == a                                  # a test's own labels end with it
+                outside.append(tempfile.mkdtemp())                           # the next module's fixture: <stmp2>
+                made.append(outside[-1])
             assert tempfile.mkdtemp is fakes._mkdtemp                    # the session's wrapping stays
         finally:
             for d in made:
