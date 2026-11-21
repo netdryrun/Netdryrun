@@ -1,0 +1,25 @@
+{
+  "vrfs":{
+    "default":{
+      "type":"DFLT",
+      "vrfId":0,
+      "routerId":"10.255.0.1",
+      "numConfiguredPeers":1,
+      "numEstablishedPeers":1,
+      "l3vni":0,
+      "rmac":"00:00:00:00:00:00",
+      "interface":"unknown"
+    },
+    "GHOST":{
+      "type":"VRF",
+      "vrfId":-1,
+      "routerId":"0.0.0.0",
+      "numConfiguredPeers":0,
+      "numEstablishedPeers":0,
+      "l3vni":0,
+      "rmac":"00:00:00:00:00:00",
+      "interface":"unknown"
+    }
+  },
+  "totalVrfs":2
+}

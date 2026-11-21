@@ -19,6 +19,13 @@ entry for every `network` line in bgpd's running config, on two consecutive iden
 applied its config, a read that fails, or an answer of a shape this module doesn't know is never "nothing stuck". It
 waits within a time limit, then ends the run as an error.
 
+Healthy states that hold no usable entry are accepted only on positive evidence (review of 58eb8e0): a `backdoor`
+network is never announced (left out); a network its route-map denies has no path and no entry (FRR only: after the
+boot log shows bgpd's config loaded, bgpd's BGP table answering that it holds no path of its own for exactly that
+prefix, past the route-map delay); a VRF instance zebra doesn't know (bgpd's vrfId -1) can't register, which counts
+when it and its paths are all invalid (nothing announced); a router whose bgpd doesn't run (vtysh can't reach it,
+`bgpd=no` in /etc/frr/daemons, no bgpd process) has nothing to check.
+
 A stuck instance is remedied only on a lab this run deployed: import check toggled off and on in one vtysh call per
 router (bgpd frees the entry and registers a fresh one now that zebra is connected; the running config doesn't
 change). Then everything is read again and must be clean, bgpd's running config byte-identical, and no BGP session in
@@ -40,6 +47,12 @@ from .base import DriverError
 BGPD_CONFIG = ["vtysh", "-d", "bgpd", "-c", "show running-config"]
 NEIGHBORS = ["vtysh", "-c", "show bgp vrf all neighbors json"]
 STARTUP_FILES = ("/etc/frr/frr.conf", "/etc/frr/bgpd.conf")
+DAEMONS = ["cat", "/etc/frr/daemons"]
+VRFS = ["vtysh", "-c", "show bgp vrfs json"]
+VRF_UNKNOWN = -1   # bgpd's vrfId for a VRF instance whose VRF zebra doesn't know (no VRF device)
+PROCESSES = ["sh", "-c", "cat /proc/[0-9]*/comm"]   # every process's name, one per line
+NO_DAEMON = "failed to connect to any daemons"   # vtysh -d bgpd when it can't reach bgpd (FRR 10.4.1, live)
+BGPD_DOWN = "bgpd is not running (vtysh can't reach it, /etc/frr/daemons says bgpd=no, no bgpd process)"
 BUDGET = 120.0       # seconds to wait for a complete, stable read (at boot, and again after a remedy)
 SAMPLE_GAP = 2.0     # seconds between the two samples that must agree
 RETRY_GAP = 2.0      # seconds before reading again after an unreadable sample, or two that disagreed
@@ -65,6 +78,8 @@ _NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")   # a VRF name or ASN that may re
 _ROUTER = re.compile(r"^router bgp (\S+)(?: (vrf|view) (\S+))?(?: as-notation (?:dot|plain|asplain))?$")
 _FAMILY = re.compile(r"^ address-family (\S+)(?: (\S+))?$")
 _NETWORK = re.compile(r"^ +network (\S+)(?: .*)?$")
+_RMAP_DELAY = re.compile(r"^bgp route-map delay-timer (\d+)$", re.M)
+RMAP_DELAY_DEFAULT = 5   # bgpd's route-map update delay when the config sets none (bgpd.h: RMAP_DEFAULT_UPDATE_TIMER)
 _BGPD_LOADING = re.compile(r"^\[(\d+)\|bgpd\] sending configuration$", re.M)
 _TEXT_HEADER = "Current BGP import check cache:"
 _TEXT_ENTRY = re.compile(r"^ (?:SR-TE color \d+ - )?(\S+) (valid \[IGP metric \d+\]|invalid), #paths (\d+)"
@@ -89,6 +104,8 @@ class Unknown(DriverError):
 class Network:
     prefix: str          # canonical, e.g. 192.0.2.0/24
     family: tuple        # ("ipv4", "unicast")
+    route_map: bool = field(default=False, compare=False)   # `route-map NAME`: a deny leaves no path, no entry
+    backdoor: bool = field(default=False, compare=False)    # `backdoor`: never announced, no path, no entry
 
 
 @dataclass
@@ -104,7 +121,9 @@ class Instance:
         """The networks whose import-check entry must exist and be registered."""
         if self.kind == "view" or not self.import_check:
             return []
-        return [n for n in self.networks if n.family in CHECKED_FAMILIES and n.prefix not in NEVER_REGISTERED]
+        # bgp_static_set(): a backdoor network never reaches bgp_static_update(), so it has neither path nor entry
+        return [n for n in self.networks
+                if n.family in CHECKED_FAMILIES and n.prefix not in NEVER_REGISTERED and not n.backdoor]
 
 
 @dataclass(frozen=True)
@@ -131,9 +150,11 @@ class NodeRead:
     config: str = ""                                 # bgpd's running config, as read
     stuck: list = field(default_factory=list)        # [(Instance, prefix, why)]
     entries: dict = field(default_factory=dict)      # vrf -> sorted entries (the sample's signature)
+    exempt: list = field(default_factory=list)       # [(vrf, prefix, why)]: needs no entry, on positive evidence
+    hold: float = 0.0                                # seconds the sample must stay the same before it counts
 
     def signature(self) -> tuple:
-        return (self.skipped, self.config, tuple(sorted(self.entries.items())))
+        return (self.skipped, self.config, tuple(sorted(self.entries.items())), tuple(sorted(self.exempt)))
 
 
 # ------------------------------------------------------------------------------------------------- parsers
@@ -198,7 +219,8 @@ def parse_bgpd_config(text: str) -> list[Instance]:
                 raise Unknown(f"bgpd's running config has a network this check can't read: {ln.strip()!r}") from None
             if where in CHECKED_FAMILIES and f"ipv{net.version}" != where[0]:
                 raise Unknown(f"bgpd's running config has {ln.strip()!r} in address family {' '.join(where)}")
-            cur.networks.append(Network(str(net), where))
+            words = ln.split()[2:]
+            cur.networks.append(Network(str(net), where, route_map="route-map" in words, backdoor="backdoor" in words))
     if cur is not None:
         raise Unknown(f"bgpd's running config ends inside {cur.header!r} (no `exit`)")
     return out
@@ -335,6 +357,32 @@ def parse_table_text(text: str, where: str) -> list[Entry]:
     return out
 
 
+def parse_bgp_vrfs(text: str) -> dict[str, int]:
+    """`show bgp vrfs json` -> VRF name -> bgpd's VRF id (-1: a VRF zebra doesn't know, no device). Every VRF bgpd
+    has an instance for, as many as it counts; anything else is Unknown."""
+    try:
+        top = json.loads(text, object_pairs_hook=_pairs)
+    except (json.JSONDecodeError, RecursionError, TypeError):
+        raise Unknown(f"`{VRFS[-1]}`: not JSON ({_cut(text)})") from None
+    if not isinstance(top, _Obj):
+        raise Unknown(f"`{VRFS[-1]}`: not a JSON object ({_cut(text)})")
+    top = top.single(VRFS[-1])
+    vrfs, total = top.get("vrfs"), top.get("totalVrfs")
+    if set(top) != {"vrfs", "totalVrfs"} or not isinstance(vrfs, _Obj) or not isinstance(total, int) \
+            or isinstance(total, bool):
+        raise Unknown(f"`{VRFS[-1]}`: not the VRF list this check knows ({_cut(text)})")
+    vrfs = vrfs.single(VRFS[-1])
+    if len(vrfs) != total:
+        raise Unknown(f"`{VRFS[-1]}` counts {total} VRF(s) and lists {len(vrfs)}")
+    out = {}
+    for name, v in vrfs.items():
+        vid = v.single(f"{VRFS[-1]} {name}").get("vrfId") if isinstance(v, _Obj) else None
+        if not isinstance(vid, int) or isinstance(vid, bool) or vid < -1:
+            raise Unknown(f"`{VRFS[-1]}`: VRF {name!r} has no readable vrfId")
+        out[name] = vid
+    return out
+
+
 def _cut(text: str, n: int = 160) -> str:
     t = " ".join(str(text).split())
     return (t[:n] + "...") if len(t) > n else (t or "no output")
@@ -363,12 +411,71 @@ def _startup_has_bgp(lab, node: str) -> bool | None:
     return False if seen else None
 
 
+def _bgpd_down(lab, node: str, r) -> bool:
+    """Positive evidence that bgpd isn't running and won't be started (FRR with `bgpd=no`, agent eval T10): vtysh
+    says it can't reach bgpd, FRR's daemons file turns bgpd off (watchfrr starts only the daemons it names), and no
+    bgpd process runs in the container. A bgpd that is starting or died (watchfrr restarts it), a daemons file that
+    can't be read or says anything else, a process list that can't be read: not evidence, so the read is retried,
+    then an error. (`pgrep -x bgpd` answered rc 1 with bgpd running on FRR 10.4.1: not used.)"""
+    if NO_DAEMON not in f"{r.stdout}\n{r.stderr}":
+        return False
+    d = lab.exec(node, DAEMONS)
+    if d.rc != 0 or re.findall(r"(?m)^[ \t]*bgpd[ \t]*=(.*)$", d.stdout) != ["no"]:
+        return False
+    p = lab.exec(node, PROCESSES)
+    names = [ln.strip() for ln in p.stdout.split("\n") if ln.strip()]
+    return p.rc == 0 and not p.stderr.strip() and bool(names) and "bgpd" not in names
+
+
+def route_map_delay(config: str) -> int:
+    """bgpd's route-map update delay (`bgp route-map delay-timer N`, printed only when not the default): a route-map
+    defined or changed during the config load is re-applied to `network` statements that many seconds later."""
+    found = _RMAP_DELAY.findall(config)
+    if len(found) > 1:
+        raise Unknown("bgpd's running config sets the route-map delay timer more than once")
+    return int(found[0]) if found else RMAP_DELAY_DEFAULT
+
+
+def _denied(lab, node: str, driver: str, inst: Instance, net: Network, loaded: bool) -> str:
+    """Why a `network` with a route-map and no import-check entry needs none, on positive evidence only, or Unknown.
+    bgp_static_update() applies the route-map first: on a deny it withdraws the prefix and registers nothing, so
+    bgpd holds no path of its own and no entry. Absence alone is never the evidence: a network bgpd hasn't applied
+    yet looks the same, so bgpd must have finished loading its config (its boot log says so), and its BGP table must
+    answer, for exactly this prefix, that it holds no path of its own; the samples must then stay the same past the
+    route-map delay (NodeRead.hold, _settled)."""
+    what = f"{net.prefix} in {inst.header!r} has a route-map and no import-check entry"
+    if driver != "frr":
+        raise Unknown(f"{what}: on a {driver} router a route-map deny can't be told from a network bgpd hasn't "
+                      "applied yet (its log doesn't show when bgpd finished loading its config)")
+    if not loaded:
+        raise Unknown(f"{what}, and its boot log doesn't show bgpd finished loading its config")
+    if net.family[1] != "unicast":
+        raise Unknown(f"{what} in address family {' '.join(net.family)}, whose BGP table this check doesn't read")
+    from . import frr
+    sel = "" if inst.vrf == "default" else f" vrf {inst.vrf}"
+    cmd = f"show bgp{sel} {net.family[0]} unicast {net.prefix} json"
+    x = lab.exec(node, ["vtysh", "-c", cmd])
+    if x.rc != 0:
+        raise Unknown(f"{what}, and `{cmd}` failed ({_cut(x.stderr or x.stdout)})")
+    try:
+        own = [p for p in frr._bgp_paths_raw(frr.BGP_PATHS_CMD, x.stdout, net.prefix) if not frr._learned(p)]
+    except DriverError as e:
+        raise Unknown(f"{what}, and `{cmd}` gave no answer this check can use ({e})") from None
+    if own:
+        raise Unknown(f"{what} but a path of its own in the BGP table")
+    return "denied by its route-map: no path of its own, no entry"
+
+
 def read_node(lab, node: str, driver: str) -> NodeRead:
     """One sample of one router. Raises Unknown for anything that isn't a complete, understood answer."""
     r = lab.exec(node, BGPD_CONFIG)
     if r.rc != 0:
         if _startup_has_bgp(lab, node) is False:
             return NodeRead(node, skipped="bgpd doesn't answer and its startup config has no `router bgp`")
+        if _bgpd_down(lab, node, r):
+            # nothing announces, so nothing is stuck now; a bgpd that starts later is read by the recheck before the
+            # verdict (runner) or after the snapshot (verify)
+            return NodeRead(node, skipped=BGPD_DOWN)
         raise Unknown(f"bgpd's running config could not be read ({_cut(r.stderr or r.stdout)})")
     instances = parse_bgpd_config(r.stdout)
     if not instances:
@@ -376,21 +483,38 @@ def read_node(lab, node: str, driver: str) -> NodeRead:
             raise Unknown("bgpd's running config has no `router bgp` yet (its startup config has one, or can't be "
                           "read): bgpd hasn't loaded its config")
         return NodeRead(node, skipped="no `router bgp` in bgpd's running config", config=r.stdout)
+    loaded = False   # the boot log shows bgpd's config load ended
     if driver == "frr":
         log = lab.boot_log(node)
-        if log.rc == 0:
-            for m in _BGPD_LOADING.finditer(log.stdout):
-                # vtysh -b ends bgpd's part with "done", or, when bgpd rejected a line, with "Configuration
-                # file[...] processing failure: N" (tests/fixtures/frr_boot_log_rejected.txt): the config load check
-                # reports that one
-                if not re.search(rf"(?m)^\[{m.group(1)}\|bgpd\] (?:done|Configuration file\[.*\] processing "
-                                 rf"failure: \d+)$", log.stdout):
-                    raise Unknown("its boot log shows bgpd still applying its config")
+        if log.rc != 0:
+            raise Unknown(f"its boot log could not be read ({_cut(log.stderr or log.stdout)}), so whether bgpd is "
+                          "still applying its config is unknown")
+        starts = list(_BGPD_LOADING.finditer(log.stdout))
+        for m in starts:
+            # vtysh -b ends bgpd's part with "done", or, when bgpd rejected a line, with "Configuration
+            # file[...] processing failure: N" (tests/fixtures/frr_boot_log_rejected.txt): the config load check
+            # reports that one
+            if not re.search(rf"(?m)^\[{m.group(1)}\|bgpd\] (?:done|Configuration file\[.*\] processing "
+                             rf"failure: \d+)$", log.stdout):
+                raise Unknown("its boot log shows bgpd still applying its config")
+        loaded = bool(starts)
     read = NodeRead(node, config=r.stdout)
+    vrf_ids = None   # bgpd's VRF ids, read once per sample when a VRF instance has networks to check
+    denied = False
     for inst in instances:
         nets = inst.checked
         if not nets:
             continue
+        inactive = False
+        if inst.vrf != "default":
+            if vrf_ids is None:
+                v = lab.exec(node, VRFS)
+                if v.rc != 0:
+                    raise Unknown(f"`{VRFS[-1]}` failed ({_cut(v.stderr or v.stdout)})")
+                vrf_ids = parse_bgp_vrfs(v.stdout)
+            if inst.vrf not in vrf_ids:
+                raise Unknown(f"`{VRFS[-1]}` doesn't list the instance {inst.header!r}")
+            inactive = vrf_ids[inst.vrf] == VRF_UNKNOWN
         text_cmd, json_cmd = table_commands(inst.vrf)
         where = f"`{' '.join(json_cmd[2:])}`"
         rj = lab.exec(node, json_cmd)
@@ -399,27 +523,51 @@ def read_node(lab, node: str, driver: str) -> NodeRead:
             bad = rj if rj.rc != 0 else rt
             raise Unknown(f"`{bad.cmd[-1] if bad.cmd else ''}` failed ({_cut(bad.stderr or bad.stdout)})")
         from_json = parse_table_json(rj.stdout, where)
+        if inactive:
+            # bgpd names the VRF of a path in an instance zebra doesn't know "Unknown" in JSON, by name in text
+            # (live: tests/fixtures/frr_fp043ic_followup)
+            from_json = [Entry(e.address, e.valid, e.registered,
+                               tuple(sorted((p[0], inst.vrf if p[1] == "Unknown" else p[1], p[2], p[3])
+                                            for p in e.paths)))
+                         for e in from_json]
         from_text = parse_table_text(rt.stdout, f"`{text_cmd[2]}`")
         if sorted(from_json, key=repr) != sorted(from_text, key=repr):
             raise Unknown(f"the import-check table's text and JSON answers disagree in {inst.header!r}")
         missing = [n for n in nets if not any(p[0] == n.prefix and p[1] == inst.vrf and p[2] == n.family
                                               for e in from_json for p in e.paths)]
-        if missing:
+        plain = [n for n in missing if not n.route_map]
+        if plain:
             raise Unknown(f"{inst.header!r} has no import-check entry for network(s) "
-                          f"{', '.join(n.prefix for n in missing)} (bgpd hasn't applied them yet, or the table is "
+                          f"{', '.join(n.prefix for n in plain)} (bgpd hasn't applied them yet, or the table is "
                           "not what it holds)")
+        for n in missing:
+            read.exempt.append((inst.vrf, n.prefix, _denied(lab, node, driver, inst, n, loaded)))
+            denied = True
         read.entries[inst.vrf] = tuple(sorted(from_json, key=repr))
         for e in from_json:
             why = e.stuck()
+            if why and inactive and not e.valid and e.paths and not any(p[3] for p in e.paths):
+                # the VRF has no device in zebra (bgpd: vrfId -1): the entry can't register, and bgpd announces
+                # nothing from the instance (every path that depends on it invalid), as production without the
+                # VRF. A VRF created later is read by the recheck before the verdict
+                read.exempt.append((inst.vrf, e.address, "its VRF is not active in zebra (bgpd vrfId -1): the entry "
+                                    "can't register, and every path that depends on it is invalid"))
+                continue
             if why:
                 read.stuck.append((inst, ", ".join(p[0] for p in e.paths) or e.address, why))
+    if denied:
+        # a route-map defined or changed while bgpd loaded its config is re-applied to the networks this many seconds
+        # later: a deny read before then could still turn into a path (and an entry, stuck or not)
+        read.hold = route_map_delay(r.stdout) + SAMPLE_GAP + 1.0
     return read
 
 
 def _settled(lab, nodes: dict[str, str], *, clock, sleep, budget: float, log, label: str) -> dict[str, NodeRead]:
-    """Every router read completely, on two consecutive samples that agree, within the budget; else an error."""
+    """Every router read completely, on two consecutive samples that agree, within the budget; else an error. A
+    sample that holds an exemption (NodeRead.hold) counts only once the same answer has held that long."""
     deadline = clock() + budget
     last: dict[str, tuple] | None = None
+    since = 0.0   # when `last` was first seen
     while True:
         reads: dict[str, NodeRead] = {}
         problems: dict[str, str] = {}
@@ -429,16 +577,27 @@ def _settled(lab, nodes: dict[str, str], *, clock, sleep, budget: float, log, la
             except Unknown as e:
                 problems[node] = str(e)
         now = {n: r.signature() for n, r in reads.items()}
+        t = clock()
         if not problems and last == now:
-            return reads
-        if clock() >= deadline:
+            hold = max((r.hold for r in reads.values()), default=0.0)
+            left = hold - (t - since)
+            if left <= 0:
+                return reads
+            if t >= deadline:
+                raise ImportCheckError(f"{label}could not hold every FRR router's BGP import check for {hold:g}s "
+                                       f"within {budget:g}s (a route-map deny counts only past bgpd's route-map "
+                                       "delay), so whether the lab announces only what its routes back is unknown. "
+                                       "No verdict.")
+            sleep(min(left, SAMPLE_GAP) if SAMPLE_GAP > 0 else left)
+            continue
+        if t >= deadline:
             why = "; ".join(f"{n}: {p}" for n, p in sorted(problems.items())) or (
                 "the import-check tables kept changing between samples")
             raise ImportCheckError(f"{label}could not read every FRR router's BGP import check within {budget:g}s, "
                                    f"so whether the lab announces only what its routes back is unknown: {why}. "
                                    "No verdict.")
         retry = bool(problems) or last is not None   # unreadable, or two samples that disagree
-        last = None if problems else now
+        last, since = (None, t) if problems else (now, t)
         sleep(RETRY_GAP if retry else SAMPLE_GAP)
 
 
@@ -490,7 +649,9 @@ def guard(lab, nodes: dict[str, str], *, remedy: bool, clock: Callable[[], float
     label = f"[{label}] " if label else ""
     reads = _settled(lab, nodes, clock=clock, sleep=sleep, budget=budget, log=log, label=label)
     stuck = {n: r for n, r in reads.items() if r.stuck}
-    found = {n: (r.skipped or "registered") for n, r in reads.items()}
+    found = {n: (r.skipped or "registered" + "".join(f"; {p} (vrf {v}) needs no entry: {why}"
+                                                     for v, p, why in sorted(r.exempt)))
+             for n, r in reads.items()}
     if not stuck:
         return found
     listing = " | ".join(f"{n}: {_describe(r.stuck)}" for n, r in sorted(stuck.items()))

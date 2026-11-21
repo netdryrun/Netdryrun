@@ -332,9 +332,15 @@ def check_topology(config: Config) -> Lab:
 
 def _driver_of(config: Config):
     """The driver a node runs as: the config's override, else detected from its kind and image; None: unknown."""
+    return driver_resolver(config.drivers)
+
+
+def driver_resolver(overrides: dict[str, str]):
+    """(name, node) -> the driver it runs as: `nodes.<node>.driver` from the file, else detected; None: unknown. One
+    reader for run, check and verify (FX-0.4.0-verify-config-load)."""
     def driver_of(name: str, node) -> str | None:
         try:
-            return resolve(node, config.drivers.get(name))
+            return resolve(node, overrides.get(name))
         except DriverError:
             return None   # FRR in an image not named for it is still FRR: its rejected lines still count
     return driver_of

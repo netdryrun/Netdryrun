@@ -44,7 +44,17 @@
   - `check` (a lab it didn't deploy) only detects: a stuck router is an error naming it and the command to run.
   - The table is read again before the verdict (`run`, `check`) and after each snapshot (`verify`): stuck then is an
     error. So is a table or config Netdryrun can't read within 120 s.
-  - SONiC runs FRR's bgpd and gets the same check, but it hasn't been run against a live SONiC lab yet.
+  - Healthy configs with no usable entry still judge normally. A `backdoor` network is left out. A network its
+    route-map denies is accepted after bgpd's boot log shows the config loaded, when bgpd's BGP table answers that
+    it holds no path of its own for it, and when that stays true past the route-map delay. An instance whose VRF
+    has no device is accepted when nothing in it is valid. A router with `bgpd=no` is skipped when vtysh, the
+    daemons file and the process list all say bgpd isn't running, so such a lab stays inconclusive (exit `3`).
+  - `verify` reads `nodes.<node>.driver` from the guards file for this check, as `run` does. `record --deploy`
+    remedies before recording and checks again after; a stuck router then writes no file.
+  - The toggle can briefly announce an unbacked prefix to a peer. It wasn't seen in 3 live tries, but the timing
+    isn't guaranteed. A peer with route-flap dampening may count it as a flap (see the config reference).
+  - SONiC runs FRR's bgpd and gets the same check, but it hasn't been run against a live SONiC lab yet. A SONiC
+    network with a route-map and no entry is an error, because SONiC logs no end of the config load.
 - **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
   overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get
   the template's value instead of its own override, and the order of a merge list is reversed for longer keys (PyYAML

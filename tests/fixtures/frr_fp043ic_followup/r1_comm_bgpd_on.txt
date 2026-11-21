@@ -1,0 +1,8 @@
+tini
+watchfrr
+zebra
+mgmtd
+bgpd
+staticd
+docker-start
+cat

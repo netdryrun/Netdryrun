@@ -1,0 +1,3 @@
+{
+"ipv4":{"203.0.113.0":{"valid":true,"complete":true,"igpMetric":0,"pathCount":1,"resolvedPrefix":"203.0.113.0/24","nexthops":[{"unreachable":true,"blackhole":true}],"lastUpdate":{"epoch":1795274053,"string":"Sat Nov 21 15:14:13 2026"},"paths":[{"afi":"IPv4","safi":"unicast","prefix":"203.0.113.0/24","vrf":"default","flags":{"igpChanged":false,"damped":false,"history":false,"bestpath":true,"valid":true,"attrChanged":false,"deterministicMedCheck":false,"deterministicMedSelected":false,"stale":false,"removed":false,"counted":false,"multipath":false,"multipathChanged":false,"ribAttributeChanged":false,"nexthopSelf":false,"linkBandwidthChanged":false,"acceptOwn":false}}]}
+},"ipv6":{}}
