@@ -112,7 +112,7 @@ def test_route_protocol_message_lists_every_known_name(tmp_path):
     with pytest.raises(DriverError) as e:
         check_supported(_lab(tmp_path), c)
     assert str(e.value) == ("c1: protocol rip is never reported by eos, so the check could never match a route; use one "
-                            "of aggregate, bgp, connected, isis, ospf, ospf6, static")
+                            "of bgp, connected, isis, ospf, ospf6, static")
 
 
 def test_route_protocol_on_a_driver_with_no_list_is_refused_with_none(tmp_path):

@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from netdryrun.checks import run_check
 from netdryrun.config import _validate_check
+from netdryrun.drivers import check_supported
 from netdryrun.drivers.base import DriverError
 from netdryrun.drivers.eos import EosDriver, parse_rib_candidates, parse_routes
 
@@ -290,47 +292,59 @@ def _agg_check(phase, **attrs):
                      sleep=lambda s: t.__setitem__(0, t[0] + max(s, .5)))
 
 
+def _refused(**attrs) -> bool:
+    """Whether the check is refused before the run on an EOS node (check_supported, exit 2)."""
+    check = _validate_check(0, {"type": "route", "node": "e1", "prefix": "10.66.0.0/16", **attrs}, 20)
+    try:
+        check_supported(SimpleNamespace(nodes={"e1": None}), check, "eos")
+    except DriverError as e:
+        return "never reported by eos" in str(e)
+    return False
+
+
 def test_a_bgp_aggregate_is_the_aggregate_not_a_second_bgp_candidate():
     """Live: the routing table lists the aggregate as `bgpAggregate` and the RIB lists the same route under `bgp`,
-    best. Read as a bgp candidate (bf3d4cd), it failed `protocol: bgp present: false` and passed `protocol: bgp
-    active: false` with no BGP-learned route at all (adversary review of FP-043-EOSNONBGP, MAJOR 1).
+    best. It is one route: read as a second, not-selected bgp candidate (bf3d4cd), it passed `protocol: bgp active:
+    false` as a candidate that isn't there (adversary review of FP-043-EOSNONBGP, MAJOR 1).
 
-    KNOWN FALSE PASS PINNED, NOT ENDORSED: `protocol: bgp present: false` passing here is RT-0085
-    (tests/known_false_passes.yml rt-0085-eos-own-aggregate-not-read-as-bgp): FRR and NX-OS read the own aggregate as
-    bgp and fail it. This test holds today's reading so it can't change unnoticed; the fix planned for 0.4.3 flips
-    that assert (and the aggregate-only reading) on purpose. The workaround, bgp_route present: false, is pinned
-    below."""
+    0.4.3 (FP-043-EOSAGG, RT-0085 fixed): that one route is `bgp`, the selected one, as FRR and NX-OS name the node's
+    own aggregate. 0.4.2 and the first fix named it `aggregate`, so `protocol: bgp present: false` passed on it
+    (RT-0085). Still one route, never a second bgp candidate; `protocol: aggregate` is refused on EOS before the run,
+    as on FRR, never read as absent."""
     assert parse_rib_candidates(fx("ceos4363m_fix043b_agg_rib_route.json"), "10.66.0.0/16") == [("bgp", True, "bgp")]
     routes = EosDriver(_agg_lab("agg"), "e1").routes("10.66.0.0/16").value
-    assert [(r.protocol, r.active) for r in routes] == [("aggregate", True)]
-    assert _agg_check("agg", protocol="bgp", present=False).passed
-    assert not _agg_check("agg", protocol="bgp", active=False).passed
-    assert not _agg_check("agg", protocol="bgp").passed
-    assert _agg_check("agg", protocol="aggregate").passed
-    assert not _agg_check("agg", protocol="aggregate", present=False).passed
+    assert [(r.protocol, r.active, r.raw_protocol) for r in routes] == [("bgp", True, "bgpAggregate")]
+    assert not _agg_check("agg", protocol="bgp", present=False).passed
+    assert _agg_check("agg", protocol="bgp").passed
+    assert _agg_check("agg", protocol="bgp", active=False).passed   # the selected route, as on FRR
+    assert _refused(protocol="aggregate") and _refused(protocol="aggregate", present=False)
     assert not _agg_check("agg", present=False).passed
 
 
 def test_a_learned_bgp_path_behind_the_aggregate_is_still_a_bgp_candidate():
     """Live: with frr1's eBGP 10.66.0.0/16 the RIB still lists one `bgp` entry (the aggregate, best); the learned
-    path is in the BGP table only, not selected. It must still fail `protocol: bgp present: false`."""
+    path is in the BGP table only, not selected. It is still a bgp route of its own, not selected, beside the
+    selected aggregate: naming the aggregate `bgp` doesn't hide it or make it active."""
     assert parse_rib_candidates(fx("ceos4363m_fix043b_aggleak_rib_route.json"), "10.66.0.0/16") == [
         ("bgp", True, "bgp")]
     routes = EosDriver(_agg_lab("aggleak"), "e1").routes("10.66.0.0/16").value
-    assert sorted((r.protocol, r.active) for r in routes) == [("aggregate", True), ("bgp", False)]
+    assert sorted((r.protocol, r.active) for r in routes) == [("bgp", False), ("bgp", True)]
+    assert [r.raw_protocol for r in routes if r.active] == ["bgpAggregate"]
     assert not _agg_check("aggleak", protocol="bgp", present=False).passed
     assert _agg_check("aggleak", protocol="bgp", active=False).passed
-    assert not _agg_check("aggleak", protocol="bgp").passed
+    assert _agg_check("aggleak", protocol="bgp").passed   # the aggregate is the selected bgp route
 
 
 def test_only_the_rib_best_bgp_entry_is_the_aggregate():
-    """DERIVED: the agg RIB with its bgp entry not best. Then it isn't the selected aggregate: a bgp candidate."""
+    """DERIVED: the agg RIB with its bgp entry not best while the routing table selects the aggregate. The RIB keys
+    one entry per protocol, so its bgp entry is the routing table's bgp route whatever bestRoute says: one bgp route,
+    the selected one (0.4.2 and the first fix read it as a second candidate beside an `aggregate`)."""
     rib = _derived(fx("ceos4363m_fix043b_agg_rib_route.json"),
                    lambda d: _rib(d)["bgp"]["ribRoutes"]["10.66.0.0/16"].update(bestRoute=False))
     lab = Lab([("show ip route", fx("ceos4363m_fix043b_agg_ip_route.json")), ("show rib route", rib),
                ("show ip bgp", fx("ceos4363m_fix043b_agg_ip_bgp.json"))])
     routes = EosDriver(lab, "e1").routes("10.66.0.0/16").value
-    assert sorted((r.protocol, r.active) for r in routes) == [("aggregate", True), ("bgp", False)]
+    assert [(r.protocol, r.active) for r in routes] == [("bgp", True)]
 
 
 def test_another_protocol_best_in_the_rib_is_not_hidden_by_the_aggregate():
@@ -340,7 +354,7 @@ def test_another_protocol_best_in_the_rib_is_not_hidden_by_the_aggregate():
     lab = Lab([("show ip route", fx("ceos4363m_fix043b_agg_ip_route.json")), ("show rib route", rib),
                ("show ip bgp", fx("ceos4363m_fix043b_agg_ip_bgp.json"))])
     routes = EosDriver(lab, "e1").routes("10.66.0.0/16").value
-    assert sorted((r.protocol, r.active) for r in routes) == [("aggregate", True), ("static", False)]
+    assert sorted((r.protocol, r.active) for r in routes) == [("bgp", True), ("static", False)]
 
 
 @pytest.mark.parametrize("prefix,name", [("0.0.0.0/8", "martian0"), ("127.0.0.0/8", "martian127")])
@@ -368,13 +382,14 @@ def test_unresolved_static_and_ospf_area_range_are_in_no_read():
 def test_a_non_programmed_aggregate_is_still_the_rib_best_bgp_entry():
     """DERIVED: the agg routing table with the aggregate not programmed (hardwareProgrammed false), the live RIB's best
     bgp entry. The routing table lists only the selected route, programmed or not, so the RIB's best bgp entry is still
-    that aggregate: no phantom bgp candidate (adversary re-check, mutant M21: the rule kept to programmed routes)."""
+    that aggregate: no phantom bgp candidate (adversary re-check, mutant M21: the rule kept to programmed routes). The
+    aggregate is bgp, not active (not programmed), and present (FP-043-EOSAGG)."""
     route = _derived(fx("ceos4363m_fix043b_agg_ip_route.json"),
                      lambda d: d["vrfs"]["default"]["routes"]["10.66.0.0/16"].update(hardwareProgrammed=False))
     lab = Lab([("show ip route", route), ("show rib route", fx("ceos4363m_fix043b_agg_rib_route.json")),
                ("show ip bgp", fx("ceos4363m_fix043b_agg_ip_bgp.json"))])
     routes = EosDriver(lab, "e1").routes("10.66.0.0/16").value
-    assert [(r.protocol, r.active) for r in routes] == [("aggregate", False)]
+    assert [(r.protocol, r.active) for r in routes] == [("bgp", False)]
 
 
 def _aggstatic_lab():
@@ -384,22 +399,70 @@ def _aggstatic_lab():
 
 
 def test_an_aggregate_behind_a_static_reads_as_bgp_not_aggregate():
-    """KNOWN FALSE PASS PINNED, NOT ENDORSED: RT-0086 (tests/known_false_passes.yml
-    rt-0086-eos-aggregate-behind-static-read-as-bgp). Live (lab ndr-rcheos, adversary re-check of 49dc098): with
+    """RT-0086, fixed in 0.4.3 (FP-043-EOSAGG). Live (lab ndr-rcheos, adversary re-check of 49dc098): with
     `aggregate-address 10.66.0.0/16` and `ip route 10.66.0.0/16 Null0` and nothing learned, the routing table lists the
-    static, the RIB `>S` and ` B` (the aggregate), and the BGP table only the own aggregate (localAgg). The aggregate
-    reads as a bgp route that isn't selected, so `protocol: aggregate present: false` passes. The fix planned for 0.4.3
-    flips these asserts on purpose."""
+    static, the RIB `>S` and ` B` (the aggregate), and the BGP table only the own aggregate (localAgg). The aggregate is
+    a bgp route that isn't selected, the same name it has while selected, so `protocol: bgp present: false` fails, as
+    on FRR. The first fix (49dc098) read it so too, and `protocol: aggregate present: false` passed (RT-0086): that
+    check is refused on EOS now, before the run, never read as absent."""
     assert sorted(parse_rib_candidates(fx("ceos4363m_rcheos_aggstatic_rib_route.json"), "10.66.0.0/16")) == [
         ("bgp", False, "bgp"), ("static", True, "staticConfig")]
     routes = EosDriver(_aggstatic_lab(), "e1").routes("10.66.0.0/16").value
     assert sorted((r.protocol, r.active) for r in routes) == [("bgp", False), ("static", True)]
-    lab = _aggstatic_lab()
-    check = _validate_check(0, {"type": "route", "node": "e1", "prefix": "10.66.0.0/16", "protocol": "aggregate",
-                                "present": False}, 20)
     t = [0.0]
-    r = run_check(check, EosDriver(lab, "e1"), clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + max(s, .5)))
-    assert r.passed   # the known false pass
+
+    def judge(**attrs):
+        check = _validate_check(0, {"type": "route", "node": "e1", "prefix": "10.66.0.0/16", **attrs}, 20)
+        return run_check(check, EosDriver(_aggstatic_lab(), "e1"), clock=lambda: t[0],
+                         sleep=lambda s: t.__setitem__(0, t[0] + max(s, .5)))
+    assert not judge(protocol="bgp", present=False).passed
+    assert judge(protocol="bgp", active=False).passed and not judge(protocol="bgp").passed
+    assert _refused(protocol="aggregate", present=False)
+
+
+def test_a_rib_bgp_entry_the_bgp_table_does_not_explain_is_an_error():
+    """DERIVED (FP-043-EOSAGG): the aggstatic RIB's bgp entry with a BGP table that has no path for the prefix, or no
+    BGP on the node. Nothing says whether it is the node's own aggregate or a learned path: an error, never a bare
+    candidate and never dropped."""
+    empty = _derived(fx("ceos4363m_rcheos_aggstatic_ip_bgp.json"),
+                     lambda d: d["vrfs"]["default"].update(bgpRouteEntries={}))
+    with pytest.raises(DriverError, match="doesn't list as the node's own aggregate"):
+        parse_routes(fx("ceos4363m_rcheos_aggstatic_ip_route.json"), empty, "10.66.0.0/16", "default",
+                     fx("ceos4363m_rcheos_aggstatic_rib_route.json"))
+    with pytest.raises(DriverError, match="runs no BGP"):
+        parse_routes(fx("ceos4363m_rcheos_aggstatic_ip_route.json"), None, "10.66.0.0/16", "default",
+                     fx("ceos4363m_rcheos_aggstatic_rib_route.json"))
+
+
+@pytest.mark.parametrize("flag", ["yes", None, 1])
+def test_a_local_aggregate_flag_that_is_not_a_boolean_is_an_error(flag):
+    """DERIVED: routeType.localAgg is printed true on the own aggregate's path only; anything but a boolean is output
+    this driver doesn't know, never "not the aggregate"."""
+    bgp = _derived(fx("ceos4363m_rcheos_aggstatic_ip_bgp.json"), lambda d: d["vrfs"]["default"]["bgpRouteEntries"][
+        "10.66.0.0/16"]["bgpRoutePaths"][0]["routeType"].update(localAgg=flag))
+    with pytest.raises(DriverError, match="localAgg"):
+        parse_routes(fx("ceos4363m_rcheos_aggstatic_ip_route.json"), bgp, "10.66.0.0/16", "default",
+                     fx("ceos4363m_rcheos_aggstatic_rib_route.json"))
+
+
+def test_a_path_from_a_neighbor_marked_local_aggregate_is_an_error():
+    """DERIVED: localAgg on a path with a peer address contradicts itself: unexpected output, never either reading."""
+    def edit(d):
+        p = d["vrfs"]["default"]["bgpRouteEntries"]["10.66.0.0/16"]["bgpRoutePaths"][0]
+        p["peerEntry"]["peerAddr"] = "10.0.200.2"
+    bgp = _derived(fx("ceos4363m_rcheos_aggstatic_ip_bgp.json"), edit)
+    with pytest.raises(DriverError, match="marked localAgg"):
+        parse_routes(fx("ceos4363m_rcheos_aggstatic_ip_route.json"), bgp, "10.66.0.0/16", "default",
+                     fx("ceos4363m_rcheos_aggstatic_rib_route.json"))
+
+
+def test_the_own_aggregate_in_the_bgp_table_alone_is_still_a_bgp_route():
+    """DERIVED: the aggstatic answers with the RIB's bgp entry gone (a change between the reads). The BGP table still
+    lists the node's own aggregate, which it sends to its peers: a bgp route, not selected, never absent."""
+    rib = _derived(fx("ceos4363m_rcheos_aggstatic_rib_route.json"), lambda d: _rib(d).pop("bgp"))
+    out = parse_routes(fx("ceos4363m_rcheos_aggstatic_ip_route.json"), fx("ceos4363m_rcheos_aggstatic_ip_bgp.json"),
+                       "10.66.0.0/16", "default", rib)
+    assert sorted((r.protocol, r.active) for r in out) == [("bgp", False), ("static", True)]
 
 
 @pytest.mark.parametrize("phase", ["agg", "aggstatic"])

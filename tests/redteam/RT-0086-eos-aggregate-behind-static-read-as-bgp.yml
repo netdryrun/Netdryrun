@@ -9,20 +9,11 @@ title: >-
 found: >-
   2026-11-21, adversary re-check of ndr/fix-eos-nonbgp 49dc098 (MAJOR-A), live on cEOS 4.36.3M (lab ndr-rcheos), the
   same in IPv6 and in a VRF
-fixed_in: null
-accepted_limit:
-  decided: >-
-    coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish it as a known false pass, confirmed live;
-    a separate oracle session and fix session fix it with RT-0085
-  mitigation: 'use bgp_route on the prefix with present: false, which reads the BGP table and sees the own aggregate'
-  fix_in: '0.4.3 (planned): one reading of an EOS BGP aggregate across drivers'
-  detail: absent
-  published:
-    website/docs/trust.md:
-    - (RT-0086
-    - 'doesn''t hold there'
-    CHANGELOG.md:
-    - '**Arista EOS: the node''s own BGP aggregate** (RT-0085, RT-0086;'
+fixed_in: 0.4.3
+# 0.4.3 (oracle FP-043-EOSAGG, RT-0087): the node's own BGP aggregate is bgp in every read, and EOS refuses
+# `protocol: aggregate` before the run (exit 2), as FRR does, so this check is never read as absent;
+# `protocol: bgp, present: false` fails on the same capture. Workaround for 0.4.2 and earlier, kept in the
+# CHANGELOG and on the trust page: bgp_route with present: false on the prefix fails in both shapes.
 kind: driver
 driver: eos
 check:

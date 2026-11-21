@@ -545,26 +545,27 @@
     - tests/test_redteam.py
 - id: rt-0085-eos-own-aggregate-not-read-as-bgp
   what: >-
-    On Arista EOS, `route ... protocol: bgp present: false` passes on the node's own selected BGP aggregate, which the
-    routing table lists as bgpAggregate and the driver reads as protocol aggregate (FRR and NX-OS read it as bgp and
-    fail the check; 0.4.2 known limit, confirmed live on cEOS 4.36.3M on 2026-11-21)
-  status: accepted-documented-limit
-  cases: [RT-0085]
-  decided: "coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish as a known false pass, confirmed live; a separate oracle and fix session fix it with RT-0086"
-  record: CHANGELOG.md (Unreleased, Known false passes; 0.4.2, Not fixed), website/docs/trust.md
+    On Arista EOS, `route ... protocol: bgp present: false` passed on the node's own selected BGP aggregate, which the
+    routing table lists as bgpAggregate and the driver read as protocol aggregate (FRR and NX-OS read it as bgp and
+    fail the check; 0.4.2 known limit, confirmed live on cEOS 4.36.3M on 2026-11-21); 0.4.3 names the own aggregate
+    bgp in every read, selected or not (oracle FP-043-EOSAGG, RT-0087)
+  record: CHANGELOG.md (Unreleased, Fixed; 0.4.2, Not fixed), website/docs/trust.md
   tests:
-    - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
+    - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py
+    - tests/test_oracle_guards_fp_043_eosagg.py
     - tests/test_eos_rib_candidates_043.py::test_a_bgp_aggregate_is_the_aggregate_not_a_second_bgp_candidate
+    - tests/test_redteam.py
 - id: rt-0086-eos-aggregate-behind-static-read-as-bgp
   what: >-
-    On Arista EOS, `route ... protocol: aggregate present: false` passes while the node's own BGP aggregate is
-    configured but loses to a static route for the same prefix: the RIB lists it under bgp, not best, and 0.4.2 and
-    earlier don't see it at all (confirmed live on cEOS 4.36.3M on 2026-11-21, IPv4, IPv6 and a VRF); this also
-    defeats the 0.4.2 workaround for RT-0085, so the published workaround is now bgp_route present false
-  status: accepted-documented-limit
-  cases: [RT-0086]
-  decided: "coordinator, 2026-11-21 (re-check of ndr/fix-eos-nonbgp 49dc098): publish as a known false pass, confirmed live; a separate oracle and fix session fix it with RT-0085"
-  record: CHANGELOG.md (Unreleased, Known false passes), website/docs/trust.md
+    On Arista EOS, `route ... protocol: aggregate present: false` passed while the node's own BGP aggregate was
+    configured but lost to a static route for the same prefix: the RIB lists it under bgp, not best, and 0.4.2 and
+    earlier didn't see it at all, so `protocol: bgp present: false` passed there too (confirmed live on cEOS 4.36.3M on
+    2026-11-21, IPv4, IPv6 and a VRF); this also defeated the 0.4.2 workaround for RT-0085. 0.4.3 names the own
+    aggregate bgp in every read and refuses `protocol: aggregate` on EOS before the run, as on FRR (oracle
+    FP-043-EOSAGG, RT-0087)
+  record: CHANGELOG.md (Unreleased, Fixed), website/docs/trust.md
   tests:
-    - tests/test_redteam.py::test_accepted_limits_are_published_and_still_behave_as_documented
+    - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py
+    - tests/test_oracle_guards_fp_043_eosagg.py
     - tests/test_eos_rib_candidates_043.py::test_an_aggregate_behind_a_static_reads_as_bgp_not_aggregate
+    - tests/test_redteam.py

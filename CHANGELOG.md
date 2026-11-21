@@ -41,13 +41,37 @@
     exact prefix is read.
   - An EOS that refuses the command, a RIB answer the driver doesn't know (a protocol it can't name, a VRF missing),
     or any other failed read makes the check an error, never a pass.
-  - A BGP aggregate is `bgpAggregate` in the routing table and `bgp` in the RIB: the RIB's best `bgp` entry is then
-    the aggregate itself, not a BGP candidate (a BGP-learned path for the prefix still counts, from the BGP table).
+  - A BGP aggregate is `bgpAggregate` in the routing table and `bgp` in the RIB: the RIB's `bgp` entry is then the
+    aggregate itself, not a second BGP candidate (a BGP-learned path for the prefix still counts, from the BGP table;
+    the aggregate's own name is the next item).
   - A RIB entry under a key the driver doesn't map (`routeInput`, which a plain cEOS lists for `0.0.0.0/8` and
     `127.0.0.0/8`; `vrfLeak`, `gribi`, `dynamicPolicy`) makes a `route` check on exactly that prefix an error, where
     0.4.2 read the routing table only.
 
   Oracle `tests/oracles/FP-043-EOSNONBGP`, from the live capture.
+
+- **Arista EOS: the node's own BGP aggregate was named by whether it won route selection** (red team RT-0085,
+  RT-0086, RT-0087; confirmed live on cEOS 4.36.3M, IPv4, IPv6 and VRFs alike). FRR and NX-OS name a node's own
+  `aggregate-address` route `bgp`, selected or not.
+  - While the aggregate is selected, 0.4.2 read it as protocol `aggregate` (routeType `bgpAggregate`), so
+    `route ... protocol: bgp present: false` passed on it (RT-0085, the 0.4.2 known limit).
+  - While a static route for the same prefix wins (`ip route 10.66.0.0/16 Null0` beside `aggregate-address
+    10.66.0.0/16`), 0.4.2 didn't see the aggregate at all, so `protocol: bgp` and `protocol: aggregate` with
+    `present: false` both passed (RT-0086). Reading the RIB (item above) made it a BGP route that isn't selected, and
+    `protocol: aggregate present: false` still passed.
+  - The driver now names the node's own aggregate `bgp` in every read: routeType `bgpAggregate`, the RIB's `bgp`
+    entry, and the BGP table's path marked `localAgg`. It is active only while it is the selected, programmed route.
+    A BGP path learned for the same prefix is still a `bgp` route of its own, not selected unless installed.
+  - **`protocol: aggregate` is refused on EOS** before the lab deploys (exit `2`), as on FRR: no EOS route is read
+    as `aggregate` any more, so the name could only ever read "absent". Write `protocol: bgp` for the aggregate.
+  - A RIB `bgp` entry that the BGP table doesn't show as the node's own aggregate or as a path from a neighbor, an
+    unmapped aggregate route type, or a `localAgg` flag that isn't a boolean, makes the check an error.
+  - In 0.4.2 and earlier, use `bgp_route ... present: false` on the prefix: it reads the BGP table, which lists the
+    node's own aggregate, and fails in both cases. The 0.4.2 notes offered `protocol: aggregate` on EOS as a
+    workaround; it doesn't hold while a static wins, and 0.4.3 refuses it.
+
+  Oracle `tests/oracles/FP-043-EOSAGG`, from live cEOS 4.36.3M and FRR 10.4.1 captures of the same scenario: the EOS
+  verdicts now equal FRR's in every phase.
 
 - **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
   overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get
@@ -56,20 +80,6 @@
   reads is longer than one character, so no verdict was found to change. The dependency is now `pyyaml>=6.0,!=6.0.4`,
   and the tests check the installed PyYAML's merge behaviour directly, so another release with the same fault fails
   the suite instead of reaching users.
-
-### Known false passes (not fixed yet)
-
-- **Arista EOS: the node's own BGP aggregate** (RT-0085, RT-0086; confirmed live on cEOS 4.36.3M). EOS lists an
-  `aggregate-address` route as an aggregate, not as BGP.
-  - While the aggregate is selected, `route ... protocol: bgp present: false` passes on it (RT-0085), where FRR and
-    NX-OS read it as `bgp` and fail the same check. This is the 0.4.2 known limit, now confirmed live.
-  - While a static route for the same prefix wins (`ip route 10.66.0.0/16 Null0` beside `aggregate-address
-    10.66.0.0/16`), the aggregate is read as a BGP route that isn't selected, so `route ... protocol: aggregate
-    present: false` passes (RT-0086; in 0.4.2 and earlier too, the same in IPv6 and in a VRF).
-  - Correction to the 0.4.2 notes: they said this wasn't confirmed on a live cEOS and offered `protocol: aggregate`
-    as a workaround, which doesn't hold in the RT-0086 case. Use `bgp_route ... present: false` on the prefix: it
-    reads the BGP table, which lists the node's own aggregate, and fails in both cases (checked on both captures).
-  - Planned for 0.4.3, with its own oracle.
 
 ## 0.4.2 (2026-11-21)
 
@@ -388,7 +398,8 @@
   own BGP aggregate, while FRR and NX-OS read it as `bgp` and the same check fails there. Workaround: guard the prefix
   with `bgp_route ... present: false`, or use `protocol: aggregate` on EOS. Not confirmed on a live cEOS. Planned for
   0.4.3. *Corrected after release:* confirmed live, and `protocol: aggregate` doesn't hold while a static route for
-  the prefix wins (RT-0086): use `bgp_route ... present: false` (see Unreleased).
+  the prefix wins (RT-0086): use `bgp_route ... present: false`. Fixed in 0.4.3, which names the aggregate `bgp`
+  and refuses `protocol: aggregate` on EOS (see Unreleased).
 - **`link_down`: sessions the fault ends that Netdryrun still doesn't wait for** (RT-0078 follow-ups; the checks
   then run after the settle and hold windows only). On Arista cEOS, an SVI (`Vlan10`) or subinterface over a downed
   `ethN`: EOS's kernel devices carry no link to `ethN`, so the session isn't found (not confirmed on a live cEOS). A

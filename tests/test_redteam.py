@@ -162,6 +162,8 @@ def _run_driver_case(case):
         check = _validate_check(0, dict(case["check"]), 20)
     except ConfigError:
         return None   # refused before anything runs (exit 2): never a pass
+    if _refused_by_driver(check, case["driver"]):
+        return None   # refused before the lab deploys (exit 2), as `run` and `check` do: never a pass
     driver = DRIVERS[case["driver"]](Lab(rules), check.node)
     clock = FakeClock()
     if is_post_convergence(check):
@@ -169,6 +171,22 @@ def _run_driver_case(case):
     else:
         r = run_check(check, driver, clock=clock, sleep=clock.sleep)
     return r
+
+
+def _refused_by_driver(check, driver: str) -> bool:
+    """`check_supported`, the refusal `run` and `check` apply before deploying: a route protocol the driver never
+    reports, a key or family it can't read (RT-0024; the EOS `protocol: aggregate` of RT-0086 from 0.4.3). Only
+    that refusal counts; an older release without it runs the case as before."""
+    from types import SimpleNamespace
+    try:
+        from netdryrun.drivers import DriverError, check_supported
+    except ImportError:
+        return False
+    try:
+        check_supported(SimpleNamespace(nodes={check.node: None}), check, driver)
+    except DriverError:
+        return True
+    return False
 
 
 def _test_functions(path: Path) -> set[str]:

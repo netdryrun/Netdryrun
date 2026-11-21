@@ -1120,14 +1120,16 @@ def test_eos_routes_commands():
 
 @pytest.mark.parametrize("rtype,proto", [("eBGP", "bgp"), ("iBGP", "bgp"), ("connected", "connected"),
                                          ("static", "static"), ("OSPF Inter Area", "ospf"), ("isisLevel2", "isis"),
-                                         ("Dropped", "static"), ("aggregate", "aggregate")])
+                                         ("Dropped", "static"), ("bgpAggregate", "bgp")])
 def test_eos_route_types(rtype, proto):
     out = eos.parse_routes(eos_routes(**{"10.1.0.0/16": {"routeType": rtype}}), eos_bgp(), "10.1.0.0/16")
     assert out == [Route("10.1.0.0/16", proto, True)]
 
 
 @pytest.mark.parametrize("route,detail", [({"routeType": "weird type"}, "is not one this driver maps to a protocol"),
-                                          ({}, "no routeType")], ids=["unmapped", "missing"])
+                                          # an aggregate that isn't BGP's own (bgpAggregate) has no name (FP-043-EOSAGG)
+                                          ({"routeType": "aggregate"}, "is not one this driver maps to a protocol"),
+                                          ({}, "no routeType")], ids=["unmapped", "aggregate", "missing"])
 def test_eos_route_type_it_cannot_map_is_an_error(route, detail):
     """0.4.0 passed an unmapped (or missing) routeType through as its raw name, which no protocol matched: 0.4.1."""
     with pytest.raises(DriverError, match=detail):
@@ -1150,9 +1152,14 @@ def test_eos_routes_rules():
     assert eos.parse_routes(static, learned, pfx) == [Route(pfx, "static", True), Route(pfx, "bgp", False)]
     installed = eos_routes(**{pfx: {"routeType": "eBGP"}})
     assert eos.parse_routes(installed, learned, pfx) == [Route(pfx, "bgp", True)]
-    two = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"totalPaths": 1, "bgpRoutePaths": [eos_path()]},
-                                                      "10.1.0.0/16 ": {"totalPaths": 1, "bgpRoutePaths": [eos_path()]}}}}})
+    two = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"totalPaths": 2, "bgpRoutePaths": [eos_path(), eos_path()]}}}}})
     assert eos.parse_routes(eos_routes(), two, pfx) == [Route(pfx, "bgp", False)]   # added once
+    # every entry is checked to be the asked prefix (FP-043-EOSAGG reads every path for the own aggregate): one that
+    # isn't is unexpected, where 0.4.2 stopped reading at the first learned path
+    spaced = J({"vrfs": {"default": {"bgpRouteEntries": {pfx: {"totalPaths": 1, "bgpRoutePaths": [eos_path()]},
+                                                         "10.1.0.0/16 ": {"totalPaths": 1, "bgpRoutePaths": [eos_path()]}}}}})
+    with pytest.raises(DriverError):
+        eos.parse_routes(eos_routes(), spaced, pfx)
     assert eos.parse_routes(eos_routes("red"), eos_bgp("red"), pfx, "red") == []
     for rt, bgp in ((eos_routes(**{pfx: "x"}), eos_bgp()), (eos_routes(**{"x": {}}), eos_bgp()),
                     (eos_routes(), eos_bgp(entries={pfx: {"bgpRoutePaths": [{}]}})),

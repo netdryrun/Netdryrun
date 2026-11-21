@@ -309,8 +309,18 @@ CASES = [
           "ceos4363m_fp043_ospfsel_rib_route.json", "ceos4363m_fp043_rt0056sel_rib_route.json"],
          eos_rib_no_candidate("0.0.0.0/0")),
     Case("eos.parse_routes[rib side]", lambda t: eos.parse_routes(EOS_NO_ROUTES, EOS_NO_BGP, "0.0.0.0/0", "default", t),
-         ["ceos4363m_fp043_rt0056_rib_route.json", "ceos4363m_fp043_rt0063_rib_route.json"],
-         eos_rib_no_candidate("0.0.0.0/0")),
+         ["ceos4363m_fp043_rt0063_rib_route.json"], eos_rib_no_candidate("0.0.0.0/0")),
+    # a RIB bgp entry is read only with the BGP table that says what it is (FP-043-EOSAGG): rt0056's own capture, whose
+    # learned eBGP default also makes a bgp route of its own, so this case can't show an empty result
+    Case("eos.parse_routes[rib side, bgp]",
+         lambda t: eos.parse_routes(EOS_NO_ROUTES, read("ceos4363m_fp043_rt0056_ip_bgp.json"), "0.0.0.0/0", "default", t),
+         ["ceos4363m_fp043_rt0056_rib_route.json"], eos_rib_no_candidate("0.0.0.0/0")),
+    # the node's own aggregate behind a static (FP-043-EOSAGG, live): the RIB's bgp entry is the BGP table's localAgg path
+    Case("eos.parse_routes[rib side, own aggregate]",
+         lambda t: eos.parse_routes(EOS_NO_ROUTES, read("ceos4363m_eosagg_static_v4_ip_bgp.json"), "10.66.0.0/16",
+                                    "default", t),
+         ["ceos4363m_eosagg_static_v4_rib_route.json", "ceos4363m_eosagg_exactstatic_v4_rib_route.json"],
+         eos_rib_no_candidate("10.66.0.0/16")),
     Case("eos.parse_all_routes", lambda t: eos.parse_all_routes(t), ["eos_route.txt", "eos_leak_route.txt"],
          eos_table_empty("routes")),
     Case("eos.parse_bgp_paths", lambda t: eos.parse_bgp_paths(t, "192.168.20.0/24"),
