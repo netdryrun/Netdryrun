@@ -238,6 +238,8 @@ class SrlLab(FakeLab):
         self.nodes["srl1"] = Node("srl1", "clab-t-srl1", *SRL)
 
     def exec(self, node, cmd, timeout=60, input=None):
+        if node != "srl1":   # r1 is FRR: FakeLab's answer to the import-check guard's read
+            return super().exec(node, cmd, timeout, input)
         return ExecResult(cmd, 0, f"Oct 30 srl mgmt: {S}: bad json\n", "")
 
 

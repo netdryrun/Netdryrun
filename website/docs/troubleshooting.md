@@ -153,6 +153,14 @@ warning: h1 reported no BGP neighbors for 30s; the check was evaluated without B
 
 From 0.3.1, a node that answers with no BGP neighbors at all is treated as not converged yet, because that is also what a router answers before its BGP config is applied. Its post-convergence checks (a ping that must fail, for example) wait up to their `timeout`, then run with this warning in their result; the verdict is unchanged. That applies only to a node with no BGP check anywhere in the file. From 0.3.2, if the file has a BGP check on the node (`bgp_session`, `bgp_prefixes`, `bgp_route`, or a `route` with `protocol: bgp`), its post-convergence checks fail instead as `not evaluated: <node> reported no BGP neighbors by the cap`: the file says the node runs BGP, so its config never loaded. On a node that really doesn't run BGP, lower the `timeout` of those checks to shorten the wait. If the node should have BGP neighbors, its BGP config was never applied: check its startup config or `setup` commands.
 
+## FRR's import check is stuck
+
+```text
+ERROR: FRR's import check is stuck on a lab this run didn't deploy: pe1: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra. bgpd applied these `network` statements before its zebra connection was up and never registered them, ...
+```
+
+Exit code `2`. From 0.4.3, Netdryrun reads every FRR router's import-check table before judging (see [FRR's import check at boot](reference/config.md#frrs-import-check-at-boot)). On some boots bgpd never registers a `network` statement and announces it whatever the routes say, so a verdict on that lab would not match production. `run` and `verify` remedy it themselves on the lab they deployed; `check` doesn't change a lab it didn't deploy. Fix: redeploy the lab, or run the command in the message on each router named, then rerun `check`. If the error says the check is "still stuck after the remedy", that a session "changed across the import-check remedy", or that the table "could not be read", rerun: each of those is a boot Netdryrun won't judge. If it repeats, open an issue with the JSON report.
+
 ## The fault did not take effect
 
 ```text

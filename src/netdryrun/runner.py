@@ -26,6 +26,7 @@ from .config import Check, Config, ConfigError, Scenario, load
 from .drivers import BETA_DRIVERS, DriverError, Undetectable, check_supported, for_node, resolve
 from .drivers.frr import LOAD_RAN, communicate_daemons, parse_config_load_errors
 from .drivers.base import NoSuchInstance
+from .drivers import frr_import_check
 from .faults import RouteInjection
 from . import mgmt
 from .lab import NXOS_KINDS, ROUTEROS_KINDS, VM_KINDS, Lab, LabError, LinkDev
@@ -546,7 +547,14 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             for node, cmds in config.setup.items():
                 log(f"Running setup on {node}...")
                 lab.run_setup(node, cmds, log=log)
-        # After setup:, before the first check: no route out of the lab over the management network (red team round
+        # After setup:, before anything is judged: every FRR router in the lab (not only the checks' nodes) has its
+        # `network` statements registered with zebra (FP-043-FRRIMPORTCHK): a boot where bgpd applied them before its
+        # zebra connection announces them whatever the routes say. Remedied only on a lab this run deployed
+        import_check = frr_import_check.candidates(lab, _driver_of(config))
+        found = frr_import_check.guard(lab, import_check, remedy=deploy, clock=_clock, sleep=_sleep, log=log)
+        for name, what in found.items():
+            report.environment.setdefault("nodes", {}).setdefault(name, {})["import_check"] = what
+        # Before the first check: no route out of the lab over the management network (red team round
         # 4, B3; design e, option A): Docker's default route is deleted, any other is a run error
         every_check = config.checks + [c for sc in config.scenarios for c in sc.checks]
         state = mgmt.prepare(lab, every_check, log=log, sleep=_sleep)
@@ -644,6 +652,10 @@ def run(config: Config, *, deploy: bool = True, keep: bool = False, keep_on_fail
             if m.readded:
                 env_nodes[name]["management_default"] = mgmt.describe(m, lab.nodes[name].kind)
                 log(f"{name}: management default route was back and removed again: {'; '.join(m.readded)}")
+        # Again before the verdict, detection only (a setup command, a late config or a fault can leave a `network`
+        # unregistered after the first read; the evidence is taken, so nothing is remedied now)
+        frr_import_check.guard(lab, import_check, remedy=False, clock=_clock, sleep=_sleep, log=log,
+                               label="before the verdict")
         by_node = config_load_by_node(lab, _driver_of(config), deployed=deploy)
         _config_load(lab, driver_for, report, by_node)
         rejected = rejected_config_message(by_node)
