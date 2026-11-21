@@ -1,0 +1,18 @@
+name: ndr-unnsess
+topology:
+  nodes:
+    r1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds: [r1:/etc/frr]
+    r2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds: [r2:/etc/frr]
+    r3:
+      kind: linux
+      image: quay.io/frrouting/frr:10.4.1
+      binds: [r3:/etc/frr]
+  links:
+    - endpoints: ["r2:eth1", "r1:eth1"]
+    - endpoints: ["r2:eth2", "r3:eth1"]
