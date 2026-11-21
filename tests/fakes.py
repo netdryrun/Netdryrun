@@ -20,14 +20,25 @@ function in a file under tests/ or in unittest/mock.py: a fake class's method, a
 under any name (exec, exec_root, netns_exec or anything a later driver uses), *args or keyword-only alike, functools.
 partial around such a function, a MagicMock or mock.patch stand-in, and a callback a test hands in (a fake clock, say;
 a change to what the code passes it then shows as new, which only ever asks for more review). Arguments are logged as
-plain data, other objects by their type, the test's working directory as <root>, and dict keys sorted. Only the
-temporary paths this test itself created are replaced: each directory or file tempfile.mkdtemp, mkstemp,
-NamedTemporaryFile or TemporaryDirectory returned while the test ran becomes <tmp1>, <tmp2>, ... in the order they were
-made, and pytest's base temporary directory (tmp_path's parent) becomes <pytest-tmp>, each only as a whole path name and
-with the rest of the path kept. Any other path, under /tmp or not, is logged as it is. A copy of the environment is
-logged by what differs from the environment when the test started (what the code set, changed or removed, in the copy
-or in os.environ before copying it); inherited values are not logged. Two runs of one test log the same lines on any
-machine, and a new call, or a new argument next to a temporary path, still logs a new line.
+plain data, other objects by their type, the test's working directory as <root>, and dict keys sorted.
+
+Only temporary paths the run itself created are replaced, each only as a whole path name and with the rest of the path
+kept. tests/conftest.py calls `begin_session()` when it loads, before any product import: from then on tempfile.mkdtemp,
+mkstemp, mktemp and NamedTemporaryFile (TemporaryDirectory goes through mkdtemp) are wrapped in the tempfile module
+itself, so `from tempfile import mkdtemp` gets the wrapper too, and each path they return is named by who made it:
+<tmpN> made by test code during a test, <ptmpN> made by product code during a test (two sequences, so an extra scratch
+directory in the product never renumbers the test's own), each numbered from 1 in every test, and <stmpN> made outside
+any test (a module- or session-scoped fixture), numbered through the session. pytest's base temporary directory
+(tmp_path's parent) is <pytest-tmp>. Any other path, under /tmp or not, is logged as it is.
+
+A copy of the environment is logged by what differs from the environment when the session began (what the product set
+at import, an earlier test leaked, a fixture or the code set, changed or removed); values the run inherited are not
+logged. The gate runs base and candidate with one environment and one log path, so two runs of one test log the same
+lines, and a new call, a new argument next to a temporary path, or a new environment value still logs a new line.
+
+Still logged as noise (it can only flip a test the change did not touch, which asks for more review, never less): a
+random name the code draws itself (uuid, pid, os.mkdir under gettempdir), a product change in how many scratch
+directories it makes before another one (the later ones renumber), and set iteration order.
 
 Not logged, because no such call is visible to a profiler as product-calls-test-code:
 - a C callable answering in a fake's place (dict.get, str.format, list.append, a builtin): it has no Python frame;
@@ -78,29 +89,46 @@ def seen(command: object) -> None:
 # 2: temporary paths are scrubbed by what the test created (fastfix_gate.py reads older logs its own way)
 LOG_FORMAT = 2
 
-# per test, set by logging_commands: the environment when the test started, and the temporary paths it has made
-_STATE: dict = {"env": None, "temps": [], "count": 0}
+# env: the environment the run's environment copies are compared with (the session's start, or the test's when no
+# session began); temps: (path, label, scope) for every temporary path recorded; count: the next number per label kind;
+# test: a test is running; session: begin_session() ran
+_STATE: dict = {"env": None, "temps": [], "count": {}, "test": False, "session": False}
 _PATH_CHAR = r"[\w.~-]"
+_SESSION_KIND = "stmp"
+
+
+def _maker() -> str:
+    """Who is making a temporary path now: <stmp> outside a test, <ptmp> product code, <tmp> anything else."""
+    if not _STATE["test"]:
+        return _SESSION_KIND
+    skip = {os.path.abspath(__file__), os.path.abspath(tempfile.__file__)}
+    f = sys._getframe(1)
+    while f is not None and os.path.abspath(f.f_code.co_filename) in skip:
+        f = f.f_back
+    where = os.path.abspath(f.f_code.co_filename) if f is not None else ""
+    return "ptmp" if where.startswith(_package_root()) else "tmp"
 
 
 def _record_temp(path: object, label: str | None = None) -> None:
-    """Remember a temporary path this test made (and its resolved form): logged as `label`, or the next <tmpN>."""
+    """Remember a temporary path the run made (and its resolved form): logged as `label`, or the next of its kind."""
     if not isinstance(path, (str, bytes, os.PathLike)):
         return
     text = os.fsdecode(path)
-    if not text or any(p == text for p, _ in _STATE["temps"]):
+    if not text or any(t[0] == text for t in _STATE["temps"]):
         return
     if label is None:
-        _STATE["count"] += 1
-        label = f"<tmp{_STATE['count']}>"
+        kind = _maker()
+        _STATE["count"][kind] = _STATE["count"].get(kind, 0) + 1
+        label = f"<{kind}{_STATE['count'][kind]}>"
+    scope = "test" if _STATE["test"] else "session"
     for p in dict.fromkeys((text, os.path.realpath(text))):
-        _STATE["temps"].append((p, label))
+        _STATE["temps"].append((p, label, scope))
 
 
 def _scrub_temps(text: str) -> str:
     """Each recorded temporary path, as a whole path name (not inside a longer name), by its label; longest first, so
     a directory made inside another keeps its own label."""
-    for p, label in sorted(_STATE["temps"], key=lambda t: len(t[0]), reverse=True):
+    for p, label, _scope in sorted(_STATE["temps"], key=lambda t: len(t[0]), reverse=True):
         text = _whole_path(text, p, label)
     return text
 
@@ -136,9 +164,9 @@ def _plain(value: object, root: str, depth: int = 0) -> object:
         return sorted((_plain(v, root, depth + 1) for v in value), key=repr)
     if isinstance(value, dict):
         if _environment(value):
-            # inherited values differ by machine and by run (the log's own path, OLDPWD): only what differs from
-            # the environment at the test's start is logged, so a value the code put in os.environ before copying it
-            # shows too
+            # inherited values differ by machine and by run (OLDPWD, a home directory): only what differs from the
+            # environment the session began with is logged, so a value the product put in os.environ at import, an
+            # earlier test leaked or the code set before copying it shows too
             # (pytest's own PYTEST_CURRENT_TEST names the test's phase, which moves from setup to call)
             start = _STATE["env"] if _STATE["env"] is not None else dict(os.environ)
             out = {str(k): _plain(v, root, depth + 1) for k, v in value.items()
@@ -191,7 +219,7 @@ def command_profiler(code_root: str | None = None, fake_root: str | None = None)
     return profile
 
 
-_ORIGINAL = {n: getattr(tempfile, n) for n in ("mkdtemp", "mkstemp", "NamedTemporaryFile")}
+_ORIGINAL = {n: getattr(tempfile, n) for n in ("mkdtemp", "mkstemp", "mktemp", "NamedTemporaryFile")}
 
 
 def _mkdtemp(*a, **k):
@@ -206,6 +234,12 @@ def _mkstemp(*a, **k):
     return fd, path
 
 
+def _mktemp(*a, **k):
+    path = _ORIGINAL["mktemp"](*a, **k)
+    _record_temp(path)
+    return path
+
+
 def _named_temporary_file(*a, **k):
     f = _ORIGINAL["NamedTemporaryFile"](*a, **k)
     _record_temp(getattr(f, "name", None))
@@ -213,24 +247,60 @@ def _named_temporary_file(*a, **k):
 
 
 # tempfile.TemporaryDirectory makes its directory through tempfile.mkdtemp
-_WRAPPERS = {f.__code__ for f in (_mkdtemp, _mkstemp, _named_temporary_file)}
+_MAKERS = {"mkdtemp": _mkdtemp, "mkstemp": _mkstemp, "mktemp": _mktemp, "NamedTemporaryFile": _named_temporary_file}
+_WRAPPERS = {f.__code__ for f in _MAKERS.values()}
+
+
+def _wrap() -> bool:
+    """tempfile's makers replaced by the recording ones; True when this call did it."""
+    if all(getattr(tempfile, n) is f for n, f in _MAKERS.items()):
+        return False
+    for n, f in _MAKERS.items():
+        setattr(tempfile, n, f)
+    return True
+
+
+def _unwrap() -> None:
+    for n, f in _ORIGINAL.items():
+        setattr(tempfile, n, f)
+
+
+def begin_session() -> None:
+    """Called by tests/conftest.py as it loads, while NDR_FAKE_COMMAND_LOG is set: the environment every copy is
+    compared with, and tempfile's makers wrapped, both before any product code is imported (a product import first
+    would hide what it does at import, so that refuses)."""
+    if not os.environ.get(COMMAND_LOG) or _STATE["session"]:
+        return
+    early = sorted(m for m in sys.modules if m == "netdryrun" or m.startswith("netdryrun."))
+    if early:
+        raise RuntimeError(f"tests/fakes.py: {early[0]} was imported before the command log began; import fakes and "
+                           "call begin_session() first in tests/conftest.py")
+    _STATE.update(env=dict(os.environ), session=True)
+    _wrap()
 
 
 def watch_temps(basetemp=None):
-    """Start a test's record: the environment now, no temporary paths yet but pytest's base temporary directory
-    (`basetemp`, a path or a callable giving it), and tempfile's makers wrapped to record what they return. Returns
-    an undo."""
-    _STATE.update(env=dict(os.environ), temps=[], count=0)
+    """Start a test's record: no temporary paths of its own yet but pytest's base temporary directory (`basetemp`, a
+    path or a callable giving it), numbering from 1, tempfile's makers wrapped (if the session didn't already), and,
+    outside a session, the environment now. Returns an undo."""
+    if not _STATE["session"]:
+        _STATE["env"] = dict(os.environ)
+    _STATE["temps"] = [t for t in _STATE["temps"] if t[2] == "session"]
+    _STATE["count"] = {k: v for k, v in _STATE["count"].items() if k == _SESSION_KIND}
+    _STATE["test"] = True
     if callable(basetemp):
         basetemp = basetemp()
     if basetemp is not None:
         _record_temp(basetemp, "<pytest-tmp>")
-    tempfile.mkdtemp, tempfile.mkstemp, tempfile.NamedTemporaryFile = _mkdtemp, _mkstemp, _named_temporary_file
+    wrapped = _wrap()
 
     def undo():
-        tempfile.mkdtemp, tempfile.mkstemp, tempfile.NamedTemporaryFile = (
-            _ORIGINAL["mkdtemp"], _ORIGINAL["mkstemp"], _ORIGINAL["NamedTemporaryFile"])
-        _STATE.update(env=None, temps=[], count=0)
+        _STATE["test"] = False
+        _STATE["temps"] = [t for t in _STATE["temps"] if t[2] == "session"]
+        if wrapped:
+            _unwrap()
+        if not _STATE["session"]:
+            _STATE["env"] = None
     return undo
 
 

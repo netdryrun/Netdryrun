@@ -6,6 +6,11 @@ containers behind (2026-10-30). Every `containerlab deploy` or `destroy` a unit 
 fails here instead. A test that fakes `lab._run` itself replaces this guard, as before."""
 import pytest
 
+import fakes
+
+# the release gate's command log (tests/fakes.py) begins before any test module imports the product
+fakes.begin_session()
+
 REAL_LAB_TOOLS = {"containerlab", "clab"}
 CHANGES_A_LAB = {"deploy", "destroy"}   # read-only commands (`containerlab version`) stay allowed
 

@@ -538,12 +538,14 @@ def changed_drivers(files: set[str]) -> list[str]:
     return sorted(out)
 
 
-# tests/fakes.py from log format 2 replaces the temporary paths each test made itself (<tmp1>, <pytest-tmp>). An older
-# base's fakes logged them as they were: for those logs only the product's own scratch directory names
-# (tempfile.mkdtemp(prefix="netdryrun-<what>-") directly under the temp directory, followed by a path inside it) are
-# replaced, numbered in the order a test's log names them, so two of them never merge. Nothing else under /tmp is.
+# tests/fakes.py from log format 2 replaces the temporary paths the run made itself (<tmp1>, <ptmp1>, <pytest-tmp>) and
+# marks its rows "log": 2. An older base's fakes logged them as they were, with no "log" key: for those rows only the
+# product's own scratch directory names (tempfile.mkdtemp(prefix="netdryrun-<what>-") directly under the temp
+# directory, followed by a path inside it) lose their 8 random characters, numbered per <what> in the order a test's
+# log names them, so two of them never merge and a directory of another <what> never reads as the same one. Nothing
+# else under /tmp is replaced. A row with any other "log" value is refused.
 LOG_FORMAT = 2
-LEGACY_TEMP = r"netdryrun-[a-z]+-[a-z0-9_]{8}"
+LEGACY_TEMP = r"(?P<what>netdryrun-[a-z]+-)[a-z0-9_]{8}"
 PATH_CHAR = r"[\w.~:/\\-]"
 
 
@@ -552,14 +554,22 @@ def legacy_temp_pattern() -> re.Pattern:
     path-like before it) and followed by a separator."""
     dirs = {tempfile.gettempdir(), os.path.realpath(tempfile.gettempdir()), "/tmp"}
     alts = "|".join(re.escape(d.rstrip("/\\")) for d in sorted(dirs, key=len, reverse=True) if d.rstrip("/\\"))
-    return re.compile(rf"(?<!{PATH_CHAR})(?:{alts})[/\\]{LEGACY_TEMP}(?=[/\\])")
+    return re.compile(rf"(?<!{PATH_CHAR})(?P<dir>(?:{alts})[/\\]){LEGACY_TEMP}(?=[/\\])")
+
+
+def legacy_label(m: re.Match, labels: dict[str, str]) -> str:
+    """<temp dir>/netdryrun-<what>-<N>: the Nth directory of that <what> this test's log names."""
+    if m.group(0) not in labels:
+        head = m.group("dir") + m.group("what")
+        labels[m.group(0)] = f"{head}<{1 + sum(1 for v in labels.values() if v.startswith(head + '<'))}>"
+    return labels[m.group(0)]
 
 
 def stable_command(text: str, roots: tuple[str, ...] = (), labels: dict[str, str] | None = None,
                    legacy: bool = False) -> str:
     """A logged command as the same text on every run of the same code: the trees under test as <root> (whole path
-    names only), JSON with sorted keys, and in an older log (`legacy`) the product's scratch directories as <tmpN>
-    (`labels`: the test's numbering so far). Dict keys are never changed, so two keys can't merge; a new call, or a
+    names only), JSON with sorted keys, and in an older log (`legacy`) the product's scratch directories by their
+    <what> and number (`labels`: the test's numbering so far). Dict keys are never changed, so two keys can't merge; a new call, or a
     new argument next to a temporary path, still reads as new."""
     labels = {} if labels is None else labels
     temp = legacy_temp_pattern() if legacy else None
@@ -570,7 +580,7 @@ def stable_command(text: str, roots: tuple[str, ...] = (), labels: dict[str, str
             if r in s:
                 s = re.sub(rf"(?<![\w.~-]){re.escape(r)}(?![\w.~-])", "<root>", s)
         if temp is not None:
-            s = temp.sub(lambda m: labels.setdefault(m.group(0), f"<tmp{len(labels) + 1}>"), s)
+            s = temp.sub(lambda m: legacy_label(m, labels), s)
         return s
 
     def walk(v):
@@ -603,11 +613,16 @@ def read_commands(path: Path, roots: tuple[str, ...] = ()) -> dict[str, set[str]
         try:
             row = json.loads(line)
             key = junit_key(row["test"])
-            command = stable_command(str(row["command"]), roots, labels.setdefault(key, {}),
-                                     legacy=row.get("log") != LOG_FORMAT)
-            out.setdefault(key, set()).add(command)
+            known = "log" not in row or row["log"] == LOG_FORMAT
+            if known:
+                command = stable_command(str(row["command"]), roots, labels.setdefault(key, {}),
+                                         legacy="log" not in row)
+                out.setdefault(key, set()).add(command)
         except (ValueError, KeyError, TypeError, AttributeError):
             raise GateError(f"the fake labs' command log is unreadable at line {n}") from None
+        if not known:
+            raise GateError(f"the fake labs' command log is in a format this gate doesn't know at line {n}: "
+                            f"{str(row.get('log'))[:40]}")
     return out or None
 
 

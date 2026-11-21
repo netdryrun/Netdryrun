@@ -163,6 +163,7 @@ def _watching(basetemp=None):
     """A test's record of its temporary paths, as the autouse fixture starts it while the gate logs; whatever record
     was on before (the gate's, when these tests run under it) comes back afterwards."""
     state, makers = dict(fakes._STATE), {n: getattr(tempfile, n) for n in fakes._ORIGINAL}
+    fakes._STATE.update(session=False, temps=[], count={}, test=False)
     undo = fakes.watch_temps(basetemp)
     try:
         yield undo
@@ -171,6 +172,29 @@ def _watching(basetemp=None):
         fakes._STATE.update(state)
         for n, f in makers.items():
             setattr(tempfile, n, f)
+
+
+@contextlib.contextmanager
+def _session():
+    """The record as tests/conftest.py begins it for a gate run (begin_session, without its import check): the
+    environment now, tempfile's makers wrapped, no test running yet."""
+    state, makers = dict(fakes._STATE), {n: getattr(tempfile, n) for n in fakes._ORIGINAL}
+    fakes._STATE.update(env=dict(os.environ), temps=[], count={}, test=False, session=True)
+    fakes._wrap()
+    try:
+        yield
+    finally:
+        fakes._STATE.update(state)
+        for n, f in makers.items():
+            setattr(tempfile, n, f)
+
+
+def _product_maker():
+    """A function whose file is under src/netdryrun, standing in for product code that makes a temp directory."""
+    ns: dict = {"tempfile": tempfile}
+    exec(compile("def make(**k):\n    return tempfile.mkdtemp(**k)\n",
+                 os.path.join(fakes._package_root(), "_probe_maker.py"), "exec"), ns)
+    return ns["make"]
 
 
 def test_the_temporary_paths_a_test_makes_are_numbered_and_the_rest_of_the_path_kept():
@@ -187,6 +211,102 @@ def test_the_temporary_paths_a_test_makes_are_numbered_and_the_rest_of_the_path_
                     assert _plain(a + "\\x", "/w") == "<tmp1>\\x"                # either separator
         finally:
             shutil.rmtree(a)
+
+
+def test_product_and_test_temp_paths_are_numbered_apart_and_from_1_in_every_test():
+    """An extra scratch directory in the product never renumbers the test's own, and a product directory never takes
+    a test directory's label."""
+    made = []
+    try:
+        for extra in (False, True):
+            with _watching():
+                if extra:
+                    made.append(_product_maker()())
+                p, t = _product_maker()(), tempfile.mkdtemp()
+                made += [p, t]
+                assert _plain([p + "/x", t + "/x"], "/w") == (["<ptmp2>/x", "<tmp1>/x"] if extra else
+                                                              ["<ptmp1>/x", "<tmp1>/x"])
+    finally:
+        for d in made:
+            os.rmdir(d)
+
+
+def test_numbering_starts_again_in_every_test():
+    made = []
+    try:
+        for _ in range(2):
+            with _watching():
+                made.append(tempfile.mkdtemp())
+                assert _plain(made[-1], "/w") == "<tmp1>"
+    finally:
+        for d in made:
+            os.rmdir(d)
+
+
+def test_a_session_names_every_maker_and_what_was_made_between_tests():
+    """Wrapped in the tempfile module when the session begins: `from tempfile import mkdtemp` and mktemp record too,
+    and a directory a module-scoped fixture made outside any test keeps its own label in every test."""
+    made = []
+    with _session():
+        try:
+            outside = tempfile.mkdtemp()
+            made.append(outside)
+            from tempfile import mkdtemp
+            for _ in range(2):
+                undo = fakes.watch_temps()
+                try:
+                    a, b = mkdtemp(), tempfile.mktemp()
+                    made.append(a)
+                    assert _plain([outside, a, b], "/w") == ["<stmp1>", "<tmp1>", "<tmp2>"]
+                finally:
+                    undo()
+            assert tempfile.mkdtemp is fakes._mkdtemp                    # the session's wrapping stays
+        finally:
+            for d in made:
+                os.rmdir(d)
+
+
+def test_an_environment_copy_is_compared_with_the_environment_the_session_began_with(monkeypatch):
+    """A value the product set at import, or an earlier test leaked, is in os.environ before the test starts: it is
+    still logged."""
+    for i in range(6):
+        monkeypatch.setenv(f"NDR_T_{i}", f"value-{i}")
+    with _session():
+        monkeypatch.setenv("NDR_SSH_JUMP", "jump.example")                 # at import, or by an earlier test
+        monkeypatch.delenv("NDR_T_3")
+        undo = fakes.watch_temps()
+        try:
+            logged = _plain(dict(os.environ), "/w")
+            assert logged["NDR_SSH_JUMP"] == "jump.example" and logged["<removed>"] == ["NDR_T_3"], logged
+        finally:
+            undo()
+
+
+def test_an_environment_value_names_the_tests_temp_paths(monkeypatch):
+    for i in range(6):
+        monkeypatch.setenv(f"NDR_T_{i}", f"value-{i}")
+    with _watching():
+        a = tempfile.mkdtemp()
+        try:
+            assert _plain({**os.environ, "CLAB_LABDIR_BASE": a + "/labs"}, "/w")["CLAB_LABDIR_BASE"] == "<tmp1>/labs"
+        finally:
+            os.rmdir(a)
+
+
+def test_the_session_refuses_to_begin_after_the_product_was_imported(monkeypatch):
+    import netdryrun  # noqa: F401  (the product is imported, as a plugin or an early conftest import would)
+    state = dict(fakes._STATE)
+    try:
+        fakes._STATE.update(session=False)
+        monkeypatch.delenv(COMMAND_LOG, raising=False)
+        fakes.begin_session()                                              # no log: nothing to do
+        assert not fakes._STATE["session"]
+        monkeypatch.setenv(COMMAND_LOG, "/nonexistent/cmd.jsonl")
+        with pytest.raises(RuntimeError, match="imported before the command log began"):
+            fakes.begin_session()
+        assert not fakes._STATE["session"]
+    finally:
+        fakes._STATE.update(state)
 
 
 @pytest.mark.parametrize("path", [
@@ -316,6 +436,20 @@ def test_the_test_suite_records_each_tests_temporary_paths():
     text = (TESTS / "conftest.py").read_text(encoding="utf-8")
     assert "def _log_fake_lab_commands(tmp_path_factory):" in text
     assert "logging_commands(tmp_path_factory.getbasetemp)" in text
+
+
+def test_the_test_suite_begins_the_log_before_it_imports_the_product():
+    """tests/conftest.py loads before any test module: its module level begins the session (the environment snapshot
+    and the tempfile wrapping) and imports nothing of the product before that."""
+    tree = ast.parse((TESTS / "conftest.py").read_text(encoding="utf-8"))
+    top = [n for n in tree.body if not isinstance(n, ast.Expr) or not isinstance(n.value, ast.Constant)]
+    calls = [i for i, n in enumerate(top) if isinstance(n, ast.Expr) and ast.unparse(n) == "fakes.begin_session()"]
+    assert calls, "tests/conftest.py must call fakes.begin_session() at module level"
+    for n in top[:calls[0]]:
+        names = [a.name for a in n.names] if isinstance(n, (ast.Import, ast.ImportFrom)) else []
+        mod = n.module if isinstance(n, ast.ImportFrom) else ""
+        assert isinstance(n, (ast.Import, ast.ImportFrom)), ast.unparse(n)
+        assert "netdryrun" not in (mod or "") and not any(x.startswith("netdryrun") for x in names), ast.unparse(n)
 
 
 def test_seen_writes_dict_commands_with_sorted_keys(tmp_path, monkeypatch):
