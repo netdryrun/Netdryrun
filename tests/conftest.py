@@ -30,3 +30,13 @@ def _no_readiness_wait(monkeypatch):
     no wait (the readiness tests set their own budget)."""
     from netdryrun import mgmt
     monkeypatch.setattr(mgmt, "READY_BUDGET", 0.0)
+
+
+@pytest.fixture(autouse=True)
+def _no_import_check_gap(monkeypatch):
+    """The FRR import-check guard (FP-043-FRRIMPORTCHK) takes two samples SAMPLE_GAP apart before every run's checks.
+    Unit tests' fakes answer the same at once, and many tests time their fake worlds from the run's start, so the two
+    samples are taken with no gap here (both are still taken and must agree; an unreadable or changing answer still
+    waits RETRY_GAP, so the time limit is still reached). tests/test_frr_import_check.py keeps the real gap."""
+    from netdryrun.drivers import frr_import_check
+    monkeypatch.setattr(frr_import_check, "SAMPLE_GAP", 0.0)

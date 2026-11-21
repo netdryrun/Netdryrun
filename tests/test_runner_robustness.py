@@ -27,6 +27,7 @@ from netdryrun.cli import main
 from netdryrun.config import Check, Config, Fault, Scenario
 from netdryrun.drivers.base import BgpNeighbor, DriverError, Observation, Route
 from netdryrun.lab import ExecResult, Lab, LabError, Node
+from netdryrun.drivers import frr_import_check
 
 PKG_ROOT = str(Path(netdryrun.__file__).resolve().parent.parent)
 
@@ -54,6 +55,9 @@ class World:
         s = self.since_fault()
         return s is not None and s >= seconds
 
+
+# bgpd's running config on a live FRR 10.4.1 router with BGP and no `network` (SOURCES.yml)
+BGPD_NO_NETWORK = (Path(__file__).parent / "fixtures" / "frr1041_rplu_r1_running_config.txt").read_text()
 
 class FakeLab:
     def __init__(self, world, nodes=("r1", "r2", "r3"), existing=(), deploy_error=None):
@@ -101,6 +105,13 @@ class FakeLab:
 
     def boot_log(self, node):   # a clean FRR boot: every config line loaded
         return ExecResult([], 0, "[45|bgpd] done", "")
+
+    def exec(self, node, cmd, timeout=60, input=None):
+        # the FRR import-check guard (FP-043-FRRIMPORTCHK) reads bgpd's running config of every FRR router first: a
+        # live FRR 10.4.1 one with BGP and no `network` statement, so there is no import-check entry to read
+        if cmd == frr_import_check.BGPD_CONFIG:
+            return ExecResult(cmd, 0, BGPD_NO_NETWORK, "")
+        return ExecResult(cmd, 1, "", f"not faked: {cmd}")
 
     def run_setup(self, *a, **k):
         pass
@@ -365,6 +376,12 @@ SIGNAL_SCRIPT = textwrap.dedent("""\
         def running_containers(self): return {"clab-t-r1"}
         def stopped_containers(self): return {}
         def kvm_problem(self): return None
+        def boot_log(self, node): return ExecResult([], 0, "[45|bgpd] done", "")
+        def exec(self, node, cmd, timeout=60, input=None):   # the FRR import-check guard: BGP, no `network`
+            if cmd == ["vtysh", "-d", "bgpd", "-c", "show running-config"]:
+                return ExecResult(cmd, 0, "Building configuration...\\n\\nCurrent configuration:\\n!\\n"
+                                          "router bgp 65001\\nexit\\n!\\nend\\n", "")
+            return ExecResult(cmd, 1, "", "not faked")
 
     class Driver:
         def bgp_neighbors(self, vrf="default"):

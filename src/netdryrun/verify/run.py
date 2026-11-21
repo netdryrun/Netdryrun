@@ -30,6 +30,7 @@ from typing import Callable
 
 from ..config import ConfigError, load_yaml
 from ..drivers import DRIVERS, BetaDriver, DriverError, Undetectable, detect, resolve
+from ..drivers import frr_import_check
 from ..lab import Lab, LabError
 from .converge import Inconclusive, stable_snapshot
 from .engine import VerifyError, baseline_problems, diff, match
@@ -513,6 +514,14 @@ def collect(lab: Lab, nodes: dict[str, str], cmd_timeout: float = 60) -> Snapsho
     return Snapshot(snaps, unobserved_reasons(lab, nodes))
 
 
+def _driver_or_none(name: str, node) -> str | None:
+    """The driver detection gives a node (verify's own FRR nodes all detect as FRR), or None."""
+    try:
+        return detect(node)
+    except DriverError:
+        return None
+
+
 @contextmanager
 def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Callable[[str], None]):
     from ..runner import _ACTIVE, _signals_deferred
@@ -536,7 +545,15 @@ def deployed(topology: Path, setup: dict[str, list[str]], keep: bool, log: Calla
             raise LabError(f"lab containers not running: {', '.join(sorted(missing))}")
         for node, cmds in setup.items():
             lab.run_setup(node, cmds, log=log)
+        # Every boot (before, after and both reruns), before the snapshot: every FRR router's `network` statements
+        # registered with zebra, remedied when bgpd applied them before its zebra connection (FP-043-FRRIMPORTCHK);
+        # a router that can't be read, or stays stuck, ends verify with no verdict
+        routers = frr_import_check.candidates(lab, _driver_or_none)
+        frr_import_check.guard(lab, routers, remedy=True, clock=time.monotonic, sleep=time.sleep, log=log)
         yield lab
+        # and again once the side's evidence is taken (detection only): stuck now, the snapshot can't be trusted
+        frr_import_check.guard(lab, routers, remedy=False, clock=time.monotonic, sleep=time.sleep, log=log,
+                               label="after the snapshot")
     finally:
         with _signals_deferred():
             if started and not keep:

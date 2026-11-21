@@ -10,10 +10,10 @@ from pathlib import Path
 import pytest
 
 from netdryrun import runner
-from netdryrun.drivers import frr
+from netdryrun.drivers import frr, frr_import_check
 from netdryrun.lab import ExecResult, Node
 
-from test_runner_robustness import ALWAYS, FakeDriver, FakeLab, World, cfg, install
+from test_runner_robustness import ALWAYS, BGPD_NO_NETWORK, FakeDriver, FakeLab, World, cfg, install
 
 FIX = Path(__file__).parent / "fixtures"
 REJECTED = (FIX / "frr_boot_log_rejected.txt").read_text(encoding="utf-8")
@@ -68,6 +68,33 @@ class BootLogLab(FakeLab):
             r = self.running.get(node, "")
             r = r.get(cmd[2], "") if isinstance(r, dict) else r
         return r if isinstance(r, ExecResult) else ExecResult(cmd, 0, r, "")
+
+
+class _ImportCheckView:
+    """What the FRR import-check guard (FP-043-FRRIMPORTCHK, tests/test_frr_import_check.py) reads of a BootLogLab.
+    It reads bgpd's running config with the command the config-load check reads after the checks, which BootLogLab
+    answers per test; the guard gets a live FRR 10.4.1 answer with BGP and no `network` instead, and the node's boot
+    log without counting it as the config-load check's read."""
+
+    def __init__(self, lab):
+        self.lab, self.nodes = lab, lab.nodes
+
+    def exec(self, node, cmd, timeout=60, input=None):
+        assert cmd == frr_import_check.BGPD_CONFIG, cmd   # nothing else: no `network` to read a table for
+        return ExecResult(cmd, 0, BGPD_NO_NETWORK, "")
+
+    def boot_log(self, node):
+        log = self.lab.logs.get(node, CLEAN)
+        return log if isinstance(log, ExecResult) else ExecResult([], 0, log, "")
+
+
+@pytest.fixture(autouse=True)
+def _import_check_reads_its_own_answers(monkeypatch):
+    real = frr_import_check.guard
+
+    def guard(lab, nodes, **kw):
+        return real(_ImportCheckView(lab) if isinstance(lab, BootLogLab) else lab, nodes, **kw)
+    monkeypatch.setattr(frr_import_check, "guard", guard)
 
 
 def _run(tmp_path, monkeypatch, lab, deploy=False):

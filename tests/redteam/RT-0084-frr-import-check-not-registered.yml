@@ -6,16 +6,25 @@ title: >-
   approved by `verify`, while production (import check registered) withdraws the prefix. Corpus v2 case 18 was
   approved this way
 found: "2026-11-21, investigation of corpus v2 case 18's nondeterministic verdicts (research/case18-race); oracle session oracle-frr-importchk"
-fixed_in: null
-# OPEN: no fix yet (oracle FP-043-FRRIMPORTCHK is red on main). FRR 10.4.1 bgpd (same code in 8.5.4, 10.2.1 and
-# master): bgp_isvalid_nexthop() answers valid while bgpd has no zebra connection, and bgp_nht_register_nexthops()
-# re-sends the nexthop cache on connect but not the import-check table. bgpd shows it: the import-check entry is
-# invalid and "Is not Registered" (JSON `"isRegistered": false`) next to a valid, sourced, best `network` path. Live on
-# the laptop's WSL with FRR 10.4.1 (tests/fixtures/frr_fp043ic, SOURCES.yml). Affected: every release with the FRR
-# driver (run/check since 0.1.0, verify since 0.4.0); not yet checked against archived tags.
+fixed_in: 0.4.3
+# Fixed by src/netdryrun/drivers/frr_import_check.py, run from runner.run and verify.run.deployed. FRR 10.4.1 bgpd
+# (same code in 8.5.4, 10.2.1 and master): bgp_isvalid_nexthop() answers valid while bgpd has no zebra connection,
+# and bgp_nht_register_nexthops() re-sends the nexthop cache on connect but not the import-check table. bgpd shows it:
+# the import-check entry is invalid and "Is not Registered" (JSON `"isRegistered": false`) next to a valid, sourced,
+# best `network` path. Netdryrun now reads every FRR and SONiC router's bgpd running config and each BGP instance's
+# import-check table by name; a stuck entry is remedied on a lab the run deployed (one vtysh call toggling `bgp
+# network import-check`, then a clean re-read, the config unchanged and no session reset) or is an error, and `check`
+# only detects. Live on the laptop's WSL with FRR 10.4.1 (tests/fixtures/frr_fp043ic, SOURCES.yml). Affected: every
+# release with the FRR driver (run/check since 0.1.0, verify since 0.4.0); not checked against archived tags. SONiC
+# (bgpd 10.7.1) gets the same check, not yet run against a live SONiC lab.
 kind: pinned
 tests:
   - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_stuck_import_check_is_never_judged_passing
   - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_verify_never_approves_case_18_on_a_stuck_boot
   - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_unreadable_import_check_table_is_an_error
   - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py::test_contradiction_alone_is_detected
+  - tests/test_frr_import_check.py::test_stuck_without_remedy_is_an_error_and_touches_nothing
+  - tests/test_frr_import_check.py::test_still_stuck_after_the_remedy_is_an_error
+  - tests/test_frr_import_check.py::test_contradiction_without_the_flag_is_stuck
+  - tests/test_frr_import_check.py::test_run_guards_every_frr_router_then_rechecks_before_the_verdict
+  - tests/test_frr_import_check.py::test_verify_guards_each_boot_before_and_after_its_snapshot

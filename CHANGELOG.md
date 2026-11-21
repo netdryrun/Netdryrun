@@ -27,6 +27,24 @@
 
 ### Fixed
 
+- **FRR: a `network` statement with no route behind it no longer passes (RT-0084, oracle FP-043-FRRIMPORTCHK).**
+  On some lab boots FRR's bgpd applies its `network` statements before its connection to zebra is up. It then never
+  registers them for the import check, and announces each prefix for the life of the lab whatever the routes say,
+  where a production router withdraws it. A change that deleted the route behind a `network` could then pass `run`
+  and `check`, and `verify` could approve it (corpus v2 case 18 was approved this way). Found live on FRR 10.4.1; the
+  same code is in 8.5, 10.2 and master. Every release with the FRR driver was affected.
+  - After `setup:` and before anything is judged, Netdryrun now reads every FRR and SONiC router in the lab, not only
+    the checks' nodes: bgpd's running config, then the import-check table of each BGP instance by name (`vrf all`
+    answers nothing usable). Each `network` in an import-checked family needs its entry, and an entry that is invalid
+    next to a valid path, or not registered with zebra, is stuck.
+  - On a lab the run deployed (`run`, and each of `verify`'s four boots), a stuck router gets one `vtysh` call that
+    turns `bgp network import-check` off and on in that instance. The table is then read again and must be clean,
+    with the running config unchanged and no BGP session reset; otherwise the run is an error (exit `2`). The report's
+    `environment.nodes.<node>.import_check` says `registered` or what was remedied.
+  - `check` (a lab it didn't deploy) only detects: a stuck router is an error naming it and the command to run.
+  - The table is read again before the verdict (`run`, `check`) and after each snapshot (`verify`): stuck then is an
+    error. So is a table or config Netdryrun can't read within 120 s.
+  - SONiC runs FRR's bgpd and gets the same check, but it hasn't been run against a live SONiC lab yet.
 - **PyYAML 6.0.4 is excluded.** That release (2026-11-20) changed how YAML merge keys (`<<`) are expanded: a value
   overridden one merge level down is lost for one-character keys, so a one-letter node name under `nodes:` could get
   the template's value instead of its own override, and the order of a merge list is reversed for longer keys (PyYAML
