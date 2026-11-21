@@ -3,53 +3,58 @@ flips:
     case: tests.test_driver_false_pass::test_eos_existing_vrf_without_the_route_is_a_real_absence
     from: FAIL
     to: PASS
-    evidence: [tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json, tests/fixtures/ceos4363m_fix043_vrf_absent_rib_route_9.json, tests/fixtures/ceos4363m_fix043_nosuchvrf_rib_route.json]
+    kind: new-read
+    evidence: [tests/test_driver_false_pass.py, tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json, tests/fixtures/ceos4363m_fix043_vrf_absent_rib_route_9.json, tests/fixtures/ceos4363m_fix043_nosuchvrf_rib_route.json]
     why: >-
-      FP-043-EOSNONBGP: the EOS driver now also sends show rib route for the prefix, so the base test (unchanged
-      fake answers only route and bgp) fails on the missing RIB answer. The updated test adds the live empty-RIB
-      answer (ribRoutesByProtocol empty, the captured no-candidate shape) and still expects an empty route list,
-      and adds a new must-raise: a RIB answer without the VRF raises DriverError, never reads as no candidate.
-      The test got stricter, not weaker.
-    reviewed_by: allowlist-eos
+      FP-043-EOSNONBGP: EOS routes() now also sends show rib route ip vrf <vrf> <prefix> | json, which main's fake
+      has no answer for. The updated test answers it with the live no-candidate shape (ribRoutesByProtocol empty),
+      keeps the empty-list and BGP-VRF-missing assertions, and adds a must-raise: a RIB answer without the VRF
+      raises DriverError, never reads as no candidate. Stricter.
+    reviewed_by: "adv-eos-agg: the updated test answers the RIB read with the live empty-RIB shape, keeps both assertions and adds a must-raise for a RIB answer without the VRF"
   - source: fixtures
     case: tests.test_verdict_drivers::test_default_vrf_everywhere
     from: FAIL
     to: PASS
-    evidence: [tests/fixtures/ceos4363m_fp043_healthyA_rib_route.json, tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json]
+    kind: new-read
+    evidence: [tests/test_verdict_drivers.py, tests/fixtures/ceos4363m_fp043_healthyA_rib_route.json, tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json]
     why: >-
-      FP-043-EOSNONBGP: the EOS routes() call now issues a show rib route command, which the base fake lab has no
-      answer for. The updated test only adds that RIB answer; its assertion that vrf default appears in every
-      command sent now also covers the RIB command. Nothing was removed or relaxed.
-    reviewed_by: allowlist-eos
+      FP-043-EOSNONBGP: the gate tags this flip new-read on * because the test covers every driver, but the command
+      log's one new line is the EOS RIB read on r1 (Cli -p 15 -c show rib route ip vrf default 10.1.0.0/16 | json),
+      not a temp path. The updated test only adds the RIB answer (eos_rib, in the shape of the live captures), and
+      its assertion that vrf default is in every command sent now covers the RIB command too. Nothing relaxed.
+    reviewed_by: "adv-eos-agg: the new command-log line is the EOS RIB read with vrf default, not noise; the vrf default assertion now also covers it"
   - source: fixtures
     case: tests.test_verdict_drivers::test_eos_routes_commands
     from: FAIL
     to: PASS
-    evidence: [tests/fixtures/ceos4363m_fp043_healthyA_rib_route.json, tests/fixtures/ceos4363m_fp043_healthyB_rib_route.json, tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json]
+    kind: new-read
+    evidence: [tests/test_verdict_drivers.py, tests/fixtures/ceos4363m_fp043_healthyA_rib_route.json, tests/fixtures/ceos4363m_fp043_healthyB_rib_route.json, tests/fixtures/ceos4363m_fix043_absent_rib_route_9.json]
     why: >-
-      FP-043-EOSNONBGP: routes() now reads the RIB too. The updated test pins three commands instead of two,
-      including the RIB command in the right family (ip or ipv6) and the right VRF, and three evidence entries
-      instead of two. The expected route values are unchanged. The test got stricter.
-    reviewed_by: allowlist-eos
+      FP-043-EOSNONBGP: routes() now reads the RIB between the routing table and the BGP table. The updated test
+      pins three commands in order instead of two (the RIB read in the right family, ip or ipv6, and VRF) and three
+      evidence entries instead of two. The expected route values are unchanged. Stricter.
+    reviewed_by: "adv-eos-agg: three commands pinned in order instead of two, three evidence entries, route values unchanged"
   - source: fixtures
     case: tests.test_redteam::test_accepted_limits_are_published_and_still_behave_as_documented[RT-0056-eos-floating-static-not-selected]
     from: FAIL
     to: PASS
-    evidence: [tests/redteam/RT-0056-eos-floating-static-not-selected.yml, tests/fixtures/ceos4363m_fp043_rt0056_rib_route.json]
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0056-eos-floating-static-not-selected.yml, tests/fixtures/ceos4363m_fp043_rt0056_rib_route.json]
     why: >-
-      RT-0056 was an accepted limit (a floating static not selected was never seen) and is fixed in 0.4.3: the
-      case is no longer an accepted limit and runs under test_driver_case_does_not_pass with the live RIB capture
-      (floating static, distance 250, bestRoute false, beside the selected eBGP default), where it fails as it
-      should. With main eos.py swapped in it passes, so it does test the fix.
-    reviewed_by: allowlist-eos
+      RT-0056 is fixed in 0.4.3 (fixed_in: 0.4.3, accepted_limit removed), so it leaves the accepted-limits test and
+      runs under test_driver_case_does_not_pass with the live cEOS 4.36.3M RIB capture (floating static, distance
+      250, bestRoute false, beside the selected eBGP default). It ends "unexpectedly present via static (not
+      selected)", and the updated test_redteam.py fails any case with an unanswered command.
+    reviewed_by: "adv-eos-agg: RT-0056 runs as a driver case on the live RIB capture and ends unexpectedly present via static (not selected)"
   - source: fixtures
     case: tests.test_redteam::test_accepted_limits_are_published_and_still_behave_as_documented[RT-0063-eos-ospf-default-behind-static]
     from: FAIL
     to: PASS
-    evidence: [tests/redteam/RT-0063-eos-ospf-default-behind-static.yml, tests/fixtures/ceos4363m_fp043_rt0063_rib_route.json]
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0063-eos-ospf-default-behind-static.yml, tests/fixtures/ceos4363m_fp043_rt0063_rib_route.json]
     why: >-
-      RT-0063 was an accepted limit (an inactive OSPF default behind a static was never seen) and is fixed in
-      0.4.3: the case is no longer an accepted limit and runs under test_driver_case_does_not_pass with the live
-      RIB capture (OSPF default, distance 110, bestRoute false, beside the selected static Null0), where it fails
-      as it should. With main eos.py swapped in it passes, so it does test the fix.
-    reviewed_by: allowlist-eos
+      RT-0063 is fixed in 0.4.3 (fixed_in: 0.4.3, accepted_limit removed), so it leaves the accepted-limits test and
+      runs under test_driver_case_does_not_pass with the live cEOS 4.36.3M RIB capture (OSPF default, distance 110,
+      bestRoute false, beside the selected static Null0). It ends "unexpectedly present via ospf (not selected)",
+      and the updated test_redteam.py fails any case with an unanswered command.
+    reviewed_by: "adv-eos-agg: RT-0063 runs as a driver case on the live RIB capture and ends unexpectedly present via ospf (not selected)"
