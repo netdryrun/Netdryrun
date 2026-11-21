@@ -286,6 +286,7 @@ class Check:
     output: str = ""        # the evidence: command output (tail) or a computed listing
     command: str = ""
     ended: float = 0.0      # wall clock at the end (epoch s): a check overlapping a labrun taint is no verdict
+    fingerprint: str = ""   # a failed MAJOR defined by its content: accepted only by an entry that pins this
 
 
 @dataclass
@@ -309,6 +310,28 @@ def run(cmd: list[str], *, cwd: Path = ROOT, timeout: float = 900, env: dict | N
         return Proc(124, f"{out}\n[timed out after {timeout:.0f} s]", time.monotonic() - t0)
 
 
+def fingerprint_of(key: str, content: list[str]) -> str:
+    """16 hex digits of sha256 over the check's key and its sorted content: the same lines give the same
+    fingerprint on every run, and any other line gives another."""
+    return hashlib.sha256("\n".join([key, *sorted(str(c) for c in content)]).encode("utf-8")).hexdigest()[:16]
+
+
+def acceptance_mismatch(check: dict, entry) -> str | None:
+    """Why an accepted.json entry doesn't accept this MAJOR, or None when it does. A check with a fingerprint is
+    accepted only by {"reason": ..., "fingerprint": <that fingerprint>}; one without takes a reason as before."""
+    fp = check.get("fingerprint") or ""
+    why = entry if isinstance(entry, str) else entry.get("reason") if isinstance(entry, dict) else None
+    if not isinstance(why, str) or not why.strip():
+        return "the entry gives no reason"
+    if fp and not isinstance(entry, dict):
+        return f"the check's content has fingerprint {fp}; the entry must pin it ({{\"reason\": ..., \"fingerprint\": " \
+               f"\"{fp}\"}})"
+    if fp and entry.get("fingerprint") != fp:
+        return (f"the entry pins fingerprint {str(entry.get('fingerprint'))[:16]!r}, this run's content is {fp}: the "
+                "acceptance was for other lines")
+    return None
+
+
 def tail(text: str, lines: int = 60) -> str:
     rows = text.rstrip().splitlines()
     return "\n".join(rows if len(rows) <= lines else [f"[... {len(rows) - lines} earlier lines]"] + rows[-lines:])
@@ -330,12 +353,19 @@ class Layer:
         self.t0 = time.monotonic()
 
     def add(self, id: str, title: str, severity: str, ok: bool | None, summary: str = "",
-            output: str = "", seconds: float = 0.0, command: str = "") -> Check:
-        """ok=True PASS, ok=False FAIL, ok=None SKIP (a FAIL under --strict when it is a BLOCKER)."""
+            output: str = "", seconds: float = 0.0, command: str = "", content: list[str] | None = None) -> Check:
+        """ok=True PASS, ok=False FAIL, ok=None SKIP (a FAIL under --strict when it is a BLOCKER). `content`: what
+        defines a MAJOR that isn't a PASS (the lines it waived, the fixtures it skipped); its fingerprint goes in the
+        summary, and accepted.json accepts the check only with that fingerprint (fingerprint_of)."""
         status = PASS if ok else FAIL if ok is False else SKIP
         if status == SKIP and self.args.strict and severity == BLOCKER:
             status, summary = FAIL, f"skipped under --strict: {summary}"
-        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command, round(time.time(), 1))
+        fp = fingerprint_of(f"{self.name}/{id}", content) if content is not None and severity == MAJOR and \
+            status != PASS else ""
+        if fp:
+            summary = f"{summary} [fingerprint {fp}]"
+        check = Check(id, title, severity, status, round(seconds, 1), summary, output, command, round(time.time(), 1),
+                      fp)
         self.checks.append(check)
         print(f"  [{check.status}] {severity:<7} {title}" + (f": {summary}" if summary else ""), flush=True)
         return check
@@ -655,12 +685,18 @@ class Bridge:
     def __init__(self):
         self.allowed: dict[str, tuple[str, str]] = {}
 
-    def covers(self, line: str) -> bool:
+    def covers(self, line: str, printed: list[str]) -> bool:
+        """`line` is one the bridge drops: the stale-entry line for an exact entry dominance allowed, or the bare
+        flip of that gate file when the same run also printed that stale line (so the old judge read and validated
+        the entry)."""
         m = BRIDGE_BARE.fullmatch(line)
         if m:
-            return m["path"] in self.allowed
+            return m["path"] in self.allowed and any(self.stale(ln) == m["path"] for ln in printed)
+        return self.stale(line) is not None
+
+    def stale(self, line: str) -> str | None:
         m = BRIDGE_STALE.fullmatch(line)
-        return bool(m) and self.allowed.get(m["path"]) == (m["blob"], m["file"])
+        return m["path"] if m and self.allowed.get(m["path"]) == (m["blob"], m["file"]) else None
 
 
 def bridge_from_dominance(git_, base: str, flips) -> Bridge:
@@ -669,14 +705,14 @@ def bridge_from_dominance(git_, base: str, flips) -> Bridge:
     HEAD. Anything else bridges nothing."""
     import yaml   # the gate's Python has Netdryrun's dependencies
     bridge = Bridge()
-    changed = set((git_("diff", "--name-only", base, "HEAD", "--", f"{ALLOW_DIR}/") or "").split())
+    changed = set((git_("diff", "--name-only", "-z", base, "HEAD", "--", f"{ALLOW_DIR}/") or "").split("\0"))
     for f in flips if isinstance(flips, list) else []:
         if not isinstance(f, dict) or (f.get("source"), f.get("from"), f.get("to")) != ("gate", "FAIL", "PASS"):
             continue
         path, _, blob = str(f.get("case", "")).partition("@")
         by = f.get("allowed_by")
         if path not in GATE_FILES or not re.fullmatch(r"[0-9a-f]{12}", blob) or not isinstance(by, str) \
-                or by not in changed:
+                or not (by.startswith(f"{ALLOW_DIR}/") and by.endswith(".yml")) or by not in changed:
             continue
         if (git_("rev-parse", "--verify", "--end-of-options", f"HEAD:{path}") or "")[:12] != blob:
             continue
@@ -712,6 +748,7 @@ class Historic:
     def __init__(self, waivers: list[dict], problems: list[str], path: str | None):
         self.waivers, self.problems, self.path = waivers, problems, path
         self.used: set[tuple[int, str]] = set()
+        self.miscounted: list[str] = []
 
     def waive(self, check_id: str, proc: Proc) -> tuple[list[str], list[str]]:
         """(waived lines, remaining BLOCKED lines) of a blocked run; nothing is waived for an unblocked or broken run,
@@ -720,13 +757,23 @@ class Historic:
         if proc.code != 1 or check_id not in WAIVABLE or self.problems or not self.waivers:
             return [], blocked
         waived, rest = [], []
+        printed = {ln: blocked.count(ln) for ln in blocked}
+        listed: dict[str, int] = {}
+        for w in self.waivers:
+            for ln in w["lines"]:
+                listed[ln] = listed.get(ln, 0) + 1
         for ln in blocked:
             hit = [i for i, w in enumerate(self.waivers) if ln in w["lines"]]
-            if hit:
+            if hit and printed[ln] == listed[ln]:
                 waived.append(ln)
                 self.used.update((i, ln) for i in hit)
             else:
                 rest.append(ln)
+                if hit and printed[ln] != listed[ln]:   # another commit with the same 10 digits prints the same line
+                    note = (f"{check_id} printed {ln[:120]!r} {printed[ln]} time(s), the record lists it "
+                            f"{listed[ln]}: none of them is waived")
+                    if note not in self.miscounted:
+                        self.miscounted.append(note)
         return waived, rest
 
     def unused(self) -> list[str]:
@@ -773,6 +820,10 @@ def load_historic(git_, version: str, base: str | None, patch_id=None) -> Histor
             continue
         if sha not in in_range:
             problems.append(f"{where}: {sha[:10]} is not a commit between the base and HEAD")
+        twins = sorted(c for c in in_range if c != sha and c.startswith(sha[:10]))
+        if twins:
+            problems.append(f"{where}: {len(twins)} other commit(s) in the range share {sha[:10]} ({twins[0]}), and the "
+                            "judge's lines name commits by those 10 digits: its lines can't be told apart")
         pid = (patch_id or commit_patch_id)(sha)
         if not pid or w["patch_id"] != pid:
             problems.append(f"{where}: patch_id {str(w['patch_id'])[:12]} is not {sha[:10]}'s change "
@@ -791,14 +842,50 @@ def load_historic(git_, version: str, base: str | None, patch_id=None) -> Histor
     return Historic(waivers if not problems else [], problems, path)
 
 
+JUDGE_SUMMARY = re.compile(r"[a-z-]+: BLOCKED \((?P<flips>\d+) unexplained flip\(s\), (?P<problems>\d+) problem\(s\)\)")
+JUDGE_FLIP = "BLOCKED loosening flip with no reviewed allowlist entry: "
+JUDGE_FIXTURES_NOTE = "  (fixtures: the base's guard test no longer holds on the candidate's code."
+
+
+def judge_shape_problem(out: str) -> str | None:
+    """Why a blocked judge's output isn't exactly what its finish() prints (indented notes, flip lines, the fixtures
+    note, problem lines, then its summary), or None. A problem whose text runs past a newline would hide that text
+    from the line matching, so any other line, or counts that don't add up, mean nothing may be waived or dropped."""
+    lines = [ln.rstrip() for ln in out.splitlines() if ln.strip()]
+    m = JUDGE_SUMMARY.fullmatch(lines[-1]) if lines else None
+    if not m:
+        return "its last line is not the judge's BLOCKED summary"
+    flips = problems = 0
+    for ln in lines[:-1]:
+        if ln.startswith(JUDGE_FLIP) and not problems:
+            flips += 1
+        elif ln.startswith("BLOCKED "):
+            problems += 1
+        elif ln.startswith(JUDGE_FIXTURES_NOTE) and flips and not problems:
+            continue
+        elif ln.startswith(" ") and not flips and not problems:   # a note, before any flip or problem
+            continue
+        else:
+            return f"{ln[:100]!r} is not a line the judge prints there (a flip or problem running past a newline?)"
+    if (flips, problems) != (int(m["flips"]), int(m["problems"])):
+        return (f"it prints {flips} flip and {problems} problem line(s), but its summary counts {m['flips']} and "
+                f"{m['problems']}")
+    return None
+
+
 def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: list, proc: Proc,
                summary: str, bridge: Bridge | None = None) -> None:
     """A BLOCKER run by a frozen judge; a run blocked only by lines a valid historic record waives, or the
     gate-naming bridge drops, is a MAJOR instead (to accept in accepted.json), never a PASS."""
     blocked = [ln.rstrip() for ln in proc.out.splitlines() if ln.startswith("BLOCKED ")]
     waived, rest = hist.waive(id_, proc) if hist else ([], blocked)
-    bridged = [ln for ln in rest if bridge.covers(ln)] if bridge is not None and proc.code == 1 else []
+    bridged = [ln for ln in rest if bridge.covers(ln, blocked)] if bridge is not None and proc.code == 1 else []
     rest = [ln for ln in rest if ln not in bridged]
+    shape = judge_shape_problem(proc.out) if (waived or bridged) and not rest else None
+    if shape:
+        layer.add(id_, title, BLOCKER, False, f"nothing waived or dropped: the judge's output {shape}",
+                  tail(proc.out), proc.seconds, cmdline(cmd))
+        return
     if (waived or bridged) and not rest:
         why = []
         if waived:
@@ -809,7 +896,7 @@ def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: l
                        f"{', '.join(sorted(f'{p}@{b}' for p, (b, _) in bridge.allowed.items()))}")
         named = [f"waived: {ln}" for ln in waived] + [f"dropped by the gate-naming bridge: {ln}" for ln in bridged]
         layer.add(id_, title, MAJOR, False, f"blocked only by {' and '.join(why)}: accept in accepted.json",
-                  "\n".join(named + ["", tail(proc.out)]), proc.seconds, cmdline(cmd))
+                  "\n".join(named + ["", tail(proc.out)]), proc.seconds, cmdline(cmd), content=named)
         return
     layer.add_proc(id_, title, BLOCKER, cmd, proc, summary)
 
@@ -818,7 +905,8 @@ def historic_check(layer: Layer, hist: Historic) -> None:
     """Only when a record exists: it is valid, and every line it waives was printed by a judge in this run."""
     if not hist.path and not hist.problems:
         return
-    bad = hist.problems + [f"waives a line no judge printed in this run: {u}" for u in hist.unused()]
+    bad = hist.problems + hist.miscounted + [f"waives a line no judge printed in this run: {u}"
+                                             for u in hist.unused()]
     layer.add("historic-record", HISTORIC_TITLE, BLOCKER, not bad,
               f"{len(bad)} problem(s): {bad[0][:300]}" if bad else
               f"{hist.path}: {sum(len(w['lines']) for w in hist.waivers)} line(s) waived, each one used",
@@ -943,13 +1031,14 @@ def published_checks(layer: Layer, args, git_, runner, head: str | None, ls_remo
                     raise TypeError("pending_since_base is not a list")
                 layer.add("plants-pending", PENDING_TITLE, MAJOR, not waiting,
                           f"{len(waiting)} oracle(s) with no fix since {tag}: {', '.join(waiting[:5])}" if waiting
-                          else "none")
+                          else "none", content=[sha, *map(str, waiting)])
             except (OSError, ValueError, KeyError, TypeError) as e:
-                layer.add("plants-pending", PENDING_TITLE, MAJOR, False, f"no readable plants record ({e})")
+                layer.add("plants-pending", PENDING_TITLE, MAJOR, False, f"no readable plants record ({e})",
+                          content=[sha, "unreadable"])
         layer.add("published-judge", JUDGE_TITLE, MAJOR, not booted,
                   f"BOOTSTRAP: {' and '.join(booted)} judged by this commit's own fastfix_gate.py, because {tag} "
                   f"predates the commands; accept this once, for {BOOTSTRAP_NEXT} only"
-                  if booted else f"{tag}'s copy")
+                  if booted else f"{tag}'s copy", content=[tag, sha, args.version, *booted])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -1080,7 +1169,8 @@ def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, 
         if not isinstance(skipped, list):
             raise TypeError("skipped_at_base is not a list")
     except (OSError, ValueError, KeyError, TypeError) as e:
-        layer.add("dominance-skips", SKIPS_TITLE, MAJOR, False, f"no readable dominance record ({e})")
+        layer.add("dominance-skips", SKIPS_TITLE, MAJOR, False, f"no readable dominance record ({e})",
+                  content=[sha, "unreadable"])
         return None
     guards = [s for s in skipped if not isinstance(s, dict) or s.get("origin") in ("redteam", "oracles",
                                                                                      "known_false_passes", "unknown")]
@@ -1088,11 +1178,11 @@ def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, 
     # still a must-not-pass fixture neither side ran here: counted, and said, so a reviewer can accept it knowingly
     same = sum(1 for s in guards if isinstance(s, dict) and s.get("same_at_candidate") is True)
     both = f" ({same} of them skipped the same way at the candidate)" if same else ""
+    listing = [f"{s.get('case')} ({s.get('origin')}): {s.get('reason')}" if isinstance(s, dict) else str(s)
+               for s in guards]
     layer.add("dominance-skips", SKIPS_TITLE, MAJOR,
               not guards, f"{len(guards)} not compared (skipped at the published release, {sha[:10]}){both}"
-              if guards else "none skipped",
-              "\n".join(f"{s.get('case')} ({s.get('origin')}): {s.get('reason')}" if isinstance(s, dict) else str(s)
-                        for s in guards))
+              if guards else "none skipped", "\n".join(listing), content=[sha, *listing])
     # what the run allowed, for the gate-naming bridge: only from a run that finished (clean or blocked) on this HEAD
     return data.get("flips") if proc.code in (0, 1) and data.get("candidate") == head else None
 
@@ -2740,7 +2830,11 @@ def render(args, now: dt.datetime | None = None) -> tuple[str, bool]:
         for c in rec["checks"]:
             key = f"{name}/{c['id']}"
             if c["status"] in (FAIL, SKIP) and c["severity"] == MAJOR and key in accepted:
-                c["status"], c["summary"] = ACCEPTED, f"{c['summary']} (accepted: {accepted[key]})"
+                why = acceptance_mismatch(c, accepted[key])
+                if why is None:
+                    c["status"], c["summary"] = ACCEPTED, f"{c['summary']} (accepted: {reason(accepted[key])})"
+                else:
+                    c["summary"] = f"{c['summary']} (NOT accepted: {why})"
             if c["status"] == FAIL and c["severity"] == BLOCKER:
                 blockers.append(f"{key}: {c['title']}")
             elif c["status"] == SKIP and c["severity"] == BLOCKER:

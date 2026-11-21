@@ -79,15 +79,30 @@ dominance runs; a run blocked by nothing else becomes a MAJOR that needs its own
 PASS. It blocks (`historic-record`) when the record names another release, or the run or the record is against any
 base other than v0.4.2's commit (so it expires with 0.4.3), when a waiver's commit is not in the range or its patch-id
 differs, when a line is not a `BLOCKED <that sha>` line or is a flip, an oracle failure or a plant, when a field is
-missing, when any other file sits in `fastfix/historic/`, and when a waived line isn't printed by any judge in the run.
+missing, when any other file sits in `fastfix/historic/`, when a waived line isn't printed by any judge in the run,
+when another commit in the range shares a waived commit's first 10 digits (the judge names commits by those), and
+when a run prints a waived line more or fewer times than the record lists it.
 
 The published v0.4.2 judge names a gate-file flip by its bare path, while the judge after it names it
 `<path>@<blob>`, so no allowlist can satisfy both: the entry one needs is a stale entry to the other. For release 0.4.3
 against v0.4.2's commit only (the change's base and the published release both), the release gate drops two kinds of
 line from v0.4.2's loosening run, the bare flip `gate :: <path>: FAIL -> PASS` and the stale-entry line for
 `<path>@<blob>`, and only for a gate file whose exact `<path>@<blob>` entry, with the candidate's own blob, is in an
-allowlist changed in the change and was allowed by the dominance run on this commit. Every dropped line is listed in
-the check's output, and a run that needed it is a MAJOR to accept, never a PASS. Any other line still blocks.
+allowlist changed in the change (read with `git diff -z`, a `.yml` under `fastfix/allow/`) and was allowed by the
+dominance run on this commit. A bare flip is dropped only when the same run also printed the stale-entry line for that
+entry, which shows the old judge read it. Every dropped line is listed in the check's output, and a run that needed it
+is a MAJOR to accept, never a PASS. Any other line still blocks.
+
+Nothing is waived or dropped unless the judge's output has exactly the shape its `finish()` prints (indented notes,
+flip lines, the fixtures note, problem lines, then the summary) and the summary's flip and problem counts match the
+lines: a problem whose text runs past a newline can't hide anything after it.
+
+Each of these MAJORs, and the other fast-fix MAJORs (`dominance-skips`, `published-judge`, `plants-pending`), puts a
+fingerprint of its content in its summary (`[fingerprint <16 hex>]`: the waived and dropped lines, the skipped
+fixtures, the published commit). `accepted.json` accepts such a check only with that fingerprint pinned:
+`{"checks": {"static/loosening": {"reason": "...", "fingerprint": "<16 hex>"}}}`. A plain reason, a missing or another
+fingerprint is not accepted, so an acceptance can't carry over to a candidate with other lines. MAJORs without a
+fingerprint (the live and after-publish layers, say) still take a plain reason.
 
 Known limits (accepted for now):
 - The checks run from the candidate's own `release_gate.py`. A candidate that edits it shows up as a gate-file flip
