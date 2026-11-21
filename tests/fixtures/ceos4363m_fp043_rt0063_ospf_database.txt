@@ -1,0 +1,14 @@
+
+            OSPF Router with ID(30.30.30.30) (Instance ID 1) (VRF default)
+
+
+                 Router Link States (Area 0.0.0.0)
+
+Link ID         ADV Router      Age         Seq#         Checksum Link count
+20.20.20.20     20.20.20.20     3           0x80000005   0xcd9d   2
+30.30.30.30     30.30.30.30     163         0x80000003   0x8b9c   2
+
+                 Type-5 AS External Link States
+
+Link ID         ADV Router      Age         Seq#         Checksum Tag
+0.0.0.0         20.20.20.20     3           0x80000001   0x92ee   0

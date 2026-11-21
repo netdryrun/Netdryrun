@@ -570,3 +570,42 @@
     lu-exact0-must-fail-eor-not-sent PASSED ("0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)") while
     r1 had r2's 3 prefixes installed via BGP, and lu-max0-control failed
   added: ndr/oracles-0.4.2
+- files: [ceos4363m_fp043_*_ip_route.json, ceos4363m_fp043_*_ip_bgp.json, ceos4363m_fp043_*_rib_route.json,
+          ceos4363m_fp043_*_rib_route.txt, ceos4363m_fp043_rt0056_ip_route_9.json, ceos4363m_fp043_rt0056_ip_bgp_9.json,
+          ceos4363m_fp043_rt0056_rib_route_9.json, ceos4363m_fp043_*_ip_route_detail.txt,
+          ceos4363m_fp043_rt0056_ip_route_static.txt, ceos4363m_fp043_rt0063_ip_route_ospf.txt,
+          ceos4363m_fp043_rt0063_ospf_database.txt, ceos4363m_fp043_*_running_config.txt,
+          ceos4363m_fp043_show_version.txt]
+  kind: live-capture
+  source: >-
+    Arista cEOS 4.36.3M (ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df) ceos1 with FRR
+    10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442) frr1,
+    containerlab 0.81.1, lab ndr-fp043 (eBGP 65030-65020 on Ethernet1, OSPF area 0 on Ethernet2), the laptop's WSL,
+    2026-11-21 11:25-11:28 UTC (18:25-18:28 Thailand time). Each file is the stdout, byte for byte, of `docker exec
+    clab-ndr-fp043-ceos1 Cli -p 15 -c "<command>"` (stderr empty, rc 0), the commands listed in
+    ceos4363m_fp043_capture.sh, which ran the phases in this order. rt0056: frr1 sends an eBGP default (selected, 200)
+    and ceos1 has `ip route 0.0.0.0/0 10.0.201.2 250` (not selected). rt0056sel: the eBGP neighbor shut, the static is
+    selected. healthyA: the static removed, the eBGP default only. rt0063: frr1 stops the BGP default and originates an
+    OSPF default (`default-information originate always`), ceos1 has `ip route 0.0.0.0/0 Null0` (selected, 1; the OSPF
+    default not selected). ospfsel: the Null0 route removed, the OSPF default selected. healthyB: Null0 back, frr1's
+    OSPF default withdrawn. Before the phases, frr1's eth2 MTU was set to 1500 and `ip ospf mtu-ignore` added on eth2 so
+    OSPF reached FULL (cEOS Ethernet2 is 1500). Captured for oracle FP-043-EOSNONBGP (red team RT-0056, RT-0063)
+  added: ndr/oracle-eos-nonbgp
+- files: [ceos4363m_fp043_*_report.json, ceos4363m_fp043_*_check.txt]
+  kind: report
+  source: >-
+    netdryrun 0.4.2 (main 24f6666, PYTHONPATH=src) `check ceos4363m_fp043_netdryrun.yml --settle 2 --hold 6 --json`
+    on lab ndr-fp043 in each phase above, 2026-11-21, every run exit 1: rt0056 PASSED static-default-absent (the
+    floating static is in the RIB, RT-0056); rt0063 PASSED ospf-default-absent (the OSPF default is in the RIB,
+    RT-0063); healthyA passed static-default-absent and healthyB ospf-default-absent with no such candidate; the
+    selected route failed its own check in each phase
+  added: ndr/oracle-eos-nonbgp
+- files: [ceos4363m_fp043_topology.clab.yml, ceos4363m_fp043_ceos1.cfg, ceos4363m_fp043_frr1.conf,
+          ceos4363m_fp043_netdryrun.yml, ceos4363m_fp043_capture.sh]
+  kind: lab-input
+  source: >-
+    the topology, startup configs, checks and capture script of lab ndr-fp043 (RT-0056, RT-0063), 2026-11-21; frr1
+    also bind-mounted the stock vtysh.conf and the examples/arista-frr daemons file with ospfd=yes; the script changed
+    the configs live between phases (it calls ~/fp043/cli.sh, which is `docker exec clab-ndr-fp043-ceos1 Cli -p 15 -c
+    "$1"`)
+  added: ndr/oracle-eos-nonbgp

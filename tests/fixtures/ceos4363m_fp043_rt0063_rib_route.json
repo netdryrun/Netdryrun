@@ -1,0 +1,60 @@
+{
+    "vrfs": {
+        "default": {
+            "ribRoutesByProtocol": {
+                "staticConfig": {
+                    "ribRoutes": {
+                        "0.0.0.0/0": {
+                            "bestRoute": true,
+                            "preference": 1,
+                            "metric": 0,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795260429,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": true,
+                                    "ipNextHop": {
+                                        "interface": "Null0"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "ospf": {
+                    "ribRoutes": {
+                        "0.0.0.0/0": {
+                            "bestRoute": false,
+                            "preference": 110,
+                            "metric": 1,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795260429,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": true,
+                                    "ipNextHop": {
+                                        "nextHop": "10.0.201.2",
+                                        "interface": "Ethernet2",
+                                        "arpResolved": true
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
