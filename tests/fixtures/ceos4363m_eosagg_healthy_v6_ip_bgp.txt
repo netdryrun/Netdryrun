@@ -1,0 +1,2 @@
+BGP routing table information for VRF default
+Router identifier 30.30.30.30, local AS number 65030

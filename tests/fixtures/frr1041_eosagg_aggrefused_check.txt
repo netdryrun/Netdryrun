@@ -1,0 +1,2 @@
+Netdryrun 0.4.2: 1 checks from /home/ndr/eosagg/frr_agg.yml
+ERROR: v4-agg-absent: protocol aggregate is never reported by frr, so the check could never match a route; use one of babel, bgp, connected, eigrp, isis, kernel, local, nhrp, openfabric, ospf, ospf6, pbr, rip, ripng, sharp, static, table

@@ -1,0 +1,13 @@
+BGP routing table entry for 2001:db8:66::/48, version 10
+Paths: (2 available, best #1, table default)
+  Advertised to peers:
+  2001:db8:210::2
+  Local, (aggregated by 65040 40.40.40.40)
+    :: from :: (40.40.40.40)
+      Origin IGP, metric 0, weight 32768, valid, aggregated, local, atomic-aggregate, best (Weight)
+      Last update: Sat Nov 21 14:35:46 2026
+  65020
+    2001:db8:210::2 from 2001:db8:210::2 (20.20.20.20)
+    (fe80::a8c1:abff:fe4a:f369) (used)
+      Origin IGP, metric 0, valid, external
+      Last update: Sat Nov 21 14:35:46 2026

@@ -1,0 +1,8 @@
+BGP routing table entry for 2001:db8:66::/48, version 6
+Paths: (1 available, best #1, table default)
+  Advertised to peers:
+  2001:db8:210::2
+  Local, (aggregated by 65040 40.40.40.40)
+    :: from :: (40.40.40.40)
+      Origin IGP, metric 0, weight 32768, valid, aggregated, local, atomic-aggregate, best (First path received)
+      Last update: Sat Nov 21 14:32:55 2026

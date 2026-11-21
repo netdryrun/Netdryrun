@@ -1,0 +1,47 @@
+
+{
+  "prefix":"10.67.0.0/16",
+  "version":2,
+  "pathCount":1,
+  "paths":[
+    {
+      "aspath":{
+        "string":"Local",
+        "segments":[],
+        "length":0
+      },
+      "aggregatorAs":65040,
+      "aggregatorId":"40.40.40.40",
+      "origin":"IGP",
+      "metric":0,
+      "weight":32768,
+      "valid":true,
+      "version":2,
+      "aggregated":true,
+      "local":true,
+      "atomicAggregate":true,
+      "bestpath":{
+        "overall":true,
+        "selectionReason":"First path received"
+      },
+      "lastUpdate":{
+        "epoch":1795271462,
+        "string":"Sat Nov 21 14:31:02 2026"
+      },
+      "nexthops":[
+        {
+          "ip":"0.0.0.0",
+          "hostname":"frr2",
+          "afi":"ipv4",
+          "metric":0,
+          "accessible":true,
+          "used":true
+        }
+      ],
+      "peer":{
+        "peerId":"0.0.0.0",
+        "routerId":"40.40.40.40"
+      }
+    }
+  ]
+}

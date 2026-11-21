@@ -1,0 +1,21 @@
+{
+    "vrfs": {
+        "default": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "10.66.0.0/16": {
+                    "hardwareProgrammed": true,
+                    "routeType": "dropRoute",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "routeAction": "drop",
+                    "directlyConnected": true,
+                    "vias": []
+                }
+            }
+        }
+    }
+}
