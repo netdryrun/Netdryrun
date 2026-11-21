@@ -570,3 +570,39 @@
     lu-exact0-must-fail-eor-not-sent PASSED ("0 ipv4-unicast prefixes (the session doesn't carry ipv4-unicast)") while
     r1 had r2's 3 prefixes installed via BGP, and lu-max0-control failed
   added: ndr/oracles-0.4.2
+- files: [frr_fp043ic/*/*/phase.json, frr_fp043ic/*/remedy.json, frr_fp043ic/*/summary.txt]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, the laptop's WSL, 2026-11-21 (19:08-20:25 Thailand time); one folder per boot, each a fresh
+    deploy by frr_fp043ic/lab/capture.sh. c18 (lab fp043ic-c18: corpus v2 base with case 18's edit, pe1's `ip route
+    192.0.2.0/24 blackhole` deleted): kept boots 1, 2 (pe1 stuck), 12, 13 (every router registered); not kept, and
+    read only for the counts in the oracle's docstring: boots 5, 6, 8, 10, 11 (pe1 stuck) and 7, 9 (pe1 registered,
+    peer1 and up1 stuck). c18 "boot 3" of the first batch was discarded: its deploy created no container (boot 2's lab
+    was still running, its capture run having stopped after `record remedied`), so it was not a boot; boot 4 was
+    stopped by hand. c18base (fp043ic-c18base, corpus v2 base unchanged): boots 1 (registered) and 2 (pe1 stuck). uw
+    (fp043ic-uw, two routers): boot 1 kept; boots 2-6, and uwl boots 1-5 (the same two routers beside three FRR
+    routers without BGP), were all registered and not kept. phase.json holds every answer record.py read in that
+    phase, the exact bytes Docker returned for each `docker exec` (or `docker logs`) as a JSON string (UTF-8, checked
+    lossless at packing) with node, argv, rc, time and the sha256 of the raw bytes; boot = right after the
+    originating router's sessions came up; remedied = 15 s after `vtysh -c 'configure terminal' -c 'router bgp
+    <asn>' -c 'no bgp network import-check' -c 'bgp network import-check' -c 'end'` on the originating router of a
+    stuck boot (its stdout/stderr in remedy.json); summary.txt is capture.sh's log of the boot (image digest, times,
+    state, and from boot 8 on the routers that were stuck). Captured for oracle FP-043-FRRIMPORTCHK (RT-0084)
+  added: ndr/oracle-frr-importchk
+- files: [frr_fp043ic/*/*/report_*.json, frr_fp043ic/*/*/report_*.exit, frr_fp043ic/*/*/snapshot.json,
+          frr_fp043ic/*/*/config_loaded.txt, frr_fp043ic/*/*/record.log]
+  kind: report
+  source: >-
+    written by netdryrun (origin/main 44b782c, in-process through record.py) on the live boots above, in each phase:
+    report_<checks>.json and .exit from `netdryrun check <checks> --json` (c18_present_true: passed on every boot
+    where pe1 was stuck, failed wherever it was registered), snapshot.json from verify's collect() (the second of two
+    reads), config_loaded.txt from verify.run.check_config_loaded, record.log the recorder's output
+  added: ndr/oracle-frr-importchk
+- files: [frr_fp043ic/lab/*]
+  kind: lab-input
+  source: >-
+    the topologies, configs and checks the boots above deployed and ran (c18_topology.clab.yml is corpus v2 base's
+    topology renamed to fp043ic-c18; c18_present_true.yml holds corpus v2 specs/intent.yml's two I2 checks; daemons and
+    vtysh.conf copied from corpus/v2/base/configs), and the capture tooling that ran them (capture.sh, record.py)
+  added: ndr/oracle-frr-importchk

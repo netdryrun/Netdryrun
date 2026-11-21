@@ -1,0 +1,15 @@
+# FP-043-FRRIMPORTCHK user-world lab: r1 originates 198.51.100.0/24 with `network` and has NO route behind it (the
+# change removed it); r2 learns from r1 over eBGP. Production (import check registered with zebra) does not announce it.
+name: fp043ic-uw
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    r1:
+      binds: [daemons:/etc/frr/daemons, vtysh.conf:/etc/frr/vtysh.conf, uw_r1.conf:/etc/frr/frr.conf]
+    r2:
+      binds: [daemons:/etc/frr/daemons, vtysh.conf:/etc/frr/vtysh.conf, uw_r2.conf:/etc/frr/frr.conf]
+  links:
+    - endpoints: ["r1:eth1", "r2:eth1"]     # 10.0.12.0/30

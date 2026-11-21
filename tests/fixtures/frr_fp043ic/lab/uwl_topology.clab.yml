@@ -1,0 +1,26 @@
+# FP-043-FRRIMPORTCHK user-world lab, as the two-router one (uw_topology.clab.yml) inside a five-router lab: r1
+# originates 198.51.100.0/24 with `network` and has NO route behind it; r2 learns from r1 over eBGP; r3-r5 are further
+# FRR routers of the lab (no BGP), booting alongside as in a user's larger lab. Production (import check registered with
+# zebra) does not announce 198.51.100.0/24.
+name: fp043ic-uwl
+
+topology:
+  defaults:
+    kind: linux
+    image: quay.io/frrouting/frr:10.4.1
+  nodes:
+    r1:
+      binds: [daemons:/etc/frr/daemons, vtysh.conf:/etc/frr/vtysh.conf, uw_r1.conf:/etc/frr/frr.conf]
+    r2:
+      binds: [daemons:/etc/frr/daemons, vtysh.conf:/etc/frr/vtysh.conf, uw_r2.conf:/etc/frr/frr.conf]
+    r3:
+      binds: [daemons:/etc/frr/daemons, vtysh.conf:/etc/frr/vtysh.conf, uwl_other.conf:/etc/frr/frr.conf]
+    r4:
+      binds: [daemons:/etc/frr/daemons, vtysh.conf:/etc/frr/vtysh.conf, uwl_other.conf:/etc/frr/frr.conf]
+    r5:
+      binds: [daemons:/etc/frr/daemons, vtysh.conf:/etc/frr/vtysh.conf, uwl_other.conf:/etc/frr/frr.conf]
+  links:
+    - endpoints: ["r1:eth1", "r2:eth1"]     # 10.0.12.0/30
+    - endpoints: ["r2:eth2", "r3:eth1"]
+    - endpoints: ["r3:eth2", "r4:eth1"]
+    - endpoints: ["r4:eth2", "r5:eth1"]
