@@ -88,6 +88,7 @@ def test_a_scoped_link_local_is_refused_before_asking():
 
 def test_a_name_is_refused_before_asking():
     lab = RecordingLab("{}")
-    with pytest.raises(DriverError, match="received from 'peer1' can't be listed: not an address"):
-        FrrDriver(lab, "r1").bgp_received("peer1")
+    # 0.4.3: an interface name (BGP unnumbered) is asked by name; anything that is neither is refused
+    with pytest.raises(DriverError, match="received from 'peer 1' can't be listed: not an address"):
+        FrrDriver(lab, "r1").bgp_received("peer 1")
     assert lab.cmds == []

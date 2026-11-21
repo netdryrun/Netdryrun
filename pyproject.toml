@@ -37,7 +37,7 @@ classifiers = [
   "Topic :: Software Development :: Testing",
   "Topic :: System :: Networking",
 ]
-dependencies = ["pyyaml>=6.0", "mcp>=2.0,<3"]
+dependencies = ["pyyaml>=6.0,!=6.0.4", "mcp>=2.0,<3"]
 
 [project.optional-dependencies]
 mcp = []  # kept so `pip install "netdryrun[mcp]"` keeps working; MCP is now built in

@@ -391,6 +391,11 @@ class Driver:
 
     # bgp_received is implemented (bgp_prefixes `only`); a driver without it refuses `only` before deploying
     reads_received = False
+    # bgp_neighbors keys an interface-named (BGP unnumbered) session by its interface name, verified on live captures
+    # (FRR `neighbor eth1 interface`). A driver without it refuses a bgp_session or bgp_prefixes check whose neighbor
+    # is an interface name before deploying: its sessions are keyed by address, so the check could only ever read
+    # "not configured", never the session
+    interface_peers = False
 
     def bgp_received(self, neighbor: str, afi: str = "ipv4-unicast", vrf: str = "default") -> Observation:
         """Every prefix accepted from `neighbor` in `afi` (after import policy), as a set of canonical prefixes."""

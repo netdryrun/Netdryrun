@@ -1,0 +1,34 @@
+id: FP-043-UNNSESSCHK
+bug: >-
+  An FRR BGP-unnumbered session (`neighbor eth1 interface`, keyed `eth1` by bgpd) gets no check: netdryrun.yml refuses
+  `neighbor: eth1`, `record` writes only an INCOMPLETE BASELINE line for it (exit 1), so nothing guards the session
+  going down or a new prefix over it; and a driver that keys sessions by address doesn't refuse such a check before
+  deploying
+evidence:
+  - tests/fixtures/unnsesschk_lab.clab.yml
+  - tests/fixtures/unnsesschk_lab_r1_frr.conf
+  - tests/fixtures/unnsesschk_lab_r2_frr.conf
+  - tests/fixtures/unnsesschk_lab_r3_frr.conf
+  - tests/fixtures/unnsesschk1021_capture.txt
+  - tests/fixtures/unnsesschk1021_r2_show_version.txt
+  - tests/fixtures/unnsesschk1021_r2_neighbors_up.json
+  - tests/fixtures/unnsesschk1021_r2_neighbors_down.json
+  - tests/fixtures/unnsesschk1021_r2_neighbors_more.json
+  - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+  - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_more.json
+  - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+  - tests/fixtures/unnsesschk1021_r2_eth2_ipv6_routes_up.json
+  - tests/fixtures/unnsesschk1021_r2_ip_o_addr_show_dev_eth1.txt
+  - tests/fixtures/unnsesschk1021_r2_ip_o_addr_show_dev_eth2.txt
+  - tests/fixtures/unnsesschk1041_capture.txt
+  - tests/fixtures/unnsesschk1041_r2_show_version.txt
+  - tests/fixtures/unnsesschk1041_r2_neighbors_up.json
+  - tests/fixtures/unnsesschk1041_r2_neighbors_down.json
+  - tests/fixtures/unnsesschk1041_r2_neighbors_more.json
+  - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+  - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_more.json
+  - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+  - tests/fixtures/unnsesschk1041_r2_eth2_ipv6_routes_up.json
+  - tests/fixtures/unnsesschk1041_r2_ip_o_addr_show_dev_eth1.txt
+  - tests/fixtures/unnsesschk1041_r2_ip_o_addr_show_dev_eth2.txt
+  - tests/fixtures/SOURCES.yml

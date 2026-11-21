@@ -856,6 +856,9 @@ class FrrDriver(Driver):
         return Observation(routes, ev)
 
     reads_received = True
+    # `neighbor eth1 interface` is keyed "eth1" in `show bgp neighbors json`, and `neighbors eth1 routes json` lists
+    # what it sent (FRR 10.2.1 and 10.4.1, oracle FP-043-UNNSESSCHK)
+    interface_peers = True
 
     def bgp_received(self, neighbor: str, afi: str = "ipv4-unicast", vrf: str = "default") -> Observation:
         vrf = check_vrf_name(vrf)
@@ -863,10 +866,15 @@ class FrrDriver(Driver):
             raise DriverError(f"the prefixes received in {afi} can't be listed")
         if "%" in neighbor:   # a scoped link-local can be several sessions (see BgpNeighbor.ambiguous)
             raise DriverError(f"the prefixes received from {neighbor} can't be listed: use a global address")
-        try:
-            addr = ipaddress.ip_address(neighbor)
-        except ValueError:
-            raise DriverError(f"the prefixes received from {neighbor!r} can't be listed: not an address") from None
+        from ..config import interface_peer   # here: config imports this module (through faults)
+        if interface_peer(neighbor):
+            addr = neighbor   # an interface-named (unnumbered) session: bgpd names it by its interface
+        else:
+            try:
+                addr = ipaddress.ip_address(neighbor)
+            except ValueError:
+                raise DriverError(f"the prefixes received from {neighbor!r} can't be listed: not an address "
+                                  "or an interface name") from None
         ev: list[dict] = []
         vrf_part = "" if vrf == "default" else f" vrf {vrf}"
         fam = afi.split("-")[0]

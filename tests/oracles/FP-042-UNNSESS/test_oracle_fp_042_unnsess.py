@@ -121,16 +121,19 @@ def named_unnumbered(warnings, node: str, dev: str) -> list:
 def test_every_unnumbered_neighbor_is_recorded_or_a_named_gap(monkeypatch):
     data, warnings = run(monkeypatch, CapturedLab())
     gaps = rec.baseline_gaps(warnings)
-    missing = []
+    missing, unrecorded = [], []
     for node in NODES:
         for nbr in neighbors(node):
             recorded = any(c["type"] == "bgp_session" and c["node"] == node and c.get("neighbor") == nbr
                            for c in data["checks"])
             gap = any(node in w and nbr in w and "neighbor" in w.lower() for w in gaps)
+            if not recorded:
+                unrecorded.append(f"{node} {nbr}")
             if not (recorded or gap):
                 missing.append(f"{node} {nbr}")
     assert not missing, f"neighbors neither recorded nor a named gap: {missing}; warnings {warnings}"
-    assert gaps, "record exits 0 with sessions it didn't record"
+    # 0.4.3 (oracle FP-043-UNNSESSCHK) records these sessions: a gap is required only for a session left out
+    assert gaps or not unrecorded, f"record exits 0 with sessions it didn't record: {unrecorded}"
 
 
 def test_a_point_to_point_address_is_its_subnet_or_a_gap(monkeypatch):
