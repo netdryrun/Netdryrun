@@ -23,6 +23,7 @@ from netdryrun.drivers.nxos import NxosDriver
 from netdryrun.drivers.sonic import SonicDriver
 from netdryrun.drivers.srlinux import SrlDriver
 from netdryrun.lab import ExecResult, Node
+from fakes import UnexpectedCommand, seen
 
 
 class Lab:
@@ -36,6 +37,7 @@ class Lab:
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
         self.calls.append((node, list(cmd), timeout))
+        seen(line)
         for needle, answer in self.rules:
             if needle in line:
                 if isinstance(answer, tuple):
@@ -43,7 +45,7 @@ class Lab:
                 else:
                     rc, out, err = 0, answer, ""
                 return ExecResult(list(cmd), rc, _as_asked(line, out), err)
-        raise AssertionError(f"unexpected command: {line}")
+        raise UnexpectedCommand(line)
 
     def lines(self):
         return [" ".join(c[1]) for c in self.calls]

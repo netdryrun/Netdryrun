@@ -9,6 +9,7 @@ import pytest
 from netdryrun.drivers.base import DriverError, unicast_unread
 from netdryrun.drivers.frr import FrrDriver, add_path_rx, count_neighbor_prefixes, gr_stale_window
 from netdryrun.lab import ExecResult
+from fakes import UnexpectedCommand, seen
 
 
 class Lab:
@@ -20,10 +21,11 @@ class Lab:
     def exec(self, node, cmd, timeout=60, input=None):
         line = " ".join(cmd)
         self.calls.append(line)
+        seen(line)
         for needle, answer in self.rules:
             if needle in line:
                 return ExecResult(list(cmd), 0, answer, "")
-        raise AssertionError(f"unexpected command: {line}")
+        raise UnexpectedCommand(line)
 
 
 # ------------------------------------------------------------------ derived neighbor and listing shapes
