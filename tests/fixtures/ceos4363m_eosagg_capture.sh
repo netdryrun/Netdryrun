@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # FP-043-EOSAGG captures on lab ndr-eosagg: cEOS 4.36.3M ceos1 and FRR 10.4.1 frr2 hold the same BGP aggregates
 # (10.66.0.0/16, 2001:db8:66::/48, vrf blue 10.67.0.0/16, each with a contributing `network`), both peering with
 # FRR 10.4.1 up1 (which accepts nothing from them). Each phase changes both the same way, then every file is the stdout,

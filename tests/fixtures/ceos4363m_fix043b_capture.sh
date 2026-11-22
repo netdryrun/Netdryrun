@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # fix-eos-nonbgp round 2 (adversary review) on lab ndr-fix043b (cEOS 4.36.3M + FRR 10.4.1): the oracle's phases and
 # the extras again with the fixed code, then a BGP aggregate (with and without a learned BGP path for the same
 # prefix), the martian routeInput entries, an unresolved static and an OSPF area range, captured for unit tests.

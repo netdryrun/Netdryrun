@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # fix-eos-nonbgp live proof on lab ndr-fix043 (cEOS 4.36.3M + FRR 10.4.1): the oracle's phases, checked with the fix,
 # then extra captures (absent prefix, connected, VRF, IPv6, unknown VRF) for the parser's unit tests.
 set -u

@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # frr2: kernel VRF blue (table 10), then its BGP instance with the same aggregate as ceos1's vrf blue
 . ~/eosagg/lib.sh
 docker exec clab-ndr-eosagg-frr2 ip link add blue type vrf table 10

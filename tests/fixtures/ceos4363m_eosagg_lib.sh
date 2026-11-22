@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # helpers for lab ndr-eosagg
 C() { docker exec clab-ndr-eosagg-ceos1 Cli -p 15 -c "$1"; }
 E() { C "$(printf 'configure\n%s\nend' "$1")"; }

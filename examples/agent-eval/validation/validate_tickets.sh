@@ -38,7 +38,7 @@ sed -i 's#^ ip address 192.168.1.1/24#&\n ip address 192.168.11.1/24#; s#^  netw
 prep T10-broken-lab t10fixedlab
 cp $W/t10ref/configs/r1.conf $W/t10fixedlab/configs/r1.conf; sed -i 's/^bgpd=no/bgpd=yes/' $W/t10fixedlab/configs/daemons
 
-cd $W
+cd "$W" || exit 1
 names="t01ref t02ref t02naive t03 t04 t04fixed t05 t06none t06leak t07ref t07naive t08 t09 t09extra t10none t10ref t10fixedlab"
 for n in $names; do run $n & sleep 3; done; wait
 sort out/summary.txt

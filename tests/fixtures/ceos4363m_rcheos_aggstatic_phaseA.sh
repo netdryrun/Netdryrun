@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # phase A: no learned path from frr1; a static for each aggregate prefix on ceos1 (the static wins: distance 1 < 200)
 F() { docker exec clab-ndr-rcheos-frr1 vtysh -c "configure terminal" "$@"; }
 E() { docker exec clab-ndr-rcheos-ceos1 Cli -p 15 -c "$(printf 'configure\n%s\nend' "$1")"; }

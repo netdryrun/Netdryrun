@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Repeat the T07 bare-network change: 8 independent lab runs, 2 at a time
 set -u
 SRC="$(cd "$(dirname "$0")/../../tickets" && pwd)"

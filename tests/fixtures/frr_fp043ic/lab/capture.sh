@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # FP-043-FRRIMPORTCHK live captures (FRR 10.4.1 unless IMAGE is set). One boot per call, into its own folder:
 #   capture.sh uw      <n>   two routers (uw_*): r1 `network 198.51.100.0/24` with no route behind it, r2 its neighbor
 #   capture.sh uwl     <n>   the same two routers in a five-router lab (r3-r5: FRR without BGP)

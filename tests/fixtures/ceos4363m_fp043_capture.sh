@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1090,SC2024,SC2034,SC2164  # a lab capture script kept as it ran (the record of how the fixtures were made)
 # FP-043-EOSNONBGP captures on lab ndr-fp043 (cEOS 4.36.3M ceos1, FRR 10.4.1 frr1). Every file is the Cli stdout,
 # byte for byte, of `docker exec clab-ndr-fp043-ceos1 Cli -p 15 -c "<command>"`.
 set -u
