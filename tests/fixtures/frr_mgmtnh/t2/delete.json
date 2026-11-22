@@ -1,0 +1,13 @@
+{
+ "docker": [
+  "default via 172.20.20.1 dev eth0",
+  "default via 3fff:172:20:20::1 dev eth0 metric 1024 pref medium"
+ ],
+ "other": [
+  "198.51.100.0/24 nhid 7 via 172.20.20.1 dev eth0 proto bgp metric 20"
+ ],
+ "devices": [
+  "eth0"
+ ],
+ "delete_seconds": 0.206
+}

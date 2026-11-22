@@ -1075,3 +1075,44 @@
     bgp: the node's own path, no localAgg, routeDetail.redistributionProtocol "Static"). Copied unchanged for the
     follow-up that refuses an own path with neither field
   added: ndr/fix-eos-agg-v3
+- files: [frr_mgmtnh/t*/answers.json, frr_mgmtnh/t*/samples_*.json, frr_mgmtnh/t*/inspect_pe1.json]
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    containerlab 0.81.1, the laptop's WSL, 2026-11-22 21:02-21:19 UTC (2026-11-23 04:02-04:19 Thailand time), oracle
+    FP-043-MGMTNH (session oracle-mgmtnh). Six fresh deploys of corpus v1 case 19 (lab ndr-corpus: corpus/base with
+    case 19's edit, next-hop-self removed on pe2 toward pe1) by `corpus/run.py --case 19 --keep` at 6281dba, which ended
+    every strategy in the management-path run error and left the lab up; then frr_mgmtnh/lab/capture.py (t1-t3) or
+    capture_timed.py (t4-t6) read pe1 with `docker exec -u 0`, and the lab was destroyed. answers.json holds every
+    answer as `docker exec` returned it (stderr after "[stderr]", a non-zero exit as "[rc=N]"), keyed by phase and
+    command (t1-t3 "before" for every node of the lab; t4-t6 pe1 only). samples_*.json are pe1's `ip -4/-6 route show
+    table all` every 0.5 s, packed without loss (each distinct answer once, each sample [t, i4, i6]); the in-node
+    loops ("timed delete" keys) are packed the same way (marks, answers, reads). inspect_pe1.json is `docker inspect`'s
+    HostConfig.NetworkMode and NetworkSettings.Networks, nothing else. t1: Docker's defaults deleted by
+    mgmt._delete_linux, 60 s of samples, then a kernel static and an FRR static via the management gateway (15 s),
+    removed, Docker's IPv4 default put back by hand (30 s), deleted again (30 s); its capture.py ran without the
+    sections after "after_second_delete". t2: the delete and 60 s only (no --extras). t3: as t1, then three timed
+    deletes of the re-added default inside the node (busybox `date` printed no fractions, so only the read counts
+    there are usable: 71-75 of 400 reads still on eth0), then up1 told to stop originating its default and three more
+    timed deletes (the route never left eth0), then 30 s of samples. t4 (lab-default): Docker's own defaults deleted
+    inside the node, the whole IPv4 table read 300 times stamped with /proc/uptime (10 ms), then 60 s of samples. t5,
+    t6 (no-lab-default): the same after up1 stopped originating its default (pe1's BGP default left zebra within 0.1 s;
+    5 s more before the delete). trials 2 and 3 ran from one script run after trial 1's destroy step failed (a str
+    path; its lab was destroyed by hand with the same Lab.destroy before trial 2)
+  added: oracle/mgmt-nh
+- files: [frr_mgmtnh/t*/corpus_run.txt, frr_mgmtnh/t[1-3]/delete.json]
+  kind: report
+  source: >-
+    written by netdryrun 6281dba on the six live deploys above: corpus_run.txt is the stdout and stderr of
+    `corpus/run.py --case 19 --keep --workdir <dir>` (each strategy's error is the management-path run error);
+    delete.json is what mgmt.classify_linux made of pe1's live tables just before capture.py deleted Docker's defaults
+    with mgmt._delete_linux (docker: deleted; other: the route over management), and how long the delete took
+  added: oracle/mgmt-nh
+- files: [frr_mgmtnh/lab/*]
+  kind: lab-input
+  source: >-
+    the capture tooling that produced frr_mgmtnh (capture.py, capture_timed.py, and the two shell loops that deployed,
+    captured and destroyed each lab, trials.sh and trials_timed.sh); the lab itself is corpus/base with corpus case
+    19's edit, built by corpus/run.py. Copied with the scratch folder the loops ran from replaced by the script's own
+    folder, and the clone, work folder and Python of the session replaced by REPO, WORK and PY
+  added: oracle/mgmt-nh

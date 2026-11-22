@@ -1,0 +1,52 @@
+id: FP-043-MGMTNH
+bug: >-
+  On a Linux-kind node (FRR 10.4.1), a routing-protocol route whose next hop resolves only over Docker's management
+  default (`198.51.100.0/24 nhid 7 via 172.20.20.1 dev eth0 proto bgp`) makes `mgmt.prepare` end the run before it
+  deletes that default, although once the default is deleted the route re-resolves inside the lab (live: within 0.07 s,
+  over up1's BGP default). Corpus v1 case 19 (next-hop-self removed on pe2 toward pe1, expected unsafe) ends in a run
+  error for all three strategies on 6281dba, and the release gate stops on it. A false fail (run error), not a false
+  pass; every release since the management-path removal (0.4.1) whenever such a route exists
+evidence:
+  - tests/fixtures/frr_mgmtnh/t1/answers.json
+  - tests/fixtures/frr_mgmtnh/t1/corpus_run.txt
+  - tests/fixtures/frr_mgmtnh/t1/delete.json
+  - tests/fixtures/frr_mgmtnh/t1/inspect_pe1.json
+  - tests/fixtures/frr_mgmtnh/t1/samples_after_delete.json
+  - tests/fixtures/frr_mgmtnh/t1/samples_after_second_delete.json
+  - tests/fixtures/frr_mgmtnh/t1/samples_readded.json
+  - tests/fixtures/frr_mgmtnh/t1/samples_statics.json
+  - tests/fixtures/frr_mgmtnh/t1/samples_statics_removed.json
+  - tests/fixtures/frr_mgmtnh/t2/answers.json
+  - tests/fixtures/frr_mgmtnh/t2/corpus_run.txt
+  - tests/fixtures/frr_mgmtnh/t2/delete.json
+  - tests/fixtures/frr_mgmtnh/t2/inspect_pe1.json
+  - tests/fixtures/frr_mgmtnh/t2/samples_after_delete.json
+  - tests/fixtures/frr_mgmtnh/t3/answers.json
+  - tests/fixtures/frr_mgmtnh/t3/corpus_run.txt
+  - tests/fixtures/frr_mgmtnh/t3/delete.json
+  - tests/fixtures/frr_mgmtnh/t3/inspect_pe1.json
+  - tests/fixtures/frr_mgmtnh/t3/samples_after_delete.json
+  - tests/fixtures/frr_mgmtnh/t3/samples_after_second_delete.json
+  - tests/fixtures/frr_mgmtnh/t3/samples_no_lab_default.json
+  - tests/fixtures/frr_mgmtnh/t3/samples_no_lab_default_after_delete.json
+  - tests/fixtures/frr_mgmtnh/t3/samples_readded.json
+  - tests/fixtures/frr_mgmtnh/t3/samples_statics.json
+  - tests/fixtures/frr_mgmtnh/t3/samples_statics_removed.json
+  - tests/fixtures/frr_mgmtnh/t4/answers.json
+  - tests/fixtures/frr_mgmtnh/t4/corpus_run.txt
+  - tests/fixtures/frr_mgmtnh/t4/inspect_pe1.json
+  - tests/fixtures/frr_mgmtnh/t4/samples_after_delete.json
+  - tests/fixtures/frr_mgmtnh/t5/answers.json
+  - tests/fixtures/frr_mgmtnh/t5/corpus_run.txt
+  - tests/fixtures/frr_mgmtnh/t5/inspect_pe1.json
+  - tests/fixtures/frr_mgmtnh/t5/samples_after_delete.json
+  - tests/fixtures/frr_mgmtnh/t6/answers.json
+  - tests/fixtures/frr_mgmtnh/t6/corpus_run.txt
+  - tests/fixtures/frr_mgmtnh/t6/inspect_pe1.json
+  - tests/fixtures/frr_mgmtnh/t6/samples_after_delete.json
+  - tests/fixtures/frr_mgmtnh/lab/capture.py
+  - tests/fixtures/frr_mgmtnh/lab/capture_timed.py
+  - tests/fixtures/frr_mgmtnh/lab/trials.sh
+  - tests/fixtures/frr_mgmtnh/lab/trials_timed.sh
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_043_mgmtnh.py

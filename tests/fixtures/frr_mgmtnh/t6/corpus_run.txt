@@ -1,0 +1,57 @@
+== 19-nexthop-self-removed: next-hop-self removed on pe2 toward pe1 (expected unsafe)
+   [corpus deploy] ce1: import check stuck (10.100.0.0/24 in 'router bgp 65100' is not registered with zebra); toggling it off and on to register it
+   [corpus deploy] pe1: import check stuck (192.0.2.0/24 in 'router bgp 65000' is not registered with zebra); toggling it off and on to register it
+   [corpus deploy] up1: import check stuck (203.0.113.0/24 in 'router bgp 65200' is not registered with zebra); toggling it off and on to register it
+   ping=error  sessions=error  netdryrun=error  (32s)
+[
+ {
+  "id": "19-nexthop-self-removed",
+  "title": "next-hop-self removed on pe2 toward pe1",
+  "category": "policy-bug",
+  "expected": "unsafe",
+  "rationale": "pe1 learns the peer route with an unreachable next hop, so the customer loses the peer route.",
+  "source": null,
+  "note": null,
+  "edits": [
+   {
+    "node": "pe2",
+    "replace": "  neighbor 10.0.3.1 next-hop-self\n",
+    "with": ""
+   }
+  ],
+  "strategies": {
+   "ping": {
+    "verdict": "error",
+    "status": "error",
+    "correct": false,
+    "failed_checks": [],
+    "error": "pe1 has a route out over the management network (before the checks): 198.51.100.0/24 nhid 7 via 172.20.20.1 dev eth0 proto bgp metric 20. A ping over it leaves the lab (Docker reaches beyond it), so the run can't show what the lab does. Remove it (a route via the management interface is not a lab path)"
+   },
+   "sessions": {
+    "verdict": "error",
+    "status": "error",
+    "correct": false,
+    "failed_checks": [],
+    "error": "pe1 has a route out over the management network (before the checks): 198.51.100.0/24 nhid 7 via 172.20.20.1 dev eth0 proto bgp metric 20. A ping over it leaves the lab (Docker reaches beyond it), so the run can't show what the lab does. Remove it (a route via the management interface is not a lab path)"
+   },
+   "netdryrun": {
+    "verdict": "error",
+    "status": "error",
+    "correct": false,
+    "failed_checks": [],
+    "error": "pe1 has a route out over the management network (before the checks): 198.51.100.0/24 nhid 7 via 172.20.20.1 dev eth0 proto bgp metric 20. A ping over it leaves the lab (Docker reaches beyond it), so the run can't show what the lab does. Remove it (a route via the management interface is not a lab path)"
+   }
+  },
+  "import_check": {
+   "routers": {
+    "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+    "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+    "pe2": "registered",
+    "peer1": "registered",
+    "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+   },
+   "error": null
+  },
+  "seconds": 32
+ }
+]
