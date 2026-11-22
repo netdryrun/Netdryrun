@@ -186,7 +186,7 @@ def test_keep_reaches_only_the_last_run_of_a_nondeterministic_case(monkeypatch, 
     spec.loader.exec_module(run_py)
     calls = []
 
-    def evaluate(case, root, keep, corpus):
+    def evaluate(case, root, keep, corpus, evidence=None):
         calls.append(keep)
         return {"id": case["id"], "seconds": 1,
                 "strategies": {s: {"verdict": "unsafe", "correct": True, "failed_checks": [], "error": None}
