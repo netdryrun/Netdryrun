@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fixed
+
+- **A routing protocol's route over Docker's management default no longer ends the run before that default is
+  deleted (Linux kinds: FRR, SONiC VS).** When a BGP next hop no lab route covers resolved over Docker's default
+  (`198.51.100.0/24 via 172.20.20.1 dev eth0 proto bgp`), the run stopped with "a route out over the management
+  network (before the checks)", although production has no such default and FRR moves the route into the lab as soon
+  as it is deleted (live FRR 10.4.1: within 0.07 s). Corpus v1 case 19 ended in this error for every strategy. Now,
+  when every other route over the management device is a routing protocol's (bgp, ospf, isis, rip, eigrp, babel,
+  openfabric) single-path route in the main table via the gateway of Docker's default of its family, Docker's defaults
+  are deleted first and the table is read again every 0.5 s for up to 10 s. Routes that left are recorded in
+  `environment.nodes.<node>.management_default` ("left the management network once it was removed: ...") and in the
+  log. Still a run error: a static, kernel or boot route (FRR's static included) via the management network, which
+  ends the run before anything is deleted; a routing-protocol route still there after 10 s (a lab with no path of its
+  own for the next hop: FRR 10.4.1 kept it for 60 s); Docker's default back during the wait; an unreadable table.
+  Oracle `tests/oracles/FP-043-MGMTNH`, from six live deploys of case 19's lab.
+
 ## 0.4.3 (2026-11-23)
 
 ### Added
