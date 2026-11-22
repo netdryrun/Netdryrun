@@ -50,3 +50,4 @@ evidence:
   - tests/fixtures/frr_mgmtnh/lab/trials_timed.sh
   - tests/fixtures/SOURCES.yml
   - tests/test_oracle_guards_fp_043_mgmtnh.py
+plant: plant.diff

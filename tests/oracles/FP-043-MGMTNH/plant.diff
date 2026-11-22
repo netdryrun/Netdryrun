@@ -1,0 +1,105 @@
+diff --git a/src/netdryrun/mgmt.py b/src/netdryrun/mgmt.py
+index 0408136..5cbdcb9 100644
+--- a/src/netdryrun/mgmt.py
++++ b/src/netdryrun/mgmt.py
+@@ -44,8 +44,6 @@ class Mgmt:
+     devices: set = field(default_factory=set)
+     removed: list = field(default_factory=list)  # the routes this run deleted, as they printed
+     readded: list = field(default_factory=list)  # Docker's or containerlab's route found back and deleted again
+-    left: list = field(default_factory=list)     # routing-protocol routes over management that left once removed
+-    wait: object = field(default=None, repr=False, compare=False)   # prepare's sleep, for prepare_linux's settle
+     kind: str = ""                              # "linux", "eos", "junos" or "" (not touched)
+     cid: str = ""                               # the container's id (a `container:<id>` network mode names it)
+     vrfs: set = field(default_factory=lambda: {"default"})   # Junos: the instances read
+@@ -281,7 +279,7 @@ def _offending(node: str, other: list, where: str) -> str:
+             "Remove it (a route via the management interface is not a lab path)")
+ 
+ 
+-def prepare_linux(lab: Lab, m: Mgmt, log, sleep=None) -> None:
++def prepare_linux(lab: Lab, m: Mgmt, log) -> None:
+     m.kind = "linux"
+     _linux_devices(lab, m)
+     for dev in sorted(m.devices):   # no router advertisement re-adds an IPv6 default (best effort: R5 catches one)
+@@ -294,60 +292,13 @@ def prepare_linux(lab: Lab, m: Mgmt, log, sleep=None) -> None:
+             log(f"note: {m.node}: accept_ra=0 on {dev} not set ({(r.stderr or r.stdout).strip()[-120:]}); a re-added "
+                 "default is caught before every ping")
+     docker, other = classify_linux(_scan_linux(lab, m), m)
+-    if other and not all(_rides_docker_default(r, docker, m) for r in other):
++    if other:
+         raise ManagementPathError(_offending(m.node, other, "before the checks"))
+     _delete_linux(lab, m, docker)
+     m.removed += [r.line for r in docker]
+-    if other:
+-        _settle_linux(lab, m, docker, other, log, sleep or m.wait)
+     check_linux(lab, m, "after deleting Docker's default route", repair=False)
+ 
+ 
+-# Routing protocols' routes as iproute2 names them, or by number where its rt_protos has no name (zebra's RTPROT_*:
+-# 186 bgp, 187 isis, 188 ospf, 189 rip, 190 ripng, 192 eigrp, 42 babel, 197 openfabric). A static (kernel, boot,
+-# static, FRR's 196) is never among them: a user put it there, and deleting Docker's default doesn't take it away.
+-_PROTOCOL = frozenset({"bgp", "isis", "ospf", "rip", "ripng", "eigrp", "babel", "openfabric",
+-                       "186", "187", "188", "189", "190", "192", "42", "197"})
+-# After Docker's default is deleted, a routing protocol's route that resolved its next hop over it re-resolves inside
+-# the lab (FRR 10.4.1, corpus case 19: 0.07 s measured inside the node; settled at the first `docker exec` read in
+-# three more deploys). Where the lab has no path for it, FRR keeps it on eth0 (60 s measured): that stays a run error.
+-SETTLE_WAIT = 10.0
+-SETTLE_STEP = 0.5
+-
+-
+-def _rides_docker_default(r: LinuxRoute, docker: list, m: Mgmt) -> bool:
+-    """A route that can be over management only because Docker's default is there: a routing protocol's single-path
+-    unicast route in the main table, via the very gateway of a Docker default of its family on the same device."""
+-    return (r.rtype == "unicast" and r.proto in _PROTOCOL and r.table == "main" and not r.multipath
+-            and bool(r.via) and bool(r.dev)
+-            and any(d.family == r.family and d.via == r.via and d.dev == r.dev for d in docker))
+-
+-
+-def _settle_linux(lab: Lab, m: Mgmt, deleted: list, before: list, log, sleep) -> None:
+-    """Docker's defaults are deleted: wait (bounded) until nothing is left over the management device. Docker's default
+-    back, or any route there that can't have ridden on a deleted default, is a run error at once."""
+-    wait = sleep or time.sleep
+-    waited = 0.0
+-    while True:
+-        docker, other = classify_linux(_scan_linux(lab, m), m)
+-        if docker:
+-            raise ManagementPathError(_offending(m.node, docker + other, "after deleting Docker's default route"))
+-        if not other:
+-            break
+-        if not all(_rides_docker_default(r, deleted, m) for r in other):
+-            raise ManagementPathError(_offending(m.node, other, "after deleting Docker's default route"))
+-        if waited >= SETTLE_WAIT:
+-            raise ManagementPathError(
+-                _offending(m.node, other, f"{waited:g}s after deleting Docker's default route")
+-                + ". It resolved its next hop only through Docker's default route, and the node kept it on the "
+-                "management network after that route was deleted: the lab has no path of its own for it")
+-        wait(SETTLE_STEP)
+-        waited += SETTLE_STEP
+-    m.left += [r.line for r in before]
+-    log(f"{m.node}: left the management network once Docker's default route was removed: "
+-        + "; ".join(m.left) + f" (after {waited:g}s)")
+-
+-
+ def _delete_linux(lab: Lab, m: Mgmt, docker: list) -> None:
+     for r in docker:
+         flag = "-6" if r.family == 6 else "-4"
+@@ -622,7 +573,6 @@ def prepare(lab: Lab, checks: list, log=lambda _: None, sleep=None) -> dict[str,
+         # so a failure there isn't boot timing, and its hint (no `ip`, no helper image) comes without delay.
+         # NX-OS and RouterOS have no management-route step here, so nothing of theirs is read in prepare.
+         if node.kind in LINUX_KINDS:
+-            m.wait = wait
+             prepare_linux(lab, m, log)
+         elif node.kind in EOS_KINDS:
+             _await_answer(lambda n=name: _eos_config(lab, n, "startup"), name, wait)
+@@ -641,12 +591,6 @@ def prepare(lab: Lab, checks: list, log=lambda _: None, sleep=None) -> dict[str,
+ 
+ 
+ def describe(m: Mgmt, kind: str) -> str:
+-    """The node's management_default in the run's environment record."""
+-    left = f"; left the management network once it was removed: {'; '.join(m.left)}" if m.left else ""
+-    return _describe(m, kind) + left
+-
+-
+-def _describe(m: Mgmt, kind: str) -> str:
+     if m.mode == "host":
+         return "not touched (network-mode host: the Docker host's namespace)"
+     if m.mode.startswith("container:"):
