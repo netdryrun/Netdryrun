@@ -39,7 +39,7 @@ Sign off every commit (`git commit -s`). The `Signed-off-by: Your Name <you@exam
 
 ## AI use
 
-You may use AI tools to help with a contribution. We do: Netdryrun itself is built by AI agents, and a human owner approves every merge ([how this project is run](https://netdryrun.com/how-its-run/)). The same rules apply to you:
+You may use AI tools to help with a contribution. We do: AI agents do much of Netdryrun's engineering, and a human owner approves every merge ([how this project is run](https://netdryrun.com/how-its-run/)). The same rules apply to you:
 
 - **Say so.** The pull request template has two boxes, "No AI tools were used" and "AI tools were used". Tick exactly one; CI checks that one is ticked. It's a disclosure, not a ban, and it doesn't change how your pull request is reviewed.
 - **Understand what you submit.** You must have read every line, and be able to explain it and answer review questions without the tool. Your sign-off is yours, whoever typed the code.

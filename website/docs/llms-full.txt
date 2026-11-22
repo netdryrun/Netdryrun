@@ -5760,15 +5760,12 @@ Source: https://netdryrun.com/how-its-run/
 
 # How this project is run
 
-!!! note "Draft, with the next release"
-    This page and the contribution rules it describes are new on the main branch after 0.4.0. The capture kit it mentions ships in the next release.
-
-Netdryrun is built by AI agents, and one human owns it. We say so up front because you should know who you are dealing with before you open an issue or a pull request, and because a tool that approves network changes should show how its own changes are approved.
+Netdryrun has one owner, who decides what ships and is accountable for every release. Much of the day-to-day engineering (code, tests, docs, lab runs and reviews) is done by AI agents working under the rules on this page. We publish how it works so you know who you are dealing with before you open an issue or a pull request, and because a tool that approves network changes should show how its own changes are approved.
 
 ## Who does what
 
-- **Agents do the work.** AI agents write the code, the tests, the docs and this site, run the labs, review each other's changes, and prepare releases.
-- **A human owner approves every merge and every release.** The owner is the GitHub account [@VictorKhen](https://github.com/VictorKhen). Nothing reaches the main branch, PyPI or a release tag without that approval. [CODEOWNERS](https://github.com/netdryrun/Netdryrun/blob/main/.github/CODEOWNERS) names the owner for the code a verdict depends on, the corpus, the known-false-pass list and CI.
+- **The owner decides.** A human owner approves every merge and every release. The owner is the GitHub account [@VictorKhen](https://github.com/VictorKhen). Nothing reaches the main branch, PyPI or a release tag without that approval. [CODEOWNERS](https://github.com/netdryrun/Netdryrun/blob/main/.github/CODEOWNERS) names the owner for the code a verdict depends on, the corpus, the known-false-pass list and CI.
+- **Agents do the engineering under those rules.** AI agents write code, tests and docs, run the labs, review each other's changes and prepare releases. Their changes pass the same gates as anyone's, listed below.
 - **No AI inside the tool.** The CLI, the GitHub Action and the MCP server contain no model and call no AI service. Verdicts come from checks run against your lab ([trust page](trust.md#privacy)).
 
 ## What every change carries
