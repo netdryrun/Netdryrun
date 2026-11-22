@@ -1,6 +1,6 @@
 ---
 title: GitHub Action
-description: Run Netdryrun in GitHub Actions with netdryrun/Netdryrun@v0.4.2. Inputs, outputs, example workflows, and security notes for running privileged containerlab labs in CI.
+description: Run Netdryrun in GitHub Actions with netdryrun/Netdryrun@v0.4.3. Inputs, outputs, example workflows, and security notes for running privileged containerlab labs in CI.
 ---
 
 # GitHub Action
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/        # folder containing netdryrun.yml
 ```
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/
 ```
@@ -87,7 +87,7 @@ jobs:
 ### Use the outputs in a later step
 
 ```yaml
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         id: ndr
         with:
           path: network/
@@ -112,7 +112,7 @@ jobs:
         lab: [network/core, network/edge]
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: ${{ matrix.lab }}
           artifact-name: netdryrun-${{ strategy.job-index }}
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/
           pr-comment: true
@@ -156,7 +156,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # verify reads the base and head commits
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           mode: verify
           topology: network/topology.clab.yml
