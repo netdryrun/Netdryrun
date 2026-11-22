@@ -2232,7 +2232,7 @@ def test_the_gates_log_is_byte_stable_when_threads_reach_the_fakes_in_any_order(
         texts.append(log.read_bytes())
     lines = texts[0].decode("utf-8").splitlines()
     rows = [json.loads(ln) for ln in lines]
-    fan = [ln for ln, r in zip(lines, rows) if r["test"].endswith("test_threads_reach_the_fake_in_any_order")]
+    fan = [ln for ln, r in zip(lines, rows, strict=True) if r["test"].endswith("test_threads_reach_the_fake_in_any_order")]
     assert len(fan) == 24 and fan == sorted(fan), fan                     # every thread's read, in a fixed order
     assert [r["test"] for r in rows] == sorted((r["test"] for r in rows), key=[r["test"] for r in rows].index)
     assert texts[0] == texts[1] == texts[2]
