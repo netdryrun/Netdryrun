@@ -53,7 +53,7 @@ mirrors), and netdryrun.com/llms.txt.
   third-party listing whose stale text we already know of; the WARN line keeps it visible in every after-publish run.
 - In GATE.md the layer's summary line will read "agree"; the WARN is only in the collapsed output tail. A reader of
   the summary won't see it. Cheap follow-up: put the WARN count in the summary line.
-- LobeHub still quotes the pre-0.3.2 `SAFE TO PROCEED` verdict text (AGENT-REACH-PLAN). That is a stale public
+- LobeHub still quotes the pass verdict text that 0.3.2 retired (AGENT-REACH-PLAN). That is a stale public
   claim on a site we don't control. This change neither causes nor hides it; it was blocking releases without
   fixing it.
 
