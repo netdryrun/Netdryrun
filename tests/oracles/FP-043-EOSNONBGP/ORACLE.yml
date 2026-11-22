@@ -1,0 +1,61 @@
+id: FP-043-EOSNONBGP
+bug: >-
+  Arista EOS (0.2.0 to 0.4.2): `route ... present: false` with a protocol other than bgp passes while a route of that
+  protocol is in the RIB but not selected (GHSA-ggcf-664f-c9ff case 1, red team RT-0056 and RT-0063). `show ip route
+  <prefix> | json` lists only the selected route, and the driver reads not-selected candidates from the BGP table only;
+  `show rib route ip vrf <vrf> <prefix> | json` lists every candidate per protocol with `bestRoute`. Captured live on
+  cEOS 4.36.3M with FRR 10.4.1 (lab ndr-fp043, 2026-11-21): a floating static default (250) behind an eBGP default
+  (200) passed `protocol: static, present: false`, and an OSPF external default (110) behind `ip route 0.0.0.0/0 Null0`
+  passed `protocol: ospf, present: false` (netdryrun 0.4.2 reports in the evidence). The EOS driver must see every
+  candidate for the prefix, so both checks fail. Nothing is derived: every answer is a capture. Guards (healthy
+  phases still pass, the selected route still fails present: false, a losing candidate never passes present: true,
+  EOS's longest-match answer for 9.9.9.0/24 is not that prefix) are in tests/test_oracle_guards_fp_043_eosnonbgp.py
+evidence:
+  - tests/fixtures/ceos4363m_fp043_capture.sh
+  - tests/fixtures/ceos4363m_fp043_ceos1.cfg
+  - tests/fixtures/ceos4363m_fp043_frr1.conf
+  - tests/fixtures/ceos4363m_fp043_healthyA_check.txt
+  - tests/fixtures/ceos4363m_fp043_healthyA_ip_bgp.json
+  - tests/fixtures/ceos4363m_fp043_healthyA_ip_route.json
+  - tests/fixtures/ceos4363m_fp043_healthyA_report.json
+  - tests/fixtures/ceos4363m_fp043_healthyA_rib_route.json
+  - tests/fixtures/ceos4363m_fp043_healthyA_rib_route.txt
+  - tests/fixtures/ceos4363m_fp043_healthyB_check.txt
+  - tests/fixtures/ceos4363m_fp043_healthyB_ip_bgp.json
+  - tests/fixtures/ceos4363m_fp043_healthyB_ip_route.json
+  - tests/fixtures/ceos4363m_fp043_healthyB_report.json
+  - tests/fixtures/ceos4363m_fp043_healthyB_rib_route.json
+  - tests/fixtures/ceos4363m_fp043_healthyB_rib_route.txt
+  - tests/fixtures/ceos4363m_fp043_netdryrun.yml
+  - tests/fixtures/ceos4363m_fp043_ospfsel_ip_route.json
+  - tests/fixtures/ceos4363m_fp043_ospfsel_rib_route.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_check.txt
+  - tests/fixtures/ceos4363m_fp043_rt0056_ip_bgp.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_ip_bgp_9.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_ip_route.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_ip_route_9.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_ip_route_detail.txt
+  - tests/fixtures/ceos4363m_fp043_rt0056_ip_route_static.txt
+  - tests/fixtures/ceos4363m_fp043_rt0056_report.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_rib_route.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_rib_route.txt
+  - tests/fixtures/ceos4363m_fp043_rt0056_rib_route_9.json
+  - tests/fixtures/ceos4363m_fp043_rt0056_running_config.txt
+  - tests/fixtures/ceos4363m_fp043_rt0056sel_ip_route.json
+  - tests/fixtures/ceos4363m_fp043_rt0056sel_rib_route.json
+  - tests/fixtures/ceos4363m_fp043_rt0063_check.txt
+  - tests/fixtures/ceos4363m_fp043_rt0063_ip_bgp.json
+  - tests/fixtures/ceos4363m_fp043_rt0063_ip_route.json
+  - tests/fixtures/ceos4363m_fp043_rt0063_ip_route_detail.txt
+  - tests/fixtures/ceos4363m_fp043_rt0063_ip_route_ospf.txt
+  - tests/fixtures/ceos4363m_fp043_rt0063_ospf_database.txt
+  - tests/fixtures/ceos4363m_fp043_rt0063_report.json
+  - tests/fixtures/ceos4363m_fp043_rt0063_rib_route.json
+  - tests/fixtures/ceos4363m_fp043_rt0063_rib_route.txt
+  - tests/fixtures/ceos4363m_fp043_rt0063_running_config.txt
+  - tests/fixtures/ceos4363m_fp043_show_version.txt
+  - tests/fixtures/ceos4363m_fp043_topology.clab.yml
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_043_eosnonbgp.py
+plant: plant.diff
+ported_from: bf3d4cde223f6ca8cd9d3de805f6f604f2aeba2d

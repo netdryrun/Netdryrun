@@ -1,0 +1,12 @@
+lab: topology.clab.yml
+timeout: 60
+checks:
+  - {name: vrf-static-absent, type: route, node: ceos1, vrf: blue, prefix: 10.88.0.0/24, protocol: static, present: false}
+  - {name: vrf-connected-selected, type: route, node: ceos1, vrf: blue, prefix: 10.88.0.0/24, protocol: connected}
+  - {name: vrf-static-candidate, type: route, node: ceos1, vrf: blue, prefix: 10.88.0.0/24, protocol: static, active: false}
+  - {name: vrf-nine-absent, type: route, node: ceos1, vrf: blue, prefix: 9.9.9.0/24, present: false}
+  - {name: v6-static-absent, type: route, node: ceos1, prefix: "2001:db8:5::/64", protocol: static, present: false}
+  - {name: v6-connected-selected, type: route, node: ceos1, prefix: "2001:db8:5::/64", protocol: connected}
+  - {name: v6-other-absent, type: route, node: ceos1, prefix: "2001:db8:99::/64", present: false}
+  - {name: v4-connected-static-absent, type: route, node: ceos1, prefix: 10.0.200.0/30, protocol: static, present: false}
+  - {name: nine-absent, type: route, node: ceos1, prefix: 9.9.9.0/24, present: false}

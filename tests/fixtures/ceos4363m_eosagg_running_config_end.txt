@@ -1,0 +1,62 @@
+
+> show running-config
+! Command: show running-config at line 1
+! device: ceos1 (cEOSLab, EOS-4.36.3M-51207178.4363M (engineering build))
+!
+no aaa root
+!
+no service interface inactive port-id allocation disabled
+!
+service routing protocols model multi-agent
+!
+hostname ceos1
+!
+spanning-tree mode mstp
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vrf instance blue
+!
+interface Ethernet1
+   no switchport
+   ip address 10.0.200.1/30
+   ipv6 address 2001:db8:200::1/64
+!
+interface Loopback1
+   vrf blue
+   ip address 192.168.31.1/32
+!
+interface Management0
+   ip address 172.20.20.2/24
+   ipv6 address 3fff:172:20:20::2/64
+!
+ip routing
+ip routing vrf blue
+!
+ipv6 unicast-routing
+!
+ip route 10.66.1.0/24 Null0
+ip route vrf blue 10.67.1.0/24 Null0
+!
+ipv6 route 2001:db8:66:1::/64 Null0
+!
+router bgp 65030
+   router-id 30.30.30.30
+   neighbor 10.0.200.2 remote-as 65020
+   neighbor 2001:db8:200::2 remote-as 65020
+   !
+   address-family ipv4
+      no neighbor 2001:db8:200::2 activate
+      network 10.66.1.0/24
+   !
+   address-family ipv6
+      neighbor 2001:db8:200::2 activate
+      network 2001:db8:66:1::/64
+   !
+   vrf blue
+      rd 1:1
+      network 10.67.1.0/24
+!
+end

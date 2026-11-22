@@ -1,0 +1,16 @@
+Netdryrun 0.4.2: 6 checks from aggA.yml
+ceos1: management default route none
+frr1: management default route none
+  [PASS] v4-bgp-candidate -- present via bgp (not selected) (5.2s)
+  [PASS] v4-static-selected -- active via static (5.2s)
+  [PASS] v6-bgp-candidate -- present via bgp (not selected) (5.2s)
+warning: convergence: frr1's session to 2001:db8:200::1 was not established (connect) when this check ran (waited 60s). If it is down on purpose, add a bgp_session check on frr1 with state: down for it: the gate then doesn't wait for it
+Convergence checks done; settling 2s before post-convergence checks...
+  [PASS] v4-agg-absent -- absent (held 7s, 3 samples) (6.6s)
+      warning: convergence: frr1's session to 2001:db8:200::1 was not established (connect) when this check ran (waited 60s). If it is down on purpose, add a bgp_session check on frr1 with state: down for it: the gate then doesn't wait for it
+  [FAIL] v4-bgp-absent -- unexpectedly present via bgp (not selected) (0.8s)
+      warning: convergence: frr1's session to 2001:db8:200::1 was not established (connect) when this check ran (waited 60s). If it is down on purpose, add a bgp_session check on frr1 with state: down for it: the gate then doesn't wait for it
+  [PASS] v6-agg-absent -- absent (held 7s, 3 samples) (6.6s)
+      warning: convergence: frr1's session to 2001:db8:200::1 was not established (connect) when this check ran (waited 60s). If it is down on purpose, add a bgp_session check on frr1 with state: down for it: the gate then doesn't wait for it
+FAILED: 5 passed, 1 failed (6 checks; 3 with a convergence warning)
+  wrote json report: out/report_phaseA.json

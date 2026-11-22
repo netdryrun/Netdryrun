@@ -1,0 +1,13 @@
+phaseA rc=0 show ip route vrf default 10.66.0.0/16 | json 2026-11-21T14:06:05Z
+phaseA rc=0 show rib route ip vrf default 10.66.0.0/16 | json 2026-11-21T14:06:05Z
+phaseA rc=0 show ip bgp 10.66.0.0/16 vrf default | json 2026-11-21T14:06:06Z
+phaseA rc=0 show rib route ip vrf default 10.66.0.0/16 2026-11-21T14:06:06Z
+phaseA rc=0 show rib route ipv6 vrf default 2001:db8:66::/48 | json 2026-11-21T14:06:06Z
+phaseA rc=0 show ipv6 route vrf default 2001:db8:66::/48 | json 2026-11-21T14:06:06Z
+phaseA rc=0 show rib route ip vrf blue 10.67.0.0/16 | json 2026-11-21T14:06:06Z
+phaseA rc=0 show ip route vrf blue 10.67.0.0/16 | json 2026-11-21T14:06:07Z
+phaseA rc=0 show version 2026-11-21T14:06:07Z
+phaseO rc=0 show ip route vrf default 10.55.0.0/16 | json 2026-11-21T14:13:28Z
+phaseO rc=0 show rib route ip vrf default 10.55.0.0/16 | json 2026-11-21T14:13:29Z
+phaseO2 rc=0 show ip route vrf default 10.55.0.0/16 | json 2026-11-21T14:13:47Z
+phaseO2 rc=0 show rib route ip vrf default 10.55.0.0/16 | json 2026-11-21T14:13:48Z

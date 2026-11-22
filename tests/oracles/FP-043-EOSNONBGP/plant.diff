@@ -1,0 +1,20 @@
+diff --git a/src/netdryrun/drivers/eos.py b/src/netdryrun/drivers/eos.py
+index 561778c..ef40529 100644
+--- a/src/netdryrun/drivers/eos.py
++++ b/src/netdryrun/drivers/eos.py
+@@ -593,14 +593,11 @@ class EosDriver(Driver):
+         ev: list[dict] = []
+         fam = "ipv6" if ipaddress.ip_network(prefix).version == 6 else "ip"
+         rt = self._cli(f"show {fam} route vrf {vrf} {prefix} | json", ev)
+-        # every candidate, selected or not (FP-043-EOSNONBGP). A refusal (an EOS without `show rib route`) or any
+-        # other failure raises: an unread RIB is never "no candidate"
+-        rib = self._cli(f"show rib route {fam} vrf {vrf} {prefix} | json", ev)
+         try:
+             bgp = self._bgp_cli(f"show {fam} bgp {prefix} vrf {vrf} | json", ev)
+         except NoSuchInstance:
+             bgp = None   # no BGP on the node: no BGP path (the routing table answer above confirmed the VRF)
+-        return Observation(parse_routes(rt, bgp, prefix, vrf, rib), ev)
++        return Observation(parse_routes(rt, bgp, prefix, vrf), ev)
+ 
+     def bgp_paths(self, prefix: str, vrf: str = "default") -> Observation:
+         vrf = check_vrf_name(vrf)

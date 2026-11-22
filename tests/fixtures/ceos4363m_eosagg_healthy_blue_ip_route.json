@@ -1,0 +1,11 @@
+{
+    "vrfs": {
+        "blue": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {}
+        }
+    }
+}

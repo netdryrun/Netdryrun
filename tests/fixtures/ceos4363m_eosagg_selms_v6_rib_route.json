@@ -1,0 +1,24 @@
+{
+    "vrfs": {
+        "default": {
+            "ribRoutesByProtocol": {
+                "bgp": {
+                    "ribRoutes": {
+                        "2001:db8:66::/48": {
+                            "bestRoute": true,
+                            "preference": 200,
+                            "metric": 0,
+                            "metricType": "MED",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795271576
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

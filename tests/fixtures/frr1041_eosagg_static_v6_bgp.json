@@ -1,0 +1,54 @@
+{
+  "prefix":"2001:db8:66::/48",
+  "version":10,
+  "advertisedTo":{
+    "2001:db8:210::2":{
+      "hostname":"up1"
+    }
+  },
+  "pathCount":1,
+  "paths":[
+    {
+      "aspath":{
+        "string":"Local",
+        "segments":[],
+        "length":0
+      },
+      "aggregatorAs":65040,
+      "aggregatorId":"40.40.40.40",
+      "origin":"IGP",
+      "metric":0,
+      "weight":32768,
+      "valid":true,
+      "version":10,
+      "aggregated":true,
+      "local":true,
+      "atomicAggregate":true,
+      "bestpath":{
+        "overall":true,
+        "selectionReason":"First path received"
+      },
+      "lastUpdate":{
+        "epoch":1795271803,
+        "string":"Sat Nov 21 14:36:43 2026"
+      },
+      "nexthops":[
+        {
+          "ip":"::",
+          "hostname":"frr2",
+          "afi":"ipv6",
+          "scope":"global",
+          "linkLocalOnly":false,
+          "length":16,
+          "metric":0,
+          "accessible":true,
+          "used":true
+        }
+      ],
+      "peer":{
+        "peerId":"::",
+        "routerId":"40.40.40.40"
+      }
+    }
+  ]
+}

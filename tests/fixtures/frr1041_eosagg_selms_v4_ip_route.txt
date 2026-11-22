@@ -1,0 +1,5 @@
+Routing entry for 10.66.0.0/16
+  Known via "bgp", distance 200, metric 0, best
+  Last update 00:00:08 ago
+  * unreachable (blackhole), weight 1
+

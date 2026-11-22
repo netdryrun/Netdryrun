@@ -1,0 +1,9 @@
+Netdryrun 0.4.2: 3 checks from /home/ndr/fp043/netdryrun.yml
+ceos1: management default route none
+frr1: management default route none
+Convergence checks done; settling 30s before post-convergence checks...
+  [FAIL] static-default-absent -- unexpectedly present via static (0.4s)
+  [PASS] ospf-default-absent -- absent (held 6s, 3 samples) (6.4s)
+  [PASS] bgp-default-absent -- absent (held 6s, 3 samples) (6.4s)
+FAILED: 2 passed, 1 failed (3 checks)
+  wrote json report: /home/ndr/fp043/cap/ceos4363m_fp043_healthyB_report.json

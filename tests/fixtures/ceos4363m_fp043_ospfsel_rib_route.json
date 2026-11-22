@@ -1,0 +1,35 @@
+{
+    "vrfs": {
+        "default": {
+            "ribRoutesByProtocol": {
+                "ospf": {
+                    "ribRoutes": {
+                        "0.0.0.0/0": {
+                            "bestRoute": true,
+                            "preference": 110,
+                            "metric": 1,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795260433,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": false,
+                                    "ipNextHop": {
+                                        "nextHop": "10.0.201.2",
+                                        "interface": "Ethernet2",
+                                        "arpResolved": true
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,8 @@
+name: ndr-fp043
+topology:
+  nodes:
+    ceos1: {kind: arista_ceos, image: "ceos:4.36.3M", startup-config: configs/ceos1.cfg}
+    frr1: {kind: linux, image: "quay.io/frrouting/frr:10.4.1", binds: [configs/daemons:/etc/frr/daemons, configs/vtysh.conf:/etc/frr/vtysh.conf, configs/frr1.conf:/etc/frr/frr.conf]}
+  links:
+    - endpoints: ["ceos1:eth1", "frr1:eth1"]
+    - endpoints: ["ceos1:eth2", "frr1:eth2"]

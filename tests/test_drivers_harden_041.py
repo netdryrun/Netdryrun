@@ -43,7 +43,8 @@ def _eos_routes(rtype: str, pfx: str = "10.1.0.0/16") -> str:
                                                        "hardwareProgrammed": True}}}}})
 
 
-@pytest.mark.parametrize("rtype", ["nexthopGroupStaticRoute", "VRF leaked", "dynamicPolicy", "somethingNew", ""])
+@pytest.mark.parametrize("rtype", ["nexthopGroupStaticRoute", "VRF leaked", "dynamicPolicy", "somethingNew", "",
+                                   "aggregate"])
 def test_eos_unmapped_route_type_is_an_error_not_a_protocol_nothing_matches(rtype):
     """0.4.0 passed the raw name through: `protocol: static present: false` could never match a nexthop-group
     static, so it passed. A route type the driver doesn't map is now an error naming it."""
@@ -56,7 +57,7 @@ def test_eos_unmapped_route_type_is_an_error_not_a_protocol_nothing_matches(rtyp
 
 @pytest.mark.parametrize("rtype,proto", [("eBGP", "bgp"), ("iBGP", "bgp"), ("static", "static"), ("connected", "connected"),
                                          ("dropRoute", "static"), ("ospfNssaExternalType2", "ospf"), ("isisLevel2", "isis"),
-                                         ("bgpAggregate", "aggregate")])
+                                         ("bgpAggregate", "bgp")])
 def test_eos_mapped_route_types(rtype, proto):
     assert eos.parse_routes(_eos_routes(rtype), NO_BGP, "10.1.0.0/16") == [Route("10.1.0.0/16", proto, True)]
 

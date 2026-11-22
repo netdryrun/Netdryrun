@@ -1,0 +1,11 @@
+lab: topology.clab.yml
+timeout: 60
+checks:
+  - {name: static-default-absent, type: route, node: ceos1, prefix: 0.0.0.0/0, protocol: static, present: false}
+  - {name: ospf-default-absent, type: route, node: ceos1, prefix: 0.0.0.0/0, protocol: ospf, present: false}
+  - {name: bgp-default-absent, type: route, node: ceos1, prefix: 0.0.0.0/0, protocol: bgp, present: false}
+  - {name: static-default-candidate, type: route, node: ceos1, prefix: 0.0.0.0/0, protocol: static, active: false}
+  - {name: ospf-default-candidate, type: route, node: ceos1, prefix: 0.0.0.0/0, protocol: ospf, active: false}
+  - {name: static-default-selected, type: route, node: ceos1, prefix: 0.0.0.0/0, protocol: static}
+  - {name: ospf-default-selected, type: route, node: ceos1, prefix: 0.0.0.0/0, protocol: ospf}
+  - {name: nine-absent, type: route, node: ceos1, prefix: 9.9.9.0/24, present: false}

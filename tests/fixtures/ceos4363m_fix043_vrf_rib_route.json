@@ -1,0 +1,58 @@
+{
+    "vrfs": {
+        "blue": {
+            "ribRoutesByProtocol": {
+                "connected": {
+                    "ribRoutes": {
+                        "10.88.0.0/24": {
+                            "bestRoute": true,
+                            "preference": 0,
+                            "metric": 0,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795263968,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": false,
+                                    "ipNextHop": {
+                                        "interface": "Loopback1"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "staticConfig": {
+                    "ribRoutes": {
+                        "10.88.0.0/24": {
+                            "bestRoute": false,
+                            "preference": 250,
+                            "metric": 0,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795263967,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": true,
+                                    "ipNextHop": {
+                                        "interface": "Null0"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

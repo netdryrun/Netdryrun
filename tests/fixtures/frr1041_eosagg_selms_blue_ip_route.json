@@ -1,0 +1,35 @@
+{
+  "10.67.0.0/16":[
+    {
+      "prefix":"10.67.0.0/16",
+      "prefixLen":16,
+      "protocol":"bgp",
+      "vrfId":3,
+      "vrfName":"blue",
+      "selected":true,
+      "destSelected":true,
+      "distance":200,
+      "metric":0,
+      "installed":true,
+      "table":10,
+      "internalStatus":16,
+      "internalFlags":13,
+      "internalNextHopNum":1,
+      "internalNextHopActiveNum":1,
+      "nexthopGroupId":10,
+      "installedNexthopGroupId":10,
+      "receivedNexthopGroupId":10,
+      "uptime":"00:03:17",
+      "nexthops":[
+        {
+          "flags":3,
+          "fib":true,
+          "unreachable":true,
+          "blackhole":true,
+          "active":true,
+          "weight":1
+        }
+      ]
+    }
+  ]
+}

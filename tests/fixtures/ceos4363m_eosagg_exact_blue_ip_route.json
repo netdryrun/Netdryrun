@@ -1,0 +1,21 @@
+{
+    "vrfs": {
+        "blue": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "10.67.0.0/16": {
+                    "hardwareProgrammed": true,
+                    "routeType": "bgpAggregate",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "routeAction": "drop",
+                    "directlyConnected": true,
+                    "vias": []
+                }
+            }
+        }
+    }
+}

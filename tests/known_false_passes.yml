@@ -274,8 +274,8 @@
   what: Four narrow checks that can pass without seeing the problem in 0.4.1 and earlier (EOS non-BGP route not
     selected, SR Linux EVPN type-5 in an ip-vrf, FRR/SONiC ping to the VRF device's own address; red team on the final
     0.4.1 candidate); case 4 (SR Linux record --attributes) is the next entry
-  status: accepted-documented-limit
-  cases: [RT-0056, RT-0063]   # RT-0053 (the VRF device's own address) fixed in 0.4.2, RT-0058 (SR Linux EVPN) in
+  status: fixed
+  # no accepted case left: RT-0053 fixed in 0.4.2, RT-0056 and RT-0063 (EOS) and RT-0058 (SR Linux EVPN) in
   # 0.4.3: see below
   decided: "owner, 2026-11-09: ship 0.4.1 and publish the four as known limits; fix in 0.4.2 (GHSA-ggcf-664f-c9ff)"
   record: advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
@@ -557,4 +557,41 @@
     - tests/oracles/FP-043-FRRIMPORTCHK/test_oracle_fp_043_frrimportchk.py
     - tests/test_oracle_guards_fp_043_frrimportchk.py
     - tests/test_frr_import_check.py
+- id: rt-0056-rt-0063-eos-candidate-not-selected
+  what: On Arista EOS, `route ... present false` with a protocol other than bgp passed while a route of that protocol
+    was in the RIB but not selected (a floating static behind an eBGP default, an OSPF default behind a static Null0;
+    case 1 of the 0.4.1 advisory, GHSA-ggcf-664f-c9ff; 0.2.0 to 0.4.2), because `show ip route <prefix>` lists only
+    the selected route and the driver read not-selected candidates from the BGP table only; 0.4.3 reads every
+    candidate from `show rib route ip|ipv6 vrf <vrf> <prefix> | json` (exact prefix only, an unread RIB is an error)
+  record: CHANGELOG.md (Unreleased, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  tests:
+    - tests/oracles/FP-043-EOSNONBGP/test_oracle_fp_043_eosnonbgp.py
+    - tests/test_oracle_guards_fp_043_eosnonbgp.py
+    - tests/test_eos_rib_candidates_043.py
+    - tests/test_redteam.py
+- id: rt-0085-eos-own-aggregate-not-read-as-bgp
+  what: >-
+    On Arista EOS, `route ... protocol: bgp present: false` passed on the node's own selected BGP aggregate, which the
+    routing table lists as bgpAggregate and the driver read as protocol aggregate (FRR and NX-OS read it as bgp and
+    fail the check; 0.4.2 known limit, confirmed live on cEOS 4.36.3M on 2026-11-21); 0.4.3 names the own aggregate
+    bgp in every read, selected or not (oracle FP-043-EOSAGG, RT-0087)
+  record: CHANGELOG.md (Unreleased, Fixed; 0.4.2, Not fixed), website/docs/trust.md
+  tests:
+    - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py
+    - tests/test_oracle_guards_fp_043_eosagg.py
+    - tests/test_eos_rib_candidates_043.py::test_a_bgp_aggregate_is_the_aggregate_not_a_second_bgp_candidate
+    - tests/test_redteam.py
+- id: rt-0086-eos-aggregate-behind-static-read-as-bgp
+  what: >-
+    On Arista EOS, `route ... protocol: aggregate present: false` passed while the node's own BGP aggregate was
+    configured but lost to a static route for the same prefix: the RIB lists it under bgp, not best, and 0.4.2 and
+    earlier didn't see it at all, so `protocol: bgp present: false` passed there too (confirmed live on cEOS 4.36.3M on
+    2026-11-21, IPv4, IPv6 and a VRF); this also defeated the 0.4.2 workaround for RT-0085. 0.4.3 names the own
+    aggregate bgp in every read and refuses `protocol: aggregate` on EOS before the run, as on FRR (oracle
+    FP-043-EOSAGG, RT-0087)
+  record: CHANGELOG.md (Unreleased, Fixed), website/docs/trust.md
+  tests:
+    - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py
+    - tests/test_oracle_guards_fp_043_eosagg.py
+    - tests/test_eos_rib_candidates_043.py::test_an_aggregate_behind_a_static_reads_as_bgp_not_aggregate
     - tests/test_redteam.py

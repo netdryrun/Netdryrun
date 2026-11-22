@@ -10,7 +10,7 @@ import pytest
 from netdryrun.drivers.base import DriverError, NoSuchInstance
 from netdryrun.drivers.eos import EosDriver
 
-from test_verdict_drivers import Lab
+from test_verdict_drivers import Lab, eos_rib
 
 FX = Path(__file__).parent / "fixtures"
 INACTIVE = (FX / "eos_bgp_inactive.txt").read_text(encoding="utf-8")
@@ -18,7 +18,8 @@ ROUTE = (FX / "eos_route_ospfv3_ipv4.txt").read_text(encoding="utf-8")
 
 
 def _drv(bgp_answer):
-    return EosDriver(Lab([("show ip route", ROUTE), ("show ip bgp", bgp_answer), ("show ipv6 bgp", bgp_answer)]), "e1")
+    return EosDriver(Lab([("show ip route", ROUTE), ("show rib route", eos_rib(prefix="10.99.3.2/32", ospf3=True)),
+                          ("show ip bgp", bgp_answer), ("show ipv6 bgp", bgp_answer)]), "e1")
 
 
 def test_a_route_check_on_a_node_without_bgp_reads_the_routing_table():

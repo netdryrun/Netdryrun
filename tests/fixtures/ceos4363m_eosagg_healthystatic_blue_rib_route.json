@@ -1,0 +1,33 @@
+{
+    "vrfs": {
+        "blue": {
+            "ribRoutesByProtocol": {
+                "staticConfig": {
+                    "ribRoutes": {
+                        "10.67.0.0/16": {
+                            "bestRoute": true,
+                            "preference": 1,
+                            "metric": 0,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795271933,
+                            "resolvedNextHops": [
+                                {
+                                    "transportType": "ipv4",
+                                    "notInFec": true,
+                                    "ipNextHop": {
+                                        "interface": "Null0"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

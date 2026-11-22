@@ -1,0 +1,51 @@
+Building configuration...
+
+Current configuration:
+!
+frr version 10.4.1_git
+frr defaults traditional
+hostname frr2
+domainname localdomain
+service integrated-vtysh-config
+!
+ip route 10.66.1.0/24 blackhole
+ipv6 route 2001:db8:66:1::/64 blackhole
+!
+vrf blue
+ ip route 10.67.1.0/24 blackhole
+exit-vrf
+!
+interface eth1
+ ip address 10.0.210.1/30
+ ipv6 address 2001:db8:210::1/64
+exit
+!
+router bgp 65040
+ bgp router-id 40.40.40.40
+ no bgp ebgp-requires-policy
+ neighbor 10.0.210.2 remote-as 65020
+ neighbor 2001:db8:210::2 remote-as 65020
+ !
+ address-family ipv4 unicast
+  network 10.66.1.0/24
+  aggregate-address 10.66.0.0/16
+  no neighbor 2001:db8:210::2 activate
+ exit-address-family
+ !
+ address-family ipv6 unicast
+  network 2001:db8:66:1::/64
+  aggregate-address 2001:db8:66::/48
+  neighbor 2001:db8:210::2 activate
+ exit-address-family
+exit
+!
+router bgp 65040 vrf blue
+ bgp router-id 40.40.40.40
+ !
+ address-family ipv4 unicast
+  network 10.67.1.0/24
+  aggregate-address 10.67.0.0/16
+ exit-address-family
+exit
+!
+end

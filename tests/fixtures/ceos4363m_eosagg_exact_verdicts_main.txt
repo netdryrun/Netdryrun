@@ -1,0 +1,27 @@
+exact eos main a5244a0       v4    routes: [('aggregate', True, 'bgpAggregate'), ('bgp', False, '')]
+exact eos main a5244a0       v4-bgp-absent        passed=False  unexpectedly present via bgp (not selected)
+exact eos main a5244a0       v4-bgp-active        passed=False  not active via bgp; seen: aggregate, bgp (inactive)
+exact eos main a5244a0       v4-bgp-candidate     passed=True  present via bgp (not selected)
+exact eos main a5244a0       v4-agg-absent        passed=False  unexpectedly present via aggregate
+exact eos main a5244a0       v4-agg-active        passed=True  active via aggregate
+exact eos main a5244a0       v4-agg-candidate     passed=True  active via aggregate
+exact eos main a5244a0       v4-any-absent        passed=False  unexpectedly present via aggregate
+exact eos main a5244a0       v4-static-active     passed=False  not active via static; seen: aggregate, bgp (inactive)
+exact eos main a5244a0       v6    routes: [('aggregate', True, 'bgpAggregate'), ('bgp', False, '')]
+exact eos main a5244a0       v6-bgp-absent        passed=False  unexpectedly present via bgp (not selected)
+exact eos main a5244a0       v6-bgp-active        passed=False  not active via bgp; seen: aggregate, bgp (inactive)
+exact eos main a5244a0       v6-bgp-candidate     passed=True  present via bgp (not selected)
+exact eos main a5244a0       v6-agg-absent        passed=False  unexpectedly present via aggregate
+exact eos main a5244a0       v6-agg-active        passed=True  active via aggregate
+exact eos main a5244a0       v6-agg-candidate     passed=True  active via aggregate
+exact eos main a5244a0       v6-any-absent        passed=False  unexpectedly present via aggregate
+exact eos main a5244a0       v6-static-active     passed=False  not active via static; seen: aggregate, bgp (inactive)
+exact eos main a5244a0       blue  routes: [('aggregate', True, 'bgpAggregate')]
+exact eos main a5244a0       blue-bgp-absent      passed=True  absent (held 10s, 5 samples)
+exact eos main a5244a0       blue-bgp-active      passed=False  not active via bgp; seen: aggregate
+exact eos main a5244a0       blue-bgp-candidate   passed=False  not active via bgp; seen: aggregate
+exact eos main a5244a0       blue-agg-absent      passed=False  unexpectedly present via aggregate
+exact eos main a5244a0       blue-agg-active      passed=True  active via aggregate
+exact eos main a5244a0       blue-agg-candidate   passed=True  active via aggregate
+exact eos main a5244a0       blue-any-absent      passed=False  unexpectedly present via aggregate
+exact eos main a5244a0       blue-static-active   passed=False  not active via static; seen: aggregate

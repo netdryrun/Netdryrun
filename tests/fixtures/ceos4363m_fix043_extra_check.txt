@@ -1,0 +1,18 @@
+Netdryrun 0.4.2: 9 checks from /home/ndr/fix043/extra.yml
+ceos1: management default route none
+frr1: management default route none
+  [PASS] vrf-connected-selected -- active via connected (5.1s)
+  [PASS] vrf-static-candidate -- present via static (not selected) (5.1s)
+  [PASS] v6-connected-selected -- active via connected (5.1s)
+warning: ceos1 (vrf blue) reported no BGP neighbors for 60s; the check was evaluated without BGP convergence
+Convergence checks done; settling 2s before post-convergence checks...
+  [FAIL] vrf-static-absent -- unexpectedly present via static (not selected) (0.8s)
+      warning: ceos1 (vrf blue) reported no BGP neighbors for 60s; the check was evaluated without BGP convergence
+  [PASS] vrf-nine-absent -- absent (held 7s, 3 samples) (6.8s)
+      warning: ceos1 (vrf blue) reported no BGP neighbors for 60s; the check was evaluated without BGP convergence
+  [FAIL] v6-static-absent -- unexpectedly present via static (not selected) (0.8s)
+  [PASS] v6-other-absent -- absent (held 7s, 3 samples) (6.8s)
+  [PASS] v4-connected-static-absent -- absent (held 7s, 3 samples) (6.8s)
+  [PASS] nine-absent -- absent (held 7s, 3 samples) (6.8s)
+FAILED: 7 passed, 2 failed (9 checks; 2 with a convergence warning)
+  wrote json report: /home/ndr/fix043/out/report_extra.json

@@ -149,6 +149,7 @@ REFUSALS = {
     "RT-0008": "VRF 'CUSTOMR' does not exist",
     "RT-0009": "show ipv6 bgp summary vrf default | json` failed",
     "RT-0012": "error: vtysh: View/Vrf is unknown",
+    "RT-0037": "is not one this driver maps to a protocol",
     "RT-0038": "path without aspath segments",
     "RT-0039": "oper-state up but no received-routes counter",
     "RT-0043": "is stale (graceful restart in progress): not settled",
@@ -160,8 +161,7 @@ REFUSALS = {
 }
 # Cases that end in an error that isn't their refusal, known and not fixed here: (the error's phrase, why). The check
 # above is off for a case only while it ends in that very error; once it ends in anything else the test fails until
-# the entry moves to REFUSALS (the case now ends in its refusal) or comes off. RT-0037 moves to REFUSALS when
-# ndr/fix-eos-agg-v3 merges (its outputs gain routingDisabled and it ends in the routeType refusal).
+# the entry moves to REFUSALS (the case now ends in its refusal) or comes off.
 # A listed case that still ends in its known error PASSES, never skips: the fast-fix gate blocks a guard skipped at
 # the base that fails at the candidate, so a skip here made every fix of the case unmergeable (EOS b230514).
 _NO_PATHCOUNT = "without pathCount"
@@ -172,8 +172,6 @@ WRONG_REASON = {
                                "so the driver refuses on the path count before the community logic the case guards"),
     "RT-0027": (_NO_PATHCOUNT, "its hand-written `show bgp` answer has no pathCount and also answers the text read, "
                                "so the driver refuses on the path count before the community logic the case guards"),
-    "RT-0037": ("routingDisabled is None, not a boolean",
-                "its route answer has no routingDisabled, so it is refused before the routeType map it guards"),
 }
 
 

@@ -1,0 +1,23 @@
+{
+    "vrfs": {
+        "default": {
+            "routingDisabled": false,
+            "allRoutesProgrammedHardware": true,
+            "allRoutesProgrammedKernel": true,
+            "defaultRouteState": "notSet",
+            "routes": {
+                "2001:db8:66::/48": {
+                    "hardwareProgrammed": true,
+                    "routeType": "dropRoute",
+                    "routeLeaked": false,
+                    "kernelProgrammed": true,
+                    "preference": 1,
+                    "metric": 0,
+                    "vias": [],
+                    "routeAction": "drop",
+                    "directlyConnected": true
+                }
+            }
+        }
+    }
+}

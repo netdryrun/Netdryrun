@@ -1,0 +1,525 @@
+{
+  "schema": "netdryrun.report/v1",
+  "status": "failed",
+  "lab": "ndr-fix043",
+  "config": "/home/ndr/fix043/proof.yml",
+  "started": "2026-11-21T12:23:04+00:00",
+  "finished": "2026-11-21T12:24:35+00:00",
+  "error": null,
+  "inconclusive_reason": null,
+  "environment": {
+    "netdryrun": "0.4.2",
+    "containerlab": "0.81.1",
+    "python": "3.10.12",
+    "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "nodes": {
+      "ceos1": {
+        "kind": "arista_ceos",
+        "image": "ceos:4.36.3M",
+        "management_default": "none",
+        "nos_version": null,
+        "image_digest": "ceos@sha256:94cc1e5462fe6795fa80cb1047a8223e268b1c714d6af0d5e1dcae1db910f4df",
+        "config_load": "clean"
+      },
+      "frr1": {
+        "kind": "linux",
+        "image": "quay.io/frrouting/frr:10.4.1",
+        "management_default": "none",
+        "nos_version": "FRRouting 10.4.1_git",
+        "image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
+        "config_load": "clean"
+      }
+    }
+  },
+  "summary": {
+    "passed": 5,
+    "failed": 3,
+    "total": 8
+  },
+  "warnings": {
+    "count": 0,
+    "items": []
+  },
+  "checks": [
+    {
+      "name": "static-default-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "static",
+        "present": false
+      },
+      "passed": false,
+      "detail": "unexpectedly present via static",
+      "attempts": 1,
+      "duration_s": 0.9,
+      "started": "2026-11-21T12:24:24+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": false,
+          "detail": "unexpectedly present via static"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263787,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263786,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 0.0.0.0/0 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "ospf-default-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "ospf",
+        "present": false
+      },
+      "passed": false,
+      "detail": "unexpectedly present via ospf (not selected)",
+      "attempts": 1,
+      "duration_s": 0.9,
+      "started": "2026-11-21T12:24:24+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": false,
+          "detail": "unexpectedly present via ospf (not selected)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263787,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263786,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 0.0.0.0/0 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "bgp-default-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "bgp",
+        "present": false
+      },
+      "passed": true,
+      "detail": "absent (held 7s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 6.8,
+      "started": "2026-11-21T12:24:24+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 4.8,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 6.8,
+          "passed": true,
+          "detail": "absent"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263787,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263786,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 0.0.0.0/0 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "static-default-candidate",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "static",
+        "active": false
+      },
+      "passed": true,
+      "detail": "active via static",
+      "attempts": 2,
+      "duration_s": 5.0,
+      "started": "2026-11-21T12:23:09+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "active via static"
+        },
+        {
+          "t": 5.0,
+          "passed": true,
+          "detail": "active via static"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263783,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263782,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 0.0.0.0/0 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "ospf-default-candidate",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "ospf",
+        "active": false
+      },
+      "passed": true,
+      "detail": "present via ospf (not selected)",
+      "attempts": 2,
+      "duration_s": 5.0,
+      "started": "2026-11-21T12:23:09+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "present via ospf (not selected)"
+        },
+        {
+          "t": 5.0,
+          "passed": true,
+          "detail": "present via ospf (not selected)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263783,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263782,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 0.0.0.0/0 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "static-default-selected",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "static"
+      },
+      "passed": true,
+      "detail": "active via static",
+      "attempts": 2,
+      "duration_s": 5.0,
+      "started": "2026-11-21T12:23:09+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "active via static"
+        },
+        {
+          "t": 5.0,
+          "passed": true,
+          "detail": "active via static"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263783,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263782,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 0.0.0.0/0 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "ospf-default-selected",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "0.0.0.0/0",
+        "protocol": "ospf"
+      },
+      "passed": false,
+      "detail": "not active via ospf; seen: static, ospf (inactive)",
+      "attempts": 17,
+      "duration_s": 61.0,
+      "started": "2026-11-21T12:23:09+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 5.0,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 8.8,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 12.5,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 16.1,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 19.6,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 23.3,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 26.8,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 30.8,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 34.4,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 38.1,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 41.8,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 45.5,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 49.3,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 53.3,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 57.4,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        },
+        {
+          "t": 61.0,
+          "passed": false,
+          "detail": "not active via ospf; seen: static, ospf (inactive)"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 0.0.0.0/0 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263787,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263786,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 0.0.0.0/0 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "name": "nine-absent",
+      "type": "route",
+      "params": {
+        "node": "ceos1",
+        "prefix": "9.9.9.0/24",
+        "present": false
+      },
+      "passed": true,
+      "detail": "absent (held 7s, 3 samples)",
+      "attempts": 3,
+      "duration_s": 6.8,
+      "started": "2026-11-21T12:24:24+00:00",
+      "history": [
+        {
+          "t": 0.9,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 4.8,
+          "passed": true,
+          "detail": "absent"
+        },
+        {
+          "t": 6.8,
+          "passed": true,
+          "detail": "absent"
+        }
+      ],
+      "evidence": [
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip route vrf default 9.9.9.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"routingDisabled\": false,\n            \"allRoutesProgrammedHardware\": true,\n            \"allRoutesProgrammedKernel\": true,\n            \"defaultRouteState\": \"reachable\",\n            \"routes\": {\n                \"0.0.0.0/0\": {\n                    \"hardwareProgrammed\": true,\n                    \"routeType\": \"dropRoute\",\n                    \"routeLeaked\": false,\n                    \"kernelProgrammed\": true,\n                    \"routeAction\": \"drop\",\n                    \"directlyConnected\": true,\n                    \"vias\": []\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show rib route ip vrf default 9.9.9.0/24 | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"ribRoutesByProtocol\": {\n                \"staticConfig\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": true,\n                            \"preference\": 1,\n                            \"metric\": 0,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263787,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"interface\": \"Null0\"\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                },\n                \"ospf\": {\n                    \"ribRoutes\": {\n                        \"0.0.0.0/0\": {\n                            \"bestRoute\": false,\n                            \"preference\": 110,\n                            \"metric\": 1,\n                            \"metricType\": \"metric\",\n                            \"pendingAttributes\": false,\n                            \"tag\": 0,\n                            \"communityList\": [],\n                            \"recmpEligible\": false,\n                            \"loopedRoute\": false,\n                            \"lastUpdateEpochTime\": 1795263786,\n                            \"resolvedNextHops\": [\n                                {\n                                    \"transportType\": \"ipv4\",\n                                    \"notInFec\": true,\n                                    \"ipNextHop\": {\n                                        \"nextHop\": \"10.0.201.2\",\n                                        \"interface\": \"Ethernet2\",\n                                        \"arpResolved\": true\n                                    }\n                                }\n                            ]\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
+          "stderr": ""
+        },
+        {
+          "node": "ceos1",
+          "cmd": "Cli -p 15 -c show ip bgp 9.9.9.0/24 vrf default | json",
+          "rc": 0,
+          "output": "{\n    \"vrfs\": {\n        \"default\": {\n            \"vrf\": \"default\",\n            \"routerId\": \"30.30.30.30\",\n            \"asn\": \"65030\",\n            \"bgpRouteEntries\": {}\n        }\n    }\n}\n",
+          "stderr": ""
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+    "vrfs": {
+        "default": {
+            "ribRoutesByProtocol": {
+                "staticConfig": {
+                    "ribRoutes": {
+                        "0.0.0.0/0": {
+                            "bestRoute": true,
+                            "preference": 250,
+                            "metric": 0,
+                            "metricType": "metric",
+                            "pendingAttributes": false,
+                            "tag": 0,
+                            "communityList": [],
+                            "recmpEligible": false,
+                            "loopedRoute": false,
+                            "lastUpdateEpochTime": 1795260233,
+                            "recursiveNextHops": [
+                                {
+                                    "nextHop": "10.0.201.2",
+                                    "transportType": "ipv4",
+                                    "viaType": "active",
+                                    "preference": 0,
+                                    "metric": 0,
+                                    "metricType": "metric",
+                                    "loopedNextHop": false,
+                                    "viaSetType": "ipv4",
+                                    "unresolvedNextHop": false,
+                                    "resolvedNextHops": [
+                                        {
+                                            "transportType": "ipv4",
+                                            "notInFec": false,
+                                            "ipNextHop": {
+                                                "nextHop": "10.0.201.2",
+                                                "interface": "Ethernet2",
+                                                "arpResolved": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
