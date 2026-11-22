@@ -472,9 +472,10 @@ def test_evaluate_records_status_checks_and_never_left_from_the_real_report(monk
                         + [Res(n, False, NeverLeft("routes never left ce1")) for n in I8],
                         "inconclusive", "routes never left ce1")])                       # netdryrun
     monkeypatch.setattr(run_py, "build_workdir", lambda case, root, corpus: (tmp_path, []))
+    # a lab with no FRR router: the import-check remedy of the harness has nothing to read
     monkeypatch.setattr(run_py, "Lab", type("Lab", (), {"__init__": lambda s, p: None, "deploy": lambda s: None,
-                                                        "destroy": lambda s: None}))
-    monkeypatch.setattr(run_py, "load", lambda p: None)
+                                                        "destroy": lambda s: None, "nodes": {}}))
+    monkeypatch.setattr(run_py, "load", lambda p: type("Config", (), {"drivers": {}})())
     monkeypatch.setattr(run_py, "run", lambda *a, **k: next(reports))
     row = run_py.evaluate({"id": CID, "expected": "unsafe"}, tmp_path, False, run_py.CORPORA["v2"])
     nd = row["_details"]["netdryrun"]
@@ -482,6 +483,7 @@ def test_evaluate_records_status_checks_and_never_left_from_the_real_report(monk
     assert nd["status"] == "inconclusive" and nd["never_left"] is True and nd["failed_checks"] == I8
     assert nd["passed_checks"] == I2 + I5 and nd["inconclusive_reason"] == "routes never left ce1"
     assert row["_details"]["ping"]["never_left"] is False and row["_details"]["ping"]["inconclusive_reason"] is None
+    assert row["import_check"] == row["_details"]["import_check"] == {"routers": {}, "error": None}
 
 
 def test_evaluate_run_records_a_crash_as_error_for_every_strategy(monkeypatch, tmp_path):

@@ -31,8 +31,9 @@ import yaml
 
 from netdryrun import __version__
 from netdryrun.config import load
+from netdryrun.drivers import frr_import_check
 from netdryrun.lab import Lab
-from netdryrun.runner import NeverLeft, run
+from netdryrun.runner import NeverLeft, driver_resolver, run
 
 HERE = Path(__file__).resolve().parent
 CORPORA = {"v1": HERE, "v2": HERE / "v2"}   # v1 lives at the top of corpus/ and is frozen
@@ -97,12 +98,24 @@ def evaluate(case: dict, root: Path, keep: bool, corpus: Path = HERE) -> dict:
     lab = Lab(work / "topology.clab.yml")
     row = {k: case.get(k) for k in ("id", "title", "category", "expected", "rationale", "source", "note")}
     row["edits"] = diff
+    configs = {name: load(work / spec) for name, spec in STRATEGIES.items()}
     t0 = time.monotonic()
     try:
         lab.deploy()
         row["strategies"], row["_details"] = {}, {}
-        for name, spec in STRATEGIES.items():
-            rep = run(load(work / spec), deploy=False, settle=10, hold=10)
+        # Before any strategy: the harness deployed this lab, so it remedies a stuck import check as `netdryrun run`
+        # does on a lab it deploys. Recorded in the row (results.json) and in the run's details (run_details)
+        found, problem = remedy_import_check(lab, configs)
+        row["import_check"] = {"routers": found, "error": problem}
+        row["_details"]["import_check"] = {"routers": dict(found), "error": problem}
+        if problem is not None:   # the lab can't be judged: every strategy is an error, never a verdict
+            rec = {"verdict": "error", "status": "error", "correct": False, "failed_checks": [], "error": problem}
+            det = {"status": "error", "failed_checks": [], "passed_checks": [], "inconclusive_reason": None,
+                   "never_left": False, "error": problem}
+            row["strategies"] = {s: dict(rec) for s in STRATEGIES}
+            row["_details"].update({s: dict(det) for s in STRATEGIES})
+        for name in (STRATEGIES if problem is None else ()):
+            rep = run(configs[name], deploy=False, settle=10, hold=10)
             verdict = {"passed": "safe", "failed": "unsafe"}.get(rep.status, "error")
             failed = [r for r in rep.results if not r.passed]
             # `verdict` keeps the vocabulary of every committed results file (inconclusive and error both read
@@ -128,6 +141,33 @@ def evaluate(case: dict, root: Path, keep: bool, corpus: Path = HERE) -> dict:
             lab.destroy()
     row["seconds"] = round(time.monotonic() - t0)
     return row
+
+
+def remedy_import_check(lab, configs: dict) -> tuple[dict[str, str], str | None]:
+    """Check, and remedy, FRR's BGP import check on a lab this harness deployed, before any strategy runs.
+
+    Every strategy runs with deploy=False on the lab deployed here. On a lab it didn't deploy, the runner only detects
+    a stuck import check (bgpd applied its `network` statements before its zebra connection was up and never
+    registered them) and gives no verdict. The harness is the deployer, so it applies the remedy `netdryrun run`
+    applies on a lab it deploys, with the product's own guard. Returns (router -> what the guard found or remedied,
+    None), or (what was found, why the lab can't be judged): still stuck after the remedy, unreadable, or a router
+    not checked. Each strategy's run still checks the import check itself, detection only, before its checks and
+    again before its verdict."""
+    overrides = {name: dict(c.drivers) for name, c in configs.items()}
+    first = next(iter(overrides.values()))
+    if any(o != first for o in overrides.values()):
+        raise CaseError(f"the strategies set different node drivers ({overrides}), but they share one lab")
+    nodes = frr_import_check.candidates(lab, driver_resolver(first))
+    try:
+        found = frr_import_check.guard(lab, nodes, remedy=True, clock=time.monotonic, sleep=time.sleep,
+                                       log=lambda m: print(f"   {m}", flush=True), label="corpus deploy")
+    except frr_import_check.ImportCheckError as e:
+        return {}, f"{type(e).__name__}: {e}"
+    unchecked = sorted(f"{n}: {what}" for n, what in found.items() if what.startswith("not checked"))
+    if unchecked:
+        return found, ("FRR's import check could not be confirmed on every router of the lab: "
+                       + "; ".join(unchecked) + ". No verdict.")
+    return found, None
 
 
 def outcome(expected: str, verdict: str) -> str:
