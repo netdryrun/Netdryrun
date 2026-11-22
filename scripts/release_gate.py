@@ -698,8 +698,13 @@ BRIDGE_STALE = re.compile(r"BLOCKED (?P<file>fastfix/allow/[^\s:]+\.yml): allows
 class Bridge:
     """The gate files the dominance run allowed under their exact <path>@<blob> entry: path -> (blob, allowlist)."""
 
+    label = "gate-naming bridge"
+
     def __init__(self):
         self.allowed: dict[str, tuple[str, str]] = {}
+
+    def names(self) -> str:
+        return ", ".join(sorted(f"{p}@{b}" for p, (b, _) in self.allowed.items()))
 
     def covers(self, line: str, printed: list[str]) -> bool:
         """`line` is one the bridge drops: the stale-entry line for an exact entry dominance allowed, or the bare
@@ -740,6 +745,96 @@ def bridge_from_dominance(git_, base: str, flips) -> Bridge:
         if isinstance(entries, list) and any(isinstance(e, dict) and all(e.get(k) == v for k, v in want.items())
                                              for e in entries):
             bridge.allowed[path] = (blob, by)
+    return bridge
+
+
+# The kind bridge. The published v0.4.2 judge requires an allowlist entry's keys to be exactly ALLOW_KEYS, so it rejects
+# every entry that says `kind: new-read` (how the judge after it names a new device read), and the flip such an entry
+# allows stays unexplained to it. For release KIND_BRIDGE's key against exactly its commit, the release gate drops two
+# kinds of line from the old judge's loosening run, and nothing else: (a) the "keys must be exactly" line for an entry
+# whose keys at HEAD are exactly ALLOW_KEYS plus kind (kind: new-read, source: fixtures), and (b) the unexplained flip
+# of that entry's case with its from and to, printed beside that entry's (a) line. Each only when the dominance run
+# (this commit's judge, which keeps a command log at the base: fastfix_cmdlog.py) allowed that very flip as a new read
+# from that allowlist file, reported no problem that names the entry or its case, and no other entry in a changed
+# allowlist names the same flip. Every dropped line is named, and a run that needed the bridge is a MAJOR to accept
+# (fingerprinted on the dropped lines), never a PASS.
+KIND_BRIDGE = {"0.4.3": "61cd95de8b5446d6adf24deda43f9bfb6957ee20"}     # v0.4.2
+ALLOW_KEYS = frozenset({"source", "case", "from", "to", "evidence", "why", "reviewed_by"})   # as fastfix_gate.py
+KIND_KEYS = re.compile(r"BLOCKED (?P<file>fastfix/allow/[^\s:]+\.yml) flip #(?P<n>[1-9][0-9]*): keys must be exactly "
+                       + re.escape(str(sorted(ALLOW_KEYS))))
+KIND_FLIP = re.compile(r"BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: (?P<case>\S.*): "
+                       r"(?P<before>FAIL|UNKNOWN|MIXED) -> (?P<after>MIXED|PASS)")
+
+
+class KindBridge:
+    """The new-read entries the dominance run allowed: (allowlist, entry number) -> (case, from, to)."""
+
+    label = "kind bridge"
+
+    def __init__(self):
+        self.entries: dict[tuple[str, int], tuple[str, str, str]] = {}
+
+    def names(self) -> str:
+        return ", ".join(f"{f} flip #{n} ({case})" for (f, n), (case, _, _) in sorted(self.entries.items()))
+
+    @staticmethod
+    def keys_line(file: str, n: int) -> str:
+        return f"BLOCKED {file} flip #{n}: keys must be exactly {sorted(ALLOW_KEYS)}"
+
+    def covers(self, line: str, printed: list[str]) -> bool:
+        """`line` is one the bridge drops, printed exactly once: an entry's keys line, or its case's flip when the same
+        run printed that entry's keys line (so the old judge read that very entry and rejected it only for `kind`)."""
+        if printed.count(line) != 1:
+            return False
+        m = KIND_KEYS.fullmatch(line)
+        if m:
+            return (m["file"], int(m["n"])) in self.entries
+        m = KIND_FLIP.fullmatch(line)
+        if not m:
+            return False
+        hits = [k for k, v in self.entries.items() if v == (m["case"], m["before"], m["after"])]
+        return len(hits) == 1 and printed.count(self.keys_line(*hits[0])) == 1
+
+
+def kind_bridge_from_dominance(git_, base: str, data) -> KindBridge:
+    """The bridge's entries: each kind: new-read entry of an allowlist changed since `base` (HEAD's copy) whose keys are
+    exactly ALLOW_KEYS plus kind, whose flip no other changed entry names, and whose flip the dominance record (`data`,
+    gate/dominance.json) shows allowed as a new read by that same file, with no problem there naming the entry or its
+    case. Anything else, or an allowlist that can't be read, bridges nothing."""
+    import yaml   # the gate's Python has Netdryrun's dependencies
+    bridge = KindBridge()
+    flips = data.get("flips") if isinstance(data, dict) else None
+    problems = data.get("problems") if isinstance(data, dict) else None
+    if not isinstance(flips, list) or not isinstance(problems, list) or not all(isinstance(p, str) for p in problems):
+        return bridge
+    changed = [f for f in (git_("diff", "--name-only", "-z", base, "HEAD", "--", f"{ALLOW_DIR}/") or "").split("\0")
+               if f.startswith(f"{ALLOW_DIR}/") and f.endswith(".yml")]
+    named: dict[tuple, int] = {}
+    kinded: dict[tuple[str, int], tuple] = {}
+    for f in changed:
+        try:
+            entries = (yaml.safe_load(git_("show", f"HEAD:{f}") or "") or {}).get("flips")
+        except (yaml.YAMLError, AttributeError):
+            return KindBridge()     # one unreadable allowlist: no entry can be shown to be the only one
+        if not isinstance(entries, list):
+            return KindBridge()
+        for i, e in enumerate(entries, 1):
+            if not isinstance(e, dict):
+                continue
+            key = (e.get("source"), e.get("case"), e.get("from"), e.get("to"))
+            named[key] = named.get(key, 0) + 1
+            if set(e) == ALLOW_KEYS | {"kind"} and e.get("kind") == "new-read" and e.get("source") == "fixtures" \
+                    and all(isinstance(x, str) and x for x in key[1:]):
+                kinded[(f, i)] = key
+    for (f, i), key in kinded.items():
+        _, case, before, after = key
+        at = [x for x in flips if isinstance(x, dict) and (x.get("source"), x.get("case"), x.get("from"),
+                                                            x.get("to")) == key]
+        if named[key] != 1 or len(at) != 1 or at[0].get("kind") != "new-read" or at[0].get("allowed_by") != f:
+            continue
+        if any(f"{f} flip #{i}:" in p or case in p for p in problems):
+            continue
+        bridge.entries[(f, i)] = (case, before, after)
     return bridge
 
 
@@ -890,13 +985,20 @@ def judge_shape_problem(out: str) -> str | None:
 
 
 def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: list, proc: Proc,
-               summary: str, bridge: Bridge | None = None) -> None:
-    """A BLOCKER run by a frozen judge; a run blocked only by lines a valid historic record waives, or the
-    gate-naming bridge drops, is a MAJOR instead (to accept in accepted.json), never a PASS."""
+               summary: str, bridge=None) -> None:
+    """A BLOCKER run by a frozen judge; a run blocked only by lines a valid historic record waives, or a bridge
+    (`bridge`: a Bridge, a KindBridge, or a list of them) drops, is a MAJOR instead (to accept in accepted.json),
+    never a PASS."""
     blocked = [ln.rstrip() for ln in proc.out.splitlines() if ln.startswith("BLOCKED ")]
     waived, rest = hist.waive(id_, proc) if hist else ([], blocked)
-    bridged = [ln for ln in rest if bridge.covers(ln, blocked)] if bridge is not None and proc.code == 1 else []
-    rest = [ln for ln in rest if ln not in bridged]
+    bridges = [b for b in (bridge if isinstance(bridge, list) else [bridge]) if b is not None] if proc.code == 1 else []
+    by: dict[str, object] = {}
+    for ln in rest:
+        b = next((b for b in bridges if b.covers(ln, blocked)), None)
+        if b is not None:
+            by[ln] = b
+    bridged = list(by)
+    rest = [ln for ln in rest if ln not in by]
     shape = judge_shape_problem(proc.out) if (waived or bridged) and not rest else None
     if shape:
         layer.add(id_, title, BLOCKER, False, f"nothing waived or dropped: the judge's output {shape}",
@@ -907,10 +1009,11 @@ def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: l
         if waived:
             why.append(f"{len(waived)} line(s) the historic record {hist.path} waives (commits "
                        f"{', '.join(sorted({ln.split()[1].rstrip(':')[:10] for ln in waived}))})")
-        if bridged:
-            why.append(f"{len(bridged)} line(s) the gate-naming bridge drops for "
-                       f"{', '.join(sorted(f'{p}@{b}' for p, (b, _) in bridge.allowed.items()))}")
-        named = [f"waived: {ln}" for ln in waived] + [f"dropped by the gate-naming bridge: {ln}" for ln in bridged]
+        for b in bridges:
+            mine = [ln for ln in bridged if by[ln] is b]
+            if mine:
+                why.append(f"{len(mine)} line(s) the {b.label} drops for {b.names()}")
+        named = [f"waived: {ln}" for ln in waived] + [f"dropped by the {by[ln].label}: {ln}" for ln in bridged]
         layer.add(id_, title, MAJOR, False, f"blocked only by {' and '.join(why)}: accept in accepted.json",
                   "\n".join(named + ["", tail(proc.out)]), proc.seconds, cmdline(cmd), content=named)
         return
@@ -935,8 +1038,8 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
     release from main without --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS.
     At --candidate, also dominance and the living plants, against the published release whatever
     --fastfix-base says (published_checks). A historic record (load_historic) may turn a run blocked only by lines
-    it waives into a MAJOR, and so may the gate-naming bridge (NAMING_BRIDGE) for the base judge's loosening run, which
-    is therefore judged after dominance."""
+    it waives into a MAJOR, and so may the gate-naming bridge (NAMING_BRIDGE) and the kind bridge (KIND_BRIDGE) for the
+    base judge's loosening run, which is therefore judged after dominance."""
     git_, runner = git_ or git, runner or run
     titles = {"loosening": "no unexplained FAIL/UNKNOWN -> PASS against the base (fastfix_gate.py loosening)",
               "reproduce-first": "every src/ commit names an independent oracle that failed before it, or says why "
@@ -945,7 +1048,7 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
     head = git_("rev-parse", "HEAD")
     hist = load_historic(git_, args.version, base, patch_id)
     loose: list[tuple[str, list, Proc, str]] = []
-    bridge = Bridge()
+    bridge, kind = Bridge(), KindBridge()
     if not base or not head:
         for id_, title in titles.items():
             layer.add(id_, title, BLOCKER, False, f"can't find the merge-base of {args.fastfix_base} and HEAD "
@@ -962,9 +1065,11 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
         own = git_("show", f"{base}:scripts/fastfix_gate.py")
         if own:
             script.write_text(own + "\n", encoding="utf-8")
+            cmdlog_beside(git_, base, script)
             which = f"the base's fastfix_gate.py ({base[:10]})"
         else:
             shutil.copy2(ROOT / "scripts" / "fastfix_gate.py", script)
+            cmdlog_beside(git_, None, script)
             which = "this checkout's fastfix_gate.py (the base predates it)"
         for id_, cmd in (("loosening", [sys.executable, script, "loosening", "--repo", ROOT, "--base", base]),
                          ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
@@ -973,10 +1078,11 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
         shutil.rmtree(tmp, ignore_errors=True)
     at = len(layer.checks)
     if getattr(args, "candidate", False):
-        published_checks(layer, args, git_, runner, head, ls_remote, hist, bridge)
-    # the bridge applies only to release NAMING_BRIDGE's key, with the change's base and the published release both
-    # its commit (published_checks fills it only in that case), and only to the base judge's loosening run
-    usable = bridge if base and base == NAMING_BRIDGE.get(args.version) else None
+        published_checks(layer, args, git_, runner, head, ls_remote, hist, bridge, kind)
+    # each bridge applies only to its release's key, with the change's base and the published release both its commit
+    # (published_checks fills it only in that case), and only to the base judge's loosening run
+    usable = [bridge if base and base == NAMING_BRIDGE.get(args.version) else None,
+              kind if base and base == KIND_BRIDGE.get(args.version) else None]
     for id_, cmd, proc, summary in loose:
         add_judged(layer, hist, id_, titles[id_], cmd, proc, summary, usable if id_ == "loosening" else None)
     if loose:   # judged last, listed where they ran
@@ -984,6 +1090,27 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
         del layer.checks[-len(loose):]
         layer.checks[at:at] = moved
     historic_check(layer, hist)
+
+
+CMDLOG_FILES = {"fastfix_cmdlog.py": "scripts/fastfix_cmdlog.py",     # as fastfix_gate.py CMDLOG_PLUGIN, CMDLOG_FAKES
+                "fastfix_cmdlog_fakes.py": "tests/fakes.py"}
+
+
+def cmdlog_beside(git_, ref: str | None, judge: Path) -> None:
+    """A judge copied out alone keeps a command log at a base whose fixtures keep none (fastfix_gate.py cmdlog_code)
+    only with its own commit's plugin and logging code beside it: written here, from `ref` (None: this checkout's
+    files), both or neither. A judge without them says so and blocks."""
+    texts = {}
+    for name, rel in CMDLOG_FILES.items():
+        if ref is None:
+            p = ROOT / rel
+            texts[name] = p.read_text(encoding="utf-8") if p.is_file() else None
+        else:
+            text = git_("show", f"{ref}:{rel}")
+            texts[name] = text + "\n" if text else None
+    if all(texts.values()):
+        for name, text in texts.items():
+            (judge.parent / name).write_text(text, encoding="utf-8")
 
 
 def published_judge(git_, tag: str, sha: str, version: str, marker: str, dest: Path) -> tuple[Path | None, str, bool]:
@@ -994,6 +1121,7 @@ def published_judge(git_, tag: str, sha: str, version: str, marker: str, dest: P
     own = git_("show", f"{sha}:scripts/fastfix_gate.py")
     if own and marker in own:
         dest.write_text(own + "\n", encoding="utf-8")
+        cmdlog_beside(git_, sha, dest)
         return dest, f"the published release's fastfix_gate.py ({tag}, {sha[:10]})", False
     if tag != BOOTSTRAP_TAG or version != BOOTSTRAP_NEXT:
         return None, (f"{tag}'s fastfix_gate.py has no such command, and only release {BOOTSTRAP_NEXT} against "
@@ -1002,14 +1130,19 @@ def published_judge(git_, tag: str, sha: str, version: str, marker: str, dest: P
     if not mine:
         return None, "can't read HEAD's committed scripts/fastfix_gate.py", False
     dest.write_text(mine + "\n", encoding="utf-8")
+    # the bootstrap judge's command-log plugin and logging code come from the same commit as the judge (HEAD): the
+    # same trust as the judge itself, already a MAJOR to accept
+    cmdlog_beside(git_, "HEAD", dest)
     return dest, (f"BOOTSTRAP: this commit's own fastfix_gate.py ({tag} predates the command; allowed only for "
                   f"{BOOTSTRAP_NEXT})"), True
 
 
 def published_checks(layer: Layer, args, git_, runner, head: str | None, ls_remote=None,
-                     hist: Historic | None = None, bridge: Bridge | None = None) -> None:
+                     hist: Historic | None = None, bridge: Bridge | None = None,
+                     kind: KindBridge | None = None) -> None:
     """Dominance and the living plants, against the published release, each judged by the published release's own
-    fastfix_gate.py (never a base the caller picks)."""
+    fastfix_gate.py (never a base the caller picks). Fills `bridge` and `kind` from the dominance record, each only
+    when the published release is its bridge's commit for this version."""
     tag, sha, why = published_tag(args, git_, ls_remote) if head else (None, None, "can't read HEAD")
     if tag is None:
         for id_, title in (("dominance", DOMINANCE_TITLE), ("plants", PLANTS_TITLE)):
@@ -1027,9 +1160,12 @@ def published_checks(layer: Layer, args, git_, runner, head: str | None, ls_remo
             if hist and hist.path and sha != HISTORIC_BASES.get(args.version):
                 hist.problems.append(f"{hist.path}: the published release is {sha[:10]}, not the base the record "
                                      "was written against")
-            flips = dominance_checks(layer, args, runner, head, sha, why, script, which, hist)
+            record = dominance_checks(layer, args, runner, head, sha, why, script, which, hist)
+            flips = record.get("flips") if record is not None else None
             if bridge is not None and flips is not None and sha == NAMING_BRIDGE.get(args.version):
                 bridge.allowed = bridge_from_dominance(git_, sha, flips).allowed
+            if kind is not None and record is not None and sha == KIND_BRIDGE.get(args.version):
+                kind.entries = kind_bridge_from_dominance(git_, sha, record).entries
         script, which, boot = published_judge(git_, tag, sha, args.version, 'add_parser("plants"',
                                               tmp / "plants_judge.py")
         booted += ["plants"] * boot
@@ -1169,7 +1305,7 @@ def published_tag(args, git_, ls_remote=None) -> tuple[str | None, str | None, s
 
 
 def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, script: Path, which: str,
-                     hist: Historic | None = None) -> list | None:
+                     hist: Historic | None = None) -> dict | None:
     """The candidate against the release users have: no FAIL/UNKNOWN -> PASS since the published tag that a reviewed
     allowlist entry doesn't cover. Its JSON (gate/dominance.json) carries the new device reads the report turns
     into live runs, and the fixtures the gate host skipped at the tag (not compared: MAJOR)."""
@@ -1199,8 +1335,9 @@ def dominance_checks(layer: Layer, args, runner, head: str, sha: str, why: str, 
     layer.add("dominance-skips", SKIPS_TITLE, MAJOR,
               not guards, f"{len(guards)} not compared (skipped at the published release, {sha[:10]}){both}"
               if guards else "none skipped", "\n".join(listing), content=[sha, *listing])
-    # what the run allowed, for the gate-naming bridge: only from a run that finished (clean or blocked) on this HEAD
-    return data.get("flips") if proc.code in (0, 1) and data.get("candidate") == head else None
+    # the record, for the bridges (what the run allowed, and its problems): only from a run that finished (clean or
+    # blocked) on this HEAD
+    return data if proc.code in (0, 1) and data.get("candidate") == head else None
 
 
 def version_sources(version: str) -> tuple[list[tuple[str, str]], list[str]]:
@@ -2820,6 +2957,7 @@ def new_read_problems(records: dict, folder: Path) -> tuple[list[str], list[str]
         reads += [(f"{e['case']} (allowed in {e.get('file')})", [str(d) for d in (e.get("drivers") or [])] or ["*"])
                   for e in entries]
         logged = data.get("command_log_at_base") is True
+        source = data.get("command_log_source")
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
         return [f"static/dominance: its record (gate/dominance.json) can't be read ({e}), so new device reads can't "
                 "be routed to live"], [], []
@@ -2827,6 +2965,9 @@ def new_read_problems(records: dict, folder: Path) -> tuple[list[str], list[str]
         return [f"static/dominance: gate/dominance.json judged {str(cand)[:10]}, not static's commit "
                 f"{str(static['git'].get('sha'))[:10]}"], [], []
     info = []
+    if logged and source == "gate":
+        info.append("the published release's fixtures keep no fake-lab command log of their own: the gate's plugin "
+                    "(scripts/fastfix_cmdlog.py, with the judge's tests/fakes.py) kept it in both dominance runs")
     if not logged:
         drivers_changed = [str(d) for d in changed] or []
         reads += [(f"the {d} driver changed since the published release", [d]) for d in drivers_changed]

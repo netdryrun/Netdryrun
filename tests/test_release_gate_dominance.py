@@ -878,3 +878,235 @@ def test_the_bridge_reads_only_changed_yaml_allowlists_by_their_whole_name(chang
     assert gate.bridge_from_dominance(git_, TAG_SHA, dominance_record(allowed_by=by)["flips"]).allowed == {}
     ok = bridge_git()
     assert set(gate.bridge_from_dominance(ok, TAG_SHA, dominance_record()["flips"]).allowed) == set(GATES)
+
+
+# ---- the kind bridge: the published v0.4.2 judge rejects every allowlist entry that says kind: new-read (its keys
+# must be exactly the seven), so the flip such an entry allows stays unexplained to it. For one release against one
+# base, its "keys must be exactly" line and that entry's flip line are dropped only for an entry whose keys are exactly
+# the seven plus kind, which the dominance run (HEAD's judge, logging at the base) allowed as a new read from the same
+# file, with no problem naming it; the run is a MAJOR, never a PASS
+
+KALLOW = "fastfix/allow/0.4.3-new-read.yml"
+KC1 = "tests.test_redteam::test_eos_route_is_refused[EosDriver]"     # a verdict flip at the old judge too
+KC2 = "tests.test_redteam::test_srl_reads_neighbors"                # only the command log shows it (no old flip)
+SEVEN = "['case', 'evidence', 'from', 'reviewed_by', 'source', 'to', 'why']"     # v0.4.2's sorted(ALLOW_KEYS)
+
+
+def keys_line(n, file=KALLOW):
+    return f"BLOCKED {file} flip #{n}: keys must be exactly {SEVEN}"
+
+
+def vflip(case, before="FAIL", after="PASS"):
+    return f"BLOCKED loosening flip with no reviewed allowlist entry: fixtures :: {case}: {before} -> {after}"
+
+
+def kind_entry(case, **over):
+    e = {"source": "fixtures", "case": case, "from": "FAIL", "to": "PASS", "evidence": ["tests/test_redteam.py"],
+         "why": "x" * 40, "reviewed_by": "reviewer-2: the updated test asserts the same refusal", "kind": "new-read"}
+    e.update(over)
+    return {k: v for k, v in e.items() if v is not None}
+
+
+def kind_record(flips=None, problems=None, candidate=HEAD, allowed_by=KALLOW):
+    return {"candidate": candidate, "skipped_at_base": [], "problems": [] if problems is None else problems,
+            "flips": flips if flips is not None else [
+                {"source": "fixtures", "case": c, "from": "FAIL", "to": "PASS", "kind": "new-read", "drivers": ["*"],
+                 "allowed_by": allowed_by} for c in (KC1, KC2)]}
+
+
+KIND_LINES = [vflip(KC1), keys_line(1), keys_line(2)]
+
+
+def kind_git(entries=None, changed=(KALLOW,), extra_allow=None, **over):
+    allow = {KALLOW: json.dumps({"flips": entries if entries is not None else [kind_entry(KC1), kind_entry(KC2)]}),
+             **(extra_allow or {})}
+    return answers(**{"merge-base": TAG_SHA, "diff": list(changed), "allow": allow, **over})
+
+
+def kinded(tmp_path, monkeypatch, lines=None, entries=None, record=None, version="1.1.0", kind_bases=None,
+           changed=(KALLOW,), dominance_code=0, loosening_code=1, out=None, extra_allow=None, **over):
+    monkeypatch.setattr(gate, "KIND_BRIDGE", kind_bases if kind_bases is not None else {"1.1.0": TAG_SHA})
+    monkeypatch.setattr(gate, "NAMING_BRIDGE", {})
+    out = out if out is not None else judge_out(KIND_LINES if lines is None else lines)
+    runner = fake_runner(record if record is not None else kind_record(),
+                         {"loosening": loosening_code, "dominance": dominance_code}, outs={"loosening": out})
+    return static(tmp_path, kind_git(entries, changed, extra_allow, **over), runner, version=version)
+
+
+def test_the_frozen_judges_kind_lines_are_dropped_by_name_and_the_run_is_a_major(tmp_path, monkeypatch):
+    c = kinded(tmp_path, monkeypatch)["loosening"]
+    assert (c.status, c.severity) == (gate.FAIL, gate.MAJOR), (c.severity, c.summary)
+    assert "3 line(s) the kind bridge drops" in c.summary and "accept in accepted.json" in c.summary, c.summary
+    for ln in KIND_LINES:
+        assert f"dropped by the kind bridge: {ln}" in c.output
+    assert c.fingerprint and f"[fingerprint {c.fingerprint}]" in c.summary
+    other = kinded(tmp_path / "b", monkeypatch, lines=[keys_line(1), keys_line(2)])["loosening"]
+    assert other.severity == gate.MAJOR and other.fingerprint != c.fingerprint      # keyed on the exact lines
+
+
+def _with(case, **change):
+    return [{**f, **change} if f["case"] == case else f for f in kind_record()["flips"]]
+
+
+@pytest.mark.parametrize("name,kw", [
+    # an entry with a second extra key, or another kind, or not a fixture entry: its keys line stays
+    ("second-extra-key", {"entries": [kind_entry(KC1, note="a second extra key"), kind_entry(KC2)]}),
+    ("no-kind", {"entries": [kind_entry(KC1, kind=None, note="x"), kind_entry(KC2)]}),
+    ("kind-verdict", {"entries": [kind_entry(KC1, kind="verdict"), kind_entry(KC2)]}),
+    ("gate-source", {"entries": [kind_entry(KC1, source="gate"), kind_entry(KC2)]}),
+    # dominance didn't match that entry: not allowed, allowed as something else, by another file, under another from
+    ("not-allowed", {"record": kind_record(flips=_with(KC1, allowed_by=None))}),
+    ("allowed-as-verdict", {"record": kind_record(flips=_with(KC1, kind="verdict"))}),
+    ("allowed-by-another-file", {"record": kind_record(allowed_by="fastfix/allow/other.yml")}),
+    ("other-from-at-dominance", {"record": kind_record(flips=_with(KC1, **{"from": "UNKNOWN"}))}),
+    ("missing-at-dominance", {"record": kind_record(flips=[f for f in kind_record()["flips"] if f["case"] != KC1])}),
+    # dominance reported a problem naming the entry or its case; or its record has no problem list
+    ("problem-names-entry", {"record": kind_record(problems=[f"{KALLOW} flip #1: evidence must be ..."])}),
+    ("problem-names-case", {"record": kind_record(problems=[f"fixtures :: {KC1}: judged at the base, not at ..."])}),
+    ("no-problem-list", {"record": {k: v for k, v in kind_record().items() if k != "problems"}}),
+    # two entries name the same flip: neither can be shown to be the one dominance matched
+    ("duplicate-entry", {"entries": [kind_entry(KC1), kind_entry(KC2), kind_entry(KC1)],
+                         "lines": KIND_LINES + [keys_line(3)]}),
+    ("duplicate-in-another-file", {"changed": (KALLOW, "fastfix/allow/b.yml"),
+                                   "extra_allow": {"fastfix/allow/b.yml": json.dumps({"flips": [kind_entry(KC1)]})}}),
+    ("unreadable-other-allowlist", {"changed": (KALLOW, "fastfix/allow/b.yml"),
+                                    "extra_allow": {"fastfix/allow/b.yml": "flips: [unclosed"}}),
+    ("allowlist-unchanged", {"changed": ()}),
+    # the flip line goes only beside its own entry's keys line, with that entry's from and to
+    ("flip-without-keys-line", {"lines": [vflip(KC1), keys_line(2)]}),
+    ("flip-other-from", {"lines": [vflip(KC1, "UNKNOWN"), keys_line(1), keys_line(2)]}),
+    ("flip-of-another-case", {"lines": KIND_LINES + [vflip("tests.test_redteam::test_other")]}),
+    ("keys-line-printed-twice", {"lines": KIND_LINES + [keys_line(1)]}),
+    ("log-only-keys-line-printed-twice", {"lines": KIND_LINES + [keys_line(2)]}),
+    ("keys-line-other-number", {"lines": KIND_LINES + [keys_line(3)]}),
+    ("keys-line-other-wording", {"lines": [vflip(KC1), keys_line(1).replace("must be exactly", "must be"),
+                                           keys_line(2)]}),
+    # any other frozen-judge line, or a judge that broke
+    ("other-line", {"lines": KIND_LINES + [NO_SESSION]}),
+    ("loosening-broken", {"loosening_code": 2}),
+    ("dominance-broken", {"dominance_code": 2}),
+    ("foreign-record", {"record": kind_record(candidate="f" * 40)}),
+    # another version, another base, another published release
+    ("other-version", {"kind_bases": {"1.0.9": TAG_SHA}}),
+    ("other-base", {"merge-base": "c" * 40}),
+    ("published-elsewhere", {"merge-base": "b" * 40, "kind_bases": {"1.1.0": "b" * 40}}),
+])
+def test_the_kind_bridge_drops_nothing_it_shouldnt(tmp_path, monkeypatch, name, kw):
+    c = kinded(tmp_path, monkeypatch, **kw)["loosening"]
+    assert (c.status, c.severity) == (gate.FAIL, gate.BLOCKER), (name, c.severity, c.summary)
+
+
+def test_the_kind_bridge_never_touches_reproduce_or_dominance(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "KIND_BRIDGE", {"1.1.0": TAG_SHA})
+    outs = {"reproduce": judge_out(KIND_LINES, "reproduce"), "dominance": judge_out(KIND_LINES)}
+    checks = static(tmp_path, kind_git(), fake_runner(kind_record(), {"reproduce": 1, "dominance": 1}, outs=outs))
+    for id_ in ("reproduce-first", "dominance"):
+        assert (checks[id_].status, checks[id_].severity) == (gate.FAIL, gate.BLOCKER), id_
+
+
+def test_both_bridges_together_name_each_dropped_line_by_its_bridge(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "KIND_BRIDGE", {"1.1.0": TAG_SHA})
+    monkeypatch.setattr(gate, "NAMING_BRIDGE", {"1.1.0": TAG_SHA})
+    allow = {ALLOW: json.dumps({"flips": [gate_entry(p, b) for p, b in GATES.items()]}),
+             KALLOW: json.dumps({"flips": [kind_entry(KC1), kind_entry(KC2)]})}
+    git_ = answers(**{"merge-base": TAG_SHA, "diff": [ALLOW, KALLOW], "allow": allow,
+                      "blobs": {p: b + "0" * 28 for p, b in GATES.items()}})
+    record = {**kind_record(), "flips": kind_record()["flips"] + dominance_record()["flips"]}
+    lines = BRIDGE_LINES + KIND_LINES
+    c = static(tmp_path, git_, fake_runner(record, {"loosening": 1}, outs={"loosening": judge_out(lines)}))["loosening"]
+    assert (c.status, c.severity) == (gate.FAIL, gate.MAJOR), c.summary
+    assert "gate-naming bridge" in c.summary and "kind bridge" in c.summary, c.summary
+    assert f"dropped by the kind bridge: {vflip(KC1)}" in c.output
+    assert f"dropped by the gate-naming bridge: {bare('scripts/fastfix_gate.py')}" in c.output
+
+
+def test_the_kind_bridge_is_keyed_to_v042_for_043_only():
+    assert gate.KIND_BRIDGE == {"0.4.3": "61cd95de8b5446d6adf24deda43f9bfb6957ee20"} == gate.NAMING_BRIDGE
+    spec = importlib.util.spec_from_file_location("ff_for_kind", SCRIPT)
+    ff = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = ff
+    spec.loader.exec_module(ff)
+    assert gate.ALLOW_KEYS == ff.ALLOW_KEYS
+
+
+def _v042_judge():
+    p = subprocess.run(["git", "-C", str(ROOT), "show", "v0.4.2:scripts/fastfix_gate.py"], capture_output=True,
+                       text=True)
+    if p.returncode != 0 or "def allow_entries" not in p.stdout:
+        pytest.skip("no v0.4.2 tag in this checkout (a shallow clone, the slim container, mutmut's copy)")
+    spec = importlib.util.spec_from_loader("fastfix_gate_v042", loader=None)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    exec(compile(p.stdout, "v0.4.2:scripts/fastfix_gate.py", "exec"), mod.__dict__)
+    return mod
+
+
+@needs_git
+def test_the_kind_bridge_reads_the_published_judges_own_lines_for_the_same_record(tmp_path):
+    """The published v0.4.2 judge's allow_entries and Flip print the lines the bridge drops, and HEAD's judge writes
+    the dominance record the bridge reads, for the same allowlist entry (FX-0.4.3-gate-flip-naming-split's lesson)."""
+    old = _v042_judge()
+    import yaml
+    (tmp_path / "fastfix/allow").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests/test_redteam.py").write_text("", encoding="utf-8")
+    (tmp_path / KALLOW).write_text(yaml.safe_dump({"flips": [kind_entry(KC1)]}), encoding="utf-8")
+    report = old.Report()
+    assert old.allow_entries(KALLOW, tmp_path, {KALLOW, "tests/test_redteam.py"}, report, set()) == []
+    printed = [f"BLOCKED {p}" for p in report.problems]
+    printed.append(f"{gate.JUDGE_FLIP}{old.Flip('fixtures', KC1, 'FAIL', 'PASS')}")
+    # HEAD's judge: the record of the same entry allowing the same flip as a new read
+    spec = importlib.util.spec_from_file_location("ff_for_kind_record", SCRIPT)
+    ff = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = ff
+    spec.loader.exec_module(ff)
+    rep = ff.Report()
+    rep.allowed[ff.Flip("fixtures", KC1, "FAIL", "PASS", ff.NEW_READ, ("eos",))] = KALLOW
+    record = {**rep.as_json(), "candidate": HEAD}
+    git_ = answers(**{"diff": [KALLOW], "allow": {KALLOW: json.dumps({"flips": [kind_entry(KC1)]})}})
+    bridge = gate.kind_bridge_from_dominance(git_, TAG_SHA, record)
+    assert bridge.entries == {(KALLOW, 1): (KC1, "FAIL", "PASS")}
+    assert printed == [keys_line(1), vflip(KC1)] and all(bridge.covers(ln, printed) for ln in printed), printed
+
+
+def _listing_runner(record):
+    seen = {}
+
+    def runner(cmd, timeout):
+        cmd = [str(c) for c in cmd]
+        name = "dominance" if "--dominance" in cmd else cmd[2]
+        seen[name] = {p.name: p.read_text(encoding="utf-8") for p in Path(cmd[1]).parent.iterdir()}
+        if "--json" in cmd:
+            data = record if name == "dominance" else {"caught": 1, "applied": 1, "total": 1, "not_applicable": [],
+                                                       "pending_since_base": []}
+            Path(cmd[cmd.index("--json") + 1]).write_text(json.dumps(data), encoding="utf-8")
+        return gate.Proc(0, "out", 0.1)
+    runner.seen = seen
+    return runner
+
+
+def test_a_judge_is_copied_out_with_its_own_commits_command_log_plugin(tmp_path):
+    """The plugin and the logging code beside each judge come from the judge's own commit: the published release's
+    when it judges, the base's for the base judge."""
+    r = _listing_runner(CLEAN)
+    static(tmp_path, answers(), r)
+    assert r.seen["dominance"]["fastfix_cmdlog.py"] == TAG_JUDGE + "\n"           # the tag's commit, as its judge
+    assert r.seen["dominance"]["fastfix_cmdlog_fakes.py"] == TAG_JUDGE + "\n"
+    assert r.seen["loosening"]["fastfix_cmdlog.py"] == "BASE\n"                  # the base judge: the base's own
+
+
+def test_the_bootstrap_judge_gets_heads_plugin(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "BOOTSTRAP_TAG", "v1.0.0")
+    monkeypatch.setattr(gate, "BOOTSTRAP_NEXT", "1.1.0")
+    r = _listing_runner(CLEAN)
+    static(tmp_path, answers(**{"show-tag": "no commands here"}), r)
+    assert r.seen["dominance"]["dominance_judge.py"] == HEAD_JUDGE + "\n"
+    assert r.seen["dominance"]["fastfix_cmdlog.py"] == HEAD_JUDGE + "\n"         # HEAD's, as the judge
+
+
+def test_no_plugin_is_written_beside_a_judge_whose_commit_has_none(tmp_path):
+    judge = tmp_path / "judge.py"
+    gate.cmdlog_beside(lambda *c: None if c[1].endswith("tests/fakes.py") else "plugin text", "abc", judge)
+    assert list(tmp_path.iterdir()) == []                                        # both or neither
+    gate.cmdlog_beside(lambda *c: "text", "abc", judge)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["fastfix_cmdlog.py", "fastfix_cmdlog_fakes.py"]
