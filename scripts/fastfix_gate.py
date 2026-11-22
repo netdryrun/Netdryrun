@@ -45,6 +45,7 @@ directory, so it runs the same in the repo, a scratch copy, mutmut's runner and 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -107,6 +108,12 @@ NEW_READ = "new-read"
 UNEXPECTED = re.compile(r"^(?:[A-Za-z_][\w.]*: )?unexpected command\b")
 # a new read's reviewer is a session of its own: its commits in the range hold review records and nothing else
 REVIEW_DIR = "fastfix/reviews"
+# a live device answer (the evidence that lets a new-read entry cite its own test even when that test sits in an oracle
+# folder or is the base's unchanged copy): a non-code file under tests/fixtures/ that changed in this change and that
+# tests/fixtures/SOURCES.yml, at the candidate, files under kind: live-capture by name or by a pattern with a stem
+FIXTURES_DIR = "tests/fixtures"
+FIXTURE_SOURCES = "tests/fixtures/SOURCES.yml"
+LIVE_CAPTURE = "live-capture"
 # which network OS a fixture test exercises, from its node id: a driver class first (test_x[SrlDriver]), then a
 # name in the module or test (test_frr_*, tests.test_nxos); nothing found means every driver ("*")
 DRIVER_CLASSES = {"frr": "frr", "sonic": "sonic", "eos": "eos", "srl": "srlinux", "srlinux": "srlinux",
@@ -938,7 +945,9 @@ def allow_entries(f: str, tree: Path, changed: set[str], report: Report, cited: 
                   reviewers: set[str] | None = None) -> list[tuple[tuple[str, str, str, str], str]]:
     """((source, case, from, to), kind) per valid entry. `kind: new-read` (optional key) is for a fixture flip caused
     by a new device read: it must cite the flipped test's own updated file, and reviewed_by must be
-    '<session>: <what was checked>' from a session that changed no shipped code in this change."""
+    '<session>: <what was checked>' from a session that changed no shipped code in this change. That test may be one
+    under tests/oracles/ or one unchanged since the base only when the entry also cites a live capture of the new
+    read's answer (live_capture); the reviewer then judges the base's copy, the one the run used."""
     if not f.endswith(".yml"):
         report.problems.append(f"{f}: an allowlist file must be YAML (.yml)")
         return []
@@ -980,12 +989,21 @@ def allow_entries(f: str, tree: Path, changed: set[str], report: Report, cited: 
         # a fixture whose guard test no longer holds may cite the updated test (the reviewer checks it still
         # refuses); everything else cites captures, traces or results, never code
         own_test = fixture_file(text["case"]) if text["source"] == "fixtures" else None
-        bad = [x for x in ev if x.startswith(EVIDENCE_NOT_UNDER) or x.startswith(ORACLES + "/") or x not in changed
-               or not (tree / x).is_file() or x == text["source"] or (x.endswith(".py") and x != own_test)]
+        # a new read's own test may be an oracle's or the base's unchanged copy (the run judged the base's copy, so
+        # an unchanged test is the one that ran), but only beside a changed live capture of the device's answer: the
+        # capture, not the test, carries the evidence; every other path keeps every rule
+        as_run = (kind == NEW_READ and own_test is not None and own_test in ev
+                  and any(live_capture(x, tree, changed) for x in ev if x != own_test))
+        bad = [x for x in ev if x.startswith(EVIDENCE_NOT_UNDER) or not (tree / x).is_file() or x == text["source"]
+               or (x.endswith(".py") and x != own_test)
+               or ((x.startswith(ORACLES + "/") or x not in changed) and not (as_run and x == own_test))]
         if bad:
             report.problems.append(f"{where}: evidence must be capture, trace or results files (or, for a fixture, its "
                                    "updated test) that exist at the candidate and changed in this change (not code, "
-                                   f"not an oracle, not the allowlist): {', '.join(bad)}")
+                                   f"not an oracle, not the allowlist): {', '.join(bad)}"
+                                   + (f"; a {NEW_READ} entry cites its own test from an oracle folder or unchanged "
+                                      "only beside a changed live capture filed in " + FIXTURE_SOURCES
+                                      if kind == NEW_READ and own_test in bad else ""))
             continue
         if kind == NEW_READ:
             marker, sep, said = text["reviewed_by"].partition(":")
@@ -1005,6 +1023,32 @@ def allow_entries(f: str, tree: Path, changed: set[str], report: Report, cited: 
 
 
 _GLOB = "*?[]"
+
+
+def live_capture(path: str, tree: Path, changed: set[str]) -> bool:
+    """`path` is a live device answer: a non-code file under tests/fixtures/ (not SOURCES.yml itself) that exists at
+    the candidate, changed in this change, and is filed under kind: live-capture in the candidate's
+    tests/fixtures/SOURCES.yml, by its name or by a pattern that starts with a literal stem (never a bare wildcard).
+    Anything unreadable or of another shape is no capture."""
+    if not path.startswith(FIXTURES_DIR + "/") or path == FIXTURE_SOURCES or path.endswith(".py") \
+            or path not in changed or "__pycache__" in path.split("/") or not (tree / path).is_file():
+        return False
+    try:
+        entries = load_yaml(tree / FIXTURE_SOURCES)
+    except GateError:
+        return False
+    rel = path[len(FIXTURES_DIR) + 1:]
+    for e in entries if isinstance(entries, list) else ():
+        if not isinstance(e, dict) or e.get("kind") != LIVE_CAPTURE or not str(e.get("source") or "").strip() \
+                or not isinstance(e.get("files"), list):
+            continue
+        for pattern in e["files"]:
+            if not isinstance(pattern, str) or not pattern.strip():
+                continue
+            stem = re.split(r"[*?\[]", pattern, maxsplit=1)[0]
+            if pattern == rel or (stem and stem != pattern and fnmatch.fnmatchcase(rel, pattern)):
+                return True
+    return False
 
 
 def literal_key(source: str, case: str) -> bool:

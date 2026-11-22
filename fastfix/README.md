@@ -39,6 +39,11 @@ Rules (each one blocks when broken):
   names in `reviewed_by: "<session>: <what was checked>"` a session that has a commit of its own in the change,
   touching only `fastfix/reviews/`, and that wrote neither the allowlist nor any code, record or evidence. The release
   gate then needs live runs, on the candidate commit, of every example of each network OS the read touches.
+  When the base's test still holds unchanged, or lives in `tests/oracles/`, a new-read entry may cite that test as it
+  is, but only beside a live capture of the device's answer to the new command: a non-code file under
+  `tests/fixtures/` that changed in this change and that `tests/fixtures/SOURCES.yml` files under
+  `kind: live-capture` (by name, or by a pattern that starts with a literal name, never a bare wildcard). The reviewer
+  judges the base's copy of the test, the one the gate ran. No other entry may cite an oracle file or an unchanged file.
 - The commit that adds the allowlist changes nothing else. Its `Session:` trailer must differ from the `Session:` of
   every commit in the change that touches shipped code, the gate, a flipped record or the cited evidence, and those
   commits must carry one.

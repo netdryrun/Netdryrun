@@ -2328,3 +2328,159 @@ def test_a_judge_in_a_scripts_dir_prefers_the_fakes_copied_beside_it(tmp_path):
     assert mod.cmdlog_code() == (scripts / ffg.CMDLOG_PLUGIN, tmp_path / "tree" / "tests" / "fakes.py")   # checkout
     (scripts / ffg.CMDLOG_FAKES).write_text("# the judge's fakes\n", encoding="utf-8")
     assert mod.cmdlog_code() == (scripts / ffg.CMDLOG_PLUGIN, scripts / ffg.CMDLOG_FAKES)
+
+
+# ------------------------------------------------------------------------------------------------ new-read evidence
+# A new read's own test may be an oracle's or the base's unchanged copy only beside a changed live capture of the
+# device's answer (filed under kind: live-capture in tests/fixtures/SOURCES.yml). Each shape below is judged by
+# allow_entries itself; the last tests run the whole dominance judge.
+
+NR_ORACLE_CASE = "tests.oracles.FP-9-UNN.test_oracle_fp_9_unn::test_session_is_checked"
+NR_ORACLE_TEST = "tests/oracles/FP-9-UNN/test_oracle_fp_9_unn.py"
+NR_GUARD_CASE = "tests.test_guards::test_lan_keeps_its_guard"
+NR_GUARD_TEST = "tests/test_guards.py"
+NR_CAPTURE = "tests/fixtures/frr1021_r2_eth1_routes.json"
+NR_SOURCES_LIVE = textwrap.dedent("""\
+    - files: [frr1021_r2_eth1_routes.json, frr1021_stale_routes.json, frr1021_helper.py]
+      kind: live-capture
+      source: FRR 10.2.1 lab, vtysh show bgp ipv4 unicast neighbors eth1 routes json
+      added: abc1234
+    - files: ["*"]
+      kind: live-capture
+      source: a catch-all pattern with no literal stem, which names no capture
+      added: abc1234
+    - files: [frr1021_handmade_routes.json]
+      kind: hand-written
+      source: written by hand
+      added: abc1234
+      why: not a device answer
+    """)
+
+
+def _evidence_tree(tmp_path: Path) -> Path:
+    t = tmp_path / "tree"
+    for rel, text in ((NR_ORACLE_TEST, "def test_session_is_checked():\n    pass\n"),
+                      (NR_GUARD_TEST, "def test_lan_keeps_its_guard():\n    pass\n"),
+                      (NR_CAPTURE, '{"routes": {}}\n'), ("tests/fixtures/frr1021_stale_routes.json", "{}\n"),
+                      ("tests/fixtures/frr1021_helper.py", "X = 1\n"), ("tests/fixtures/frr1021_handmade_routes.json", "{}\n"),
+                      ("tests/fixtures/other_routes.json", "{}\n"), ("tests/fixtures/SOURCES.yml", NR_SOURCES_LIVE),
+                      ("releases/probes.txt", "probe\n")):
+        (t / rel).parent.mkdir(parents=True, exist_ok=True)
+        (t / rel).write_text(text, encoding="utf-8")
+    return t
+
+
+def _judge_entry(tmp_path: Path, case: str, evidence: list[str], kind: str | None, changed: set[str]):
+    t = _evidence_tree(tmp_path)
+    entry = {"source": "fixtures", "case": case, "from": "FAIL", "to": "PASS", "evidence": evidence,
+             "why": "The driver now reads the routes an unnumbered neighbour sends; the capture is that answer.",
+             "reviewed_by": "reviewer-2: the base's test still asserts the same refusal on the live answer"}
+    if kind:
+        entry["kind"] = kind
+    (t / "fastfix/allow").mkdir(parents=True)
+    (t / "fastfix/allow/x.yml").write_text(json.dumps({"flips": [entry]}), encoding="utf-8")
+    report = ffg.Report()
+    keys = ffg.allow_entries("fastfix/allow/x.yml", t, changed | {"fastfix/allow/x.yml"}, report, set(), set())
+    return keys, report.problems
+
+
+NR_CHANGED_CAPTURE = {NR_CAPTURE, "tests/fixtures/frr1021_helper.py", "tests/fixtures/frr1021_handmade_routes.json",
+                   "tests/fixtures/other_routes.json", "tests/fixtures/SOURCES.yml", "releases/probes.txt"}
+
+
+@pytest.mark.parametrize("case,evidence,kind,changed,expect", [
+    # an oracle's own test with no changed capture beside it
+    (NR_ORACLE_CASE, [NR_ORACLE_TEST], "new-read", NR_CHANGED_CAPTURE, "only beside a changed live capture"),
+    (NR_ORACLE_CASE, [NR_ORACLE_TEST, "releases/probes.txt"], "new-read", NR_CHANGED_CAPTURE, "only beside a changed live"),
+    # the base's unchanged test, cited alone
+    (NR_GUARD_CASE, [NR_GUARD_TEST], "new-read", NR_CHANGED_CAPTURE, "only beside a changed live capture"),
+    # a capture that didn't change in this change
+    (NR_GUARD_CASE, [NR_GUARD_TEST, "tests/fixtures/frr1021_stale_routes.json"], "new-read", NR_CHANGED_CAPTURE,
+     "frr1021_stale_routes.json"),
+    (NR_ORACLE_CASE, [NR_ORACLE_TEST, NR_CAPTURE], "new-read", NR_CHANGED_CAPTURE - {NR_CAPTURE}, NR_CAPTURE),
+    # code passed off as a capture, even one SOURCES.yml files as live-capture
+    (NR_GUARD_CASE, [NR_GUARD_TEST, "tests/fixtures/frr1021_helper.py"], "new-read", NR_CHANGED_CAPTURE, "frr1021_helper.py"),
+    # a changed fixture file that SOURCES.yml files as hand-written, or only under a bare wildcard
+    (NR_GUARD_CASE, [NR_GUARD_TEST, "tests/fixtures/frr1021_handmade_routes.json"], "new-read", NR_CHANGED_CAPTURE,
+     "only beside a changed live capture"),
+    (NR_GUARD_CASE, [NR_GUARD_TEST, "tests/fixtures/other_routes.json"], "new-read", NR_CHANGED_CAPTURE,
+     "only beside a changed live capture"),
+    # SOURCES.yml is the register, not a capture
+    (NR_GUARD_CASE, [NR_GUARD_TEST, "tests/fixtures/SOURCES.yml"], "new-read", NR_CHANGED_CAPTURE,
+     "only beside a changed live capture"),
+    # a verdict entry citing an oracle file or an unchanged test: never, capture or not
+    (NR_ORACLE_CASE, [NR_ORACLE_TEST, NR_CAPTURE], None, NR_CHANGED_CAPTURE, NR_ORACLE_TEST),
+    (NR_GUARD_CASE, [NR_GUARD_TEST, NR_CAPTURE], None, NR_CHANGED_CAPTURE, NR_GUARD_TEST),
+    # another test's file is still code, even beside a capture
+    (NR_GUARD_CASE, [NR_GUARD_TEST, NR_CAPTURE, NR_ORACLE_TEST], "new-read", NR_CHANGED_CAPTURE, NR_ORACLE_TEST),
+])
+def test_a_new_reads_own_test_from_an_oracle_or_unchanged_needs_a_changed_live_capture(tmp_path, case, evidence, kind,
+                                                                                         changed, expect):
+    keys, problems = _judge_entry(tmp_path, case, evidence, kind, changed)
+    assert keys == [] and any(expect in p for p in problems), problems
+
+
+@pytest.mark.parametrize("case,evidence", [(NR_ORACLE_CASE, [NR_ORACLE_TEST, NR_CAPTURE]), (NR_GUARD_CASE, [NR_GUARD_TEST, NR_CAPTURE]),
+                                           (NR_GUARD_CASE, [NR_CAPTURE, NR_GUARD_TEST, "releases/probes.txt"])])
+def test_a_new_read_cites_its_oracle_or_unchanged_test_beside_a_changed_live_capture(tmp_path, case, evidence):
+    keys, problems = _judge_entry(tmp_path, case, evidence, "new-read", NR_CHANGED_CAPTURE)
+    assert problems == [] and keys == [(("fixtures", case, "FAIL", "PASS"), "new-read")], problems
+
+
+def test_an_unreadable_sources_register_names_no_capture(tmp_path):
+    t = _evidence_tree(tmp_path)
+    (t / "tests/fixtures/SOURCES.yml").write_text("- files: [unclosed\n", encoding="utf-8")
+    assert not ffg.live_capture(NR_CAPTURE, t, NR_CHANGED_CAPTURE)
+    (t / "tests/fixtures/SOURCES.yml").unlink()
+    assert not ffg.live_capture(NR_CAPTURE, t, NR_CHANGED_CAPTURE)
+
+
+def _new_read_unchanged_test(r: Repo, capture: bool, reviewer: str = "reviewer-2"):
+    """The driver adds a read; the base's tests stay as they were (the loose one still passes, the strict ones now
+    fail on the unanswered read), and the fix session files the device's live answer as a capture."""
+    r.write("src/toy/drivers.py", NEW_READ_DRIVER)
+    if capture:
+        r.write("tests/fixtures/frr_r1_bgp_neighbors.txt", "Neighbor 10.0.0.2 state Established\n")
+        r.write("tests/fixtures/SOURCES.yml", "- files: [frr_r1_bgp_neighbors.txt]\n  kind: live-capture\n"
+                "  source: FRR lab r1, vtysh show bgp neighbors\n  added: fixer\n")
+    r.commit("read the neighbors too", Session="fixer", No_Oracle="new read, verdict unchanged, see the capture")
+    cases = ["tests.test_redteam::test_down_session_is_refused[FrrDriver]",
+             "tests.test_redteam::test_session_read_is_refused", "tests.test_redteam::test_loose_fake_answers_anything_bgp"]
+    ev = "[tests/test_redteam.py, tests/fixtures/frr_r1_bgp_neighbors.txt]" if capture else "[tests/test_redteam.py]"
+    r.write("fastfix/allow/new-read.yml", "flips:\n" + "".join(textwrap.dedent(f"""\
+          - source: fixtures
+            case: "{c}"
+            from: FAIL
+            to: PASS
+            kind: new-read
+            evidence: {ev}
+            why: The driver now also reads the neighbor table; the capture is the device's live answer to it.
+            reviewed_by: "{reviewer}: the base's unchanged test, read against the live answer, still holds"
+        """) for c in cases))
+    r.commit("allow the new read", Session="allower")
+    r.write("fastfix/reviews/new-read.md", "the neighbor read matches the live answer and the base's test holds\n")
+    r.commit("review the new read", Session=reviewer)
+
+
+@needs_git
+def test_dominance_allows_a_new_read_on_the_bases_unchanged_test_beside_a_live_capture(drepo, tmp_path):
+    _new_read_unchanged_test(drepo, capture=True)
+    code, out, data = dominance(drepo, drepo.base, tmp_path)
+    assert code == 0, out
+    reads = [f for f in data["flips"] if f["kind"] == "new-read"]
+    assert len(reads) == 3 and all(f["allowed_by"] == "fastfix/allow/new-read.yml" for f in reads), data["flips"]
+    assert sorted(e["case"] for e in data["new_read_entries"]) == sorted(f["case"] for f in reads)
+
+
+@needs_git
+@pytest.mark.parametrize("capture,reviewer,expect", [
+    (False, "reviewer-2", "only beside a changed live capture"),
+    (True, "fixer", "not a fresh session"),                 # the reviewer rule still holds
+    (True, "allower", "reviewer allower also wrote the allowlist"),
+])
+def test_dominance_blocks_a_new_read_on_an_unchanged_test_without_a_capture_or_a_fresh_reviewer(drepo, tmp_path,
+                                                                                                 capture, reviewer,
+                                                                                                 expect):
+    _new_read_unchanged_test(drepo, capture=capture, reviewer=reviewer)
+    code, out, _ = dominance(drepo, drepo.base, tmp_path)
+    assert code == 1 and expect in out, out
