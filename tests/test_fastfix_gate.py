@@ -316,6 +316,84 @@ def test_red_baseline_blocks(tmp_path):
     assert code == 1 and "the baseline is red" in out, out
 
 
+def _run(**outcomes: str) -> "ffg.PytestRun":
+    return ffg.PytestRun(1 if any(o in ("failed", "error") for o in outcomes.values()) else 0, outcomes,
+                         {k: f"{o} here" for k, o in outcomes.items() if o != "passed"}, "")
+
+
+@pytest.mark.parametrize("at_candidate", ["failed", "error"])
+def test_a_guard_skipped_at_the_base_that_fails_at_the_candidate_is_a_problem(at_candidate):
+    """Layer 6 (f220469): the base could not show the guard holds, and the candidate's code makes it fail. That is
+    a block with no allowlist path, so a guard must never skip to mean "known and accepted" (WRONG_REASON did, and
+    every fix of its cases became unmergeable)."""
+    report = ffg.Report()
+    ffg.fixture_compare(_run(**{"t::guard": "skipped", "t::other": "passed"}),
+                        _run(**{"t::guard": at_candidate, "t::other": "passed"}), report)
+    assert any(p.startswith(f"fixtures :: t::guard: skipped at the base, {at_candidate} at the candidate")
+               for p in report.problems), report.problems
+    assert not report.flips, report.flips
+
+
+@pytest.mark.parametrize("at_candidate", ["failed", "error", "skipped"])
+def test_a_guard_that_passed_at_the_base_and_not_at_the_candidate_is_a_loosening_flip(at_candidate):
+    """The shape a known-wrong-reason guard has now: it passes at the base, and a fix that changes the case's ending
+    makes it fail at the candidate. That is a FAIL -> PASS flip (blocked until a reviewed allowlist entry clears it),
+    never accepted silently and never the skipped-at-base problem."""
+    report = ffg.Report()
+    ffg.fixture_compare(_run(**{"t::guard": "passed", "t::other": "passed"}),
+                        _run(**{"t::guard": at_candidate, "t::other": "passed"}), report)
+    assert [(f.source, f.case, f.before, f.after) for f in report.flips] == [("fixtures", "t::guard", "FAIL", "PASS")]
+    assert not report.problems, report.problems
+
+
+KNOWN_REASON_SRC = 'def reason(x):\n    return "error: no pathCount"\n'
+KNOWN_REASON_TEST = textwrap.dedent("""
+
+
+    def test_known_wrong_reason():
+        import pytest
+
+        from toy.why import reason
+        if reason(1).startswith("error:") and "no pathCount" in reason(1):
+            {accept}
+        pytest.fail("no longer ends in its known wrong-reason error: move it to REFUSALS")
+    """)
+
+
+@needs_git
+@pytest.mark.parametrize("accept,expect", [
+    ("return", "test_known_wrong_reason: FAIL -> PASS"),
+    ("pytest.skip('known wrong reason')", "test_known_wrong_reason: skipped at the base, failed at the candidate"),
+])
+def test_a_fix_of_a_known_wrong_reason_case_is_a_flip_only_when_the_guard_passes_at_the_base(repo, accept, expect):
+    """The WRONG_REASON mechanism through the gate's base-vs-candidate comparison: a fix that makes the case end in
+    its real refusal is an ordinary flip when the base's guard passed, and a block with no allowlist path when it
+    skipped (EOS b230514)."""
+    repo.write("src/toy/why.py", KNOWN_REASON_SRC)
+    repo.write("tests/test_redteam.py", REDTEAM + KNOWN_REASON_TEST.format(accept=accept))
+    base = repo.commit("a known wrong reason")
+    repo.write("src/toy/why.py", KNOWN_REASON_SRC.replace("no pathCount", "the community refusal"))
+    repo.write("tests/test_redteam.py", REDTEAM)
+    repo.commit("the case ends in its refusal", Session="fixer", No_Oracle="the case now ends in its refusal")
+    code, out = repo.loosening(base)
+    assert code == 1 and expect in out, out
+    if accept != "return":
+        return
+    repo.write("fastfix/allow/known.yml", textwrap.dedent("""\
+        flips:
+          - source: fixtures
+            case: "tests.test_redteam::test_known_wrong_reason"
+            from: FAIL
+            to: PASS
+            evidence: [tests/test_redteam.py]
+            why: The case now ends in its real refusal; the updated red-team test takes it out of the known list.
+            reviewed_by: coordinator
+        """))
+    repo.commit("allow", Session="reviewer")
+    code, out = repo.loosening(base)
+    assert code == 0, out
+
+
 ALLOW = textwrap.dedent("""\
     flips:
       - source: corpus/results/results.json
