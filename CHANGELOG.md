@@ -34,6 +34,15 @@
   network-instance, so on a leaf whose only BGP is EVPN it never sees BGP converge, and post-convergence checks there
   are not evaluated. The driver reads the paths (see Fixed); the gate needs its own oracle and fix. Workaround: a
   `route` check with `protocol: bgp` in the ip-vrf, or a PE-CE BGP session in it.
+- **Not fixed in 0.4.3, carried over from 0.4.2** (each with the workaround given under "Not fixed in 0.4.2"
+  below, on the trust page or in the configuration reference): a path rejected for AS-loop on SR Linux (an error,
+  not a pass); no `::/0` guard from `record` on cEOS with IPv6 routing off; the node's own exported prefix on SR
+  Linux and Junos (RT-0048, accepted limit); add-path and graceful-restart stale paths that `bgp_prefixes` may
+  count on the drivers 0.4.2 didn't change; an SR Linux labeled-unicast family printed without counters; the `link_down` sessions
+  still not waited for; a `ping` without `source` on a node with no lab address of the target's family; a narrow
+  attributable proof for a prefix-limit reset; a route that takes one advertisement interval per hop; the Arista EOS
+  `out-delay`; the NX-OS FIB state for `route present`; the two FRR config-comparison limits; and reading an empty
+  AS path on SR Linux exactly in `record --attributes`. They are planned for a later release.
 
 ### Fixed
 
@@ -482,7 +491,7 @@
   with `bgp_route ... present: false`, or use `protocol: aggregate` on EOS. Not confirmed on a live cEOS. Planned for
   0.4.3. *Corrected after release:* confirmed live, and `protocol: aggregate` doesn't hold while a static route for
   the prefix wins (RT-0086): use `bgp_route ... present: false`. Fixed in 0.4.3, which names the aggregate `bgp`
-  and refuses `protocol: aggregate` on EOS (see Unreleased).
+  and refuses `protocol: aggregate` on EOS (see 0.4.3).
 - **`link_down`: sessions the fault ends that Netdryrun still doesn't wait for** (RT-0078 follow-ups; the checks
   then run after the settle and hold windows only). On Arista cEOS, an SVI (`Vlan10`) or subinterface over a downed
   `ethN`: EOS's kernel devices carry no link to `ethN`, so the session isn't found (not confirmed on a live cEOS). A

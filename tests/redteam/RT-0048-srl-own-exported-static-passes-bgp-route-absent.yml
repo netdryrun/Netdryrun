@@ -8,7 +8,7 @@ fixed_in: null
 accepted_limit:
   decided: "owner, 2026-11-08: ship 0.4.1, publish as a limit (a fail-closed rule failed the shipped leak guards)"
   mitigation: put the present-false guard on the neighbor that would receive the route
-  fix_in: "0.4.3: read the adj-rib-out (SR Linux rib-out-post, Junos advertising-protocol; live captures in hand)"
+  fix_in: "a later release (not 0.4.3): read the adj-rib-out (SR Linux rib-out-post, Junos advertising-protocol; live captures in hand)"
   detail: "a prefix this node originates itself isn't checked"
   published:
     website/docs/reference/config.md: ["doesn't see a prefix the node itself originates and exports",

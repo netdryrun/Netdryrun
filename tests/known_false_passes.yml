@@ -539,7 +539,7 @@
     origin-protocol bgp-evpn from 0.0.0.0 and the driver took it for the node's own route, which `netdryrun check`
     passed live (SR Linux 26.7.2). 0.4.3 reads the EVPN RIB (`imported-network-instances`) and counts a bgp-evpn row as
     a received path; a bgp-vpn row or route is refused
-  record: CHANGELOG.md (Unreleased, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  record: CHANGELOG.md (0.4.3, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
   tests:
     - tests/oracles/FP-043-SRLEVPNVRF/test_oracle_fp_043_srlevpnvrf.py
     - tests/test_oracle_guards_fp_043_srlevpnvrf.py
@@ -549,7 +549,7 @@
     On FRR, a `network` statement with no route behind it stayed announced for the life of the lab when bgpd applied
     it before its zebra connection was up (import-check entry invalid and not registered next to a valid sourced
     path), so a change that removed the route behind it passed `run`/`check` and was approved by `verify` while
-    production withdraws the prefix (corpus v2 case 18; found 2026-11-21, fixed for 0.4.3: every FRR/SONiC router's
+    production withdraws the prefix (corpus v2 case 18; found 2026-11-21, fixed in 0.4.3: every FRR/SONiC router's
     import check is read before judging, remedied on a lab the run deployed, otherwise an error)
   record: tests/redteam/RT-0084-frr-import-check-not-registered.yml
   status: fixed
@@ -563,7 +563,7 @@
     case 1 of the 0.4.1 advisory, GHSA-ggcf-664f-c9ff; 0.2.0 to 0.4.2), because `show ip route <prefix>` lists only
     the selected route and the driver read not-selected candidates from the BGP table only; 0.4.3 reads every
     candidate from `show rib route ip|ipv6 vrf <vrf> <prefix> | json` (exact prefix only, an unread RIB is an error)
-  record: CHANGELOG.md (Unreleased, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
+  record: CHANGELOG.md (0.4.3, Fixed), advisories/0.4.1-known-false-passes/README.md, website/docs/trust.md
   tests:
     - tests/oracles/FP-043-EOSNONBGP/test_oracle_fp_043_eosnonbgp.py
     - tests/test_oracle_guards_fp_043_eosnonbgp.py
@@ -575,7 +575,7 @@
     routing table lists as bgpAggregate and the driver read as protocol aggregate (FRR and NX-OS read it as bgp and
     fail the check; 0.4.2 known limit, confirmed live on cEOS 4.36.3M on 2026-11-21); 0.4.3 names the own aggregate
     bgp in every read, selected or not (oracle FP-043-EOSAGG, RT-0087)
-  record: CHANGELOG.md (Unreleased, Fixed; 0.4.2, Not fixed), website/docs/trust.md
+  record: CHANGELOG.md (0.4.3, Fixed; 0.4.2, Not fixed), website/docs/trust.md
   tests:
     - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py
     - tests/test_oracle_guards_fp_043_eosagg.py
@@ -589,7 +589,7 @@
     2026-11-21, IPv4, IPv6 and a VRF); this also defeated the 0.4.2 workaround for RT-0085. 0.4.3 names the own
     aggregate bgp in every read and refuses `protocol: aggregate` on EOS before the run, as on FRR (oracle
     FP-043-EOSAGG, RT-0087)
-  record: CHANGELOG.md (Unreleased, Fixed), website/docs/trust.md
+  record: CHANGELOG.md (0.4.3, Fixed), website/docs/trust.md
   tests:
     - tests/oracles/FP-043-EOSAGG/test_oracle_fp_043_eosagg.py
     - tests/test_oracle_guards_fp_043_eosagg.py

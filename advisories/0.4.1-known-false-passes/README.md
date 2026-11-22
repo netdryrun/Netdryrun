@@ -1,9 +1,9 @@
 # Advisory: Netdryrun 0.4.1 and earlier, four narrow checks that can pass without seeing the problem
 
-**Affected:** netdryrun 0.4.1 and earlier, and the `netdryrun/Netdryrun@v0.4.1` and earlier Actions (each entry gives
-the drivers). **Severity:** Moderate, as [GHSA-g4f6-4624-2pjv](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-g4f6-4624-2pjv):
+**Affected:** netdryrun 0.4.1 and earlier (cases 1 and 2: 0.4.2 too), and the matching Actions up to
+`netdryrun/Netdryrun@v0.4.1` (cases 1 and 2: `@v0.4.2`); each entry gives the drivers. **Severity:** Moderate, as [GHSA-g4f6-4624-2pjv](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-g4f6-4624-2pjv):
 each case needs a specific driver, config and lab state, and each has a check that catches it today (given below).
-**Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are fixed on main, to ship in 0.4.3 (unreleased: every released version has them). **Found by:** our own release gate (two isolated
+**Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are fixed in 0.4.3 (0.4.2 and earlier have them). **Found by:** our own release gate (two isolated
 adversarial reviewers and a fresh verifier on the final 0.4.1 candidate, 9 November 2026), before any outside user
 reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were confirmed against recorded
 router output (EOS from live fixtures), not yet through a Netdryrun live run. We publish them now to be safe. 0.4.1
@@ -15,8 +15,8 @@ GitHub advisory: [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/se
 Each case is a red-team file in `tests/redteam/` (RT-0053, RT-0056, RT-0058, RT-0063) or an oracle (case 4, RT-S01),
 registered in `tests/known_false_passes.yml`; the test fails if the published text or the limit changes unnoticed.
 
-**What to do:** upgrade to 0.4.2 (cases 3 and 4) or 0.4.3 (case 2), and apply the workaround for case 1 if it
-matches your labs until it is fixed.
+**What to do:** upgrade to 0.4.3, which fixes all four cases. On an earlier version, apply the workaround of
+each case that matches your labs.
 
 **1. Arista EOS: `route ... present: false` with a protocol other than `bgp` didn't see a route that lost** (RT-0056,
 RT-0063). 0.2.0 and later, Arista EOS. EOS's `show ip route` lists only the route it selected for a
@@ -25,7 +25,7 @@ prefix, and the driver looked for routes that weren't selected in the BGP table 
 `route prefix: 0.0.0.0/0, protocol: static` (or `ospf`) `, present: false` passed. FRR, SONiC and NX-OS list every
 candidate and fail the same check. *Workaround:* on EOS, don't rely on `present: false` with a protocol other than
 `bgp`: check the route where it comes from (for OSPF, on the neighbor that advertises it, if that isn't EOS), and add a
-positive `route` check that the route EOS selected has the protocol you expect. *Fixed on main, to ship in 0.4.3 (unreleased):* reads every candidate route
+positive `route` check that the route EOS selected has the protocol you expect. *Fixed in 0.4.3:* the driver reads every candidate route
 (`show rib route ip|ipv6 vrf <vrf> <prefix> | json`), reproduced live on cEOS 4.36.3M (oracle FP-043-EOSNONBGP).
 
 **2. SR Linux EVPN: `bgp_route present: false` in an ip-vrf didn't see imported type-5 routes** (RT-0058). 0.3.0
@@ -53,9 +53,9 @@ SR Linux (0.4.0 recorded such a path as the empty AS path `""` and pinned it; 0.
 (for example a hijacked origin relayed by the same peer) passed the baseline. *Workaround:* add `as_path` to such
 recorded checks by hand. *Fixed in 0.4.2:* `record` writes no `bgp_route` check for a route whose AS path it can't
 read, and an INCOMPLETE BASELINE line names it, so `record` exits 1; a local preference it can't read is named in a
-warning. Until 0.4.3, that route's AS path can't be checked on SR Linux (a hand-written `as_path` check there never
-gets a verdict): check that path's AS path on the peer that sends it. Reading the empty path exactly is planned for
-0.4.3.
+warning. In 0.4.3 too, that route's AS path can't be checked on SR Linux (a hand-written `as_path` check there never
+gets a verdict): check that path's AS path on the peer that sends it. Reading the empty path exactly is not in
+0.4.3; it is planned for a later release.
 
 ## Found another way it can pass without looking?
 
