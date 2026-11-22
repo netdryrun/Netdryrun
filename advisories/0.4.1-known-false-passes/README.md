@@ -5,8 +5,9 @@
 each case needs a specific driver, config and lab state, and each has a check that catches it today (given below).
 **Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are fixed in 0.4.3 (0.4.2 and earlier have them). **Found by:** our own release gate (two isolated
 adversarial reviewers and a fresh verifier on the final 0.4.1 candidate, 9 November 2026), before any outside user
-reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were confirmed against recorded
-router output (EOS from live fixtures), not yet through a Netdryrun live run. We publish them now to be safe. 0.4.1
+reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were first confirmed against recorded
+router output (EOS from live fixtures). While they were fixed for 0.4.3, case 1 was reproduced on a live cEOS 4.36.3M and
+case 2 through `netdryrun check` on a live SR Linux 26.7.2 lab. We publish them now to be safe. 0.4.1
 ships with them published as known limits (trust page, configuration reference, CHANGELOG). Cases 1 to 3 were in
 earlier versions too; case 4 is new in 0.4.1. 0.4.1 fixes the cases in the [earlier advisory](../0.4.0-further-false-passes/)
 except where that advisory says otherwise.
