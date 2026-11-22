@@ -162,6 +162,8 @@ REFUSALS = {
 # Cases that end in an error that isn't their refusal, known and not fixed here: (the error's phrase, why). The check
 # above is off for a case only while it ends in that very error; once it ends in anything else the test fails until
 # the entry moves to REFUSALS (the case now ends in its refusal) or comes off.
+# A listed case that still ends in its known error PASSES, never skips: the fast-fix gate blocks a guard skipped at
+# the base that fails at the candidate, so a skip here made every fix of the case unmergeable (EOS b230514).
 _NO_PATHCOUNT = "without pathCount"
 WRONG_REASON = {
     "RT-0021": (_NO_PATHCOUNT, "its hand-written `show bgp` answer has no pathCount and also answers the text read, "
@@ -177,9 +179,9 @@ WRONG_REASON = {
 def test_driver_case_that_ends_in_an_error_ends_in_its_refusal(case):
     r = _run_driver_case(case)
     if case["id"] in WRONG_REASON:
-        phrase, why = WRONG_REASON[case["id"]]
+        phrase, _why = WRONG_REASON[case["id"]]
         if r is not None and r.passed is False and str(r.detail).startswith("error:") and phrase in r.detail:
-            pytest.skip(f"{case['id']}: known wrong reason: {why}")
+            return   # still its known wrong reason (`why` in the table): a pass; any other ending fails below
         pytest.fail(f"{case['id']} no longer ends in its known wrong-reason error ({phrase!r}); it ends in: "
                     f"{r and r.detail}. Move it to REFUSALS if that is its refusal, or take it out of WRONG_REASON")
     if r is None or r.passed is not False:
@@ -191,6 +193,26 @@ def test_driver_case_that_ends_in_an_error_ends_in_its_refusal(case):
         return
     assert not error, (f"{case['id']} ends in an error, not in the driver's verdict: {r.detail}. A case fixed by "
                        "a refusal names it in REFUSALS; otherwise its outputs miss an answer the driver reads")
+
+
+def test_no_red_team_guard_skips_to_mean_known_and_accepted():
+    """The fast-fix gate runs the base's copy of this file against the candidate's code, and a guard skipped at the
+    base that fails at the candidate blocks with no allowlist path. A skip that means "known and accepted" (a
+    WRONG_REASON case, once) turns every fix of that case into a blocked merge, so no test in this file skips or
+    xfails: a known case passes while it holds and fails once it changes."""
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    banned = {"skip", "skipif", "xfail", "importorskip"}
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr in banned:
+            base = node.value
+            while isinstance(base, ast.Attribute):
+                base = base.value
+            if isinstance(base, ast.Name) and base.id == "pytest":
+                found.append(f"line {node.lineno}: pytest ... .{node.attr}")
+        elif isinstance(node, ast.ImportFrom) and (node.module or "").startswith("pytest"):
+            found += [f"line {node.lineno}: from {node.module} import {a.name}" for a in node.names if a.name in banned]
+    assert not found, f"a red-team guard skips or xfails: {found}"
 
 
 def test_rt0058_fails_on_the_drivers_own_verdict():

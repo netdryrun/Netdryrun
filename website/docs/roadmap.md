@@ -5,7 +5,7 @@ description: "Where Netdryrun is going: shipped releases, the current one, and l
 
 # Roadmap
 
-**Direction, not a commitment.** A version ships when its [release gate](how-its-built.md) is green, never on a date. Items can move, split or be dropped. Security fixes go first. Updated 2026-11-21.
+**Direction, not a commitment.** A version ships when its [release gate](how-its-built.md) is green, never on a date. Items can move, split or be dropped. Security fixes go first. Updated 2026-11-22.
 
 **Beta** means a driver is incomplete and may change, with no support commitment, and the network OS image stays under its vendor's licence: you bring your own where the vendor requires it. A beta driver has passed the gate on captured output from that OS, including the checks that must fail.
 
@@ -23,13 +23,15 @@ description: "Where Netdryrun is going: shipped releases, the current one, and l
 
 ## Current: 0.4.3
 
-A fix release, with no new features:
+A fix release, with no new features. Status on 2026-11-22: not released; the items marked *on main* are merged and tested but ship only with 0.4.3, after its full release gate.
 
-- Fixes for the two known false passes of 0.4.1 that 0.4.2 doesn't fix (Arista EOS routes that weren't selected, SR Linux EVPN type-5 routes in an ip-vrf), each with a reproducing test written before the fix.
-- Limits 0.4.2 doesn't close, each listed on the trust page or the config reference: the node's own exported prefix on SR Linux and Junos (RT-0048), the corpus v2 case 18 race, a narrow attributable proof for a prefix-limit reset, a route that takes one advertisement interval per hop, the EOS `out-delay`, the NX-OS FIB state, and the two FRR config-comparison limits.
+- *On main:* the SR Linux EVPN known false pass of 0.4.1 (case 2 of the [0.4.1 advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.1-known-false-passes/README.md), RT-0058): `bgp_route present: false` in an ip-vrf now sees imported type-5 routes, with a reproducing test written before the fix.
+- *On main:* FRR's import check at boot (RT-0084, found 2026-11-21): on some lab boots FRR kept announcing a `network` prefix with no route behind it, so a change that removed that route could pass. Every FRR and SONiC router's import-check table is now read before anything is judged ([details](reference/config.md#frrs-import-check-at-boot)). This is also the cause of the corpus v2 case 18 race.
+- *On main:* `record` and checks name a BGP-unnumbered session by its interface (`eth1`), so a session over an unnumbered link is recorded instead of named as a gap.
+- *In review:* the Arista EOS known false pass of 0.4.1 (case 1 of the same advisory: routes that weren't selected) and the node's own BGP aggregate on EOS (RT-0085, RT-0086, found 2026-11-21), each with a reproducing test written before the fix. Until 0.4.3 ships, the workarounds on the [trust page](trust.md) apply.
+- Limits 0.4.3 doesn't close, each listed on the trust page or the config reference: the node's own exported prefix on SR Linux and Junos (RT-0048), a narrow attributable proof for a prefix-limit reset, a route that takes one advertisement interval per hop, the EOS `out-delay`, the NX-OS FIB state, and the two FRR config-comparison limits.
 - `record --attributes` on SR Linux reads an empty AS path exactly, instead of naming it as a gap.
-- `record` and checks name a BGP-unnumbered session by its interface (`eth1`), so a session over an unnumbered link is recorded instead of named as a gap.
-- The full release gate on the final release candidate, the scripted end-user acceptance run included.
+- The full release gate on the final release candidate, the scripted end-user acceptance run included. Security advisories for the new findings are published when 0.4.3 is on PyPI.
 
 ## Later (in this order, current plan)
 
