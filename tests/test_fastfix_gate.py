@@ -1621,11 +1621,14 @@ def test_changed_drivers_maps_files_to_network_oses():
 
 
 @needs_git
-def test_a_base_without_the_shared_fake_says_so_in_the_json(repo, tmp_path):
+def test_a_base_without_the_shared_fake_is_logged_by_the_gate_and_says_so_in_the_json(repo, tmp_path):
+    """0.4.3: a base whose fixtures keep no log gets the gate's own plugin (scripts/fastfix_cmdlog.py); the JSON says
+    the log was kept, and by whom. A judge with no plugin beside it: tests below (..._alone)."""
     repo.git("tag", "v1.0.0", repo.base)
     _flip_c1(repo)
     code, out, data = dominance(repo, "v1.0.0", tmp_path, "--dominance")
-    assert data["command_log_at_base"] is False, out
+    assert data["command_log_at_base"] is True and data["command_log_source"] == "gate", out
+    assert "the gate's own plugin" in out
 
 
 @needs_git
@@ -2016,3 +2019,260 @@ def test_normalise_diff_ignores_index_lines_and_line_ends():
     a = "diff --git a/src/x.py b/src/x.py\nindex 1234567..89abcde 100644\n--- a/src/x.py\n+++ b/src/x.py\n"
     b = a.replace("index 1234567..89abcde", "index 1234567890ab..89abcdef0123").replace("\n", "\r\n")
     assert ffg.normalise_diff(a) == ffg.normalise_diff(b)
+
+
+# ------------------------------------------------------------------------------------------------ the gate's own log
+# 0.4.3 judged against v0.4.2, whose fixtures keep no command log (no tests/fakes.py, a conftest that logs nothing): the
+# gate loads its own plugin (scripts/fastfix_cmdlog.py, with the judge's tests/fakes.py) into both runs. The base here
+# is that shape: a fake of its own that matches by substring and calls no `seen`, and an empty conftest.
+
+LOGLESS_TESTS = textwrap.dedent('''\
+    from toy.drivers import FrrDriver
+
+
+    REFUSAL = "unexpected command: "    # an old base's own fake: no tests/fakes.py, no shared refusal
+
+
+    class Lab:
+        def __init__(self, rules):
+            self.rules = rules
+
+        def exec(self, node, cmd):
+            line = " ".join(cmd)
+            for needle, out in self.rules:
+                if needle in line:
+                    return out
+            raise AssertionError(REFUSAL + line)
+
+
+    def test_loose_fake_answers_anything_bgp():
+        assert FrrDriver(Lab([("show bgp", "down")])).session() == "down"
+    ''')
+LOOSE = "tests.test_redteam::test_loose_fake_answers_anything_bgp"
+
+
+def _logless(root: Path) -> None:
+    for rel, text in {"pyproject.toml": '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n',
+                      "src/toy/__init__.py": JUDGE, "src/toy/drivers.py": DRIVERS, "tests/conftest.py": "",
+                      "tests/test_redteam.py": REDTEAM + "\n\n" + LOGLESS_TESTS, "tests/test_pinned.py": PINNED,
+                      "tests/redteam/RT-0001-zero.yml": RT_PINNED, "data/bad.yml": "bad: [-5, -2]\n",
+                      "corpus/results/results.json": BASE_RESULTS}.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+
+
+@pytest.fixture
+def lrepo(tmp_path) -> Repo:
+    r = Repo(tmp_path / "r")
+    _logless(r.path)
+    r.base = r.commit("base")
+    return r
+
+
+def _alone(r: Repo, tmp_path: Path, files: dict[str, Path] | None = None) -> tuple[int, str, dict]:
+    """The judge copied out alone (release_gate.py's shape), with `files` beside it."""
+    scratch = tmp_path / "judge"
+    scratch.mkdir()
+    shutil.copy2(SCRIPT, scratch / "fastfix_gate.py")
+    for name, src in (files or {}).items():
+        shutil.copy2(src, scratch / name)
+    out = tmp_path / "alone.json"
+    p = subprocess.run([sys.executable, str(scratch / "fastfix_gate.py"), "loosening", "--repo", str(r.path), "--base",
+                        r.base, "--json", str(out)], capture_output=True, text=True, timeout=600,
+                       env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
+    return p.returncode, p.stdout + p.stderr, json.loads(out.read_text(encoding="utf-8"))
+
+
+@needs_git
+def test_a_logless_base_gets_the_gates_log_and_a_silently_answered_new_read_is_marked(lrepo, tmp_path):
+    lrepo.write("src/toy/drivers.py", NEW_READ_DRIVER)
+    lrepo.commit("read the neighbors too")
+    code, out, data = dominance(lrepo, lrepo.base, tmp_path)
+    flips = {f["case"]: f for f in data["flips"]}
+    assert code == 1 and (flips[LOOSE]["kind"], flips[LOOSE]["from"], flips[LOOSE]["to"]) == ("new-read", "FAIL",
+                                                                                                "PASS"), out
+    assert data["command_log_at_base"] is True and data["command_log_source"] == "gate", out
+    assert "show bgp neighbors" in out and "the gate's own plugin" in out
+    # without A (the judge with no plugin beside it): the fake answered, the test held, nothing marks the read
+    code, out, alone = _alone(lrepo, tmp_path)
+    assert LOOSE not in {f["case"] for f in alone["flips"]}, alone["flips"]
+    assert code == 1 and alone["command_log_source"] == "none" and alone["command_log_at_base"] is False
+    assert "no command-log plugin with it" in out, out     # and it blocks, rather than read as "nothing new"
+
+
+@needs_git
+def test_a_logless_base_with_no_new_command_gives_no_new_read(lrepo, tmp_path):
+    lrepo.write("src/toy/drivers.py", DRIVERS + "\n\n# the driver, documented\n")
+    lrepo.commit("comment")
+    code, out, data = dominance(lrepo, lrepo.base, tmp_path)
+    assert code == 0 and data["flips"] == [] and data["command_log_source"] == "gate", out
+    assert "0 test(s) send something new" in out
+
+
+@needs_git
+def test_a_judge_copied_out_with_its_own_plugin_beside_it_keeps_the_log(lrepo, tmp_path):
+    lrepo.write("src/toy/drivers.py", NEW_READ_DRIVER)
+    lrepo.commit("read the neighbors too")
+    code, out, data = _alone(lrepo, tmp_path, {ffg.CMDLOG_PLUGIN: SCRIPT.parent / "fastfix_cmdlog.py",
+                                               ffg.CMDLOG_FAKES: SCRIPT.parents[1] / "tests" / "fakes.py"})
+    assert code == 1 and data["command_log_source"] == "gate", out
+    assert {f["case"]: f["kind"] for f in data["flips"]}[LOOSE] == "new-read", out
+
+
+def _recording_runs(monkeypatch) -> list:
+    calls = []
+    real = ffg.run_pytest
+
+    def run(tree, targets, python, work, command_log=None, cmdlog=None):
+        calls.append((tree.name, cmdlog))
+        return real(tree, targets, python, work, command_log, cmdlog)
+    monkeypatch.setattr(ffg, "run_pytest", run)
+    return calls
+
+
+@needs_git
+def test_the_same_plugin_runs_on_both_sides_and_never_when_the_base_logs_by_itself(lrepo, tmp_path, monkeypatch):
+    lrepo.write("src/toy/drivers.py", NEW_READ_DRIVER)
+    lrepo.commit("read the neighbors too")
+    calls = _recording_runs(monkeypatch)
+    report = ffg.loosening(lrepo.path, lrepo.base, "HEAD", sys.executable)
+    assert [name for name, _ in calls] == ["base", "mixed"] and calls[0][1] is not None and calls[0][1] == calls[1][1]
+    assert report.command_log_source == "gate"
+    # a base whose conftest keeps the log itself (0.4.3 on): no plugin in either run
+    (tmp_path / "p").mkdir()
+    r, base = _probe_repo(tmp_path / "p", _probe_driver(0), _probe_driver(1), _probe_tests())
+    calls.clear()
+    report = ffg.loosening(r.path, base, "HEAD", sys.executable)
+    assert [cmdlog for _, cmdlog in calls] == [None, None] and report.command_log_source == "fixtures"
+    assert not any("gate's own plugin" in n for n in report.notes)
+
+
+def test_logs_by_itself_reads_the_bases_conftest_and_fakes(tmp_path):
+    assert ffg.logs_by_itself(SCRIPT.parents[1])          # this tree (0.4.3): tests/conftest.py keeps the log
+    _logless(tmp_path)
+    assert not ffg.logs_by_itself(tmp_path)              # v0.4.2's shape
+    (tmp_path / "tests" / "conftest.py").write_text(PROBE_CONFTEST, encoding="utf-8")
+    assert not ffg.logs_by_itself(tmp_path)              # a conftest naming the log, with no fakes.py to keep it
+    (tmp_path / "tests" / "fakes.py").write_text(FAKES, encoding="utf-8")
+    assert ffg.logs_by_itself(tmp_path)
+
+
+def test_the_plugin_runs_the_judges_own_logging_code(tmp_path):
+    d = ffg.install_cmdlog(tmp_path / "cmdlog")
+    assert sorted(p.name for p in d.iterdir()) == sorted([f"{ffg.CMDLOG_FAKES_MODULE}.py", f"{ffg.CMDLOG_MODULE}.py"])
+    assert (d / f"{ffg.CMDLOG_FAKES_MODULE}.py").read_bytes() == (SCRIPT.parents[1] / "tests" / "fakes.py").read_bytes()
+    assert (d / f"{ffg.CMDLOG_MODULE}.py").read_bytes() == (SCRIPT.parent / "fastfix_cmdlog.py").read_bytes()
+    assert "scripts/fastfix_cmdlog.py" in ffg.GATE_FILES      # a change to it is a gate flip
+
+
+def _plugin_run(tree: Path, work: Path, log: Path, cmdlog: Path) -> "ffg.PytestRun":
+    return ffg.run_pytest(tree, ["tests/test_redteam.py"], sys.executable, work, log, cmdlog)
+
+
+def test_the_gates_log_is_byte_stable_across_two_runs_of_one_tree(tmp_path):
+    tree = tmp_path / "tree"
+    _logless(tree)
+    cmdlog = ffg.install_cmdlog(tmp_path / "cmdlog")
+    log = tmp_path / "cmd.jsonl"
+    texts = []
+    for i in range(2):
+        run = _plugin_run(tree, tmp_path / f"w{i}", log, cmdlog)
+        assert run.code == 0, run.output
+        texts.append(log.read_bytes())
+    assert texts[0] == texts[1] and b"show bgp summary" in texts[0], texts
+    # and a real new command still shows through the scrubbing
+    (tree / "src/toy/drivers.py").write_text(NEW_READ_DRIVER, encoding="utf-8")
+    _plugin_run(tree, tmp_path / "w2", log, cmdlog)
+    assert b"show bgp neighbors" in log.read_bytes() and log.read_bytes() != texts[0]
+
+
+def test_nothing_in_the_tree_shadows_the_plugin_and_it_shadows_nothing(tmp_path):
+    tree = tmp_path / "tree"
+    _logless(tree)
+    for rel in (f"src/{ffg.CMDLOG_FAKES_MODULE}.py", f"tests/{ffg.CMDLOG_FAKES_MODULE}.py",
+                f"src/{ffg.CMDLOG_MODULE}.py", f"tests/{ffg.CMDLOG_MODULE}.py"):
+        (tree / rel).write_text("raise SystemExit('the tree answered for the gate plugin')\n", encoding="utf-8")
+    (tree / "tests/test_where.py").write_text(textwrap.dedent(f'''\
+        import json
+        import sys
+        from pathlib import Path
+
+        import toy
+
+
+        def test_where():
+            mods = {{n: getattr(sys.modules.get(n), "__file__", None) for n in ("{ffg.CMDLOG_MODULE}",
+                                                                              "{ffg.CMDLOG_FAKES_MODULE}")}}
+            Path("{tmp_path / 'where.json'}").write_text(json.dumps({{"toy": toy.__file__, "mods": mods}}))
+        '''), encoding="utf-8")
+    cmdlog = ffg.install_cmdlog(tmp_path / "cmdlog")
+    run = ffg.run_pytest(tree, ["tests/test_where.py"], sys.executable, tmp_path / "w", tmp_path / "cmd.jsonl", cmdlog)
+    assert run.code == 0, run.output
+    where = json.loads((tmp_path / "where.json").read_text(encoding="utf-8"))
+    assert Path(where["toy"]).resolve().is_relative_to((tree / "src").resolve())
+    assert {Path(p).resolve().parent for p in where["mods"].values()} == {cmdlog.resolve()}
+    assert sorted(p.name for p in cmdlog.iterdir()) == sorted([f"{ffg.CMDLOG_FAKES_MODULE}.py", f"{ffg.CMDLOG_MODULE}.py"])
+
+
+@pytest.mark.parametrize("proof", [None, {"session": False, "tests": 1, "root": "TREE"},
+                                   {"session": True, "tests": 1, "root": "/elsewhere"},
+                                   {"session": True, "tests": "1", "root": "TREE"}, "not json"])
+def test_a_run_without_the_plugins_proof_counts_for_nothing(tmp_path, proof):
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    path = tmp_path / "proof.json"
+    if proof is not None:
+        text = proof if isinstance(proof, str) else json.dumps({**proof, "root": str(tree) if proof["root"] == "TREE"
+                                                               else proof["root"]})
+        path.write_text(text, encoding="utf-8")
+    with pytest.raises(ffg.GateError, match="command-log plugin"):
+        ffg.check_cmdlog_proof(tree, path, subprocess.CompletedProcess([], 0, "", ""))
+    path.write_text(json.dumps({"session": True, "tests": 0, "root": str(tree)}), encoding="utf-8")
+    ffg.check_cmdlog_proof(tree, path, subprocess.CompletedProcess([], 0, "", ""))     # the control: accepted
+
+
+def test_a_plugin_that_never_ran_fails_the_run_closed(tmp_path):
+    """The probe through run_pytest itself: a plugin directory whose plugin keeps no log leaves no proof."""
+    tree = tmp_path / "tree"
+    _logless(tree)
+    cmdlog = ffg.install_cmdlog(tmp_path / "cmdlog")
+    (cmdlog / f"{ffg.CMDLOG_MODULE}.py").write_text("", encoding="utf-8")
+    with pytest.raises(ffg.GateError, match="left no proof"):
+        _plugin_run(tree, tmp_path / "w", tmp_path / "cmd.jsonl", cmdlog)
+
+
+def test_the_proof_path_is_not_taken_from_the_callers_environment(monkeypatch, tmp_path):
+    monkeypatch.setenv(ffg.CMDLOG_PROOF_ENV, str(tmp_path / "forged.json"))
+    assert ffg.CMDLOG_PROOF_ENV not in ffg.child_env(tmp_path)
+
+
+def test_a_judge_finds_its_plugin_beside_itself_when_copied_out(tmp_path):
+    scratch = tmp_path / "judge"
+    scratch.mkdir()
+    shutil.copy2(SCRIPT, scratch / "dominance_judge.py")
+    spec = importlib.util.spec_from_file_location("ff_copied_out", scratch / "dominance_judge.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    assert mod.cmdlog_code() is None and mod.install_cmdlog(tmp_path / "none") is None     # alone: nothing
+    (scratch / ffg.CMDLOG_PLUGIN).write_text("# plugin\n", encoding="utf-8")
+    assert mod.cmdlog_code() is None                     # half of it: nothing
+    (scratch / ffg.CMDLOG_FAKES).write_text("# fakes\n", encoding="utf-8")
+    assert mod.cmdlog_code() == (scratch / ffg.CMDLOG_PLUGIN, scratch / ffg.CMDLOG_FAKES)
+
+
+def test_a_judge_in_a_scripts_dir_prefers_the_fakes_copied_beside_it(tmp_path):
+    # the fakes copied beside the judge come from the judge's own commit; a tests/fakes.py next door may not
+    scripts = tmp_path / "tree" / "scripts"
+    scripts.mkdir(parents=True)
+    (tmp_path / "tree" / "tests").mkdir()
+    (tmp_path / "tree" / "tests" / "fakes.py").write_text("# the tree's fakes\n", encoding="utf-8")
+    shutil.copy2(SCRIPT, scripts / "fastfix_gate.py")
+    (scripts / ffg.CMDLOG_PLUGIN).write_text("# plugin\n", encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("ff_in_scripts", scripts / "fastfix_gate.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    assert mod.cmdlog_code() == (scripts / ffg.CMDLOG_PLUGIN, tmp_path / "tree" / "tests" / "fakes.py")   # checkout
+    (scripts / ffg.CMDLOG_FAKES).write_text("# the judge's fakes\n", encoding="utf-8")
+    assert mod.cmdlog_code() == (scripts / ffg.CMDLOG_PLUGIN, scripts / ffg.CMDLOG_FAKES)

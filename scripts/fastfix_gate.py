@@ -16,7 +16,9 @@ nothing to pass.
       a command only the candidate sent) is kind new-read: its allowlist entry says so, and the release then needs
       live on that network OS. --dominance is the release's run against the published tag: its JSON also says
       whether the tag's fixtures kept the command log, which drivers changed since the tag, and every new-read
-      allowlist entry since the tag, so the report can route each one to live.
+      allowlist entry since the tag, so the report can route each one to live. A base whose fixtures keep no
+      command log of their own (v0.4.2) is run, in both runs, with the gate's plugin (scripts/fastfix_cmdlog.py,
+      using this judge's tests/fakes.py); the JSON's command_log_source says which way the log was kept.
 
   python scripts/fastfix_gate.py plants --repo . --candidate HEAD [--base <merge-base>] [--json PATH]
       Living plants: each oracle's tests/oracles/<ID>/plant.diff is its fix's shipped diff reversed. It must still
@@ -74,8 +76,16 @@ EVIDENCE_NOT_UNDER = ("src/", "fastfix/", "scripts/", ".github/")
 GATE_MODULES = ("pytest", "_pytest", "pluggy", "yaml", "sitecustomize", "usercustomize")
 # the fake labs' command log (tests/fakes.py): set only by the gate, per run, outside the tree under test
 COMMAND_LOG_ENV = "NDR_FAKE_COMMAND_LOG"
+# the gate's own command-log plugin (scripts/fastfix_cmdlog.py) for a base whose fixture world keeps no log: it and the
+# judge's own tests/fakes.py are copied into a fresh directory of the run's, under these module names, first on the
+# path; a judge copied out alone (release_gate.py) finds both beside itself under the CMDLOG_* file names
+CMDLOG_PLUGIN = "fastfix_cmdlog.py"
+CMDLOG_FAKES = "fastfix_cmdlog_fakes.py"
+CMDLOG_MODULE = "ndr_gate_cmdlog"
+CMDLOG_FAKES_MODULE = "ndr_gate_fakes"
+CMDLOG_PROOF_ENV = "NDR_GATE_CMDLOG_PROOF"
 CHILD_ENV_DROP = ("MUTANT_UNDER_TEST", "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONSTARTUP", "PYTHONHOME",
-                  "PYTEST_CURRENT_TEST", "PYTHONPATH", COMMAND_LOG_ENV,
+                  "PYTEST_CURRENT_TEST", "PYTHONPATH", COMMAND_LOG_ENV, CMDLOG_PROOF_ENV,
                   "NDR_TEST_SRC", "NDR_TEST_INSTALLED", "NDR_GUARD_PROOF")   # the import guard (tests/import_guard.py) expects each tree's own src
 GUARD_FILE = "tests/import_guard.py"
 PROOF_ENV = "NDR_GUARD_PROOF"
@@ -87,7 +97,7 @@ SURFACES = ("action.yml", "templates")
 # the gate's own files: once the base has the gate, changing any of them is a flip that needs a reviewed allowlist entry
 # (Layer 6 on f220469: the attempt records, labrun and the surfaces check were left out)
 GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/workflows/release-gate.yml",
-              "scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py")
+              "scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py", "scripts/fastfix_cmdlog.py")
 
 
 # a fixture flip whose cause is a command the code under test now sends to the device: the fake lab refused it
@@ -271,6 +281,9 @@ class Report:
     compared: dict[str, int] = field(default_factory=dict)
     shas: dict[str, str] = field(default_factory=dict)
     command_log_at_base: bool = False
+    # who kept the fake labs' command log: "fixtures" (the base's own tests/conftest.py), "gate" (the gate's plugin,
+    # scripts/fastfix_cmdlog.py, in both runs) or "none"
+    command_log_source: str = "none"
     changed_drivers: list[str] = field(default_factory=list)
     new_read_entries: list[dict] = field(default_factory=list)
 
@@ -290,7 +303,8 @@ class Report:
         return {"base": self.shas.get("base"), "candidate": self.shas.get("candidate"), "compared": self.compared,
                 "skipped_at_base": self.skipped_at_base,
                 "flips": [f.as_json() for f in self.flips] + [f.as_json(by) for f, by in self.allowed.items()],
-                "command_log_at_base": self.command_log_at_base, "changed_drivers": self.changed_drivers,
+                "command_log_at_base": self.command_log_at_base, "command_log_source": self.command_log_source,
+                "changed_drivers": self.changed_drivers,
                 "new_read_entries": self.new_read_entries, "problems": self.problems}
 
 
@@ -440,10 +454,62 @@ def check_guard_proof(tree: Path, proof: Path, p: subprocess.CompletedProcess) -
                         f"on this tree's own src")
 
 
-def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_log: Path | None = None) -> PytestRun:
+def check_cmdlog_proof(tree: Path, proof: Path, p: subprocess.CompletedProcess) -> None:
+    """The gate's command-log plugin was loaded in this tree and began its session record, or the run counts for
+    nothing (fail closed): a log nobody kept would read as "no new command". (It may have logged no test: code that
+    skips every test is a flip of its own.)"""
+    try:
+        got = json.loads(proof.read_text(encoding="utf-8"))
+        ok = got["session"] is True and Path(got["root"]).resolve() == tree.resolve() \
+            and isinstance(got["tests"], int) and got["tests"] >= 0
+    except (OSError, ValueError, KeyError, TypeError):
+        raise GateError(f"{tree.name}: the gate's command-log plugin left no proof that it ran: pytest exit "
+                        f"{p.returncode}\n{(p.stdout + p.stderr)[-500:]}") from None
+    if not ok:
+        raise GateError(f"{tree.name}: the gate's command-log plugin didn't keep the log here ({json.dumps(got)[:200]})")
+
+
+def logs_by_itself(tree: Path) -> bool:
+    """The tree's own fixture world keeps the fake labs' command log: its tests/conftest.py begins the session record
+    and installs the profiler from its tests/fakes.py (0.4.3 on). Read from the base's tree, which the candidate can't
+    change."""
+    try:
+        conftest = (tree / "tests" / "conftest.py").read_text(encoding="utf-8")
+        fakes = (tree / "tests" / "fakes.py").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return ("begin_session(" in conftest and "logging_commands(" in conftest
+            and "def logging_commands(" in fakes and COMMAND_LOG_ENV in fakes)
+
+
+def cmdlog_code() -> tuple[Path, Path] | None:
+    """(the plugin, the logging code it runs) from the judge's own commit: beside this script when release_gate.py
+    copied the judge out with them (CMDLOG_PLUGIN, CMDLOG_FAKES), or, in a checkout, scripts/fastfix_cmdlog.py and
+    tests/fakes.py. None when this judge has no such plugin with it."""
+    here = Path(__file__).resolve().parent
+    plugin, fakes = here / CMDLOG_PLUGIN, here / CMDLOG_FAKES
+    if not fakes.is_file() and here.name == "scripts":
+        fakes = here.parent / "tests" / "fakes.py"
+    return (plugin, fakes) if plugin.is_file() and fakes.is_file() else None
+
+
+def install_cmdlog(dest: Path) -> Path | None:
+    """A fresh directory holding only the plugin and the judge's fakes, under module names nothing else uses."""
+    code = cmdlog_code()
+    if code is None:
+        return None
+    dest.mkdir(parents=True)
+    shutil.copyfile(code[0], dest / f"{CMDLOG_MODULE}.py")
+    shutil.copyfile(code[1], dest / f"{CMDLOG_FAKES_MODULE}.py")
+    return dest
+
+
+def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_log: Path | None = None,
+               cmdlog: Path | None = None) -> PytestRun:
     """pytest on `targets` inside `tree`, configured by the tree's own pyproject.toml (the world's), report written
     outside the tree. Exit code and report must agree. With `command_log`, the fake labs record every command they
-    are sent there (tests/fakes.py)."""
+    are sent there (tests/fakes.py). With `cmdlog` (install_cmdlog's directory), the gate's own plugin keeps that log
+    for a tree whose fixtures keep none, and must leave its proof."""
     preflight(tree, python)
     work.mkdir(parents=True, exist_ok=True)
     xml = work / f"junit-{len(list(work.glob('junit-*.xml')))}.xml"
@@ -451,16 +517,25 @@ def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_
     if not ini.is_file():
         ini = work / "empty.ini"
         ini.write_text("[pytest]\n", encoding="utf-8")
-    cmd = [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", "-c", str(ini),
+    plugin = ["-p", CMDLOG_MODULE] if cmdlog is not None and command_log is not None else []
+    cmd = [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", *plugin, "-o", "addopts=", "-c", str(ini),
            "--rootdir", str(tree), "--confcutdir", str(tree), f"--junitxml={xml}", "--", *targets]
     env = child_env(tree)
     pyc = work / f"pyc-{xml.stem}"      # a fresh bytecode cache: a .pyc planted in the tree's src/ is not read
     shutil.rmtree(pyc, ignore_errors=True)
     pyc.mkdir(parents=True)
     env["PYTHONPYCACHEPREFIX"] = str(pyc)
+    cmdlog_proof = None
     if command_log is not None:
         command_log.unlink(missing_ok=True)
         env[COMMAND_LOG_ENV] = str(command_log)
+        if plugin:
+            # first on the path: the directory holds only the plugin and the judge's fakes (install_cmdlog), so it
+            # shadows nothing, and nothing in the tree shadows them
+            env["PYTHONPATH"] = os.pathsep.join([str(cmdlog), env["PYTHONPATH"]])
+            cmdlog_proof = work / f"cmdlog-proof-{xml.stem}.json"
+            cmdlog_proof.unlink(missing_ok=True)
+            env[CMDLOG_PROOF_ENV] = str(cmdlog_proof)
     # a tree that has the import guard must show it ran (it writes this file when it passes): --confcutdir or a
     # conftest that no longer loads it would otherwise let foreign code answer for the tree
     proof = work / f"guard-proof-{xml.stem}.json" if (tree / GUARD_FILE).is_file() else None
@@ -470,6 +545,8 @@ def run_pytest(tree: Path, targets: list[str], python: str, work: Path, command_
     p = subprocess.run(cmd, cwd=tree, env=env, capture_output=True, text=True, timeout=1800)
     if proof is not None:
         check_guard_proof(tree, proof, p)
+    if cmdlog_proof is not None:
+        check_cmdlog_proof(tree, cmdlog_proof, p)
     outcomes: dict[str, str] = {}
     messages: dict[str, str] = {}
     details: dict[str, str] = {}
@@ -781,13 +858,33 @@ def loosening(repo: Path, base_ref: str, cand_ref: str, python: str, dominance: 
         # pass on, so two paths would log two different commands for the same code
         log = work / "cmd.jsonl"
         roots = (str(base_tree), str(work / "mixed"))
-        base_run = run_pytest(base_tree, targets, python, work / "r", log)
+        # a base whose fixtures keep no log (v0.4.2) gets the gate's own plugin, in both runs, so both logs come from
+        # the same code; the candidate's tests/ never enter the base's world
+        cmdlog = None
+        if logs_by_itself(base_tree):
+            report.command_log_source = "fixtures"
+        else:
+            cmdlog = install_cmdlog(work / "cmdlog")
+            if cmdlog is None:
+                report.problems.append("the base's fixtures keep no fake-lab command log, and this judge has no "
+                                       f"command-log plugin with it ({CMDLOG_PLUGIN} and its tests/fakes.py): a new "
+                                       "device read that a fake answers without complaint can't be seen")
+            else:
+                report.command_log_source = "gate"
+                report.notes.append("fixtures: the base's fixtures keep no fake-lab command log, so the gate's own "
+                                    f"plugin ({CMDLOG_PLUGIN}, with this judge's tests/fakes.py) kept it in both runs")
+        base_run = run_pytest(base_tree, targets, python, work / "r", log, cmdlog)
         base_cmds = read_commands(log, roots)
+        if cmdlog is not None and base_cmds is None:
+            base_cmds = {}      # the plugin kept the log (its proof): no fake was sent anything
         mixed = compose(base_tree, cand_tree, work / "mixed")
-        cand_run = run_pytest(mixed, targets, python, work / "r", log)
+        cand_run = run_pytest(mixed, targets, python, work / "r", log, cmdlog)
+        cand_cmds = read_commands(log, roots)
+        if cmdlog is not None and cand_cmds is None and not base_cmds:
+            cand_cmds = {}      # nothing sent on either side; a log that stops at the candidate still blocks
         report.command_log_at_base = base_cmds is not None
         report.changed_drivers = changed_drivers(changed_files(repo, base, cand))
-        fixture_compare(base_run, cand_run, report, base_cmds, read_commands(log, roots), origins)
+        fixture_compare(base_run, cand_run, report, base_cmds, cand_cmds, origins)
         report.notes.append(f"fixture targets ({len(targets)}): {', '.join(targets)}")
         # 3. the allowlist
         apply_allowlist(repo, base, cand, cand_tree, report, dominance)

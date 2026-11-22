@@ -364,14 +364,16 @@ def watch_temps(basetemp=None):
     return undo
 
 
-def logging_commands(basetemp=None):
+def logging_commands(basetemp=None, code_root: str | None = None, fake_root: str | None = None):
     """Install the profiler on this thread and new ones, and the record of the test's temporary paths, while
-    NDR_FAKE_COMMAND_LOG is set; returns an undo."""
+    NDR_FAKE_COMMAND_LOG is set; returns an undo. `code_root` and `fake_root` go to command_profiler: the release
+    gate's own plugin (scripts/fastfix_cmdlog.py) names the tree under test's src/ and tests/ there, because this
+    file then runs from beside the plugin, not from that tree."""
     if not os.environ.get(COMMAND_LOG):
         return lambda: None
     old = sys.getprofile()
     unwatch = watch_temps(basetemp)
-    hook = command_profiler()
+    hook = command_profiler(code_root, fake_root)
     sys.setprofile(hook)
     threading.setprofile(hook)
 
