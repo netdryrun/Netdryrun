@@ -364,7 +364,7 @@ route the lab configured itself is never touched. The report says what was remov
 
 A routing protocol's route that is over the management interface only because its next hop resolved through Docker's
 default (a BGP next hop no lab route covers) is not an error by itself: when every other route over the
-management interface is such a route (bgp, ospf, isis, rip, eigrp, babel or openfabric, one path, main table, via the
+management interface is such a route (bgp, ospf, isis, rip, ripng, eigrp, babel or openfabric, one path, main table, via the
 gateway of Docker's default of its family), Docker's default is deleted first and the routes are read again every
 0.5 s for up to 10 s, until the route has moved into the lab. The report and the log name each route that left. A route
 still there after 10 s (the lab has no path of its own for the next hop) ends the run.
