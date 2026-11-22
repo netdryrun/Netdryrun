@@ -1,20 +1,23 @@
 flips:
   - source: gate
-    case: scripts/fastfix_gate.py@099a76ecf215
+    case: scripts/fastfix_gate.py@a035930cfb1f
     from: FAIL
     to: PASS
     evidence: [research/captures/import-guard-v2-f84526a.txt, releases/0.4.3/gate-cmdlog-noise-probes.txt]
     why: >-
-      Replaces the entries for the earlier blobs a8cfb442fc95 (gate-noise) and 09346cce724a (import guard), which
-      are stale against v0.4.2 now that the file changed again. The blob is 09346cce724a plus the gate-bootstrap
-      change (9db75db, d90cbb6). Every hunk refuses more or the same. When the base's fixtures keep no fake-lab
-      command log, the gate's own plugin keeps the log in both runs, so new device reads that a substring fake
-      answers silently now show as new-read flips (8 more appear against v0.4.2). The plugin must leave a proof or
-      the run exits 2. scripts/fastfix_cmdlog.py and tests/fakes.py join GATE_FILES. The stale-entry rule, the key
-      rule and the new-read evidence and reviewer rules are unchanged. The captures cover the gate-noise and
-      import-guard hunks. For the bootstrap hunks, the evidence is the two-round review in
-      fastfix/reviews/adv-gate-bootstrap.md, which an entry cannot cite because it is under fastfix/.
-    reviewed_by: "allow-043b, from the diffs 4388bb5..HEAD and v0.4.2..HEAD: no refusal removed, the log at a log-less base only adds flips, the plugin fails closed without its proof; adv-gatelog and rev2-gatelog approved the bootstrap hunks, adv-import-guard and recheck-cmdlog2 the earlier ones"
+      Replaces the entry for blob 099a76ecf215 (allow-043b), stale now that 01e0a73 (fix-newread) changed the file.
+      Everything up to 099a76ecf215 is as that entry said: no refusal removed against v0.4.2, and the log kept at a
+      log-less base only adds flips. 01e0a73 changes one rule, in allow_entries, and it is a narrow relaxation, not a
+      tightening: a kind: new-read fixture entry may now cite its own test when that test sits under tests/oracles/ or
+      is unchanged since the base, which before was refused outright, so a real new read on such a test could never
+      be cleared. It applies only when the same entry also cites a changed, non-code file under tests/fixtures/ that
+      SOURCES.yml files as kind: live-capture (live_capture, which refuses .py, SOURCES.yml itself, unchanged files
+      and bare wildcards). The reviewer-session, separation, literal-key, stale-entry and live-routing rules are
+      untouched, so every entry it admits still needs a fresh reviewer and still sends each OS it touches to live.
+      A verdict entry still may not cite an oracle or an unchanged file. Open hardening from the review: the gate
+      checks only the SOURCES.yml label, not that the capture answers the logged command, so allowlist sessions
+      check that by hand (done for the FP-042 entries in 0.4.3-unnsess-newread.yml).
+    reviewed_by: "allow-review-043c, from the diff 099a76ecf215..a035930cfb1f (01e0a73 only): the one relaxed shape needs a changed live capture beside the test, every other evidence rule and the reviewer, separation and live-routing rules are unchanged; adv-newread approved 01e0a73"
   - source: gate
     case: scripts/release_gate.py@7fbeececd3ab
     from: FAIL

@@ -17,13 +17,27 @@ flips:
     case: "tests.oracles.FP-042-UNNSESS.test_oracle_fp_042_unnsess::test_every_unnumbered_neighbor_is_recorded_or_a_named_gap"
     from: FAIL
     to: PASS
-    evidence: [releases/0.4.3/adv-043-rest-probes.txt]
+    kind: new-read
+    evidence:
+      - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+      - releases/0.4.3/adv-043-rest-probes.txt
     why: >-
-      v0.4.2's oracle asserted that record always leaves a named gap for an FRR BGP-unnumbered session, because in
-      0.4.2 a gap was the only honest outcome. 0.4.3 records those sessions instead: a bgp_session check and
-      bgp_prefixes checks per unnumbered neighbour, judged like a numbered session, so on the captured fabric there is
-      no gap left and only that last assertion fails; the one before it (every neighbour is recorded or a named gap)
-      still holds. Stricter for the user: the recorded checks fail when the session goes idle or disappears (probe P1 on
-      the captured FRR 10.2.1 fabric), while other drivers, keys that aren't interface names and down sessions keep the
-      named gap (P2 to P4). The 0.4.3 oracle requires a gap only for a session that isn't recorded.
-    reviewed_by: "adv-043-rest: v0.4.2's oracle demanded a gap unconditionally; 0.4.3 records a bgp_session and bgp_prefixes check for every FRR unnumbered session, and those checks fail when the session goes idle or disappears (probed), while other drivers, keys that aren't interface names and down sessions keep the named gap, and the FP-043-UNNSESSCHK and FP-042-UNNSESS plants are both caught."
+      The one real failure. v0.4.2's oracle asserts every neighbour is recorded or a named gap, then asserts at least
+      one gap is left. The first assertion still holds on 0.4.3. The second fails because 0.4.3 records all five
+      unnumbered sessions (a bgp_session check and exact-count bgp_prefixes checks each) and leaves no gap. That is
+      stricter: 0.4.2 checked none of these sessions, so a change that took one down or flooded it passed the
+      baseline (RT-0066); 0.4.3's checks fail when a session goes idle or disappears (adv-043-rest-probes.txt, probe
+      P1). The candidate sends one read the base never sent: vtysh -c "show bgp ipv4 unicast neighbors <ethN> routes
+      json" for each FRR BGP-unnumbered neighbour (leaf01 eth1 and eth2, spine01 eth1 to eth3), because 0.4.3 records
+      those sessions (a bgp_session check and bgp_prefixes checks) where 0.4.2 only wrote a gap. The cited captures
+      are live FRR 10.2.1 and 10.4.1 answers to exactly that command for unnumbered neighbours eth1 and eth2 (lab
+      ndr-unnsess, filed as live-capture in tests/fixtures/SOURCES.yml by the oracle session; each capture log names
+      the command). In this test's fake the read gets no answer, and 0.4.3 then records the stricter exact prefix
+      count instead of a range, with a warning.
+    reviewed_by: "allow-review-043c: v0.4.2's copy: the first assertion holds and only `assert gaps` fails, because all 5 unnumbered sessions are now recorded (bgp_session plus exact bgp_prefixes), which is stricter than the gap; the captures are FRR's answer to the logged routes command"

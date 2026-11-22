@@ -1,0 +1,164 @@
+flips:
+  - source: fixtures
+    case: "tests.oracles.FP-042-UNNSESS.test_oracle_fp_042_unnsess::test_a_169_254_link_is_numbered_and_guarded"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence:
+      - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+    why: >-
+      The test passes in both runs. It is flagged only for the new read. Its assertions (169.254.0.0/30 guarded on
+      both ends, eth1 not called unnumbered) hold unchanged on 0.4.3. The candidate sends one read the base never
+      sent: vtysh -c "show bgp ipv4 unicast neighbors <ethN> routes json" for each FRR BGP-unnumbered neighbour
+      (leaf01 eth1 and eth2, spine01 eth1 to eth3), because 0.4.3 records those sessions (a bgp_session check and
+      bgp_prefixes checks) where 0.4.2 only wrote a gap. The cited captures are live FRR 10.2.1 and 10.4.1 answers to
+      exactly that command for unnumbered neighbours eth1 and eth2 (lab ndr-unnsess, filed as live-capture in
+      tests/fixtures/SOURCES.yml by the oracle session; each capture log names the command). In this test's fake the
+      read gets no answer, and 0.4.3 then records the stricter exact prefix count instead of a range, with a warning.
+    reviewed_by: "allow-review-043c: v0.4.2's copy passes on 0.4.3 with the same assertions; the only change is the new routes read, which the captures show is FRR's real answer shape"
+  - source: fixtures
+    case: "tests.oracles.FP-042-UNNSESS.test_oracle_fp_042_unnsess::test_a_point_to_point_address_is_its_subnet_or_a_gap"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence:
+      - tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+    why: >-
+      The test passes in both runs. It is flagged only for the new read. Its assertions (never the /32; the /31
+      guarded or a named gap) hold unchanged on 0.4.3. The candidate sends one read the base never sent: vtysh -c
+      "show bgp ipv4 unicast neighbors <ethN> routes json" for each FRR BGP-unnumbered neighbour (leaf01 eth1 and
+      eth2, spine01 eth1 to eth3), because 0.4.3 records those sessions (a bgp_session check and bgp_prefixes checks)
+      where 0.4.2 only wrote a gap. The cited captures are live FRR 10.2.1 and 10.4.1 answers to exactly that command
+      for unnumbered neighbours eth1 and eth2 (lab ndr-unnsess, filed as live-capture in tests/fixtures/SOURCES.yml
+      by the oracle session; each capture log names the command). In this test's fake the read gets no answer, and
+      0.4.3 then records the stricter exact prefix count instead of a range, with a warning.
+    reviewed_by: "allow-review-043c: v0.4.2's copy passes on 0.4.3 with the same assertions; the only change is the new routes read, which the captures show is FRR's real answer shape"
+  - source: fixtures
+    case: "tests.oracles.FP-042-FRR102.test_oracle_fp_042_frr102::test_record_writes_both_prefixes_without_a_gap"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence:
+      - tests/oracles/FP-042-FRR102/test_oracle_fp_042_frr102.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+    why: >-
+      The test passes in both runs. It is flagged only for the new read. Its assertions (no gap for either prefix,
+      the learned route with AS path 65000 65002, the own-prefix guard) hold unchanged on 0.4.3. The candidate sends
+      one read the base never sent: vtysh -c "show bgp ipv4 unicast neighbors <ethN> routes json" for each FRR
+      BGP-unnumbered neighbour (leaf01 eth1 and eth2), because 0.4.3 records those sessions (a bgp_session check and
+      bgp_prefixes checks) where 0.4.2 only wrote a gap. The cited captures are live FRR 10.2.1 and 10.4.1 answers to
+      exactly that command for unnumbered neighbours eth1 and eth2 (lab ndr-unnsess, filed as live-capture in
+      tests/fixtures/SOURCES.yml by the oracle session; each capture log names the command). In this test's fake the
+      read gets no answer, and 0.4.3 then records the stricter exact prefix count instead of a range, with a warning.
+    reviewed_by: "allow-review-043c: v0.4.2's copy passes on 0.4.3 with the same assertions; the only change is the new routes read for leaf01 eth1 and eth2, which the captures show is FRR's real answer shape"
+  - source: fixtures
+    case: "tests.oracles.FP-042-UNNUMBERED.test_oracle_fp_042_unnumbered::test_unnumbered_fabric_link_is_named_not_a_gap"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence:
+      - tests/oracles/FP-042-UNNUMBERED/test_oracle_fp_042_unnumbered.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+    why: >-
+      The test passes in both runs. It is flagged only for the new read. Its assertions (eth1 named unnumbered on
+      both nodes, no link-subnet gap on eth1 or eth2) hold unchanged on 0.4.3. The candidate sends one read the base
+      never sent: vtysh -c "show bgp ipv4 unicast neighbors <ethN> routes json" for each FRR BGP-unnumbered neighbour
+      (leaf01 eth1 and eth2, spine01 eth1 to eth3), because 0.4.3 records those sessions (a bgp_session check and
+      bgp_prefixes checks) where 0.4.2 only wrote a gap. The cited captures are live FRR 10.2.1 and 10.4.1 answers to
+      exactly that command for unnumbered neighbours eth1 and eth2 (lab ndr-unnsess, filed as live-capture in
+      tests/fixtures/SOURCES.yml by the oracle session; each capture log names the command). In this test's fake the
+      read gets no answer, and 0.4.3 then records the stricter exact prefix count instead of a range, with a warning.
+    reviewed_by: "allow-review-043c: v0.4.2's copy passes on 0.4.3 with the same assertions; the only change is the new routes read, which the captures show is FRR's real answer shape"
+  - source: fixtures
+    case: "tests.test_oracle_guards_fp_042_unnsess::test_an_ordinary_address_still_reads_as_its_subnet"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence:
+      - tests/test_oracle_guards_fp_042_unnsess.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+    why: >-
+      The guard test is unchanged since v0.4.2 and passes in both runs. It is flagged only for the new read. Its
+      assertions (a global /31 on eth1 is guarded, eth1 not called unnumbered) hold unchanged. The candidate sends
+      one read the base never sent: vtysh -c "show bgp ipv4 unicast neighbors <ethN> routes json" for each FRR
+      BGP-unnumbered neighbour (leaf01 eth1 and eth2, spine01 eth1 to eth3), because 0.4.3 records those sessions (a
+      bgp_session check and bgp_prefixes checks) where 0.4.2 only wrote a gap. The cited captures are live FRR 10.2.1
+      and 10.4.1 answers to exactly that command for unnumbered neighbours eth1 and eth2 (lab ndr-unnsess, filed as
+      live-capture in tests/fixtures/SOURCES.yml by the oracle session; each capture log names the command). In this
+      test's fake the read gets no answer, and 0.4.3 then records the stricter exact prefix count instead of a range,
+      with a warning.
+    reviewed_by: "allow-review-043c: the unchanged guard passes on 0.4.3 with the same assertions; the only change is the new routes read, which the captures show is FRR's real answer shape"
+  - source: fixtures
+    case: "tests.test_oracle_guards_fp_042_unnsess::test_the_numbered_lan_keeps_its_guard"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence:
+      - tests/test_oracle_guards_fp_042_unnsess.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+    why: >-
+      The guard test is unchanged since v0.4.2 and passes in both runs. It is flagged only for the new read. Its
+      assertion (192.168.11.0/24 guarded on leaf01 and spine01) holds unchanged. The candidate sends one read the
+      base never sent: vtysh -c "show bgp ipv4 unicast neighbors <ethN> routes json" for each FRR BGP-unnumbered
+      neighbour (leaf01 eth1 and eth2, spine01 eth1 to eth3), because 0.4.3 records those sessions (a bgp_session
+      check and bgp_prefixes checks) where 0.4.2 only wrote a gap. The cited captures are live FRR 10.2.1 and 10.4.1
+      answers to exactly that command for unnumbered neighbours eth1 and eth2 (lab ndr-unnsess, filed as live-capture
+      in tests/fixtures/SOURCES.yml by the oracle session; each capture log names the command). In this test's fake
+      the read gets no answer, and 0.4.3 then records the stricter exact prefix count instead of a range, with a
+      warning.
+    reviewed_by: "allow-review-043c: the unchanged guard passes on 0.4.3 with the same assertions; the only change is the new routes read, which the captures show is FRR's real answer shape"
+  - source: fixtures
+    case: "tests.test_oracle_guards_fp_042_unnsess::test_the_unnumbered_link_is_still_named_and_unguarded"
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence:
+      - tests/test_oracle_guards_fp_042_unnsess.py
+      - tests/fixtures/unnsesschk1021_capture.txt
+      - tests/fixtures/unnsesschk1021_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1021_r2_eth2_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_capture.txt
+      - tests/fixtures/unnsesschk1041_r2_eth1_ipv4_routes_up.json
+      - tests/fixtures/unnsesschk1041_r2_eth2_ipv4_routes_up.json
+    why: >-
+      The guard test is unchanged since v0.4.2 and passes in both runs. It is flagged only for the new read. Its
+      assertion (eth1 named as BGP unnumbered on both nodes) holds unchanged. The candidate sends one read the base
+      never sent: vtysh -c "show bgp ipv4 unicast neighbors <ethN> routes json" for each FRR BGP-unnumbered neighbour
+      (leaf01 eth1 and eth2, spine01 eth1 to eth3), because 0.4.3 records those sessions (a bgp_session check and
+      bgp_prefixes checks) where 0.4.2 only wrote a gap. The cited captures are live FRR 10.2.1 and 10.4.1 answers to
+      exactly that command for unnumbered neighbours eth1 and eth2 (lab ndr-unnsess, filed as live-capture in
+      tests/fixtures/SOURCES.yml by the oracle session; each capture log names the command). In this test's fake the
+      read gets no answer, and 0.4.3 then records the stricter exact prefix count instead of a range, with a warning.
+    reviewed_by: "allow-review-043c: the unchanged guard passes on 0.4.3 with the same assertions; the only change is the new routes read, which the captures show is FRR's real answer shape"
