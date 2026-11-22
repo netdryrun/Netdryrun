@@ -390,7 +390,7 @@ def test_run_py_records_run_details_and_a_crash_without_losing_the_other_runs(mo
     run_py = _run_py()
     calls, written = [], []
 
-    def evaluate(case, root, keep, corpus):
+    def evaluate(case, root, keep, corpus, evidence=None):
         calls.append(keep)
         if len(calls) == 2:
             raise RuntimeError("deploy failed")
@@ -416,6 +416,7 @@ def test_run_py_records_run_details_and_a_crash_without_losing_the_other_runs(mo
     assert [r["netdryrun"] for r in row["runs"]] == ["unsafe", "error", "unsafe", "unsafe", "unsafe"]
     assert [d["netdryrun"]["status"] for d in row["run_details"]] == ["failed", "error", "failed", "failed", "failed"]
     assert row["run_details"][1]["netdryrun"]["error"] == "RuntimeError: deploy failed"
+    assert row["run_details"][1]["import_check"]["error"].startswith("not reached")   # a crashed run keeps a record
     assert row["run_details"][0]["netdryrun"]["passed_checks"] == I5
     # the gate reads exactly this shape: the crash is red
     assert any("run 2 netdryrun: error (RuntimeError" in x
@@ -491,7 +492,9 @@ def test_evaluate_run_records_a_crash_as_error_for_every_strategy(monkeypatch, t
     monkeypatch.setattr(run_py, "evaluate", lambda *a: (_ for _ in ()).throw(RuntimeError("deploy failed")))
     row = run_py.evaluate_run({"id": CID, "expected": "unsafe"}, tmp_path, False, run_py.CORPORA["v2"])
     assert {s["status"] for s in row["strategies"].values()} == {"error"}
-    assert {d["error"] for d in row["_details"].values()} == {"RuntimeError: deploy failed"}
+    assert {row["_details"][s]["error"] for s in run_py.STRATEGIES} == {"RuntimeError: deploy failed"}
+    assert row["import_check"] == row["_details"]["import_check"] == {
+        "routers": {}, "error": "not reached: the run stopped before the import check (RuntimeError: deploy failed)"}
 
     def case_error(*a):
         raise run_py.CaseError("bad case file")

@@ -21,7 +21,7 @@ import pytest
 
 import netdryrun
 from netdryrun.drivers import frr_import_check as ic
-from netdryrun.lab import ExecResult, Node
+from netdryrun.lab import ExecResult, LabError, Node
 from netdryrun.runner import driver_resolver
 
 from test_frr_import_check import EMPTY_JSON, EMPTY_TEXT, REMEDIED_JSON, REMEDIED_TEXT
@@ -225,3 +225,62 @@ def test_run_py_from_a_scratch_copy_remedies_as_the_release_gate_runs_it(tmp_pat
     out = r.stdout.split("RESULT ")[0]
     assert "   ping=safe  sessions=safe  netdryrun=safe" in out
     assert '"import_check"' in out and "remedied: 192.0.2.0/24" in out
+
+
+class CrashLab(FakeLab):
+    """`exec` on pe1 fails the way a dead container does (docker exec fails), so the remedy itself crashes."""
+
+    def exec(self, node, argv, timeout=60, input=None):
+        if node == "pe1":
+            raise LabError("docker exec failed")
+        return super().exec(node, argv, timeout, input)
+
+
+def _evaluate_run(monkeypatch, tmp_path, lab, run=None, module="corpus_run_ic_crash"):
+    mod = _load(ROOT / "corpus" / "run.py", module)
+    monkeypatch.setattr(mod, "Lab", lambda topology: lab)
+    monkeypatch.setattr(mod, "run", run or fake_run(lab, []))
+    (case,) = mod.load_cases(CASE[:2], ROOT / "corpus" / "v2")
+    return mod, mod.evaluate_run(case, tmp_path / "work", False, ROOT / "corpus" / "v2")
+
+
+def _crash_record(mod, row):
+    for s in mod.STRATEGIES:
+        assert row["strategies"][s]["status"] == "error"
+        assert row["_details"][s]["status"] == "error"
+    assert row["_details"]["import_check"] == row["import_check"]
+    return row["import_check"]
+
+
+def test_a_remedy_that_crashes_still_records_the_import_check(monkeypatch, tmp_path):
+    """A crash inside the remedy (a LabError from lab.exec) is the run that most needs its evidence: the row and that
+    run's details both record the import check with the crash, never no record at all."""
+    lab = CrashLab()
+    mod, row = _evaluate_run(monkeypatch, tmp_path, lab)
+    rec = _crash_record(mod, row)
+    assert rec["routers"] == {}
+    assert "crashed" in rec["error"] and "LabError: docker exec failed" in rec["error"]
+    assert lab.events == ["deploy", "destroy"]
+
+
+def test_a_crash_before_the_remedy_records_that_the_import_check_was_not_reached(monkeypatch, tmp_path):
+    lab = FakeLab()
+
+    def deploy():
+        raise LabError("containerlab deploy failed")
+    lab.deploy = deploy
+    mod, row = _evaluate_run(monkeypatch, tmp_path, lab, module="corpus_run_ic_crash2")
+    rec = _crash_record(mod, row)
+    assert rec["routers"] == {} and "not reached" in rec["error"] and "containerlab deploy failed" in rec["error"]
+
+
+def test_a_crash_after_the_remedy_keeps_what_the_remedy_found(monkeypatch, tmp_path):
+    lab = FakeLab()
+
+    def run(config, **kw):
+        raise LabError("docker exec failed")
+    mod, row = _evaluate_run(monkeypatch, tmp_path, lab, run=run, module="corpus_run_ic_crash3")
+    rec = _crash_record(mod, row)
+    assert rec["routers"]["pe1"].startswith("remedied") and rec["routers"]["pe2"] == "registered"
+    assert rec["error"] is None   # the import check itself was fine; the crash is in every strategy's error
+    assert "LabError: docker exec failed" in row["strategies"]["netdryrun"]["error"]

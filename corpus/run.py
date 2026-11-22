@@ -93,7 +93,11 @@ def build_workdir(case: dict, root: Path, corpus: Path = HERE) -> tuple[Path, li
     return work, diff
 
 
-def evaluate(case: dict, root: Path, keep: bool, corpus: Path = HERE) -> dict:
+def evaluate(case: dict, root: Path, keep: bool, corpus: Path = HERE, evidence: dict | None = None) -> dict:
+    """One run of a case. `evidence` (evaluate_run's) receives the import-check record as soon as it is known, so a
+    run that crashes still records it: "not reached" until the remedy runs, the crash if the remedy itself crashes."""
+    evidence = {} if evidence is None else evidence
+    evidence["import_check"] = {"routers": {}, "error": "not reached: the run stopped before the import check"}
     work, diff = build_workdir(case, root, corpus)
     lab = Lab(work / "topology.clab.yml")
     row = {k: case.get(k) for k in ("id", "title", "category", "expected", "rationale", "source", "note")}
@@ -105,9 +109,22 @@ def evaluate(case: dict, root: Path, keep: bool, corpus: Path = HERE) -> dict:
         row["strategies"], row["_details"] = {}, {}
         # Before any strategy: the harness deployed this lab, so it remedies a stuck import check as `netdryrun run`
         # does on a lab it deploys. Recorded in the row (results.json) and in the run's details (run_details)
-        found, problem = remedy_import_check(lab, configs)
+        try:
+            found, problem = remedy_import_check(lab, configs)
+        except CaseError:
+            raise
+        except Exception as e:   # recorded, then raised again: a crash in the remedy is still a crash
+            evidence["import_check"] = {"routers": {}, "error": f"the import-check remedy crashed: {type(e).__name__}: {e}"}
+            raise
         row["import_check"] = {"routers": found, "error": problem}
+        evidence["import_check"] = {"routers": dict(found), "error": problem}
         row["_details"]["import_check"] = {"routers": dict(found), "error": problem}
+        # A router that can't be checked is status error here, not the inconclusive the product's runner reports for
+        # the same gap. Kept on purpose: the release gate turns any error red (status_problems, and the
+        # nondeterministic rules), while a deterministic inconclusive is only compared with the committed result and
+        # an earlier committed "error" verdict may match it. The harness's own lab not being checkable is a harness
+        # or environment failure, so it must stay red, never a "proved nothing" that can pass a comparison. Neither
+        # status counts as correct (verdict "error" either way).
         if problem is not None:   # the lab can't be judged: every strategy is an error, never a verdict
             rec = {"verdict": "error", "status": "error", "correct": False, "failed_checks": [], "error": problem}
             det = {"status": "error", "failed_checks": [], "passed_checks": [], "inconclusive_reason": None,
@@ -269,8 +286,9 @@ def evaluate_run(case: dict, root: Path, keep: bool, corpus: Path) -> dict:
     """One run of a nondeterministic case. A crash (anything but a case-file error or an interrupt) is recorded as status
     "error" for every strategy, with its message, so the other runs still finish and the gate sees it (red). Only
     nondeterministic cases come here: a deterministic case's crash still stops the whole run (exit not 0), as before."""
+    evidence: dict = {}
     try:
-        return evaluate(case, root, keep, corpus)
+        return evaluate(case, root, keep, corpus, evidence)
     except CaseError:
         raise
     except Exception as e:   # noqa: BLE001 - recorded, never swallowed: status "error" fails every gate rule
@@ -279,8 +297,14 @@ def evaluate_run(case: dict, root: Path, keep: bool, corpus: Path) -> dict:
         det = {"status": "error", "failed_checks": [], "passed_checks": [], "inconclusive_reason": None,
                "never_left": False, "error": msg}
         row = {k: case.get(k) for k in ("id", "title", "category", "expected", "rationale", "source", "note")}
-        row.update(edits=[], seconds=0, strategies={s: dict(rec) for s in STRATEGIES},
-                   _details={s: dict(det) for s in STRATEGIES})
+        # the import check as far as this run got (never absent: the run that crashed most needs its evidence)
+        ic = evidence.get("import_check") or {"routers": {}, "error": "not reached: the run stopped before the import check"}
+        if str(ic.get("error") or "").startswith("not reached"):
+            ic = {"routers": {}, "error": f"{ic['error']} ({msg})"}
+        details = {s: dict(det) for s in STRATEGIES}
+        details["import_check"] = {"routers": dict(ic["routers"]), "error": ic["error"]}
+        row.update(edits=[], seconds=0, strategies={s: dict(rec) for s in STRATEGIES}, _details=details,
+                   import_check={"routers": dict(ic["routers"]), "error": ic["error"]})
         return row
 
 
