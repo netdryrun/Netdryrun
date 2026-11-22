@@ -59,7 +59,7 @@ For an AI agent, the same steps run as one `dry_run` tool call before it applies
 </div>
 
 !!! info "Before you start"
-    Linux or WSL2, Docker and containerlab. A small FRR lab takes about a minute once images are pulled. A pass covers only the checks in your file, in the lab. Apache-2.0, first released in October 2026: we're looking for the first outside engineers to try it on a real change ([free help](design-partners.md)). Known limit in 0.3.3 and 0.4.0: a baseline from `netdryrun record` lets a leak of one or two extra prefixes pass; record with `--exact-prefixes` until 0.4.1 ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)).
+    Linux or WSL2, Docker and containerlab. A small FRR lab takes about a minute once images are pulled. A pass covers only the checks in your file, in the lab. Apache-2.0, first released in October 2026. Before each release, every example lab runs live on the built package, on every supported network OS ([how it's tested](how-its-built.md)). For help testing one of your own changes, see [design partners](design-partners.md). Known limit in 0.3.3 and 0.4.0: a baseline from `netdryrun record` lets a leak of one or two extra prefixes pass; record with `--exact-prefixes` until 0.4.1 ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)).
 
 ## What Netdryrun is
 

@@ -40,7 +40,7 @@ Facts (generated from the source): version 0.4.2; check types `bgp_session`, `bg
 <!-- facts:llms_corpus -->
 - [Verdict corpus](https://netdryrun.com/corpus/): 30 realistic BGP changes with pre-registered verdicts; Netdryrun 24/30, ping-only 20/30, sessions-up 15/30 correct
 <!-- /facts:llms_corpus -->
-- [How it's built](https://netdryrun.com/how-its-built/): how results are checked and released, with evidence links; what is not claimed
+- [How it's built](https://netdryrun.com/how-its-built/): how it is tested and released, with evidence links: real labs in CI on every push, every example lab live on every supported network OS before each release, the pre-registered corpus, and what is not claimed
 
 ## Elsewhere
 

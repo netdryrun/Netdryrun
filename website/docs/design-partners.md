@@ -5,7 +5,7 @@ description: Free help testing one of your real network changes with Netdryrun, 
 
 # Design partners
 
-Netdryrun was first released in October 2026, and we're looking for the first outside engineers to try it on a real change. We want it shaped by real changes, not guesses. If you have a routing change coming up, we'll help you test it in a lab, for free, in exchange for honest feedback.
+Netdryrun was first released in October 2026. Before each release, every example lab runs live on every supported network OS, and every false pass we have found is published as an advisory ([how it's tested](how-its-built.md), [advisories](trust.md#reporting-a-security-issue)). Design partners help decide what comes next by testing their own real changes. If you have a routing change coming up, we'll help you test it in a lab, for free, in exchange for honest feedback.
 
 ## What you get
 

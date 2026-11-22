@@ -15,6 +15,7 @@ A tool that approves network changes has to earn trust with evidence, not claims
 | Expected verdicts fixed before any run | Committed first, never edited: [`b4df0b0`](https://github.com/netdryrun/Netdryrun/commit/b4df0b0) (v1), [`322cc4e`](https://github.com/netdryrun/Netdryrun/commit/322cc4e) (v2) |
 | Results you can rerun | One command locally (`python corpus/run.py`, `--corpus v2` for v2). The [Reproduce corpus](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/reproduce-corpus.yml) workflow reruns v1 from your own fork; it has not been run on GitHub yet |
 | Real labs on every change | FRR and Nokia SR Linux labs boot in CI on every push and pull request ([runs](https://github.com/netdryrun/Netdryrun/actions/workflows/ci.yml)) |
+| Every supported network OS before each release | The release gate installs the built package and runs every example lab live, on every supported network OS, plus both corpus versions; a changed result blocks the release ([how the gate works](https://github.com/netdryrun/Netdryrun/blob/main/RELEASING.md)) |
 | What users install is tested too | The released Action and the PyPI package, on every push and weekly ([`published-action.yml`](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/published-action.yml)) |
 | Supply chain | PyPI Trusted Publishing, CodeQL, OpenSSF Scorecard, every Action pinned to a commit |
 | Losses | Published next to the wins, never removed |
@@ -71,7 +72,7 @@ A second workflow, [`published-action.yml`](https://github.com/netdryrun/Netdryr
 
 SONiC and Arista EOS are not in CI yet (cEOS is an image each user downloads from Arista). Their unit tests parse output captured from real lab runs ([`tests/fixtures`](https://github.com/netdryrun/Netdryrun/tree/main/tests/fixtures)).
 
-Every release also goes through a seven-layer release gate, from linting and mutation testing of the verdict logic to chaos runs on the built package, described in [RELEASING.md](https://github.com/netdryrun/Netdryrun/blob/main/RELEASING.md); from the next release on, each release's results are committed in `releases/<version>/GATE.md`.
+Every release also goes through a seven-layer release gate, from linting and mutation testing of the verdict logic to chaos runs on the built package, described in [RELEASING.md](https://github.com/netdryrun/Netdryrun/blob/main/RELEASING.md). Its live layer installs the built package and runs every example lab, on every supported network OS, and both corpus versions; every result must match the documented one. Each release's results are committed in `releases/<version>/GATE.md`.
 
 ## Performance on a 20-node fabric
 

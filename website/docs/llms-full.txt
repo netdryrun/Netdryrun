@@ -69,7 +69,7 @@ For an AI agent, the same steps run as one `dry_run` tool call before it applies
 </div>
 
 !!! info "Before you start"
-    Linux or WSL2, Docker and containerlab. A small FRR lab takes about a minute once images are pulled. A pass covers only the checks in your file, in the lab. Apache-2.0, first released in October 2026: we're looking for the first outside engineers to try it on a real change ([free help](design-partners.md)). Known limit in 0.3.3 and 0.4.0: a baseline from `netdryrun record` lets a leak of one or two extra prefixes pass; record with `--exact-prefixes` until 0.4.1 ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)).
+    Linux or WSL2, Docker and containerlab. A small FRR lab takes about a minute once images are pulled. A pass covers only the checks in your file, in the lab. Apache-2.0, first released in October 2026. Before each release, every example lab runs live on the built package, on every supported network OS ([how it's tested](how-its-built.md)). For help testing one of your own changes, see [design partners](design-partners.md). Known limit in 0.3.3 and 0.4.0: a baseline from `netdryrun record` lets a leak of one or two extra prefixes pass; record with `--exact-prefixes` until 0.4.1 ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.0-record-prefix-range/README.md)).
 
 ## What Netdryrun is
 
@@ -1790,7 +1790,7 @@ The agent did not make the tempting leaky change, so this run did not show Netdr
 
 ## Measured: ten tickets worked unattended
 
-One good run is an anecdote, so on 2026-10-27 we measured. [`examples/agent-eval`](https://github.com/netdryrun/Netdryrun/tree/main/examples/agent-eval) has ten tickets on the two FRR example labs: changes to make, colleagues' changes to review (some fine, some leaking routes or setting the wrong attribute while sessions and pings stay up), a request that is itself a route leak, and one broken lab. Each has a hidden grader. The expected answers were [pre-registered](https://github.com/netdryrun/Netdryrun/blob/main/examples/agent-eval/PREREGISTRATION.md) before anything ran. A fresh headless Claude Code agent worked each ticket alone, with only `AGENTS.md`, this page and the MCP tools: no shell, no project memory, no human.
+One good run is an anecdote, so on 2026-10-27 we measured. [`examples/agent-eval`](https://github.com/netdryrun/Netdryrun/tree/main/examples/agent-eval) has ten tickets on the two FRR example labs: changes to make, colleagues' changes to review (some fine, some leaking routes or setting the wrong attribute while sessions and pings stay up), a request that is itself a route leak, and one broken lab. Each has a hidden grader. The expected answers were [pre-registered](https://github.com/netdryrun/Netdryrun/blob/main/examples/agent-eval/PREREGISTRATION.md) before anything ran. A fresh headless Claude Code agent worked each ticket alone, with only `AGENTS.md`, this page and the MCP tools: no shell, no project memory and no human input during the run. That describes this eval's setup only.
 
 | Agent (Claude Code 2.1.116) | Netdryrun | Solved | Misses |
 |---|---|---|---|
@@ -5141,6 +5141,7 @@ A tool that approves network changes has to earn trust with evidence, not claims
 | Expected verdicts fixed before any run | Committed first, never edited: [`b4df0b0`](https://github.com/netdryrun/Netdryrun/commit/b4df0b0) (v1), [`322cc4e`](https://github.com/netdryrun/Netdryrun/commit/322cc4e) (v2) |
 | Results you can rerun | One command locally (`python corpus/run.py`, `--corpus v2` for v2). The [Reproduce corpus](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/reproduce-corpus.yml) workflow reruns v1 from your own fork; it has not been run on GitHub yet |
 | Real labs on every change | FRR and Nokia SR Linux labs boot in CI on every push and pull request ([runs](https://github.com/netdryrun/Netdryrun/actions/workflows/ci.yml)) |
+| Every supported network OS before each release | The release gate installs the built package and runs every example lab live, on every supported network OS, plus both corpus versions; a changed result blocks the release ([how the gate works](https://github.com/netdryrun/Netdryrun/blob/main/RELEASING.md)) |
 | What users install is tested too | The released Action and the PyPI package, on every push and weekly ([`published-action.yml`](https://github.com/netdryrun/Netdryrun/blob/main/.github/workflows/published-action.yml)) |
 | Supply chain | PyPI Trusted Publishing, CodeQL, OpenSSF Scorecard, every Action pinned to a commit |
 | Losses | Published next to the wins, never removed |
@@ -5197,7 +5198,7 @@ A second workflow, [`published-action.yml`](https://github.com/netdryrun/Netdryr
 
 SONiC and Arista EOS are not in CI yet (cEOS is an image each user downloads from Arista). Their unit tests parse output captured from real lab runs ([`tests/fixtures`](https://github.com/netdryrun/Netdryrun/tree/main/tests/fixtures)).
 
-Every release also goes through a seven-layer release gate, from linting and mutation testing of the verdict logic to chaos runs on the built package, described in [RELEASING.md](https://github.com/netdryrun/Netdryrun/blob/main/RELEASING.md); from the next release on, each release's results are committed in `releases/<version>/GATE.md`.
+Every release also goes through a seven-layer release gate, from linting and mutation testing of the verdict logic to chaos runs on the built package, described in [RELEASING.md](https://github.com/netdryrun/Netdryrun/blob/main/RELEASING.md). Its live layer installs the built package and runs every example lab, on every supported network OS, and both corpus versions; every result must match the documented one. Each release's results are committed in `releases/<version>/GATE.md`.
 
 ## Performance on a 20-node fabric
 
@@ -5848,7 +5849,7 @@ Source: https://netdryrun.com/design-partners/
 
 # Design partners
 
-Netdryrun was first released in October 2026, and we're looking for the first outside engineers to try it on a real change. We want it shaped by real changes, not guesses. If you have a routing change coming up, we'll help you test it in a lab, for free, in exchange for honest feedback.
+Netdryrun was first released in October 2026. Before each release, every example lab runs live on every supported network OS, and every false pass we have found is published as an advisory ([how it's tested](how-its-built.md), [advisories](trust.md#reporting-a-security-issue)). Design partners help decide what comes next by testing their own real changes. If you have a routing change coming up, we'll help you test it in a lab, for free, in exchange for honest feedback.
 
 ## What you get
 
