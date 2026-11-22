@@ -229,7 +229,17 @@ def case_page(r: dict, env: dict, checks: dict) -> str:
     nd = r["strategies"]["netdryrun"]
     spec = f"[intent spec]({REPO}/blob/main/corpus/specs/intent.yml)"
     lines += ["", "## What Netdryrun flagged", ""]
-    if nd["failed_checks"]:
+    if nd["verdict"] == "error":
+        # An error is neither a pass nor a block: never describe it as "every check passed".
+        if nd.get("error"):
+            lines.append(f"Nothing was judged: the run stopped before the checks ({nd['error']}). "
+                         "Netdryrun neither approved nor blocked the change.")
+        else:
+            lines.append("Nothing was judged: the run was inconclusive. Netdryrun neither approved nor blocked the change.")
+        if nd["failed_checks"]:
+            lines += ["", f"These checks from the {spec} could not be proven:", ""]
+            lines += [f"- **{c}**: {checks['netdryrun'].get(c, '')}" for c in nd["failed_checks"]]
+    elif nd["failed_checks"]:
         lines += [f"These checks from the {spec} failed:", ""]
         lines += [f"- **{c}**: {checks['netdryrun'][c]}" for c in nd["failed_checks"]]
     else:
