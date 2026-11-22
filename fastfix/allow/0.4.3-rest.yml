@@ -1,0 +1,29 @@
+flips:
+  - source: gate
+    case: scripts/surfaces_agree.py@15990540b1e6
+    from: FAIL
+    to: PASS
+    evidence: [releases/0.4.3/adv-043-rest-probes.txt]
+    why: >-
+      The after-publish surfaces check no longer blocks on the LobeHub listing: a stale or unreadable LobeHub page is
+      printed as a WARN line on every run instead of a problem. Looser for that one surface only, by design: LobeHub is
+      a third-party mirror of the MCP Registry that we can't update, stale at 0.3.1 since 0.3.x, and it was the only
+      DISAGREE in 0.4.2's after-publish run (releases/0.4.2/GATE.md), so it blocked every release while guarding no
+      verdict. The surfaces we publish to (the GitHub description, PyPI, the MCP Registry's latest entry, which
+      LobeHub copies, and llms.txt) still block and still fail closed on a read error; v0.4.2's tests fail only
+      because they asserted LobeHub was red. No verdict code is touched.
+    reviewed_by: "adv-043-rest: only the LobeHub listing, a third-party Registry mirror we can't update, moves from a problem to a printed WARN; GitHub, PyPI, the MCP Registry and llms.txt still block and still fail closed on a read error (probed), and no verdict code is touched."
+  - source: fixtures
+    case: "tests.oracles.FP-042-UNNSESS.test_oracle_fp_042_unnsess::test_every_unnumbered_neighbor_is_recorded_or_a_named_gap"
+    from: FAIL
+    to: PASS
+    evidence: [releases/0.4.3/adv-043-rest-probes.txt]
+    why: >-
+      v0.4.2's oracle asserted that record always leaves a named gap for an FRR BGP-unnumbered session, because in
+      0.4.2 a gap was the only honest outcome. 0.4.3 records those sessions instead: a bgp_session check and
+      bgp_prefixes checks per unnumbered neighbour, judged like a numbered session, so on the captured fabric there is
+      no gap left and only that last assertion fails; the one before it (every neighbour is recorded or a named gap)
+      still holds. Stricter for the user: the recorded checks fail when the session goes idle or disappears (probe P1 on
+      the captured FRR 10.2.1 fabric), while other drivers, keys that aren't interface names and down sessions keep the
+      named gap (P2 to P4). The 0.4.3 oracle requires a gap only for a session that isn't recorded.
+    reviewed_by: "adv-043-rest: v0.4.2's oracle demanded a gap unconditionally; 0.4.3 records a bgp_session and bgp_prefixes check for every FRR unnumbered session, and those checks fail when the session goes idle or disappears (probed), while other drivers, keys that aren't interface names and down sessions keep the named gap, and the FP-043-UNNSESSCHK and FP-042-UNNSESS plants are both caught."
