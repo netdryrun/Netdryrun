@@ -686,7 +686,7 @@ HISTORIC_TITLE = "a historic record waives only exact lines about its own commit
 NAMING_BRIDGE = {"0.4.3": "61cd95de8b5446d6adf24deda43f9bfb6957ee20"}     # v0.4.2
 GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/workflows/release-gate.yml",
               "scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py",
-              "scripts/fastfix_cmdlog.py")   # as fastfix_gate.py
+              "scripts/fastfix_cmdlog.py", "tests/fakes.py")   # as fastfix_gate.py
 ALLOW_DIR = "fastfix/allow"
 BRIDGE_BARE = re.compile(r"BLOCKED loosening flip with no reviewed allowlist entry: gate :: (?P<path>[^\s@]+): "
                          r"FAIL -> PASS")

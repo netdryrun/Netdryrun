@@ -1028,7 +1028,8 @@ def test_a_symlink_in_an_oracle_folder_blocks(repo):
 
 
 @needs_git
-@pytest.mark.parametrize("gate_file", ["scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py"])
+@pytest.mark.parametrize("gate_file", ["scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py",
+                                       "scripts/fastfix_cmdlog.py", "tests/fakes.py"])
 def test_every_gate_script_is_a_flip_once_the_base_has_the_gate(repo, gate_file):
     """GPT: GATE_FILES left out the records, labrun and surfaces scripts, so a change there needed no review."""
     repo.write("scripts/fastfix_gate.py", "# the judge\n")
@@ -2163,6 +2164,7 @@ def test_the_plugin_runs_the_judges_own_logging_code(tmp_path):
     assert (d / f"{ffg.CMDLOG_FAKES_MODULE}.py").read_bytes() == (SCRIPT.parents[1] / "tests" / "fakes.py").read_bytes()
     assert (d / f"{ffg.CMDLOG_MODULE}.py").read_bytes() == (SCRIPT.parent / "fastfix_cmdlog.py").read_bytes()
     assert "scripts/fastfix_cmdlog.py" in ffg.GATE_FILES      # a change to it is a gate flip
+    assert "tests/fakes.py" in ffg.GATE_FILES                 # and to the logging code it runs
 
 
 def _plugin_run(tree: Path, work: Path, log: Path, cmdlog: Path) -> "ffg.PytestRun":
@@ -2184,6 +2186,56 @@ def test_the_gates_log_is_byte_stable_across_two_runs_of_one_tree(tmp_path):
     (tree / "src/toy/drivers.py").write_text(NEW_READ_DRIVER, encoding="utf-8")
     _plugin_run(tree, tmp_path / "w2", log, cmdlog)
     assert b"show bgp neighbors" in log.read_bytes() and log.read_bytes() != texts[0]
+
+
+FAN_OUT = textwrap.dedent('''\
+    import random
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+
+    def fan_out(lab, commands):
+        def one(c):
+            time.sleep(random.random() / 50)
+            return lab.exec("r1", ["vtysh", "-c", c])
+        with ThreadPoolExecutor(8) as pool:
+            return list(pool.map(lambda c: one(c), commands))
+    ''')
+FAN_TEST = textwrap.dedent('''\
+    from toy.fan import fan_out
+
+
+    class AnyLab:
+        def exec(self, node, cmd):
+            return "ok"
+
+
+    def test_threads_reach_the_fake_in_any_order():
+        assert fan_out(AnyLab(), [f"show bgp vrf v{i}" for i in range(24)]) == ["ok"] * 24
+    ''')
+
+
+def test_the_gates_log_is_byte_stable_when_threads_reach_the_fakes_in_any_order(tmp_path):
+    """Adversary: on v0.4.2 a thread-pool test logged its rows in a different order on each run, so the raw log
+    differed while the per-test sets agreed. The plugin sorts each test's rows before the run ends."""
+    tree = tmp_path / "tree"
+    _logless(tree)
+    (tree / "src/toy/fan.py").write_text(FAN_OUT, encoding="utf-8")
+    (tree / "tests/test_fan.py").write_text(FAN_TEST, encoding="utf-8")
+    cmdlog = ffg.install_cmdlog(tmp_path / "cmdlog")
+    log = tmp_path / "cmd.jsonl"
+    texts = []
+    for i in range(3):
+        run = ffg.run_pytest(tree, ["tests/test_fan.py", "tests/test_redteam.py"], sys.executable,
+                             tmp_path / f"w{i}", log, cmdlog)
+        assert run.code == 0, run.output
+        texts.append(log.read_bytes())
+    lines = texts[0].decode("utf-8").splitlines()
+    rows = [json.loads(ln) for ln in lines]
+    fan = [ln for ln, r in zip(lines, rows) if r["test"].endswith("test_threads_reach_the_fake_in_any_order")]
+    assert len(fan) == 24 and fan == sorted(fan), fan                     # every thread's read, in a fixed order
+    assert [r["test"] for r in rows] == sorted((r["test"] for r in rows), key=[r["test"] for r in rows].index)
+    assert texts[0] == texts[1] == texts[2]
 
 
 def test_nothing_in_the_tree_shadows_the_plugin_and_it_shadows_nothing(tmp_path):

@@ -97,7 +97,7 @@ SURFACES = ("action.yml", "templates")
 # the gate's own files: once the base has the gate, changing any of them is a flip that needs a reviewed allowlist entry
 # (Layer 6 on f220469: the attempt records, labrun and the surfaces check were left out)
 GATE_FILES = ("scripts/fastfix_gate.py", "scripts/release_gate.py", ".github/workflows/release-gate.yml",
-              "scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py", "scripts/fastfix_cmdlog.py")
+              "scripts/gate_records.py", "scripts/labrun.py", "scripts/surfaces_agree.py", "scripts/fastfix_cmdlog.py", "tests/fakes.py")
 
 
 # a fixture flip whose cause is a command the code under test now sends to the device: the fake lab refused it
