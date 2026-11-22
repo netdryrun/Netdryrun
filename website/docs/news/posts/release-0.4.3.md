@@ -24,7 +24,7 @@ categories:
 
 Known limits in 0.4.3, each with a workaround on the [trust page](../../trust.md):
 
-- **SR Linux EVPN ip-vrfs without PE-CE BGP:** `bgp_route` checks there come out not evaluated (a failure, never a pass), because the convergence gate can't read SR Linux's EVPN BGP state yet. Use a `route` check with `protocol: bgp` in the ip-vrf.
+- **SR Linux EVPN ip-vrfs without PE-CE BGP:** `bgp_route` checks there come out not evaluated (a failure, never a pass), because the convergence gate can't read SR Linux's EVPN BGP state yet. For positive checks, use a `route` check with `protocol: bgp` in the ip-vrf. With a PE-CE BGP session in the ip-vrf, the gate waits for that session only and warns (`gate-unreadable`) that it couldn't read the EVPN sessions: a negative or attribute check can then pass before an EVPN route arrives, so treat a pass with that warning as unconfirmed. Both are planned for 0.4.4.
 - **The import-check reset** can briefly announce an unbacked prefix to a peer. It wasn't seen in 3 live tries, but the timing isn't guaranteed. SONiC gets the same check, but it hasn't been run against a live SONiC lab yet.
 - **An unresolved static route on Arista EOS** is in no EOS read, so `protocol: static present: false` passes on EOS where FRR fails it.
 - The other limits 0.4.2 listed as not fixed are still open, among them the node's own exported prefix on SR Linux and Junos, the EOS `out-delay`, the NX-OS FIB state, and a route that takes one advertisement interval per hop. The [CHANGELOG](https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md) lists them all.

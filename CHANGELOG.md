@@ -32,8 +32,14 @@
 - **SR Linux EVPN: `bgp_route` checks in a type-5 ip-vrf without PE-CE BGP come out not evaluated** (fail-closed,
   never a pass). `netdryrun check`'s convergence gate can't read SR Linux's EVPN BGP state in the default
   network-instance, so on a leaf whose only BGP is EVPN it never sees BGP converge, and post-convergence checks there
-  are not evaluated. The driver reads the paths (see Fixed); the gate needs its own oracle and fix. Workaround: a
-  `route` check with `protocol: bgp` in the ip-vrf, or a PE-CE BGP session in it.
+  are not evaluated. The driver reads the paths (see Fixed); the gate needs its own oracle and fix (planned for
+  0.4.4). Positive checks have a workaround: `route` with `protocol: bgp` in the ip-vrf. Negative and attribute
+  checks there have none in 0.4.3.
+- **SR Linux EVPN with a PE-CE BGP session in the ip-vrf: the gate doesn't wait for the EVPN sessions.** It waits for
+  the ip-vrf's own PE-CE sessions and warns that the default network-instance's BGP state could not be read
+  (`gate-unreadable`), then judges the check. A `present: false` or attribute check there can pass before an EVPN
+  route has arrived. Treat a pass that carries this warning as unconfirmed. 0.4.2 and earlier didn't wait either
+  (and read the imported route wrongly, see Fixed). Fix planned for 0.4.4.
 - **Not fixed in 0.4.3, carried over from 0.4.2** (each with the workaround given under "Not fixed in 0.4.2"
   below, on the trust page or in the configuration reference): a path rejected for AS-loop on SR Linux (an error,
   not a pass); no `::/0` guard from `record` on cEOS with IPv6 routing off; the node's own exported prefix on SR
