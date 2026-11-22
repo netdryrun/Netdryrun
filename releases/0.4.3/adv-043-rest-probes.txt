@@ -1,0 +1,270 @@
+Probe evidence for review fastfix/reviews/adv-043-rest.md (reviewer session adv-043-rest), 2026-11-22.
+
+Flips covered (from the 0.4.3 gate's dominance run against v0.4.2 = 61cd95de8b54):
+  gate :: scripts/surfaces_agree.py@15990540b1e6: FAIL -> PASS
+  fixtures :: tests.oracles.FP-042-UNNSESS.test_oracle_fp_042_unnsess::test_every_unnumbered_neighbor_is_recorded_or_a_named_gap: FAIL -> PASS
+
+Where: WSL Ubuntu-ndr, clone of github.com/netdryrun/Netdryrun at the review commit f069298 (main c8795b1 plus the
+review record; src/ is main's), shared venv ~/.venvs/netdryrun. Every command below was run once, in this order, by
+one script, and its output is pasted verbatim. Trims: none in the output, except that the probe itself prints only
+the first 160 characters of each P2 gap line and the first 100 of each P1 detail (see the probe source). The last
+command prints the scalar fields of the plants JSON and the two oracles' entries. "[exit N]" is the exit status of the last command
+on the line: for the two lines that end in `; cd ~/adv-043-rest` it is the cd, not pytest (the pytest result is its
+summary line).
+
+Probes for flip 1 (surfaces_agree): test_sa_probe.py
+  - each blocking surface unreadable (OSError): 1 problem, 0 warnings (READERR lines)
+  - stale MCP Registry (latest 0.4.1) plus stale LobeHub (0.3.1): Registry a problem, LobeHub a warning (REG line)
+  - main(["published", "--version", "0.4.2"]) with only LobeHub stale: exit 0 and the WARN line (MAIN lines)
+Probes for flip 2 (FP-042-UNNSESS): v0.4.2 test file run from a v0.4.2 worktree with PYTHONPATH=<main>/src;
+test_unnsess_probe.py P1 to P4; the current oracles; each plant applied by hand; fastfix_gate.py plants.
+
+The two probe files are not in the repo; their full source is at the end of this file.
+
+======================================================================== output
+# main f069298953fbfd77c86475bab6902942ca73dd8d ; v0.4.2 = 61cd95de8b5446d6adf24deda43f9bfb6957ee20
+$ git rev-parse HEAD:scripts/surfaces_agree.py | cut -c1-12
+15990540b1e6
+[exit 0]
+
+$ PYTHONPATH=src python -m pytest -q -p no:cacheprovider tests/test_surfaces_agree_042.py
+.......................                                                  [100%]
+23 passed in 0.39s
+[exit 0]
+
+$ PYTHONPATH=src:scripts python -m pytest -q -s -p no:cacheprovider /tmp/advp/test_sa_probe.py
+READERR https://github.com/netdryrun/Netdryrun problems=1 warnings=0 ["GitHub repository description: couldn't read https://github.com/netdryrun/Netdryrun (OSError: x)"]
+READERR https://pypi.org/pypi/netdryrun/json problems=1 warnings=0 ["PyPI: couldn't read https://pypi.org/pypi/netdryrun/json (OSError: x)"]
+READERR https://registry.modelcontextprotocol.io/v0/servers?search=io.github.netdryrun/netdryrun problems=1 warnings=0 ["MCP Registry: couldn't read https://registry.modelcontextprotocol.io/v0/servers?search=io.github.netdryrun/netdryrun (OSError: x)"]
+READERR https://netdryrun.com/llms.txt problems=1 warnings=0 ["netdryrun.com llms.txt: couldn't read https://netdryrun.com/llms.txt (OSError: x)"]
+.REG ["MCP Registry: the latest entry is '0.4.1', expected 0.4.2"] ['LobeHub: the listing shows version 0.3.1, expected 0.4.2']
+.MAIN 0 WARN LobeHub: the listing shows version 0.3.1, expected 0.4.2
+surfaces published: agree (version 0.4.2, platforms eos, frr, junos, nxos, routeros, sonic, srlinux)
+
+.
+3 passed in 0.16s
+[exit 0]
+
+$ cd /tmp/v042r && PYTHONPATH=$HOME/adv-043-rest/src python -c "import netdryrun; print(netdryrun.__file__)"; cd ~/adv-043-rest
+/home/ndr/adv-043-rest/src/netdryrun/__init__.py
+[exit 0]
+
+$ cd /tmp/v042r && PYTHONPATH=$HOME/adv-043-rest/src python -m pytest -q -p no:cacheprovider tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py; cd ~/adv-043-rest
+F..                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_every_unnumbered_neighbor_is_recorded_or_a_named_gap ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7587609a9ab0>
+
+    def test_every_unnumbered_neighbor_is_recorded_or_a_named_gap(monkeypatch):
+        data, warnings = run(monkeypatch, CapturedLab())
+        gaps = rec.baseline_gaps(warnings)
+        missing = []
+        for node in NODES:
+            for nbr in neighbors(node):
+                recorded = any(c["type"] == "bgp_session" and c["node"] == node and c.get("neighbor") == nbr
+                               for c in data["checks"])
+                gap = any(node in w and nbr in w and "neighbor" in w.lower() for w in gaps)
+                if not (recorded or gap):
+                    missing.append(f"{node} {nbr}")
+        assert not missing, f"neighbors neither recorded nor a named gap: {missing}; warnings {warnings}"
+>       assert gaps, "record exits 0 with sessions it didn't record"
+E       AssertionError: record exits 0 with sessions it didn't record
+E       assert []
+
+tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py:133: AssertionError
+=========================== short test summary info ============================
+FAILED tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py::test_every_unnumbered_neighbor_is_recorded_or_a_named_gap
+1 failed, 2 passed in 0.23s
+[exit 0]
+
+$ PYTHONPATH=src python -m pytest -q -s -p no:cacheprovider /tmp/advp/test_unnsess_probe.py
+P1 CHECK {"type": "bgp_session", "node": "leaf01", "neighbor": "eth1"}
+P1 CHECK {"type": "bgp_prefixes", "node": "leaf01", "neighbor": "eth1", "afi": "ipv4-unicast", "exact": 4}
+P1 CHECK {"type": "bgp_prefixes", "node": "leaf01", "neighbor": "eth1", "afi": "ipv6-unicast", "exact": 0}
+P1 CHECK {"type": "bgp_session", "node": "leaf01", "neighbor": "eth2"}
+P1 CHECK {"type": "bgp_prefixes", "node": "leaf01", "neighbor": "eth2", "afi": "ipv4-unicast", "exact": 4}
+P1 CHECK {"type": "bgp_prefixes", "node": "leaf01", "neighbor": "eth2", "afi": "ipv6-unicast", "exact": 0}
+P1 CHECK {"type": "bgp_session", "node": "spine01", "neighbor": "eth1"}
+P1 CHECK {"type": "bgp_prefixes", "node": "spine01", "neighbor": "eth1", "afi": "ipv4-unicast", "exact": 2}
+P1 CHECK {"type": "bgp_prefixes", "node": "spine01", "neighbor": "eth1", "afi": "ipv6-unicast", "exact": 0}
+P1 CHECK {"type": "bgp_session", "node": "spine01", "neighbor": "eth2"}
+P1 CHECK {"type": "bgp_prefixes", "node": "spine01", "neighbor": "eth2", "afi": "ipv4-unicast", "exact": 2}
+P1 CHECK {"type": "bgp_prefixes", "node": "spine01", "neighbor": "eth2", "afi": "ipv6-unicast", "exact": 0}
+P1 CHECK {"type": "bgp_session", "node": "spine01", "neighbor": "eth3"}
+P1 CHECK {"type": "bgp_prefixes", "node": "spine01", "neighbor": "eth3", "afi": "ipv4-unicast", "exact": 2}
+P1 CHECK {"type": "bgp_prefixes", "node": "spine01", "neighbor": "eth3", "afi": "ipv6-unicast", "exact": 0}
+P1 GAPS []
+P1 UP leaf01 eth1 bgp_session  True
+P1 UP leaf01 eth1 bgp_prefixes ipv4-unicast True
+P1 UP leaf01 eth1 bgp_prefixes ipv6-unicast True
+P1 UP leaf01 eth2 bgp_session  True
+P1 UP leaf01 eth2 bgp_prefixes ipv4-unicast True
+P1 UP leaf01 eth2 bgp_prefixes ipv6-unicast True
+P1 UP spine01 eth1 bgp_session  True
+P1 UP spine01 eth1 bgp_prefixes ipv4-unicast True
+P1 UP spine01 eth1 bgp_prefixes ipv6-unicast True
+P1 UP spine01 eth2 bgp_session  True
+P1 UP spine01 eth2 bgp_prefixes ipv4-unicast True
+P1 UP spine01 eth2 bgp_prefixes ipv6-unicast True
+P1 UP spine01 eth3 bgp_session  True
+P1 UP spine01 eth3 bgp_prefixes ipv4-unicast True
+P1 UP spine01 eth3 bgp_prefixes ipv6-unicast True
+P1 PROBE leaf01 eth1 idle ok=False unready=False state is idle
+P1 PROBE leaf01 eth1 gone ok=False unready=False neighbor eth1 not configured (seen: eth2)
+P1 PROBE leaf01 eth2 idle ok=False unready=False state is idle
+P1 PROBE leaf01 eth2 gone ok=False unready=False neighbor eth2 not configured (seen: eth1)
+P1 PROBE spine01 eth1 idle ok=False unready=False state is idle
+P1 PROBE spine01 eth1 gone ok=False unready=False neighbor eth1 not configured (seen: eth2, eth3)
+P1 PROBE spine01 eth2 idle ok=False unready=False state is idle
+P1 PROBE spine01 eth2 gone ok=False unready=False neighbor eth2 not configured (seen: eth1, eth3)
+P1 PROBE spine01 eth3 idle ok=False unready=False state is idle
+P1 PROBE spine01 eth3 gone ok=False unready=False neighbor eth3 not configured (seen: eth1, eth2)
+.P2 bgp_session checks: []
+P2 GAP INCOMPLETE BASELINE: leaf01: BGP neighbor 'eth1' is an interface-named (unnumbered) session that no check can name on the frr driver (or the name is not a valid
+P2 GAP INCOMPLETE BASELINE: leaf01: BGP neighbor 'eth2' is an interface-named (unnumbered) session that no check can name on the frr driver (or the name is not a valid
+P2 GAP INCOMPLETE BASELINE: spine01: BGP neighbor 'eth1' is an interface-named (unnumbered) session that no check can name on the frr driver (or the name is not a vali
+P2 GAP INCOMPLETE BASELINE: spine01: BGP neighbor 'eth2' is an interface-named (unnumbered) session that no check can name on the frr driver (or the name is not a vali
+P2 GAP INCOMPLETE BASELINE: spine01: BGP neighbor 'eth3' is an interface-named (unnumbered) session that no check can name on the frr driver (or the name is not a vali
+.P3 GAP INCOMPLETE BASELINE: leaf01: BGP neighbor '10.0.0.256' is an interface-named (unnumbered) session that no check can name on the frr driver (or the name is not a valid interface name), so neither its bgp_session nor its bgp_prefixes is recorded: a session that drops or a peer that sends more prefixes over it isn't caught by this baseline
+P3 checks naming it: []
+.P4 GAP INCOMPLETE BASELINE: leaf01: BGP neighbor eth2 is active; not recorded, so a change to that session goes unnoticed: bring it up and record again, or add a check by hand
+.
+4 passed in 0.20s
+[exit 0]
+
+$ PYTHONPATH=src python -m pytest -q -p no:cacheprovider tests/oracles/FP-042-UNNSESS tests/oracles/FP-043-UNNSESSCHK tests/test_unnumbered_sessions_043.py tests/test_oracle_guards_fp_042_unnsess.py
+....................................................                     [100%]
+52 passed in 0.37s
+[exit 0]
+
+$ git apply tests/oracles/FP-043-UNNSESSCHK/plant.diff && PYTHONPATH=src python -m pytest -q -p no:cacheprovider tests/oracles/FP-042-UNNSESS tests/oracles/FP-043-UNNSESSCHK 2>&1 | grep -E "^FAILED|passed|failed"; git checkout -q -- src
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_record_writes_the_unnumbered_sessions_checks[1021]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_record_writes_the_unnumbered_sessions_checks[1041]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_the_recorded_checks_pass_unchanged_and_fail_on_the_changes[1021]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_the_recorded_checks_pass_unchanged_and_fail_on_the_changes[1041]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_a_session_check_naming_the_interface_passes_up_and_fails_down[1021]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_a_session_check_naming_the_interface_passes_up_and_fails_down[1041]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_a_prefix_count_naming_the_interface_fails_on_a_new_prefix[1021]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_a_prefix_count_naming_the_interface_fails_on_a_new_prefix[1041]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_an_only_list_naming_the_interface_fails_on_a_new_prefix
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_a_driver_that_keys_sessions_by_address_refuses_an_interface
+10 failed, 3 passed in 0.39s
+[exit 0]
+
+$ git apply tests/oracles/FP-042-UNNSESS/plant.diff && PYTHONPATH=src python -m pytest -q -p no:cacheprovider tests/oracles/FP-042-UNNSESS tests/oracles/FP-043-UNNSESSCHK 2>&1 | grep -E "^FAILED|passed|failed"; git checkout -q -- src
+FAILED tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py::test_every_unnumbered_neighbor_is_recorded_or_a_named_gap
+FAILED tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py::test_a_point_to_point_address_is_its_subnet_or_a_gap
+FAILED tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py::test_a_169_254_link_is_numbered_and_guarded
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_record_writes_the_unnumbered_sessions_checks[1021]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_record_writes_the_unnumbered_sessions_checks[1041]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_the_recorded_checks_pass_unchanged_and_fail_on_the_changes[1021]
+FAILED tests/oracles/FP-043-UNNSESSCHK/test_oracle_fp_043_unnsesschk.py::test_the_recorded_checks_pass_unchanged_and_fail_on_the_changes[1041]
+7 failed, 6 passed in 0.33s
+[exit 0]
+
+$ git status --short
+[exit 0]
+
+$ PYTHONPATH=src python scripts/fastfix_gate.py plants --repo . --base v0.4.2 --json /tmp/advp/plants.json
+  plants: 22 caught of 22 (22 applied); plant: none 13 (owed ports); no fix yet 0, 0 of them since the base
+plants: clean
+[exit 0]
+
+$ python3 -c "import json; d=json.load(open(\"/tmp/advp/plants.json\")); print({k: v for k, v in d.items() if not isinstance(v, (dict, list))}); r=[v for v in d.values() if isinstance(v, dict) and \"FP-042-UNNSESS\" in v][0]; print({k: r[k] for k in (\"FP-042-UNNSESS\", \"FP-043-UNNSESSCHK\")})"
+{'applied': 22, 'base': '61cd95de8b5446d6adf24deda43f9bfb6957ee20', 'candidate': 'f069298953fbfd77c86475bab6902942ca73dd8d', 'caught': 22, 'owed_ports': 13, 'total': 22}
+{'FP-042-UNNSESS': 'caught', 'FP-043-UNNSESSCHK': 'caught'}
+[exit 0]
+
+======================================================================== probe source: /tmp/advp/test_sa_probe.py
+import sys, json, pathlib
+ROOT = pathlib.Path.home() / "adv-043-rest"
+sys.path.insert(0, str(ROOT / "tests"))
+import test_surfaces_agree_042 as t
+sa = t.sa
+URLS = ["https://github.com/netdryrun/Netdryrun", "https://pypi.org/pypi/netdryrun/json",
+        "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.netdryrun/netdryrun",
+        "https://netdryrun.com/llms.txt"]
+def test_every_other_surface_still_fails_closed_on_read_error():
+    for u in URLS:
+        w = []
+        p = sa.published_problems(t.V, t.REL, set(), get=t.pages(**{u: OSError("x")}), warnings=w)
+        print("READERR", u, "problems=%d warnings=%d" % (len(p), len(w)), p); assert p and not w, (u, p, w)
+def test_stale_registry_still_a_problem_even_with_stale_lobe():
+    reg = json.dumps({"servers": [{"server": {"version": "0.4.1", "description": "x"},
+          "_meta": {"io.modelcontextprotocol.registry/official": {"isLatest": True}}}]})
+    w = []
+    p = sa.published_problems(t.V, t.REL, set(), get=t.pages(**{URLS[2]: reg,
+        "https://lobehub.com/mcp/netdryrun-netdryrun": "| Version | 0.3.1 |"}), warnings=w)
+    print("REG", p, w); assert any("MCP Registry" in x for x in p) and w
+def test_main_exit_and_warn_line(monkeypatch, capsys):
+    monkeypatch.setattr(sa, "http_get", t.pages(**{"https://lobehub.com/mcp/netdryrun-netdryrun": "| Version | 0.3.1 |"}))
+    import inspect
+    # published_problems binds get=http_get at def time: patch the default
+    monkeypatch.setattr(sa.published_problems, "__defaults__", (t.pages(**{"https://lobehub.com/mcp/netdryrun-netdryrun": "| Version | 0.3.1 |"}), None))
+    rc = sa.main(["published", "--version", t.V])
+    out = capsys.readouterr().out; print("MAIN", rc, out)
+    assert "WARN LobeHub: the listing shows version 0.3.1" in out
+======================================================================== probe source: /tmp/advp/test_unnsess_probe.py
+import json, importlib.util, pathlib
+from netdryrun import record as rec
+from netdryrun.checks import Unready, _evaluate
+from netdryrun.config import _validate_check
+ORC = pathlib.Path.home() / "adv-043-rest/tests/oracles/FP-042-UNNSESS/test_oracle_fp_042_unnsess.py"
+spec = importlib.util.spec_from_file_location("o42", ORC)
+o = importlib.util.module_from_spec(spec); spec.loader.exec_module(o)
+
+def judge(raw, lab, node):
+    return _evaluate(_validate_check(0, dict(raw), 60), o.Driver(lab, node))
+
+def mutated(node, fn):
+    a = o.captured(); key = (node, "vtysh -c show bgp neighbors json")
+    d = json.loads(a[key]); fn(d); a[key] = json.dumps(d); return o.CapturedLab(a)
+
+def test_p1_recorded_checks_pass_and_catch_drop(monkeypatch):
+    data, warnings = o.run(monkeypatch, o.CapturedLab())
+    sess = [c for c in data["checks"] if c["type"] in ("bgp_session", "bgp_prefixes")]
+    for c in sess:
+        print("P1 CHECK", json.dumps(c))
+    print("P1 GAPS", rec.baseline_gaps(warnings))
+    for c in sess:
+        ok, d, _ = judge(c, o.CapturedLab(), c["node"]); print("P1 UP", c["node"], c["neighbor"], c["type"], c.get("afi", ""), ok); assert ok, (c, d)
+    for node in o.NODES:
+        for nbr in o.neighbors(node):
+            s = {"type": "bgp_session", "node": node, "neighbor": nbr}
+            assert s in sess, s
+            def idle(d, nbr=nbr): d[nbr]["bgpState"] = "Idle"
+            def gone(d, nbr=nbr): del d[nbr]
+            for name, fn in (("idle", idle), ("gone", gone)):
+                ok, det, _ = judge(s, mutated(node, fn), node)
+                print("P1 PROBE", node, nbr, name, "ok=%s" % ok, "unready=%s" % isinstance(det, Unready), str(det)[:100])
+                assert not ok and not isinstance(det, Unready), (node, nbr, name, det)
+
+def test_p2_driver_without_interface_peers_still_named_gap(monkeypatch):
+    monkeypatch.setattr(o.Driver, "interface_peers", False)
+    data, warnings = o.run(monkeypatch, o.CapturedLab())
+    gaps = rec.baseline_gaps(warnings)
+    print("P2 bgp_session checks:", [c for c in data["checks"] if c["type"] == "bgp_session"])
+    for w in gaps: print("P2 GAP", w[:160])
+    assert not [c for c in data["checks"] if c["type"] == "bgp_session"]
+    for node in o.NODES:
+        for nbr in o.neighbors(node):
+            assert any(node in w and nbr in w for w in gaps), (node, nbr, gaps)
+
+def test_p3_bad_interface_key_still_gap(monkeypatch):
+    lab = mutated("leaf01", lambda d: d.__setitem__("10.0.0.256", dict(d["eth1"])))
+    data, warnings = o.run(monkeypatch, lab)
+    gaps = rec.baseline_gaps(warnings)
+    for w in gaps:
+        if "10.0.0.256" in w: print("P3 GAP", w)
+    print("P3 checks naming it:", [c for c in data["checks"] if c.get("neighbor") == "10.0.0.256"])
+    assert any("10.0.0.256" in w for w in gaps)
+    assert not [c for c in data["checks"] if c.get("neighbor") == "10.0.0.256"]
+
+def test_p4_unnumbered_down_at_record_is_gap(monkeypatch):
+    lab = mutated("leaf01", lambda d: d["eth2"].__setitem__("bgpState", "Active"))
+    data, warnings = o.run(monkeypatch, lab)
+    gaps = rec.baseline_gaps(warnings)
+    for w in gaps:
+        if "leaf01" in w and "eth2" in w: print("P4 GAP", w)
+    assert any("leaf01" in w and "eth2" in w for w in gaps), gaps
