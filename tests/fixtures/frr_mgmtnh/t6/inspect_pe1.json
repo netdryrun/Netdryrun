@@ -1,0 +1,33 @@
+{
+ "HostConfig": {
+  "NetworkMode": "clab"
+ },
+ "NetworkSettings": {
+  "Networks": {
+   "clab": {
+    "IPAMConfig": {
+     "IPv4Address": "172.20.20.2",
+     "IPv6Address": "3fff:172:20:20::2"
+    },
+    "Links": null,
+    "Aliases": null,
+    "DriverOpts": null,
+    "GwPriority": 0,
+    "NetworkID": "1e5cf6c0599ef089b70d72e127c0a6afe329c9edd0e888cea6abe0e899460105",
+    "EndpointID": "1b19cb04498d9922ca6bb529e6ab0771eb7bbe83f819c5f4223e35757ec4c21e",
+    "Gateway": "172.20.20.1",
+    "IPAddress": "172.20.20.2",
+    "MacAddress": "ba:5d:ee:73:de:26",
+    "IPPrefixLen": 24,
+    "IPv6Gateway": "3fff:172:20:20::1",
+    "GlobalIPv6Address": "3fff:172:20:20::2",
+    "GlobalIPv6PrefixLen": 64,
+    "DNSNames": [
+     "clab-ndr-corpus-pe1",
+     "bbb2306faa93",
+     "pe1"
+    ]
+   }
+  }
+ }
+}
