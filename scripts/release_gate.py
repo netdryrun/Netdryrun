@@ -781,6 +781,16 @@ class KindBridge:
     def keys_line(file: str, n: int) -> str:
         return f"BLOCKED {file} flip #{n}: keys must be exactly {sorted(ALLOW_KEYS)}"
 
+    def caveat(self, dropped: list[str]) -> str:
+        """What the acceptor must know: the published judge never validated these entries (it rejected them for
+        `kind`); only the bootstrap judge, this commit's own code, did. Names each entry whose keys line was dropped."""
+        used = sorted(k for k in self.entries if self.keys_line(*k) in dropped)
+        listed = "; ".join(f"{f} flip #{n}: {self.entries[(f, n)][0]} {self.entries[(f, n)][1]} -> "
+                           f"{self.entries[(f, n)][2]}" for f, n in used)
+        return (f"; the published judge never validated these {len(used)} allowlist entries, only the bootstrap "
+                f"(HEAD) judge did, which is code the candidate can change: review each by hand before accepting "
+                f"({listed})")
+
     def covers(self, line: str, printed: list[str]) -> bool:
         """`line` is one the bridge drops, printed exactly once: an entry's keys line, or its case's flip when the same
         run printed that entry's keys line (so the old judge read that very entry and rejected it only for `kind`)."""
@@ -1012,7 +1022,8 @@ def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: l
         for b in bridges:
             mine = [ln for ln in bridged if by[ln] is b]
             if mine:
-                why.append(f"{len(mine)} line(s) the {b.label} drops for {b.names()}")
+                why.append(f"{len(mine)} line(s) the {b.label} drops for {b.names()}"
+                           + (b.caveat(mine) if isinstance(b, KindBridge) else ""))
         named = [f"waived: {ln}" for ln in waived] + [f"dropped by the {by[ln].label}: {ln}" for ln in bridged]
         layer.add(id_, title, MAJOR, False, f"blocked only by {' and '.join(why)}: accept in accepted.json",
                   "\n".join(named + ["", tail(proc.out)]), proc.seconds, cmdline(cmd), content=named)
@@ -2935,8 +2946,11 @@ def new_read_problems(records: dict, folder: Path) -> tuple[list[str], list[str]
     """(blockers, gaps, info) from gate/dominance.json. Every network OS a new device read since the published
     release goes to (its new-read flips and reviewed new-read entries; "*" or no driver at all: every OS) needs every
     one of its live examples to pass, run on the commit dominance judged. While the published release's fixtures
-    keep no fake-lab command log, a read can also hide in a fake that answers anything: then every OS whose driver
-    changed since the release needs live too, and the report says so."""
+    keep no fake-lab command log of their own, a read can also hide in a fake that answers anything: then every OS
+    whose driver changed since the release needs live too, and the report says so. A log the gate's plugin kept in the
+    published release's fixture world (source "gate") still marks new reads, but that world was never checked for
+    fakes the log can't see, so it doesn't lift the changed-driver routing; neither does a missing or unknown source.
+    Only the release's own fixture log (source "fixtures") does."""
     static = records.get("static")
     if static is None:
         return [], [], []
@@ -2965,15 +2979,20 @@ def new_read_problems(records: dict, folder: Path) -> tuple[list[str], list[str]
         return [f"static/dominance: gate/dominance.json judged {str(cand)[:10]}, not static's commit "
                 f"{str(static['git'].get('sha'))[:10]}"], [], []
     info = []
+    drivers_changed = [str(d) for d in changed]
+    if not (logged and source == "fixtures"):   # gate, missing or unknown source: the conservative case
+        reads += [(f"the {d} driver changed since the published release", [d]) for d in drivers_changed]
     if logged and source == "gate":
         info.append("the published release's fixtures keep no fake-lab command log of their own: the gate's plugin "
-                    "(scripts/fastfix_cmdlog.py, with the judge's tests/fakes.py) kept it in both dominance runs")
-    if not logged:
-        drivers_changed = [str(d) for d in changed] or []
-        reads += [(f"the {d} driver changed since the published release", [d]) for d in drivers_changed]
-        info.append("the published release's fixtures keep no fake-lab command log, so a new device read shows only "
-                    "as a fake's refusal or a driver exception; live must also pass on every network OS whose driver "
-                    f"changed since it ({', '.join(drivers_changed) or 'none'})")
+                    "(scripts/fastfix_cmdlog.py, with the judge's tests/fakes.py) kept it in both dominance runs and "
+                    "marked new device reads from it; that fixture world was never checked for fakes the log can't "
+                    "see, so live must also pass on every network OS whose driver changed since it "
+                    f"({', '.join(drivers_changed) or 'none'})")
+    elif not (logged and source == "fixtures"):
+        how = "keep no fake-lab command log" if not logged else f"keep a command log of unknown origin ({source!r})"
+        info.append(f"the published release's fixtures {how}, so a new device read may show only as a fake's "
+                    "refusal or a driver exception; live must also pass on every network OS whose driver changed "
+                    f"since it ({', '.join(drivers_changed) or 'none'})")
     drivers = {d for _, ds in reads for d in ds}
     unknown = drivers - set(LIVE_BY_NOS) - {"*"}
     nos = sorted(LIVE_BY_NOS) if "*" in drivers or unknown else sorted(drivers)

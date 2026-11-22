@@ -937,6 +937,10 @@ def test_the_frozen_judges_kind_lines_are_dropped_by_name_and_the_run_is_a_major
     c = kinded(tmp_path, monkeypatch)["loosening"]
     assert (c.status, c.severity) == (gate.FAIL, gate.MAJOR), (c.severity, c.summary)
     assert "3 line(s) the kind bridge drops" in c.summary and "accept in accepted.json" in c.summary, c.summary
+    # the acceptor is told plainly that only the bootstrap (HEAD) judge validated the bridged entries, and which
+    assert "only the bootstrap (HEAD) judge did" in c.summary and "review each by hand" in c.summary, c.summary
+    assert f"{KALLOW} flip #1: {KC1} FAIL -> PASS" in c.summary and f"{KALLOW} flip #2: {KC2} FAIL -> PASS" \
+        in c.summary and "these 2 allowlist entries" in c.summary, c.summary
     for ln in KIND_LINES:
         assert f"dropped by the kind bridge: {ln}" in c.output
     assert c.fingerprint and f"[fingerprint {c.fingerprint}]" in c.summary
@@ -1044,7 +1048,8 @@ def _v042_judge():
 @needs_git
 def test_the_kind_bridge_reads_the_published_judges_own_lines_for_the_same_record(tmp_path):
     """The published v0.4.2 judge's allow_entries and Flip print the lines the bridge drops, and HEAD's judge writes
-    the dominance record the bridge reads, for the same allowlist entry (FX-0.4.3-gate-flip-naming-split's lesson)."""
+    the dominance record the bridge reads, for the same allowlist entry (a gate key format change is tested against the published judge's
+    own output on the same record)."""
     old = _v042_judge()
     import yaml
     (tmp_path / "fastfix/allow").mkdir(parents=True)
@@ -1110,3 +1115,77 @@ def test_no_plugin_is_written_beside_a_judge_whose_commit_has_none(tmp_path):
     assert list(tmp_path.iterdir()) == []                                        # both or neither
     gate.cmdlog_beside(lambda *c: "text", "abc", judge)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["fastfix_cmdlog.py", "fastfix_cmdlog_fakes.py"]
+
+
+# ---- adversary red fixtures (gate bootstrap review): a log the gate kept in a base world that was never checked for
+# fakes the profiler can't see is not the base's own log; the changed-driver live fallback must stay for it
+
+@pytest.mark.parametrize("changed,expect", [
+    (["junos"], "the junos driver changed"),
+    (["*"], "new device read on nxos"),
+])
+def test_a_gate_kept_log_at_an_unaudited_base_still_routes_changed_drivers_to_live(tmp_path, changed, expect):
+    dominance_json(tmp_path, [], command_log_at_base=True, command_log_source="gate", changed_drivers=changed)
+    live = record("live", "a", [("example-frr-bgp", "PASS")])
+    blockers, _, _ = gate.new_read_problems({"static": STATIC, "live": live}, tmp_path)
+    assert any(expect in b for b in blockers), blockers
+
+
+@pytest.mark.parametrize("source", [None, "gate", "fixture", "", 1])
+def test_only_the_bases_own_fixture_log_lifts_the_changed_driver_routing(tmp_path, source):
+    """A missing or unknown log source counts as the conservative case, like the gate's own plugin."""
+    extra = {} if source is None else {"command_log_source": source}
+    dominance_json(tmp_path, [], command_log_at_base=True, changed_drivers=["junos"], **extra)
+    live = record("live", "a", [("example-frr-bgp", "PASS")])
+    blockers, _, info = gate.new_read_problems({"static": STATIC, "live": live}, tmp_path)
+    assert any("the junos driver changed" in b for b in blockers) and info, (blockers, info)
+    dominance_json(tmp_path, [], command_log_at_base=True, command_log_source="fixtures", changed_drivers=["junos"])
+    assert gate.new_read_problems({"static": STATIC, "live": live}, tmp_path) == ([], [], [])
+
+
+@needs_git
+def test_the_v042_fixture_world_has_fakes_the_gates_log_cant_see_so_changed_drivers_still_go_live(tmp_path):
+    """HEAD's own shape scan (tests/test_fakes.py unseen_fakes) over v0.4.2's must-not-pass fixtures, the world the
+    gate's plugin logs at dominance. Anything beyond HEAD's NOT_A_DEVICE list is a stand-in the log can't see, so a
+    gate-kept log there is not complete: HEAD's own log is complete only because test_fakes.py guards HEAD's world.
+    v0.4.2 is frozen and has such stand-ins, so the gate can't trust its log to be complete there: every network OS
+    whose driver changed since it still needs live (new_read_problems), and this test holds both halves."""
+    import io
+    import re as re_
+    import tarfile
+    import test_fakes as tf
+    p = subprocess.run(["git", "-C", str(ROOT), "archive", "v0.4.2", "tests", "scripts/fastfix_gate.py"],
+                       capture_output=True)
+    if p.returncode != 0:
+        pytest.skip("no v0.4.2 tag in this checkout")
+    base = tmp_path / "v042"
+    base.mkdir()
+    tarfile.open(fileobj=io.BytesIO(p.stdout)).extractall(base)
+    spec = importlib.util.spec_from_file_location("ff_adv_shapes", SCRIPT)
+    ff = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = ff
+    spec.loader.exec_module(ff)
+    todo = [base / "tests" / "conftest.py"]
+    for t in ff.fixture_targets(base):
+        q = base / t.split("::")[0]
+        todo += sorted(q.rglob("*.py")) if q.is_dir() else [q]
+    done = set()
+    while todo:
+        q = todo.pop()
+        if q in done or not q.is_file():
+            continue
+        done.add(q)
+        for m in re_.findall(r"^\s*(?:from|import)\s+([A-Za-z_]\w*)", q.read_text(encoding="utf-8"), re_.M):
+            todo.append(base / "tests" / f"{m}.py")
+    hits = []
+    for q in sorted(done):
+        rel = q.relative_to(base).as_posix()
+        hits += [h for h in tf.unseen_fakes(q.read_text(encoding="utf-8"), rel)
+                 if (rel, h.split(": ", 2)[-1]) not in tf.NOT_A_DEVICE]
+    # the scan really read v0.4.2's world: the C method that stands in for the device config write there
+    assert any(h.startswith("tests/test_inject_sent_counts.py:") and h.endswith("removed.append") for h in hits), hits
+    # so a log the gate kept in that world doesn't lift the routing: 0.4.3 changed drivers/base.py ("*")
+    dominance_json(tmp_path, [], command_log_at_base=True, command_log_source="gate", changed_drivers=["*"])
+    blockers, _, _ = gate.new_read_problems({"static": STATIC, "live": record("live", "a", [])}, tmp_path)
+    assert sorted(n for n in gate.LIVE_BY_NOS if any(b.startswith(f"new device read on {n} ") for b in blockers)) \
+        == sorted(gate.LIVE_BY_NOS), blockers
