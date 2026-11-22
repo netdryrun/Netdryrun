@@ -92,3 +92,40 @@ flips:
       pair aggregate-aggregate is replaced by bgpAggregate-bgp and aggregate is added to
       test_eos_route_type_it_cannot_map_is_an_error, which requires a DriverError. Stricter: aggregate now must raise.
     reviewed_by: "adv-eos-agg: replaced by bgpAggregate-bgp, and a plain aggregate routeType is now in the must-raise test"
+  - source: fixtures
+    case: tests.test_redteam::test_driver_case_that_ends_in_an_error_ends_in_its_refusal[RT-0016-eos-leak-received-not-selected]
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0016-eos-leak-received-not-selected.yml]
+    why: >-
+      Harness gap, not a loosening: main's test and case file, run against the candidate's code, fail only because
+      main's fake lab has no answer for the new "show rib route" read, so the case errors before the logic it
+      guards. The candidate's own case file answers that read, and the case then ends for its own reason,
+      "unexpectedly present via bgp". The BGP-table path is pinned in test_redteam_reverts_043.
+    reviewed_by: "recheck-wr: fails at base only on the unanswered new EOS RIB read; candidate's case answers it and ends \"unexpectedly present via bgp\" (BGP-table path pinned in reverts_043)."
+  - source: fixtures
+    case: tests.test_redteam::test_driver_case_that_ends_in_an_error_ends_in_its_refusal[RT-0025-eos-ospf6-never-matches]
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0025-eos-ospf6-never-matches.yml]
+    why: >-
+      Harness gap, not a loosening: main's test and case file, run against the candidate's code, fail only because
+      main's fake lab has no answer for the new IPv6 "show rib route" read, so the case errors before the logic it
+      guards. The candidate's own case file answers that read, and the case then ends for its own reason,
+      "unexpectedly present via ospf6". Reverting both protocol-name layers makes the case pass.
+    reviewed_by: "recheck-wr: fails at base only on the unanswered new EOS IPv6 RIB read; candidate's case ends \"unexpectedly present via ospf6\", and reverting both name layers makes it pass."
+  - source: fixtures
+    case: tests.test_redteam::test_driver_case_that_ends_in_an_error_ends_in_its_refusal[RT-0037-eos-unmapped-route-type-passes-present-false]
+    from: FAIL
+    to: PASS
+    kind: new-read
+    evidence: [tests/test_redteam.py, tests/redteam/RT-0037-eos-unmapped-route-type-passes-present-false.yml]
+    why: >-
+      Harness gap, not a loosening: main's test and case file, run against the candidate's code, fail only because
+      main's fake lab has no answer for the new "show rib route" read, so the case errors before the logic it
+      guards. The candidate's own case file answers that read, and the case then ends in its own refusal, the
+      routeType that "is not one this driver maps to a protocol". This test does not catch the false pass itself:
+      its does_not_pass sibling does (passing the unmapped routeType through raw makes does_not_pass[RT-0037] fail).
+    reviewed_by: "recheck-wr: base fails only on the unanswered RIB read; candidate ends in the routeType refusal, and passing it through raw makes does_not_pass[RT-0037] fail."
