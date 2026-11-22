@@ -1,0 +1,28 @@
+{
+  "release": "0.4.3",
+  "base": "61cd95de8b5446d6adf24deda43f9bfb6957ee20",
+  "waivers": [
+    {
+      "sha": "0306e3ca8fb11944065ffccd75bbd2673c3b4c14",
+      "patch_id": "b91e24f2ba9e3547810d35bda151d077569e4c94",
+      "lines": [
+        "BLOCKED 0306e3ca8f: Fixes-Oracle: 'unnsess-adversary MINOR-1,2,3,6' is not a bug ID like RT-0036",
+        "BLOCKED 0306e3ca8f changes shipped code (src/, action.yml, templates/) without 'Fixes-Oracle: <ID>' or 'No-Oracle: <reason, 20+ characters>'",
+        "BLOCKED 0306e3ca8f changes tests/oracles/ but is a fix or a merge: oracles change only in oracle commits"
+      ],
+      "why": "The commit fixed adversary minors on the FRR unnumbered session checks. Its oracle edit only adds an exact-0 assertion that already passes on the parent 12574f4, and its record.py change is warning text only. The three lines come from its trailer naming review findings instead of a bug ID and from carrying that oracle edit in a fix commit: a trailer and process slip, not a loosening.",
+      "reviewed_by": "recheck-wr: oracle edit only adds an exact-0 assertion (passes on parent 12574f4); record.py change is warning text only; waive exactly these 3 lines.",
+      "owner_decision": "Owner approved on 2026-11-22 (Thailand time), selecting 'Historic-record decision' in reply to the coordinator: waive exactly these lines for the 0.4.3 release gate."
+    },
+    {
+      "sha": "efae4fdafcef1bfe54af56d40f58231c115f7135",
+      "patch_id": "c2542f30e1249352e8b6c68cf9c65f6fffd0ea35",
+      "lines": [
+        "BLOCKED efae4fdafc has no Session: trailer, so the allowlist's independence can't be shown"
+      ],
+      "why": "The commit made only LobeHub's surfaces_agree read and version check a WARN, because LobeHub is a third-party mirror of the MCP Registry that we can't update; every other surface still fails closed and none of it is on the verdict path. The line is about the missing Session: trailer, a process slip, not a loosening.",
+      "reviewed_by": "recheck-wr: only LobeHub's surfaces_agree read/version became WARN; other surfaces still fail closed; not on the verdict path; waive only the Session line.",
+      "owner_decision": "Owner approved on 2026-11-22 (Thailand time), selecting 'Historic-record decision' in reply to the coordinator: waive exactly these lines for the 0.4.3 release gate."
+    }
+  ]
+}
