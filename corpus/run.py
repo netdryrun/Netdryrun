@@ -231,9 +231,15 @@ def write_results(rows: list[dict], out: Path, env: dict, corpus: Path = HERE) -
 
 
 def _git_commit() -> str:
+    """The commit the run was made on, or "unknown" when git can't say (not a checkout, or no git at all, as in a plain
+    container): recorded as unknown, never guessed, like _image_digest."""
     import subprocess
-    r = subprocess.run(["git", "-C", str(HERE), "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
-    dirty = subprocess.run(["git", "-C", str(HERE), "status", "--porcelain", "--", "src", "corpus"], capture_output=True, text=True)
+    try:
+        r = subprocess.run(["git", "-C", str(HERE), "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
+        dirty = subprocess.run(["git", "-C", str(HERE), "status", "--porcelain", "--", "src", "corpus"],
+                               capture_output=True, text=True)
+    except OSError:
+        return "unknown"
     return (r.stdout.strip() or "unknown") + ("+dirty" if dirty.stdout.strip() else "")
 
 
