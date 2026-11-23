@@ -848,6 +848,159 @@ def kind_bridge_from_dominance(git_, base: str, data) -> KindBridge:
     return bridge
 
 
+
+# The oracle-harness bridge. The published judge runs a fix's oracle in the base's tree plus the oracle's folder and its
+# evidence as of the last commit that wrote the oracle before the fix. An oracle that imports a test helper the base
+# lacks errors there on both sides, so its two reproduce lines ("must fail on the parent", "must pass on the fix") can
+# never clear, and no historic record may waive them (NOT_WAIVABLE). For release REPRO_BRIDGE's key, with the change's
+# base exactly its commit, the release gate drops those two lines for exactly the named fix and oracle, and nothing
+# else, only when (a) the named later commit is a pure oracle commit (one parent, only files under that oracle's folder,
+# the trailer Oracle: <id>, no Fixes-Oracle, a Session other than the fixer's), comes after the fix and is the last to
+# write the oracle at HEAD, and (b) this gate reruns the published judge's own check_fix for the fix, with the oracle as
+# that commit has it and everything else as the judge sets it up, and the judge reports no problem at all: every test
+# fails on the parent with an assertion and passes on the fix. Every dropped line is named, and the run is a
+# fingerprinted MAJOR to accept, never a PASS.
+REPRO_BRIDGE = {"0.4.3": {"base": "61cd95de8b5446d6adf24deda43f9bfb6957ee20",            # v0.4.2
+                          "fix": "cc4744217d0a8e20abeaa6f3564d711da346a5fe",
+                          "oracle": "FP-043-MGMTNH",
+                          "oracle_commit": "77bc480b7ebb9323660e39c4f786c34c8bd23df7"}}
+
+
+class ReproBridge:
+    """The fix whose two reproduce lines the rerun proved wrong: set only by repro_bridge."""
+
+    label = "oracle-harness bridge"
+
+    def __init__(self, spec: dict | None = None, parent: str = "", notes: list[str] | None = None):
+        self.spec, self.parent, self.notes = spec, parent, notes or []
+
+    def names(self) -> str:
+        s = self.spec or {}
+        return f"{str(s.get('fix'))[:10]} Fixes-Oracle: {s.get('oracle')}"
+
+    def caveat(self, dropped: list[str]) -> str:
+        s = self.spec or {}
+        return (f"; the published judge's own check_fix, rerun with the oracle as {str(s.get('oracle_commit'))[:10]} "
+                f"wrote it, found nothing: {'; '.join(self.notes)[:300]}")
+
+    def covers(self, line: str, printed: list[str]) -> bool:
+        """`line` is one of the fix's two reproduce lines, printed exactly once."""
+        if not self.spec or not self.parent or printed.count(line) != 1:
+            return False
+        where = re.escape(f"BLOCKED {self.spec['fix'][:10]} Fixes-Oracle: {self.spec['oracle']}: ")
+        return bool(re.fullmatch(where + re.escape(f"every oracle test must fail on the parent {self.parent[:10]} "
+                                                   "with an assertion (pytest exit ")
+                                 + r"\d+; not an assertion failure: [^\n]*\)", line)
+                    or re.fullmatch(where + re.escape("the oracle must pass on the fix (pytest exit ")
+                                    + r"\d+, \d+ failed, \d+ errors, \d+ skipped\)", line))
+
+
+def repro_bridge_commit_problems(git_, spec: dict, base: str, head: str) -> list[str]:
+    """What keeps the named commits from being a fix in this change and a later, pure oracle commit by another
+    session that is the oracle as HEAD has it. Empty: they are."""
+    fix, oid, rew = spec["fix"], spec["oracle"], spec["oracle_commit"]
+    folder = f"tests/oracles/{oid}/"
+    probs = []
+    if git_("merge-base", base, fix) != base or fix == base or git_("merge-base", fix, head) != fix:
+        probs.append(f"the fix {fix[:10]} is not in {base[:10]}..HEAD")
+    # the judge prints 10 digits: no other commit in the change may share them (as historic waivers, by full sha)
+    if [c for c in (git_("rev-list", f"{base}..{head}") or "").split() if c.startswith(fix[:10])] != [fix]:
+        probs.append(f"{base[:10]}..HEAD has no commit {fix[:10]}, or another commit shares those digits")
+    if git_("merge-base", fix, rew) != fix or rew == fix or git_("merge-base", rew, head) != rew:
+        probs.append(f"the oracle commit {rew[:10]} does not come after the fix and before HEAD")
+    if len((git_("rev-list", "--parents", "-n", "1", rew) or "").split()) != 2:
+        probs.append(f"{rew[:10]} is not a single-parent commit")
+    files = [f for f in (git_("diff-tree", "--no-commit-id", "--name-only", "-r", "-z", rew) or "").split("\0") if f]
+    if not files or any(not f.startswith(folder) for f in files):
+        probs.append(f"{rew[:10]} changes files outside {folder}")
+
+    def trailer(sha: str, key: str) -> list[str]:
+        out = git_("show", "-s", f"--format=%(trailers:key={key},valueonly)", sha) or ""
+        return [v.strip() for v in out.splitlines() if v.strip()]
+
+    if trailer(rew, "Oracle") != [oid] or trailer(rew, "Fixes-Oracle"):
+        probs.append(f"{rew[:10]} lacks the trailer 'Oracle: {oid}' alone, or names Fixes-Oracle")
+    mine, theirs = trailer(rew, "Session"), trailer(fix, "Session")
+    if len(mine) != 1 or len(theirs) != 1 or mine == theirs:
+        probs.append(f"{rew[:10]} and the fix need one Session: trailer each, from different sessions")
+    if trailer(fix, "Fixes-Oracle") != [oid]:
+        probs.append(f"the fix {fix[:10]} does not name Fixes-Oracle: {oid} alone")
+    if git_("log", "-1", "--format=%H", head, "--", folder) != rew:
+        probs.append(f"{rew[:10]} is not the last commit to write {folder} at HEAD")
+    return probs
+
+
+def repro_bridge_rerun(script: Path, spec: dict, parent: str) -> tuple[list[str], list[str]]:
+    """(problems, notes) of the published judge's own check_fix for the fix, loaded from `script` (the copy that ran
+    the reproduce-first check), with only last_touch answering the oracle commit for the oracle at the parent. Any
+    error is a problem."""
+    import importlib.util
+    fix, oid, rew = spec["fix"], spec["oracle"], spec["oracle_commit"]
+    name = f"ndr_repro_bridge_judge_{os.getpid()}"
+    try:
+        sp = importlib.util.spec_from_file_location(name, script)
+        ff = importlib.util.module_from_spec(sp)
+        sys.modules[name] = ff
+        sp.loader.exec_module(ff)
+        folder = f"{ff.ORACLES}/{oid}/"
+        orig = ff.last_touch
+
+        def last_touch(repo, at, path):
+            return rew if (at, path) == (parent, folder) else orig(repo, at, path)
+
+        ff.last_touch = last_touch
+        report = ff.Report()
+        repo = ROOT
+        with tempfile.TemporaryDirectory(prefix="ndr-repro-bridge-") as tmp:
+            work = Path(tmp)
+            trees: dict[str, Path] = {}
+
+            def tree(sha: str) -> Path:
+                if sha not in trees:
+                    trees[sha] = ff.export(repo, sha, work / f"t{len(trees)}")
+                return trees[sha]
+
+            def world(oid_: str, own: str, evidence: list[str]) -> Path:   # as the published judge's reproduce
+                dest = work / f"w-{oid_}-{own[:10]}"
+                if not dest.exists():
+                    shutil.copytree(tree(spec["base"]), dest, symlinks=True)
+                    shutil.rmtree(dest / ff.ORACLES / oid_, ignore_errors=True)
+                    shutil.copytree(tree(own) / ff.ORACLES / oid_, dest / ff.ORACLES / oid_, symlinks=True)
+                    for rel in evidence:
+                        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(tree(own) / rel, dest / rel)
+                return dest
+
+            session = ff.session_of(repo, fix)
+            ff.check_fix(repo, fix, parent, oid, ff.commit_files(repo, fix), session, {oid: {session or ""}}, tree,
+                         world, sys.executable, work, report)
+        notes = [n for n in report.notes if isinstance(n, str)]
+        if not report.problems and not any(f"oracle as of {rew[:10]}" in n for n in notes):
+            return ["the rerun did not judge the oracle as the oracle commit wrote it"], notes
+        return [str(x) for x in report.problems], notes
+    except Exception as e:      # noqa: BLE001 - any failure of the rerun bridges nothing
+        return [f"the rerun broke: {e!r}"[:400]], []
+    finally:
+        sys.modules.pop(name, None)
+
+
+def repro_bridge(git_, version: str, base: str, head: str, script: Path, rerun=None) -> tuple[ReproBridge, str]:
+    """(bridge, why): a bridge that covers the two lines only when the commits check out and the rerun is clean;
+    otherwise an empty one and the reason, which the gate shows."""
+    spec = REPRO_BRIDGE.get(version)
+    if not spec or base != spec["base"]:
+        return ReproBridge(), ""
+    probs = repro_bridge_commit_problems(git_, spec, base, head)
+    parent = git_("rev-parse", "--verify", "--end-of-options", f"{spec['fix']}^") or ""
+    if not parent:
+        probs.append(f"no parent for {spec['fix'][:10]}")
+    if probs:
+        return ReproBridge(), "; ".join(probs)
+    problems, notes = (rerun or repro_bridge_rerun)(script, spec, parent)
+    if problems:
+        return ReproBridge(), "the rerun found: " + "; ".join(problems)[:600]
+    return ReproBridge(spec, parent, notes), ""
+
 def commit_patch_id(sha: str) -> str | None:
     """`git patch-id --stable` of one commit's change (None for a merge or when git can't say)."""
     try:
@@ -1023,7 +1176,7 @@ def add_judged(layer: Layer, hist: Historic | None, id_: str, title: str, cmd: l
             mine = [ln for ln in bridged if by[ln] is b]
             if mine:
                 why.append(f"{len(mine)} line(s) the {b.label} drops for {b.names()}"
-                           + (b.caveat(mine) if isinstance(b, KindBridge) else ""))
+                           + (b.caveat(mine) if isinstance(b, (KindBridge, ReproBridge)) else ""))
         named = [f"waived: {ln}" for ln in waived] + [f"dropped by the {by[ln].label}: {ln}" for ln in bridged]
         layer.add(id_, title, MAJOR, False, f"blocked only by {' and '.join(why)}: accept in accepted.json",
                   "\n".join(named + ["", tail(proc.out)]), proc.seconds, cmdline(cmd), content=named)
@@ -1043,7 +1196,7 @@ def historic_check(layer: Layer, hist: Historic) -> None:
               "\n".join(bad))
 
 
-def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, patch_id=None) -> None:
+def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, patch_id=None, rerun=None) -> None:
     """0.4.2 fast fix (scripts/fastfix_gate.py): the loosening gate and the reproduce-first check, over the change
     from the merge-base of --fastfix-base and HEAD, judged by the base's copy. An empty range (HEAD is the base: a
     release from main without --fastfix-base <previous release tag>) compares nothing, so both are SKIP, never PASS.
@@ -1059,7 +1212,7 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
     head = git_("rev-parse", "HEAD")
     hist = load_historic(git_, args.version, base, patch_id)
     loose: list[tuple[str, list, Proc, str]] = []
-    bridge, kind = Bridge(), KindBridge()
+    bridge, kind, repro, repro_why = Bridge(), KindBridge(), ReproBridge(), ""
     if not base or not head:
         for id_, title in titles.items():
             layer.add(id_, title, BLOCKER, False, f"can't find the merge-base of {args.fastfix_base} and HEAD "
@@ -1086,6 +1239,8 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
                          ("reproduce-first", [sys.executable, script, "reproduce", "--repo", ROOT,
                                               "--range", f"{base}..HEAD"])):
             loose.append((id_, cmd, runner(cmd, timeout=3600), f"clean since {base[:10]}, by {which}"))
+        if own and loose[-1][2].code == 1:     # the published judge's own copy only, never a bootstrap fallback
+            repro, repro_why = repro_bridge(git_, args.version, base, head, script, rerun)
         shutil.rmtree(tmp, ignore_errors=True)
     at = len(layer.checks)
     if getattr(args, "candidate", False):
@@ -1095,7 +1250,10 @@ def fastfix_checks(layer: Layer, args, git_=None, runner=None, ls_remote=None, p
     usable = [bridge if base and base == NAMING_BRIDGE.get(args.version) else None,
               kind if base and base == KIND_BRIDGE.get(args.version) else None]
     for id_, cmd, proc, summary in loose:
-        add_judged(layer, hist, id_, titles[id_], cmd, proc, summary, usable if id_ == "loosening" else None)
+        add_judged(layer, hist, id_, titles[id_], cmd, proc, summary,
+                   usable if id_ == "loosening" else [repro] if repro.spec else None)
+        if id_ == "reproduce-first" and repro_why:     # said on the blocked run, so the reason is in the report
+            layer.checks[-1].summary += f" (the oracle-harness bridge does not apply: {repro_why[:400]})"
     if loose:   # judged last, listed where they ran
         moved = layer.checks[-len(loose):]
         del layer.checks[-len(loose):]

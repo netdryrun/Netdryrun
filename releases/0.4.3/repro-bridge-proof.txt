@@ -1,0 +1,16 @@
+Oracle-harness bridge (scripts/release_gate.py REPRO_BRIDGE), proof runs on 2026-11-23 in a Linux clone at 77bc480b7e with the bridge's release_gate.py.
+Judge: v0.4.2's own scripts/fastfix_gate.py (61cd95de8b). Fix cc4744217d, parent fe65627a6b, oracle FP-043-MGMTNH.
+
+== 1. The bridge as the gate builds it (oracle as of 77bc480b7e) ==
+WHY: 
+SPEC: True PARENT: fe65627a6b
+NOTES: ['cc4744217d Fixes-Oracle: FP-043-MGMTNH: fails on fe65627a6b, checked against the fix (oracle as of 77bc480b7e, harness from the base)']
+COVERS: True
+COVERS: True
+EXIT=0
+
+== 2. Negative control: the same rerun with the oracle as of a8e6929dd6 (the copy the judge uses) ==
+NEGATIVE CONTROL, oracle as of a8e6929dd6
+PROBLEMS: ['cc4744217d Fixes-Oracle: FP-043-MGMTNH: every oracle test must fail on the parent fe65627a6b with an assertion (pytest exit 2; not an assertion failure: ::tests.oracles.FP-043-MGMTNH.test_oracle_fp_043_mgmtnh)', 'cc4744217d Fixes-Oracle: FP-043-MGMTNH: the oracle must pass on the fix (pytest exit 2, 0 failed, 1 errors, 0 skipped)']
+NOTES: ['cc4744217d Fixes-Oracle: FP-043-MGMTNH: fails on fe65627a6b, checked against the fix (oracle as of a8e6929dd6, harness from the base)']
+COMMIT CHECKS: ['the oracle commit a8e6929dd6 does not come after the fix and before HEAD', 'a8e6929dd6 changes files outside tests/oracles/FP-043-MGMTNH/', 'a8e6929dd6 is not the last commit to write tests/oracles/FP-043-MGMTNH/ at HEAD']

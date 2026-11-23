@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -1189,3 +1190,184 @@ def test_the_v042_fixture_world_has_fakes_the_gates_log_cant_see_so_changed_driv
     blockers, _, _ = gate.new_read_problems({"static": STATIC, "live": record("live", "a", [])}, tmp_path)
     assert sorted(n for n in gate.LIVE_BY_NOS if any(b.startswith(f"new device read on {n} ") for b in blockers)) \
         == sorted(gate.LIVE_BY_NOS), blockers
+
+
+# ---- the oracle-harness bridge (0.4.3 only): the published judge's two reproduce lines for a fix whose oracle needed a
+# helper the base lacks, dropped only after the gate reran that judge's own check_fix with the later oracle commit
+
+RFIX, RPARENT, RORACLE, ROID = "f" * 40, "p" * 40, "r" * 40, "FP-1-X"
+RSPEC = {"base": "b" * 40, "fix": RFIX, "oracle": ROID, "oracle_commit": RORACLE}
+RL1 = (f"BLOCKED {RFIX[:10]} Fixes-Oracle: {ROID}: every oracle test must fail on the parent {RPARENT[:10]} with an "
+       "assertion (pytest exit 2; not an assertion failure: ::tests.oracles.FP-1-X.test_x)")
+RL2 = f"BLOCKED {RFIX[:10]} Fixes-Oracle: {ROID}: the oracle must pass on the fix (pytest exit 2, 0 failed, 1 errors, 0 skipped)"
+RLINES = [RL1, RL2]
+
+
+def proven():
+    return gate.ReproBridge(RSPEC, RPARENT, [f"{RFIX[:10]} Fixes-Oracle: {ROID}: fails on {RPARENT[:10]}, checked "
+                                             f"against the fix (oracle as of {RORACLE[:10]}, harness from the base)"])
+
+
+def repro_static(tmp_path, monkeypatch, lines=None, bridge=None, why="", code=1, loosening=None, **over):
+    calls = []
+
+    def fake_bridge(git_, version, base, head, script, rerun=None):
+        calls.append((version, base, Path(script).name))
+        return (bridge if bridge is not None else proven()), why
+    monkeypatch.setattr(gate, "repro_bridge", fake_bridge)
+    outs = {"reproduce": judge_out(RLINES if lines is None else lines, "reproduce")}
+    codes = {"reproduce": code}
+    if loosening is not None:
+        outs["loosening"], codes["loosening"] = judge_out(loosening), 1
+    checks = static(tmp_path, answers(**over), fake_runner(CLEAN, codes, outs=outs))
+    return checks, calls
+
+
+def test_the_oracle_harness_bridge_turns_exactly_its_two_lines_into_a_fingerprinted_major(tmp_path, monkeypatch):
+    checks, calls = repro_static(tmp_path, monkeypatch)
+    c = checks["reproduce-first"]
+    assert (c.status, c.severity) == (gate.FAIL, gate.MAJOR), c.summary
+    assert "oracle-harness bridge" in c.summary and "accept in accepted.json" in c.summary, c.summary
+    assert "found nothing" in c.summary and RORACLE[:10] in c.summary, c.summary
+    for ln in RLINES:
+        assert f"dropped by the oracle-harness bridge: {ln}" in c.output
+    assert re.fullmatch(r"[0-9a-f]{16}", c.fingerprint or ""), c.fingerprint
+    assert calls == [("1.1.0", "b" * 40, "fastfix_gate.py")]
+
+
+@pytest.mark.parametrize("name,kw", [
+    # any other line beside the two, even about the same fix
+    ("extra-problem", {"lines": RLINES + [f"BLOCKED {RFIX[:10]} Fixes-Oracle: {ROID}: the fix changes files under "
+                                          "tests/oracles/"]}),
+    ("oracle-fails-at-candidate", {"lines": RLINES + [f"BLOCKED oracle {ROID} fails on the candidate {'h' * 10} "
+                                                      "(pytest exit 1): the bug is back"]}),
+    # the same text for another fix, another oracle or another parent
+    ("other-fix", {"lines": [ln.replace(RFIX[:10], "e" * 10) for ln in RLINES]}),
+    ("other-oracle", {"lines": [ln.replace(f"Oracle: {ROID}:", "Oracle: FP-1-Y:") for ln in RLINES]}),
+    ("other-parent", {"lines": [RL1.replace(RPARENT[:10], "q" * 10), RL2]}),
+    # text running past the line's end, or a line printed twice
+    ("trailing-text", {"lines": [RL1 + " and more", RL2]}),
+    ("printed-twice", {"lines": [RL1, RL1, RL2]}),
+    # the bridge didn't prove itself: nothing dropped, and the gate says why
+    ("unproven", {"bridge": gate.ReproBridge(), "why": "the rerun found: x"}),
+    # the judge broke: nothing it printed is dropped
+    ("judge-broken", {"code": 2}),
+])
+def test_the_oracle_harness_bridge_drops_nothing_it_shouldnt(tmp_path, monkeypatch, name, kw):
+    checks, _ = repro_static(tmp_path, monkeypatch, **kw)
+    c = checks["reproduce-first"]
+    assert (c.status, c.severity) == (gate.FAIL, gate.BLOCKER), (name, c.summary)
+    if name == "unproven":
+        assert "the oracle-harness bridge does not apply: the rerun found: x" in c.summary, c.summary
+
+
+def test_the_oracle_harness_bridge_never_touches_loosening_and_needs_the_published_judge(tmp_path, monkeypatch):
+    checks, _ = repro_static(tmp_path, monkeypatch, loosening=RLINES)
+    assert (checks["loosening"].status, checks["loosening"].severity) == (gate.FAIL, gate.BLOCKER)
+    # a base without its own judge (the bootstrap fallback to this checkout's copy) never runs the bridge
+    checks, calls = repro_static(tmp_path, monkeypatch, **{"show-base": ""})
+    assert calls == [] and checks["reproduce-first"].severity == gate.BLOCKER
+
+
+def test_the_oracle_harness_bridge_is_keyed_to_v042_for_043_only():
+    assert set(gate.REPRO_BRIDGE) == {"0.4.3"}
+    s = gate.REPRO_BRIDGE["0.4.3"]
+    assert s["base"] == gate.KIND_BRIDGE["0.4.3"] == "61cd95de8b5446d6adf24deda43f9bfb6957ee20"
+    assert (s["fix"], s["oracle"], s["oracle_commit"]) == ("cc4744217d0a8e20abeaa6f3564d711da346a5fe", "FP-043-MGMTNH",
+                                                         "77bc480b7ebb9323660e39c4f786c34c8bd23df7")
+
+
+def test_repro_bridge_applies_only_to_its_version_and_base_and_only_after_a_clean_rerun(monkeypatch):
+    monkeypatch.setattr(gate, "REPRO_BRIDGE", {"1.1.0": RSPEC})
+    monkeypatch.setattr(gate, "repro_bridge_commit_problems", lambda *a: [])
+    git_ = lambda *cmd: RPARENT if cmd[:3] == ("rev-parse", "--verify", "--end-of-options") else None  # noqa: E731
+    clean = lambda script, spec, parent: ([], proven().notes)  # noqa: E731
+    b, why = gate.repro_bridge(git_, "1.1.0", "b" * 40, "h" * 40, Path("j.py"), clean)
+    assert (b.spec, b.parent, why) == (RSPEC, RPARENT, "") and all(b.covers(ln, RLINES) for ln in RLINES)
+    for version, base in (("1.1.1", "b" * 40), ("1.1.0", "c" * 40)):
+        b, why = gate.repro_bridge(git_, version, base, "h" * 40, Path("j.py"), clean)
+        assert b.spec is None and why == "" and not b.covers(RL1, [RL1])
+    dirty = lambda script, spec, parent: (["every oracle test must fail on the parent"], [])  # noqa: E731
+    b, why = gate.repro_bridge(git_, "1.1.0", "b" * 40, "h" * 40, Path("j.py"), dirty)
+    assert b.spec is None and "the rerun found: every oracle test must fail" in why
+    monkeypatch.setattr(gate, "repro_bridge_commit_problems", lambda *a: ["not a pure oracle commit"])
+    b, why = gate.repro_bridge(git_, "1.1.0", "b" * 40, "h" * 40, Path("j.py"), clean)
+    assert b.spec is None and why == "not a pure oracle commit"
+
+
+def test_a_rerun_that_breaks_bridges_nothing(tmp_path):
+    problems, notes = gate.repro_bridge_rerun(tmp_path / "missing.py", RSPEC, RPARENT)
+    assert problems and problems[0].startswith("the rerun broke") and notes == []
+    (tmp_path / "j.py").write_text("ORACLES = 'tests/oracles'\n", encoding="utf-8")    # a judge without check_fix
+    problems, _ = gate.repro_bridge_rerun(tmp_path / "j.py", RSPEC, RPARENT)
+    assert problems and problems[0].startswith("the rerun broke")
+
+
+def _commit(repo: Path, files: dict, message: str) -> str:
+    for rel, text in files.items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", message)
+    return _git(repo, "rev-parse", "HEAD")
+
+
+@pytest.fixture
+def repro_repo(tmp_path):
+    repo = tmp_path / "r"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "t")
+    o = f"tests/oracles/{ROID}/"
+    shas = {"base": _commit(repo, {"src/a.py": "x = 1\n"}, "base")}
+    shas["oracle"] = _commit(repo, {o + "ORACLE.yml": "id: x\n"}, f"oracle\n\nOracle: {ROID}\nSession: s-oracle")
+    shas["fix"] = _commit(repo, {"src/a.py": "x = 2\n"}, f"fix\n\nFixes-Oracle: {ROID}\nSession: s-fix")
+    shas["rewrite"] = _commit(repo, {o + "test_x.py": "def test_x(): pass\n"},
+                              f"oracle in the base harness\n\nOracle: {ROID}\nSession: s-main")
+
+    def git_(*a):
+        p = subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True)
+        return p.stdout.strip() if p.returncode == 0 else None
+    spec = {"base": shas["base"], "fix": shas["fix"], "oracle": ROID, "oracle_commit": shas["rewrite"]}
+    return repo, git_, spec, shas
+
+
+@needs_git
+def test_the_named_commits_must_be_a_fix_then_a_pure_oracle_commit_by_another_session(repro_repo):
+    repo, git_, spec, shas = repro_repo
+    head = shas["rewrite"]
+    assert gate.repro_bridge_commit_problems(git_, spec, spec["base"], head) == []
+    o = f"tests/oracles/{ROID}/"
+    bad = {
+        "before-fix": {**spec, "oracle_commit": shas["oracle"]},
+        "fix-not-in-range": {**spec, "fix": shas["base"]},
+        "swapped": {**spec, "fix": shas["rewrite"], "oracle_commit": shas["fix"]},
+    }
+    for name, s in bad.items():
+        assert gate.repro_bridge_commit_problems(git_, s, spec["base"], head), name
+    # the judge's 10-digit prefix must name the fix alone in the change
+    def twin(*a):
+        out = git_(*a)
+        return f"{spec['fix'][:10]}{'0' * 30}\n{out}" if a[0] == "rev-list" and ".." in a[1] else out
+    assert any("shares those digits" in p for p in gate.repro_bridge_commit_problems(twin, spec, spec["base"], head))
+    # a later commit that writes the oracle again: the proven oracle is not the one at HEAD
+    later = _commit(repo, {o + "test_x.py": "def test_x(): assert 1\n"}, f"again\n\nOracle: {ROID}\nSession: s-main")
+    assert any("last commit to write" in p for p in gate.repro_bridge_commit_problems(git_, spec, spec["base"], later))
+
+
+@needs_git
+@pytest.mark.parametrize("files,message,why", [
+    ({"src/a.py": "x = 3\n"}, "Oracle: {oid}\nSession: s-main", "changes files outside"),
+    ({}, "Oracle: {oid}\nSession: s-fix", "from different sessions"),
+    ({}, "Session: s-main", "lacks the trailer"),
+    ({}, "Oracle: {oid}\nFixes-Oracle: {oid}\nSession: s-main", "lacks the trailer"),
+    ({}, "Oracle: {oid}", "from different sessions"),
+])
+def test_a_rewrite_that_isnt_a_pure_oracle_commit_by_another_session_bridges_nothing(repro_repo, files, message, why):
+    repo, git_, spec, shas = repro_repo
+    _git(repo, "reset", "-q", "--hard", shas["fix"])
+    o = f"tests/oracles/{ROID}/"
+    rew = _commit(repo, {o + "test_x.py": "def test_x(): pass\n", **files}, "rewrite\n\n" + message.format(oid=ROID))
+    probs = gate.repro_bridge_commit_problems(git_, {**spec, "oracle_commit": rew}, spec["base"], rew)
+    assert any(why in p for p in probs), probs
