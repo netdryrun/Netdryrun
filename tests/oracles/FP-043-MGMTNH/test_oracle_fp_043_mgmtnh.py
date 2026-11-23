@@ -37,10 +37,19 @@ from pathlib import Path
 
 import pytest
 
-from fakes import UnexpectedCommand
 from netdryrun import mgmt
 from netdryrun.lab import ExecResult, Node
 from netdryrun.mgmt import ManagementPathError
+
+try:  # the shared refusal (tests/fakes.py, 0.4.3 on), whose message the release tooling reads as a new device read
+    from fakes import UnexpectedCommand
+except ImportError:  # the gate runs this oracle in the published release's harness, which has no tests/fakes.py
+    class UnexpectedCommand(AssertionError):
+        """A fake lab was sent a command it has no answer for (same message prefix as tests/fakes.py)."""
+
+        def __init__(self, command: object):
+            self.command = command
+            super().__init__(f"unexpected command: {command}")
 
 ROOT = Path(__file__).resolve().parents[3]
 FX = ROOT / "tests" / "fixtures" / "frr_mgmtnh"
