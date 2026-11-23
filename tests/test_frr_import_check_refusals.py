@@ -15,7 +15,7 @@ from netdryrun.drivers import frr_import_check as ic
 from netdryrun.lab import ExecResult, LabError
 from test_frr_import_check import (BOOT_LOG, EMPTY_JSON, EMPTY_TEXT, JSON, REMEDIED_JSON, REMEDIED_TEXT, SESSIONS,
                                    STUCK_CONFIG, STUCK_JSON, STUCK_TEXT, TEXT, VALID_TEXT, Clock, Lab, _config,
-                                   cap_answers, fu, node_answers, r1_answers, run, run_cap, run_r1)
+                                   cap_answers, fu, node_answers, off_answers, r1_answers, run, run_cap, run_r1)
 
 RMCAP_ALL = ["EARLYDENY", "LATEDENY", "NOSUCH", "LATEPERMIT"]
 STUCK_WHY = "192.0.2.0/24 in 'router bgp 65000' is not registered with zebra"
@@ -270,6 +270,14 @@ def test_probe_reads_frr_past_leading_blank_lines_and_says_why_it_cant_tell():
         "vtysh answers with bgpd's running config")
     assert refused(ic.probe, Lab({("x", tuple(ic.BGPD_CONFIG)): (1, "OUT", "ERR")}), "x") == (
         "`vtysh -d bgpd -c show running-config` answered rc 1 (ERR)")
+
+
+def test_bgpd_off_reads_whole_process_names():
+    """DERIVED: the live process list of a router with bgpd off, plus a process whose name has a space and the word
+    bgpd in it (a comm name may hold spaces): that is no bgpd process."""
+    procs = fu("r1_comm_bgpd_off.txt") + "my bgpd\n"
+    out, _, _ = run(Lab(off_answers(procs=(0, procs, ""))), nodes={"r1": "frr"})
+    assert out == {"r1": ic.BGPD_DOWN}
 
 
 def test_candidates_probe_every_node_no_driver_claims_and_skip_only_bridges():
