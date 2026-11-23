@@ -1,0 +1,5 @@
+# The scripts in this folder are oracle evidence (tests/oracles/FP-043-MGMTNH/ORACLE.yml) and are kept exactly as
+# they were run to capture the fixtures, so they are not edited. They were run with bash from the repository root.
+shell=bash
+# cd into the repository root given by REPO; a failed cd stops the capture at its first command anyway.
+disable=SC2164
