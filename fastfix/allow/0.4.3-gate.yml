@@ -19,20 +19,22 @@ flips:
       check that by hand (done for the FP-042 entries in 0.4.3-unnsess-newread.yml).
     reviewed_by: "allow-review-043c, from the diff 099a76ecf215..a035930cfb1f (01e0a73 only): the one relaxed shape needs a changed live capture beside the test, every other evidence rule and the reviewer, separation and live-routing rules are unchanged; adv-newread approved 01e0a73"
   - source: gate
-    case: scripts/release_gate.py@7fbeececd3ab
+    case: scripts/release_gate.py@715a7319217a
     from: FAIL
     to: PASS
-    evidence: [research/captures/import-guard-v2-f84526a.txt]
+    evidence: [releases/0.4.3/repro-bridge-proof.txt, research/captures/import-guard-v2-f84526a.txt]
     why: >-
-      Replaces the entry for the earlier blob 645070a65e8f (import guard). The added changes: the kind bridge for
-      0.4.3 against v0.4.2 only, and a copied-out judge that gets its own commit's command-log plugin. The bridge
-      drops a v0.4.2 judge's keys line, and the matching unexplained flip, only for an entry whose only extra key is
-      kind: new-read, and only when this commit's stricter judge matched that entry to the same new-read flip with
-      no problem naming it. A bridged run is a fingerprinted MAJOR that lists each entry for review by hand, never a
-      PASS. new_read_problems now keeps every changed driver on live unless the base's own fixtures kept the log
-      (source fixtures); a gate-kept, missing or unknown source keeps the conservative routing. tests/fakes.py and
-      scripts/fastfix_cmdlog.py join GATE_FILES.
-    reviewed_by: "allow-043b, from the diff 4388bb5..HEAD: the bridge turns BLOCKER lines into a fingerprinted MAJOR only after the stricter judge's match and expires after 0.4.3; live routing is lifted only for a fixture-kept log; adv-gatelog and rev2-gatelog approved after the routing fix"
+      Replaces the entry for blob 7fbeececd3ab, stale now that 781a4cb changed the file; everything up to
+      7fbeececd3ab is as that entry said. 781a4cb adds the oracle-harness bridge (REPRO_BRIDGE), for 0.4.3 against
+      v0.4.2 only. It drops two lines of the published judge's reproduce run, "must fail on the parent" and "must
+      pass on the fix", for fix cc4744217d and oracle FP-043-MGMTNH only, each printed exactly once and matched in
+      full, and only when 77bc480 is a single-parent commit after the fix that touches only that oracle's folder,
+      carries Oracle: FP-043-MGMTNH and another session's marker, and is the oracle at HEAD, and the gate's rerun of
+      v0.4.2's own check_fix, with the oracle as 77bc480 has it, reports no problem. It cannot turn a failure into a
+      pass: a bridged run is a fingerprinted MAJOR, never a PASS; any other line, a crashed or bootstrap judge, a
+      failed commit check or a rerun problem leaves the BLOCKER, and the summary says why. The rerun reads only fixed
+      commits, and 77bc480 only adds a fallback for the oracle's import of a test helper; every assertion is unchanged.
+    reviewed_by: "adv-reprobridge, from the diff 7fbeececd3ab..715a7319217a (781a4cb only): ran the bridge on the real repo (a fingerprinted MAJOR with the historic waivers, nothing else dropped); the rerun's world and check_fix match v0.4.2 reproduce apart from the oracle commit; with 77bc480's oracle all six tests fail on the parent with the bug's assertion and pass on the fix, and the old oracle errors on both; the oracle diff since a8e6929 is the import fallback and the plant; line variants, digit twins, exit 2, bootstrap and loosening runs drop nothing; reverting the file fails the new tests"
   - source: gate
     case: scripts/fastfix_cmdlog.py@f8d93ecbe443
     from: FAIL
