@@ -75,6 +75,14 @@ def test_bgpd_config_instances_families_and_exclusions():
     assert blue.checked == [ic.Network("10.3.0.0/16", ("ipv4", "labeled-unicast"))]
 
 
+def test_bgpd_config_import_check_turned_back_on_is_checked():
+    """DERIVED: `bgp network import-check` after `no bgp network import-check` turns the check back on."""
+    (inst,) = ic.parse_bgpd_config(_config("router bgp 1\n no bgp network import-check\n bgp network import-check\n"
+                                           " address-family ipv4 unicast\n  network 10.0.0.0/24\n"
+                                           " exit-address-family\nexit\n"))
+    assert inst.import_check is True and inst.checked == [ic.Network("10.0.0.0/24", ("ipv4", "unicast"))]
+
+
 def test_bgpd_config_network_at_router_level_is_ipv4_unicast():
     (inst,) = ic.parse_bgpd_config(_config("router bgp 1\n network 10.0.0.0/24\nexit\n"))
     assert inst.checked == [ic.Network("10.0.0.0/24", ("ipv4", "unicast"))]
@@ -94,6 +102,10 @@ def test_bgpd_config_network_at_router_level_is_ipv4_unicast():
     _config("router bgp 1\nip route 1.1.1.0/24 lo\nexit\n"),                      # a top-level line inside
     _config(" network 10.0.0.0/24\n"),                                            # outside router bgp
     _config("router bgp 1\n address-family ipv4 unicast\n address-family ipv6 unicast\n exit-address-family\nexit\n"),
+    _config("router bgp 1\n address-family ipv4 unicast\n  network 10.0.0.0/24 route-map r;m\n exit-address-family\n"
+            "exit\n"),                                                            # a map name not fit for a command
+    _config("router bgp 1\n address-family ipv4 unicast\n  network 10.0.0.0/24 route-map\n exit-address-family\n"
+            "exit\n"),                                                            # a map with no name
 ])
 def test_bgpd_config_not_understood_is_unknown(text):
     with pytest.raises(ic.Unknown):
@@ -150,6 +162,9 @@ def test_two_networks_of_one_address_are_both_kept():
     STUCK_JSON.replace('"bestpath":true,"valid":true', '"bestpath":true'),
     STUCK_JSON.replace('"192.0.2.0":', '"2001:db8::":'),
     STUCK_JSON.replace('"valid":false,"complete":false,"pathCount":1', '"valid":false,"valid":false,"pathCount":1'),
+    STUCK_JSON.replace('"ipv6":{}', '"ipv6":[]'),                                # a family that is not a table
+    STUCK_JSON.replace('"192.0.2.0":', '"192.0.2.x":'),                         # a key that is not an address
+    STUCK_JSON.replace('"paths":[{"afi"', '"paths":[1,{"afi"').replace('"pathCount":1', '"pathCount":2'),  # not an object
 ])
 def test_table_json_not_understood_is_unknown(text):
     with pytest.raises(ic.Unknown):
@@ -166,6 +181,7 @@ def test_table_json_not_understood_is_unknown(text):
     STUCK_TEXT.replace("Paths:\n", "Paths:\n    9/1 10.0.0.0/8 VRF default flags 0x10\n").replace("#paths 1", "#paths 2"),
     VALID_TEXT.replace("  Resolved prefix", "  Is not Registered\n  Resolved prefix"),
     VALID_TEXT + "something else\n",
+    STUCK_TEXT.replace(" 192.0.2.0 invalid", " 192.0.2.x invalid"),               # an entry that is not an address
 ])
 def test_table_text_not_understood_is_unknown(text):
     with pytest.raises(ic.Unknown):
@@ -313,8 +329,18 @@ def test_a_session_that_comes_up_during_the_remedy_is_not_a_reset():
     assert run(lab)[0]["pe1"].startswith("remedied")
 
 
-def test_unreadable_sessions_around_the_remedy_are_an_error():
-    lab = Lab(node_answers(sessions="% error"), after=node_answers(j=REMEDIED_JSON, t=REMEDIED_TEXT))
+@pytest.mark.parametrize("sessions", [
+    "% error",
+    '{"default":[]}',                                                       # a VRF that is not a table
+    '{"default":{"vrfId":0,"vrfName":"default","10.0.0.1":1}}',             # a peer that is not an object
+    '{"default":{"10.0.0.1":{"bgpState":"Established","connectionsEstablished":"1","connectionsDropped":0}}}',
+    None,                                                                   # the command fails
+])
+def test_unreadable_sessions_around_the_remedy_are_an_error(sessions):
+    answers = node_answers(sessions=sessions or SESSIONS)
+    if sessions is None:
+        answers[("pe1", tuple(ic.NEIGHBORS))] = (1, "", "bgpd is not running")
+    lab = Lab(answers, after=node_answers(j=REMEDIED_JSON, t=REMEDIED_TEXT))
     with pytest.raises(ic.ImportCheckError, match="sessions could not be read"):
         run(lab)
 
