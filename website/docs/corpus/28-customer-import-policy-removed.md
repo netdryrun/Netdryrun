@@ -57,4 +57,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 28
 ```
 
-Case file: [`corpus/cases/28-customer-import-policy-removed.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/28-customer-import-policy-removed.yml). Published result: netdryrun 0.4.2, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `ce79e10`, run on 2026-11-18.
+Case file: [`corpus/cases/28-customer-import-policy-removed.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/28-customer-import-policy-removed.yml). Published result: netdryrun 0.4.3, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `5cad91f`, run on 2026-11-23.

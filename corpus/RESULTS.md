@@ -1,6 +1,6 @@
 # Verdict Corpus results
 
-Generated 2026-11-18T01:38:49+00:00 with netdryrun 0.4.2, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `ce79e10`. Rerun everything with `python corpus/run.py`.
+Generated 2026-11-23T01:39:23+00:00 with netdryrun 0.4.3, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `5cad91f`. Rerun everything with `python corpus/run.py`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of `corpus/cases/`). Losses are kept and shown at the same size as the catches.
 
@@ -75,3 +75,5 @@ These findings came after the run. The table above is left exactly as pre-regist
 **Refreshed on the final 0.4.1 candidate `cb580bc` (2026-11-08), after the readiness wait for Junos and cEOS management reads, End-of-RIB from RouterOS peers judged by stable counts, and the RouterOS health re-read:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
 
 **Refreshed on the final 0.4.1 candidate `8bc84c3` (2026-11-09), after the angle-5 red-team fixes, RT-0048 published as an accepted documented limit, and the mutation kill tests:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code.
+
+**Refreshed on the 0.4.3 candidate `5cad91f` (2026-11-23), after FRR's stuck import check is cleared before any check and Docker's management default route is removed before the management-path guard reads routes:** no verdict or status changed (corpus-check passed), and `results.json` now records that verdict code. Case 19 now runs with every route announced (before 0.4.3 peer1's route could stay unannounced on a stuck import check): pe1 learns the peer route with a next hop the lab can't reach, the customer can't reach the peer, and Netdryrun reports unsafe from that check, as expected.
