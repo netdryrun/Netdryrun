@@ -580,7 +580,11 @@ def test_the_command_log_is_the_same_on_two_runs_of_the_same_code(tmp_path):
         env = {k: v for k, v in os.environ.items()
                if k not in ("PYTEST_ADDOPTS", "PYTEST_CURRENT_TEST", "NDR_TEST_INSTALLED", "NDR_TEST_SRC",
                             "NDR_GUARD_PROOF", "PYTHONPYCACHEPREFIX")}
-        env.update({COMMAND_LOG: str(log), "PYTHONPATH": str(repo / "src")})
+        # a fresh bytecode cache of the child's own: a copied tests/__pycache__ (the release gate's container copies the
+        # checkout's) holds pytest's rewritten .pyc files with the host's paths, and a fake found by its file name in
+        # one of those is not seen as a fake, so the log went silent for that test (0.4.3 gate)
+        env.update({COMMAND_LOG: str(log), "PYTHONPATH": str(repo / "src"),
+                    "PYTHONPYCACHEPREFIX": str(tmp_path / run / "pyc")})
         p = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", *NOISY],
                            cwd=repo, env=env, capture_output=True, text=True, timeout=600)
         assert p.returncode == 0, p.stdout[-2000:] + p.stderr[-2000:]
