@@ -217,8 +217,13 @@ def test_run_py_from_a_scratch_copy_remedies_as_the_release_gate_runs_it(tmp_pat
     driver.write_text(DRIVER, encoding="utf-8")
     env = dict(os.environ, NDR_VERDICT_TREE="0" * 64,
                PYTHONPATH=str(Path(netdryrun.__file__).resolve().parent.parent))
+    # Under mutmut (the release gate's mutation layer) the mutated source in the child looks for mutmut's config in
+    # its working directory, so the child keeps mutmut's folder there; everywhere else it runs from a work folder, as
+    # the gate's live layer runs run.py. run.py reads nothing from its working directory either way.
+    under_mutmut = os.environ.get("MUTANT_UNDER_TEST") is not None or any(k.startswith("MUTMUT") for k in os.environ)
     r = subprocess.run([sys.executable, str(driver), str(copy / "run.py"), str(ROOT / "tests"), str(tmp_path / "w")],
-                       capture_output=True, text=True, cwd=tmp_path, env=env, timeout=120)
+                       capture_output=True, text=True, cwd=Path.cwd() if under_mutmut else tmp_path, env=env,
+                       timeout=120)
     assert r.returncode == 0, r.stderr
     result = json.loads(r.stdout.rsplit("RESULT ", 1)[1])
     assert result == {"rc": 0, "remedied": ["pe1"], "strategies": 3, "here": str(copy)}
