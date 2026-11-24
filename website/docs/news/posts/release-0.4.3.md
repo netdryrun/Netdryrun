@@ -3,7 +3,6 @@ date: 2026-11-23
 slug: release-0.4.3
 title: "Netdryrun 0.4.3: false-pass fixes for Arista EOS, SR Linux EVPN and FRR"
 description: "0.4.3 fixes the two open cases of the 0.4.1 advisory, the node's own BGP aggregate on Arista EOS and FRR's import check at boot. Checks on FRR can now name a BGP-unnumbered session by its interface."
-draft: true
 categories:
   - Releases
 ---
@@ -30,7 +29,7 @@ Known limits in 0.4.3, each with a workaround on the [trust page](../../trust.md
 - **An unresolved static route on Arista EOS** is in no EOS read, so `protocol: static present: false` passes on EOS where FRR fails it.
 - The other limits 0.4.2 listed as not fixed are still open, among them the node's own exported prefix on SR Linux and Junos, the EOS `out-delay`, the NX-OS FIB state, and a route that takes one advertisement interval per hop. The [CHANGELOG](https://github.com/netdryrun/Netdryrun/blob/main/CHANGELOG.md) lists them all.
 
-Each false-pass fix, and the unnumbered session checks, has an oracle test built from live router output. Upgrade with `pipx upgrade netdryrun` and pin `netdryrun/Netdryrun@v0.4.2`.
+Each false-pass fix, and the unnumbered session checks, has an oracle test built from live router output. Upgrade with `pipx upgrade netdryrun` and pin `netdryrun/Netdryrun@v0.4.3`.
 
 Think you can make it say "passed" when it shouldn't? [Open a corpus case](https://github.com/netdryrun/Netdryrun/issues/new?template=corpus-case.yml) and it becomes a permanent must-fail test.
 

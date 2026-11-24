@@ -3,7 +3,7 @@
 **Affected:** netdryrun 0.4.1 and earlier (cases 1 and 2: 0.4.2 too), and the matching Actions up to
 `netdryrun/Netdryrun@v0.4.1` (cases 1 and 2: `@v0.4.2`); each entry gives the drivers. **Severity:** Moderate, as [GHSA-g4f6-4624-2pjv](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-g4f6-4624-2pjv):
 each case needs a specific driver, config and lab state, and each has a check that catches it today (given below).
-**Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are fixed for 0.4.3, which is in its release gate and not published yet (0.4.2 and earlier have them). **Found by:** our own release gate (two isolated
+**Patched versions:** cases 3 and 4 are fixed in 0.4.2; cases 1 and 2 are fixed in 0.4.3 (0.4.2 and earlier have them). **Found by:** our own release gate (two isolated
 adversarial reviewers and a fresh verifier on the final 0.4.1 candidate, 9 November 2026), before any outside user
 reported them. **Evidence:** RT-0053 was reproduced in the pinned FRR image; the others were first confirmed against recorded
 router output (EOS from live fixtures). While they were fixed for 0.4.3, case 1 was reproduced on a live cEOS 4.36.3M and
@@ -16,7 +16,7 @@ GitHub advisory: [GHSA-ggcf-664f-c9ff](https://github.com/netdryrun/Netdryrun/se
 Each case is a red-team file in `tests/redteam/` (RT-0053, RT-0056, RT-0058, RT-0063) or an oracle (case 4, RT-S01),
 registered in `tests/known_false_passes.yml`; the test fails if the published text or the limit changes unnoticed.
 
-**What to do:** 0.4.3 fixes all four cases once it is published. Until then, use 0.4.2 and apply the workaround of
+**What to do:** upgrade to 0.4.3, which fixes all four cases. On an earlier version, apply the workaround of
 each case that matches your labs.
 
 **1. Arista EOS: `route ... present: false` with a protocol other than `bgp` didn't see a route that lost** (RT-0056,

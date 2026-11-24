@@ -4,9 +4,9 @@
 
 > Netdryrun is an open-source tool (Python, Apache-2.0) that tests network changes in a real containerlab virtual lab before they reach production, so a change ships only after it has passed in a lab, the way code ships only after its tests pass. It waits for convergence, checks BGP sessions, prefixes, routes and reachability, and returns a pass/fail verdict with evidence. Supported network OSes: FRR, Nokia SR Linux, SONiC (docker-sonic-vs), Arista EOS (cEOS, bring your own image), Juniper cJunosEvolved (beta, bring your own image), Cisco NX-OS (Nexus 9000v, beta, bring your own image) and MikroTik RouterOS 7 (CHR, beta, bring your own image). It runs locally, in GitHub Actions, or as an MCP server for AI agents.
 
-Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.4.2). Source: https://github.com/netdryrun/Netdryrun
+Install: `pipx install netdryrun` (or `uv tool install netdryrun`; current version 0.4.3). Source: https://github.com/netdryrun/Netdryrun
 
-Facts (generated from the source): version 0.4.2; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
+Facts (generated from the source): version 0.4.3; check types `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping`; MCP tools `dry_run`, `verify_change`, `start_run`, `get_result`, `run_checks`, `record_baseline`, `validate` and `check_types`; verdict corpus Netdryrun 24/30, ping-only 20/30, sessions-up 15/30.
 
 Docs: https://netdryrun.com/ · Short index: https://netdryrun.com/llms.txt
 
@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/        # folder containing netdryrun.yml
 ```
@@ -161,7 +161,7 @@ Requirements: Linux or WSL2, Docker, containerlab, Python 3.10+. Walkthrough: [G
 ## Status
 
 
-Version 0.4.2. Works with FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image), Juniper cJunosEvolved (beta), Cisco NX-OS (beta, bring your own Nexus 9000v image) and MikroTik RouterOS 7 (beta, bring your own CHR image) on Linux and WSL2. Check types: `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping` (IPv4/IPv6 unicast BGP sessions, prefix counts, routes, BGP best-path attributes and ping), plus link-down, node-isolation and route-injection (FRR only) failure scenarios. On the [verdict corpus](corpus.md) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 9 of 17 deterministic cases correct (8 inconclusive, reported as not proven; 0 harmful changes approved), ping-only 8/17, all-sessions-up 7/17; case 18 is nondeterministic in this lab and excluded from the score (listed with its reruns). Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.4.3. Issues and feedback: [github.com/netdryrun/Netdryrun](https://github.com/netdryrun/Netdryrun/issues).
+Version 0.4.3. Works with FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image), Juniper cJunosEvolved (beta), Cisco NX-OS (beta, bring your own Nexus 9000v image) and MikroTik RouterOS 7 (beta, bring your own CHR image) on Linux and WSL2. Check types: `bgp_session`, `bgp_prefixes`, `route`, `bgp_route` and `ping` (IPv4/IPv6 unicast BGP sessions, prefix counts, routes, BGP best-path attributes and ping), plus link-down, node-isolation and route-injection (FRR only) failure scenarios. On the [verdict corpus](corpus.md) v1 (30 realistic BGP changes: 19 harmful, 11 safe), Netdryrun judged 24/30 correctly, ping-only checks 20/30 and all-sessions-up checks 15/30. Netdryrun approved 5 of the 19 harmful changes (ping-only checks: 10 of 19) and blocked 1 of the 11 safe ones. On v2 (18 cases written after v1 to target v1's misses): Netdryrun 9 of 17 deterministic cases correct (8 inconclusive, reported as not proven; 0 harmful changes approved), ping-only 8/17, all-sessions-up 7/17; case 18 is nondeterministic in this lab and excluded from the score (listed with its reruns). Expected verdicts were committed before any run, on one FRR topology: a comparison of testing methods, not a production reliability estimate. Method, every miss and a one-command rerun are on the corpus page. Provenance: both ran on Netdryrun 0.4.3. Issues and feedback: [github.com/netdryrun/Netdryrun](https://github.com/netdryrun/Netdryrun/issues).
 
 
 ---
@@ -333,7 +333,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false   # the lab runs privileged containers: leave no token in .git/config
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true
@@ -898,7 +898,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/
           pr-comment: true
@@ -1402,7 +1402,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/        # folder containing netdryrun.yml
 ```
@@ -1463,7 +1463,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/
 ```
@@ -1471,7 +1471,7 @@ jobs:
 ### Use the outputs in a later step
 
 ```yaml
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         id: ndr
         with:
           path: network/
@@ -1496,7 +1496,7 @@ jobs:
         lab: [network/core, network/edge]
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: ${{ matrix.lab }}
           artifact-name: netdryrun-${{ strategy.job-index }}
@@ -1517,7 +1517,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/
           pr-comment: true
@@ -1540,7 +1540,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # verify reads the base and head commits
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           mode: verify
           topology: network/topology.clab.yml
@@ -1830,7 +1830,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/
           pr-comment: true
@@ -2402,7 +2402,7 @@ Build a containerlab lab of the affected part of the network, apply the change t
 
 ## How do I run containerlab in CI?
 
-On GitHub, add the Netdryrun action to a workflow on `pull_request`: `uses: netdryrun/Netdryrun@v0.4.2` with `path:` pointing at the folder that holds `netdryrun.yml`. It installs containerlab on the GitHub-hosted `ubuntu-latest` runner, deploys the lab, runs the checks, destroys the lab, uploads JSON and JUnit reports and fails the job on any failed check. A small FRR lab takes about 1 to 2 minutes per job ([measured times](#how-long-does-a-run-take-and-what-does-ci-cost)). Other CI systems can run the same `netdryrun run` command on a Linux runner with Docker and containerlab installed. See [GitHub Action](github-action.md), and the [FRR](guides/frr-ci.md) and [SONiC](guides/sonic-ci.md) CI guides.
+On GitHub, add the Netdryrun action to a workflow on `pull_request`: `uses: netdryrun/Netdryrun@v0.4.3` with `path:` pointing at the folder that holds `netdryrun.yml`. It installs containerlab on the GitHub-hosted `ubuntu-latest` runner, deploys the lab, runs the checks, destroys the lab, uploads JSON and JUnit reports and fails the job on any failed check. A small FRR lab takes about 1 to 2 minutes per job ([measured times](#how-long-does-a-run-take-and-what-does-ci-cost)). Other CI systems can run the same `netdryrun run` command on a Linux runner with Docker and containerlab installed. See [GitHub Action](github-action.md), and the [FRR](guides/frr-ci.md) and [SONiC](guides/sonic-ci.md) CI guides.
 
 ## Is there an MCP server for testing network changes?
 
@@ -2734,7 +2734,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/
           pr-comment: true
@@ -2949,7 +2949,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true
@@ -2961,7 +2961,7 @@ The job installs containerlab and Netdryrun, pulls the FRR image, runs the check
 
 ```bash
 bash -c "$(curl -sL https://get.containerlab.dev)" -- -v 0.81.1
-python3 -m venv .ndr && .ndr/bin/pip install netdryrun==0.4.2
+python3 -m venv .ndr && .ndr/bin/pip install netdryrun==0.4.3
 sudo env -i "PATH=$PWD/.ndr/bin:/usr/sbin:/usr/bin:/sbin:/bin" HOME=/root netdryrun run network/ --junit netdryrun-junit.xml --json netdryrun-report.json
 ```
 
@@ -3163,7 +3163,7 @@ jobs:
           curl -fsSL -o docker-sonic-vs.gz \
             "https://sonic-build.azurewebsites.net/api/sonic/artifacts?branchName=master&platform=vs&target=target/docker-sonic-vs.gz"
           docker load -i docker-sonic-vs.gz
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/sonic/
 ```
@@ -3214,7 +3214,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false   # the lab runs privileged containers: leave no token in .git/config
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: network/        # the folder with netdryrun.yml
           pr-comment: true
@@ -5298,7 +5298,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: netdryrun/Netdryrun@v0.4.2
+      - uses: netdryrun/Netdryrun@v0.4.3
         with:
           path: examples/batfish-pipeline
 ```
@@ -5424,7 +5424,7 @@ Netdryrun adds a test layer on top of a containerlab lab:
 - every run produces one pass/fail result, a CI-friendly exit code, and a JSON evidence file
 
 
-Version 0.4.2 has drivers for FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image), Juniper cJunosEvolved (beta), Cisco NX-OS (beta, bring your own Nexus 9000v image) and MikroTik RouterOS 7 (beta, bring your own CHR image), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
+Version 0.4.3 has drivers for FRR, Nokia SR Linux, SONiC, Arista EOS (bring your own cEOS image), Juniper cJunosEvolved (beta), Cisco NX-OS (beta, bring your own Nexus 9000v image) and MikroTik RouterOS 7 (beta, bring your own CHR image), and its checks cover BGP sessions, prefix counts, routes, BGP best-path attributes and ping, with link-down, node-isolation and route-injection (FRR only) failure scenarios.
 
 It does not do static analysis, build labs for you, or test production devices.
 
@@ -5620,7 +5620,7 @@ Source: https://netdryrun.com/roadmap/
 
 # Roadmap
 
-**Direction, not a commitment.** A version ships when its [release gate](how-its-built.md) is green, never on a date. Items can move, split or be dropped. Security fixes go first. Updated 2026-11-24.
+**Direction, not a commitment.** A version ships when its [release gate](how-its-built.md) is green, never on a date. Items can move, split or be dropped. Security fixes go first. Updated 2026-11-23.
 
 **Beta** means a driver is incomplete and may change, with no support commitment, and the network OS image stays under its vendor's licence: you bring your own where the vendor requires it. A beta driver has passed the gate on captured output from that OS, including the checks that must fail.
 
@@ -5628,6 +5628,7 @@ Source: https://netdryrun.com/roadmap/
 
 | Version | Date | What it added |
 |---|---|---|
+| [0.4.3](https://github.com/netdryrun/Netdryrun/releases/tag/v0.4.3) | 2026-11-23 | Fix release: cases 1 and 2 of the [0.4.1 advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.1-known-false-passes/README.md) (Arista EOS routes that lost route selection, SR Linux EVPN type-5 routes imported into an ip-vrf), the node's own BGP aggregate on Arista EOS (now `bgp`, selected or not; `protocol: aggregate` is refused on EOS), FRR's import check at boot (a `network` prefix announced with no route behind it, the cause of the corpus v2 case 18 race), checks on BGP-unnumbered sessions named by their interface (FRR), and PyYAML 6.0.4 excluded. New limits: `bgp_route` in an SR Linux EVPN ip-vrf without PE-CE BGP is not evaluated (fail-closed), and the import-check reset can briefly announce an unbacked prefix to a peer |
 | [0.4.2](https://github.com/netdryrun/Netdryrun/releases/tag/v0.4.2) | 2026-11-21 | Fix release: the two problems the new-user test found on 0.4.1 (SR Linux on containerlab 0.83, FRR 10.2 with `record`), BGP-unnumbered links in `record` (its interface-named sessions are a named gap until 0.4.3), own-address reads that skipped text before the JSON, cases 3 and 4 of the [0.4.1 advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.1-known-false-passes/README.md), and false passes found before release, among them BGP add-path counted as prefixes (FRR, SONiC, SR Linux, EOS), withdrawn paths read as routes (FRR, SONiC, NX-OS), graceful-restart stale paths counted (FRR, SONiC), labeled-unicast sessions read as empty (FRR, SONiC), `record` guards missing in VRFs, a ping source of the other address family, and a duplicate key in a YAML merge; see the [0.4.2 advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.2-addpath-prefix-count/README.md). Cases 1 and 2 of the 0.4.1 advisory remained, with workarounds (fixed in 0.4.3) |
 | [0.4.1](https://github.com/netdryrun/Netdryrun/releases/tag/v0.4.1) | 2026-11-09 | The false-pass release: fixes for [GHSA-cg9f-xjw5-38ph](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-cg9f-xjw5-38ph) and [GHSA-g4f6-4624-2pjv](https://github.com/netdryrun/Netdryrun/security/advisories/GHSA-g4f6-4624-2pjv); Cisco NX-OS and MikroTik RouterOS, beta. Four known false passes remain, published with workarounds ([advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.1-known-false-passes/README.md)) |
 | [0.4.0](https://github.com/netdryrun/Netdryrun/releases/tag/v0.4.0) | 2026-10-31 | `verify_change` on FRR: declare what you meant to change, and anything else that changes in the routing state fails |
@@ -5638,13 +5639,11 @@ Source: https://netdryrun.com/roadmap/
 
 ## Next
 
-- **0.4.3: in its release gate, not published yet.** Until it is on PyPI and GitHub, 0.4.2 is the current release. A fix release: cases 1 and 2 of the [0.4.1 advisory](https://github.com/netdryrun/Netdryrun/blob/main/advisories/0.4.1-known-false-passes/README.md) (Arista EOS routes that lost route selection, SR Linux EVPN type-5 routes imported into an ip-vrf), the node's own BGP aggregate on Arista EOS (now `bgp`, selected or not; `protocol: aggregate` is refused on EOS), FRR's import check at boot (a `network` prefix announced with no route behind it, the cause of the corpus v2 case 18 race), checks on BGP-unnumbered sessions named by their interface (FRR), and PyYAML 6.0.4 excluded. New limits: `bgp_route` in an SR Linux EVPN ip-vrf without PE-CE BGP is not evaluated (fail-closed), and the import-check reset can briefly announce an unbacked prefix to a peer
-- **0.4.4: the false-pass backlog and a stricter, faster release gate.** Every known false pass and every suspected one is fixed, or settled by a live reproduction, before release; anything not settled ships as a disclosed limit with its workaround. The gate itself gets harder to fool (an ordered, tamper-evident command log, versioned allowlist entries bound to lab captures, red-team cases that must fail for the right reason) and faster for fixes (recorded lab reads replayed offline, layers scoped to what a change can reach, a full uncached run at every x.y.0).
+- **0.4.4: one router-state contract** shared by the drivers that already pass the gate, so a check means the same thing on every OS.
 - **Limits still open after 0.4.3**, each listed with its workaround on the [trust page](trust.md) or in the [configuration reference](reference/config.md): the node's own exported prefix on SR Linux and Junos (RT-0048), a narrow attributable proof for a prefix-limit reset, a route that takes one advertisement interval per hop, the EOS `out-delay`, the NX-OS FIB state, the two FRR config-comparison limits, reading an empty AS path on SR Linux exactly in `record --attributes`, and `bgp_route` in an SR Linux EVPN ip-vrf without PE-CE BGP (not evaluated, never a pass). They are not assigned to a release yet; each fix comes with a reproducing test written first.
 
 ## Later (in this order, current plan)
 
-- **One router-state contract** shared by the drivers that already pass the gate, so a check means the same thing on every OS.
 - **Cumulus Linux, beta.**
 - **0.5: check strength and signed verdict receipts.** [Check strength](disclosures/check-strength.md) runs a lab's checks against known-bad variants of the network and lists the ones every check still passes. A receipt records what was checked, the verdict, the evidence and how strong the checks were, so a reviewer can verify it offline.
 - **0.6: hosted verification, beta.** Run a verdict without local Docker. The Apache-2.0 CLI, Action and MCP server stay the product and stay free.
@@ -5667,7 +5666,7 @@ Netdryrun™ is open source under the [Apache License 2.0](https://github.com/ne
 - Releases are built and published by a GitHub Actions workflow when a version tag (`v*`) is pushed. The workflow checks that the tag matches the package version before building.
 - Packages are uploaded to [PyPI](https://pypi.org/project/netdryrun/) with **Trusted Publishing** (OpenID Connect). No PyPI token or password is stored in the repository or its secrets; PyPI accepts the upload because it comes from that workflow in that repository.
 - The same workflow creates a GitHub release with the built files attached.
-- The GitHub Action (`netdryrun/Netdryrun@v0.4.2`) installs Netdryrun from the action's own source at the tag you reference. Pin a tag or a commit SHA.
+- The GitHub Action (`netdryrun/Netdryrun@v0.4.3`) installs Netdryrun from the action's own source at the tag you reference. Pin a tag or a commit SHA.
 
 ## Reporting a security issue
 
@@ -5729,7 +5728,7 @@ A Netdryrun pass means the change behaved correctly in a lab. The lab runs real 
 - **Timing at scale.** Convergence time in a small lab says little about convergence time in a large production network.
 
 
-Version 0.4.2 also covers only BGP (IPv4/IPv6 unicast), routes, BGP best-path attributes and ping, plus link-down, node-isolation and route-injection (FRR only) failure scenarios. OSPF/IS-IS adjacencies and path checks are not covered yet.
+Version 0.4.3 also covers only BGP (IPv4/IPv6 unicast), routes, BGP best-path attributes and ping, plus link-down, node-isolation and route-injection (FRR only) failure scenarios. OSPF/IS-IS adjacencies and path checks are not covered yet.
 
 
 ## Running untrusted labs
