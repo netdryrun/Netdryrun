@@ -1,0 +1,13 @@
+Current BGP import check cache:
+ 10.1.1.0 valid [IGP metric 0], #paths 1
+  Resolved prefix 10.1.1.0/24
+  if lo
+  Last update: Tue Nov 24 23:00:00 2026
+  Paths:
+    1/1 10.1.1.0/24 VRF default flags 0x18
+ 10.1.2.0 valid [IGP metric 0], #paths 1
+  Resolved prefix 10.1.2.0/24
+  if lo
+  Last update: Tue Nov 24 23:00:00 2026
+  Paths:
+    1/1 10.1.2.0/24 VRF default flags 0x18

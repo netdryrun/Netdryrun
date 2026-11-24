@@ -1,0 +1,13 @@
+Current BGP import check cache:
+ 10.3.1.0 valid [IGP metric 0], #paths 1
+  Resolved prefix 10.3.1.0/24
+  if lo, ifindex 1
+  Last update: Tue Nov 24 23:00:47 2026
+  Paths:
+    1/1 10.3.1.0/24 VRF default flags 0x18
+ 2001:db8:3:: valid [IGP metric 0], #paths 1
+  Resolved prefix 2001:db8:3::/64
+  if lo, ifindex 1
+  Last update: Tue Nov 24 23:00:47 2026
+  Paths:
+    2/1 2001:db8:3::/64 VRF default flags 0x18

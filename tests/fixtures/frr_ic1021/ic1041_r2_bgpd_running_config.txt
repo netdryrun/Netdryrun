@@ -1,0 +1,25 @@
+Building configuration...
+
+Current configuration:
+!
+frr version 10.4.1_git
+frr defaults traditional
+hostname r2
+domainname localdomain
+service integrated-vtysh-config
+!
+router bgp 65000
+ bgp router-id 10.0.0.2
+ no bgp ebgp-requires-policy
+ timers bgp 3 9
+ neighbor eth1 interface remote-as external
+ neighbor eth1 advertisement-interval 0
+ neighbor eth2 interface remote-as external
+ neighbor eth2 advertisement-interval 0
+ !
+ address-family ipv6 unicast
+  neighbor eth2 activate
+ exit-address-family
+exit
+!
+end

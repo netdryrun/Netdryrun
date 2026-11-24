@@ -1,0 +1,9 @@
+2026-11-25T06:59:59+08:00 [ic1021] deployed 1021
+2026-11-25T07:00:46+08:00 [ic1021] 1021 r1 if-lines: 2  sample:   if lo|  if lo|
+2026-11-25T07:00:47+08:00 [ic1021] destroyed 1021
+2026-11-25T07:00:48+08:00 [ic1021] deployed 1041
+2026-11-25T07:01:35+08:00 [ic1021] 1041 r1 if-lines: 2  sample:   if lo, ifindex 1|  if lo, ifindex 1|
+2026-11-25T07:01:36+08:00 [ic1021] destroyed 1041
+2026-11-25T07:03:40+08:00 [ic1021] record --deploy on 10.2.1 with b046245: exit 2; lab error: could not read every FRR router's BGP import check within 120s, so whether the lab announces only what its routes back is unknown: r1: `show bgp import-check-table detail`: a line this check doesn't know: '  if lo'; r3: `show bgp import-check-table detail`: a line this check doesn't know:
+2026-11-25T07:03:40+08:00 [ic1021] done
+2026-11-25T07:03:40+08:00 [ic1021] lock released

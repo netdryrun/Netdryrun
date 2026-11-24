@@ -1116,3 +1116,36 @@
     19's edit, built by corpus/run.py. Copied with the scratch folder the loops ran from replaced by the script's own
     folder, and the clone, work folder and Python of the session replaced by REPO, WORK and PY
   added: oracle/mgmt-nh
+- files: ['frr_ic1021/ic1021_*.txt']
+  kind: live-capture
+  source: >-
+    FRR 10.2.1 (quay.io/frrouting/frr@sha256:e47e67bd612030cb1bedee2bde85b73913f2ea021573b749deb21d94940f03c1),
+    containerlab 0.81.1, the laptop's WSL, 2026-11-24 23:00 UTC (2026-11-25, about 06:00 Thailand time): lab
+    ndr-unnsess (unnsesschk_lab.clab.yml with its image line replaced by this digest, its committed r1-r3 frr.conf,
+    and a daemons file enabling zebra, bgpd and staticd), read 45 s after deploy. Each file is one router's answer
+    (stdout and stderr together) to `docker exec clab-ndr-unnsess-<r> vtysh -c <command>`, or `vtysh -d bgpd -c
+    show running-config`, as logged in frr_ic1021/capture-cmds.txt: show version, show bgp vrfs json, show bgp
+    import-check-table detail (text and json), bgpd's running config. The interface next-hop line is `  if lo`.
+    Captured for oracle FP-043-FRRIC1021
+  added: ndr/oracle-ic1021
+- files: ['frr_ic1021/ic1041_*.txt']
+  kind: live-capture
+  source: >-
+    FRR 10.4.1 (quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442),
+    the same lab redeployed with this image, the same run, commands and timing as the 10.2.1 set (2026-11-24 23:01
+    UTC). The interface next-hop line is `  if lo, ifindex 1`. Captured for oracle FP-043-FRRIC1021
+  added: ndr/oracle-ic1021
+- files: [frr_ic1021/capture-cmds.txt, frr_ic1021/capture.log]
+  kind: live-capture
+  source: >-
+    the capture run's own logs for the two sets above, as the unnsesschk captures keep theirs: capture-cmds.txt (UTC
+    time, container, rc and command behind each file) and capture.log (the run log; the WSL clock printed +08:00 for
+    the same instants). The script (not kept) deployed each version, slept 45 s, captured, destroyed, then ran the
+    record below
+  added: ndr/oracle-ic1021
+- files: [frr_ic1021/record1021-b046245.log]
+  kind: report
+  source: >-
+    the stdout and stderr of `netdryrun record lab.clab.yml --deploy` (netdryrun b046245, the 0.4.3 release
+    candidate) on the 10.2.1 lab of the same run, deployed fresh: exit 2, the import-check lab error for r1 and r3
+  added: ndr/oracle-ic1021

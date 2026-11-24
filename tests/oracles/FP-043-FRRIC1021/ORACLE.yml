@@ -1,0 +1,44 @@
+id: FP-043-FRRIC1021
+bug: >-
+  On FRR 10.2.1 the FRR import check refuses the interface next-hop line of `show bgp import-check-table detail`
+  (10.2.1 prints `  if lo`, 10.4.1 `  if lo, ifindex 1`; the parser knows only the 10.4.1 form), so a lab whose
+  `network` statements resolve over an interface (a loopback, an unnumbered link) ends `record`, `run` and `check` in
+  a lab error (exit 2, "a line this check doesn't know: '  if lo'") with no verdict; first met by an outside public
+  lab on FRR 10.2.1 ("'  if eth3'"), reproduced live on the committed unnumbered lab
+evidence:
+  - tests/fixtures/frr_ic1021/capture-cmds.txt
+  - tests/fixtures/frr_ic1021/capture.log
+  - tests/fixtures/frr_ic1021/record1021-b046245.log
+  - tests/fixtures/frr_ic1021/ic1021_r1_bgpd_running_config.txt
+  - tests/fixtures/frr_ic1021/ic1021_r1_show_bgp_importchecktable_detail.txt
+  - tests/fixtures/frr_ic1021/ic1021_r1_show_bgp_importchecktable_detail_json.txt
+  - tests/fixtures/frr_ic1021/ic1021_r1_show_bgp_vrfs_json.txt
+  - tests/fixtures/frr_ic1021/ic1021_r1_show_version.txt
+  - tests/fixtures/frr_ic1021/ic1021_r2_bgpd_running_config.txt
+  - tests/fixtures/frr_ic1021/ic1021_r2_show_bgp_importchecktable_detail.txt
+  - tests/fixtures/frr_ic1021/ic1021_r2_show_bgp_importchecktable_detail_json.txt
+  - tests/fixtures/frr_ic1021/ic1021_r2_show_bgp_vrfs_json.txt
+  - tests/fixtures/frr_ic1021/ic1021_r2_show_version.txt
+  - tests/fixtures/frr_ic1021/ic1021_r3_bgpd_running_config.txt
+  - tests/fixtures/frr_ic1021/ic1021_r3_show_bgp_importchecktable_detail.txt
+  - tests/fixtures/frr_ic1021/ic1021_r3_show_bgp_importchecktable_detail_json.txt
+  - tests/fixtures/frr_ic1021/ic1021_r3_show_bgp_vrfs_json.txt
+  - tests/fixtures/frr_ic1021/ic1021_r3_show_version.txt
+  - tests/fixtures/frr_ic1021/ic1041_r1_bgpd_running_config.txt
+  - tests/fixtures/frr_ic1021/ic1041_r1_show_bgp_importchecktable_detail.txt
+  - tests/fixtures/frr_ic1021/ic1041_r1_show_bgp_importchecktable_detail_json.txt
+  - tests/fixtures/frr_ic1021/ic1041_r1_show_bgp_vrfs_json.txt
+  - tests/fixtures/frr_ic1021/ic1041_r1_show_version.txt
+  - tests/fixtures/frr_ic1021/ic1041_r2_bgpd_running_config.txt
+  - tests/fixtures/frr_ic1021/ic1041_r2_show_bgp_importchecktable_detail.txt
+  - tests/fixtures/frr_ic1021/ic1041_r2_show_bgp_importchecktable_detail_json.txt
+  - tests/fixtures/frr_ic1021/ic1041_r2_show_bgp_vrfs_json.txt
+  - tests/fixtures/frr_ic1021/ic1041_r2_show_version.txt
+  - tests/fixtures/frr_ic1021/ic1041_r3_bgpd_running_config.txt
+  - tests/fixtures/frr_ic1021/ic1041_r3_show_bgp_importchecktable_detail.txt
+  - tests/fixtures/frr_ic1021/ic1041_r3_show_bgp_importchecktable_detail_json.txt
+  - tests/fixtures/frr_ic1021/ic1041_r3_show_bgp_vrfs_json.txt
+  - tests/fixtures/frr_ic1021/ic1041_r3_show_version.txt
+  - tests/fixtures/SOURCES.yml
+  - tests/test_oracle_guards_fp_043_frric1021.py
+plant: plant.diff
