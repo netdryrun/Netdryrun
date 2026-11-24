@@ -27,6 +27,10 @@
 
 ### Known limits
 
+- **`verify` with `goes: added`: attributes outside the compared set are not checked.** Without `with:`, the new
+  advertisement's AS path, origin, MED, communities and local preference must equal the best path's; an outbound
+  policy that sets AIGP, OTC, a label or a SID is not caught (FRR 10.4.1 shows the AIGP in its advertised routes,
+  live). Found by the 0.4.3 red team; fix planned for 0.4.4.
 - **SR Linux EVPN: `bgp_route` checks in a type-5 ip-vrf without PE-CE BGP come out not evaluated** (fail-closed,
   never a pass). `netdryrun check`'s convergence gate can't read SR Linux's EVPN BGP state in the default
   network-instance, so on a leaf whose only BGP is EVPN it never sees BGP converge, and post-convergence checks there
@@ -110,7 +114,8 @@
     delay-timer 0` bgpd never applies a route-map change, wherever the map is defined, so such a network is an error
     that says to remove the timer: the lab could withhold a prefix production announces. A delay longer than the time limit is an error that says
     so. An instance whose VRF
-    has no device is accepted when nothing in it is valid. A router with `bgpd=no` is skipped when vtysh, the
+    has no device is accepted when nothing in it is valid. The table's text answer is read in both FRR 10.2's and
+    FRR 10.4's form (10.2 prints an interface next hop without its ifindex; live captures of both). A router with `bgpd=no` is skipped when vtysh, the
     daemons file and the process list all say bgpd isn't running, so such a lab stays inconclusive (exit `3`).
   - `verify` reads `nodes.<node>.driver` from the guards file for this check, as `run` does. `record --deploy` and
     the MCP tool `record_baseline` remedy before recording and check again after; a stuck router then writes no

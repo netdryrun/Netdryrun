@@ -4223,7 +4223,7 @@ intent:
 
 `to:` follows the `best_path_on` rule (listed exact, the rest frozen); `from` can't be set.
 
-`goes: added` has an attribute limit too. **Without `with:`**, the new advertisement must carry the node's own best path for the prefix: no outbound rewrite. Its AS path, origin, MED, communities (standard, extended and large) and, where it is sent, local preference must equal the best path's. **With `with:`**, the listed attributes must equal the given values, and the rest still equal the best path's:
+`goes: added` has an attribute limit too. **Without `with:`**, the new advertisement must carry the node's own best path for the prefix: no outbound rewrite. Its AS path, origin, MED, communities (standard, extended and large) and, where it is sent, local preference must equal the best path's. Other attributes are not compared in 0.4.3: an outbound policy that sets AIGP (`set aigp-metric`), OTC, a label or a SID on the new advertisement is not caught (FRR shows the AIGP in its advertised routes; live, 0.4.3). Fix planned for 0.4.4. **With `with:`**, the listed attributes must equal the given values, and the rest still equal the best path's:
 
 ```yaml
 intent:
