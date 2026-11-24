@@ -87,7 +87,7 @@ _BGPD_LOADING = re.compile(r"^\[(\d+)\|bgpd\] sending configuration$", re.M)
 _TEXT_HEADER = "Current BGP import check cache:"
 _TEXT_ENTRY = re.compile(r"^ (?:SR-TE color \d+ - )?(\S+) (valid \[IGP metric \d+\]|invalid), #paths (\d+)"
                          r"(?:, peer \S+)?(?: EVPN Gateway IP)?$")
-_TEXT_DETAIL = re.compile(r"^  (?:Must be Connected|Resolved prefix \S+|gate \S+.*|if \S+, ifindex \d+|blackhole"
+_TEXT_DETAIL = re.compile(r"^  (?:Must be Connected|Resolved prefix \S+|gate \S+.*|if \S+(?:, ifindex \d+)?|blackhole"
                           r"|Last update: .*|Paths:)$")
 _TEXT_PATH = re.compile(r"^    (\d+)/(\d+) (\S+)(?: RD \S+)? (?:VRF|View) (\S+) flags 0x([0-9a-fA-F]+)$")
 NOT_REGISTERED = "  Is not Registered"
