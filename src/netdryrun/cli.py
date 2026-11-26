@@ -180,7 +180,9 @@ def _cmd_record(args) -> int:
         if args.deploy:
             print(f"Deploying lab {lab.name}, then waiting {args.wait:g}s for the network to converge...", flush=True)
             lab.deploy()
-            _await_vm_nodes(lab, drivers)
+            # a VM NOS that boots longer than READY_BUDGET (NX-OS 9000v: 318-341 s, 2026-11-27) is waited for as
+            # long as the user's --wait, so the README's `--wait 900` covers the boot as it says
+            _await_vm_nodes(lab, drivers, budget=max(_mgmt_ready_budget(), args.wait))
             # every FRR router's `network` statements registered with zebra before anything is recorded, remedied on
             # this lab it deployed: a stuck one would be recorded as a route the change must keep (FP-043-FRRIMPORTCHK)
             routers = frr_import_check.candidates(lab, driver_resolver(drivers))
@@ -227,10 +229,15 @@ def _cmd_record(args) -> int:
     return 0
 
 
-def _await_vm_nodes(lab, drivers: dict[str, str]) -> None:
+def _mgmt_ready_budget() -> float:
+    from . import mgmt
+    return mgmt.READY_BUDGET
+
+
+def _await_vm_nodes(lab, drivers: dict[str, str], budget: float | None = None) -> None:
     """After `record --deploy`: a VM NOS boots for minutes after its container starts. Wait, as before the checks
-    (mgmt.READY_BUDGET), until each VM node's driver answers a BGP read; never answering is a lab error (exit 2).
-    The convergence wait (--wait) starts after."""
+    (mgmt.READY_BUDGET, or `budget` when given: record passes the larger of it and --wait), until each VM node's
+    driver answers a BGP read; never answering is a lab error (exit 2). The convergence wait (--wait) starts after."""
     import time
 
     from . import mgmt
@@ -250,8 +257,9 @@ def _await_vm_nodes(lab, drivers: dict[str, str]) -> None:
             drv = for_node(lab, name, drivers.get(name))
         except DriverError:
             continue   # no driver chosen for it: record says so
-        print(f"Waiting for {name} to answer (up to {mgmt.READY_BUDGET:g}s)...", flush=True)
-        mgmt._await_answer(lambda d=drv: answers(d), name, time.sleep,
+        limit = mgmt.READY_BUDGET if budget is None else budget
+        print(f"Waiting for {name} to answer (up to {limit:g}s)...", flush=True)
+        mgmt._await_answer(lambda d=drv: answers(d), name, time.sleep, budget=limit,
                            what=f"{name} can't be recorded")
 
 
@@ -434,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     p_rec.add_argument("--out", metavar="FILE", help="where to write (default: netdryrun.yml next to the topology)")
     p_rec.add_argument("--deploy", action="store_true", help="deploy the lab first and destroy it afterwards")
     p_rec.add_argument("--wait", type=_seconds, default=45.0, help="with --deploy: seconds to let BGP converge (default "
-                       "45), after every VM node answers")
+                       "45), after every VM node answers; a VM node gets the larger of 300 s and this to answer")
     p_rec.add_argument("--no-bgp", action="append", metavar="NODE",
                        help="a node that runs no BGP: its 'no BGP instance' answer is expected, not a gap (repeat per node)")
     p_rec.add_argument("--driver", action="append", metavar="NODE=DRIVER",

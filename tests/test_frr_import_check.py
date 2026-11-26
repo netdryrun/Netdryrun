@@ -758,7 +758,7 @@ def _record_deploy(monkeypatch, tmp_path, guard):
     topo = tmp_path / "t.clab.yml"
     topo.write_text("name: t\n")
     monkeypatch.setattr(labmod, "Lab", DeployLab)
-    monkeypatch.setattr(cli, "_await_vm_nodes", lambda lab, drivers: events.append("vm wait"))
+    monkeypatch.setattr(cli, "_await_vm_nodes", lambda lab, drivers, **kw: events.append("vm wait"))
     monkeypatch.setattr("time.sleep", lambda s: events.append(f"sleep {s:g}"))
     monkeypatch.setattr(recmod, "record", lambda *a, **k: (events.append("record") or (
         {"lab": "t", "timeout": 120, "checks": [{"type": "route", "node": "r1", "prefix": "192.0.2.0/24"}]}, [])))

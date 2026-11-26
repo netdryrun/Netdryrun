@@ -54,6 +54,13 @@
 
 ### Fixed
 
+- **`record --deploy --wait N` now waits up to N seconds for a VM NOS to answer, as the NX-OS README says.** Since
+  0.4.1 `record --deploy` waits for each VM node to answer a BGP read before its convergence wait, but that wait was
+  fixed at 300 s whatever `--wait` said. A Nexus 9000v that boots in 318 to 341 s (three fresh boots measured on the
+  0.4.3 acceptance host) was a lab error (exit `2`) even with the README's `--wait 900`. A VM node now gets the
+  larger of 300 s and `--wait`; one that never answers in that time is still a lab error, and nothing is written.
+  This was a false fail, never a false pass: no baseline was written.
+
 - **A routing protocol's route over Docker's management default no longer ends the run before that default is
   deleted (Linux kinds; measured live on FRR).** When a BGP next hop no lab route covers resolved over Docker's default
   (`198.51.100.0/24 via 172.20.20.1 dev eth0 proto bgp`), the run stopped with "a route out over the management
