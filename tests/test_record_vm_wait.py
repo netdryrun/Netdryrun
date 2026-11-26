@@ -3,8 +3,6 @@
 mustfail, three fresh boots measured) was a lab error even with the README's `--wait 900`. A VM node now gets the
 larger of READY_BUDGET and --wait. Tested through `netdryrun record` itself, so these fail on the old code by
 behaviour (exit 2), not by a signature."""
-import pytest
-
 from netdryrun import cli, lab as labmod, mgmt, record as recmod
 from netdryrun.drivers import frr_import_check as ic
 from netdryrun.lab import LabError
