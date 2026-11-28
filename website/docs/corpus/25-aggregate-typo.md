@@ -56,4 +56,4 @@ On Linux or WSL2 with Docker and containerlab, from a checkout of the repository
 python corpus/run.py --case 25
 ```
 
-Case file: [`corpus/cases/25-aggregate-typo.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/25-aggregate-typo.yml). Published result: netdryrun 0.4.3, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `5cad91f`, run on 2026-11-23.
+Case file: [`corpus/cases/25-aggregate-typo.yml`](https://github.com/netdryrun/Netdryrun/blob/main/corpus/cases/25-aggregate-typo.yml). Published result: netdryrun 0.4.3, containerlab 0.81.1, FRR `quay.io/frrouting/frr:10.4.1`, commit `unknown`, run on 2026-11-28.

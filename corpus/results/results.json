@@ -1,14 +1,14 @@
 {
   "schema": "netdryrun.corpus/v1",
   "environment": {
-    "generated": "2026-11-23T01:39:23+00:00",
+    "generated": "2026-11-28T03:53:18+00:00",
     "netdryrun": "0.4.3",
     "containerlab": "0.81.1",
     "frr_image": "quay.io/frrouting/frr:10.4.1",
     "frr_image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
     "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-    "commit": "5cad91f",
-    "verdict_tree": "6fe155a21b0458df89cfa9c139c6fb2010b0327034e72d4b957a97b2ece93d34"
+    "commit": "unknown",
+    "verdict_tree": "187a23115bb3e73a2ad25fdeb10841e6fda59ad13d257471e45b8ff7d029b9d9"
   },
   "cases": [
     {
@@ -53,7 +53,7 @@
         },
         "error": null
       },
-      "seconds": 187
+      "seconds": 285
     },
     {
       "id": "02-med-to-upstream",
@@ -98,11 +98,11 @@
           "pe1": "registered",
           "pe2": "registered",
           "peer1": "registered",
-          "up1": "registered"
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 180
+      "seconds": 322
     },
     {
       "id": "03-prepend-to-peer",
@@ -143,15 +143,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 194
+      "seconds": 142
     },
     {
       "id": "04-tag-community-upstream",
@@ -192,15 +192,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 141
+      "seconds": 148
     },
     {
       "id": "05-description-only",
@@ -242,15 +242,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "pe1": "registered",
           "pe2": "registered",
-          "peer1": "registered",
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
           "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 148
+      "seconds": 126
     },
     {
       "id": "06-customer-adds-prefix",
@@ -295,14 +295,14 @@
       "import_check": {
         "routers": {
           "ce1": "registered",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "pe1": "registered",
           "pe2": "registered",
           "peer1": "registered",
           "up1": "registered"
         },
         "error": null
       },
-      "seconds": 139
+      "seconds": 118
     },
     {
       "id": "07-tighten-max-prefix",
@@ -344,15 +344,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
-          "pe1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 133
+      "seconds": 128
     },
     {
       "id": "08-upstream-timers",
@@ -393,15 +393,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 137
+      "seconds": 130
     },
     {
       "id": "09-customer-localpref",
@@ -444,14 +444,14 @@
       "import_check": {
         "routers": {
           "ce1": "registered",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "pe1": "registered",
           "pe2": "registered",
           "peer1": "registered",
           "up1": "registered"
         },
         "error": null
       },
-      "seconds": 136
+      "seconds": 128
     },
     {
       "id": "10-transit-export-filter-removed",
@@ -497,14 +497,14 @@
       "import_check": {
         "routers": {
           "ce1": "registered",
-          "pe1": "registered",
+          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
           "peer1": "registered",
-          "up1": "registered"
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 142
+      "seconds": 129
     },
     {
       "id": "11-peer-export-filter-removed",
@@ -562,7 +562,7 @@
         },
         "error": null
       },
-      "seconds": 140
+      "seconds": 139
     },
     {
       "id": "12-ibgp-send-community-dropped",
@@ -604,15 +604,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 145
+      "seconds": 127
     },
     {
       "id": "13-upstream-asn-typo",
@@ -667,15 +667,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
+          "pe1": "registered",
           "pe2": "registered",
           "peer1": "registered",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 464
+      "seconds": 455
     },
     {
       "id": "14-peer-session-shutdown",
@@ -729,15 +729,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
+          "pe1": "registered",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 469
+      "seconds": 471
     },
     {
       "id": "15-customer-filter-too-strict",
@@ -797,7 +797,7 @@
         },
         "error": null
       },
-      "seconds": 346
+      "seconds": 322
     },
     {
       "id": "16-mass-withdrawal",
@@ -846,15 +846,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "peer1": "registered",
           "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 331
+      "seconds": 326
     },
     {
       "id": "17-default-leaked-to-peer",
@@ -898,15 +898,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "registered",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "registered"
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 141
+      "seconds": 125
     },
     {
       "id": "18-redistribute-connected",
@@ -950,12 +950,12 @@
           "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 139
+      "seconds": 125
     },
     {
       "id": "19-nexthop-self-removed",
@@ -1001,15 +1001,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 335
+      "seconds": 293
     },
     {
       "id": "20-ibgp-shutdown",
@@ -1062,14 +1062,14 @@
       "import_check": {
         "routers": {
           "ce1": "registered",
-          "pe1": "registered",
+          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 604
+      "seconds": 503
     },
     {
       "id": "21-customer-max-prefix-removed",
@@ -1111,7 +1111,7 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
@@ -1119,7 +1119,7 @@
         },
         "error": null
       },
-      "seconds": 284
+      "seconds": 126
     },
     {
       "id": "22-customer-leaks-third-party",
@@ -1160,15 +1160,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 8.8.8.0/24 in 'router bgp 65100' is not registered with zebra; 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
           "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 151
+      "seconds": 126
     },
     {
       "id": "23-fat-finger-third-party-origin",
@@ -1217,7 +1217,7 @@
         },
         "error": null
       },
-      "seconds": 145
+      "seconds": 125
     },
     {
       "id": "24-customer-blackholed",
@@ -1273,7 +1273,7 @@
         },
         "error": null
       },
-      "seconds": 298
+      "seconds": 296
     },
     {
       "id": "25-aggregate-typo",
@@ -1328,7 +1328,7 @@
         },
         "error": null
       },
-      "seconds": 243
+      "seconds": 268
     },
     {
       "id": "26-route-map-order-bug",
@@ -1373,15 +1373,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 184
+      "seconds": 141
     },
     {
       "id": "27-local-asn-typo",
@@ -1446,7 +1446,7 @@
         },
         "error": null
       },
-      "seconds": 506
+      "seconds": 525
     },
     {
       "id": "28-customer-import-policy-removed",
@@ -1498,15 +1498,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
-          "pe1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 358
+      "seconds": 411
     },
     {
       "id": "29-graceful-restart",
@@ -1548,14 +1548,14 @@
       "import_check": {
         "routers": {
           "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
-          "pe1": "registered",
+          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 178
+      "seconds": 219
     },
     {
       "id": "30-peer-import-filter-removed",
@@ -1604,12 +1604,12 @@
           "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "peer1": "registered",
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 159
+      "seconds": 214
     }
   ]
 }

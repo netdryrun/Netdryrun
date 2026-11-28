@@ -1,14 +1,14 @@
 {
   "schema": "netdryrun.corpus/v1",
   "environment": {
-    "generated": "2026-11-22T22:58:09+00:00",
+    "generated": "2026-11-28T05:55:04+00:00",
     "netdryrun": "0.4.3",
     "containerlab": "0.81.1",
     "frr_image": "quay.io/frrouting/frr:10.4.1",
     "frr_image_digest": "quay.io/frrouting/frr@sha256:97a281a1473cae1f762ceab87cbcc53a2e102053877421e8b4606422aae45442",
     "host": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
-    "commit": "5cad91f",
-    "verdict_tree": "6fe155a21b0458df89cfa9c139c6fb2010b0327034e72d4b957a97b2ece93d34",
+    "commit": "unknown",
+    "verdict_tree": "187a23115bb3e73a2ad25fdeb10841e6fda59ad13d257471e45b8ff7d029b9d9",
     "corpus": "v2",
     "rerun_args": " --corpus v2"
   },
@@ -50,15 +50,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "registered"
+          "peer1": "registered",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 379
+      "seconds": 432
     },
     {
       "id": "02-redistribute-connected-pe2",
@@ -105,15 +105,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
           "peer1": "registered",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 370
+      "seconds": 378
     },
     {
       "id": "03-test-prefix-left-in-config",
@@ -166,7 +166,7 @@
         },
         "error": null
       },
-      "seconds": 372
+      "seconds": 378
     },
     {
       "id": "04-redundant-aggregate-typo",
@@ -213,12 +213,12 @@
           "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "remedied: 192.0.12.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
-          "peer1": "registered",
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
           "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 391
+      "seconds": 387
     },
     {
       "id": "05-customer-max-prefix-removed",
@@ -263,15 +263,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "pe1": "registered",
           "pe2": "registered",
           "peer1": "registered",
           "up1": "registered"
         },
         "error": null
       },
-      "seconds": 212
+      "seconds": 231
     },
     {
       "id": "06-peer-import-filter-permit-all",
@@ -331,7 +331,7 @@
         },
         "error": null
       },
-      "seconds": 353
+      "seconds": 354
     },
     {
       "id": "07-customer-adds-prefixes",
@@ -375,15 +375,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; 10.100.1.0/24 in 'router bgp 65100' is not registered with zebra; 10.100.2.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "registered",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 375
+      "seconds": 377
     },
     {
       "id": "08-customer-announces-aggregate",
@@ -435,7 +435,7 @@
         },
         "error": null
       },
-      "seconds": 378
+      "seconds": 380
     },
     {
       "id": "09-ibgp-send-community-line-removed",
@@ -481,14 +481,14 @@
       "import_check": {
         "routers": {
           "ce1": "registered",
-          "pe1": "registered",
+          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 369
+      "seconds": 379
     },
     {
       "id": "10-ibgp-standard-communities-disabled",
@@ -538,15 +538,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "peer1": "registered",
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 573
+      "seconds": 604
     },
     {
       "id": "11-customer-max-prefix-warning-only",
@@ -594,12 +594,12 @@
           "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
           "up1": "registered"
         },
         "error": null
       },
-      "seconds": 212
+      "seconds": 222
     },
     {
       "id": "12-customer-max-prefix-raised",
@@ -644,7 +644,7 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
@@ -652,7 +652,7 @@
         },
         "error": null
       },
-      "seconds": 412
+      "seconds": 383
     },
     {
       "id": "13-upstream-routes-tagged-as-customer",
@@ -699,15 +699,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "ce1": "registered",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 434
+      "seconds": 376
     },
     {
       "id": "14-customer-gets-default-only",
@@ -761,12 +761,12 @@
           "ce1": "registered",
           "pe1": "registered",
           "pe2": "registered",
-          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "peer1": "registered",
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 461
+      "seconds": 465
     },
     {
       "id": "15-upstream-default-filtered",
@@ -811,15 +811,15 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
-          "pe1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "registered"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
         },
         "error": null
       },
-      "seconds": 451
+      "seconds": 464
     },
     {
       "id": "16-customer-session-peer-group",
@@ -869,7 +869,7 @@
       },
       "import_check": {
         "routers": {
-          "ce1": "registered",
+          "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
           "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
           "pe2": "registered",
           "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
@@ -877,7 +877,7 @@
         },
         "error": null
       },
-      "seconds": 385
+      "seconds": 383
     },
     {
       "id": "17-customer-region-community",
@@ -923,14 +923,14 @@
       "import_check": {
         "routers": {
           "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "pe1": "registered",
           "pe2": "registered",
-          "peer1": "registered",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 384
+      "seconds": 375
     },
     {
       "id": "18-aggregate-discard-route-removed",
@@ -980,14 +980,14 @@
       "import_check": {
         "routers": {
           "ce1": "registered",
-          "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+          "pe1": "registered",
           "pe2": "registered",
-          "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-          "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+          "peer1": "registered",
+          "up1": "registered"
         },
         "error": null
       },
-      "seconds": 527,
+      "seconds": 482,
       "nondeterministic": true,
       "runs": [
         {
@@ -1017,102 +1017,6 @@
         }
       ],
       "run_details": [
-        {
-          "import_check": {
-            "routers": {
-              "ce1": "registered",
-              "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
-              "pe2": "registered",
-              "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-              "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
-            },
-            "error": null
-          },
-          "ping": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "customer reaches upstream",
-              "customer reaches peer"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "sessions": {
-            "status": "passed",
-            "failed_checks": [],
-            "passed_checks": [
-              "pe1-ce1 up",
-              "pe1-up1 up",
-              "pe1-pe2 up",
-              "pe2-peer1 up"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          },
-          "netdryrun": {
-            "status": "failed",
-            "failed_checks": [
-              "I2 upstream has our aggregate",
-              "I2 peer has our aggregate",
-              "I5 upstream receives 2 to 51 prefixes from us",
-              "I5 peer receives 2 to 51 prefixes from us",
-              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
-              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
-            ],
-            "passed_checks": [
-              "I1 pe1-ce1 session up",
-              "I1 pe1-up1 session up",
-              "I1 pe1-pe2 iBGP up",
-              "I1 pe2-peer1 session up",
-              "I2 upstream has customer route",
-              "I2 peer has customer route",
-              "I3 customer has upstream route",
-              "I3 customer has peer route",
-              "I3 customer has default",
-              "I3 customer reaches upstream",
-              "I3 customer reaches peer",
-              "I4 no peer route leaked to upstream",
-              "I4 no upstream route leaked to peer",
-              "I4 no default leaked to peer",
-              "I6 customer has no BGP route for link 10.0.1.0/30",
-              "I6 customer has no BGP route for link 10.0.2.0/30",
-              "I6 customer has no BGP route for link 10.0.3.0/30",
-              "I6 customer has no BGP route for link 10.0.4.0/30",
-              "I6 customer has no BGP route for pe1 loopback",
-              "I6 customer has no BGP route for pe2 loopback",
-              "I6 upstream has no BGP route for link 10.0.1.0/30",
-              "I6 upstream has no BGP route for link 10.0.2.0/30",
-              "I6 upstream has no BGP route for link 10.0.3.0/30",
-              "I6 upstream has no BGP route for link 10.0.4.0/30",
-              "I6 upstream has no BGP route for pe1 loopback",
-              "I6 upstream has no BGP route for pe2 loopback",
-              "I6 peer has no BGP route for link 10.0.1.0/30",
-              "I6 peer has no BGP route for link 10.0.2.0/30",
-              "I6 peer has no BGP route for link 10.0.3.0/30",
-              "I6 peer has no BGP route for link 10.0.4.0/30",
-              "I6 peer has no BGP route for pe1 loopback",
-              "I6 peer has no BGP route for pe2 loopback",
-              "I7 customer has no route for 1.1.1.0/24",
-              "I7 customer has no route for 8.8.8.0/24",
-              "I7 customer has no route for 9.9.9.0/24",
-              "I7 upstream has no route for 1.1.1.0/24",
-              "I7 upstream has no route for 8.8.8.0/24",
-              "I7 upstream has no route for 9.9.9.0/24",
-              "I7 peer has no route for 1.1.1.0/24",
-              "I7 peer has no route for 8.8.8.0/24",
-              "I7 peer has no route for 9.9.9.0/24",
-              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
-              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
-              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
-            ],
-            "inconclusive_reason": null,
-            "never_left": false,
-            "error": null
-          }
-        },
         {
           "import_check": {
             "routers": {
@@ -1212,10 +1116,10 @@
         {
           "import_check": {
             "routers": {
-              "ce1": "registered",
+              "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
               "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
               "pe2": "registered",
-              "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
+              "peer1": "registered",
               "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
             },
             "error": null
@@ -1309,10 +1213,10 @@
           "import_check": {
             "routers": {
               "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
-              "pe1": "registered",
+              "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
               "pe2": "registered",
               "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-              "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+              "up1": "registered"
             },
             "error": null
           },
@@ -1404,11 +1308,107 @@
         {
           "import_check": {
             "routers": {
-              "ce1": "registered",
+              "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
               "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
               "pe2": "registered",
-              "peer1": "remedied: 198.51.100.0/24 in 'router bgp 65300' is not registered with zebra; registered after the remedy",
-              "up1": "remedied: 203.0.113.0/24 in 'router bgp 65200' is not registered with zebra; registered after the remedy"
+              "peer1": "registered",
+              "up1": "registered"
+            },
+            "error": null
+          },
+          "ping": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "customer reaches upstream",
+              "customer reaches peer"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "sessions": {
+            "status": "passed",
+            "failed_checks": [],
+            "passed_checks": [
+              "pe1-ce1 up",
+              "pe1-up1 up",
+              "pe1-pe2 up",
+              "pe2-peer1 up"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          },
+          "netdryrun": {
+            "status": "failed",
+            "failed_checks": [
+              "I2 upstream has our aggregate",
+              "I2 peer has our aggregate",
+              "I5 upstream receives 2 to 51 prefixes from us",
+              "I5 peer receives 2 to 51 prefixes from us",
+              "[customer floods 200 prefixes] I8 upstream still receives at most 51 prefixes",
+              "[customer floods 200 prefixes] I8 peer still receives at most 51 prefixes"
+            ],
+            "passed_checks": [
+              "I1 pe1-ce1 session up",
+              "I1 pe1-up1 session up",
+              "I1 pe1-pe2 iBGP up",
+              "I1 pe2-peer1 session up",
+              "I2 upstream has customer route",
+              "I2 peer has customer route",
+              "I3 customer has upstream route",
+              "I3 customer has peer route",
+              "I3 customer has default",
+              "I3 customer reaches upstream",
+              "I3 customer reaches peer",
+              "I4 no peer route leaked to upstream",
+              "I4 no upstream route leaked to peer",
+              "I4 no default leaked to peer",
+              "I6 customer has no BGP route for link 10.0.1.0/30",
+              "I6 customer has no BGP route for link 10.0.2.0/30",
+              "I6 customer has no BGP route for link 10.0.3.0/30",
+              "I6 customer has no BGP route for link 10.0.4.0/30",
+              "I6 customer has no BGP route for pe1 loopback",
+              "I6 customer has no BGP route for pe2 loopback",
+              "I6 upstream has no BGP route for link 10.0.1.0/30",
+              "I6 upstream has no BGP route for link 10.0.2.0/30",
+              "I6 upstream has no BGP route for link 10.0.3.0/30",
+              "I6 upstream has no BGP route for link 10.0.4.0/30",
+              "I6 upstream has no BGP route for pe1 loopback",
+              "I6 upstream has no BGP route for pe2 loopback",
+              "I6 peer has no BGP route for link 10.0.1.0/30",
+              "I6 peer has no BGP route for link 10.0.2.0/30",
+              "I6 peer has no BGP route for link 10.0.3.0/30",
+              "I6 peer has no BGP route for link 10.0.4.0/30",
+              "I6 peer has no BGP route for pe1 loopback",
+              "I6 peer has no BGP route for pe2 loopback",
+              "I7 customer has no route for 1.1.1.0/24",
+              "I7 customer has no route for 8.8.8.0/24",
+              "I7 customer has no route for 9.9.9.0/24",
+              "I7 upstream has no route for 1.1.1.0/24",
+              "I7 upstream has no route for 8.8.8.0/24",
+              "I7 upstream has no route for 9.9.9.0/24",
+              "I7 peer has no route for 1.1.1.0/24",
+              "I7 peer has no route for 8.8.8.0/24",
+              "I7 peer has no route for 9.9.9.0/24",
+              "[peer announces routes it does not own] I9 pe2 accepts only the peer's own prefix",
+              "[peer announces routes it does not own] I9 customer gets no hijacking more-specific",
+              "[peer announces routes it does not own] I9 pe1 has no third-party route from the peer"
+            ],
+            "inconclusive_reason": null,
+            "never_left": false,
+            "error": null
+          }
+        },
+        {
+          "import_check": {
+            "routers": {
+              "ce1": "remedied: 10.100.0.0/24 in 'router bgp 65100' is not registered with zebra; registered after the remedy",
+              "pe1": "remedied: 192.0.2.0/24 in 'router bgp 65000' is not registered with zebra; registered after the remedy",
+              "pe2": "registered",
+              "peer1": "registered",
+              "up1": "registered"
             },
             "error": null
           },

@@ -1,6 +1,6 @@
 # Verdict Corpus results
 
-Generated 2026-11-23T01:39:23+00:00 with netdryrun 0.4.3, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `5cad91f`. Rerun everything with `python corpus/run.py`.
+Generated 2026-11-28T03:53:18+00:00 with netdryrun 0.4.3, containerlab 0.81.1, FRR quay.io/frrouting/frr:10.4.1, commit `unknown`. Rerun everything with `python corpus/run.py`.
 
 **Conflict of interest:** the Netdryrun maintainers wrote this corpus and the runner. Expected verdicts were committed before any run (see the git history of `corpus/cases/`). Losses are kept and shown at the same size as the catches.
 
